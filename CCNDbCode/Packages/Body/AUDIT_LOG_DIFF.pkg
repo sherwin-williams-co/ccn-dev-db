@@ -1,0 +1,378 @@
+create or replace
+PACKAGE BODY CCN_AUDIT_PKG as 
+/*********************************************************** 
+This package has procedures and functions related to the audit_log table
+created : 02/29/2012 tal CCN project
+revisions: 
+************************************************************/
+
+FUNCTION XML_TO_STRING
+
+/*******************************************************
+Function to Return pipe delimited string (key value 
+concatenated) based on the input key XML 
+
+created : 06/07/2012
+*******************************************************/
+
+( 
+  IN_Table_Name 	IN 	VARCHAR2
+, IN_XML_KEY 		IN 	XMLTYPE
+)
+  RETURN VARCHAR2
+
+IS
+
+CURSOR KEY_COL IS
+SELECT COL.COLUMN_NAME
+FROM ALL_CONS_COLUMNS COL, ALL_CONSTRAINTS CON
+WHERE COL.TABLE_NAME=CON.TABLE_NAME
+AND CON.CONSTRAINT_TYPE='P'
+AND COL.CONSTRAINT_NAME = CON.CONSTRAINT_NAME
+AND COL.TABLE_NAME=IN_Table_Name
+ORDER BY COL.POSITION;
+
+
+V_CONCAT_STR	VARCHAR2(1000):='|';
+V_CONTEXT	VARCHAR2(200);
+
+SQ NUMBER;
+SE VARCHAR2(100);
+
+BEGIN
+
+
+V_CONTEXT := 'Looping through input key XML';
+
+
+FOR KEY_COLS_REC IN KEY_COL LOOP
+
+	
+	V_CONCAT_STR := V_CONCAT_STR ||  XML_EXTRACT_NO_EXCEPTION(IN_XML_KEY,'//' || KEY_COLS_REC.COLUMN_NAME) || '|';
+	
+	
+END LOOP;
+
+
+V_CONTEXT := 'Returning string';
+
+RETURN V_CONCAT_STR;
+
+EXCEPTION WHEN OTHERS THEN
+
+SQ := SQLCODE;
+SE := SQLERRM;
+
+V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+
+
+ERRPKG.RAISE_ERR(-20003,'XML_TO_STRING',V_CONTEXT);
+
+END XML_TO_STRING;
+	
+
+FUNCTION XML_EXTRACT_NO_EXCEPTION
+/**********************************************************
+This function returns null if XPATH does not exist within xmltype, 
+oracle throws an exception if not handled this way
+**********************************************************/
+( p_xml IN XMLTYPE
+, p_xpath IN VARCHAR2
+) RETURN VARCHAR2 
+
+IS
+
+BEGIN
+
+    RETURN CASE WHEN P_XML.EXTRACT(P_XPATH) IS NOT NULL THEN
+
+      p_xml.extract(p_xpath || '/text()').getstringval()
+
+    ELSE 
+
+       NULL
+
+END;
+
+END XML_EXTRACT_NO_EXCEPTION;
+
+PROCEDURE SELECT_AUDIT_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process
+
+created : 06/07/2012
+**********************************************************/
+
+IS
+
+CURSOR SEL_AUDIT_LOG IS
+SELECT DISTINCT AL.TABLE_NAME,AL.TRANSACTION_ID
+  FROM AUDIT_LOG AL,
+       BATCH_JOB BATCH
+WHERE  BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
+AND    AL.TRANSACTION_DATE  >= BATCH.BATCH_JOB_LAST_RUN_DATE
+AND    BATCH.BATCH_JOB_LAST_RUN_DATE 
+       IN
+       (
+        SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+          FROM BATCH_JOB B1
+         WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG'
+       );
+       
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+DIFF_XML  XMLTYPE;
+       
+BEGIN
+
+V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+
+FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+
+  PARSE_DIFFERENCE_XML(SEL_AUDIT_REC.TABLE_NAME,SEL_AUDIT_REC.TRANSACTION_ID,DIFF_XML);
+  
+END LOOP;  
+
+EXCEPTION WHEN OTHERS THEN
+
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+  
+
+	ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_LOG',V_CONTEXT);
+
+
+END SELECT_AUDIT_LOG;
+
+
+
+PROCEDURE PARSE_DIFFERENCE_XML
+
+/*******************************************************
+Procedure to Parse xmls from the audit_log table and 
+create an output xml with the differences
+
+Author   : 
+
+versions : 02/22/2012
+*******************************************************/
+
+( IN_TABLE_NAME IN VARCHAR2
+, IN_KEY        IN VARCHAR2
+, OUT_DIFF OUT XMLTYPE
+)
+
+IS
+
+ROW_CURR	AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+ROW_PREV	AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+V_CONTEXT	VARCHAR2(200);
+v_CostCenterCode COST_CENTER.COST_CENTER_CODE%TYPE;
+
+COMP_CURR VARCHAR2(1000);
+COMP_PREV	VARCHAR2(1000);
+
+XMLSTRING	VARCHAR2(30000):='';
+
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+CURSOR GET_COLS (IN_TABLE IN VARCHAR2)
+IS
+    	SELECT COLUMN_NAME
+      	FROM ALL_TAB_COLUMNS
+      	WHERE TABLE_NAME = IN_Table
+      	ORDER BY COLUMN_NAME;
+        
+        
+
+
+BEGIN
+
+	V_CONTEXT := 'Selecting Previous Row from Audit_Log';
+	
+	SELECT TABLE_ROW_DATA INTO ROW_PREV
+	FROM   AUDIT_LOG AL, BATCH_JOB BATCH
+	WHERE  AL.TABLE_NAME		= IN_TABLE_NAME
+	AND    BATCH.BATCH_JOB_NAME	= 'BACKFEED_AUDIT_LOG'
+	AND    TRUNC(BATCH.BATCH_JOB_LAST_RUN_DATE)		= TRUNC(AL.AUDIT_REC_EFF_DATE)
+	AND    AL.AUDIT_REC_FLAG	= 'R'	
+  AND    AL.TRANSACTION_ID = IN_KEY
+	AND    AL.AUDIT_REC_EFF_DATE IN
+				(SELECT MAX(AL1.AUDIT_REC_EFF_DATE)
+				 FROM	AUDIT_LOG AL1
+				 WHERE  AL1.TABLE_NAME = AL.TABLE_NAME
+         AND    AL.TRANSACTION_ID = IN_KEY
+				 AND    AL1.AUDIT_REC_FLAG	= 'R'
+				 )
+  AND    BATCH.BATCH_JOB_LAST_RUN_DATE 
+       IN
+       (
+        SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+          FROM BATCH_JOB B1
+         WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG'
+       )       ;
+	
+	
+	
+	V_CONTEXT := 'Selecting Current Row from Audit_Log';
+	
+	SELECT TABLE_ROW_DATA INTO ROW_CURR
+	FROM   AUDIT_LOG AL	 
+	WHERE  TABLE_NAME=IN_TABLE_NAME
+  AND    AL.TRANSACTION_ID = IN_KEY
+	AND    AL.TRANSACTION_DATE IN
+				(SELECT MAX(AL1.TRANSACTION_DATE)
+				 FROM	AUDIT_LOG AL1
+				 WHERE  AL1.TABLE_NAME = AL.TABLE_NAME
+         AND    AL.TRANSACTION_ID = IN_KEY
+				 );
+	
+	
+	V_CONTEXT := 'Parsing the XMLType';
+	
+	--Start building the XML string
+  
+	XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
+	
+	
+	FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
+    
+    /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
+    p_xml.extract(p_xpath || '/text()').getstringval() */
+    
+    	
+    	COMP_CURR := XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME);
+        
+		COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+
+    	if GET_COLS_REC.COLUMN_NAME = 'COST_CENTER_CODE' THEN
+    	       
+    		v_CostCenterCode := COMP_CURR;
+    	
+    	end if;
+    
+    --If the elements have changed, append them to the XML string
+		
+		IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A') THEN
+		    
+			XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+				
+		END IF;
+		
+		
+	END LOOP;
+	
+	
+	V_CONTEXT := 'Final value being set';
+		
+	XMLSTRING := XMLSTRING || '</' || IN_Table_name || '>';
+		
+	V_CONTEXT := 'Converting to XMLType';
+	
+  --Convert the final XML String to XMLType and set it to the OUT parameter
+  
+	OUT_DIFF  := XMLType(XMLSTRING);
+	
+	
+	
+EXCEPTION WHEN OTHERS THEN
+
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+  
+
+	ERRPKG.RAISE_ERR(-20003,'PARSE_DIFFERENCE_XML',V_CONTEXT);
+	
+	
+END PARSE_DIFFERENCE_XML; 
+
+PROCEDURE Build_File_SP (
+/**********************************************************
+	Build_File_SP
+
+	This procedure is intended to build a file based on the table layout
+	in order to be consumed by the Mainframe to backfill Legacy MainFrame
+
+	CostCenter - Cost Center that changed
+	OracleTableName -Table name for row
+	varible (based on the table that was updated)
+
+
+created : 02/21/2012 kdp CCN Project....
+**********************************************************/
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+,in_TABLE_NAME IN VARCHAR2
+,in_ROW_DATE   IN DATE
+,in_Row_data    IN sys.xmltype
+)
+ is 
+cursor table_fields_cur is
+
+    	SELECT column_name
+          ,data_length column_size
+      	FROM all_tab_columns
+      	WHERE TABLE_NAME = in_table_name
+        order by column_id asc
+      	;
+--;
+--
+
+  path        	        varchar2(50) := 'CCN_LOAD_FILES'; -- directory created in Oracle database UNTIL NEW ONE CREATED
+  filename  			      varchar2(50) := in_TABLE_NAME || '_backfeed';
+  stamp       			    varchar2(50) := to_char(sysdate,'HH:MI:SS'); -- used to create timestamp for data file /app/cpr/fldpayroll
+  output_file 			utl_file.file_type;
+
+-------------
+  l_out_file  UTL_FILE.file_type;
+  l_buffer    RAW(32767);
+  l_amount    BINARY_INTEGER := 32767;
+  l_pos       INTEGER := 1;
+  l_blob_len  INTEGER;
+  v_out_clob clob;
+
+begin
+
+/* working just remove for debbuging un comment for writing file
+    output_file := utl_file.fopen (path
+                                   ,filename || stamp
+                                   , 'w' --binary
+                                   , 32767);
+*/
+    --adding header information for the backload file
+     v_out_clob := in_cost_center || rpad(in_table_name,20) ;
+
+      for table_fields_rec in table_fields_cur loop
+
+      --dbms_output.put_line(in_Row_data.extract('/COST_CENTER/COST_CENTER_CODE/text()').getStringVal());
+      dbms_output.put_line('the field is ' || table_fields_rec.column_name);
+
+      if (in_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) then
+
+        v_out_clob := v_out_clob || rpad(in_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
+                    ,table_fields_rec.column_size);
+          --dbms_output.put_line(in_Row_data.extract('/COST_CENTER/' || table_fields_rec.column_name ||'/text()').getStringVal())
+
+      else
+        v_out_clob := v_out_clob || rpad(' ',table_fields_rec.column_size);
+      end if;
+
+      end loop ;
+ /* working just remove for debbuging un comment for writing file
+     UTL_FILE.put_line(output_file, v_out_clob, TRUE);
+
+     utl_file.fclose(output_file);
+ */
+ dbms_output.put_line(v_out_clob);
+end Build_File_SP;
+
+
+END CCN_AUDIT_PKG;
+/
