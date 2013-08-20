@@ -2,7 +2,7 @@
 #############################################################################
 # Script Name   :  AUDIT_INITLOAD
 #
-# Description    :  This shell program will initiate the AUDIT_INITLOAD.SQL file 
+# Description    :  This shell program will initiate the AUDIT_INITLOAD_SP 
 #
 # This shell program will initiate the AUDIT_INITLOAD script that 
 #    * Disables all the Triggers 
@@ -17,13 +17,14 @@
 . /app/ccn/ccn.config
 
  proc="ccn_audit_initload_sp"
+ LOGDIR=`/app/ccn/initLoad`
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "\n Processing Started for $proc at $TIME on $DATE \n"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 

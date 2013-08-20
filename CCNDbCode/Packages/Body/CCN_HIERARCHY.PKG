@@ -1,95 +1,17 @@
+create or replace
 PACKAGE BODY CCN_HIERARCHY
     AS
+
+--Stored global level memory variable to store duplicate CC
+DUPLICATE_COST_CENTER       HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+BUSSINESS_RULES_ERR_CODE    INTEGER;
+BUSSINESS_RULES_ERR_DESC    VARCHAR2(2000);
 	
 /*********************************************************** 
 This package is will return data from the hierarchy_detail table
 
 created : 03/22/2012 OD CCN coding project
 ************************************************************/
-
-FUNCTION CHECK_PREVIOUS_LEVELS (
-/***********************************************************
-      CHECK_PREVIOUS_LEVELS 
-      This Procedure will check if the previous Hierarchy levels 
-      exists in HIERARCHY_DETAIL or HIERARCHY_DETAIL_HST in
-      HRCHY_DTL_CURR_LVL_VAL before the insert of the next level
-      
-Created : 02/27/2013 SH CCN Project
-************************************************************/
-            in_IND IN VARCHAR2 DEFAULT NULL,
-            in_HRCHY_HDR_NAME  IN HIERARCHY_DETAIL_HST.HRCHY_HDR_NAME%TYPE,
-            in_hrchy_dtl_level in hierarchy_detail_hst.hrchy_dtl_level%type,
-            in_CURR_VAL        IN HIERARCHY_DETAIL_HST.HRCHY_DTL_CURR_LVL_VAL%TYPE
-            )
-             RETURN VARCHAR2
-IS
-
-  V_LVL_EXISTS VARCHAR2(1);
-
- BEGIN
-     IF IN_IND = 'H'
-     THEN
-         SELECT CASE WHEN count(*) >0 THEN
-                    'Y'
-                   ELSE
-                    'N'
-                   END CASE
-              INTO V_LVL_EXISTS
-              FROM HIERARCHY_DETAIL_HST A
-             WHERE UPPER(HRCHY_HDR_NAME) = UPPER(in_HRCHY_HDR_NAME) 
-               AND HRCHY_DTL_LEVEL = IN_HRCHY_DTL_LEVEL 
-               AND (HRCHY_DTL_NEXT_LVL_VAL = in_CURR_VAL OR HRCHY_DTL_NEXT_LVL_VAL = '~~~'); 
-               
-    ELSE
-        SELECT CASE WHEN count(*) >0 THEN
-                    'Y'
-                   ELSE
-                    'N'
-                   END CASE
-              INTO V_LVL_EXISTS
-              FROM HIERARCHY_DETAIL A
-             WHERE UPPER(HRCHY_HDR_NAME) = UPPER(in_HRCHY_HDR_NAME) 
-               AND HRCHY_DTL_LEVEL = IN_HRCHY_DTL_LEVEL 
-               AND HRCHY_DTL_CURR_LVL_VAL = in_CURR_VAL;
-    END IF;
-       
-     RETURN V_LVL_EXISTS;
-END CHECK_PREVIOUS_LEVELS;
-
-
-PROCEDURE hierarchy_insert_wrapper( 
-/***********************************************************
-      hierarchy_insert_wrapper 
-      This Procedure will insert into HIERARCHY_DETAIL or
-      HIERARCHY_DETAIL_HST 
-      
-      Insert Detail Process, overloaded function
-      accepts xml
-  
-Created : 07/12/2013 SH CCN Project
-************************************************************/
-  in_xml IN VARCHAR2)
-IS
-
-  v_hierarchy_detail_row  HIERARCHY_DETAIL%ROWTYPE;
-  
-  V_CONTEXT   VARCHAR2(1000);
-  SQ          INTEGER;
-  SE          VARCHAR2(300);
-
-begin
-  
-    ccn_hierarchy.hierarchy_detail_insert(in_XML);
-    
-  EXCEPTION 
-        WHEN OTHERS THEN
-            SQ := SQLCODE;
-            SE := SQLERRM;
-            
-            v_context := v_context || ' ' || sq || ' ' || se; 
-            dbms_output.put_line( 'ccn_hierarchy.HIERARCHY_INSERT_WRAPPER - '|| v_context); 
-            ERRPKG.RAISE_ERR(-20004, 'ccn_hierarchy.HIERARCHY_INSERT_WRAPPER -', V_CONTEXT);  
-END hierarchy_insert_wrapper;
 
 PROCEDURE hierarchy_insert_wrapper( 
 /***********************************************************
@@ -131,35 +53,6 @@ begin
             dbms_output.put_line( 'ccn_hierarchy.HIERARCHY_INSERT_WRAPPER - '|| v_context); 
             ERRPKG.RAISE_ERR(-20004, 'ccn_hierarchy.HIERARCHY_INSERT_WRAPPER -', V_CONTEXT);  
 END hierarchy_insert_wrapper;
-
-FUNCTION HIERARCHY_DESC_RETURN (
-/***********************************************************
-      HIERARCHY_DESC_RETURN 
-      This Procedure will return the Hierarchy level DESC 
-      from HIERARCHY_DETAIL for any curr val passed and for any
-      level. This is used for the insert into hist for Transfer 
-      process.
-input param : in_HRCHY_DTL_CURR_LVL_VAL
-Created : 03/19/2013 SH CCN Project
-revised : 05/02/2013 kdp ccn Header Name to query 
-************************************************************/
-            in_HRCHY_DTL_CURR_LVL_VAL IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE
-            ,in_HRCHY_HDR_NAME IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
-            )
-             RETURN VARCHAR2
-IS
-
-  V_HRCHY_DTL_DESC HIERARCHY_DETAIL.HRCHY_DTL_DESC%TYPE;
-
- BEGIN
-            SELECT DISTINCT HRCHY_DTL_DESC
-              INTO V_HRCHY_DTL_DESC
-              FROM HIERARCHY_DETAIL 
-             WHERE HRCHY_DTL_CURR_LVL_VAL = in_HRCHY_DTL_CURR_LVL_VAL
-             AND HRCHY_HDR_NAME = in_HRCHY_HDR_NAME;
-        
-     RETURN V_HRCHY_DTL_DESC;
-END HIERARCHY_DESC_RETURN;
 
 PROCEDURE RETURN_HIERARCHY (	
 /**********************************************************
@@ -618,8 +511,8 @@ IS
         V_CONTEXT := 'Selecting for Ref Cursor';
         open OUT_HIERARCHY_REF_CUR for
           SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL, HRCHY_DTL_DESC
-          , hrchy_dtl_eff_date
-          , HRCHY_DTL_EXP_DATE
+          --, hrchy_dtl_eff_date
+          --, HRCHY_DTL_EXP_DATE
           --, xmltype.getStringVal(UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
             from hierarchy_detail 
          where hrchy_hdr_name = upper(v_hrchy_hdr_name)
@@ -956,226 +849,11 @@ IS
           
 END HIERARCHY_DESCRIPTION_INSERT;
 
-PROCEDURE HIERARCHY_DETAIL_INSERT(
-/**********************************************************
-	HIERARCHY_DETAIL_INSERT
-
-	This procedure will insert into the table HIERARCHY_DETAIL 
-        
-<HIERARCHY_DETAIL>
-  <row_data>
-      <HRCHY_HDR_NAME>DAD Structure</HRCHY_HDR_NAME> 
-      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
-      <HRCHY_LEVEL1>01</HRCHY_LEVEL1> 
-      <HRCHY_LEVEL2>02</HRCHY_LEVEL2> 
-      <HRCHY_LEVEL3>10</HRCHY_LEVEL3>
-      <HRCHY_DTL_DESC>Ohio</HRCHY_DTL_DESC>
-      <HRCHY_DTL_EFF_DATE>01-10-2013</HRCHY_DTL_EFF_DATE>
-      <HRCHY_DTL_EXP_DATE/>
-      <attributes>
-         <upper_lvl_ver_desc>
-         <Name>statement_type</Name> 
-         <Description>pkListValue</Description> 
-         <Value>US</Value> 
-         </upper_lvl_ver_desc>
-      </attributes>
-  </row_data>
-</HIERARCHY_DETAIL>
-
-created : 02/13/2013 SH CCN Project....
-**********************************************************/
-    in_XML                VARCHAR2)
-IS
-  --Insert Detail Process
-  V_COUNT                 INTEGER;
-  V_PREV_LVL_EXISTS       VARCHAR2(1);
-  v_curr_lvl_exists       varchar2(1);
-  v_hierarchy_detail_row  hierarchy_detail%rowtype;
-  V_FOUND                 VARCHAR2(1):= 'N';
-  v_CC_flag               VARCHAR2(1);
-  v_rowdata               sys.XMLTYPE;
-  
-  CC_exists_err  EXCEPTION;
-  V_CODE         NUMBER;
-  V_CONTEXT      VARCHAR2(100);
-  SQ             INTEGER;
-  SE             varchar2(100);
-    
-  V_LVL_EXISTS   varchar2(1);
-  V_XML_FRAG     clob;
-  v_XML xmltype := sys.xmltype(in_XML);
-
-BEGIN
-   
-    IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
-       v_hierarchy_detail_row.HRCHY_HDR_NAME    := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
-       v_hierarchy_detail_row.hrchy_dtl_level := v_xml.extract('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').getstringval();
-       v_hierarchy_detail_row.hrchy_dtl_eff_date  := to_date(v_xml.extract('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EFF_DATE/text()').getstringval(), 'MM-DD-YYYY');
-         if (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text') = 1) then
-            v_hierarchy_detail_row.hrchy_dtl_exp_date  := to_date(v_xml.extract('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()').getstringval(), 'MM-DD-YYYY'); 
-         end if;
-       v_hierarchy_detail_row.hrchy_dtl_desc      := v_xml.extract('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_DESC/text()').getstringval(); 
-    END IF;
-   
-    IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/attributes') = 1) THEN
-          V_XML_FRAG := V_XML.extract('/HIERARCHY_DETAIL/row_data/attributes').GETCLOBVAL();
-    end if;
-   
-   V_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE := SYS.xmltype.CREATEXML(V_XML_FRAG);
-    
-   V_COUNT := v_hierarchy_detail_row.HRCHY_DTL_LEVEL; 
-   FOR j IN REVERSE 2..v_hierarchy_detail_row.HRCHY_DTL_LEVEL
-   loop  
-        if v_hierarchy_detail_row.hrchy_dtl_level >0 then
-           FOR i IN 1..v_hierarchy_detail_row.HRCHY_DTL_LEVEL
-           loop
-               if i < v_hierarchy_detail_row.hrchy_dtl_level then
-                  v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL  :=  v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL || V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-               END IF;
-               
-               if v_hierarchy_detail_row.hrchy_dtl_curr_lvl_val is not null then
-                  v_hierarchy_detail_row.HRCHY_DTL_CURR_LVL_VAL  := v_hierarchy_detail_row.HRCHY_DTL_CURR_LVL_VAL || V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-               else
-                  v_hierarchy_detail_row.HRCHY_DTL_CURR_LVL_VAL  := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-               END IF;
-                 v_hierarchy_detail_row.HRCHY_DTL_CURR_ROW_VAL   := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-           END loop;
-           
-              --v_hierarchy_detail_row.hrchy_dtl_exp_date := null;
-           
-              if v_hierarchy_detail_row.hrchy_dtl_level = 1 then
-                 v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL := '~~~';
-              END IF;
-
-          CASE WHEN v_hierarchy_detail_row.HRCHY_DTL_LEVEL = V_COUNT 
-          THEN
-                BEGIN
-                    --Checking for duplicate Cost Center
-                    IF ccn_hier_business_rules_pkg.GET_HDR_LVL_DESC_SP(v_hierarchy_detail_row.HRCHY_HDR_NAME, v_hierarchy_detail_row.hrchy_dtl_level) = 'Cost Center' THEN    
-                       V_CONTEXT := 'Calling the DUPLICATE_COST_CENTER';
-                       ccn_hier_business_rules_pkg.DUPLICATE_COST_CENTER(v_hierarchy_detail_row.HRCHY_HDR_NAME, v_hierarchy_detail_row.hrchy_dtl_level, v_hierarchy_detail_row.HRCHY_DTL_CURR_ROW_VAL);
-                     END IF;
-                     
-                 EXCEPTION
-                    WHEN OTHERS THEN
-                        raise CC_exists_err;
-                 END;
-                 
-              --last level check
-              v_hierarchy_detail_row.hrchy_dtl_next_lvl_val := '~~~';
-              --Check if the previous level exists for the HRCHY_DTL_CURR_LVL_VAL
-              v_context := 'Check the Prev levels in Detail';
-              IF V_COUNT <> '1'THEN
-                V_LVL_EXISTS :=  CCN_HIERARCHY.CHECK_PREVIOUS_LEVELS( NULL,
-                                                                      v_hierarchy_detail_row.hrchy_hdr_name,
-                                                                      v_hierarchy_detail_row.HRCHY_DTL_LEVEL -1,
-                                                                      v_hierarchy_detail_row.hrchy_dtl_prev_lvl_val
-                                                                     );
-              else
-                  v_lvl_exists := 'Y';
-              end if;
-              
-              IF V_LVL_EXISTS = 'Y' THEN
-                 --checking if the record for the curr val already exists
-                 --for duplicates
-                 V_CONTEXT := 'Check the curr row already exits in Detail';
-                 SELECT CASE WHEN count(*) >0 THEN
-                    'Y'
-                   ELSE
-                    'N'
-                   END CASE
-                   INTO V_CURR_LVL_EXISTS
-                   FROM HIERARCHY_DETAIL
-                  WHERE UPPER(HRCHY_HDR_NAME) = UPPER(v_hierarchy_detail_row.HRCHY_HDR_NAME) 
-                    AND HRCHY_DTL_LEVEL = v_hierarchy_detail_row.HRCHY_DTL_LEVEL 
-                    AND HRCHY_DTL_PREV_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL
-                    AND HRCHY_DTL_CURR_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_CURR_LVL_VAL;
-                    
-                    IF V_CURR_LVL_EXISTS = 'N' THEN
-                       V_CONTEXT := 'Inserting the current level in Detail';
-                       --Insert a record for the current level
-                       ccn_hierarchy.hierarchy_insert_wrapper(NULL, v_hierarchy_detail_row);
-                    END IF;
-             ELSE
-                DBMS_OUTPUT.PUT_LINE('The Previous Level does not exist.');
-                --RAISE PREVIOUS_LEVEL_NOT_EXISTS_ERR;
-             END IF;
-             
-          when v_hierarchy_detail_row.hrchy_dtl_level < v_count then
-             IF V_FOUND = 'N' THEN --flag to exit if Previous level exists
-               --previous levels check
-               --checking if a record for the previous level exists
-               V_CONTEXT := 'Check the prev level exits in Detail';
-                 SELECT CASE WHEN count(*) >0 THEN
-                    'Y'
-                   ELSE
-                    'N'
-                   END CASE
-                   INTO V_PREV_LVL_EXISTS
-                   from hierarchy_detail 
-                  where upper(hrchy_hdr_name) = upper(v_hierarchy_detail_row.hrchy_hdr_name)
-                    and hrchy_dtl_level = v_hierarchy_detail_row.hrchy_dtl_level 
-                    AND HRCHY_DTL_PREV_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL
-                    and hrchy_dtl_curr_lvl_val = v_hierarchy_detail_row.hrchy_dtl_curr_lvl_val
-                    and (HRCHY_DTL_NEXT_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_NEXT_LVL_VAL OR HRCHY_DTL_NEXT_LVL_VAL = '~~~');
-                          
-                    --if the record does not exist Insert else update 
-                    IF V_PREV_LVL_EXISTS = 'N' THEN
-                       v_context := 'Inserting the Previous level in Detail';
-                       ccn_hierarchy.HIERARCHY_INSERT_WRAPPER(NULL, v_hierarchy_detail_row); 
-                    else
-                         V_FOUND := 'Y';
-                         V_CONTEXT := 'Updating the current level in Detail';
-                         --Record exists, update the HRCHY_DTL_NEXT_LVL_VAL
-                         UPDATE HIERARCHY_DETAIL
-                            SET HRCHY_DTL_NEXT_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_NEXT_LVL_VAL
-                          WHERE UPPER(HRCHY_HDR_NAME) = UPPER(v_hierarchy_detail_row.HRCHY_HDR_NAME)
-                            AND HRCHY_DTL_LEVEL = v_hierarchy_detail_row.HRCHY_DTL_LEVEL 
-                            AND HRCHY_DTL_PREV_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_PREV_LVL_VAL
-                            AND HRCHY_DTL_CURR_LVL_VAL = v_hierarchy_detail_row.HRCHY_DTL_CURR_LVL_VAL
-                            and hrchy_dtl_next_lvl_val = '~~~'
-                            AND HRCHY_DTL_NEXT_LVL_VAL <> v_hierarchy_detail_row.HRCHY_DTL_NEXT_LVL_VAL;
-                     end if; --V_PREV_LVL_EXISTS check
-             end if;     
-          ELSE
-               NULL;
-          END CASE; 
-          
-      --reset all the values for the next level
-      v_hierarchy_detail_row.hrchy_dtl_level := v_hierarchy_detail_row.hrchy_dtl_level -1;
-      v_hierarchy_detail_row.hrchy_dtl_next_lvl_val := nvl(v_hierarchy_detail_row.hrchy_dtl_curr_lvl_val, '~~~');
-      v_hierarchy_detail_row.hrchy_dtl_curr_lvl_val := null;
-      v_hierarchy_detail_row.hrchy_dtl_curr_row_val := null;
-      v_hierarchy_detail_row.hrchy_dtl_prev_lvl_val := null;
-      V_FOUND := 'N';
-     END IF; --V_HRCHY_DTL_LEVEL >0 check
-  END LOOP;
-  
-  EXCEPTION 
-       -- WHEN RAISE PREVIOUS_LEVEL_NOT_EXISTS_ERR THEN
-           --  v_code := errnums.en_invalid_lvl_err; 
-           --   ERRPKG.RAISE_ERR(V_CODE, 'HIERARCHY_DETAIL_INSERT.PREVIOUS_LEVEL_NOT_EXISTS_ERR ',
-           --                  'CCN_HIERARCHY_PKG ' || ' HRCHY_DTL_PREV_LVL_VAL ' || V_HRCHY_DTL_PREV_LVL_VAL || ' for level ' || V_HRCHY_DTL_LEVEL ||
-           --                   'Not Found' );
-        WHEN CC_exists_err THEN  
-             v_code := errnums.en_CC_exists_err;
-             errpkg.raise_err(v_code, 'The Cost Center ' || v_hierarchy_detail_row.HRCHY_DTL_CURR_ROW_VAL|| ' already exists');
-        
-        WHEN OTHERS THEN
-            SQ := SQLCODE;
-            SE := SQLERRM;
-            
-            v_context := v_context || ' ' || sq || ' ' || se; 
-            DBMS_OUTPUT.PUT_LINE('ERROR -' || V_CONTEXT); 
-            --ERRPKG.RAISE_ERR(-20004, 'HIERARCHY_DETAIL_INSERT ', V_CONTEXT);  
-END HIERARCHY_DETAIL_INSERT;
-
-procedure HIERARCHY_TRANSFER_PROCESS(
-/**********************************************************************
-
-HIERARCHY_TRANSFER_PROCESS
-
-	This procedure will Transfer Cost Center from one Hierarchy to another 
+PROCEDURE BUILD_COMPOSITE_KEYS(
+/***********************************************************
+      BUILD_COMPOSITE_KEYS 
+      This Procedure will build composite keys for the Transfer
+      or INSERT Procedures
 
 Input :-
 
@@ -1271,288 +949,778 @@ Input :-
 
   </row_data>
 </HIERARCHY_DETAIL>
+**************************************************************
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>05</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>04</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>86</HRCHY_LEVEL3>
+      <HRCHY_LEVEL4>785900</HRCHY_LEVEL4>
+      <HRCHY_DTL_DESC>PF WEST REGION</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-JAN-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE>01-JAN-9999</HRCHY_DTL_EXP_DATE>
+      <UPPER_LVL_VER_VALUE>01</UPPER_LVL_VER_VALUE>
+  </row_data>
+</HIERARCHY_DETAIL>
 
-created : 03/13/2013 SH CCN Project.... 
-******************************************************************************/
- in_XML                VARCHAR2)
+
+      IN_FLAG          'TO' or  'FROM' or  'INSERT'
+      IN_COUNT         This corresponds to particular "TO" XML Portion
+      IN_LAST_LEVEL    This is a flag to tell if this is the last level composite key generation or not
+Created : 08/02/2013  CCN Project
+************************************************************/
+            IN_FLAG                  IN     VARCHAR2,
+            IN_XML                   IN     VARCHAR2,
+            IN_HRCHY_HDR_NAME        IN     VARCHAR2,
+            IN_HRCHY_DTL_LEVEL       in     VARCHAR2,
+            IN_COUNT                 IN     NUMBER,
+            IN_LAST_LEVEL            IN     VARCHAR2,
+            OUT_HIERARCHY_DETAIL_ROW OUT HIERARCHY_DETAIL%ROWTYPE)
 is
-  --TRANSFER_PROCESS calling the hierarchy_insert_wrapper
-  --EX: Transfer a Cost Center from one Hierarchy to another
-  V_COUNT                          NUMBER := 1;
-  V_LAST_LVL                       VARCHAR2(1);
-  V_DTL_COUNT                      NUMBER;
-  V_PREV_LVL_EXISTS                VARCHAR2(1);
-  V_CURR_LVL_EXISTS                VARCHAR2(1);
-  V_FOUND                          VARCHAR2(1):= 'N';
-  V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
-  V_HRCHY_DTL_PREV_LVL_VAL_FROM    HIERARCHY_DETAIL_HST.HRCHY_DTL_PREV_LVL_VAL%TYPE;
-  V_HRCHY_DTL_CURR_LVL_VAL_FROM    HIERARCHY_DETAIL_HST.HRCHY_DTL_CURR_LVL_VAL%TYPE;
-  V_HRCHY_DTL_CURR_ROW_VAL_FROM    HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
-  V_HRCHY_DTL_NEXT_LVL_VAL_FROM    HIERARCHY_DETAIL.HRCHY_DTL_NEXT_LVL_VAL%TYPE;
-  v_hierarchy_detail_row_to        HIERARCHY_DETAIL%ROWTYPE;
-  V_HIERARCHY_DETAIL_ROW_FROM      HIERARCHY_DETAIL%ROWTYPE;
-  v_xml_frag                       CLOB;
+  V_CONTEXT      VARCHAR2(3000);
+  V_NEXT_ROW_VAL VARCHAR2(100);
+  CC_EXISTS_ERR  EXCEPTION;
 
-  V_ROW_DATA XMLTYPE := SYS.XMLTYPE(IN_XML);
-  V_CONTEXT   VARCHAR2(1000);
-  SQ          INTEGER;
-  SE          VARCHAR2(100);
+  V_ROW_DATA     XMLTYPE := SYS.XMLTYPE(IN_XML); 
+  SQ             INTEGER;
+  SE             VARCHAR2(1000);
 
 BEGIN
-         IF (v_row_data.existsnode('/HIERARCHY_DETAIL/row_data') = 1) THEN
-             v_hierarchy_detail_row_from.hrchy_hdr_name  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
-             V_HRCHY_DTL_LEVEL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
-         END IF;
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME    := IN_HRCHY_HDR_NAME;
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL   := IN_HRCHY_DTL_LEVEL;
+/*
+FROM Condition below will get the details of composite keys that are getting transfered using FROM portion of XML
+TO Condition below will get the details of composite keys that are getting transfered using TO portion of XML
+INSERT Condition below will get the details of composite keys that are getting transfered using INSERT XML
+*/
+   CASE WHEN IN_FLAG = 'FROM' THEN
+        V_CONTEXT := 'Extracting FROM Hierarchy Details';
+        FOR i in 1..IN_HRCHY_DTL_LEVEL - 1 LOOP
+            --Previous Level Value should extract values of all levels except current level
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL :=  OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+        END LOOP; 
  
-         v_hierarchy_detail_row_to.hrchy_hdr_name    := v_hierarchy_detail_row_from.hrchy_hdr_name;
-         v_hierarchy_detail_row_to.hrchy_dtl_level   := v_hrchy_dtl_level;
-         v_hierarchy_detail_row_from.hrchy_dtl_level := v_hrchy_dtl_level;
-      
-         --Extracting the TO_HIERARCHY
-         WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP
-             --building composite keys
-             FOR i IN 1..v_hierarchy_detail_row_to.hrchy_dtl_level LOOP
-                 IF i < v_hierarchy_detail_row_to.hrchy_dtl_level THEN
-                    v_hierarchy_detail_row_to.hrchy_dtl_prev_lvl_val  :=  v_hierarchy_detail_row_to.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                 END IF;
-                 
-                 IF v_hierarchy_detail_row_to.hrchy_dtl_curr_lvl_val IS NOT NULL THEN
-                    v_hierarchy_detail_row_to.hrchy_dtl_curr_lvl_val := v_hierarchy_detail_row_to.HRCHY_DTL_CURR_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                 ELSE
-                    v_hierarchy_detail_row_to.HRCHY_DTL_CURR_LVL_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                 end if;
-                 
-                 v_xml_frag := v_row_data.extract('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || v_count || ']'||'/attributes').getclobval();                 
-                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_DESC          := V_ROW_DATA.extract('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_DTL_DESC/text()').GETSTRINGVAL();
-                 v_hierarchy_detail_row_to.UPPER_LVL_VER_VALUE     := SYS.xmltype.CREATEXML(V_XML_FRAG);
-                 v_hierarchy_detail_row_to.HRCHY_DTL_CURR_ROW_VAL  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').getstringval();
-                 v_hierarchy_detail_row_to.HRCHY_DTL_EFF_DATE      := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_DTL_EFF_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
-                 
-                 if (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY/HRCHY_DTL_EXP_DATE/text()') = 1) then
-                      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_EXP_DATE      := TO_DATE(V_ROW_DATA.extract('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || V_COUNT || ']'||'/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY'); 
-                 end if;
-                 
-             END LOOP;
+        IF IN_LAST_LEVEL = 'Y' THEN
+            --Building composite 'FROM' keys for last record using 'TO' XML, as we won't be having last level details in 'FROM' XML
+            --Current Row Value should extract value as the current level alone
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || IN_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL();
+            --Expiration Date of last level should be obtained from 'TO' level XML Effective Date
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE     := OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE;
+        ELSE
+            --Building composite 'FROM' keys for other records using 'FROM' XML
+            --Current Row Value should extract value as the current level alone
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || IN_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL();
 
-             V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
-             IF v_hierarchy_detail_row_to.hrchy_dtl_level = 1 THEN
-                v_hierarchy_detail_row_to.hrchy_dtl_prev_lvl_val := '~~~';
-             END IF;
-             
-             --Check if the previous level exists for the HRCHY_DTL_CURR_LVL_VAL 
-             --in Hierarchy_Detail for the next level insert
-             --if it exists then insert else raise an error
-             IF v_hierarchy_detail_row_to.HRCHY_DTL_LEVEL <> '1'THEN
-                v_prev_lvl_exists :=  ccn_hierarchy.check_previous_levels( NULL,
-                                                                            v_hierarchy_detail_row_to.HRCHY_HDR_NAME,
-                                                                            v_hierarchy_detail_row_to.HRCHY_DTL_LEVEL-'1',
-                                                                            v_hierarchy_detail_row_to.HRCHY_DTL_PREV_LVL_VAL
-                                                                           );
-             else
-                 v_prev_lvl_exists := 'Y';
-             end if;
-              
-              IF V_PREV_LVL_EXISTS = 'Y' THEN
-                 --check for the current record before the insert for TO_HIERARCHY
-                 V_CONTEXT := 'Selecting the current level in Detail';
-                 SELECT CASE WHEN COUNT(*) = 0 THEN
-                      'N'
-                     ELSE
-                      'Y'
-                     END CASE
-                    INTO V_CURR_LVL_EXISTS
-                   from HIERARCHY_DETAIL
-                  WHERE HRCHY_HDR_NAME = v_hierarchy_detail_row_to.HRCHY_HDR_NAME 
-                    and HRCHY_DTL_LEVEL = v_hierarchy_detail_row_to.HRCHY_DTL_LEVEL 
-                    AND HRCHY_DTL_CURR_LVL_VAL = v_hierarchy_detail_row_to.HRCHY_DTL_CURR_LVL_VAL;
-                    
-                    if v_curr_lvl_exists = 'N' then
-                        --Transfer(Insert) to the new HIERARCHY   
-                        v_context := 'Inserting the current level in Detail';
-                        ccn_hierarchy.HIERARCHY_INSERT_WRAPPER(NULL, v_hierarchy_detail_row_to); 
-                    ELSE
-                        DBMS_OUTPUT.PUT_LINE('The Current Level already exists in Hierarchy Detail.');
-                    END IF;
-               ELSE
-                  DBMS_OUTPUT.PUT_LINE('The Previous Level does not exist in Hierarchy Detail.');
-                  --RAISE PREVIOUS_LEVEL_NOT_EXISTS_ERR;
-               END IF;  
-      
-         V_DTL_COUNT  := v_hierarchy_detail_row_to.HRCHY_DTL_LEVEL -1;
-         --Loop through all the levels to check for existence of previous records in History
-         FOR J IN REVERSE 1..V_DTL_COUNT LOOP
-            IF V_FOUND = 'N' THEN --flag to exit if Previous level exists
-               --building composite keys(from level HRCHY_DTL_LEVEL-1)
-               FOR i IN 1..V_DTL_COUNT
-               LOOP
-                   IF i < V_DTL_COUNT THEN
-                      v_hierarchy_detail_row_from.HRCHY_DTL_PREV_LVL_VAL :=  v_hierarchy_detail_row_from.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                   END IF;
-                   
-                   IF v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL IS NOT NULL THEN
-                      v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL := v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                   ELSE
-                      v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-                   END IF;
-                      v_hierarchy_detail_row_from.HRCHY_DTL_CURR_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
-               END LOOP;
-
-             BEGIN
-                v_hierarchy_detail_row_from.HRCHY_DTL_DESC := CCN_HIERARCHY.HIERARCHY_DESC_RETURN(v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL
-                																				 ,v_hierarchy_detail_row_to.HRCHY_HDR_NAME
-                																				);
-             
-             EXCEPTION
-               WHEN NO_DATA_FOUND THEN
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_DESC := NULL;
-             END;
-             
-             IF V_HRCHY_DTL_LEVEL = V_DTL_COUNT+1 THEN --last level
-                v_hierarchy_detail_row_from.HRCHY_DTL_NEXT_LVL_VAL := v_hierarchy_detail_row_from.HRCHY_DTL_CURR_LVL_VAL || v_hierarchy_detail_row_to.HRCHY_DTL_CURR_ROW_VAL; 
-             END IF;
-             
-             IF V_DTL_COUNT = 1 THEN
-                V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL := '~~~';
-             END IF;
-            
-             V_HRCHY_DTL_PREV_LVL_VAL_FROM := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL;
-             V_HRCHY_DTL_CURR_LVL_VAL_FROM := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL;
-             V_HRCHY_DTL_CURR_ROW_VAL_FROM := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_ROW_VAL;
-             V_HRCHY_DTL_NEXT_LVL_VAL_FROM := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL;
-             V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EFF_DATE := TRUNC(SYSDATE);
-             V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EXP_DATE     := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_EXP_DATE;
-              -----------------------------------------------------------
-              --deleting the curr row from HIERARCHY_DETAIL for last level
-              IF V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL = V_DTL_COUNT +1  THEN
-                 V_CONTEXT := 'Deleting the current level in Detail';
-                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
-                 V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_ROW_VAL := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL; 
-                 --V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL || V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL; 
-                
-                    --Transfer(Insert) to the new Hierarchy   
-                    V_CONTEXT := 'Inserting last level in Hist ';
-                    --assignment of the values for the last level
-                    V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL        := V_HRCHY_DTL_LEVEL;
-                    V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_DESC         := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_DESC;
-                    V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL;
-                    V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL;
-                    V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL;
-                                        
-                   --deleting the current level in HIERARCHY_DETAIL
-                   DELETE FROM HIERARCHY_DETAIL
-                    where hrchy_hdr_name = v_hierarchy_detail_row_to.hrchy_hdr_name
-                      AND HRCHY_DTL_LEVEL = V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL 
-                      and hrchy_dtl_curr_lvl_val = v_hierarchy_detail_row_from.hrchy_dtl_curr_lvl_val
-                      and HRCHY_DTL_NEXT_LVL_VAL = v_hierarchy_detail_row_from.HRCHY_DTL_NEXT_LVL_VAL;
-
-                   ccn_hierarchy.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW_FROM);
-
-                    --deleting/updating the previous level in HIERARCHY_DETAIL
-                    --checking to see if this is the last level, if so then update else delete
-                    V_CONTEXT := 'Checking if the last level in Detail';
-                    SELECT CASE WHEN COUNT(*) > 1 THEN
-                            'N'
-                         ELSE
-                            'Y'
-                         END CASE
-                         INTO V_LAST_LVL
-                        from HIERARCHY_DETAIL
-                       WHERE HRCHY_HDR_NAME = V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME
-                         AND HRCHY_DTL_LEVEL = V_DTL_COUNT 
-                         AND HRCHY_DTL_CURR_LVL_VAL = V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL;
-                      
-                      --if (previous) not the last level then delete, else update
-                      IF V_LAST_LVL = 'N' THEN
-                         V_CONTEXT := 'Deleting for prev level';
-                         DELETE FROM HIERARCHY_DETAIL
-                          where hrchy_hdr_name = v_hierarchy_detail_row_from.hrchy_hdr_name
-                            AND HRCHY_DTL_LEVEL =  V_DTL_COUNT
-                            and hrchy_dtl_curr_lvl_val = v_hierarchy_detail_row_from.hrchy_dtl_curr_lvl_val
-                            and HRCHY_DTL_NEXT_LVL_VAL = v_hierarchy_detail_row_from.HRCHY_DTL_NEXT_LVL_VAL;
-                      ELSE
-                         v_context := 'Updating the last level';
-                         UPDATE HIERARCHY_DETAIL
-                            SET HRCHY_DTL_NEXT_LVL_VAL = '~~~'
-                          WHERE HRCHY_HDR_NAME = V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME
-                            and hrchy_dtl_curr_lvl_val = v_hierarchy_detail_row_from.hrchy_dtl_curr_lvl_val
-                            and HRCHY_DTL_NEXT_LVL_VAL = v_hierarchy_detail_row_from.HRCHY_DTL_NEXT_LVL_VAL;
-                      END IF;
-                 END IF;
-               
-                  --re-assigning the fields for the prev level
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL := V_HRCHY_DTL_PREV_LVL_VAL_FROM;
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL := V_HRCHY_DTL_CURR_LVL_VAL_FROM;
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_ROW_VAL := V_HRCHY_DTL_CURR_ROW_VAL_FROM;
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL := V_HRCHY_DTL_NEXT_LVL_VAL_FROM;
-                  V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL := V_DTL_COUNT;
-                  
-               --Check if the previous level exists for the HRCHY_DTL_NEXT_LVL_VAL in HISTORY 
-               --for FROM_HIERARCHY
-               v_context := 'Checking previous levels';
-               IF v_hierarchy_detail_row_from.HRCHY_DTL_LEVEL <> '1'THEN
-                  v_prev_lvl_exists := ccn_hierarchy.check_previous_levels( 'H',
-                                                                            V_HIERARCHY_DETAIL_ROW_TO.HRCHY_HDR_NAME,
-                                                                            V_DTL_COUNT,
-                                                                            V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL
-                                                                           );
-               else
-                 v_prev_lvl_exists := 'Y';
-               end if;
-             
-                 v_context := 'Inserting in Hist';
-                 V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL := V_DTL_COUNT;
-                 if v_prev_lvl_exists = 'N' then
-                    ccn_hierarchy.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW_FROM);
-                 ELSE
-                     IF V_DTL_COUNT = V_HRCHY_DTL_LEVEL-1 ---(N-1) level check
-                     THEN
-                         UPDATE HIERARCHY_DETAIL_HST
-                            SET HRCHY_DTL_NEXT_LVL_VAL = V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL
-                          WHERE UPPER(HRCHY_HDR_NAME)  = UPPER(V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME)
-                            AND HRCHY_DTL_CURR_LVL_VAL = V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL
-                            AND HRCHY_DTL_NEXT_LVL_VAL = '~~~'
-                            AND HRCHY_DTL_NEXT_LVL_VAL <> V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL;
-                      END IF;
-                      V_FOUND := 'Y';
-                 END IF;
-              --reset all the values for the next level
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL;
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL := NULL;
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_ROW_VAL := NULL;
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL := NULL;
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EFF_DATE   := NULL;
-              V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EXP_DATE   := NULL;
-              V_DTL_COUNT := V_DTL_COUNT-1;
+            --Next value should be extracted using 'FROM' XML with current iteration + 1, if one exists
+            --If not exists then get that from 'TO' XML - this will happen only for last level - 1 iteration in 'FROM' XML
+            IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()') =1) THEN
+               V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()').GETSTRINGVAL();
+            ELSE
+               V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()').GETSTRINGVAL(); 
             END IF;
+            --Expiration Date of other levels should be obtained from existing current level records from Detail table
+        END IF;
+
+   WHEN IN_FLAG = 'TO' THEN
+        V_CONTEXT := 'Extracting TO Hierarchy Details';
+        --Building composite 'TO' keys using 'TO' XML
+        FOR i IN 1..IN_HRCHY_DTL_LEVEL - 1 LOOP
+            --Previous Level Value should extract values of all levels except current level
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL  :=  OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
         END LOOP;
-          --reset all the values for the next level
-          V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL := NULL;
-          V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL := NULL;
-          V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL := NULL;
-          V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL := NULL;
-          V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EFF_DATE   := NULL;
-          V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EXP_DATE   := NULL;
-          V_FOUND := 'N';
-          V_COUNT := V_COUNT +1;
-          
-END LOOP;
+
+        --Extract all available values from 'TO' XML
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC          := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_DTL_DESC/text()').GETSTRINGVAL();
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || IN_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL();
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE      := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_DTL_EFF_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'|| '/HRCHY_DTL_EXP_DATE/text()') =1) THEN
+          OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');    
+        END IF;
+      
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/attributes') = 1) THEN
+           OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE     := SYS.XMLTYPE.CREATEXML(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/attributes').GETCLOBVAL());
+        END IF;
+        --Next value should be extracted using 'TO' XML with current iteration + 1, if one exists
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()') =1) THEN
+           V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()').GETSTRINGVAL();
+        END IF;
+
+   WHEN IN_FLAG = 'INSERT' THEN
+        V_CONTEXT := 'Extracting INSERT Hierarchy Details';
+       --This will be used by the HIERARCHY_DETAIL_INSERT procedure
+        --Building composite 'INSERT' keys using 'INSERT' XML
+        FOR i IN 1..IN_HRCHY_DTL_LEVEL - 1 LOOP
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL  :=  OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+        END LOOP;
+
+        --Extract all available values from 'INSERT' XML
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC           := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_DESC/text()').GETSTRINGVAL(); 
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL   := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || IN_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL();
+        OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE      := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EFF_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()') = 1) THEN
+            OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE   := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY'); 
+        END IF;
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/attributes') = 1) THEN
+          OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE     := SYS.XMLTYPE.CREATEXML(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/attributes').GETCLOBVAL());
+        END IF;
+        --Next value should be extracted using 'INSERT' XML with current iteration + 1, if one exists
+        IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()') =1) THEN
+           V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()').GETSTRINGVAL();
+        END IF;
+
+           BEGIN
+           --Start Check that a cost center should not belong to more than one Hierarchy
+           IF CCN_HIER_BUSINESS_RULES_PKG.GET_HDR_LVL_DESC_SP(OUT_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME, OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL) = 'Cost Center' THEN    
+              V_CONTEXT := 'Calling the DUPLICATE_COST_CENTER';
+              CCN_HIER_BUSINESS_RULES_PKG.DUPLICATE_COST_CENTER(OUT_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME, OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL, OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+           END IF;
+ 
+           EXCEPTION
+              WHEN OTHERS THEN
+                 RAISE CC_EXISTS_ERR;
+           END;
+
+   ELSE
+      NULL;
+   END CASE;
+
+   --Current Level Value should extract values of all levels as well as current level
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL := OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+
+   IF IN_LAST_LEVEL = 'Y' THEN
+      --HRCHY_DTL_NEXT_LVL_VAL is '~~~' for next val of last level
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
+   ELSE
+     OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL || V_NEXT_ROW_VAL;
+   END IF;
+
+   --Assign Previous Level value for 1st Level as ~~~
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL = 1 THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL := '~~~';
+   END IF;
+
+   --Getting descriptions for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC := HIERARCHY_DESC_RETURN(OUT_HIERARCHY_DETAIL_ROW);
+   END IF;
+
+   ---Getting attribute value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE := HIERARCHY_ATTRIBUTE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+   ---Getting Effective Date value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE := HIERARCHY_EFF_DATE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+   ---Getting Expiration Date value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE := HIERARCHY_EXP_DATE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+   --Calling the Business rules or validations before an Insert which is - 'INSERT' or 'TO' 
+   IF IN_FLAG IN ('INSERT','TO') THEN
+      V_CONTEXT := 'Calling the Business Rules pkg';
+      --CCN_HIER_BUSINESS_RULES_PKG.HIER_BUSINESS_RULES_MAIN(IN_XML);  
+   END IF;
 
 EXCEPTION
-
-     /*WHEN RAISE PREVIOUS_LEVEL_NOT_EXISTS_ERR THEN
-          V_CODE := ERRNUMS.EN_INVALID_LVL_ERR; 
-          ERRPKG.RAISE_ERR(V_CODE, 'HIERARCHY_TRANSFER_PROCESS.PREVIOUS_LEVEL_NOT_EXISTS_ERR ',
-                           'CCN_HIERARCHY_PKG ' || ' HRCHY_DTL_PREV_LVL_VAL ' || V_HRCHY_DTL_PREV_LVL_VAL || ' for level ' || V_HRCHY_DTL_LEVEL ||
-                             'Not Found' );*/
-      WHEN OTHERS THEN
+    
+     WHEN CC_EXISTS_ERR THEN  
+             SQ := ERRNUMS.EN_CC_EXISTS_ERR;
+             ERRPKG.RAISE_ERR(SQ, 'The Cost Center ' || OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL|| ' already exists');
+             
+     WHEN OTHERS THEN
            SQ := SQLCODE;
            SE := SQLERRM;
            
-           v_context := v_context || ' ' || sq || ' ' || se; 
-           DBMS_OUTPUT.PUT_LINE('ERROR -' );
-           ERRPKG.RAISE_ERR(-20004,'HIERARCHY_TRANSFER_PROCESS ',V_CONTEXT); 
-END HIERARCHY_TRANSFER_PROCESS;  
+           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+           ERRPKG.RAISE_ERR(-20004,'BUILD_COMPOSITE_KEYS ',V_CONTEXT);
+END BUILD_COMPOSITE_KEYS;
 
+FUNCTION CURRENT_LVL_EXISTS (
+/***********************************************************
+      CURRENT_LVL_EXISTS 
+      This Procedure will check for the current record 
+      before the insert for Duplicates
+
+      IN_FLAG          'H' for History table and NULL for Detail table
+      
+Created : 07/25/2013 CCN Project
+************************************************************/
+IN_FLAG                  IN  VARCHAR2,
+IN_HIERARCHY_DETAIL_ROW  IN  HIERARCHY_DETAIL%ROWTYPE)
+RETURN VARCHAR2
+IS
+  V_RETURN_VALUE    VARCHAR2(1) := 'N';
+  V_COUNT           NUMBER;
+BEGIN
+   --'H' stands for History table check, else Detail table check
+   IF IN_FLAG = 'H' THEN
+      SELECT COUNT(*) INTO V_COUNT
+        FROM HIERARCHY_DETAIL_HST
+       WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+         and HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
+   ELSE
+      SELECT COUNT(*) INTO V_COUNT
+        FROM HIERARCHY_DETAIL
+       WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+         AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
+   END IF;
+  
+   --This implies that current record already exists in the table
+   IF V_COUNT > 0 THEN
+      V_RETURN_VALUE := 'Y';
+   END IF;
+   
+   RETURN V_RETURN_VALUE;
+END CURRENT_LVL_EXISTS;
+
+PROCEDURE GET_PREVIOUS_LVL(
+/***********************************************************
+      GET_PREVIOUS_LVL 
+      This Procedure get the previous record 
+
+      IN_FLAG          'H' for History table and NULL for Detail table
+
+Created : 07/25/2013 CCN Project
+************************************************************/
+  IN_FLAG                  IN  VARCHAR2,
+  IN_HIERARCHY_DETAIL_ROW  IN  HIERARCHY_DETAIL%ROWTYPE,
+  OUT_HIERARCHY_DETAIL_ROW OUT HIERARCHY_DETAIL%ROWTYPE)
+IS
+  V_COUNT                NUMBER;
+  V_HIERARCHY_DETAIL_ROW HIERARCHY_DETAIL%ROWTYPE;
+BEGIN
+   --'H' stands for History table check, else Detail table check
+   IF IN_FLAG = 'H' THEN
+      BEGIN
+         --Check if previous level exists already in History table. If so return that as output
+         SELECT * INTO V_HIERARCHY_DETAIL_ROW
+           FROM HIERARCHY_DETAIL_HST
+          WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
+            AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+            AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+            AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1');
+      EXCEPTION
+         --This exception is to proceed even if no records found
+         WHEN NO_DATA_FOUND THEN
+            NULL;
+      END;
+      --If not return the already existing previous level History record as ouptut
+      IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL IS NULL THEN
+         BEGIN
+            SELECT * INTO V_HIERARCHY_DETAIL_ROW
+              FROM HIERARCHY_DETAIL_HST
+             WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
+               AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+               AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1')
+               AND ROWNUM < 2;
+         EXCEPTION
+            --This exception is to proceed even if no records found
+            WHEN NO_DATA_FOUND THEN
+               NULL;
+         END;  
+      END IF;
+   ELSE
+      BEGIN
+         --Check if previous level exists already in Detail table. If so return that as output
+         SELECT * INTO V_HIERARCHY_DETAIL_ROW
+           FROM HIERARCHY_DETAIL
+          WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
+            AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+            AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+            AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1');
+      EXCEPTION
+         --This exception is to proceed even if no records found
+         WHEN NO_DATA_FOUND THEN
+            NULL;
+      END;             
+      
+      IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL IS NULL THEN
+         BEGIN
+            --If not return the already existing previous level Detail record as ouptut
+            SELECT * INTO V_HIERARCHY_DETAIL_ROW
+              FROM HIERARCHY_DETAIL
+             WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
+               AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+               AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1')
+               AND ROWNUM < 2;
+         EXCEPTION
+            --This exception is to proceed even if no records found
+            WHEN NO_DATA_FOUND THEN
+               NULL;
+         END;  
+      END IF;
+   
+   END IF;
+   
+   --If the output of this procedure is NULL, meaning previous level doesn't exists at all
+   --In that case we should insert previous level also in a recursive style [Handled in INSERT_PROCESS]
+   OUT_HIERARCHY_DETAIL_ROW := V_HIERARCHY_DETAIL_ROW;
+
+EXCEPTION
+   WHEN OTHERS THEN 
+      OUT_HIERARCHY_DETAIL_ROW := NULL;
+END GET_PREVIOUS_LVL;
+
+FUNCTION HIERARCHY_DESC_RETURN (
+/***********************************************************
+      HIERARCHY_DESC_RETURN 
+      This Procedure will return the Hierarchy level DESC 
+      from HIERARCHY_DETAIL for any curr val passed and for any
+      level. This is used for the insert into hist for Transfer 
+      process.
+input param : IN_HIERARCHY_DETAIL_ROW
+Created : 03/19/2013 SH CCN Project
+revised : 05/02/2013 kdp ccn Header Name to query 
+************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+RETURN VARCHAR2
+IS
+  V_HRCHY_DTL_DESC HIERARCHY_DETAIL.HRCHY_DTL_DESC%TYPE;
+BEGIN
+   SELECT DISTINCT HRCHY_DTL_DESC INTO V_HRCHY_DTL_DESC
+     FROM HIERARCHY_DETAIL 
+    WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+      AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
+   
+   RETURN V_HRCHY_DTL_DESC;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to proceed even if no records found
+      RETURN NULL;
+END HIERARCHY_DESC_RETURN;
+
+FUNCTION HIERARCHY_ATTRIBUTE_RETURN (
+/***********************************************************
+      HIERARCHY_ATTRIBUTE_RETURN 
+      This Procedure will return the Hierarchy level Attributes 
+      from HIERARCHY_DETAIL for any curr val passed and for any
+      level. 
+
+input param : IN_HIERARCHY_DETAIL_ROW
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+RETURN XMLTYPE
+IS
+  V_UPPER_LVL_VER_VALUE HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
+BEGIN
+   SELECT UPPER_LVL_VER_VALUE INTO V_UPPER_LVL_VER_VALUE
+     FROM HIERARCHY_DETAIL 
+    WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+      AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+      AND ROWNUM < 2;
+
+RETURN V_UPPER_LVL_VER_VALUE;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to proceed even if no records found
+      RETURN NULL;
+END HIERARCHY_ATTRIBUTE_RETURN;
+
+FUNCTION HIERARCHY_EFF_DATE_RETURN (
+/***********************************************************
+      HIERARCHY_EFF_DATE_RETURN 
+      This Procedure will return the Hierarchy level Effective Date 
+      from HIERARCHY_DETAIL for any curr val passed and for any
+      level. 
+
+input param : IN_HIERARCHY_DETAIL_ROW
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+RETURN DATE
+IS
+  V_EFF_DATE_VALUE HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE;
+BEGIN
+
+   SELECT HRCHY_DTL_EFF_DATE INTO V_EFF_DATE_VALUE
+     FROM HIERARCHY_DETAIL 
+    WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+      AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+      AND ROWNUM < 2;
+
+RETURN V_EFF_DATE_VALUE;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to proceed even if no records found
+      dbms_output.put_line(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL || ' '|| IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME || ' ' ||IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL);
+      RETURN NULL;
+END HIERARCHY_EFF_DATE_RETURN;
+
+FUNCTION HIERARCHY_EXP_DATE_RETURN (
+/***********************************************************
+      HIERARCHY_EXP_DATE_RETURN 
+      This Procedure will return the Hierarchy level Expiration Date 
+      from HIERARCHY_DETAIL for any curr val passed and for any
+      level. 
+
+input param : IN_HIERARCHY_DETAIL_ROW
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+RETURN DATE
+IS
+  V_EXP_DATE_VALUE HIERARCHY_DETAIL.HRCHY_DTL_EXP_DATE%TYPE;
+BEGIN
+   SELECT HRCHY_DTL_EXP_DATE INTO V_EXP_DATE_VALUE
+     FROM HIERARCHY_DETAIL 
+    WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+      AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+      AND ROWNUM < 2;
+
+RETURN V_EXP_DATE_VALUE;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to proceed even if no records found
+      RETURN NULL;
+END HIERARCHY_EXP_DATE_RETURN;
+
+PROCEDURE HIERARCHY_DELETE_WRAPPER(
+/***********************************************************
+      HIERARCHY_DELETE_WRAPPER 
+      This Procedure will delete from HIERARCHY_DETAIL or
+      HIERARCHY_DETAIL_HST based on the in_flag
+      level. 
+
+      IN_FLAG                  IN  VARCHAR2,
+
+input param : in_HRCHY_DTL_CURR_LVL_VAL
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_FLAG                 IN VARCHAR2,
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+IS
+BEGIN
+   --'H' stands for History table check, else Detail table check
+   IF IN_FLAG = 'H' THEN
+      DELETE FROM HIERARCHY_DETAIL_HST
+       WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+         AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+         AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL;
+   ELSE
+      DELETE FROM HIERARCHY_DETAIL
+       WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+         AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+         AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL;
+   END IF;
+END HIERARCHY_DELETE_WRAPPER;
+
+PROCEDURE HIERARCHY_UPDATE_WRAPPER(
+/***********************************************************
+      HIERARCHY_UPDATE_WRAPPER 
+      This Procedure will update from HIERARCHY_DETAIL or
+      HIERARCHY_DETAIL_HST based on the in_flag
+      level. 
+      
+      IN_FLAG                  IN  VARCHAR2,
+  
+input param : in_HRCHY_DTL_CURR_LVL_VAL
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_FLAG                 IN VARCHAR2,
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+IS
+BEGIN
+   --'H' stands for History table check, else Detail table check
+   IF IN_FLAG = 'H' THEN
+      UPDATE HIERARCHY_DETAIL_HST
+         SET HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL
+       WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+         AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
+         AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL;
+   ELSE
+      UPDATE HIERARCHY_DETAIL
+         SET HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL
+       WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+         AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+         AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+   END IF;
+END HIERARCHY_UPDATE_WRAPPER;
+
+PROCEDURE DELETE_PROCESS(
+/***********************************************************
+      DELETE_PROCESS 
+      This Procedure will perform the following checks
+      and then calls the wrapper for UPDATE or DELETE
+      based on the in_flag
+     
+      a) if CURRENT_LVL_EXISTS
+      b) delete the record
+      c) get the Previous level record
+      d) get the count to see if it is the last record or has more children
+      d) if it is the last level, UPDATE  else DELETE
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_HIST_FLAG            IN VARCHAR2,
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+IS
+   V_LAST_CHILD                  VARCHAR2(1);
+   V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
+BEGIN
+   --Before deleting, check if the record exists using below condition
+   IF CURRENT_LVL_EXISTS(IN_HIST_FLAG, IN_HIERARCHY_DETAIL_ROW) = 'Y' THEN
+      --Delete the existing record
+      HIERARCHY_DELETE_WRAPPER(IN_HIST_FLAG, IN_HIERARCHY_DETAIL_ROW);
+      
+      --Get previous record for update/delete, if one exists
+      GET_PREVIOUS_LVL(IN_HIST_FLAG,
+                      IN_HIERARCHY_DETAIL_ROW,
+                      V_HIERARCHY_DETAIL_ROW_PREV);
+      
+      BEGIN
+         --Check if this is the last record being deleted at parent level
+         SELECT DECODE(COUNT(*),1,'Y','N') INTO V_LAST_CHILD
+           FROM HIERARCHY_DETAIL
+          WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+            AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL -'1')
+            AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL;
+      EXCEPTION
+         WHEN NO_DATA_FOUND THEN
+            V_LAST_CHILD := 'N';
+      END;
+      IF V_LAST_CHILD = 'Y' THEN
+         --This is the last record at parent level. So update previous[parent] records next level value as ~~~
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
+         HIERARCHY_UPDATE_WRAPPER(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW_PREV);
+      ELSE
+         --This is the NOT the last record at parent level. So we can delete this at parent level
+         HIERARCHY_DELETE_WRAPPER(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW_PREV);
+      END IF;
+   
+   END IF;
+END DELETE_PROCESS;
+
+PROCEDURE INSERT_PROCESS(
+/***********************************************************
+      INSERT_PROCESS 
+      This Procedure will perform the core insert process that involves below steps
+      If the passed flag is TO/INSERT : Inserts records into HIERARCHY_DETAIL table recursively
+      --Step 1 : Insert TO Hierarchy details into the Detail Table, recursively
+      --Step 1.1 : Update/Insert the previous level record's next level value with current level value
+      If the passed flag is FROM : Inserts records into HIERARCHY_DETAIL_HST table recursively
+      Also Deletes records from HIERARCHY_DETAIL table
+      --Step 1 : Insert FROM Hierarchy details into the History Table, recursively
+      --Step 2 : Delete FROM Hierarchy details from Detail Table
+      --Step 2.1 : Update/Delete the previous level record's
+      
+Created : 08/02/2013 CCN Project
+************************************************************/
+                         IN_FLAG                 IN VARCHAR2,
+                         IN_HIST_FLAG            IN VARCHAR2,
+                         IN_XML                  IN VARCHAR2,
+                         IN_HRCHY_HDR_NAME       IN VARCHAR2,
+                         IN_HRCHY_DTL_LEVEL      IN VARCHAR2,
+                         IN_COUNT                IN NUMBER,
+                         IN_LAST_LEVEL           IN VARCHAR2)
+IS
+   V_HIERARCHY_DETAIL_ROW        HIERARCHY_DETAIL%ROWTYPE;
+   V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
+   V_ROW_DATA                    XMLTYPE := SYS.XMLTYPE(IN_XML);
+BEGIN
+   --Building the Composite key based on parameters passed
+   BUILD_COMPOSITE_KEYS(IN_FLAG,
+                        IN_XML,
+                        IN_HRCHY_HDR_NAME,
+                        IN_HRCHY_DTL_LEVEL,
+                        IN_COUNT,
+                        IN_LAST_LEVEL,
+                        V_HIERARCHY_DETAIL_ROW);
+   --Get the previous level record, if one exists
+   GET_PREVIOUS_LVL(IN_HIST_FLAG,
+                    V_HIERARCHY_DETAIL_ROW,
+                    V_HIERARCHY_DETAIL_ROW_PREV);
+  
+   IF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL THEN
+      IF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL = '~~~' THEN
+         --If previous level's Next Value is ~~~, we need to update that with current level value
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+         HIERARCHY_UPDATE_WRAPPER(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW_PREV);
+      ELSIF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL <> V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL THEN
+         --If previous level's Next Value is NOT ~~~ and NOT current level value, insert one
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_EFF_DATE     := NVL(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE, SYSDATE);
+         CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW_PREV);
+      END IF;
+   ELSE
+      --Previous Level Doesn't exists, recursively insert all previous levels
+      --Also iteration should not lead to infinite loop, so add below condition to iterate back only till 1st level
+      IF (V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1') > 0 THEN
+         INSERT_PROCESS(IN_FLAG,
+                        IN_HIST_FLAG,
+                        IN_XML,
+                        IN_HRCHY_HDR_NAME,
+                        V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1', --Reduce the iteration to insert previous level
+                        IN_COUNT,
+                        'N');                                         --If it comes here, meaning it is not the last level
+      END IF;
+   END IF;
+   
+   IF CURRENT_LVL_EXISTS(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW) = 'N' THEN
+      --Always insert the record if it doesn't exists
+      CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER(IN_HIST_FLAG, V_HIERARCHY_DETAIL_ROW);
+   END IF;
+  
+   IF IN_FLAG = 'FROM' THEN
+      --Delete only the last level record from HIERARCHY_DETAIL table, if the input flag is 'FROM'
+      IF IN_LAST_LEVEL = 'Y' THEN 
+         DELETE_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW);
+      END IF;
+   END IF;
+
+END INSERT_PROCESS;
+
+PROCEDURE HIERARCHY_TRANSFER_PROCESS(
+/***********************************************************
+      HIERARCHY_TRANSFER_PROCESS 
+      This Procedure will perform the core transfer process that involves below steps
+      --Step 1 : Insert TO Hierarchy details into the Detail Table, recursively
+      --Step 1.1 : Update/Insert the previous level record's next level value with current level value
+      --Step 2 : Insert FROM Hierarchy details into the History Table, recursively
+      --Step 3 : Delete FROM Hierarchy details from Detail Table
+      --Step 3.1 : Update/Delete the previous level record's
+      
+Created : 08/02/2013 CCN Project
+************************************************************/
+IN_XML IN VARCHAR2) IS
+ 
+  V_HIERARCHY_DETAIL_ROW_TO        HIERARCHY_DETAIL%ROWTYPE;
+  V_HIERARCHY_DETAIL_ROW_FROM      HIERARCHY_DETAIL%ROWTYPE;
+  V_HRCHY_HDR_NAME                 HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+  V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+  V_COUNT                          NUMBER  := 1;
+  V_ROW_DATA                       XMLTYPE := SYS.XMLTYPE(IN_XML);
+
+  V_CONTEXT   VARCHAR2(3000);
+  SQ          INTEGER;
+  SE          VARCHAR2(1000);
+
+BEGIN
+   V_CONTEXT := 'Extracting Hierarchy Details';
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
+      V_HRCHY_HDR_NAME    := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+      V_HRCHY_DTL_LEVEL   := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
+   END IF;
+   --Extracting the TO_HIERARCHY
+   WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP
+      --Step 1 : Insert TO Hierarchy details into the Detail Table, recursively
+      --Step 1.1 : Update/Insert the previous level record's next level value with current level value
+      V_CONTEXT := 'Calling INSERT_PROCESS for TO Hierarchy';
+      INSERT_PROCESS('TO',                --Operation to perform sent as flag
+                     NULL,                --Detail/History indication Flag
+                     IN_XML,              --XML input
+                     V_HRCHY_HDR_NAME,    --Header Name
+                     V_HRCHY_DTL_LEVEL,   --Header Level to start the process with
+                     V_COUNT,             --Count of XML Fragment, N/A for Insert Process but applicable for Transfer Process
+                     'Y');                --Last Level Indicator
+     
+      --Step 2 : Insert FROM Hierarchy details into the History Table, recursively
+      --Step 3 : Delete FROM Hierarchy details from Detail Table
+      --Step 3.1 : Update/Delete the previous level record's
+      V_CONTEXT := 'Calling INSERT_PROCESS for FROM Hierarchy';
+      INSERT_PROCESS('FROM',              --Operation to perform sent as flag
+                     'H',                 --Detail/History indication Flag
+                     IN_XML,              --XML input
+                     V_HRCHY_HDR_NAME,    --Header Name
+                     V_HRCHY_DTL_LEVEL,   --Header Level to start the process with
+                     V_COUNT,             --Count of XML Fragment, N/A for Insert Process but applicable for Transfer Process
+                     'Y');                --Last Level Indicator
+      V_COUNT := V_COUNT + 1;
+   END LOOP;
+
+EXCEPTION
+    WHEN OTHERS THEN
+           SQ := SQLCODE;
+           SE := SQLERRM;
+           
+           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+           ERRPKG.RAISE_ERR(-20004,'HIERARCHY_TRANSFER_PROCESS ',V_CONTEXT);
+END HIERARCHY_TRANSFER_PROCESS;
+
+PROCEDURE HIERARCHY_DETAIL_INSERT(
+/**********************************************************
+	HIERARCHY_DETAIL_INSERT
+
+      This Procedure will perform the core transfer process that involves below steps
+      --Step 1 : Insert XML Hierarchy details into the Detail Table, recursively
+      --Step 1.1 : Update/Insert the previous level record's next level value with current level value
+        
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD Structure</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>01</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>02</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>10</HRCHY_LEVEL3>
+      <HRCHY_DTL_DESC>Ohio</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-10-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+  </row_data>
+</HIERARCHY_DETAIL>
+
+created : 02/13/2013 SH CCN Project....
+**********************************************************/
+    IN_XML                VARCHAR2)
+IS
+  V_XML_FRAG                       CLOB;
+  V_XML                            XMLTYPE := SYS.XMLTYPE(IN_XML);
+  V_HRCHY_HDR_NAME                 HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+  V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+
+  V_CONTEXT   VARCHAR2(3000);
+  SQ          INTEGER;
+  SE          VARCHAR2(1000);
+
+BEGIN
+   V_CONTEXT := 'Extracting Hierarchy Details';
+   IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
+      V_HRCHY_HDR_NAME  := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+      V_HRCHY_DTL_LEVEL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
+   END IF;
+  
+   V_CONTEXT := 'Calling INSERT_PROCESS';
+   INSERT_PROCESS('INSERT',            --Operation to perform sent as flag
+                  NULL,                --Detail/History indication Flag
+                  IN_XML,              --XML input
+                  V_HRCHY_HDR_NAME,    --Header Name
+                  V_HRCHY_DTL_LEVEL,   --Header Level to start the process with
+                  NULL,                --Count of XML Fragment, N/A for Insert Process but applicable for Transfer Process
+                  'Y');                --Last Level Indicator
+
+EXCEPTION
+    WHEN OTHERS THEN
+           SQ := SQLCODE;
+           SE := SQLERRM;
+           
+           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+           ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_INSERT ',V_CONTEXT);
+
+END HIERARCHY_DETAIL_INSERT;
 
 PROCEDURE HIERARCHY_HDR_PICKLIST(	
 /**********************************************************
@@ -1575,10 +1743,8 @@ IS
 	  V_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
   
    BEGIN
-        
-          OPEN OUT_HIERARCHY_REF_CUR FOR
-		select distinct hrchy_hdr_name 
-		from HIERARCHY_DESCRIPTION;
+       OPEN OUT_HIERARCHY_REF_CUR FOR
+          SELECT DISTINCT HRCHY_HDR_NAME FROM HIERARCHY_DESCRIPTION;
          
   EXCEPTION WHEN OTHERS THEN
           SQ := SQLCODE;
@@ -1589,4 +1755,3 @@ IS
 END HIERARCHY_HDR_PICKLIST;
 
 END CCN_HIERARCHY;
-

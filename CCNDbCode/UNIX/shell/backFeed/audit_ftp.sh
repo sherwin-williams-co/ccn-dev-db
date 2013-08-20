@@ -9,40 +9,45 @@
 #This shell script has 2 processes:
 #
 #1) put AuditBackfeed.txt  'SMIS1.ORACLE.CCN00600.INPUT(+1)' 
-#2) mv AuditBackfeed.txt  AuditBackfeedLog(current_date&time).log
+#2) mv AuditBackfeed.txt   current_datetime.log 
 # Created Date =11/27/2012  by B.Ramsey
-# Revised Date = 
+# Revised Date =06/18/2013  SH 
 
 . /app/ccn/ccn.config 
 
-echo ' \n Start script for FTP of  AuditFileName.txt \n ' 
+echo "\n Start script for FTP of Audit.txt \n" 
 
 #/app/ccn/batchJobs/backFeed/logs; directory used for move
 cdate=`date +'%Y%m%d%H%M%S'`
 
-auditpath=/app/ccn/batchJobs/backFeed/current/
-auditlogpath=/app/ccn/batchJobs/backFeed/logs/
-newname=$auditlogpath$AuditLogName$cdate.log
+AUDIT_PATH="/app/ccn/batchJobs/backFeed/current/"
+LOG_PATH="/app/ccn/batchJobs/backFeed/logs"
+ARC_PATH="/app/ccn/batchJobs/backFeed/Archive"
+file_name="Audit_backfeed.txt"
 
-echo ' \n  Execute FTP to Mainframe \n ' 
+cd $AUDIT_PATH
+echo "\n  Execute FTP to Mainframe \n" 
 ftpResult=`ftp -n $mainframe_host <<FTP_MF
 quote USER $mainframe_user
 quote PASS $mainframe_pw
-quote SITE RECFM=FBA,LRECL=820,BLKSIZE=27880,SPACE=(600,100),VOL(GDG350) TRACKS
-put $auditpath$AuditFileName  'SMIS1.ORACLE.CCN00600.INPUT(+1)' 
+quote SITE RECFM=FB,LRECL=6000,BLKSIZE=24000,SPACE=(300,150),VOL(GDG350) CYL
+put $file_name  'SMIS1.ORACLE.CCN00600.INPUT(+1)' 
 bye
 FTP_MF`
-echo '\n FTP to Mainframe COMPLETED \n '
+echo "\n FTP to Mainframe COMPLETED \n"
 
-#The $auditpath$AuditFileName will be moved to a Log file with a date/time stamp
+if [ "$ftpResult" -ne 0 ] ; then
+  echo "ERROR: ftp of $file_name failed"
+  exit 1
+else
+  echo "SUCCESS: ftp of $file_name completed successfully"
+  #Archive the concatenated file
+  echo "\n Move of Audit File to log \n"
+  mv $file_name $LOG_PATH/$file_name"_"$cdate
 
-echo ' \n Move of Audit File  \n  '
-echo 'AuditFileName='  $auditpath$AuditFileName
+  echo "\n Move of Data Files from current to Archive \n" 
+  mv `find *_backfeed* -type f` $ARC_PATH
 
-mv $auditpath$AuditFileName  $newname 
-
-echo 'AuditLogName=' $newname 
-echo ' \n Move of Audit file COMPLETED  \n  '
-
-exit
-
+  echo "$file_name has been archived to $LOG_PATH path"
+  exit 0
+fi
