@@ -1,3 +1,4 @@
+create or replace 
 PACKAGE BODY CCN_AUDIT_PKG as 
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
@@ -24,12 +25,13 @@ IS
 
 CURSOR KEY_COL IS
 	SELECT COL.COLUMN_NAME
-	FROM ALL_CONS_COLUMNS COL, ALL_CONSTRAINTS CON
-	WHERE COL.TABLE_NAME = CON.TABLE_NAME
-	AND CON.CONSTRAINT_TYPE = 'P' 
-	AND COL.CONSTRAINT_NAME = CON.CONSTRAINT_NAME
-	AND COL.TABLE_NAME = IN_Table_Name
-	ORDER BY COL.POSITION;
+	  FROM ALL_CONS_COLUMNS COL,
+         ALL_CONSTRAINTS CON
+	 WHERE COL.TABLE_NAME      = CON.TABLE_NAME
+	   AND CON.CONSTRAINT_TYPE = 'P' 
+	   AND COL.CONSTRAINT_NAME = CON.CONSTRAINT_NAME
+	   AND COL.TABLE_NAME      = IN_Table_Name
+	 ORDER BY COL.POSITION;
 
 	V_CONCAT_STR	VARCHAR2(1000):='|';
 	V_CONTEXT	VARCHAR2(200);
@@ -41,7 +43,7 @@ BEGIN
 	V_CONTEXT := 'Looping through input key XML';
 	
 	FOR KEY_COLS_REC IN KEY_COL LOOP
-            V_CONCAT_STR := V_CONCAT_STR ||  XML_EXTRACT_NO_EXCEPTION(IN_XML_KEY,'//' || KEY_COLS_REC.COLUMN_NAME) || '|';
+     V_CONCAT_STR := V_CONCAT_STR ||  XML_EXTRACT_NO_EXCEPTION(IN_XML_KEY,'//' || KEY_COLS_REC.COLUMN_NAME) || '|';
 	END LOOP;
 	
 	V_CONTEXT := 'Returning string';
@@ -80,6 +82,37 @@ BEGIN
 
 END XML_EXTRACT_NO_EXCEPTION;
 
+FUNCTION REQUIRED_TABLE_CHECK
+/**********************************************************
+this function checks for the table to be excluded or included
+by checking the excluded indicator and the table name from the 
+'CCN_AUDIT_EXCLUDED_TABLES' table
+
+created : 08/20/2012
+**********************************************************/
+(IN_TABLE_NAME   IN   VARCHAR2)
+RETURN VARCHAR2
+IS
+  L_RETURN_VALUE VARCHAR2(1) := 'Y';
+BEGIN
+
+  SELECT CASE WHEN COUNT(*) > 0 THEN
+                    'N'
+                   ELSE
+                    'Y'
+                   END CASE
+    INTO L_RETURN_VALUE
+    FROM CCN_AUDIT_EXCLUDED_TABLES
+   WHERE TABLE_NAME         = UPPER(IN_TABLE_NAME)
+     AND EXCLUDED_INDICATOR = 'Y';
+
+  RETURN L_RETURN_VALUE;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN L_RETURN_VALUE;
+END REQUIRED_TABLE_CHECK;
+
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
 Selects all rows from audit_log that have changed from
@@ -97,21 +130,17 @@ FROM DUAL;
 */
 
 CURSOR SEL_AUDIT_LOG IS
-SELECT DISTINCT AL.TABLE_NAME,AL.TRANSACTION_ID
+SELECT DISTINCT AL.TABLE_NAME,
+                AL.TRANSACTION_ID
   FROM AUDIT_LOG AL,
        BATCH_JOB BATCH
-WHERE  BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
-AND    AL.TRANSACTION_DATE  >= BATCH.BATCH_JOB_LAST_RUN_DATE
+ WHERE BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
+   AND AL.TRANSACTION_DATE  >= BATCH.BATCH_JOB_LAST_RUN_DATE
 --and    TABLE_NAME IN ('COST_CENTER','TAXWARE') -- for testing only, remove after testing
-AND    BATCH.BATCH_JOB_LAST_RUN_DATE 
-       IN
-       (
-        SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
-          FROM BATCH_JOB B1
-         WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG'
-       )
-and AL.AUDIT_REC_FLAG IS NULL
-	;
+   AND    BATCH.BATCH_JOB_LAST_RUN_DATE IN (SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+                                              FROM BATCH_JOB B1
+                                             WHERE B1.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+   AND AL.AUDIT_REC_FLAG IS NULL;
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
@@ -133,24 +162,26 @@ CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
 
 FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
     BEGIN
-          SAVEPOINT NEXT_AUDIT_REC;
-                 
+  
+            --Check if audit process is neede for the current table
+            IF REQUIRED_TABLE_CHECK(SEL_AUDIT_REC.TABLE_NAME) = 'Y' THEN
+              SAVEPOINT NEXT_AUDIT_REC;
+                            
                   V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
                   PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
                                        ,SEL_AUDIT_REC.TRANSACTION_ID
                                        ,V_CC_CODE
-  				       ,V_CHANGE_TYPE
+  				                             ,V_CHANGE_TYPE
                                        ,DIFF_XML);
 
                   V_CONTEXT:='Call procedure Build_File_SP';
-                  DBMS_OUTPUT.PUT_LINE('DIFF XML ' || DIFF_XML.getCLOBVal());
-                  BUILD_FILE_SP 
-                        (	 V_CC_CODE
+                  --DBMS_OUTPUT.PUT_LINE('DIFF XML ' || DIFF_XML.getCLOBVal());
+                  BUILD_FILE_SP(V_CC_CODE
                                 ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
                                 ,SYSDATE			--in_ROW_DATE   IN DATE
                                 ,DIFF_XML			--in_Row_data   IN sys.xmltype
-                                ,V_CHANGE_TYPE
-                        );
+                                ,V_CHANGE_TYPE);
+            END IF;
       EXCEPTION
            WHEN OTHERS THEN
              ROLLBACK TO NEXT_AUDIT_REC;
@@ -213,12 +244,16 @@ XMLSTRING	VARCHAR2(30000):='';
 SQ		INTEGER; 
 SE		VARCHAR2(1000);
 
-CURSOR GET_COLS (IN_TABLE IN VARCHAR2)
-IS
-    	SELECT COLUMN_NAME
-          FROM ALL_TAB_COLUMNS
-      	 WHERE TABLE_NAME = IN_TABLE
-         ORDER BY COLUMN_NAME;
+CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
+   SELECT COLUMN_NAME
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE
+   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
+   UNION
+   SELECT COLUMN_NAME
+     FROM CCN_ADDITIONAL_AUDIT_FIELDS
+    WHERE TABLE_NAME = IN_TABLE
+    ORDER BY COLUMN_NAME;
 
 BEGIN
 
@@ -226,29 +261,29 @@ BEGIN
 
 	BEGIN
 
-		SELECT TABLE_ROW_DATA, LOG_ID INTO ROW_PREV, V_LOG_ID_PREV
-		FROM   AUDIT_LOG AL, BATCH_JOB BATCH
-		WHERE  AL.TABLE_NAME = IN_TABLE_NAME
-		AND    BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
-		AND    TRUNC(BATCH.BATCH_JOB_LAST_RUN_DATE) = TRUNC(AL.AUDIT_REC_EFF_DATE)
-		AND    AL.AUDIT_REC_FLAG = 'R'	
-	  	AND    AL.TRANSACTION_ID = IN_KEY
-		AND    AL.AUDIT_REC_EFF_DATE IN
-					(SELECT MAX(AL1.AUDIT_REC_EFF_DATE)
-					   FROM	AUDIT_LOG AL1
-					  WHERE AL1.TABLE_NAME = AL.TABLE_NAME
-                                            AND AL1.TRANSACTION_ID = IN_KEY
-					    AND AL1.AUDIT_REC_FLAG = 'R'
-					 )
-  		AND BATCH.BATCH_JOB_LAST_RUN_DATE 
-     	  IN
-     	  (
-     	   SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
-     	     FROM BATCH_JOB B1
-     	    WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG'
-     	  );
-     	  
-              V_CHANGE_TYPE := 'C';
+   SELECT TABLE_ROW_DATA,
+          LOG_ID
+     INTO ROW_PREV,
+          V_LOG_ID_PREV
+     FROM AUDIT_LOG AL,
+          BATCH_JOB BATCH
+    WHERE AL.TABLE_NAME        = IN_TABLE_NAME
+      AND BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
+		  --AND TRUNC(BATCH.BATCH_JOB_LAST_RUN_DATE) = TRUNC(AL.AUDIT_REC_EFF_DATE)
+      AND AL.AUDIT_REC_FLAG    = 'R'
+      AND AL.TRANSACTION_ID    = IN_KEY
+      AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                    FROM AUDIT_LOG AL1
+                                   WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                     AND AL1.TRANSACTION_ID = IN_KEY
+                                     AND AL1.AUDIT_REC_FLAG = 'R')
+      AND BATCH.BATCH_JOB_LAST_RUN_DATE IN(SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+                                             FROM BATCH_JOB B1
+                                            WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG')
+      AND ROWNUM < 2
+    ORDER BY AL.LOG_ID DESC;
+    
+    V_CHANGE_TYPE := 'C';
        
 	EXCEPTION
 
@@ -259,16 +294,21 @@ BEGIN
 	
 	V_CONTEXT := 'Selecting Current Row from Audit_Log';
 	
-       SELECT TABLE_ROW_DATA, LOG_ID INTO ROW_CURR, V_LOG_ID_CURR
-	 FROM AUDIT_LOG AL	 
-	WHERE TABLE_NAME=IN_TABLE_NAME
-          AND AL.TRANSACTION_ID = IN_KEY
-	  AND AL.TRANSACTION_DATE IN
-				(SELECT MAX(AL1.TRANSACTION_DATE)
-				   FROM	AUDIT_LOG AL1
-				  WHERE AL1.TABLE_NAME = AL.TABLE_NAME
-                                    AND AL1.TRANSACTION_ID = IN_KEY
-				 );
+  SELECT TABLE_ROW_DATA,
+         LOG_ID
+    INTO ROW_CURR,
+         V_LOG_ID_CURR
+    FROM AUDIT_LOG AL
+    WHERE TABLE_NAME        = IN_TABLE_NAME
+      AND AL.TRANSACTION_ID = IN_KEY
+      AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                    FROM AUDIT_LOG AL1
+                                   WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                     AND AL1.TRANSACTION_ID = IN_KEY)
+      AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
+                         FROM	AUDIT_LOG AL2
+                        WHERE AL2.TABLE_NAME = AL.TABLE_NAME
+                          AND AL2.TRANSACTION_ID = IN_KEY);
         --dbms_output.put_line('The change type ' || v_change_type);	
 	V_CONTEXT := 'Parsing the XMLType';
 	
@@ -277,37 +317,34 @@ BEGIN
 	XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
 	
 	
-	FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
-    
-            /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
-            p_xml.extract(p_xpath || '/text()').getstringval() */
-                
-               IF V_CHANGE_TYPE = 'C' THEN
-                  COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
-               END IF; 
-        
-               COMP_CURR := XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME);
-                        
-               IF (COMP_CURR IS NULL) THEN
-                   COMP_CURR := '~';
-               end if; 
+  FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
 
+    /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
+    p_xml.extract(p_xpath || '/text()').getstringval() */
 
+     IF V_CHANGE_TYPE = 'C' THEN
+        COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+     END IF; 
+     
+     COMP_CURR := XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME);
 
-                        
-               IF GET_COLS_REC.COLUMN_NAME = 'COST_CENTER_CODE' THEN
-                  v_CostCenterCode := COMP_CURR;
-               end if;
-             
-                    --If the elements have changed OR new row, append them to the XML string
-                    IF v_change_type = 'A' THEN
-                       XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-                    ELSE
-                        IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A') THEN
-                           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-                        END IF;
-                    END IF;
-                    
+     IF (COMP_CURR IS NULL) THEN
+         COMP_CURR := '~';
+     END IF;
+
+     IF GET_COLS_REC.COLUMN_NAME = 'COST_CENTER_CODE' THEN
+        v_CostCenterCode := COMP_CURR;
+     END IF;
+
+     --If the elements have changed OR new row, append them to the XML string
+     IF v_change_type = 'A' THEN
+        XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+     ELSE
+        IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A') THEN
+           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+        END IF;
+     END IF;
+
 	END LOOP;
 --dbms_output.put_line('Cost Center ' || v_CostCenterCode);
 
@@ -323,7 +360,7 @@ BEGIN
             V_CONTEXT := 'Updating the CURR AUDIT_REC_FLAG to R';
             UPDATE AUDIT_LOG
                SET AUDIT_REC_FLAG = 'R'
-             WHERE TABLE_NAME = IN_TABLE_NAME
+            WHERE TABLE_NAME = IN_TABLE_NAME
                AND LOG_ID = V_LOG_ID_CURR
                AND TRANSACTION_ID = IN_KEY
                AND AUDIT_REC_FLAG IS NULL;
@@ -339,13 +376,10 @@ BEGIN
 	OUT_DIFF  := XMLType(XMLSTRING);
 	OUT_CC_CODE := v_CostCenterCode;
 	OUT_CHANGE_TYPE := v_change_type;
-	
-	
-EXCEPTION WHEN OTHERS THEN
 
+EXCEPTION WHEN OTHERS THEN
 	SQ := SQLCODE;
 	SE := SQLERRM;
-	
 	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
  
  	ERRPKG.RAISE_ERR(-20003,'PARSE_DIFFERENCE_XML for ' || IN_TABLE_NAME || ' ' || IN_KEY || 'at ', V_CONTEXT);
@@ -373,85 +407,107 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_CHANGE_TYPE in VARCHAR2
 )
  is 
-cursor table_fields_cur is
-
-    	SELECT COLUMN_NAME
-              ,decode(DATA_TYPE, 'DATE', 8
-              	, DATA_LENGTH) COLUMN_SIZE
-              ,DATA_TYPE
-      	 FROM all_tab_columns
-      	WHERE TABLE_NAME = in_table_name
-        order by column_id asc;
+CURSOR table_fields_cur IS
+   SELECT COLUMN_NAME,
+          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+          DATA_TYPE,
+          COLUMN_ID
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE_NAME
+   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
+   UNION
+   SELECT COLUMN_NAME,
+          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+          DATA_TYPE,
+          COLUMN_ID
+     FROM CCN_ADDITIONAL_AUDIT_FIELDS
+    WHERE TABLE_NAME = IN_TABLE_NAME
+    ORDER BY COLUMN_ID ASC;
 --;
 --
 
   PATH        	        VARCHAR2(50) := 'CCN_DATAFILES'; -- directory created in Oracle database UNTIL NEW ONE CREATED
-  filename  	        varchar2(50) := in_TABLE_NAME || '_backfeed' ;
-  stamp       		varchar2(50) := to_char(sysdate,'HH:MI:SS'); -- used to create timestamp for data file 
-  output_file 		utl_file.file_type;
-
+  filename  	          VARCHAR2(50) := in_TABLE_NAME || '_backfeed' ;
+  stamp       		      VARCHAR2(50) := to_char(sysdate,'HH:MI:SS'); -- used to create timestamp for data file 
+  v_cost_center		      VARCHAR2(6)  := '      '; --added for spaces with tables that don't use cost center
+  output_file 		      UTL_FILE.FILE_TYPE;
 -------------
-  l_out_file  UTL_FILE.file_type;
-  l_buffer    RAW(32767);
-  l_amount    BINARY_INTEGER := 32767;
-  l_pos       INTEGER := 1;
-  L_BLOB_LEN  INTEGER;
-  v_out_clob  clob;
+  l_out_file            UTL_FILE.FILE_TYPE;
+  l_buffer              RAW(32767);
+  l_amount              BINARY_INTEGER := 32767;
+  l_pos                 INTEGER        := 1;
+  L_BLOB_LEN            INTEGER;
+  v_out_clob            CLOB;
+  V_CONTEXT	            VARCHAR2(200);
+  SQ		                INTEGER; 
+  SE		                VARCHAR2(1000);
 
-begin
+BEGIN
 
--- working just remove for debbuging un comment for writing file
-    dbms_output.put_line('start');
-    output_file := utl_file.fopen (path
-                                   ,filename|| stamp
-                                   , 'w' --binary
-                                   , 32767);
---*/
-    --adding header information for the backload file
-    --DBMS_OUTPUT.PUT_LINE('start v_out_clob');
-     v_out_clob := to_char (trunc(sysdate),'YYYYMMDDHH24MISS') || in_cost_center || rpad(in_table_name,25) || to_char (trunc(sysdate),'YYYYMMDDHH24MISS') ||
-     in_CHANGE_TYPE ;
+   -- working just remove for debbuging un comment for writing file
+   --dbms_output.put_line('start');
+   V_CONTEXT := 'Creating the file on server';
+   output_file := UTL_FILE.FOPEN (path
+                                  ,filename|| stamp
+                                  , 'w' --binary
+                                  , 32767);
+   --adding header information for the backload file
+   --DBMS_OUTPUT.PUT_LINE('start v_out_clob');
+   IF IN_COST_CENTER IS NOT NULL THEN
+      V_COST_CENTER := IN_COST_CENTER; 
+   END IF;
 
-/*
-*/
-
-      for table_fields_rec in table_fields_cur loop
-
-	      if (in_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) then
-	        if (table_fields_rec.data_type <> 'DATE') then
-
-         		if ((in_table_name||' - '|| table_fields_rec.column_name = 'COST_CENTER - POS_PROG_VER_NBR' )) then
-	        		v_out_clob := v_out_clob || UPPER(
-	        				lpad(in_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
-	        	            ,table_fields_rec.column_size,'0')
-	        	            );	        	
-	        	else
-	        		v_out_clob := v_out_clob || UPPER(
-	        				rpad(in_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
-	        	            ,table_fields_rec.column_size)
-	        	            );
-	        	end if;             
-	        	            
-
-	        else
-				v_out_clob := v_out_clob || UPPER(
-							rpad(in_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
-	        	            ,8)
-	        	            );	        
-	        end if;	            
-	      else
-	        v_out_clob := v_out_clob || rpad(' ',table_fields_rec.column_size);
-	      end if;
-
-      end loop ;
-      
- --/* working just remove for debbuging un comment for writing file
-     UTL_FILE.put_line(output_file, v_out_clob, TRUE);
-
-     utl_file.fclose(output_file);
- --*/
- --dbms_output.put_line(v_out_clob);
-end Build_File_SP;
+V_CONTEXT := 'Generating the CLOB Output';
+   V_OUT_CLOB := TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
+                 V_COST_CENTER                               ||
+                 RPAD(IN_TABLE_NAME,25)                      ||
+                 TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
+                 IN_CHANGE_TYPE;
+   FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+ 
+      IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+         V_CONTEXT := 'Building by extracting the Existing Data';
+         IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - POS_PROG_VER_NBR' )) THEN
+            V_OUT_CLOB := V_OUT_CLOB ||
+                          UPPER(LPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
+                                     TABLE_FIELDS_REC.COLUMN_SIZE, '0'));
+         ELSE
+            V_OUT_CLOB := V_OUT_CLOB ||
+                           UPPER(RPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
+                                      TABLE_FIELDS_REC.COLUMN_SIZE));
+         END IF;
+ 
+      ELSE
+         V_CONTEXT := 'Building by extracting the Non-Existing Data';
+         --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
+         IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
+            V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('01012099',TABLE_FIELDS_REC.COLUMN_SIZE));
+            --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
+            --which have null values so that we can pass it to main frame
+         ELSE
+            IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
+                                                                         'BANK_CARD - QUALITY_CODE',
+                                                                         'BANK_CARD - AMEX_SE_ID',
+                                                                         'BANK_CARD - DISCOVER_ID',
+                                                                         'PHONE - PHONE_NUMBER',
+                                                                         'PHONE - PHONE_AREA_CODE'))) THEN
+               V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
+            ELSE
+               V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
+            END IF;
+         END IF;
+      END IF;
+   END LOOP;
+--dbms_output.put_line('clob output ' || v_out_clob);      
+  --working just remove for debbuging un comment for writing file
+     UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
+     UTL_FILE.FCLOSE(output_file);
+EXCEPTION WHEN OTHERS THEN
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+ 	ERRPKG.RAISE_ERR(-20003,'Build_File_SP in ' || IN_TABLE_NAME || ' for ' || IN_COST_CENTER || 'at ', V_CONTEXT);
+END Build_File_SP;
 
 END CCN_AUDIT_PKG;
-
