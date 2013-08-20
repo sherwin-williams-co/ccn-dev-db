@@ -1,4 +1,4 @@
-create or replace
+create or replace 
 TRIGGER "COSTCNTR"."TR_HIER_DETAIL_UPD" 
 BEFORE INSERT OR UPDATE ON HIERARCHY_DETAIL
 REFERENCING NEW AS NEW OLD AS OLD
@@ -6,78 +6,86 @@ FOR EACH ROW
 
 DECLARE
 
-	V_TRANSACTION_ID VARCHAR2(500);
-  v_key VARCHAR2(500);
-    V_ROWDATA SYS.XMLTYPE;
-    v_primaryKey sys.xmltype;
-    v_HI_DET_row HIERARCHY_DETAIL%ROWTYPE; 
-    
+  V_TRANSACTION_ID VARCHAR2(500);
+  V_KEY            VARCHAR2(500);
+  V_ROWDATA        SYS.XMLTYPE;
+  V_PRIMARYKEY     SYS.XMLTYPE;
+  V_HI_DET_ROW     HIERARCHY_DETAIL%ROWTYPE; 
+  V_STATEMENT_TYPE VARCHAR2(100);
+  V_EMPLOYEE_NAME  VARCHAR2(100);
+  V_COUNT          NUMBER  := 1;
+
 BEGIN
 
-/*
-	SELECT NVL(MAX(TRANSACTION_ID), 0) + 1 
-      INTO v_transaction_id 
-      FROM AUDIT_LOG;             */
+V_HI_DET_ROW.HRCHY_HDR_NAME             := :NEW.HRCHY_HDR_NAME;
+V_HI_DET_ROW.HRCHY_DTL_LEVEL            := :NEW.HRCHY_DTL_LEVEL;
+V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL     := :NEW.HRCHY_DTL_PREV_LVL_VAL;
+V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL     := :NEW.HRCHY_DTL_CURR_LVL_VAL;
+V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL     := :NEW.HRCHY_DTL_NEXT_LVL_VAL;
+V_HI_DET_ROW.HRCHY_DTL_EFF_DATE         := :NEW.HRCHY_DTL_EFF_DATE;
+V_HI_DET_ROW.HRCHY_DTL_EXP_DATE         := :NEW.HRCHY_DTL_EXP_DATE;
+V_HI_DET_ROW.HRCHY_DTL_DESC             := :NEW.HRCHY_DTL_DESC;
+IF :NEW.UPPER_LVL_VER_VALUE IS NOT NULL THEN
+   WHILE :NEW.UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']') = 1 LOOP
+      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'statement_type' THEN
+         V_STATEMENT_TYPE   := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+      END IF;
+      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'ManagerName' THEN
+         V_EMPLOYEE_NAME    := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+      END IF;
+      V_COUNT := V_COUNT + 1;
+   END LOOP;
+END IF;
 
-v_HI_DET_row.HRCHY_HDR_NAME	:=	:NEW.HRCHY_HDR_NAME;
-v_HI_DET_row.HRCHY_DTL_LEVEL	:=	:NEW.HRCHY_DTL_LEVEL;
-v_HI_DET_row.HRCHY_DTL_PREV_LVL_VAL	:=	:NEW.HRCHY_DTL_PREV_LVL_VAL;
-v_HI_DET_row.HRCHY_DTL_CURR_LVL_VAL	:=	:NEW.HRCHY_DTL_CURR_LVL_VAL;
-v_HI_DET_row.HRCHY_DTL_NEXT_LVL_VAL	:=	:NEW.HRCHY_DTL_NEXT_LVL_VAL;
-v_HI_DET_row.HRCHY_DTL_EFF_DATE	:=	:NEW.HRCHY_DTL_EFF_DATE;
-V_HI_DET_ROW.HRCHY_DTL_EXP_DATE	:=	:NEW.HRCHY_DTL_EXP_DATE;
-v_HI_DET_row.HRCHY_DTL_DESC	:=	:NEW.HRCHY_DTL_DESC;
-	
-	SELECT XMLELEMENT ( "HIERARCHY_DETAIL",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                  'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
-       XMLFOREST(
- v_HI_DET_row.HRCHY_HDR_NAME	HRCHY_HDR_NAME
-,v_HI_DET_row.HRCHY_DTL_LEVEL	HRCHY_DTL_LEVEL
-,v_HI_DET_row.HRCHY_DTL_PREV_LVL_VAL	HRCHY_DTL_PREV_LVL_VAL
-,v_HI_DET_row.HRCHY_DTL_CURR_LVL_VAL	HRCHY_DTL_CURR_LVL_VAL
-,v_HI_DET_row.HRCHY_DTL_NEXT_LVL_VAL	HRCHY_DTL_NEXT_LVL_VAL
-,to_char(v_HI_DET_row.HRCHY_DTL_EFF_DATE, 'yyyymmdd')  HRCHY_DTL_EFF_DATE
-,to_char(v_HI_DET_row.HRCHY_DTL_EXP_DATE, 'yyyymmdd')  HRCHY_DTL_EXP_DATE
-,v_HI_DET_row.HRCHY_DTL_DESC	HRCHY_DTL_DESC
-		)) AS "result"
-    ,XMLELEMENT ( "PRIMARY_KEY",               
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                  'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
-       		XMLForest(
-				V_HI_DET_ROW.HRCHY_HDR_NAME	HRCHY_HDR_NAME,
-v_HI_DET_row.HRCHY_DTL_LEVEL	HRCHY_DTL_LEVEL,
-V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL	HRCHY_DTL_PREV_LVL_VAL,
-v_HI_DET_row.HRCHY_DTL_CURR_LVL_VAL	HRCHY_DTL_CURR_LVL_VAL,
-v_HI_DET_row.HRCHY_DTL_NEXT_LVL_VAL	HRCHY_DTL_NEXT_LVL_VAL,
-v_HI_DET_row.HRCHY_DTL_EFF_DATE	HRCHY_DTL_EFF_DATE
-			)) AS "PrimaryKey"
-	INTO v_rowdata, v_primaryKey
-	FROM DUAL;	
-      
-     /* -- for   Column -- */
-     --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
-     
-     v_key:=v_HI_DET_row.HRCHY_HDR_NAME || '|'|| v_HI_DET_row.HRCHY_DTL_LEVEL || '|'|| v_HI_DET_row.HRCHY_DTL_PREV_LVL_VAL || '|' || v_HI_DET_row.HRCHY_DTL_CURR_LVL_VAL || '|'|| v_HI_DET_row.HRCHY_DTL_NEXT_LVL_VAL || '|' || v_HI_DET_row.HRCHY_DTL_EFF_DATE;
+SELECT XMLELEMENT("HIERARCHY_DETAIL",
+                  XMLATTRIBUTES('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
+                                'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
+                  XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                               HRCHY_HDR_NAME
+                            --,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
+                            ,TO_CHAR(TO_NUMBER(V_HI_DET_ROW.HRCHY_DTL_LEVEL),'09')                                    HRCHY_DTL_LEVEL
+                            ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
+                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
+                            ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
+                            ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EFF_DATE, 'yyyymmdd')                                     HRCHY_DTL_EFF_DATE
+                            ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EXP_DATE, 'yyyymmdd')                                     HRCHY_DTL_EXP_DATE
+                            ,V_HI_DET_ROW.HRCHY_DTL_DESC                                                              HRCHY_DTL_DESC
+                            ,V_STATEMENT_TYPE                                                                         STATEMENT_TYPE
+                            ,V_EMPLOYEE_NAME                                                                          EMPLOYEE_NAME)
+                  ) AS "result",
+       XMLELEMENT("PRIMARY_KEY",
+                  XMLATTRIBUTES('http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+                                'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
+                  XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                               HRCHY_HDR_NAME
+                            ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
+                            ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
+                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
+                            ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
+                            ,V_HI_DET_ROW.HRCHY_DTL_EFF_DATE                                                          HRCHY_DTL_EFF_DATE)
+                  ) AS "PrimaryKey"
+  INTO v_rowdata, v_primaryKey
+  FROM DUAL;	
 
-          INSERT INTO audit_log
-               (log_id
-               , transaction_id
-               , transaction_date
-               , table_name
-               , table_pk_value
-               , table_row_data
-               , change_by)
-          VALUES
-               ((SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG)
-                , v_key
-                , SYSDATE
-                , 'HIERARCHY_DETAIL'
-                ,v_primaryKey
-                ,v_rowdata
-                ,'TR_HIER_DETAIL_UPD');
-     --END IF;      
-      
+     V_KEY := V_HI_DET_ROW.HRCHY_HDR_NAME         || '|' ||
+              V_HI_DET_ROW.HRCHY_DTL_LEVEL        || '|' ||
+              V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL || '|' ||
+              V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL || '|' ||
+              V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL || '|' ||
+              V_HI_DET_ROW.HRCHY_DTL_EFF_DATE;
+
+INSERT
+  INTO AUDIT_LOG(LOG_ID,
+                 TRANSACTION_ID,
+                 TRANSACTION_DATE,
+                 TABLE_NAME,
+                 TABLE_PK_VALUE,
+                 TABLE_ROW_DATA,
+                 CHANGE_BY)
+ VALUES ((SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),
+          V_KEY,
+          SYSDATE,
+          'HIERARCHY_DETAIL',
+          V_PRIMARYKEY,
+          V_ROWDATA,
+          'TR_HIER_DETAIL_UPD');
+
 END TR_HIER_DETAIL_UPD;
