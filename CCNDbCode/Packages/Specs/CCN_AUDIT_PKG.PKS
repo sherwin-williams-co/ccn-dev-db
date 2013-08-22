@@ -1,4 +1,4 @@
-CREATE OR REPLACE
+create or replace
 PACKAGE CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
@@ -41,7 +41,7 @@ this throws an exception if not handled this way
 ( p_xml IN XMLTYPE
 , p_xpath IN VARCHAR2
 )  RETURN VARCHAR2;
-    
+   
 PROCEDURE PARSE_DIFFERENCE_XML
 ( IN_TABLE_NAME IN VARCHAR2
 , IN_KEY        IN VARCHAR2
@@ -64,13 +64,12 @@ PROCEDURE Build_File_SP (
 
 created : 02/21/2012 kdp CCN Project....
 **********************************************************/
-in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
-,in_TABLE_NAME IN VARCHAR2
+IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+,IN_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
-,in_Row_data    IN sys.xmltype
+,IN_ROW_DATA    IN SYS.XMLTYPE
 ,in_CHANGE_TYPE in VARCHAR2
+
 );
     
 END CCN_AUDIT_PKG;
-
-/

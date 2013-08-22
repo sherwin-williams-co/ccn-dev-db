@@ -1,0 +1,678 @@
+create or replace
+PACKAGE BODY CCN_HIER_BUSINESS_RULES_PKG AS
+/******************************************************************************
+	CCN_HIER_BUSINESS_RULES_PKG
+
+	This Package is intended to validate business rules for
+	all the Hierarchies
+
+created :SH 5/17/2013 
+
+*******************************************************************************/
+
+FUNCTION GET_HDR_LVL_NBR_SP(
+/*******************************************************************************
+ GET_HDR_LVL_NBR_SP  
+   
+  This procedure will return the Level number of a HIERARCHY for the 
+  corresponding Description of the level
+
+created : SH 05/17/2013
+********************************************************************************/
+in_HRCHY_HDR_NAME     IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE,
+IN_HRCHY_HDR_LVL_DESC IN HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_DESC%TYPE
+) return varchar2
+
+IS
+
+v_hrchy_hdr_lvl_nbr HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+
+BEGIN
+    SELECT HRCHY_HDR_LVL_NBR 
+           INTO V_HRCHY_HDR_LVL_NBR
+           from HIERARCHY_DESCRIPTION
+          WHERE upper(HRCHY_HDR_NAME)     = upper(in_HRCHY_HDR_NAME)
+            AND upper(HRCHY_HDR_LVL_DESC) = upper(in_hrchy_hdr_lvl_desc);
+            
+    return v_hrchy_hdr_lvl_nbr;
+
+EXCEPTION
+   WHEN OTHERS THEN
+       --RETURN  ('Invalid HRCHY_HDR_LVL_DESC ');
+       RETURN  ('-1');
+END GET_HDR_LVL_NBR_SP;  
+
+FUNCTION GET_HDR_LVL_DESC_SP(
+/*******************************************************************************
+ GET_HDR_LVL_DESC_SP  
+   
+  This procedure will return the Level description of a HIERARCHY for the 
+  corresponding Dtl level
+
+created : SH 07/03/2013
+********************************************************************************/
+in_HRCHY_HDR_NAME      IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE,
+in_HRCHY_HDR_LVL_NBR   IN HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE
+) return varchar2
+
+IS
+
+V_HRCHY_HDR_LVL_DESC HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_DESC%TYPE;
+
+BEGIN
+    SELECT HRCHY_HDR_LVL_DESC 
+           INTO V_HRCHY_HDR_LVL_DESC
+           from HIERARCHY_DESCRIPTION
+          WHERE upper(HRCHY_HDR_NAME)    = upper(in_HRCHY_HDR_NAME)
+            AND upper(HRCHY_HDR_LVL_NBR) = upper(in_HRCHY_HDR_LVL_NBR);
+            
+    return v_hrchy_hdr_lvl_desc;
+
+exception
+  when OTHERS then
+       dbms_output.put_line('Invalid HRCHY_HDR_LVL_NBR '|| in_HRCHY_HDR_LVL_NBR);
+       RETURN ('Invalid HRCHY_HDR_LVL_NBR ');
+END GET_HDR_LVL_DESC_SP;
+
+PROCEDURE Header_Lvl_Validation_sp (
+/*******************************************************************************
+ Header_Lvl_Validation_sp  
+   
+  This procedure will validate the business rules for any Hierarchy   
+  i.e, it checks if the order of the levels added for a new hierarchy 
+  is correct based on Global Hierarchy
+
+created : SH 05/17/2013
+
+  <HIERARCHY_DESCRIPTION>
+  <row_data>
+    <HRCHY_LEVELS>
+      <HRCHY_HDR_NAME>ABC STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_LVL_NBR>03</HRCHY_HDR_LVL_NBR> 
+      <HRCHY_HDR_LVL_DESC>AREA</HRCHY_HDR_LVL_DESC> 
+      <attributes>
+	   <upper_lvl_ver_desc> 
+	      <Name>statement_type</Name>
+	      <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	      <Name>ManagerName</Name>
+              <Description>CC Mgr Name</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	       <Name>state_code</Name>
+	       <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+      </attributes>
+    </HRCHY_LEVELS> 
+    <HRCHY_LEVELS>
+      <HRCHY_HDR_NAME>ABC STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_LVL_NBR>04</HRCHY_HDR_LVL_NBR> 
+      <HRCHY_HDR_LVL_DESC>DIST</HRCHY_HDR_LVL_DESC> 
+      <attributes>
+	   <upper_lvl_ver_desc> 
+	      <Name>statement_type</Name>
+	      <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	      <Name>ManagerName</Name>
+              <Description>CC Mgr Name</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	       <Name>state_code</Name>
+	       <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+      </attributes>
+    </HRCHY_LEVELS> 
+  </row_data>
+</HIERARCHY_DESCRIPTION>
+******************************************************************************/	
+    in_row_data                VARCHAR2
+ )
+ IS
+ 
+   invalid_order_wrn       EXCEPTION;
+   invalid_levels_err      EXCEPTION;
+   V_CONTEXT               VARCHAR2(100);
+   v_code                  NUMBER;
+   v_prev_lvl              HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+   V_HRCHY_HDR_NAME        HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE;
+   V_HRCHY_HDR_LVL_NBR     HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+   V_HRCHY_HDR_LVL_DESC    HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_DESC%TYPE;
+   V_COUNT                 NUMBER := 1;
+   v_WarningText           VARCHAR2(500);
+
+   V_XML XMLTYPE := sys.xmltype(in_row_data);
+
+BEGIN
+  
+    WHILE V_XML.EXISTSNODE('/HIERARCHY_DESCRIPTION/row_data/HRCHY_LEVELS' || '[' || V_COUNT || ']') = 1 LOOP 
+       V_HRCHY_HDR_NAME     := v_XML.EXTRACT('/HIERARCHY_DESCRIPTION/row_data/HRCHY_LEVELS' || '[' || V_COUNT || ']' || '/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+       V_HRCHY_HDR_LVL_DESC := v_XML.EXTRACT('/HIERARCHY_DESCRIPTION/row_data/HRCHY_LEVELS' || '[' || V_COUNT || ']' || '/HRCHY_HDR_LVL_DESC/text()').GETSTRINGVAL();        
+
+       --compare V_HRCHY_GLOBAL_LVL_NBR with the pre-defined levels   
+       V_HRCHY_HDR_LVL_NBR := GET_HDR_LVL_NBR_SP('GLOBAL_HIERARCHY', V_HRCHY_HDR_LVL_DESC);
+
+       --check if the levels eneterd are greater than that of global             
+       IF TO_NUMBER(V_HRCHY_HDR_LVL_NBR) NOT BETWEEN 1 AND 9 THEN
+          v_WarningText := 'The number of levels for the Hierarchy ' || V_HRCHY_HDR_NAME || ' is not in range of GLOBAL_HIERARCHY';
+          RAISE invalid_levels_err;
+       END IF;
+
+       IF V_HRCHY_HDR_LVL_NBR < NVL(v_prev_lvl, V_HRCHY_HDR_LVL_NBR) THEN
+          v_WarningText := 'The Order of levels for the Hierarchy ' || V_HRCHY_HDR_NAME || ' is incorrect';
+          RAISE invalid_order_wrn;
+       END IF;
+       v_prev_lvl := V_HRCHY_HDR_LVL_NBR; --assigning old val to compare
+       V_COUNT := V_COUNT + 1;
+    END LOOP;
+
+EXCEPTION
+    WHEN invalid_levels_err THEN    
+            v_code := errnums.en_invalid_levels_err;
+            ERRPKG.RAISE_ERR(v_code, v_WarningText); 
+
+    WHEN invalid_order_wrn THEN
+           v_code := errnums.en_invalid_order_wrn;
+            ERRPKG.RAISE_ERR(v_code, v_WarningText);
+
+END Header_Lvl_Validation_sp;
+
+PROCEDURE cost_center_change_Rules(
+/*******************************************************************************
+ cost_center_change_Rules  
+   
+  This procedure will validate the business rules for any Hierarchy   
+  i.e, If a Global Hierarchy is changed for a Cost Center, other hierarchies 
+  such as the Alternate D-A-D, SGL Division, or COA Division must be checked for 
+  possible changes for the same cost center. This will be a Warning message to 
+  check or verify other hierarchies for the same cost center.
+  
+  Also if a cost cente is null then give a message that it cannot be NULL(wildcard)
+
+created : SH 05/30/2013
+
+  <HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+********************************************************************************/
+in_HRCHY_HDR_NAME  HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+in_HRCHY_DTL_LEVEL HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE)
+
+IS
+
+    chk_hier_wrn  EXCEPTION;
+    v_code        NUMBER;
+    v_WarningText VARCHAR2(500);
+    
+BEGIN
+
+      IF in_HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' and in_HRCHY_DTL_LEVEL = '9' THEN
+           V_WARNINGTEXT := 'Please Check the ALTERNATE_DAD, COA Division and SGL Division for possible changes.';
+           RAISE chk_hier_wrn;
+      END IF;
+
+EXCEPTION
+    WHEN chk_hier_wrn THEN
+            v_code := errnums.en_chk_hier_wrn;
+            errpkg.raise_err(v_code, V_WARNINGTEXT);
+                
+end cost_center_change_Rules;
+
+procedure Stmnt_Type_Validation_Rules(
+/*******************************************************************************
+ Stmnt_Type_Validation_Rules  
+   
+  This procedure will validate the business rules for Statement Type   
+  i.e, When a higher node's Statement_Type changes, all lower nodes will be checked 
+  to make sure that they adhere to business rules. The only exception is the NULL
+  which allows any value for the lower levels and thus, does not need validation
+
+created : SH 05/31/2013
+
+ <HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+********************************************************************************/
+in_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE, 
+in_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
+in_DETAIL_STMNT_TYPE VARCHAR2)
+
+IS
+
+    Stmnt_Type_wrn    EXCEPTION;
+    invalid_cc_wrn    EXCEPTION;
+    v_code            NUMBER;
+     
+    V_DETAIL_STMNT_TYPE      VARCHAR2(50);
+    V_WARNINGTEXT            VARCHAR2(500);
+    
+cursor sub_hier_cur is
+  select distinct hrchy_hdr_name 
+    from hierarchy_description
+   where hrchy_global_lvl_nbr is not null;
+
+cursor hier_detail_cur(p_HRCHY_HDR_NAME IN hierarchy_description.hrchy_hdr_name%TYPE, p_HRCHY_DTL_LEVEL hierarchy_detail.hrchy_dtl_level%type) is
+  select * from hierarchy_detail 
+   where hrchy_hdr_name = p_hrchy_hdr_name
+     and HRCHY_DTL_LEVEL < p_HRCHY_DTL_LEVEL;
+    
+BEGIN
+      IF in_DETAIL_STMNT_TYPE IS NULL THEN
+         V_WARNINGTEXT := 'Cost Center cannot be Null. Please check.';
+         RAISE invalid_cc_wrn;
+      END IF;
+      IF in_HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
+         FOR each_hier IN sub_hier_cur LOOP
+             FOR  each_rec IN hier_detail_cur(each_hier.hrchy_hdr_name, in_HRCHY_DTL_LEVEL) LOOP
+                --check if the Statement Type matches the new one for the level higher
+                IF (each_rec.UPPER_LVL_VER_VALUE.existsnode('/attributes/upper_lvl_ver_desc/Value') = 1) THEN
+                    V_DETAIL_STMNT_TYPE := EACH_REC.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc/Value/text()').GETCLOBVAL();
+                END IF;
+
+                IF in_DETAIL_STMNT_TYPE <> v_detail_stmnt_type THEN
+                   v_warningtext := 'The Hierarchy ' || in_HRCHY_HDR_NAME || ' has a Different Statement Type';
+                   RAISE Stmnt_Type_wrn;
+                END IF;
+             END LOOP;
+         END LOOP;
+     END IF;
+EXCEPTION
+    WHEN invalid_cc_wrn THEN
+            v_code := errnums.en_invalid_cc_wrn;
+            errpkg.raise_err(v_code, v_warningtext);     
+
+    WHEN Stmnt_Type_wrn THEN
+            v_code := errnums.en_Stmnt_Type_wrn;
+            errpkg.raise_err(v_code, v_warningtext);  
+        
+END Stmnt_Type_Validation_Rules;
+
+procedure Lower_Level_Exp_Rules(
+/*******************************************************************************
+ Lower_Level_Exp_Rules  
+   
+  This procedure will validate the business rules that before allowing the expiration 
+  of any level (i.e. division or area) all lower nodes (area, district, cost center)
+  must have been expired previously!
+
+created : SH 06/04/2013
+
+ <HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+********************************************************************************/
+in_HRCHY_HDR_NAME     hierarchy_detail.hrchy_hdr_name%TYPE, 
+in_HRCHY_DTL_LEVEL    hierarchy_detail.hrchy_dtl_level%TYPE, 
+in_HRCHY_DTL_EXP_DATE hierarchy_detail.hrchy_dtl_exp_date%TYPE
+)
+
+IS
+    
+    exp_date_wrn EXCEPTION;
+    v_code       NUMBER;
+    
+    V_DETAIL_STMNT_TYPE      VARCHAR2(50);
+    V_WARNINGTEXT            VARCHAR2(500);
+    
+cursor sub_hier_cur is
+  select distinct hrchy_hdr_name 
+    from hierarchy_description
+   where hrchy_global_lvl_nbr is not null;
+
+CURSOR HIER_DETAIL_CUR(P_HRCHY_HDR_NAME IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE, P_HRCHY_DTL_LEVEL HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE) IS
+  select distinct HRCHY_DTL_EXP_DATE from hierarchy_detail 
+   where hrchy_hdr_name = p_hrchy_hdr_name
+     and HRCHY_DTL_LEVEL < p_HRCHY_DTL_LEVEL;
+    
+BEGIN
+      FOR each_hier in sub_hier_cur LOOP
+         FOR each_rec in hier_detail_cur(each_hier.hrchy_hdr_name, in_HRCHY_DTL_LEVEL) LOOP
+            --check if the all the lower levels are expired
+            IF in_HRCHY_DTL_EXP_DATE IS NULL THEN
+               v_warningtext := 'The Hierarchy ' || in_HRCHY_HDR_NAME || ' does not have all the lower levels Expired yet.';
+               RAISE exp_date_wrn;
+            END IF;
+         END LOOP;
+      END LOOP;
+EXCEPTION
+    WHEN exp_date_wrn THEN
+            v_code := errnums.en_exp_date_wrn;
+            errpkg.raise_err(v_code, v_WarningText);
+
+END Lower_Level_Exp_Rules;
+
+procedure District_Duplication_Rules(
+/*******************************************************************************
+ District_Duplication_Rules  
+   
+  This procedure will validate the business rules for Reporting_DAD, City DAD, 
+  or Alternate DAD that - duplication of a district number across all divisions 
+  and Areas is not allowed
+
+created : SH 05/31/2013
+
+<HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+********************************************************************************/
+in_HRCHY_HDR_NAME          hierarchy_detail.hrchy_hdr_name%TYPE,
+in_HRCHY_DTL_LEVEL         hierarchy_detail.hrchy_dtl_level%TYPE,
+in_HRCHY_DTL_CURR_ROW_VAL  hierarchy_detail.hrchy_dtl_curr_row_val%TYPE)
+
+IS
+
+    dist_exists_wrn EXCEPTION;
+    v_code          NUMBER;
+  
+    V_WARNINGTEXT               VARCHAR2(500);
+ 
+cursor hier_detail_cur(p_HRCHY_HDR_NAME IN HIERARCHY_DETAIL.hrchy_hdr_name%TYPE, p_HRCHY_DTL_LEVEL HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%type) is
+  SELECT distinct HRCHY_DTL_CURR_ROW_VAL FROM HIERARCHY_DETAIL
+    WHERE HRCHY_HDR_NAME = P_HRCHY_HDR_NAME
+      and HRCHY_DTL_LEVEL = p_HRCHY_DTL_LEVEL;
+   
+BEGIN
+   FOR EACH_REC IN HIER_DETAIL_CUR(in_HRCHY_HDR_NAME, in_HRCHY_DTL_LEVEL) LOOP
+      --check if the district is already existing
+      IF in_HRCHY_DTL_CURR_ROW_VAL = EACH_REC.HRCHY_DTL_CURR_ROW_VAL THEN
+         V_WARNINGTEXT := 'The District ' || in_HRCHY_DTL_CURR_ROW_VAL || ' already exists in ' || in_HRCHY_HDR_NAME;  
+         RAISE dist_exists_wrn;
+      END IF;
+   END LOOP;
+EXCEPTION
+    WHEN dist_exists_wrn THEN
+            v_code := errnums.en_dist_exists_wrn;
+            errpkg.raise_err(v_code, v_WarningText); 
+        
+END District_Duplication_Rules;
+
+procedure CC_Duplication_Rules(
+/*******************************************************************************
+ CC_Duplication_Rules  
+   
+  This procedure will validate the business rules for Reporting_DAD or City DAD, 
+  where duplication of a Cost Center across areas or divisions is not allowed
+
+created : SH 06/03/2013
+
+  <HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+********************************************************************************/
+in_HRCHY_HDR_NAME          hierarchy_detail.hrchy_hdr_name%TYPE,
+in_HRCHY_DTL_LEVEL         hierarchy_detail.hrchy_dtl_level%TYPE,
+in_HRCHY_DTL_CURR_ROW_VAL  hierarchy_detail.hrchy_dtl_curr_row_val%TYPE)
+
+IS
+
+    CC_EXISTS_WRN  EXCEPTION;
+    V_CODE         NUMBER;
+    V_ERRTEXT      VARCHAR2(500);
+ 
+cursor hier_detail_cur(p_HRCHY_HDR_NAME IN HIERARCHY_DETAIL.hrchy_hdr_name%TYPE, p_HRCHY_DTL_LEVEL HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%type) is
+  SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL FROM HIERARCHY_DETAIL
+    WHERE HRCHY_HDR_NAME = P_HRCHY_HDR_NAME
+      and HRCHY_DTL_LEVEL = p_HRCHY_DTL_LEVEL;
+   
+begin
+    
+         FOR EACH_REC IN HIER_DETAIL_CUR(in_HRCHY_HDR_NAME, in_HRCHY_DTL_LEVEL) LOOP
+                --check if the Cost_Center is already existing
+                IF in_HRCHY_DTL_CURR_ROW_VAL = EACH_REC.HRCHY_DTL_CURR_ROW_VAL THEN
+                   V_ERRTEXT := 'The Cost Center ' || in_HRCHY_DTL_CURR_ROW_VAL || ' already exists in ' || in_HRCHY_HDR_NAME;
+                   RAISE CC_EXISTS_WRN;
+                END IF;
+         END LOOP;
+         --dbms_output.put_line('V_FOUND ' ||V_FOUND);
+exception      
+    when CC_EXISTS_WRN then
+            V_CODE := errnums.en_CC_EXISTS_WRN;
+            errpkg.raise_err(V_CODE, V_ERRTEXT); 
+        
+END CC_Duplication_Rules;
+
+procedure DUPLICATE_COST_CENTER(
+/*******************************************************************************
+ DUPLICATE_COST_CENTER  
+   
+  This procedure will validate the business rules same Hierarchy, 
+  where duplication of a Cost Center in the same hierarchy is not allowed
+
+created : SH 06/27/2013
+
+  <HIERARCHY_DETAIL>
+   <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>03</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>09</HRCHY_LEVEL2>
+      <HRCHY_LEVEL3>99</HRCHY_LEVEL3> 
+      <HRCHY_DTL_DESC>S/E DIVISION</HRCHY_DTL_DESC> 
+      <HRCHY_DTL_EFF_DATE>06-27-2013</HRCHY_DTL_EFF_DATE> 
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+            <Name>statement_type</Name> 
+            <Description>pkListValue</Description> 
+            <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+   </row_data>
+ </HIERARCHY_DETAIL>
+
+created : 06/27/2013 SH CCN
+********************************************************************************/
+in_HRCHY_HDR_NAME             HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+in_HRCHY_DTL_LEVEL            HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
+in_HRCHY_DTL_CURR_ROW_VAL     HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE)
+
+IS
+
+    --CC_EXISTS_ERR  EXCEPTION;
+    V_CODE         NUMBER;
+
+    V_ERRTEXT      VARCHAR2(500);
+ 
+CURSOR hier_detail_cur(p_HRCHY_HDR_NAME IN HIERARCHY_DETAIL.hrchy_hdr_name%TYPE, p_HRCHY_DTL_LEVEL HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%type) IS
+  SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL FROM HIERARCHY_DETAIL
+    WHERE HRCHY_HDR_NAME = P_HRCHY_HDR_NAME
+      AND HRCHY_DTL_LEVEL = p_HRCHY_DTL_LEVEL;
+   
+BEGIN
+     FOR EACH_REC IN HIER_DETAIL_CUR(in_HRCHY_HDR_NAME, in_HRCHY_DTL_LEVEL) LOOP
+             --check if the Cost_Center is already existing
+             IF in_HRCHY_DTL_CURR_ROW_VAL = EACH_REC.HRCHY_DTL_CURR_ROW_VAL THEN
+                --V_ERRTEXT := 'The Cost Center ' || in_HRCHY_DTL_CURR_ROW_VAL || ' already exists in Hierarchy ' || in_HRCHY_HDR_NAME;
+                RAISE CCN_HIERARCHY.CC_EXISTS_ERR;
+             END IF;
+      END LOOP;
+      
+/*EXCEPTION      
+    WHEN CC_EXISTS_ERR THEN
+            RAISE;*/
+            --V_CODE := ERRNUMS.EN_CC_EXISTS_ERR;
+            --ERRPKG.RAISE_ERR(V_CODE, V_ERRTEXT); 
+END DUPLICATE_COST_CENTER;
+
+PROCEDURE HIER_BUSINESS_RULES_MAIN(
+/*******************************************************************************
+ HIER_BUSINESS_RULES_MAIN  
+  
+  This procedure is intended to be the "main" Business Rules procedure.  This
+  routine will be excuted both by Batch and our UI Screens.
+  
+  Its purposes is to execute each of the individual Business Rules as defined
+  in the Technical Document
+
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD Structure</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>01</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>02</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>10</HRCHY_LEVEL3>
+      <HRCHY_DTL_DESC>Ohio</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-10-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+  </row_data>
+</HIERARCHY_DETAIL>
+ 
+created : 06/27/2013 SH CCN
+********************************************************************************/
+IN_ROW_DATA                VARCHAR2)
+
+IS
+
+     V_CODE               NUMBER;
+     V_ERRM               VARCHAR2(500);
+     V_XML XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+
+     V_XML_FRAG           CLOB;
+     v_HRCHY_HDR_LVL_DESC HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_DESC%TYPE;
+     V_HRCHY_HDR_NAME     HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+     V_HRCHY_DTL_LEVEL    HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+     V_HRCHY_DTL_EXP_DATE HIERARCHY_DETAIL.HRCHY_DTL_EXP_DATE%TYPE;
+     V_HRCHY_DTL_DESC     HIERARCHY_DETAIL.HRCHY_DTL_DESC%TYPE;
+     v_HRCHY_DTL_CURR_ROW_VAL HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+     V_CONTEXT            VARCHAR2(100);
+     V_DETAIL_STMNT_TYPE  VARCHAR2(100);
+  
+BEGIN
+
+       V_CONTEXT := 'Extracting HRCHY_HDR_NAME';
+       V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+      
+       V_CONTEXT := 'Extracting HRCHY_DTL_LEVEL';
+       V_HRCHY_DTL_LEVEL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
+       
+       V_CONTEXT := 'Extracting HRCHY_HDR_DESC'; 
+       V_HRCHY_HDR_LVL_DESC := ccn_hier_business_rules_pkg.GET_HDR_LVL_DESC_SP(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
+       
+       IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/attributes/upper_lvl_ver_desc/Value/text()') = 1) THEN
+           V_CONTEXT := 'Extracting STMNT_TYPE';
+           V_DETAIL_STMNT_TYPE := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/attributes/upper_lvl_ver_desc/Value/text()').GETCLOBVAL();
+           CCN_HIER_BUSINESS_RULES_PKG.Stmnt_Type_Validation_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, V_DETAIL_STMNT_TYPE);
+       END IF;
+       
+       IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' and v_hrchy_dtl_level = '9' then
+          V_CONTEXT := 'Calling the cost_center_change_Rules';
+          CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
+       END IF;
+       
+       IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text') = 1) THEN
+          V_CONTEXT := 'Calling the Lower_Level_Exp_Rules';
+          V_HRCHY_DTL_EXP_DATE := to_date(V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
+          CCN_HIER_BUSINESS_RULES_PKG.Lower_Level_Exp_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, V_HRCHY_DTL_EXP_DATE);
+       END IF;
+      
+       IF UPPER(V_HRCHY_HDR_NAME) IN ('REPORTING_DAD', 'CITY_MANAGER_DAD') THEN
+          V_CONTEXT := 'Calling the CC_Duplication_Rules';
+          v_HRCHY_DTL_CURR_ROW_VAL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_HRCHY_DTL_LEVEL || '/text()').GETSTRINGVAL();
+          CCN_HIER_BUSINESS_RULES_PKG.CC_Duplication_Rules(v_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, v_HRCHY_DTL_CURR_ROW_VAL);
+       END IF;
+       
+       IF UPPER(V_HRCHY_HDR_LVL_DESC) = 'DISTRICT' THEN
+          V_HRCHY_DTL_CURR_ROW_VAL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_HRCHY_DTL_LEVEL || '/text()').GETSTRINGVAL();
+          IF UPPER(V_HRCHY_HDR_NAME) IN ( 'REPORTING_DAD', 'CITY_MANAGER_DAD', 'ALTERNATE_DAD') THEN
+             V_CONTEXT := 'Calling the District_Duplication_Rules';
+             CCN_HIER_BUSINESS_RULES_PKG.District_Duplication_Rules(v_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, v_HRCHY_DTL_CURR_ROW_VAL);
+          END IF;
+       END IF;
+   
+/*EXCEPTION
+       WHEN OTHERS THEN
+                    V_CODE := SQLCODE;
+                    V_ERRM := SUBSTR(SQLERRM,12, 500);
+                    ERRPKG.RAISE_ERR(V_CODE, ' HIER_BUSINESS_RULES_MAIN Error ', V_ERRM
+                ); */
+END HIER_BUSINESS_RULES_MAIN;
+
+END CCN_HIER_BUSINESS_RULES_PKG;
