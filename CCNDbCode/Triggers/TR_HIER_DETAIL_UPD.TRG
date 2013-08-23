@@ -1,4 +1,4 @@
-create or replace
+create or replace 
 TRIGGER "COSTCNTR"."TR_HIER_DETAIL_UPD" 
 BEFORE INSERT OR UPDATE ON HIERARCHY_DETAIL
 REFERENCING NEW AS NEW OLD AS OLD
@@ -27,7 +27,7 @@ V_HI_DET_ROW.HRCHY_DTL_EXP_DATE         := :NEW.HRCHY_DTL_EXP_DATE;
 V_HI_DET_ROW.HRCHY_DTL_DESC             := :NEW.HRCHY_DTL_DESC;
 IF :NEW.UPPER_LVL_VER_VALUE IS NOT NULL THEN
    WHILE :NEW.UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']') = 1 LOOP
-      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'statement_type' THEN
+      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'Statement Type' THEN
          V_STATEMENT_TYPE   := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
       END IF;
       IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'ManagerName' THEN
