@@ -1,4 +1,4 @@
-create or replace 
+create or replace
 TRIGGER "COSTCNTR"."TR_HIER_DETAIL_UPD" 
 BEFORE INSERT OR UPDATE ON HIERARCHY_DETAIL
 REFERENCING NEW AS NEW OLD AS OLD
@@ -41,13 +41,13 @@ SELECT XMLELEMENT("HIERARCHY_DETAIL",
                   XMLATTRIBUTES('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
                                 'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
                   XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                               HRCHY_HDR_NAME
-                            --,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
-                            ,TO_CHAR(TO_NUMBER(V_HI_DET_ROW.HRCHY_DTL_LEVEL),'09')                                    HRCHY_DTL_LEVEL
+                            ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
                             ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
                             ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
                             ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
                             ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EFF_DATE, 'yyyymmdd')                                     HRCHY_DTL_EFF_DATE
                             ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EXP_DATE, 'yyyymmdd')                                     HRCHY_DTL_EXP_DATE
+                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL													  HRCHY_DTL_CURR_ROW_VAL
                             ,V_HI_DET_ROW.HRCHY_DTL_DESC                                                              HRCHY_DTL_DESC
                             ,V_STATEMENT_TYPE                                                                         STATEMENT_TYPE
                             ,V_EMPLOYEE_NAME                                                                          EMPLOYEE_NAME)
