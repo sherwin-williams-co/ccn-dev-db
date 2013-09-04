@@ -1,4 +1,4 @@
-create or replace
+create or replace 
 PACKAGE CCN_BUSINESS_RULES_PKG
     AS
 /******************************************************************************
@@ -270,7 +270,8 @@ PROCEDURE ADDRESS_CAN_BR_SP (
 created : TAL 8/7/2012
 *******************************************************************************/	
   
-  inaddress_can_rowtype            IN  ADDRESS_CAN%rowtype );
+  inaddress_can_rowtype            IN  ADDRESS_CAN%rowtype
+  ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%rowtype);
 
 PROCEDURE ADDRESS_MEX_BR_SP (
 /*******************************************************************************
@@ -283,7 +284,8 @@ PROCEDURE ADDRESS_MEX_BR_SP (
 created : TAL 8/7/2012
 *******************************************************************************/	
   
-  inaddress_mex_rowtype            IN  ADDRESS_MEX%rowtype );
+  inaddress_mex_rowtype            IN  ADDRESS_MEX%rowtype
+  ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%rowtype);
   
 PROCEDURE ADDRESS_OTH_BR_SP (
 /*******************************************************************************
@@ -296,7 +298,8 @@ PROCEDURE ADDRESS_OTH_BR_SP (
 created : TAL 8/7/2012
 *******************************************************************************/	
   
-  inaddress_oth_rowtype             IN  ADDRESS_OTHER%rowtype );
+  inaddress_oth_rowtype             IN  ADDRESS_OTHER%rowtype
+  ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%rowtype);
   
 PROCEDURE ADDRESS_USA_BR_SP (
 /*******************************************************************************
@@ -309,7 +312,8 @@ PROCEDURE ADDRESS_USA_BR_SP (
 created : TAL 8/7/2012
 *******************************************************************************/	
   
-  inaddress_usa_rowtype            IN  ADDRESS_USA%rowtype );
+  inaddress_usa_rowtype            IN  ADDRESS_USA%rowtype
+  ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%rowtype);
 
 PROCEDURE ADMINISTRATION_BR_SP (
 /*******************************************************************************
@@ -469,7 +473,8 @@ PROCEDURE TERMINAL_BR_SP (
 created : TAL 7/27/2012
 *******************************************************************************/	
   
-   in_terminal_rowtype            IN   terminal%rowtype );
+   IN_TERMINAL_ROWTYPE            IN   TERMINAL%ROWTYPE,
+   in_polling_rowtype     in   polling%rowtype);
 
 
 PROCEDURE TERR_ASSIGNMENT_BR_SP (
