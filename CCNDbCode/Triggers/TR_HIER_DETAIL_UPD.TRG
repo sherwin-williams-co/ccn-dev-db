@@ -25,16 +25,37 @@ V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL     := :NEW.HRCHY_DTL_NEXT_LVL_VAL;
 V_HI_DET_ROW.HRCHY_DTL_EFF_DATE         := :NEW.HRCHY_DTL_EFF_DATE;
 V_HI_DET_ROW.HRCHY_DTL_EXP_DATE         := :NEW.HRCHY_DTL_EXP_DATE;
 V_HI_DET_ROW.HRCHY_DTL_DESC             := :NEW.HRCHY_DTL_DESC;
+V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL     := :NEW.HRCHY_DTL_CURR_ROW_VAL;
+
+-- Check if the Attributes XML is present or not
 IF :NEW.UPPER_LVL_VER_VALUE IS NOT NULL THEN
+   
+   -- Loop through the attributes
    WHILE :NEW.UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']') = 1 LOOP
-      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'Statement Type' THEN
-         V_STATEMENT_TYPE   := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+      
+      -- If attribute is of 'Statement Type'/'statement_type' then populates its value
+      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() IN ('Statement Type', 'statement_type') THEN
+         -- Due to some reason if the Value is not present for 'Statement Type'/'statement_type' then populate with '**' [Error should never be thrown here]
+         IF :NEW.UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value') = 1 THEN
+            V_STATEMENT_TYPE   := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+         ELSE
+            V_STATEMENT_TYPE   := '**';
+         END IF;
       END IF;
-      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() = 'ManagerName' THEN
-         V_EMPLOYEE_NAME    := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+      
+      -- If attribute is of 'ManagerName'/'Manager ID' then populates its value
+      IF :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Name/text()').GETSTRINGVAL() IN ('ManagerName','Manager ID') THEN
+         -- Due to some reason if the Value is not present for 'ManagerName'/'Manager ID' then don't populate it
+         -- as we don't have default value for manager name [Error should never be thrown here]
+         IF :NEW.UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value') = 1 THEN
+            V_EMPLOYEE_NAME   := :NEW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' ||'[' || V_COUNT || ']'|| '/Value/text()').GETSTRINGVAL();
+         END IF;
       END IF;
+      
       V_COUNT := V_COUNT + 1;
+   
    END LOOP;
+
 END IF;
 
 SELECT XMLELEMENT("HIERARCHY_DETAIL",
