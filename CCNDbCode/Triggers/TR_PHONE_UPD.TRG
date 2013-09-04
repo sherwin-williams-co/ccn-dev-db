@@ -20,6 +20,7 @@ BEGIN
 		v_phone_row.cost_center_code := :new.cost_center_code;
 		v_phone_row.phone_number_type := :new.phone_number_type;
 		v_phone_row.phone_number := :new.phone_number;
+		v_phone_row.phone_area_code := :new.phone_area_code;
 	
 	SELECT XMLELEMENT ( "PHONE",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
