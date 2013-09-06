@@ -1,4 +1,4 @@
-create or replace
+create or replace 
 PACKAGE BODY CCN_AUDIT_PKG as 
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
@@ -280,15 +280,17 @@ SQ		              INTEGER;
 SE		              VARCHAR2(1000);
 
 CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
-   SELECT COLUMN_NAME
+   SELECT COLUMN_NAME,
+          COLUMN_ID
      FROM ALL_TAB_COLUMNS
     WHERE TABLE_NAME = IN_TABLE
    --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
    UNION
-   SELECT COLUMN_NAME
+   SELECT COLUMN_NAME,
+          COLUMN_ID
      FROM CCN_ADDITIONAL_AUDIT_FIELDS
     WHERE TABLE_NAME = IN_TABLE
-    ORDER BY COLUMN_NAME;
+    ORDER BY COLUMN_ID ASC;
 
 BEGIN
 
@@ -323,7 +325,8 @@ BEGIN
 	EXCEPTION
 
 		WHEN NO_DATA_FOUND THEN
-                     v_change_type := 'A';
+				
+					 v_change_type := 'A';
 	    --NULL;
 	END;
 	
@@ -336,17 +339,17 @@ BEGIN
          V_LOG_ID_CURR,
          PK_CURR -- Added to accomodate population of primary key columns in backFeed files generated
     FROM AUDIT_LOG AL
-    WHERE TABLE_NAME        = IN_TABLE_NAME
-      AND AL.TRANSACTION_ID = IN_KEY
-      AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
-                                    FROM AUDIT_LOG AL1
-                                   WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
-                                     AND AL1.TRANSACTION_ID = IN_KEY)
-      AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
-                         FROM	AUDIT_LOG AL2
-                        WHERE AL2.TABLE_NAME = AL.TABLE_NAME
-                          AND AL2.TRANSACTION_ID = IN_KEY)
-      AND ROWNUM < 2;
+   WHERE TABLE_NAME        = IN_TABLE_NAME
+     AND AL.TRANSACTION_ID = IN_KEY
+     AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                   FROM AUDIT_LOG AL1
+                                  WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                    AND AL1.TRANSACTION_ID = IN_KEY)
+     AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
+                        FROM	AUDIT_LOG AL2
+                       WHERE AL2.TABLE_NAME = AL.TABLE_NAME
+                         AND AL2.TRANSACTION_ID = IN_KEY)
+     AND ROWNUM < 2;
         --dbms_output.put_line('The change type ' || v_change_type);	
 	V_CONTEXT := 'Parsing the XMLType';
 	
@@ -369,7 +372,7 @@ BEGIN
      IF (COMP_CURR IS NULL) THEN
          COMP_CURR := '~';
      END IF;
-
+     
      IF GET_COLS_REC.COLUMN_NAME = 'COST_CENTER_CODE' THEN
         v_CostCenterCode := COMP_CURR;
      END IF;
@@ -383,10 +386,9 @@ BEGIN
       END IF;
 	 END IF;
 	
-	 IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_DTL_CURR_ROW_VAL' AND V_HRCHY_DTL_LEVEL = GET_HRCHY_DTL_LEVEL(V_HRCHY_HDR_NAME) THEN
-			--Only for the final level of the hierarchy header we need to populate of the Cost Center
+   IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_DTL_CURR_ROW_VAL' AND V_HRCHY_DTL_LEVEL = GET_HRCHY_DTL_LEVEL(V_HRCHY_HDR_NAME) THEN
+			--Only for the final level of the hierarchy header we need to populate the Cost Center
       v_CostCenterCode := COMP_CURR;
-      V_HRCHY_HDR_NAME := NULL;
 	 END IF;
 	 
 
@@ -396,9 +398,17 @@ BEGIN
         XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
      ELSE
         --Populate the XML String only if the value is changed or if particular column is part of primary key
-        IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
-           OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL THEN
-           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+        --Also for Bank_Card table we should populate below fields with previous records value if it's a change
+        IF (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
+                                                                    'BANK_CARD - QUALITY_CODE',
+                                                                    'BANK_CARD - AMEX_SE_ID',
+                                                                    'BANK_CARD - DISCOVER_ID') THEN
+           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || NVL(COMP_PREV,'~') || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+        ELSE
+           IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
+              OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL THEN
+              XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+           END IF;
         END IF;
      END IF;
 
@@ -442,6 +452,44 @@ EXCEPTION WHEN OTHERS THEN
  	ERRPKG.RAISE_ERR(-20003,'PARSE_DIFFERENCE_XML for ' || IN_TABLE_NAME || ' ' || IN_KEY || 'at ', V_CONTEXT);
 	
 END PARSE_DIFFERENCE_XML; 
+
+FUNCTION IS_COLUMN_PART_OF_KEY(
+/**********************************************************
+	IS_COLUMN_DT_PART_OF_PK
+
+	This function returns true if the passed input column part of key specified(as input)
+  in the passed input table
+
+in_TABLE_NAME - specifies the table name that needs to be verified for
+in_COLUMN_NAME - specifies the column name that needs to be verified for
+in_KEY_TYPE - specifies the key that needs to be verified for - 'P' => Primary Key
+
+created : 09/04/2012 kdp CCN Project....
+**********************************************************/
+in_TABLE_NAME  IN VARCHAR2,
+in_COLUMN_NAME IN VARCHAR2,
+in_KEY_TYPE    IN VARCHAR2) RETURN BOOLEAN IS
+   V_COUNT NUMBER := 0;
+BEGIN
+   SELECT COUNT(*) INTO V_COUNT
+     FROM all_constraints cons,
+          all_cons_columns cols
+    WHERE cons.constraint_type = upper(in_KEY_TYPE)
+      AND cols.table_name      = upper(in_TABLE_NAME)
+      AND cols.column_name     = upper(in_COLUMN_NAME)
+      AND cons.constraint_name = cols.constraint_name
+      AND cons.owner           = cols.owner
+      AND cols.owner           = 'COSTCNTR';
+
+   IF V_COUNT = 1 THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN FALSE;
+END IS_COLUMN_PART_OF_KEY;
 
 PROCEDURE Build_File_SP (
 /**********************************************************
@@ -487,6 +535,7 @@ CURSOR table_fields_cur IS
   filename  	          VARCHAR2(50) := in_TABLE_NAME || '_backfeed' ;
   stamp       		      VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- used to create timestamp for data file 
   v_cost_center		      VARCHAR2(6)  := '      '; --added for spaces with tables that don't use cost center
+  V_CHANGE_TYPE         VARCHAR2(1);
   output_file 		      UTL_FILE.FILE_TYPE;
 -------------
   l_out_file            UTL_FILE.FILE_TYPE;
@@ -495,6 +544,7 @@ CURSOR table_fields_cur IS
   l_pos                 INTEGER        := 1;
   L_BLOB_LEN            INTEGER;
   v_out_clob            CLOB;
+  v_value               VARCHAR2(32000);
   V_CONTEXT	            VARCHAR2(200);
   SQ		                INTEGER; 
   SE		                VARCHAR2(1000);
@@ -507,7 +557,7 @@ BEGIN
    output_file := UTL_FILE.FOPEN (path
                                   ,filename|| stamp
                                   , 'w' --binary
-                                  , 32767);
+                                 , 32767);
    --adding header information for the backload file
    --DBMS_OUTPUT.PUT_LINE('start v_out_clob');
    IF IN_COST_CENTER IS NOT NULL THEN
@@ -516,8 +566,22 @@ BEGIN
 
 V_CONTEXT := 'Generating the CLOB Output';
    
+   --Getting the Change Type : 
+   --For Hierarchy_Detail table it should always be 'A'
+   --For all other tables it should be 'C', except for tables that come as 'C' and having effective date 
+   -- as part of primary key in which case it should be 'D'
+   IF IN_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+      V_CHANGE_TYPE := 'A';
+   ELSE
+      IF IN_CHANGE_TYPE = 'C' AND IS_COLUMN_PART_OF_KEY(IN_TABLE_NAME,'EFFECTIVE_DATE','P') THEN
+         V_CHANGE_TYPE := 'D';
+      ELSE
+         V_CHANGE_TYPE := 'C';
+      END IF;
+   END IF;
+   
    V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
-                 IN_CHANGE_TYPE;
+                 V_CHANGE_TYPE; --IN_CHANGE_TYPE;
    
    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
  
@@ -528,16 +592,47 @@ V_CONTEXT := 'Generating the CLOB Output';
                           UPPER(LPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
                                      TABLE_FIELDS_REC.COLUMN_SIZE, '0'));
          ELSE
-            V_OUT_CLOB := V_OUT_CLOB ||
-                           UPPER(RPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
+            v_value := UPPER(RPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
                                       TABLE_FIELDS_REC.COLUMN_SIZE));
+            
+            --If there is a change and if the changed value is null then it comes here as '~'
+            --We need to capture these ~'s and convert into proper formatting
+            --like we do for null values for specific fields
+            IF TRIM(v_value) = '~' THEN
+            
+               IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
+            
+                  V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
+                  --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
+                  --which have null values so that we can pass it to main frame
+            
+               ELSE
+            
+                  IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
+                                                                               'BANK_CARD - QUALITY_CODE',
+                                                                               'BANK_CARD - AMEX_SE_ID',
+                                                                               'BANK_CARD - DISCOVER_ID',
+                                                                               'PHONE - PHONE_NUMBER',
+                                                                               'PHONE - PHONE_AREA_CODE'))) THEN
+                     V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
+            
+                  ELSE
+                     V_OUT_CLOB := V_OUT_CLOB || v_value;
+                  END IF;
+               
+               END IF;
+            
+            ELSE
+               V_OUT_CLOB := V_OUT_CLOB || v_value;
+            END IF;   
+            
          END IF;
  
       ELSE
          V_CONTEXT := 'Building by extracting the Non-Existing Data';
          --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
          IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
-            V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('01012099',TABLE_FIELDS_REC.COLUMN_SIZE));
+            V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
             --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
             --which have null values so that we can pass it to main frame
          ELSE
