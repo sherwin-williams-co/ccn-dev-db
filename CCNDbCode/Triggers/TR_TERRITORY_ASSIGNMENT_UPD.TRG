@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_TERRITORY_ASSIGNMENT_UPD
-BEFORE INSERT OR UPDATE ON TERRITORY_ASSIGNMENT
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -26,10 +20,10 @@ BEGIN
          v_terr_assignment_row.effective_date := :NEW.effective_date;      
          v_terr_assignment_row.expiration_date := :NEW.expiration_date;
 	
-	SELECT XMLELEMENT ( "TERRITORY_ASSIGNMENT",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TERRITORY_ASSIGNMENT",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(					
 		v_terr_assignment_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE  
                           ,v_terr_assignment_row.COST_CENTER_CODE cOST_CENTER_CODE  
@@ -37,20 +31,23 @@ BEGIN
                           ,v_terr_assignment_row.GEMS_EMPLOYEE_ID GEMS_EMPLOYEE_ID
 				,to_char(v_terr_assignment_row.EFFECTIVE_DATE, 'yyyymmdd')   EFFECTIVE_DATE
 				,to_char(v_terr_assignment_row.EXPIRATION_DATE, 'yyyymmdd')  EXPIRATION_DATE 
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_terr_assignment_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE
 				,v_terr_assignment_row.COST_CENTER_CODE COST_CENTER_CODE
 				,v_terr_assignment_row.CATEGORY CATEGORY
 				,v_terr_assignment_row.GEMS_EMPLOYEE_ID GEMS_EMPLOYEE_ID
 				,v_terr_assignment_row.EFFECTIVE_DATE EFFECTIVE_DATE
-			)) AS "primaryKey"		,
-      ('|'||V_TERR_ASSIGNMENT_ROW.TERRITORY_SLS_MGR_CODE || '|' || V_TERR_ASSIGNMENT_ROW.COST_CENTER_CODE || '|' ||
-      v_terr_assignment_row.CATEGORY || '|' || v_terr_assignment_row.GEMS_EMPLOYEE_ID || '|' || v_terr_assignment_row.EFFECTIVE_DATE || '|') tran_id
+			)) AS  "primaryKey"		,
+      ('|'||V_TERR_ASSIGNMENT_ROW.TERRITORY_SLS_MGR_CODE || 
+       '|' || V_TERR_ASSIGNMENT_ROW.COST_CENTER_CODE || 
+       '|' || v_terr_assignment_row.CATEGORY || 
+       '|' || v_terr_assignment_row.GEMS_EMPLOYEE_ID || '|') tran_id
+       --'|' || v_terr_assignment_row.EFFECTIVE_DATE || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
 	FROM DUAL;	
@@ -77,3 +74,5 @@ BEGIN
      --END IF;      
       
 END TR_TERRITORY_ASSIGNMENT_UPD;
+/
+

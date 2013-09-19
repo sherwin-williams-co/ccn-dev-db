@@ -1,4 +1,3 @@
-create or replace
 PACKAGE COMMON_TOOLS as 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
@@ -145,4 +144,47 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 )
 return varchar2;
 
+FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
+/**********************************************************
+This function will replace special characters from input text
+
+
+parameters:
+
+IO_TEXT_STRING  IN OUT
+
+created : 08/08/2013 CCN Project
+**********************************************************/
+IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION IS_AUTHERIZED_USER(
+/**********************************************************
+This function will authorize the user based on SECURITY_MATRIX table
+
+
+parameters:
+
+IN  IN_USER_ID
+
+created : 09/04/2013 CCN Project
+**********************************************************/
+IN_USER_ID    IN    VARCHAR2) RETURN BOOLEAN;
+
+PROCEDURE CHECK_DUP_COST_CENTER(
+/**********************************************************
+	CHECK_DUP_COST_CENTER
+
+	This procedure logs error if a cost center has a dup based on the last four digits
+
+in_COST_CENTER_CODE - Input Cost Center to validate for duplication
+in_CATEGORY_CODE    - Input category code
+
+created : 09/11/2013 kdp CCN Project....
+**********************************************************/
+   in_COST_CENTER_CODE    IN VARCHAR2,
+   in_CATEGORY_CODE       IN VARCHAR2);
+
+
 END COMMON_TOOLS;
+/
+

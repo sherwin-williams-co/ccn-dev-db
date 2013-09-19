@@ -1,8 +1,3 @@
-TRIGGER "COSTCNTR".tr_polling_upd 
-before insert or update on polling 
-REFERENCING OLD AS OLD NEW AS NEW 
-for each row
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -25,10 +20,10 @@ BEGIN
 		v_polling_row.next_download_block_count  := :new.next_download_block_count;
 		v_polling_row.current_flag              := :new.current_flag;
 	
-	SELECT XMLELEMENT ( "POLLING",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "POLLING",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		XMLFOREST(
 				 v_polling_row.cost_center_code           cost_center_code
         ,v_polling_row.polling_status_code        polling_status_code
@@ -37,16 +32,16 @@ BEGIN
         ,v_polling_row.polling_ind                polling_ind
         ,v_polling_row.next_download_block_count  next_download_block_count
         
-						)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+						)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 				v_polling_row.cost_center_code cost_center_code
 				,v_polling_row.polling_status_code polling_status_code
         
-			)) AS "primaryKey",
+			)) AS  "primaryKey",
       ('|' || v_polling_row.cost_center_code || '|' || v_polling_row.polling_status_code || '|') tran_id
 			INTO V_ROWDATA
 			,v_primarykey,v_transaction_id
@@ -74,4 +69,5 @@ BEGIN
      --END IF;      
       
 END TR_POLLING_UPD;
+/
 

@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR"."TR_MARKETING_UPD" 
-BEFORE INSERT OR UPDATE ON MARKETING
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id VARCHAR2(500);
@@ -24,10 +18,10 @@ BEGIN
 		V_MARK_ROW.MKT_WAREHOUSE_SIZE	:=	:NEW.MKT_WAREHOUSE_SIZE;
 		v_MARK_row.MKT_REAL_ESTATE_SETTING	:=	:NEW.MKT_REAL_ESTATE_SETTING;
 	
-	SELECT XMLELEMENT ( "MARKETING",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "MARKETING",               
+	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        XMLForest(
 		v_MARK_row.COST_CENTER_CODE	COST_CENTER_CODE
 		,v_MARK_row.CATEGORY	CATEGORY
@@ -39,19 +33,21 @@ BEGIN
 		,v_MARK_row.MKT_SALES_FLOOR_SIZE	MKT_SALES_FLOOR_SIZE
 		,V_MARK_ROW.MKT_WAREHOUSE_SIZE	MKT_WAREHOUSE_SIZE
 		,v_MARK_row.MKT_REAL_ESTATE_SETTING	MKT_REAL_ESTATE_SETTING
-		)) AS "result"
-	 ,XMLELEMENT ( "PrimaryKey",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+		)) AS  "result"
+	 ,XMLELEMENT (  "PrimaryKey",               
+	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        XMLForest(
 		v_MARK_row.COST_CENTER_CODE	COST_CENTER_CODE
 		,v_MARK_row.CATEGORY	CATEGORY
 		,v_MARK_row.MARKETING_TYPE	MARKETING_TYPE
-		)) AS "Primary_key"	
+    ,v_MARK_row.EFFECTIVE_DATE  EFFECTIVE_DATE
+		)) AS  "Primary_key"	
 			,('|' || v_MARK_row.COST_CENTER_CODE || 
 			'|' || v_MARK_row.CATEGORY  || 
-			'|' || v_MARK_row.MARKETING_TYPE || '|') transaction_id
+			'|' || v_MARK_row.MARKETING_TYPE ||
+      '|' || TO_CHAR(v_MARK_row.EFFECTIVE_DATE,'DD-MON-YY') || '|') transaction_id
 			INTO v_rowdata
 			,v_primaryKey
 			,v_transaction_id
@@ -78,3 +74,5 @@ BEGIN
      --END IF;      
       
 END TR_MARKETING_UPD;
+/
+

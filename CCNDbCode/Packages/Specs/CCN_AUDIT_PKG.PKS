@@ -1,4 +1,3 @@
-create or replace
 PACKAGE CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
@@ -73,3 +72,5 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 );
     
 END CCN_AUDIT_PKG;
+/
+

@@ -1,4 +1,3 @@
-create or replace
 PACKAGE CCN_HIER_BUSINESS_RULES_PKG AS
 /******************************************************************************
 	CCN_HIER_BUSINESS_RULES_PKG
@@ -203,3 +202,5 @@ created : 06/27/2013 SH CCN
 IN_ROW_DATA                VARCHAR2);
 
 END CCN_HIER_BUSINESS_RULES_PKG;
+/
+

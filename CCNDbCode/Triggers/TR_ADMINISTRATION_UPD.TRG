@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_ADMINISTRATION_upd 
-before insert or update on ADMINISTRATION 
-referencing old as old new as new 
-for each row 
-
 DECLARE
 
     v_transaction_id VARCHAR2(500);
@@ -18,23 +12,23 @@ v_administration_row.cost_center_code := :NEW.cost_center_code;
 		v_administration_row.INTERNAL_MAIL_NUMBER := :NEW.INTERNAL_MAIL_NUMBER;
     v_administration_row.ADMIN_COST_CNTR_TYPE := :NEW.ADMIN_COST_CNTR_TYPE;
 			
-	SELECT XMLELEMENT ( "ADMINISTRATION",               
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "ADMINISTRATION",               
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		XMLFOREST(
          v_administration_row.COST_CENTER_CODE COST_CENTER_CODE
 				,v_administration_row.CATEGORY CATEGORY
 				,v_administration_row.INTERNAL_MAIL_NUMBER INTERNAL_MAIL_NUMBER
         ,v_administration_row.ADMIN_COST_CNTR_TYPE ADMIN_COST_CNTR_TYPE
-			)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_administration_row.cost_center_code cost_center_code
-			)) AS "primaryKey"
+			)) AS  "primaryKey"
 			,('|' || v_administration_row.cost_center_code || '|') transaction_id
 			INTO v_rowdata
 			,v_primaryKey
@@ -64,3 +58,5 @@ v_administration_row.cost_center_code := :NEW.cost_center_code;
      
 
 end  TR_ADMINISTRATION_UPD;
+/
+

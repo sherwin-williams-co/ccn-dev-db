@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR"."TR_HIER_DESC_UPD" 
-BEFORE INSERT OR UPDATE ON HIERARCHY_DESCRIPTION
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id VARCHAR2(500);
@@ -17,23 +11,23 @@ v_hi_desc_row.HRCHY_HDR_NAME	:=	:NEW.HRCHY_HDR_NAME;
 V_HI_DESC_ROW.HRCHY_HDR_LVL_NBR	:=	:NEW.HRCHY_HDR_LVL_NBR;
 v_hi_desc_row.HRCHY_HDR_LVL_DESC	:=	:NEW.HRCHY_HDR_LVL_DESC;
 	
-	SELECT XMLELEMENT ( "HIERARCHY_DESCRIPTION",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "HIERARCHY_DESCRIPTION",               
+	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        XMLForest(
 		v_hi_desc_row.HRCHY_HDR_NAME	HRCHY_HDR_NAME
 ,V_HI_DESC_ROW.HRCHY_HDR_LVL_NBR	HRCHY_HDR_LVL_NBR
 ,V_HI_DESC_ROW.HRCHY_HDR_LVL_DESC	HRCHY_HDR_LVL_DESC
-		)) AS "result"
-    ,XMLELEMENT ( "PRIMARY_KEY",               
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+		)) AS  "result"
+    ,XMLELEMENT (  "PRIMARY_KEY",               
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        		XMLFOREST(
 				V_HI_DESC_ROW.HRCHY_HDR_NAME	HRCHY_HDR_NAME,
         V_HI_DESC_ROW.HRCHY_HDR_LVL_NBR HRCHY_HDR_LVL_NBR
-			)) AS "PrimaryKey"
+			)) AS  "PrimaryKey"
 			,('|' || V_HI_DESC_ROW.HRCHY_HDR_NAME ||
 			  '|' || V_HI_DESC_ROW.HRCHY_HDR_LVL_NBR	 
 				  || '|') transaction_id
@@ -65,3 +59,5 @@ v_hi_desc_row.HRCHY_HDR_LVL_DESC	:=	:NEW.HRCHY_HDR_LVL_DESC;
      --END IF;      
       
 END TR_HIER_DESC_UPD;
+/
+

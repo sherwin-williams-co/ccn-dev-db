@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_type_upd
-before insert or update on type
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -25,26 +19,28 @@ BEGIN
     
 		
 	
-	SELECT XMLELEMENT ( "TYPE",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TYPE",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 			v_type_row.COST_CENTER_CODE COST_CENTER_CODE
 			 ,v_TYPE_row.TYPE_code TYPE_CODE
 				,to_char(v_TYPE_row.EFFECTIVE_DATE, 'yyyymmdd')   EFFECTIVE_DATE
 				,to_char(v_TYPE_row.EXPIRATION_DATE, 'yyyymmdd')  EXPIRATION_DATE		
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_TYPE_row.COST_CENTER_CODE COST_CENTER_CODE
 				,v_TYPE_row.TYPE_CODE TYPE_CODE
 				,v_TYPE_row.EFFECTIVE_DATE EFFECTIVE_DATE
-			)) AS "primaryKey"		,
-      ('|' || v_TYPE_row.COST_CENTER_CODE || '|' || v_TYPE_row.TYPE_CODE || '|' || v_TYPE_row.EFFECTIVE_DATE || '|') tran_id
+			)) AS  "primaryKey"		,
+      ('|' || v_TYPE_row.COST_CENTER_CODE || 
+       '|' || v_TYPE_row.TYPE_CODE || --'|') tran_id
+       '|' || TO_CHAR(v_TYPE_row.EFFECTIVE_DATE,'DD-MON-YY') || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
 	FROM DUAL;	
@@ -71,3 +67,5 @@ BEGIN
      --END IF;      
       
 END TR_TYPE_UPD;
+/
+

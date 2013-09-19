@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_TERRITORY_UPD
-BEFORE INSERT OR UPDATE ON TERRITORY
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -27,10 +21,10 @@ BEGIN
      
 		
 	
-	SELECT XMLELEMENT ( "TERRITORY",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TERRITORY",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 		 v_territory_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE						
 			,v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
@@ -38,16 +32,16 @@ BEGIN
 			,v_territory_row.HOME_STORE HOME_STORE
 			,v_territory_row.LEASE_CAR_INDICATOR LEASE_CAR_INDICATOR
 			,v_territory_row.TERRITORY_TYPE_BUSN_CODE TERRITORY_TYPE_BUSN_CODE			
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_territory_row.territory_sls_mgr_code territory_sls_mgr_code 
                                 ,v_territory_row.cost_center_code cost_center_code
                                 ,V_TERRITORY_ROW.CATEGORY CATEGORY
-			)) AS "primaryKey"		,
+			)) AS  "primaryKey"		,
       ('|'||v_territory_row.territory_sls_mgr_code || '|' || v_territory_row.cost_center_code || '|' || V_TERRITORY_ROW.CATEGORY || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
@@ -75,3 +69,5 @@ BEGIN
      --END IF;      
       
 END TR_TERRITORY_UPD;
+/
+

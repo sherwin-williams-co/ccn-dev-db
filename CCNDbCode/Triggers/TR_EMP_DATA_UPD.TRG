@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR"."TR_EMP_DATA_UPD" 
-BEFORE INSERT OR UPDATE ON EMP_DATA
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id VARCHAR2(500);
@@ -42,10 +36,10 @@ BEGIN
 	v_emp_Data_row.EMPLOYEE_NUMBER	:=	:NEW.EMPLOYEE_NUMBER;
 	v_emp_Data_row.PAYROLL_EMP_RPT_SEQ_ID	:=	:NEW.PAYROLL_EMP_RPT_SEQ_ID;
 	
-	SELECT XMLELEMENT ( "EMP_DATA",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "EMP_DATA",               
+	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        XMLForest(
 		v_emp_Data_row.NATIONAL_IDENTIFIER	NATIONAL_IDENTIFIER
 		,v_emp_Data_row.RECORD_TYPE	RECORD_TYPE
@@ -70,14 +64,14 @@ BEGIN
 		,v_emp_Data_row.FLSA_CODE	FLSA_CODE
 		,v_emp_Data_row.EMPLOYEE_NUMBER	EMPLOYEE_NUMBER
 		,v_emp_Data_row.PAYROLL_EMP_RPT_SEQ_ID	PAYROLL_EMP_RPT_SEQ_ID
-		)) AS "result"
-		,XMLELEMENT ( "PRIMARY_KEY",               
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+		)) AS  "result"
+		,XMLELEMENT (  "PRIMARY_KEY",               
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        		XMLForest(
 				v_emp_Data_row.EMPLOYEE_NUMBER	EMPLOYEE_NUMBER
-			)) AS "PrimaryKey" 
+			)) AS  "PrimaryKey" 
 			,('|' || v_emp_Data_row.EMPLOYEE_NUMBER ||
 			  '|' ) transaction_id
 			INTO v_rowdata
@@ -107,3 +101,5 @@ BEGIN
      --END IF;      
       
 END TR_EMP_DATA_UPD;
+/
+

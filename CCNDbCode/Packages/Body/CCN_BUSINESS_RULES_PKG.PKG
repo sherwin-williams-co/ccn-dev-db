@@ -1,4 +1,3 @@
-create or replace 
 PACKAGE BODY CCN_BUSINESS_RULES_PKG
     AS
 /******************************************************************************
@@ -744,6 +743,7 @@ END IF;
 --
 /**  Call DESTINATION POINT / CHECK DIGIT Business Rule ***/
    IF (inADDRESS_USA_ROWTYPE.cost_center_code  is not null) and
+      (inADDRESS_USA_ROWTYPE.COUNTRY_CODE <> 'PRI') and
       ((inADDRESS_USA_ROWTYPE.check_digit is not null)  or
        (inADDRESS_USA_ROWTYPE.destination_point is not null)) then
       v_break  := ('Processing Check Digit/Dest. Point Business Rules ');       
@@ -760,7 +760,7 @@ END IF;
       v_break  := ('Processing Merchant ID Business Rules ');      
       CCN_BUSINESS_RULES_PKG.MERCHANT_ID_SP(
             inbankcard_rowtype.MERCHANT_ID          
- 					, incost_center_rowtype.COST_CENTER_CODE 
+ 					, inPOLLING_ROWTYPE.COST_CENTER_CODE 
  					, inPOLLING_ROWTYPE.polling_status_code);
    END IF ;
 --
@@ -858,14 +858,14 @@ created : KDP 4/26/2012
 
 		if (inMERCHANT_ID = '99999999999') AND (inPOLLING_STATUS_CODE = 'P' ) THEN 
 			RAISE invalid_merchID_exp ;
-		end if;		
+		END IF;		
 
 		if (SUBSTR(inMERCHANT_ID, 7, 4) <> SUBSTR(inCOST_CENTER_CODE,3,4)) THEN
 			RAISE cost_center_exp; 
 		end if;
-		
-		if (CCN_BUSINESS_RULES_PKG.MODULUS_10(substr(inMERCHANT_ID,3,8)) <> substr(inMERCHANT_ID,11,1)) THEN
-			RAISE check_digit_exp;
+
+		IF (CCN_BUSINESS_RULES_PKG.MODULUS_10(SUBSTR(INMERCHANT_ID,3,8)) <> SUBSTR(INMERCHANT_ID,11,1)) THEN
+      RAISE check_digit_exp;
 		end if;	
 
 	EXCEPTION
@@ -1226,7 +1226,7 @@ created : BLR 5/17/2012
          RAISE chk_dgt_non_numb_err ;
       end if;
     
-      if inCheck_digit < '1'  THEN 
+      if inCheck_digit < '0'  THEN 
           RAISE check_digit_err ;
       end if;	
       
@@ -1234,26 +1234,26 @@ created : BLR 5/17/2012
       	RAISE dest_pt_non_numb_err ;
 	    end if; 
     
-      if inDest_point < '01' THEN 
+      if inDest_point < '00' THEN 
          RAISE dest_point_err ;
       end if;		
       
  	EXCEPTION
 	
-	   when check_digit_err then  
+	   WHEN CHECK_DIGIT_ERR THEN  
 					v_code := errnums.en_check_digit_err;
-		      errpkg.raise_err(v_code, 'DEST_PT_CHECK_DGT_ID_SP.check_digit_err ', 
-       		'CCN_BUSINESS_RULES_PKG' ||  ' - Check digit must be  > zero');   
+		      ERRPKG.RAISE_ERR(V_CODE, 'DEST_PT_CHECK_DGT_ID_SP.check_digit_err ', 
+       		'CCN_BUSINESS_RULES_PKG' ||  ' - Check digit must be greater or equal to zero');   
                 
      when chk_dgt_non_numb_err then  
 					v_code := errnums.en_chk_dgt_non_numb_err;
 		      errpkg.raise_err(v_code, 'DEST_PT_CHECK_DGT_ID_SP.chk_dgt_non_numb_err ',
        		'CCN_BUSINESS_RULES_PKG' ||  ' - Check digit must be numeric');   
                        		             		
-     when dest_point_err then  
+     WHEN DEST_POINT_ERR THEN  
 					v_code := errnums.en_dest_point_err;
-			    errpkg.raise_err(v_code, 'DEST_PT_CHECK_DGT_ID_SP.dest_point_err ',
-         	'CCN_BUSINESS_RULES_PKG' ||  ' - Destination Point must be  > zero');   
+			    ERRPKG.RAISE_ERR(V_CODE, 'DEST_PT_CHECK_DGT_ID_SP.dest_point_err ',
+         	'CCN_BUSINESS_RULES_PKG' ||  ' - Destination Point must be  greater or equal to zero');   
           		             		
      when dest_pt_non_numb_err then  
 					v_code := errnums.en_dest_pt_non_numb_err;
@@ -1438,6 +1438,7 @@ IF INADDRESS_CAN_ROWTYPE.COST_CENTER_CODE IS NULL THEN
       SELECT * INTO V_ADDRESS_CAN_ROWTYPE
         FROM ADDRESS_CAN
        WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
+         AND EXPIRATION_DATE IS NULL
          AND ROWNUM < 2;
    EXCEPTION
       WHEN OTHERS THEN
@@ -1452,6 +1453,7 @@ IF INADDRESS_MEX_ROWTYPE.COST_CENTER_CODE IS NULL THEN
       SELECT * INTO V_ADDRESS_MEX_ROWTYPE
         FROM ADDRESS_MEX
        WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
+         AND EXPIRATION_DATE IS NULL
          AND ROWNUM < 2;
    EXCEPTION
       WHEN OTHERS THEN
@@ -1466,6 +1468,7 @@ IF INADDRESS_OTH_ROWTYPE.COST_CENTER_CODE IS NULL THEN
       SELECT * INTO V_ADDRESS_OTHER_ROWTYPE
         FROM ADDRESS_OTHER
        WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
+         AND EXPIRATION_DATE IS NULL
          AND ROWNUM < 2;
    EXCEPTION
       WHEN OTHERS THEN
@@ -1480,6 +1483,7 @@ IF INADDRESS_USA_ROWTYPE.COST_CENTER_CODE IS NULL THEN
       SELECT * INTO V_ADDRESS_USA_ROWTYPE
         FROM ADDRESS_USA
        WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
+         AND EXPIRATION_DATE IS NULL
          AND ROWNUM < 2;
    EXCEPTION
       WHEN OTHERS THEN
@@ -1546,17 +1550,26 @@ END IF;
 --   inPOLLING_ROWTYPE.polling_status_code = 'I'; check close date in Cost
 --     Center Table is populated. Error check requested via Pat Malloy
 --     as of 4/12/13.
-
-        when  'I' then
-              if inCOST_CENTER_ROWTYPE.close_date is NULL then
+/*********************************************************************************
+REVISED- 9/11/2013 COMMENTED OUT THE LOGIC FOR INACTIVE STATUS 
+IT WAS THROWING ERROR '-20010'- (WHEN POLLING STATUS CODE WAS 'I' 
+AND THE CLOSE DATE WAS NULL) EVEN FOR THE NEW COST_CENTER.
+Even for the new cost center, if the polling status is inactive, 
+the closed date must be entered and the status code must be closed
+to not get the error
+********************************************************************************/
+ when  'I' then
+              /*if inCOST_CENTER_ROWTYPE.close_date is NULL then
                   raise invalid_close_date_err;
-              end if;
+              end if;*/
+              NULL;
               
 --            CASE when inCOST_CENTER_ROWTYPE.close_date is NULL then
 --               raise invalid_close_date_err;
 --            END CASE;
-           
+
         else RAISE invalid_poll_stat_err;  
+       
         
       END CASE; 
       
@@ -1565,7 +1578,7 @@ END IF;
         when invalid_poll_stat_err then  
           v_code := errnums.en_invalid_poll_stat_err;
 		      errpkg.raise_err(v_code, 'polling_status_hist_SP.invalid_poll_stat_err ' ,
-          'CCN_BUSINESS_RULES_PKG -Polling status code must be <P or Q or I>');   
+          'CCN_BUSINESS_RULES_PKG -Polling status code must be <P or Q or I>');
        
 
         when invalid_close_date_err then  
@@ -4491,7 +4504,7 @@ then
 --    county can not be just one or more spaces
       if  regexp_like(inaddress_usa_rowtype.county, '^ *$')
 --    county can not be null 
-      or              inaddress_usa_rowtype.county  is  null    then
+      or  ((inaddress_usa_rowtype.county  is  null) and (inaddress_usa_rowtype.country_code <> 'PRI')) then
           raise invalid_county_exp;  
 -- See Error #07a
       end if;
@@ -4547,11 +4560,11 @@ then
 /*******************************************************************************
 	    a. This field (column) is Mandatory and must be numeric and not zero. 
 *******************************************************************************/
-
+if inaddress_usa_rowtype.COUNTRY_CODE <> 'PRI' THEN
       if      regexp_like(inaddress_usa_rowtype.destination_point, '^ *$')
-      or  not regexp_like(inaddress_usa_rowtype.destination_point, '^\d{2}$') 
-      or                  inaddress_usa_rowtype.destination_point  =  '00'   
-      or                  inaddress_usa_rowtype.destination_point  is  null    then
+      OR  NOT REGEXP_LIKE(INADDRESS_USA_ROWTYPE.DESTINATION_POINT, '^\d{2}$') 
+      OR                  INADDRESS_USA_ROWTYPE.DESTINATION_POINT  <  '00'   
+      /*or                  inaddress_usa_rowtype.destination_point  is  null*/    then
           raise invalid_dest_point_exp;   
 -- See Error #09a 
       end if;
@@ -4580,12 +4593,12 @@ then
 *******************************************************************************/
 
 --      if  not regexp_like(inaddress_usa_rowtype.check_digit, '[1-9]')
-      if  inaddress_usa_rowtype.check_digit not in  (1,2,3,4,5,6,7,8,9)
-      or  inaddress_usa_rowtype.check_digit  is null    then
+      IF  INADDRESS_USA_ROWTYPE.CHECK_DIGIT NOT IN  (0,1,2,3,4,5,6,7,8,9)
+      /*or  inaddress_usa_rowtype.check_digit  is null */   then
           raise invalid_check_digit_exp;   
 -- See Error #10a 
       end if;
-
+END IF;
 /*******************************************************************************
 	    b. This field (column) is required for USA "Mailing" Address.
           Puerto Rico address can default to all 9"s.
@@ -4756,14 +4769,14 @@ EXCEPTION
                     v_code := errnums.en_invalid_dest_point_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_dest_point_exp ' ,
                    'Destination_Point was entered as "' || inaddress_usa_rowtype.destination_point || '", ' || 
-                   'However, Destination_Point must be 2 numeric digits and can not be "00".');    
+                   'However, Destination_Point must be 2 numeric digits and can be "00".');    
                    
 -- Error #10a
                when invalid_check_digit_exp     then
                     v_code := errnums.en_invalid_check_digit_err;  
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_check_digit_exp ' ,
                    'Check_Digit was entered as "' || inaddress_usa_rowtype.check_digit || '", ' || 
-                   'However, Check_Digit must be 1 numeric digit other than "0".');    
+                   'However, Check_Digit must be 1 numeric digit including "0".');    
                
 -- Error #11
                when status_check_warning_exp     then
@@ -5228,8 +5241,8 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
    invalid_duns_nbr_exp            exception;
       
 -- Error #10b
-   invalid_duns_num_exp            exception;
-  
+   INVALID_DUNS_NUM_EXP            EXCEPTION;
+
    
    v_code   number;
    v_date   date  ;
@@ -5309,8 +5322,8 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
 TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an address being added also
 *******************************************************************************/	
      
-  begin
-  
+  BEGIN
+  if incost_center_rowtype.category <> 'T' then
         select  count(1)  into  v_count
          from  cost_center
          where cost_center.cost_center_code     =  incost_center_rowtype.cost_center_code ;
@@ -5321,14 +5334,15 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
               inaddress_mex_rowtype.cost_center_code  is  null  and
               inaddress_oth_rowtype.cost_center_code  is  null  and
               INADDRESS_USA_ROWTYPE.COST_CENTER_CODE  IS  NULL  THEN
-                 --proc_iex(dbms_utility.format_call_stack || ' : ' || incost_center_rowtype.cost_center_code);
-                 raise address_info_missing_exp;
+                 
+                 RAISE ADDRESS_INFO_MISSING_EXP; 
+                 --null;
 -- See Error #01x.
 -- TAL 05/23/2013 CCNA-384 When a cost center is being added 
 -- there must be an address being added also
            end if;
-        end if; 
-        
+        END IF; 
+      END IF;  
   end;
 
 /*******************************************************************************
@@ -5697,6 +5711,8 @@ end;
                     v_code := errnums.en_invalid_duns_number_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_duns_num_exp ' ,
                    'Duns Number must be numeric');  
+              
+               
 
 end COST_CENTER_BR_SP;
 
@@ -7125,20 +7141,20 @@ created : BLR 8/7/12
    3.3.24.1a This field(column) cannot be spaces as it is the primary key to the TERRITORY_SALES_MGR table. 
    This column is required! (can be NULL for new territories).
 */	
-     begin
-        select count (1) 
-        into v_count
-           from Territory_sales_mgr
-           WHERE Territory_sales_mgr.territory_sls_mgr_code = inTerr_asgn_rowtype.territory_sls_mgr_code; 
-       
-        exception
-          when no_data_found then
-          RAISE invalid_tslsmgr_err;
-    end ;
-       
+     BEGIN
+      select count (1) 
+        INTO V_COUNT
+            FROM TERRITORY_SALES_MGR
+            WHERE TERRITORY_SALES_MGR.TERRITORY_SLS_MGR_CODE = INTERR_ASGN_ROWTYPE.TERRITORY_SLS_MGR_CODE; 
+            exception
+          WHEN NO_DATA_FOUND THEN
+          RAISE INVALID_TSLSMGR_ERR;
+              END ;
+    
+      
   -- BEGIN
     
-  --       select * iinto v_tslsmgr_rowtype
+  --       select * into v_tslsmgr_rowtype
   --          from Territory_sales_mgr
   --       where Territory_sales_mgr.territory_sls_mgr_code <> inTerr_asgn_rowtype.territory_sls_mgr_code; 
       
@@ -7329,7 +7345,8 @@ created : MDH 07/31/2012
 -- invalid_terr_sls_mgr_exp    EXCEPTION;   PSG CCN Quality Control CCNQC-23 TAL
  sls_mgr_not_active_exp            EXCEPTION;
  invalid_home_store_desig1_exp     EXCEPTION;
- invalid_home_store_desig2_exp     EXCEPTION;
+ INVALID_HOME_STORE_DESIG2_EXP     EXCEPTION;
+ invalid_terr_sls_mgr_code_EXP     EXCEPTION;
  
  v_Terr_Sales_MGR_rowtype          TERRITORY_SALES_MGR%rowtype;
    
@@ -7394,11 +7411,17 @@ end;
 --
 begin
 
-   if inTERRITORY_ROWTYPE.territory_sls_mgr_code  is not null  then
-      select * into  v_Terr_Sales_MGR_rowtype
-        from  TERRITORY_SALES_MGR
-        where TERRITORY_SALES_MGR.territory_sls_mgr_code =  inTERRITORY_ROWTYPE.territory_sls_mgr_code;
-   end if ;
+   IF INTERRITORY_ROWTYPE.TERRITORY_SLS_MGR_CODE  IS NOT NULL  THEN
+      begin
+          select * into  v_Terr_Sales_MGR_rowtype
+            from  TERRITORY_SALES_MGR
+            WHERE TERRITORY_SALES_MGR.TERRITORY_SLS_MGR_CODE =  INTERRITORY_ROWTYPE.TERRITORY_SLS_MGR_CODE;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                RAISE invalid_terr_sls_mgr_code_exp;
+        end;
+        
+      end if ;
    
     if v_TERR_SALES_MGR_ROWTYPE.expiration_date is not null  then 
             raise sls_mgr_not_active_exp;
@@ -7500,7 +7523,7 @@ end ;
 -- Fourth Error D-1    
                when sls_mgr_not_active_exp then
                     v_code := errnums.en_no_sales_mgr_err;    
-                    errpkg.raise_err(v_code, 'TERRITORY_BR__SP.sls_mgr_not_active_exp '  ,
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.sls_mgr_not_active_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Territory Sales Manager "' || v_TERR_SALES_MGR_ROWTYPE.territory_sls_mgr_code || '" is expired ');
 /* *** PSG CCN Quality Control CCNQC-23 TAL
@@ -7514,27 +7537,34 @@ end ;
 -- Fifth Error E    
                when invalid_lease_car_exp then
                     v_code := errnums.en_invalid_code_detail_err;    
-                    errpkg.raise_err(v_code, 'TERRITORY_BR__SP.invalid_lease_car_exp '  ,
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_lease_car_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Lease Car Indicator "' || inTERRITORY_ROWTYPE.lease_car_indicator || '" is not found in Code Table ');  
 -- Sixth Error F    
                when invalid_terr_type_busn_exp then
                     v_code := errnums.en_invalid_code_detail_err;    
-                    errpkg.raise_err(v_code, 'TERRITORY_BR__SP.invalid_terr_type_busn_exp '  ,
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_terr_type_busn_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Territory Type Of Business "' || inTERRITORY_ROWTYPE.territory_type_busn_code || '" is not found in Code table');                        
 -- Fifth Error G-1    
                when invalid_home_store_desig1_exp then
                     v_code := errnums.en_inv_home_store_desig1_err;    
-                    errpkg.raise_err(v_code, 'TERRITORY_BR__SP.invalid_home_store_desig1_exp '  ,
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_home_store_desig1_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Home Store Required "' || '"');
 -- Fifth Error G-2    
                when invalid_home_store_desig2_exp then
                     v_code := errnums.en_inv_home_store_desig1_err;    
-                    errpkg.raise_err(v_code, 'TERRITORY_BR__SP.invalid_home_store_desig2_exp '  ,
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_home_store_desig2_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
-                   '" Home Store not Required for closed territory"' || '"');                   
+                   '" Home Store not Required for closed territory"' || '"');      
+                              
+ -- Fifth Error G-3                                
+                      when invalid_terr_sls_mgr_code_exp then
+                    v_code := errnums.en_no_sales_mgr_err;    
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_terr_sls_mgr_code_exp '  ,
+                   'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
+                   '" has no Territory Sales Manager with code "' || V_TERR_SALES_MGR_ROWTYPE.TERRITORY_SLS_MGR_CODE || '"');
 -- Others
                when OTHERS then
                     v_code := sqlcode;
@@ -7816,3 +7846,5 @@ created : MDH 9/24/2012
 *******************************************************************************/	
 
 END CCN_BUSINESS_RULES_PKG;
+/
+

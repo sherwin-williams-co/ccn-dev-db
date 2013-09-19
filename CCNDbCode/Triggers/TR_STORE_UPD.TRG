@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_store_upd 
-BEFORE INSERT or UPDATE ON STORE 
-REFERENCING OLD AS old NEW AS new
-for each row
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -25,10 +19,10 @@ begin
 		v_store_row.rural_metro_zone_code      := :new.rural_metro_zone_code;
 		v_store_row.selling_store_flag         := :new.selling_store_flag;
 	 
-	SELECT XMLELEMENT ( "STORE",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "STORE",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		xmlforest(
 				 v_store_row.cost_center_code            cost_center_code
         ,v_store_row.category                    category
@@ -38,14 +32,14 @@ begin
         ,v_store_row.rural_metro_zone_code       rural_metro_zone_code
         ,v_store_row.selling_store_flag          selling_store_flag
          
-						)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+						)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 				 v_store_row.cost_center_code            cost_center_code
-        			)) AS "primaryKey"
+        			)) AS  "primaryKey"
 			,('|' || v_store_row.COST_CENTER_CODE ||
 			  '|' ) transaction_id					
        			
@@ -76,3 +70,5 @@ begin
      --END IF;      
       
 END TR_STORE_UPD;
+/
+

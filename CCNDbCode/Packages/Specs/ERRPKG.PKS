@@ -1,4 +1,3 @@
-CREATE OR REPLACE
 PACKAGE errpkg 
 /*********************************************************** 
 This package will hold all procedures/functions used to process business
@@ -42,6 +41,19 @@ revisions:
 ,err_proc_in IN VARCHAR2
 ,err_text_in IN VARCHAR2 := NULL) 
 RETURN VARCHAR2;
-END errpkg;
 
+PROCEDURE insert_error_log_sp  (
+/*******************************************************************************
+  This Procedure logs Processing Errors to the ERROR_LOG Table
+  
+Created: 04/15/2013 SH
+*******************************************************************************/
+    in_code         IN   VARCHAR2
+   ,in_proc         IN   VARCHAR2
+   ,in_errm         IN   VARCHAR2  
+   ,IN_COST_CENTER  IN   VARCHAR2
+   );
+   
+END errpkg;
 /
+

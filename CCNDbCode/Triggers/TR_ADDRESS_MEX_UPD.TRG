@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_ADDRESS_MEX_UPD 
-before insert or update on ADDRESS_MEX 
-referencing old as old new as new 
-for each row 
-
 DECLARE
 
     v_transaction_id VARCHAR2(500);
@@ -25,11 +19,12 @@ begin
 		v_address_mex_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
 		v_address_mex_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
 		v_address_mex_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
+    v_address_mex_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
 	
-	SELECT XMLELEMENT ( "ADDRESS_MEX",               
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "ADDRESS_MEX",               
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		XMLFOREST(
 				 v_address_mex_row.COST_CENTER_CODE COST_CENTER_CODE
 				,v_address_mex_row.ADDRESS_TYPE ADDRESS_TYPE
@@ -42,19 +37,20 @@ begin
 				,v_address_mex_row.PROVINCE_CODE PROVINCE_CODE
 				,v_address_mex_row.POSTAL_CODE POSTAL_CODE
 				,v_address_mex_row.VALID_ADDRESS VALID_ADDRESS
-			)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+        ,v_address_mex_row.COUNTRY_CODE COUNTRY_CODE
+			)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_address_mex_row.cost_center_code cost_center_code
 				,v_address_mex_row.ADDRESS_TYPE ADDRESS_TYPE
 				,v_address_mex_row.EFFECTIVE_DATE EFFECTIVE_DATE
-			)) AS "primaryKey"
+			)) AS  "primaryKey"
 			,('|' || v_address_mex_row.cost_center_code || 
 			'|' || v_address_mex_row.ADDRESS_TYPE  || 
-			'|' || v_address_mex_row.EFFECTIVE_DATE || '|') transaction_id
+			'|' || TO_CHAR(v_address_mex_row.EFFECTIVE_DATE,'DD-MON-YY') || '|') transaction_id
 			INTO v_rowdata
 			,v_primaryKey
 			,v_transaction_id
@@ -83,3 +79,5 @@ begin
      
 
 end  TR_ADDRESS_MEX_UPD;
+/
+

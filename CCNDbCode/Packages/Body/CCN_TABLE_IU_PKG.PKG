@@ -1,4 +1,3 @@
-create or replace 
 package BODY CCN_TABLE_IU_PKG 
     as
 -- PACKAGE BODY
@@ -34,6 +33,7 @@ changed : 04/03/2013 BLR error message pointing to wrong procedure
 		  							, COLUMN_NAME) AS COLUMN_NAME
 		      	FROM all_tab_columns
     	  		WHERE TABLE_NAME = in_table_name
+            and COLUMN_NAME <> 'GLOBAL_HIERARCHY_IND' 
     		    order by column_id asc;
 	  
   EXCEPTION
@@ -869,9 +869,8 @@ v_curr_date date := sysdate;
 			  where cost_center_code  =  in_cost_center  
 			  and status_code         =  nvl(in_status_code, status.status_code) 
 			  and (effective_date    <=  v_curr_date  
-			  and (expiration_date is null or expiration_date  >=  v_curr_date)
-			      );
-	  
+			  and (expiration_date is null or expiration_date  >=  v_curr_date));
+    
   EXCEPTION
 	  WHEN OTHERS THEN 
       v_code  := SQLCODE;
@@ -1746,7 +1745,7 @@ begin
          UPDATE BANK_CARD SET ROW = v_BANK_CARD_row
           WHERE COST_CENTER_CODE = v_BANK_CARD_row.COST_CENTER_CODE
             AND POLLING_STATUS_CODE = v_BANK_CARD_row.POLLING_STATUS_CODE
-            AND MERCHANT_ID = v_BANK_CARD_row.MERCHANT_ID
+            --AND MERCHANT_ID = v_BANK_CARD_row.MERCHANT_ID
             AND EFFECTIVE_DATE = v_BANK_CARD_row.EFFECTIVE_DATE;
          v_BANK_CARD_row.EXPIRATION_DATE := v_temp_date;
          EXCEPTION 
@@ -2773,8 +2772,8 @@ begin
      , out_status_row.EFFECTIVE_DATE);
 --
 --  Insert new STATUS row --                  
-      insert into status values out_status_row;
       
+      insert into status values out_status_row;
       
     
   EXCEPTION
@@ -2942,9 +2941,20 @@ begin
         ,in_Row_Data
         ,out_terminal_row 
                    );
-                  
-      insert into terminal values out_terminal_row;
-      
+
+--  Expire currently active TERMINAL Record before insert --
+         UPDATE TERMINAL
+            SET  ROW = out_terminal_row
+          WHERE COST_CENTER_CODE    = out_terminal_row.COST_CENTER_CODE
+            AND POLLING_STATUS_CODE = out_terminal_row.POLLING_STATUS_CODE
+            AND TERMINAL_NUMBER     = out_terminal_row.TERMINAL_NUMBER
+            AND EFFECTIVE_DATE      = out_terminal_row.EFFECTIVE_DATE;
+      IF out_terminal_row.EXPIRATION_DATE IS NOT NULL THEN
+          out_terminal_row.EFFECTIVE_DATE := out_terminal_row.EXPIRATION_DATE;
+          out_terminal_row.EXPIRATION_DATE := NULL;
+      ELSE
+         insert into terminal values out_terminal_row; 
+      END IF;
       
       
        EXCEPTION
@@ -3012,8 +3022,7 @@ begin
         ,out_territory_row 
                    );
                   
-      insert into territory values out_territory_row;
-      
+         insert into territory values out_territory_row;
       
       
        EXCEPTION
@@ -3064,7 +3073,19 @@ begin
         ,out_territory_assignment_row 
                    );
                   
-      insert into territory_assignment values out_territory_assignment_row;
+--  Expire currently active territory_assignment Record before insert --
+         UPDATE territory_assignment
+            SET  ROW = out_territory_assignment_row
+          WHERE COST_CENTER_CODE       = out_territory_assignment_row.COST_CENTER_CODE
+            AND TERRITORY_SLS_MGR_CODE = out_territory_assignment_row.TERRITORY_SLS_MGR_CODE
+            AND GEMS_EMPLOYEE_ID       = out_territory_assignment_row.GEMS_EMPLOYEE_ID
+            AND EFFECTIVE_DATE         = out_territory_assignment_row.EFFECTIVE_DATE;
+      IF out_territory_assignment_row.EXPIRATION_DATE IS NOT NULL THEN
+          out_territory_assignment_row.EFFECTIVE_DATE := out_territory_assignment_row.EXPIRATION_DATE;
+          out_territory_assignment_row.EXPIRATION_DATE := NULL;
+      ELSE
+         insert into territory_assignment values out_territory_assignment_row;
+      END IF;
       
       
       
@@ -4002,7 +4023,8 @@ begin
 		BANKING_TYPE = v_cost_center_row.BANKING_TYPE,
 		DEPOSIT_BAG_REORDER = v_cost_center_row.DEPOSIT_BAG_REORDER,
 		DEPOSIT_TICKET_REORDER = v_cost_center_row.DEPOSIT_TICKET_REORDER,
-		POP_KIT_CODE = v_cost_center_row.POP_KIT_CODE
+		POP_KIT_CODE = v_cost_center_row.POP_KIT_CODE,
+    GLOBAL_HIERARCHY_IND = v_cost_center_row.GLOBAL_HIERARCHY_IND
      where cost_center_code = v_cost_center_row.cost_center_code;
 
       
@@ -5471,6 +5493,12 @@ begin
 
       end loop ;
       
+     --For PR state the destination code should be forced to 99 and check digit should be forced to 9
+     IF v_ADDRESS_USA_row.COUNTRY_CODE = 'PRI' THEN
+        v_ADDRESS_USA_row.DESTINATION_POINT := NULL;
+        v_ADDRESS_USA_row.CHECK_DIGIT       := NULL;
+     END IF;
+     
      out_address_type  := v_ADDRESS_USA_row;
       
   EXCEPTION
@@ -5726,6 +5754,7 @@ cursor table_fields_cur is
 v_cost_center_row cost_center%rowtype;
 v_row_value 	varchar2(500);
 v_Row_data		sys.xmltype := xmltype(in_Row_data);
+V_COUNT       NUMBER := 0;
 --
 /*
 
@@ -5793,7 +5822,30 @@ begin
       end if;
 
       end loop ;
-      
+
+
+	  --IF v_cost_center_row.CATEGORY NOT IN ('T','R') then       
+
+		    BEGIN
+		       SELECT COUNT(*) INTO V_COUNT
+		         FROM HIERARCHY_DETAIL HD,
+		              HIERARCHY_HEADER HH
+		        WHERE HD.HRCHY_HDR_NAME         = 'GLOBAL_HIERARCHY'
+		          AND HH.HRCHY_HDR_NAME         = HD.HRCHY_HDR_NAME 
+		          AND HH.HRCHY_HDR_LEVELS       = HD.HRCHY_DTL_LEVEL
+		          AND HD.HRCHY_DTL_CURR_ROW_VAL = v_cost_center_row.COST_CENTER_CODE;
+		    EXCEPTION
+		       WHEN OTHERS THEN 
+		          V_COUNT := 0;
+		    END;
+
+    --END IF;
+
+    IF V_COUNT = 1 THEN
+       v_cost_center_row.GLOBAL_HIERARCHY_IND := 'Y';
+    ELSE
+       v_cost_center_row.GLOBAL_HIERARCHY_IND := 'N';
+    END IF;
     out_cost_center_type :=  v_cost_center_row;
     
          
@@ -7613,3 +7665,5 @@ v_count integer := 1;
 END CC_ADDRESS_TABLES_UI_SP;
 
 end CCN_TABLE_IU_PKG;
+/
+

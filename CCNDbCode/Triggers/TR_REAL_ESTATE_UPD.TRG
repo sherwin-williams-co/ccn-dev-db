@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_real_estate_upd 
-BEFORE INSERT or UPDATE ON REAL_ESTATE 
-referencing old as old new as new 
-for each row
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -20,23 +14,23 @@ begin
 		v_real_estate_row.cost_center_code           := :new.cost_center_code;
 		v_real_estate_row.category                   := :new.category;
 	
-	SELECT XMLELEMENT ( "REAL_ESTATE",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "REAL_ESTATE",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		XMLForest(
 				v_real_estate_row.cost_center_code       cost_center_code
 		   ,v_real_estate_row.category               category
         
-						)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+						)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 				v_real_estate_row.cost_center_code       cost_center_code
         
-			)) as "primaryKey",
+			)) as  "primaryKey",
       ('|' || v_real_estate_row.cost_center_code || '|') tran_id
 			INTO v_rowdata
 			,v_primarykey,v_transaction_id
@@ -64,3 +58,5 @@ begin
      --END IF;      
       
 END TR_REAL_ESTATE_UPD;
+/
+

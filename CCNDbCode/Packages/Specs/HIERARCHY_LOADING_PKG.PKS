@@ -1,4 +1,3 @@
-create or replace
 PACKAGE HIERARCHY_LOADING_PKG as 
 /*********************************************************** 
 This package is intended to load files from mainframe into the 
@@ -6,15 +5,6 @@ HIERARCHY tables
 
 created : 08/12/2013 SH CCN project
 ************************************************************/
-
-PROCEDURE HEADER_DESCRIPTION_INS_SP
-/*******************************************************************************
-HEADER_DESCRIPTION_INS_SP - The Procedure Loads HIERARCHY_HEADER and HIERARCHY_DESCRIPTION
-before loading the files from Mainframe
-
-created : 08/19/2013 SH CCN Project....
-*******************************************************************************/
-;
    
 PROCEDURE ALTER_HIER_TRIGGERS   
 /*******************************************************************************
@@ -110,3 +100,5 @@ Created: SH 05/06/2013
 ;
 
 END HIERARCHY_LOADING_PKG;
+/
+

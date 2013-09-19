@@ -1,4 +1,3 @@
-create or replace
 PACKAGE BODY COMMON_TOOLS as 
 /*********************************************************** 
 This package BODY is intended to hold reuseable objects that are 
@@ -391,7 +390,7 @@ if v_count  >  0  then
                     ' WHERE  rowid = :v_row_id ');
  
        EXECUTE IMMEDIATE sql_stmt USING v_expiration_date, v_row_id;
-       dbms_output.put_line('ran update??' || 'v_expiration_date '  || v_expiration_date);
+       dbms_output.put_line('ran update??' || 'v_expiration_date '  || v_expiration_date || 'with table ' || in_ROW_TABLE);
 -- 
 --   
             EXCEPTION 
@@ -404,7 +403,7 @@ end if;
 EXCEPTION
 
    when parameter_null_exp then  
-	   		v_code := errnums.en_parameter_null_err;
+        v_code := errnums.en_parameter_null_err;
 		      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.parameter_null_exp ' 
              		,'One or more input parameteres is null ' );     
                 
@@ -459,10 +458,10 @@ is
 --
 begin
 
-    SELECT COST_CENTER_CODE
+    select COST_CENTER_CODE
       INTO v_COST_CENTER_CODE
-      FROM COST_CENTER
-     where cost_center_code like '%' || in_COST_CENTER;
+      from COST_CENTER
+     where cost_center_code like '%' || upper(in_COST_CENTER);
   
      RETURN v_COST_CENTER_CODE;
      
@@ -506,4 +505,120 @@ begin
     
 end country_look_up_fnc;
 
+FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
+/**********************************************************
+This function will replace special characters from input text
+
+
+parameters:
+
+IO_TEXT_STRING  IN OUT
+
+created : 08/08/2013 CCN Project
+**********************************************************/
+IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2
+IS
+   V_TEXT_STRING VARCHAR2(32000) := IO_TEXT_STRING;
+BEGIN
+   --Replaces &lt; with <
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&lt;','<');
+   --Replaces &gt; with >
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&gt;','>');
+   --Replaces &amp; with &
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&amp;','&');
+   --Replaces &quot; with "
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&quot;','"');
+   --Replaces &apos; with '
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&apos;','''');
+   RETURN V_TEXT_STRING;
+END ELIMINATE_SPECIAL_CHRCTRS;
+
+FUNCTION IS_AUTHERIZED_USER(
+/**********************************************************
+This function will authorize the user based on SECURITY_MATRIX table
+
+
+parameters:
+
+IN  IN_USER_ID
+
+created : 09/04/2013 CCN Project
+**********************************************************/
+IN_USER_ID    IN    VARCHAR2) RETURN BOOLEAN
+IS
+   V_USER_ID SECURITY_MATRIX.USER_ID%TYPE;
+BEGIN
+   SELECT USER_ID INTO V_USER_ID
+     FROM SECURITY_MATRIX
+    WHERE UPPER(USER_ID) = UPPER(IN_USER_ID)
+      AND (ADMIN_FLAG = 'Y' OR INSERT_FLAG = 'Y');
+
+   IF V_USER_ID IS NOT NULL THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to return false if no records found
+      RETURN FALSE;
+END IS_AUTHERIZED_USER;
+
+PROCEDURE CHECK_DUP_COST_CENTER(
+/**********************************************************
+	CHECK_DUP_COST_CENTER
+
+	This procedure logs error if a cost center has a dup based on the last four digits
+
+in_COST_CENTER_CODE - Input Cost Center to validate for duplication
+in_CATEGORY_CODE    - Input category code
+
+created : 09/11/2013 kdp CCN Project....
+**********************************************************/
+   in_COST_CENTER_CODE    IN VARCHAR2,
+   in_CATEGORY_CODE       IN VARCHAR2) IS
+   V_COUNT                     NUMBER := 0;
+   dup_mainframe_costcntr_err  EXCEPTION;
+   first_two_digit_err         EXCEPTION;
+BEGIN
+   --Last 4 digit dup value validation is not needed for territory category
+   IF NVL(in_CATEGORY_CODE,'X') <> 'T' THEN
+      --Cost center usually is of 6 characters, in which last 4 characters need to be validated
+      --Thats implies from 3rd position till 6th position
+      --Example : 781234 - last 4 characters implies "1234"
+      SELECT COUNT(*) INTO V_COUNT
+        FROM COST_CENTER
+       WHERE SUBSTR(COST_CENTER_CODE,3) = SUBSTR(in_COST_CENTER_CODE,3)
+       AND COST_CENTER_CODE <> IN_COST_CENTER_CODE;
+
+      IF V_COUNT > 0 THEN
+         RAISE dup_mainframe_costcntr_err;
+      END IF;
+   END IF;
+   --Cost center usually is of 6 characters, in which first 2 characters need to be validated
+   --Thats implies from 1st position till 2nd position
+   --Example : 781234 - first 2 characters implies "78"
+  SELECT COUNT(*) INTO V_COUNT
+     FROM CODE_DETAIL
+    WHERE CODE_DETAIL_VALUE = UPPER(SUBSTR(IN_COST_CENTER_CODE,1,2))
+      AND CODE_HEADER_NAME  = 'COST_CENTER_PREFIX'
+      AND CODE_HEADER_TYPE  = 'COD';
+
+   IF V_COUNT = 0 THEN
+      RAISE first_two_digit_err;
+   END IF;
+EXCEPTION
+   WHEN dup_mainframe_costcntr_err THEN
+        errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err, 
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
+                         'COMMON_TOOLS ' || 'Cost Center with last four characters as ''' || SUBSTR(in_COST_CENTER_CODE,3) || ''' already exists in the Mainframe');
+                         
+   WHEN first_two_digit_err THEN
+        errpkg.raise_err(errnums.en_first_two_digit_err, 
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
+                         'COMMON_TOOLS ' || 'Cost Center with first two digit as ''' || SUBSTR(IN_COST_CENTER_CODE,1,2) || ''' is not allowed in Mainframe');
+END CHECK_DUP_COST_CENTER;
+
 END COMMON_TOOLS;
+/
+

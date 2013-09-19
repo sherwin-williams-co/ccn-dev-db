@@ -1,4 +1,3 @@
-create or replace
 PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -2125,6 +2124,34 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_duns_number_err , -20155);
 
 /*********************************************************** 
+The "dup_mainframe_costcntr_err" passes a numerical error of -20156.
+This error will state that the entered new cost center has same 
+last 4 characters as one already existsing in the system. 
+
+created : 06/20/2013 cbd CCN Project
+revisions: 
+
+************************************************************/
+en_dup_mainframe_costcntr_err CONSTANT NUMBER := -20156;
+exc_dup_mainframe_costcntr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_DUP_MAINFRAME_COSTCNTR_ERR , -20156);
+
+/*********************************************************** 
+The "dup_mainframe_costcntr_err" passes a numerical error of -20156.
+This error will state that the entered new cost center has same 
+last 4 characters as one already existsing in the system. 
+
+created : 06/20/2013 cbd CCN Project
+revisions: 
+
+************************************************************/
+en_first_two_digit_err CONSTANT NUMBER := -20157;
+exc_first_two_digit_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_first_two_digit_err , -20157);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
@@ -2259,6 +2286,49 @@ PRAGMA EXCEPTION_INIT
 (exc_CC_exists_wrn , -20508);
 
 /*********************************************************** 
+The "CC_exists_err" passes a numerical error of -20509.
+This error will state an error that,duplication of a Cost Center 
+in the same Hierarchy is not allowed
+
+created : 07/01/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+en_CC_exists_err CONSTANT NUMBER := -20509;
+exc_CC_exists_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_CC_exists_err , -20509);
+
+/*********************************************************** 
+The "CC_exists_err" passes a numerical error of -20509.
+This error will state an error that,duplication of a Cost Center 
+in the same Hierarchy is not allowed
+
+created : 07/01/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_levels_err CONSTANT NUMBER := -20510;
+exc_invalid_levels_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_levels_err , -20510);
+
+
+/*********************************************************** 
+The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
+This error will state the the duns number is missing for
+Stores & Others or that the duns number is not numeric. 
+
+created : 07/01/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+EN_PREV_LEVEL_MISSING_ERR CONSTANT number := -20511;
+exc_prev_level_missing_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_PREV_LEVEL_MISSING_ERR , -20511);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2275,3 +2345,5 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 END errnums;
+/
+

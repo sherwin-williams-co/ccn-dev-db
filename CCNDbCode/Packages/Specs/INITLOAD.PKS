@@ -1,4 +1,3 @@
-create or replace
 PACKAGE initLoad
 /**************************************************************** 
 This package will load the new CCN Oracle Database
@@ -784,3 +783,5 @@ Created: SH 05/06/2013
 ******************************************************************/
 ;
 END initLoad;
+/
+

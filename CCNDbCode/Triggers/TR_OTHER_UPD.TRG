@@ -1,10 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_OTHER_UPD
-BEFORE  INSERT OR 
-UPDATE ON OTHER
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id VARCHAR2(500);
@@ -21,22 +14,22 @@ BEGIN
 	v_OTH_row.COST_CENTER_CODE	:=	:NEW.COST_CENTER_CODE;
 	v_OTH_row.CATEGORY	:=	:NEW.CATEGORY;
 	
-	SELECT XMLELEMENT ( "OTHER",               
-	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "OTHER",               
+	  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
        XMLForest(
 		v_OTH_row.COST_CENTER_CODE	COST_CENTER_CODE
 		,v_OTH_row.CATEGORY	CATEGORY
-		)) AS "result"
-		,XMLELEMENT ( "PrimaryKey",               
- 			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+		)) AS  "result"
+		,XMLELEMENT (  "PrimaryKey",               
+ 			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
            				  'http://www.oracle.com/Employee.xsd' AS
-                   			"xsi:nonamespaceSchemaLocation" ),
+                   			 "xsi:nonamespaceSchemaLocation" ),
         XMLForest(
 			v_OTH_row.COST_CENTER_CODE	COST_CENTER_CODE
 			,v_OTH_row.CATEGORY	CATEGORY
-			)) AS "primaryKey"
+			)) AS  "primaryKey"
 			,('|' || v_OTH_row.COST_CENTER_CODE || 
 			'|' || v_OTH_row.CATEGORY || '|') transaction_id
 			INTO v_rowdata
@@ -66,3 +59,5 @@ BEGIN
      --END IF;      
       
 END TR_OTHER_UPD;
+/
+

@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_cost_center_upd
-before insert or update on cost_center
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -18,7 +12,7 @@ begin
       INTO v_transaction_id 
       FROM AUDIT_LOG;             
 */
-  	v_cost_center_row.COST_CENTER_CODE := :NEW.cost_center_code;
+    v_cost_center_row.COST_CENTER_CODE := :NEW.cost_center_code;
 		v_cost_center_row.COST_CENTER_NAME := :NEW.COST_CENTER_NAME;
 		v_cost_center_row.CATEGORY := :NEW.CATEGORY;
 		v_cost_center_row.ENTITY_TYPE := :NEW.ENTITY_TYPE;
@@ -43,11 +37,13 @@ begin
 	    v_cost_center_row.BANKING_TYPE := :NEW.BANKING_TYPE;
 	    v_cost_center_row.DEPOSIT_BAG_REORDER := :NEW.DEPOSIT_BAG_REORDER;
 	    v_cost_center_row.DEPOSIT_TICKET_REORDER := :NEW.DEPOSIT_TICKET_REORDER;
+      v_cost_center_row.POP_KIT_CODE := :NEW.POP_KIT_CODE;
+      
 	    
-	SELECT XMLELEMENT ( "COST_CENTER",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "COST_CENTER",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 			 v_cost_center_row.COST_CENTER_CODE COST_CENTER_CODE
 			,v_cost_center_row.COST_CENTER_NAME COST_CENTER_NAME
@@ -74,15 +70,16 @@ begin
 			,v_cost_center_row.BANKING_TYPE BANKING_TYPE
 	    	,v_cost_center_row.DEPOSIT_BAG_REORDER DEPOSIT_BAG_REORDER
 	    	,v_cost_center_row.DEPOSIT_TICKET_REORDER DEPOSIT_TICKET_REORDER
+        ,v_cost_center_row.POP_KIT_CODE POP_KIT_CODE
 
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				v_cost_center_row.COST_CENTER_CODE COST_CENTER_CODE
-			)) AS "primaryKey"
+			)) AS  "primaryKey"
 			,('|' || v_cost_center_row.COST_CENTER_CODE ||
 			  '|' ) transaction_id					
 	INTO v_rowdata
@@ -111,4 +108,6 @@ begin
                 ,'TR_COST_CENTER_UPD');
      --END IF;      
       
-END COST_CENTER_UPD;
+END TR_COST_CENTER_UPD;
+/
+

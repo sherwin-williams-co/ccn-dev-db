@@ -1,4 +1,3 @@
-create or replace
 PACKAGE CCN_HIERARCHY
     AS
 	
@@ -6,7 +5,16 @@ PACKAGE CCN_HIERARCHY
 --Declaring global level exception
 CC_EXISTS_ERR       EXCEPTION;
 
-           
+PROCEDURE update_cc_global_hrchy_ind(
+/***********************************************************
+      update_cc_global_hrchy_ind 
+      This Procedure will update COST_CENTER.GLOBAL_HIERARCHY_IND 
+      based on passed input cost center
+      
+Created : 09/12/2013 CCN Project
+************************************************************/
+in_COST_CENTER_CODE   IN   VARCHAR2);
+
 PROCEDURE hierarchy_insert_wrapper
 ( in_ind IN VARCHAR2,
   in_hierarchy_detail_row IN hierarchy_detail%rowtype);
@@ -373,6 +381,27 @@ Created : 08/02/2013 CCN Project
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 RETURN XMLTYPE;
 
+FUNCTION COST_CENTER_DESCRIPTION(
+/***********************************************************
+COST_CENTER_DESCRIPTION
+      This function will return the COST_CENTER_NAME 
+      from COST_CENTER into HRCHY_DTL_DESC
+Created : 08/23/2013 CCN Project
+************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2)
+RETURN VARCHAR2;
+
+FUNCTION COST_CENTER_STATEMENT_TYPE(
+/***********************************************************
+COST_CENTER_STATEMENT_TYPE
+      This function will return the upper_lvl_ver_valeu
+      with STATEMENT_TYPE replaced with the cost center STATEMENT_TYPE
+Created : 09/18/2013 CCN Project
+************************************************************/
+       IN_UPPER_LVL_VER_VALUE  IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+       IN_COST_CENTER_CODE     IN VARCHAR2)
+RETURN VARCHAR2;
+
 FUNCTION HIERARCHY_EFF_DATE_RETURN (
 /***********************************************************
       HIERARCHY_EFF_DATE_RETURN 
@@ -529,3 +558,5 @@ created : 04/25/2013 kdp CCN Project....
   );
  
 END CCN_HIERARCHY;
+/
+

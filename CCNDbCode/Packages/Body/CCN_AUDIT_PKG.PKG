@@ -1,4 +1,3 @@
-create or replace 
 PACKAGE BODY CCN_AUDIT_PKG as 
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
@@ -113,6 +112,67 @@ EXCEPTION
     RETURN L_RETURN_VALUE;
 END REQUIRED_TABLE_CHECK;
 
+FUNCTION IS_COSTCNTR_IN_GLOBAL_HRCHY(
+/**********************************************************
+	IS_COSTCNTR_IN_GLOBAL_HRCHY
+
+	This function returns true if the cost center is associated with global hierarchy
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 09/10/2013 kdp CCN Project....
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_COUNT             NUMBER := 0;
+   V_COST_CENTER_CODE  VARCHAR2(10);
+BEGIN
+   --For Hierarchy_Detail, the key will of any two below formats
+   IF in_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+      --If 3 digits prior to last '|' is ~~~ meaning its last level
+      IF SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-3,3) = '~~~' THEN
+         --GLOBAL_HIERARCHY|9|0101010106510101|0101010106510101888842|~~~|11-SEP-13
+         --Extract prior 6 characters from SECOND LAST '|' for cost center, in example 888842
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
+      ELSE --If 3 digits prior to last '|' is NOT ~~~ meaning its 2nd last level
+         --GLOBAL_HIERARCHY|8|01010101065101|0101010106510101|0101010106510101888842|11-SEP-13
+         --Extract prior 6 characters from LAST '|' for cost center, in example 888842
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-6,6);
+      END IF;
+   ELSE
+ 	--dbms_output.put_line('before terr');
+      IF in_TABLE_NAME = 'TERRITORY' THEN
+	       V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
+	      
+      	 --|02295B|755547|T|
+      	 --Getting last cost center after 2nd '|' from the end
+      ELSE   
+         --Transaction Id input will have format as |888826|S|AA|05-SEP-13| for all other tables apart from Hierarchy_Detail
+         --i.e.., from 2nd character till 7th character its the cost center code = 888826 in above example
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,2,6);
+      END IF;
+   END IF;
+   CCN_HIERARCHY.update_cc_global_hrchy_ind(V_COST_CENTER_CODE);
+   
+   --Below query will check if cost center is part of global hierarchy
+   SELECT COUNT(*) INTO V_COUNT
+     FROM COST_CENTER
+    WHERE COST_CENTER_CODE              = V_COST_CENTER_CODE
+      AND NVL(GLOBAL_HIERARCHY_IND,'N') = 'Y';
+
+  dbms_output.put_line('cost center ' || V_COST_CENTER_CODE);
+  DBMS_OUTPUT.PUT_LINE('VCOUTN ' || V_COUNT );
+   IF V_COUNT = 1 THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN FALSE;
+END IS_COSTCNTR_IN_GLOBAL_HRCHY;
+
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
 Selects all rows from audit_log that have changed from
@@ -145,9 +205,10 @@ SELECT DISTINCT TABLE_NAME,
        TRANSACTION_ID
   FROM AUDIT_LOG
  WHERE AUDIT_REC_FLAG IS NULL
-   AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+   AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
                               FROM BATCH_JOB
-                             WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG');
+                             WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
@@ -166,28 +227,50 @@ BEGIN
 
 V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
 CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
-
+DBMS_OUTpUT.PUT_LINE('BEFORE CURSOR');
 FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
     BEGIN
   
-            --Check if audit process is neede for the current table
+            --Check if audit process is needed for the current table and if cost center is part of global hierarchy  
+            --DBMS_OUTPUT.PUT_LINE('IN LOOP SELAUDITLOG');
             IF REQUIRED_TABLE_CHECK(SEL_AUDIT_REC.TABLE_NAME) = 'Y' THEN
-              SAVEPOINT NEXT_AUDIT_REC;
+                  --Process the record only if cost center in the key is associated with global
+                  --NOTE: All details of other hierarchies also should be taken in to consideration 
+                  DBMS_OUTPUT.PUT_LINE('IN LOOP SELAUDITLOG with '||SEL_AUDIT_REC.TABLE_NAME);
+                  IF IS_COSTCNTR_IN_GLOBAL_HRCHY(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME) THEN
+                     SAVEPOINT NEXT_AUDIT_REC;
                             
-                  V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
-                  PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
-                                       ,SEL_AUDIT_REC.TRANSACTION_ID
-                                       ,V_CC_CODE
-  				                             ,V_CHANGE_TYPE
-                                       ,DIFF_XML);
+                     V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+                     
+                     DBMS_OUTPUT.PUT_LINE('BEFORE PARSE');
+                     PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
+                                          ,SEL_AUDIT_REC.TRANSACTION_ID
+                                          ,V_CC_CODE
+  				                                ,V_CHANGE_TYPE
+                                          ,DIFF_XML);
 
-                  V_CONTEXT:='Call procedure Build_File_SP';
-                  --DBMS_OUTPUT.PUT_LINE('DIFF XML ' || DIFF_XML.getCLOBVal());
-                  BUILD_FILE_SP(V_CC_CODE
-                                ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
-                                ,SYSDATE			--in_ROW_DATE   IN DATE
-                                ,DIFF_XML			--in_Row_data   IN sys.xmltype
-                                ,V_CHANGE_TYPE);
+                     V_CONTEXT:='Call procedure Build_File_SP';
+                     --DBMS_OUTPUT.PUT_LINE('DIFF XML ' || DIFF_XML.getCLOBVal());
+                     BUILD_FILE_SP(V_CC_CODE
+                                   ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
+                                   ,SYSDATE			--in_ROW_DATE   IN DATE
+                                   ,DIFF_XML			--in_Row_data   IN sys.xmltype
+                                   ,V_CHANGE_TYPE);
+                     --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
+                     UPDATE AUDIT_LOG
+                        SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
+                      WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+                        AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+                        AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y';
+                  ELSE
+                     --set the GLOBAL_HIERARCHY_SKIP_FLAG to 'Y', which means pick again in further batch processing
+                     UPDATE AUDIT_LOG
+                        SET GLOBAL_HIERARCHY_SKIP_FLAG = 'Y'
+                      WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+                        AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+                        AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
+                        AND AUDIT_REC_FLAG             IS NULL;
+                  END IF;
             END IF;
       EXCEPTION
            WHEN OTHERS THEN
@@ -589,10 +672,10 @@ V_CONTEXT := 'Generating the CLOB Output';
          V_CONTEXT := 'Building by extracting the Existing Data';
          IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - POS_PROG_VER_NBR' )) THEN
             V_OUT_CLOB := V_OUT_CLOB ||
-                          UPPER(LPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
+                          UPPER(LPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
                                      TABLE_FIELDS_REC.COLUMN_SIZE, '0'));
          ELSE
-            v_value := UPPER(RPAD(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(),
+            v_value := UPPER(RPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
                                       TABLE_FIELDS_REC.COLUMN_SIZE));
             
             --If there is a change and if the changed value is null then it comes here as '~'
@@ -600,11 +683,13 @@ V_CONTEXT := 'Generating the CLOB Output';
             --like we do for null values for specific fields
             IF TRIM(v_value) = '~' THEN
             
+               --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
                IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
             
                   V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
                   --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
                   --which have null values so that we can pass it to main frame
+                  --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
             
                ELSE
             
@@ -613,7 +698,9 @@ V_CONTEXT := 'Generating the CLOB Output';
                                                                                'BANK_CARD - AMEX_SE_ID',
                                                                                'BANK_CARD - DISCOVER_ID',
                                                                                'PHONE - PHONE_NUMBER',
-                                                                               'PHONE - PHONE_AREA_CODE'))) THEN
+                                                                               'PHONE - PHONE_AREA_CODE',
+                                                                               'ADDRESS_USA - DESTINATION_POINT',
+                                                                               'ADDRESS_USA - CHECK_DIGIT'))) THEN
                      V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
             
                   ELSE
@@ -630,23 +717,7 @@ V_CONTEXT := 'Generating the CLOB Output';
  
       ELSE
          V_CONTEXT := 'Building by extracting the Non-Existing Data';
-         --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
-         IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
-            V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
-            --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
-            --which have null values so that we can pass it to main frame
-         ELSE
-            IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
-                                                                         'BANK_CARD - QUALITY_CODE',
-                                                                         'BANK_CARD - AMEX_SE_ID',
-                                                                         'BANK_CARD - DISCOVER_ID',
-                                                                         'PHONE - PHONE_NUMBER',
-                                                                         'PHONE - PHONE_AREA_CODE'))) THEN
-               V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
-            ELSE
-               V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
-            END IF;
-         END IF;
+         V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
       END IF;
    END LOOP;
 --dbms_output.put_line('clob output ' || v_out_clob);      
@@ -662,3 +733,5 @@ EXCEPTION WHEN OTHERS THEN
 END Build_File_SP;
 
 END CCN_AUDIT_PKG;
+/
+

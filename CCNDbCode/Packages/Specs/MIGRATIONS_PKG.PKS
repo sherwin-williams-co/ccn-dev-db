@@ -1,4 +1,3 @@
-create or replace
 PACKAGE MIGRATIONS_PKG AS
 /*********************************************************** 
 This package SPEC has procedures and functions related to the MIGRATIONS table
@@ -78,3 +77,5 @@ revised :
 );
 
 END MIGRATIONS_PKG;
+/
+

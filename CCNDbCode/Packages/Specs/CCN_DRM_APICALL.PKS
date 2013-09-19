@@ -1,17 +1,12 @@
-create or replace
 PACKAGE CCN_DRM_APICALL
 /*********************************************************** 
-This package will hold the SQL DEVELOPER generated 
-INSERT, UPDATE, and DELETE procedures/functions 
-used to process the ADDRESS_CAN table	
-
-created : 01/25/2012 tal CCN project
+This package will hold 
 revisions: 
 
 ************************************************************/
 IS
 
-TYPE ParamList IS VARRAY(50) OF VARCHAR2(20);
+TYPE ParamList IS VARRAY(50) OF VARCHAR2(200);
 
 
 HEADERFRAGMENT 	VARCHAR2(2000) :=  
@@ -66,7 +61,7 @@ versions : init 07/20/2012
 , O_PARAMS OUT XMLTYPE
 );
 
-PROCEDURE CALL_INACTIVATENODES
+PROCEDURE GENERATE_REQUEST_STRING
 /*******************************************************
 Procedure to generate request to call webservice 
 inactivateNodes takes input as the array string for 
@@ -96,3 +91,4 @@ versions : init 01/18/2012 kdp
 
 END CCN_DRM_APICALL;
 /
+

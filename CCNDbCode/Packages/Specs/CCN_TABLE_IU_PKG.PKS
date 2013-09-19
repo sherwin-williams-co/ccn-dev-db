@@ -1,4 +1,3 @@
-create or replace
 package CCN_TABLE_IU_PKG
     as
 -- PACKAGE SPEC
@@ -2094,3 +2093,5 @@ in_table_name          IN  varchar2
 );  
 
 end CCN_TABLE_IU_PKG;
+/
+

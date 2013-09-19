@@ -1,4 +1,3 @@
-create or replace
 PACKAGE BODY CCN_HIERARCHY
     AS
 
@@ -6,12 +5,98 @@ PACKAGE BODY CCN_HIERARCHY
 DUPLICATE_COST_CENTER       HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
 BUSSINESS_RULES_ERR_CODE    INTEGER;
 BUSSINESS_RULES_ERR_DESC    VARCHAR2(2000);
-	
+BUSINESS_RULES_EXCEPTION    EXCEPTION;
+  
 /*********************************************************** 
 This package is will return data from the hierarchy_detail table
 
 created : 03/22/2012 OD CCN coding project
 ************************************************************/
+
+PROCEDURE ELIMINATE_SPECIAL_CHRS(
+/**********************************************************
+	ELIMINATE_SPECIAL_CHRS
+
+	This procedure will elminate special characters
+        
+
+created : 06/23/2013 CCN Project....
+**********************************************************/
+IO_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE)
+IS
+BEGIN
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC);
+  END IF;
+  IF IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
+     IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+  END IF;
+END ELIMINATE_SPECIAL_CHRS;
+
+PROCEDURE update_cc_global_hrchy_ind(
+/***********************************************************
+      update_cc_global_hrchy_ind 
+      This Procedure will update COST_CENTER.GLOBAL_HIERARCHY_IND 
+      based on passed input cost center
+      
+Created : 09/12/2013 CCN Project
+************************************************************/
+in_COST_CENTER_CODE   IN   VARCHAR2) IS
+  V_COUNT                 NUMBER := 0;
+  V_VALUE                 VARCHAR2(1);
+  V_CONTEXT   VARCHAR2(1000);
+  SQ          INTEGER;
+  SE          VARCHAR2(300);
+BEGIN
+       --If no records were found, update won't happen, but no exception is raised
+       v_context := 'Querying the data for the cost center '|| in_COST_CENTER_CODE || ' global validation';
+       SELECT COUNT(*) INTO V_COUNT
+         FROM HIERARCHY_DETAIL HD,
+              HIERARCHY_HEADER HH
+        WHERE HD.HRCHY_HDR_NAME         IN ('GLOBAL_HIERARCHY','FACTS_DIVISION','LEGACY_GL_DIVISION')
+          AND HH.HRCHY_HDR_NAME         = HD.HRCHY_HDR_NAME 
+          AND HH.HRCHY_HDR_LEVELS       = HD.HRCHY_DTL_LEVEL
+          AND HD.HRCHY_DTL_CURR_ROW_VAL = in_COST_CENTER_CODE
+          AND EXISTS (SELECT 1
+                        FROM COST_CENTER CC
+                       WHERE CC.COST_CENTER_CODE = HD.HRCHY_DTL_CURR_ROW_VAL);
+       
+       IF V_COUNT > 0 THEN
+          V_VALUE := 'Y';
+       ELSE
+          V_VALUE := 'N';
+       END IF;
+       
+       --Update only if the value is changed
+       v_context := 'Updating the GLOBAL_HIERARCHY_IND indicator of cost center : '||in_COST_CENTER_CODE;
+       UPDATE COST_CENTER
+          SET GLOBAL_HIERARCHY_IND = V_VALUE
+        WHERE COST_CENTER_CODE     = in_COST_CENTER_CODE
+          AND GLOBAL_HIERARCHY_IND <> V_VALUE;
+  EXCEPTION 
+        WHEN OTHERS THEN
+            SQ := SQLCODE;
+            SE := SQLERRM;
+            
+            v_context := v_context || ' ' || sq || ' ' || se; 
+            --dbms_output.put_line( 'ccn_hierarchy.update_cc_global_hrchy_ind - '|| v_context); 
+            ERRPKG.RAISE_ERR(-20004, 'ccn_hierarchy.update_cc_global_hrchy_ind -', V_CONTEXT); 
+END update_cc_global_hrchy_ind;
 
 PROCEDURE hierarchy_insert_wrapper( 
 /***********************************************************
@@ -28,13 +113,13 @@ IS
   --accepts a rowtype
 
   v_hierarchy_detail_row  HIERARCHY_DETAIL%ROWTYPE;
-  
   V_CONTEXT   VARCHAR2(1000);
   SQ          INTEGER;
   SE          VARCHAR2(300);
 
 begin
     v_hierarchy_detail_row := in_hierarchy_detail_row;
+    ELIMINATE_SPECIAL_CHRS(v_hierarchy_detail_row);
     
     if in_ind = 'H' then
        V_CONTEXT := 'Inserting into hierarchy_detail_hst ';
@@ -42,6 +127,8 @@ begin
     else
        V_CONTEXT := 'Inserting into hierarchy_detail ';
        insert into hierarchy_detail values v_hierarchy_detail_row; 
+       --After inserting, if the cost center is part of global, update GLOBAL_HIERARCHY_IND to 'Y' from 'N'
+       update_cc_global_hrchy_ind(v_hierarchy_detail_row.HRCHY_DTL_CURR_ROW_VAL);
     end if;
     
   EXCEPTION 
@@ -119,7 +206,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
             		hr.HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
-            		xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+            		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -158,7 +246,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
             		hr.HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
-            		xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+            		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -181,10 +270,64 @@ EXCEPTION WHEN OTHERS THEN
 
 		--Error handling to be put  
 	END RETURN_HIERARCHY;
+  
+FUNCTION COST_CENTER_DESCRIPTION(
+/***********************************************************
+COST_CENTER_DESCRIPTION
+      This function will return the COST_CENTER_NAME 
+      from COST_CENTER into HRCHY_DTL_DESC
+Created : 08/23/2013 CCN Project
+************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2)
+RETURN VARCHAR2
+IS
+  V_COST_CENTER_DESCRIPTION VARCHAR2(100);
+BEGIN
+   SELECT COST_CENTER_NAME
+     INTO V_COST_CENTER_DESCRIPTION
+     FROM COST_CENTER 
+    WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+   
+   RETURN V_COST_CENTER_DESCRIPTION;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+       RETURN NULL;
+END COST_CENTER_DESCRIPTION;
+
+FUNCTION COST_CENTER_STATEMENT_TYPE(
+/***********************************************************
+COST_CENTER_STATEMENT_TYPE
+      This function will return the upper_lvl_ver_valeu
+      with STATEMENT_TYPE replaced with the cost center STATEMENT_TYPE
+Created : 09/18/2013 CCN Project
+************************************************************/
+       IN_UPPER_LVL_VER_VALUE  IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+       IN_COST_CENTER_CODE     IN VARCHAR2)
+RETURN VARCHAR2 IS
+   V_RETURN_VALUE          VARCHAR2(32000);
+   V_COST_CENTER_STMNT_TYP COST_CENTER.STATEMENT_TYPE%TYPE;
+BEGIN
+   SELECT STATEMENT_TYPE
+     INTO V_COST_CENTER_STMNT_TYP
+     FROM COST_CENTER 
+    WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+   IF V_COST_CENTER_STMNT_TYP IS NOT NULL THEN
+      SELECT UPDATEXML(IN_UPPER_LVL_VER_VALUE, '/attributes/upper_lvl_ver_desc[1]/Value/text()',V_COST_CENTER_STMNT_TYP).GETSTRINGVAL()
+        INTO V_RETURN_VALUE
+        FROM DUAL;
+   ELSE
+      V_RETURN_VALUE := IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL();
+   END IF;
+   RETURN V_RETURN_VALUE;
+EXCEPTION
+   WHEN OTHERS THEN
+       RETURN IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL();
+END COST_CENTER_STATEMENT_TYPE;
                          
 PROCEDURE RETURN_HIERARCHY_LAST_LVL (	
 /**********************************************************
-	RETURN_HIERARCHY
+	RETURN_HIERARCHY_LAST_LVL
 
 	This procedure will return a ref cursor with data from 
 	from the hierarchy_detail lowest level table based on header name, current value , t
@@ -239,9 +382,11 @@ created : 06/22/2012 kdp CCN Project....
       				hr.HRCHY_DTL_NEXT_LVL_VAL,
         			hr.HRCHY_DTL_EFF_DATE,
           			hr.HRCHY_DTL_EXP_DATE,
-            		hr.HRCHY_DTL_DESC,
+            		--hr.HRCHY_DTL_DESC,
+                COST_CENTER_DESCRIPTION(hr.HRCHY_DTL_CURR_ROW_VAL) HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
-            		xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+            		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -259,7 +404,7 @@ EXCEPTION WHEN OTHERS THEN
 	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
   
 
-	ERRPKG.RAISE_ERR(-20004,'RETURN_HIERARCHY',V_CONTEXT);    
+	ERRPKG.RAISE_ERR(-20004,'RETURN_HIERARCHY_LAST_LVL',V_CONTEXT);    
         			
 
 		--Error handling to be put  
@@ -336,7 +481,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
                                 hr.HRCHY_DTL_DESC,
                                 hr.HRCHY_DTL_CURR_ROW_VAL,
-                                xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL_HST hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
                                    AND HRCHY_DTL_EFF_DATE = NVL(EFF_DATE, HRCHY_DTL_EFF_DATE)
@@ -377,7 +523,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
                                 hr.HRCHY_DTL_DESC,
                                 hr.HRCHY_DTL_CURR_ROW_VAL,
-                                xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL_HST hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				   AND HRCHY_DTL_EFF_DATE = EFF_DATE
@@ -508,6 +655,10 @@ IS
          END IF;
          -- DBMS_OUTPUT.put_line(V_CURR_VAL );
         
+        V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
+        V_HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_DTL_LEVEL);
+        V_CURR_VAL        := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_CURR_VAL);
+        
         V_CONTEXT := 'Selecting for Ref Cursor';
         open OUT_HIERARCHY_REF_CUR for
           SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL, HRCHY_DTL_DESC
@@ -587,6 +738,10 @@ IS
               END LOOP;
          END IF;
          -- DBMS_OUTPUT.put_line(V_CURR_VAL );
+         
+        V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
+        V_HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_DTL_LEVEL);
+        V_CURR_VAL        := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_CURR_VAL);
         
         open OUT_HIERARCHY_REF_CUR for
           SELECT xmltype.getStringVal(UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
@@ -637,6 +792,8 @@ IS
             V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
             -- DBMS_OUTPUT.put_line(V_HRCHY_HDR_NAME );
         END IF;
+        
+        V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
         
           OPEN OUT_HIERARCHY_REF_CUR FOR
         SELECT DISTINCT HH.HRCHY_HDR_LEVELS,HD.HRCHY_HDR_LVL_DESC, HD.HRCHY_HDR_LVL_NBR
@@ -697,7 +854,11 @@ IS
              V_CONTEXT := 'Extracting HRCHY_HDR_DESC';
              V_HRCHY_HDR_DESC := v_XML.EXTRACT('/HIERARCHY_HEADER/row_data/HRCHY_HDR_DESC/text()').GETSTRINGVAL();
              -- DBMS_OUTPUT.put_line(V_HRCHY_HDR_DESC );
-                  
+
+             V_HRCHY_HDR_NAME   := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
+             V_HRCHY_HDR_LEVELS := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_LEVELS);
+             V_HRCHY_HDR_DESC   := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_DESC);
+
              V_CONTEXT := 'Inserting into HIERARCHY_HEADER';
              INSERT INTO HIERARCHY_HEADER  ( HRCHY_HDR_NAME,
                                              HRCHY_HDR_LEVELS,
@@ -818,6 +979,10 @@ IS
                  V_XML_FRAG := v_XML.extract('/HIERARCHY_DETAIL/row_data/HRCHY_LEVELS' || '[' || V_COUNT || ']' || '/attributes').GETCLOBVAL();
                  V_UPPER_LVL_VER_VALUE := sys.xmltype.createXML(V_XML_FRAG);
              end if;
+             
+             V_HRCHY_HDR_NAME      := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
+             V_HRCHY_HDR_LVL_NBR   := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_LVL_NBR);
+             V_HRCHY_HDR_LVL_DESC  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_LVL_DESC);
              
              V_CONTEXT := 'Inserting into HIERARCHY_DESCRIPTION';
              INSERT INTO HIERARCHY_DESCRIPTION ( HRCHY_HDR_NAME,
@@ -1457,14 +1622,14 @@ BEGIN
    --'H' stands for History table check, else Detail table check
    IF IN_FLAG = 'H' THEN
       UPDATE HIERARCHY_DETAIL_HST
-         SET HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL
+         SET HRCHY_DTL_NEXT_LVL_VAL = COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL)
        WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
          AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
          AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL
          AND HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL;
    ELSE
       UPDATE HIERARCHY_DETAIL
-         SET HRCHY_DTL_NEXT_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL
+         SET HRCHY_DTL_NEXT_LVL_VAL = COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL)
        WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
          AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
          AND HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
@@ -1524,6 +1689,39 @@ BEGIN
    END IF;
 END DELETE_PROCESS;
 
+FUNCTION IS_VALID_HEADER_LVL (
+/***********************************************************
+      IS_VALID_HEADER_LVL 
+      This Procedure will return true if the hierarchy header 
+      matches with the hierarchy level passed in the xml. 
+
+input param : IN_HRCHY_HDR_NAME
+              IN_HRCHY_DTL_LEVEL
+Created : 09/04/2013 CCN Project
+************************************************************/
+                         IN_HRCHY_HDR_NAME       IN VARCHAR2,
+                         IN_HRCHY_DTL_LEVEL      IN VARCHAR2)
+RETURN BOOLEAN
+IS
+  V_HRCHY_HDR_LVL_NBR    HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+BEGIN
+
+   SELECT MAX(HRCHY_HDR_LVL_NBR) INTO V_HRCHY_HDR_LVL_NBR
+     FROM HIERARCHY_DESCRIPTION
+    WHERE UPPER(HRCHY_HDR_NAME) = UPPER(IN_HRCHY_HDR_NAME);
+
+   IF UPPER(V_HRCHY_HDR_LVL_NBR) = UPPER(IN_HRCHY_DTL_LEVEL) THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to return false if no records found
+      RETURN FALSE;
+END IS_VALID_HEADER_LVL;
+
 PROCEDURE INSERT_PROCESS(
 /***********************************************************
       INSERT_PROCESS 
@@ -1551,6 +1749,17 @@ IS
    V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
    V_ROW_DATA                    XMLTYPE := SYS.XMLTYPE(IN_XML);
 BEGIN
+
+   --Validate if the header name matches with the number of levels passed
+   --This validation should be done only once, that too for the last level OR first iteration
+   IF IN_LAST_LEVEL = 'Y' THEN
+      IF NOT IS_VALID_HEADER_LVL(IN_HRCHY_HDR_NAME, IN_HRCHY_DTL_LEVEL) THEN
+         BUSSINESS_RULES_ERR_CODE   := errnums.en_invalid_levels_err;
+         BUSSINESS_RULES_ERR_DESC   := 'The number of levels for the Hierarchy ' || IN_HRCHY_HDR_NAME || ' is not in range';
+         RAISE BUSINESS_RULES_EXCEPTION;
+      END IF;
+   END IF;
+
    --Building the Composite key based on parameters passed
    BUILD_COMPOSITE_KEYS(IN_FLAG,
                         IN_XML,
@@ -1622,7 +1831,6 @@ IN_XML IN VARCHAR2) IS
   V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
   V_COUNT                          NUMBER  := 1;
   V_ROW_DATA                       XMLTYPE := SYS.XMLTYPE(IN_XML);
-  BUSINESS_RULES_EXCEPTION         EXCEPTION;
 
   V_CONTEXT   VARCHAR2(3000);
   SQ          INTEGER;
@@ -1710,10 +1918,9 @@ created : 02/13/2013 SH CCN Project....
     IN_XML                VARCHAR2)
 IS
   V_XML_FRAG                       CLOB;
-  V_XML                            XMLTYPE := SYS.XMLTYPE(IN_XML);
+  V_ROW_DATA                       XMLTYPE := SYS.XMLTYPE(IN_XML);
   V_HRCHY_HDR_NAME                 HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
   V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
-  BUSINESS_RULES_EXCEPTION         EXCEPTION;
 
   V_CONTEXT   VARCHAR2(3000);
   SQ          INTEGER;
@@ -1721,9 +1928,9 @@ IS
 
 BEGIN
    V_CONTEXT := 'Extracting Hierarchy Details';
-   IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
-      V_HRCHY_HDR_NAME  := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
-      V_HRCHY_DTL_LEVEL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
+      V_HRCHY_HDR_NAME  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+      V_HRCHY_DTL_LEVEL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
    END IF;
   
    V_CONTEXT := 'Calling INSERT_PROCESS';
@@ -1786,5 +1993,6 @@ IS
           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
           ERRPKG.RAISE_ERR(-20004,'HIERARCHY_HDR_DESC_PICKLIST',V_CONTEXT);  
 END HIERARCHY_HDR_PICKLIST;
-
 END CCN_HIERARCHY;
+/
+

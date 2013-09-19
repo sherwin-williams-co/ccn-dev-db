@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_terminal_upd
-before insert or  update on terminal
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -26,10 +20,10 @@ BEGIN
 		v_terminal_row.POS_LAST_TRAN_DATE := :NEW.POS_LAST_TRAN_DATE;
 		v_terminal_row.POS_LAST_TRAN_NUMBER := :NEW.POS_LAST_TRAN_NUMBER;
 		
-	SELECT XMLELEMENT ( "TERMINAL",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TERMINAL",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLFOREST(
 			 v_terminal_row.COST_CENTER_CODE COST_CENTER_CODE
 			,v_terminal_row.POLLING_STATUS_CODE POLLING_STATUS_CODE
@@ -38,15 +32,19 @@ BEGIN
 				,to_char(v_terminal_row.EXPIRATION_DATE, 'yyyymmdd')  EXPIRATION_DATE
 				,to_char(v_terminal_row.POS_LAST_TRAN_DATE, 'yyyymmdd')  POS_LAST_TRAN_DATE
 		  ,v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER			
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				V_TERMINAL_ROW.COST_CENTER_CODE COST_CENTER_CODE
-			)) AS "primaryKey"		,
-      ('|' || V_TERMINAL_ROW.COST_CENTER_CODE || '|') tran_id
+        ,v_terminal_row.EFFECTIVE_DATE   EFFECTIVE_DATE
+        ,v_terminal_row.TERMINAL_NUMBER TERMINAL_NUMBER
+			)) AS  "primaryKey"		,
+      ('|' || V_TERMINAL_ROW.COST_CENTER_CODE 
+      || '|' || V_TERMINAL_ROW.TERMINAL_NUMBER  || '|'
+      || '|' || TO_CHAR(V_TERMINAL_ROW.EFFECTIVE_DATE,'DD-MON-YY')  || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
 	FROM DUAL;	
@@ -73,3 +71,5 @@ BEGIN
      --END IF;      
       
 END TR_TERMINAL_UPD;
+/
+

@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_sales_rep_upd 
-BEFORE INSERT or UPDATE ON SALES_REP 
-referencing old as old new as new 
-for each row
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -26,10 +20,10 @@ BEGIN
 		v_sales_rep_row.last_name                  := :new.last_name;
 		v_sales_rep_row.employee_code              := :new.employee_code;
 	
-	SELECT XMLELEMENT ( "SALES_REP",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "SALES_REP",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		xmlforest(
 				 v_sales_rep_row.gems_employee_id           gems_employee_id
         ,v_sales_rep_row.social_security_number     social_security_number
@@ -40,15 +34,15 @@ BEGIN
         ,v_sales_rep_row.last_name                  last_name
         ,v_sales_rep_row.employee_code              employee_code
         
-						)) AS "result"
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+						)) AS  "result"
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 				 v_sales_rep_row.gems_employee_id           gems_employee_id
         
-			)) AS "primaryKey",
+			)) AS  "primaryKey",
       ('|'|| v_sales_rep_row.gems_employee_id || '|') tran_id
 			INTO V_ROWDATA
 			,v_primarykey,v_transaction_id
@@ -76,3 +70,5 @@ BEGIN
      --END IF;      
       
 END TR_SALES_REP_UPD;
+/
+

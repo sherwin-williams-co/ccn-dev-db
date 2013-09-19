@@ -1,4 +1,3 @@
-create or replace
 package PICK_LIST_RULES 
     AS
 /******************************************************************************
@@ -46,3 +45,5 @@ created : 8/09/2012
  ,inCODE_DETAIL_ROWTYPE  IN  CODE_DETAIL%rowtype  ) ;
   
 end pick_list_rules;
+/
+

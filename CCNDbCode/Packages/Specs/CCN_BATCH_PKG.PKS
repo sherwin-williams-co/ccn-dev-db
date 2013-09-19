@@ -1,4 +1,3 @@
-create or replace
 PACKAGE CCN_BATCH_PKG AS
 /*********************************************************** 
 This package "SPEC" has procedures and functions related to the batch
@@ -62,3 +61,5 @@ PROCEDURE UPDATE_TERR_PHONE_NUMBERS_SP
 (FIRST_CHARACTER IN VARCHAR) ;
 
 END CCN_BATCH_PKG;
+/
+

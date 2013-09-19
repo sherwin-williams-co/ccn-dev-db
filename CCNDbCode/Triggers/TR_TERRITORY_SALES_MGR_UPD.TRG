@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_TERRITORY_SALES_MGR_UPD
-BEFORE INSERT OR UPDATE ON TERRITORY_SALES_MGR
-REFERENCING NEW AS NEW OLD AS OLD
-FOR EACH ROW
-
 DECLARE
 
 	v_transaction_id varchar2(500);
@@ -30,10 +24,10 @@ BEGIN
                 v_terr_sls_mgr_row.middle_initial := :NEW.middle_INITIAL;
                 v_terr_sls_mgr_row.territory_sls_mgr_type := :NEW.territory_sls_mgr_type;
 	
-	SELECT XMLELEMENT ( "TERRITORY_SALES_MGR",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TERRITORY_SALES_MGR",               
+		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
+                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 			v_terr_sls_mgr_row.territory_sls_mgr_code territory_sls_mgr_code
 			,v_terr_sls_mgr_row.gems_employee_id gems_employee_id                              
@@ -44,14 +38,14 @@ BEGIN
                         ,v_terr_sls_mgr_row.last_name last_name 
                         ,v_terr_sls_mgr_row.middle_initial Middle_initial
                         ,v_terr_sls_mgr_row.territory_sls_mgr_type territory_sls_mgr_type			
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			)) AS  "result" 
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
 				V_TERR_SLS_MGR_ROW.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE
-			)) AS "primaryKey"		,
+			)) AS  "primaryKey"		,
       ('|' || V_TERR_SLS_MGR_ROW.TERRITORY_SLS_MGR_CODE || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
@@ -79,3 +73,5 @@ BEGIN
      --END IF;      
       
 END TR_TERRITORY_SALES_MGR_UPD;
+/
+

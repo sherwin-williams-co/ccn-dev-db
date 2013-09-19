@@ -151,5 +151,18 @@ revised:   12/03/2012 BLR  CCN Project....
 
  in_row_data  in varchar2);
  
+ PROCEDURE VALIDATE_BUSINESS_RULES(
+ /******************************************************************************
+	VALIDATE_BUSINESS_RULES   --    User Interface Update delete business rules validator
+
+	This procedure is intended to validate the business rules based on the flag sent using
+  the input XML fragment.
+
+created : 08/26/2013 CCN Project....
+*******************************************************************************/
+IN_FLAG      IN VARCHAR2,
+IN_ROW_DATA  IN VARCHAR2);
+ 
 end CCN_UI_INTERFACE_APP_PKG;
+/
 

@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".tr_polling_dwld_rsn_hist_upd 
-BEFORE INSERT or UPDATE ON POLLING_DWLD_RSN_HIST 
-REFERENCING OLD AS OLD NEW AS NEW 
-for each row
-
 DECLARE
 
 	  v_transaction_id varchar2(500);
@@ -25,30 +19,31 @@ BEGIN
 		v_polling_dwld_rsn_hist_row.download_date              := :new.download_date;
 		v_polling_dwld_rsn_hist_row.pos_download_reason        := :new.pos_download_reason;
 	
-	SELECT XMLELEMENT ( "POLLING_DWLD_RSN_HIST",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "POLLING_DWLD_RSN_HIST",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		XMLForest(
 				 v_polling_dwld_rsn_hist_row.cost_center_code      cost_center_code
 				,v_polling_dwld_rsn_hist_row.polling_status_code   polling_status_code
 				,to_char(v_polling_dwld_rsn_hist_row.EFFECTIVE_DATE, 'yyyymmdd')   EFFECTIVE_DATE
 				,to_char(v_polling_dwld_rsn_hist_row.DOWNLOAD_DATE, 'yyyymmdd')    DOWNLOAD_DATE
 		    ,v_polling_dwld_rsn_hist_row.pos_download_reason   pos_download_reason
-        )) AS "result"
+        )) AS  "result"
         
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       XMLFOREST(         
 				 v_polling_dwld_rsn_hist_row.cost_center_code           cost_center_code
         ,v_polling_dwld_rsn_hist_row.polling_status_code        polling_status_code
         ,v_polling_dwld_rsn_hist_row.effective_date             effective_date
-			)) AS "primaryKey",
+			)) AS  "primaryKey",
       
-      ('|' || V_POLLING_DWLD_RSN_HIST_ROW.COST_CENTER_CODE || '|' || V_POLLING_DWLD_RSN_HIST_ROW.POLLING_STATUS_CODE || '|' ||
-      v_polling_dwld_rsn_hist_row.effective_date || '|') transaction_id
+      ('|' || V_POLLING_DWLD_RSN_HIST_ROW.COST_CENTER_CODE || 
+       '|' || V_POLLING_DWLD_RSN_HIST_ROW.POLLING_STATUS_CODE || --'|') transaction_id
+       '|' || TO_CHAR(v_polling_dwld_rsn_hist_row.effective_date,'DD-MON-YY') || '|') transaction_id
 			INTO v_rowdata
 			,V_PRIMARYKEY
       ,v_transaction_id
@@ -78,3 +73,5 @@ BEGIN
      --END IF;      
       
 END TR_POLLING_DWLD_RSN_HIST_UPD;
+/
+

@@ -1,9 +1,3 @@
-create or replace
-TRIGGER "COSTCNTR".TR_TAXWARE_UPD
-BEFORE INSERT OR UPDATE ON TAXWARE 
-REFERENCING OLD AS OLD NEW AS NEW
-FOR EACH ROW
-
 DECLARE
 
 	  v_transaction_id varchar2(500);
@@ -29,10 +23,10 @@ BEGIN
 		v_taxware_row.LAST_MAINT_METHOD_ID       := :new.LAST_MAINT_METHOD_ID;
 		v_taxware_row.LAST_MAINT_USER_ID         := :new.LAST_MAINT_USER_ID;
 	
-	SELECT XMLELEMENT ( "TAXWARE",
-	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+	SELECT XMLELEMENT (  "TAXWARE",
+	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
-                    	     	"xsi:nonamespaceSchemaLocation" ),
+                    	     	 "xsi:nonamespaceSchemaLocation" ),
        		xmlforest(
 				 v_taxware_row.cost_center_code       cost_center_code
         ,v_taxware_row.twj_state              state
@@ -44,15 +38,15 @@ BEGIN
 				,to_char(v_taxware_row.LAST_MAINT_DATE, 'yyyymmdd')       LAST_MAINT_DATE
         ,v_taxware_row.LAST_MAINT_METHOD_ID   LAST_MAINT_METHOD_ID
         ,v_taxware_row.LAST_MAINT_USER_ID     LAST_MAINT_USER_ID
-						)) AS "result"
+						)) AS  "result"
             
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+			,XMLELEMENT (  "PrimaryKey",               
+	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
+                         			 "xsi:nonamespaceSchemaLocation" ),
 	       xmlforest(
 				 v_taxware_row.cost_center_code           cost_center_code                
-			)) AS "primaryKey",
+			)) AS  "primaryKey",
       
       ('|' || v_taxware_row.cost_center_code || '|') tran_id
 			INTO V_ROWDATA
@@ -81,3 +75,5 @@ BEGIN
      --END IF;      
       
 END TR_TAXWARE_UPD;
+/
+
