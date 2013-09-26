@@ -15,6 +15,7 @@ BEGIN
 		v_phone_row.phone_number_type := :new.phone_number_type;
 		v_phone_row.phone_number := :new.phone_number;
     v_phone_row.phone_area_code := :new.phone_area_code;
+    v_phone_row.phone_extension := :new.phone_extension;
 	
 	SELECT XMLELEMENT (  "PHONE",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",
@@ -25,6 +26,7 @@ BEGIN
 				,v_phone_row.phone_number_type phone_number_type
 				,v_phone_row.phone_area_code phone_area_code
 				,v_phone_row.phone_number phone_number
+        ,v_phone_row.phone_extension phone_extension
 			)) AS  "result"
 			,XMLELEMENT (  "PrimaryKey",               
 	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS  "xmlns:xsi",

@@ -2138,11 +2138,11 @@ PRAGMA EXCEPTION_INIT
 (EXC_DUP_MAINFRAME_COSTCNTR_ERR , -20156);
 
 /*********************************************************** 
-The "dup_mainframe_costcntr_err" passes a numerical error of -20156.
+The "first_two_digit_err" passes a numerical error of -20157.
 This error will state that the entered new cost center has same 
 last 4 characters as one already existsing in the system. 
 
-created : 06/20/2013 cbd CCN Project
+created : 09/16/2013 nxk CCN Project
 revisions: 
 
 ************************************************************/
@@ -2327,6 +2327,20 @@ EN_PREV_LEVEL_MISSING_ERR CONSTANT number := -20511;
 exc_prev_level_missing_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (EXC_PREV_LEVEL_MISSING_ERR , -20511);
+
+/*********************************************************** 
+The "invalid_stmnt_type_err" passes a numerical error of -20512.
+This error will state an error that,the statment type at 5th level of
+global hierarchy not matching with the cost center statement type
+
+created : 09/25/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_stmnt_type_err CONSTANT NUMBER := -20512;
+exc_invalid_stmnt_type_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_stmnt_type_err , -20512);
 
 /*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.

@@ -11,6 +11,9 @@ SELECT NVL(MAX(TRANSACTION_ID), 0) + 1
       INTO v_transaction_id 
       FROM AUDIT_LOG;             
 */
+--This trigger code should be executed only if the corresponding data changes
+--If the data got manipulated by osme other table changes we should not consider that for audit_log
+IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
     v_bank_card_row.COST_CENTER_CODE      := :NEW.COST_CENTER_CODE;
     v_bank_card_row.POLLING_STATUS_CODE   := :NEW.POLLING_STATUS_CODE;
     v_bank_card_row.MERCHANT_ID           := :NEW.MERCHANT_ID;
@@ -81,8 +84,7 @@ SELECT NVL(MAX(TRANSACTION_ID), 0) + 1
                 ,v_rowdata
                 ,'TR_BANK_CARD_UPD');
      --END IF;      
-     
-
+END IF;
 END  TR_BANK_CARD_UPD;
 /
 

@@ -298,7 +298,7 @@ END COST_CENTER_DESCRIPTION;
 FUNCTION COST_CENTER_STATEMENT_TYPE(
 /***********************************************************
 COST_CENTER_STATEMENT_TYPE
-      This function will return the upper_lvl_ver_valeu
+      This function will return the upper_lvl_ver_value
       with STATEMENT_TYPE replaced with the cost center STATEMENT_TYPE
 Created : 09/18/2013 CCN Project
 ************************************************************/
@@ -1722,6 +1722,106 @@ EXCEPTION
       RETURN FALSE;
 END IS_VALID_HEADER_LVL;
 
+FUNCTION IS_STATEMENT_TYPE_VALID (
+/***********************************************************
+      IS_STATEMENT_TYPE_VALID 
+      This Procedure will return true if the statment type
+      at level 5 [District] of global hierarchy matches with that of cost centers. 
+
+Created : 09/25/2013 CCN Project
+************************************************************/
+            IN_COST_CENTER           IN     VARCHAR2,
+            IN_FLAG                  IN     VARCHAR2,
+            IN_XML                   IN     VARCHAR2,
+            IN_HRCHY_HDR_NAME        IN     VARCHAR2,
+            IN_HRCHY_DTL_LEVEL       in     VARCHAR2,
+            IN_COUNT                 IN     NUMBER)
+RETURN BOOLEAN
+IS
+   V_ROW_DATA     XMLTYPE := SYS.XMLTYPE(IN_XML); 
+   V_RETURN_VALUE              BOOLEAN                          := FALSE;
+   V_COST_CENTER_STMNT_TYP     COST_CENTER.STATEMENT_TYPE%TYPE;
+   V_STATEMENT_TYPE            VARCHAR2(10);
+   V_LEVEL                     NUMBER;
+   V_PREV_VALUE                VARCHAR2(100);
+   V_CURR_VALUE                VARCHAR2(100);
+   V_NEXT_VALUE                VARCHAR2(100);
+BEGIN
+
+   IF IN_HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
+      --Get the Cost Center Statement Type from COST_CENTER table
+      BEGIN
+         SELECT STATEMENT_TYPE
+           INTO V_COST_CENTER_STMNT_TYP
+           FROM COST_CENTER 
+          WHERE COST_CENTER_CODE = IN_COST_CENTER;
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_COST_CENTER_STMNT_TYP := NULL;
+      END;
+      --Get the District Global_Hierarchy level from HIERARCHY_DESCRIPTION table
+      BEGIN
+         SELECT TO_NUMBER(HRCHY_HDR_LVL_NBR)
+           INTO V_LEVEL
+           FROM HIERARCHY_DESCRIPTION 
+          WHERE HRCHY_HDR_NAME     = IN_HRCHY_HDR_NAME
+            AND HRCHY_HDR_LVL_DESC = 'District';
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_LEVEL := NULL;
+      END;
+      
+      --Loop one time more to get the next level value as well
+      FOR i IN 1..(V_LEVEL + 1) LOOP
+         --Next level value as obtained as below
+         CASE WHEN IN_FLAG = 'FROM' THEN
+            V_NEXT_VALUE :=  V_NEXT_VALUE || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+         WHEN IN_FLAG = 'TO' THEN
+            V_NEXT_VALUE  :=  V_NEXT_VALUE || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+         WHEN IN_FLAG = 'INSERT' THEN
+            V_NEXT_VALUE  :=  V_NEXT_VALUE || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+         ELSE
+            NULL;
+         END CASE;
+         --Previous level value will be 2 levels less than next level value
+         IF i = V_LEVEL - 1 THEN
+            V_PREV_VALUE := V_NEXT_VALUE;
+         END IF;
+         --Current level value will be 1 level less than next level value
+         IF i = V_LEVEL THEN
+            V_CURR_VALUE := V_NEXT_VALUE;
+         END IF;
+      END LOOP;
+      --Get the statement type from HIERARCHY_DETAIL table using above obtained values
+      BEGIN
+         SELECT EXTRACT(UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
+           INTO V_STATEMENT_TYPE
+           FROM HIERARCHY_DETAIL 
+          WHERE HRCHY_DTL_PREV_LVL_VAL = V_PREV_VALUE
+            AND HRCHY_DTL_CURR_LVL_VAL = V_CURR_VALUE
+            AND HRCHY_DTL_NEXT_LVL_VAL = V_NEXT_VALUE
+            AND HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
+            AND HRCHY_DTL_LEVEL        = V_LEVEL;
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_STATEMENT_TYPE := NULL;
+      END;
+      --NOTE: Error should not be thrown if the 5th level is a wild card replaced character of '**'
+      IF V_STATEMENT_TYPE = V_COST_CENTER_STMNT_TYP OR V_STATEMENT_TYPE = '**' THEN
+         V_RETURN_VALUE := TRUE;
+      END IF;
+   ELSE
+      V_RETURN_VALUE := TRUE;
+   END IF;
+   
+   RETURN V_RETURN_VALUE;
+   
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to return false if no records found
+      RETURN V_RETURN_VALUE;
+END IS_STATEMENT_TYPE_VALID;
+
 PROCEDURE INSERT_PROCESS(
 /***********************************************************
       INSERT_PROCESS 
@@ -1768,6 +1868,22 @@ BEGIN
                         IN_COUNT,
                         IN_LAST_LEVEL,
                         V_HIERARCHY_DETAIL_ROW);
+   
+   --Validate if the passed statement type matches with the once in the cost center
+   --This validation should be done only once, that too for the last level OR first iteration
+   IF IN_LAST_LEVEL = 'Y' THEN
+      IF NOT IS_STATEMENT_TYPE_VALID(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL,
+                                     IN_FLAG,
+                                     IN_XML,
+                                     IN_HRCHY_HDR_NAME,
+                                     IN_HRCHY_DTL_LEVEL,
+                                     IN_COUNT) THEN
+         BUSSINESS_RULES_ERR_CODE   := errnums.en_invalid_stmnt_type_err;
+         BUSSINESS_RULES_ERR_DESC   := 'The passed statement type for the Hierarchy doesn''t match with that of cost center';
+         RAISE BUSINESS_RULES_EXCEPTION;
+      END IF;
+   END IF;
+   
    --Get the previous level record, if one exists
    GET_PREVIOUS_LVL(IN_HIST_FLAG,
                     V_HIERARCHY_DETAIL_ROW,
@@ -1927,6 +2043,7 @@ IS
   SE          VARCHAR2(1000);
 
 BEGIN
+
    V_CONTEXT := 'Extracting Hierarchy Details';
    IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
       V_HRCHY_HDR_NAME  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();

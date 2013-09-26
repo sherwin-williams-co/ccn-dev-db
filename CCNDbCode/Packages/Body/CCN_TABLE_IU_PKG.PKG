@@ -1668,6 +1668,74 @@ begin
 	
 end ADMINISTRATION_I_SP;				 
 				
+procedure BANK_CARD_I_FK_SP (
+/*******************************************************************************
+	BANK_CARD_I_FK_SP
+
+	This procedure is intended to Insert new BANK CARD records as part of 
+	polling status change alone
+
+created : 09/23/2013 CCN Project
+*******************************************************************************/
+ in_COST_CENTER          IN BANK_CARD.COST_CENTER_CODE%TYPE 
+,in_POLLING_STATUS_CODE  IN BANK_CARD.POLLING_STATUS_CODE%type
+)
+ is 
+ v_code number;
+ v_errm varchar2(500);
+ v_bank_card_row  bank_card%rowtype;
+ v_temp_date      date;
+
+begin
+
+      BEGIN
+         SELECT * INTO v_bank_card_row
+           FROM BANK_CARD
+          WHERE COST_CENTER_CODe = in_COST_CENTER
+            AND EXPIRATION_DATE  IS NULL
+            AND ROWNUM < 2;
+      EXCEPTION
+         WHEN OTHERS
+            THEN v_bank_card_row := NULL;
+      END;
+      
+      IF in_POLLING_STATUS_CODE <> NVL(v_bank_card_row.POLLING_STATUS_CODE,in_POLLING_STATUS_CODE) THEN
+         v_bank_card_row.POLLING_STATUS_CODE := in_POLLING_STATUS_CODE;
+         TRIGGER_DISABLE_FLAG := 'Y';      
+         COMMON_TOOLS.EXPIRE_DATA_SP (
+         'BANK_CARD'
+         , v_bank_card_row.COST_CENTER_CODE
+         , v_bank_card_row.EFFECTIVE_DATE);
+         --  Insert new BANK_CARD row --  
+         v_bank_card_row.EFFECTIVE_DATE := sysdate;
+         INSERT into BANK_CARD values v_bank_card_row;
+         TRIGGER_DISABLE_FLAG := NULL;
+      END IF;
+        
+  EXCEPTION
+   WHEN dup_val_on_index THEN
+      BEGIN
+         v_temp_date := v_BANK_CARD_row.EXPIRATION_DATE;
+         v_BANK_CARD_row.EXPIRATION_DATE := NULL;
+         UPDATE BANK_CARD SET ROW = v_BANK_CARD_row
+          WHERE COST_CENTER_CODE = v_BANK_CARD_row.COST_CENTER_CODE
+            AND POLLING_STATUS_CODE = v_BANK_CARD_row.POLLING_STATUS_CODE
+            AND EFFECTIVE_DATE = v_BANK_CARD_row.EFFECTIVE_DATE;
+         v_BANK_CARD_row.EXPIRATION_DATE := v_temp_date;
+         EXCEPTION 
+              WHEN OTHERS THEN 
+                    v_BANK_CARD_row.EXPIRATION_DATE := v_temp_date;
+                    v_code  := SQLCODE;
+                    v_errm  := substr(SQLERRM,1,200);
+                    errpkg.raise_err(v_code, 'BANK_CARD_I_FK_SP, ' || v_errm || ' ; BANK_CARD Update Error ' );
+      END;
+   WHEN OTHERS THEN 
+      v_code  := SQLCODE;
+      v_errm  := substr(SQLERRM,1,200);
+      errpkg.raise_err(v_code
+      , 'BANK_CARD_I_FK_SP, ' || ' ' || 'IN_TABLE_NAME is BANK_CARD'
+      , v_errm);
+end BANK_CARD_I_FK_SP;
  
  procedure BANK_CARD_I_SP (
 /*******************************************************************************
@@ -2506,7 +2574,10 @@ begin
                   
       insert into POLLING values out_POLLING_row;
       
-      
+      --This call will terminate the previous record and create new record with new status
+      -- only if the status of the polling is changed
+      BANK_CARD_I_FK_SP(out_POLLING_row.COST_CENTER_CODE,
+                        out_POLLING_row.polling_status_code);
       
   EXCEPTION
 	  WHEN OTHERS THEN 
@@ -2772,9 +2843,9 @@ begin
      , out_status_row.EFFECTIVE_DATE);
 --
 --  Insert new STATUS row --                  
-      
+      out_status_row.EFFECTIVE_DATE := trunc(sysdate);
       insert into status values out_status_row;
-      
+
     
   EXCEPTION
    WHEN dup_val_on_index THEN
