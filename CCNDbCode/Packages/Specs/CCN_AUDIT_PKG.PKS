@@ -7,20 +7,6 @@ revisions:
 
 ************************************************************/
 
-FUNCTION XML_TO_STRING
-
-/*******************************************************
-Function to Return pipe delimited string (key value 
-concatenated) based on the input key XML 
-
-created : 06/07/2012
-*******************************************************/
-
-( 
-  IN_Table_Name 	IN 	VARCHAR2
-, IN_XML_KEY 		IN 	XMLTYPE
-)
-  RETURN VARCHAR2;
   
 PROCEDURE SELECT_AUDIT_LOG
 /*******************************************************
@@ -47,6 +33,7 @@ PROCEDURE PARSE_DIFFERENCE_XML
 , OUT_CC_CODE 	OUT VARCHAR2
 , OUT_CHANGE_TYPE OUT VARCHAR2
 , OUT_DIFF OUT XMLTYPE
+, OUT_LOG_ID OUT NUMBER
  );    
 
 PROCEDURE Build_File_SP (
@@ -68,7 +55,7 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_ROW_DATE   IN DATE
 ,IN_ROW_DATA    IN SYS.XMLTYPE
 ,in_CHANGE_TYPE in VARCHAR2
-
+,in_LOG_ID      in NUMBER
 );
     
 END CCN_AUDIT_PKG;

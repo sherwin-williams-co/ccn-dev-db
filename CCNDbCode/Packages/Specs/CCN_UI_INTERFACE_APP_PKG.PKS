@@ -10,7 +10,7 @@ changed : 09/21/2012 TAL -- Split into Table_UI and Interface_UI
 	 	TYPE REF_CURSOR IS REF CURSOR;
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
 
-	PROCEDURE TEST_COST_CENTER_S_SP(
+PROCEDURE TEST_COST_CENTER_S_SP(
 /******************************************************************************
 	TEST_COST_CENTER_S_SP
 
@@ -23,6 +23,7 @@ created :
 , out_COST_CENTER_REF_CUR OUT REF_CURSOR
 , out_STORE_REF_CUR OUT REF_CURSOR);
 --TESTING DELETE LATER....
+
 
 PROCEDURE SECURITY_S_SP(
 /******************************************************************************

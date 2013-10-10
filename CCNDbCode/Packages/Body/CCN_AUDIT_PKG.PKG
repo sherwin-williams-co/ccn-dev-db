@@ -5,60 +5,6 @@ created : 02/29/2012 tal CCN project
 revisions: 
 ************************************************************/
 
-FUNCTION XML_TO_STRING
-
-/*******************************************************
-Function to Return pipe delimited string (key value 
-concatenated) based on the input key XML 
-
-created : 06/07/2012
-*******************************************************/
-
-( 
-  IN_Table_Name 	IN 	VARCHAR2
-, IN_XML_KEY 		IN 	XMLTYPE
-)
-  RETURN VARCHAR2
-
-IS
-
-CURSOR KEY_COL IS
-	SELECT COL.COLUMN_NAME
-	  FROM ALL_CONS_COLUMNS COL,
-         ALL_CONSTRAINTS CON
-	 WHERE COL.TABLE_NAME      = CON.TABLE_NAME
-	   AND CON.CONSTRAINT_TYPE = 'P' 
-	   AND COL.CONSTRAINT_NAME = CON.CONSTRAINT_NAME
-	   AND COL.TABLE_NAME      = IN_Table_Name
-	 ORDER BY COL.POSITION;
-
-	V_CONCAT_STR	VARCHAR2(1000):='|';
-	V_CONTEXT	VARCHAR2(200);
-	SQ NUMBER;
-	SE VARCHAR2(100);
-        
-
-BEGIN
-	V_CONTEXT := 'Looping through input key XML';
-	
-	FOR KEY_COLS_REC IN KEY_COL LOOP
-     V_CONCAT_STR := V_CONCAT_STR ||  XML_EXTRACT_NO_EXCEPTION(IN_XML_KEY,'//' || KEY_COLS_REC.COLUMN_NAME) || '|';
-	END LOOP;
-	
-	V_CONTEXT := 'Returning string';
-	
-	RETURN V_CONCAT_STR;
-
-EXCEPTION WHEN OTHERS THEN
-	SQ := SQLCODE;
-	SE := SQLERRM;
-	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
-
-	ERRPKG.RAISE_ERR(-20003,'XML_TO_STRING',V_CONTEXT);
-
-END XML_TO_STRING;
-	
-
 FUNCTION XML_EXTRACT_NO_EXCEPTION
 /**********************************************************
 This function returns null if XPATH does not exist within xmltype, 
@@ -141,7 +87,6 @@ BEGIN
          V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-6,6);
       END IF;
    ELSE
- 	--dbms_output.put_line('before terr');
       IF in_TABLE_NAME = 'TERRITORY' THEN
 	       V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
 	      
@@ -161,8 +106,6 @@ BEGIN
     WHERE COST_CENTER_CODE              = V_COST_CENTER_CODE
       AND NVL(GLOBAL_HIERARCHY_IND,'N') = 'Y';
 
-  dbms_output.put_line('cost center ' || V_COST_CENTER_CODE);
-  DBMS_OUTPUT.PUT_LINE('VCOUTN ' || V_COUNT );
    IF V_COUNT = 1 THEN
       RETURN TRUE;
    ELSE
@@ -216,6 +159,7 @@ SE		VARCHAR2(1000);
 
 DIFF_XML            XMLTYPE;
 v_code              NUMBER;
+V_LOG_ID            NUMBER;
 v_errm              varchar2(500);  
 V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
@@ -227,35 +171,32 @@ BEGIN
 
 V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
 CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
-DBMS_OUTpUT.PUT_LINE('BEFORE CURSOR');
 FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
     BEGIN
   
             --Check if audit process is needed for the current table and if cost center is part of global hierarchy  
-            --DBMS_OUTPUT.PUT_LINE('IN LOOP SELAUDITLOG');
             IF REQUIRED_TABLE_CHECK(SEL_AUDIT_REC.TABLE_NAME) = 'Y' THEN
                   --Process the record only if cost center in the key is associated with global
                   --NOTE: All details of other hierarchies also should be taken in to consideration 
-                  DBMS_OUTPUT.PUT_LINE('IN LOOP SELAUDITLOG with '||SEL_AUDIT_REC.TABLE_NAME);
                   IF IS_COSTCNTR_IN_GLOBAL_HRCHY(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME) THEN
                      SAVEPOINT NEXT_AUDIT_REC;
                             
                      V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
                      
-                     DBMS_OUTPUT.PUT_LINE('BEFORE PARSE');
                      PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
                                           ,SEL_AUDIT_REC.TRANSACTION_ID
                                           ,V_CC_CODE
   				                                ,V_CHANGE_TYPE
-                                          ,DIFF_XML);
+                                          ,DIFF_XML
+                                          ,V_LOG_ID);
 
                      V_CONTEXT:='Call procedure Build_File_SP';
-                     --DBMS_OUTPUT.PUT_LINE('DIFF XML ' || DIFF_XML.getCLOBVal());
                      BUILD_FILE_SP(V_CC_CODE
                                    ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
                                    ,SYSDATE			--in_ROW_DATE   IN DATE
                                    ,DIFF_XML			--in_Row_data   IN sys.xmltype
-                                   ,V_CHANGE_TYPE);
+                                   ,V_CHANGE_TYPE
+                                   ,V_LOG_ID);
                      --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
                      UPDATE AUDIT_LOG
                         SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
@@ -339,6 +280,7 @@ versions : 02/22/2012
 , OUT_CC_CODE 	OUT VARCHAR2
 , OUT_CHANGE_TYPE OUT VARCHAR2
 , OUT_DIFF OUT XMLTYPE
+, OUT_LOG_ID OUT NUMBER
 )
 
 IS
@@ -433,7 +375,7 @@ BEGIN
                        WHERE AL2.TABLE_NAME = AL.TABLE_NAME
                          AND AL2.TRANSACTION_ID = IN_KEY)
      AND ROWNUM < 2;
-        --dbms_output.put_line('The change type ' || v_change_type);	
+
 	V_CONTEXT := 'Parsing the XMLType';
 	
 	--Start building the XML string
@@ -496,7 +438,6 @@ BEGIN
      END IF;
 
 	END LOOP;
---dbms_output.put_line('Cost Center ' || v_CostCenterCode);
 
            V_CONTEXT := 'Updating the PREV AUDIT_REC_FLAG to C';
             UPDATE AUDIT_LOG
@@ -526,6 +467,7 @@ BEGIN
 	OUT_DIFF  := XMLType(XMLSTRING);
 	OUT_CC_CODE := v_CostCenterCode;
 	OUT_CHANGE_TYPE := v_change_type;
+  OUT_LOG_ID := V_LOG_ID_CURR;
 
 EXCEPTION WHEN OTHERS THEN
 	SQ := SQLCODE;
@@ -593,6 +535,7 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_ROW_DATE   IN DATE
 ,in_Row_data    IN sys.XMLTYPE           
 ,in_CHANGE_TYPE in VARCHAR2
+,in_LOG_ID      in NUMBER
 )
  is 
 CURSOR table_fields_cur IS
@@ -635,14 +578,12 @@ CURSOR table_fields_cur IS
 BEGIN
 
    -- working just remove for debbuging un comment for writing file
-   --dbms_output.put_line('start');
    V_CONTEXT := 'Creating the file on server';
    output_file := UTL_FILE.FOPEN (path
                                   ,filename|| stamp
                                   , 'w' --binary
                                  , 32767);
    --adding header information for the backload file
-   --DBMS_OUTPUT.PUT_LINE('start v_out_clob');
    IF IN_COST_CENTER IS NOT NULL THEN
       V_COST_CENTER := IN_COST_CENTER; 
    END IF;
@@ -663,7 +604,8 @@ V_CONTEXT := 'Generating the CLOB Output';
       END IF;
    END IF;
    
-   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
+   --V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
+   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || LPAD(in_LOG_ID,16,'0') ||
                  V_CHANGE_TYPE; --IN_CHANGE_TYPE;
    
    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
@@ -721,7 +663,7 @@ V_CONTEXT := 'Generating the CLOB Output';
          V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
       END IF;
    END LOOP;
---dbms_output.put_line('clob output ' || v_out_clob);      
+    
   --working just remove for debbuging un comment for writing file
      UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
      UTL_FILE.FCLOSE(output_file);

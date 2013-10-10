@@ -87,9 +87,7 @@ created : SH 05/31/2013
       <STATEMENT_TYPE>CN</STATEMENT_TYPE>
   <HIERARCHY_RULES>
 ********************************************************************************/
-in_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE, 
-in_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
-in_DETAIL_STMNT_TYPE VARCHAR2);
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 
 procedure Lower_Level_Exp_Rules(
 /*******************************************************************************
@@ -199,8 +197,7 @@ PROCEDURE HIER_BUSINESS_RULES_MAIN(
  
 created : 06/27/2013 SH CCN
 ********************************************************************************/
-IN_ROW_DATA                VARCHAR2);
-
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 END CCN_HIER_BUSINESS_RULES_PKG;
 /
 

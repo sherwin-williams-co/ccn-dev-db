@@ -224,7 +224,7 @@ BEGIN
 
       IF in_HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' and in_HRCHY_DTL_LEVEL = '9' THEN
            V_WARNINGTEXT := 'Please Check the ALTERNATE_DAD, COA Division and SGL Division for possible changes.';
-           RAISE chk_hier_wrn;
+           --RAISE chk_hier_wrn;
       END IF;
 
 EXCEPTION
@@ -265,56 +265,79 @@ created : SH 05/31/2013
    </row_data>
  </HIERARCHY_DETAIL>
 ********************************************************************************/
-in_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE, 
-in_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
-in_DETAIL_STMNT_TYPE VARCHAR2)
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 
 IS
 
     Stmnt_Type_wrn    EXCEPTION;
     invalid_cc_wrn    EXCEPTION;
     v_code            NUMBER;
-     
-    V_DETAIL_STMNT_TYPE      VARCHAR2(50);
-    V_WARNINGTEXT            VARCHAR2(500);
-    
-cursor sub_hier_cur is
-  select distinct hrchy_hdr_name 
-    from hierarchy_description
-   where hrchy_global_lvl_nbr is not null;
 
-cursor hier_detail_cur(p_HRCHY_HDR_NAME IN hierarchy_description.hrchy_hdr_name%TYPE, p_HRCHY_DTL_LEVEL hierarchy_detail.hrchy_dtl_level%type) is
-  select * from hierarchy_detail 
-   where hrchy_hdr_name = p_hrchy_hdr_name
-     and HRCHY_DTL_LEVEL < p_HRCHY_DTL_LEVEL;
+    V_DETAIL_STMNT_TYPE      VARCHAR2(50);
+    V_CC_DETAIL_STMNT_TYPE   VARCHAR2(50);
+    V_WARNINGTEXT            VARCHAR2(500);
+    V_LEVEL                  NUMBER;
+    V_HRCHY_DTL_CURR_LVL_VAL VARCHAR2(100);
+    V_STMNT_TYPE_VALIDATION_IND VARCHAR2(1);
+    
+cursor hier_detail_cur(p_HRCHY_HDR_NAME         IN hierarchy_description.hrchy_hdr_name%TYPE,
+                       p_HRCHY_DTL_LEVEL        IN hierarchy_detail.hrchy_dtl_level%type,
+                       p_HRCHY_DTL_CURR_LVL_VAL IN VARCHAR2) is
+  select EXTRACTVALUE(UPPER_LVL_VER_VALUE, '/attributes/upper_lvl_ver_desc[1]/Value') statement_type
+    from hierarchy_detail
+   where HRCHY_HDR_NAME         = p_HRCHY_HDR_NAME
+     and HRCHY_DTL_LEVEL        = p_HRCHY_DTL_LEVEL
+     and HRCHY_DTL_CURR_LVL_VAL = p_HRCHY_DTL_CURR_LVL_VAL;
     
 BEGIN
-      IF in_DETAIL_STMNT_TYPE IS NULL THEN
+
+      V_CC_DETAIL_STMNT_TYPE := IN_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc[1]/Value/text()').GETCLOBVAL();
+
+      IF V_CC_DETAIL_STMNT_TYPE IS NULL THEN
          V_WARNINGTEXT := 'Cost Center cannot be Null. Please check.';
          RAISE invalid_cc_wrn;
       END IF;
-      IF in_HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
-         FOR each_hier IN sub_hier_cur LOOP
-             FOR  each_rec IN hier_detail_cur(each_hier.hrchy_hdr_name, in_HRCHY_DTL_LEVEL) LOOP
-                --check if the Statement Type matches the new one for the level higher
-                IF (each_rec.UPPER_LVL_VER_VALUE.existsnode('/attributes/upper_lvl_ver_desc/Value') = 1) THEN
-                    V_DETAIL_STMNT_TYPE := EACH_REC.UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc/Value/text()').GETCLOBVAL();
-                END IF;
-
-                IF in_DETAIL_STMNT_TYPE <> v_detail_stmnt_type THEN
-                   v_warningtext := 'The Hierarchy ' || in_HRCHY_HDR_NAME || ' has a Different Statement Type';
-                   RAISE Stmnt_Type_wrn;
-                END IF;
-             END LOOP;
+      
+      SELECT STMNT_TYPE_VALIDATION_IND 
+        INTO V_STMNT_TYPE_VALIDATION_IND
+        FROM HIERARCHY_HEADER
+       WHERE HRCHY_HDR_NAME = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
+      
+      IF V_STMNT_TYPE_VALIDATION_IND = 'Y' THEN
+         V_LEVEL                  := NVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - 1, 0);
+         V_HRCHY_DTL_CURR_LVL_VAL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL;
+         WHILE V_LEVEL > 0 LOOP
+            FOR  each_rec IN hier_detail_cur(IN_HIERARCHY_DETAIL_ROW.hrchy_hdr_name,
+                                             V_LEVEL,
+                                             V_HRCHY_DTL_CURR_LVL_VAL) LOOP
+               --check if the Statement Type matches the new one for the level higher
+               IF NVL(each_rec.statement_type,'**') = '**' THEN
+                  V_DETAIL_STMNT_TYPE := V_CC_DETAIL_STMNT_TYPE;
+               ELSE
+                  V_DETAIL_STMNT_TYPE := each_rec.statement_type;
+               END IF;
+               IF V_CC_DETAIL_STMNT_TYPE <> V_DETAIL_STMNT_TYPE THEN
+                  v_warningtext := 'The Hierarchy ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME || ' has a Different Statement Type';
+                  RAISE Stmnt_Type_wrn;
+               END IF;
+            END LOOP;
+            select HRCHY_DTL_PREV_LVL_VAL INTO V_HRCHY_DTL_CURR_LVL_VAL
+              from hierarchy_detail
+             where HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.hrchy_hdr_name
+               and HRCHY_DTL_LEVEL        = V_LEVEL
+               and HRCHY_DTL_CURR_LVL_VAL = V_HRCHY_DTL_CURR_LVL_VAL
+               and rownum < 2;
+            V_LEVEL := V_LEVEL - 1;
          END LOOP;
-     END IF;
+      END IF;
+  
 EXCEPTION
-    WHEN invalid_cc_wrn THEN
+    WHEN INVALID_CC_WRN THEN
             v_code := errnums.en_invalid_cc_wrn;
-            errpkg.raise_err(v_code, v_warningtext);     
-
-    WHEN Stmnt_Type_wrn THEN
-            v_code := errnums.en_Stmnt_Type_wrn;
+            ERRPKG.RAISE_ERR(V_CODE, V_WARNINGTEXT);     
+ 
+    WHEN STMNT_TYPE_WRN THEN 
+           v_code := errnums.en_Stmnt_Type_wrn;
             errpkg.raise_err(v_code, v_warningtext);  
         
 END Stmnt_Type_Validation_Rules;
@@ -503,7 +526,7 @@ begin
                    RAISE CC_EXISTS_WRN;
                 END IF;
          END LOOP;
-         --dbms_output.put_line('V_FOUND ' ||V_FOUND);
+       
 exception      
     when CC_EXISTS_WRN then
             V_CODE := errnums.en_CC_EXISTS_WRN;
@@ -606,15 +629,10 @@ PROCEDURE HIER_BUSINESS_RULES_MAIN(
  
 created : 06/27/2013 SH CCN
 ********************************************************************************/
-IN_ROW_DATA                VARCHAR2)
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 
 IS
 
-     V_CODE               NUMBER;
-     V_ERRM               VARCHAR2(500);
-     V_XML XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
-
-     V_XML_FRAG           CLOB;
      v_HRCHY_HDR_LVL_DESC HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_DESC%TYPE;
      V_HRCHY_HDR_NAME     HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
      V_HRCHY_DTL_LEVEL    HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
@@ -622,56 +640,41 @@ IS
      V_HRCHY_DTL_DESC     HIERARCHY_DETAIL.HRCHY_DTL_DESC%TYPE;
      v_HRCHY_DTL_CURR_ROW_VAL HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
      V_CONTEXT            VARCHAR2(100);
-     V_DETAIL_STMNT_TYPE  VARCHAR2(100);
   
 BEGIN
 
-       V_CONTEXT := 'Extracting HRCHY_HDR_NAME';
-       V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
-      
-       V_CONTEXT := 'Extracting HRCHY_DTL_LEVEL';
-       V_HRCHY_DTL_LEVEL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
-       
-       V_CONTEXT := 'Extracting HRCHY_HDR_DESC'; 
+       V_HRCHY_HDR_NAME := IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
+       V_HRCHY_DTL_LEVEL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
        V_HRCHY_HDR_LVL_DESC := ccn_hier_business_rules_pkg.GET_HDR_LVL_DESC_SP(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
-       
-       IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/attributes/upper_lvl_ver_desc/Value/text()') = 1) THEN
-           V_CONTEXT := 'Extracting STMNT_TYPE';
-           V_DETAIL_STMNT_TYPE := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/attributes/upper_lvl_ver_desc/Value/text()').GETCLOBVAL();
-           CCN_HIER_BUSINESS_RULES_PKG.Stmnt_Type_Validation_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, V_DETAIL_STMNT_TYPE);
-       END IF;
+
+       V_CONTEXT := 'Calling the Stmnt_Type_Validation_Rules';       
+       CCN_HIER_BUSINESS_RULES_PKG.Stmnt_Type_Validation_Rules(IN_HIERARCHY_DETAIL_ROW);
        
        IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' and v_hrchy_dtl_level = '9' then
           V_CONTEXT := 'Calling the cost_center_change_Rules';
           CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
        END IF;
        
-       IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text') = 1) THEN
+       V_HRCHY_DTL_EXP_DATE := TO_DATE(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE, 'MM-DD-YYYY');
+       IF V_HRCHY_DTL_EXP_DATE IS NOT NULL THEN
           V_CONTEXT := 'Calling the Lower_Level_Exp_Rules';
-          V_HRCHY_DTL_EXP_DATE := to_date(V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
           CCN_HIER_BUSINESS_RULES_PKG.Lower_Level_Exp_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, V_HRCHY_DTL_EXP_DATE);
        END IF;
       
        IF UPPER(V_HRCHY_HDR_NAME) IN ('REPORTING_DAD', 'CITY_MANAGER_DAD') THEN
           V_CONTEXT := 'Calling the CC_Duplication_Rules';
-          v_HRCHY_DTL_CURR_ROW_VAL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_HRCHY_DTL_LEVEL || '/text()').GETSTRINGVAL();
+          v_HRCHY_DTL_CURR_ROW_VAL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
           CCN_HIER_BUSINESS_RULES_PKG.CC_Duplication_Rules(v_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, v_HRCHY_DTL_CURR_ROW_VAL);
        END IF;
        
        IF UPPER(V_HRCHY_HDR_LVL_DESC) = 'DISTRICT' THEN
-          V_HRCHY_DTL_CURR_ROW_VAL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_HRCHY_DTL_LEVEL || '/text()').GETSTRINGVAL();
+          v_HRCHY_DTL_CURR_ROW_VAL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
           IF UPPER(V_HRCHY_HDR_NAME) IN ( 'REPORTING_DAD', 'CITY_MANAGER_DAD', 'ALTERNATE_DAD') THEN
              V_CONTEXT := 'Calling the District_Duplication_Rules';
              CCN_HIER_BUSINESS_RULES_PKG.District_Duplication_Rules(v_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, v_HRCHY_DTL_CURR_ROW_VAL);
           END IF;
        END IF;
-   
-/*EXCEPTION
-       WHEN OTHERS THEN
-                    V_CODE := SQLCODE;
-                    V_ERRM := SUBSTR(SQLERRM,12, 500);
-                    ERRPKG.RAISE_ERR(V_CODE, ' HIER_BUSINESS_RULES_MAIN Error ', V_ERRM
-                ); */
+
 END HIER_BUSINESS_RULES_MAIN;
 
 END CCN_HIER_BUSINESS_RULES_PKG;

@@ -8,11 +8,11 @@ created : 09/18/2012 TAL -- CCN coding project
 changed : 
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
-    
+
 --MEMORY VARIABLES
 --BElow memory variable is used to by-pass trigger code when needed
     TRIGGER_DISABLE_FLAG VARCHAR2(1);
-    
+
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
 	All_TABLE_COL_S_SP

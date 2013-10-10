@@ -2343,6 +2343,34 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_stmnt_type_err , -20512);
 
 /*********************************************************** 
+The "previous_level_missing_err" passes a numerical error of -20513.
+This error will state an error that,the previous level is missing in
+the hierarchy
+
+created : 09/30/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+en_previous_level_missing_err  CONSTANT NUMBER := -20513;
+exc_previous_level_missing_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_previous_level_missing_err , -20513);
+
+/*********************************************************** 
+The "incomplete_cc_err" passes a numerical error of -20514.
+This error will state an error that,the cost center is not complete
+as it is not associated with all Global, Legacy and Fact hierarchies
+
+created : 09/30/2013 SH CCN Project
+revisions: 
+
+************************************************************/
+en_incomplete_cc_err  CONSTANT NUMBER := -20514;
+exc_incomplete_cc_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_incomplete_cc_err , -20514);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
