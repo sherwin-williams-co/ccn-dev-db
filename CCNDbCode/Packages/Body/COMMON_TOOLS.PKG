@@ -623,6 +623,130 @@ EXCEPTION
                          'COMMON_TOOLS ' || 'Cost Center with first two digit as ''' || SUBSTR(IN_COST_CENTER_CODE,1,2) || ''' is not allowed in Mainframe');
 END CHECK_DUP_COST_CENTER;
 
+PROCEDURE COPY_COST_CENTER(
+/**********************************************************
+	COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center
+
+IN_OLD_CC - Input Cost Center to be removed
+IN_NEW_CC - Input Cost Center to be created
+
+created : 09/11/2013 kdp CCN Project....
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2) IS
+  
+   TYPE TAB_TYPE                IS TABLE OF USER_TAB_COLUMNS%ROWTYPE INDEX BY PLS_INTEGER;
+   TYPE SQL_STATEMENTS_TAB_TYPE IS TABLE OF VARCHAR2(10000)          INDEX BY BINARY_INTEGER;
+   
+   COL_TABLE          TAB_TYPE;
+   VAR                VARCHAR2(30000);
+   V_CC_NAME          VARCHAR2(100);
+   FROM_CC            VARCHAR2(6) := IN_OLD_CC;
+   TO_CC              VARCHAR2(6) := IN_NEW_CC;
+   SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
+   
+BEGIN
+
+   --Loop through all the tables which holds cost center details
+   --Below tabels are not needed as they are not associated with cost_center
+   --'SALES_REP','TERRITORY_SALES_MGR','TERRITORY','TERRITORY_ASSIGNMENT','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL'
+   FOR REC IN (SELECT * FROM INSERTORDER
+                WHERE TABLE_NAME NOT IN ('SALES_REP','TERRITORY_ASSIGNMENT','TERRITORY_SALES_MGR','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                ORDER BY 2) LOOP
+
+      --Build the column list from the data dictionary and store in variable VAR
+      VAR := NULL;
+      SELECT * BULK COLLECT INTO COL_TABLE
+        FROM USER_TAB_COLUMNS
+       WHERE TABLE_NAME = REC.TABLE_NAME
+       ORDER BY COLUMN_ID;
+      
+      FOR i IN 1..COL_TABLE.LAST LOOP
+         VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
+      END LOOP;
+      
+      --For Territory table, cost_center_code is not first column, so special handling is needed
+      IF REC.TABLE_NAME NOT IN ('TERRITORY') THEN
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                                                 ' SELECT '''|| TO_CC ||''','|| SUBSTR(VAR,19) || 
+                                                                 ' FROM ' || REC.TABLE_NAME || 
+                                                                 ' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''';
+      ELSE
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                             ' SELECT TERRITORY_SLS_MGR_CODE,'''|| TO_CC ||''',' || SUBSTR(VAR,42) || 
+                                             ' FROM ' || REC.TABLE_NAME || 
+                                             ' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''';
+      END IF;
+   END LOOP;
+   
+   --SQL Statement to insert NEW cost center records from OLD cost center Hierarchy_Detail records
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO HIERARCHY_DETAIL' ||
+                                     ' SELECT HRCHY_HDR_NAME,'||
+                                              'HRCHY_DTL_LEVEL,'||
+                                              'HRCHY_DTL_PREV_LVL_VAL,' ||
+                                              'REPLACE(HRCHY_DTL_CURR_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_CURR_LVL_VAL,'||
+                                              'REPLACE(HRCHY_DTL_NEXT_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_NEXT_LVL_VAL,'||
+                                              'HRCHY_DTL_EFF_DATE,'||
+                                              'HRCHY_DTL_EXP_DATE,'||
+                                              'HRCHY_DTL_DESC,'||
+                                              ''''||TO_CC||''' HRCHY_DTL_CURR_ROW_VAL,'||
+                                              'UPPER_LVL_VER_VALUE'||
+                                     '  FROM HIERARCHY_DETAIL '||
+                                     ' WHERE HRCHY_DTL_CURR_LVL_VAL LIKE ''%' || FROM_CC || '%'' '||
+                                     '    OR HRCHY_DTL_NEXT_LVL_VAL LIKE ''%' || FROM_CC || '%''';
+
+   --Delete all inserted Audit_Log records as we need to copy those from OLD cost center
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM AUDIT_LOG '||
+                                                           ' WHERE TRANSACTION_ID LIKE ''%'|| TO_CC ||'%''';
+
+   --SQL Statement to insert NEW cost center records from OLD cost center Audit_Log records
+   FOR REC IN (SELECT * FROM AUDIT_LOG WHERE TRANSACTION_ID LIKE '%'||FROM_CC||'%') LOOP
+      SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO AUDIT_LOG VALUES ('||
+                                         '(SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),'||''''||
+                                         REPLACE(REC.TRANSACTION_ID,FROM_CC,TO_CC)||''','''||
+                                         REC.TRANSACTION_DATE||''','''||
+                                         REC.TABLE_NAME||''','''||
+                                         REPLACE(REC.TABLE_ROW_DATA.GETSTRINGVAL(),FROM_CC,TO_CC)||''','''||
+                                         REC.CHANGE_BY||''','''||
+                                         REPLACE(REC.TABLE_PK_VALUE.GETSTRINGVAL(),FROM_CC,TO_CC)||''','''||
+                                         REC.AUDIT_REC_FLAG||''','||
+                                         'NULL,'||
+                                         'NULL)';
+   END LOOP;
+   
+   --SQL Statement to delete the OLD cost center records from all cost center related Tables
+   FOR REC IN (SELECT 'DELETE FROM '||TABLE_NAME||' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''' AS VALUE 
+                 FROM INSERTORDER
+                WHERE TABLE_NAME NOT IN ('SALES_REP','TERRITORY_ASSIGNMENT','TERRITORY_SALES_MGR','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                ORDER BY TABLE_ORDER DESC) LOOP
+      SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := REC.VALUE;
+   END LOOP;
+   
+   --SQL Statement to delete the OLD cost center records from Hierarchy_Detail Table
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM HIERARCHY_DETAIL '||
+                                                           ' WHERE HRCHY_DTL_CURR_LVL_VAL LIKE ''%'|| FROM_CC ||'%'' '||
+                                                           '    OR HRCHY_DTL_NEXT_LVL_VAL LIKE ''%'|| FROM_CC ||'%''';
+
+   --SQL Statement to delete the OLD cost center records from Audit_Log Table
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM AUDIT_LOG '||
+                                                           ' WHERE TRANSACTION_ID  LIKE ''%'|| FROM_CC ||'%''';
+
+   --Loop through all the statements and execute one by one in that order
+   FOR i IN 1..SQL_STATEMENTS_TAB.COUNT LOOP
+      --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i));
+      EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
+   END LOOP;
+   
+   --Commit all the changes in the database
+   COMMIT;
+
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
+END COPY_COST_CENTER;
+
 END COMMON_TOOLS;
 /
 
