@@ -1,6 +1,6 @@
+create or replace 
 PACKAGE CCN_HIERARCHY
     AS
-	
 	 	TYPE REF_CURSOR IS REF CURSOR;
 --Declaring global level exception
 CC_EXISTS_ERR       EXCEPTION;
@@ -556,7 +556,22 @@ created : 04/25/2013 kdp CCN Project....
 **********************************************************/
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
   );
- 
+
+
+FUNCTION GLOBAL_HIERARCHY_VIEW_RESULT (
+/**********************************************************
+	GLOBAL_HIERARCHY_VIEW_RESULT
+
+	This pipelined function will be used in HIERARCHY_DETAIL_VIEW
+  that will give results of the required cost center
+        
+
+created : 04/25/2013 kdp CCN Project....
+**********************************************************/
+                           IN_HEADER_NAME    IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                           IN_CURR_ROW_VAL   IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE,
+                           IN_LEVEL          IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+                           ) RETURN hd_table PIPELINED;
 END CCN_HIERARCHY;
 /
 
