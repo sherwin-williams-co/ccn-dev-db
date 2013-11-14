@@ -1,3 +1,4 @@
+create or replace 
 PACKAGE COST_CENTER_UPLOAD AS 
 PROCEDURE COST_CENTER_UPSERT( 
  /******************************************************************************
@@ -18,6 +19,17 @@ PROCEDURE COST_CENTER_UPSERT(
 *******************************************************************************/
 
  IN_ROW_DATA  IN VARCHAR2);
+ 
+ PROCEDURE BATCH_LOAD_PROCESS
+/******************************************************************************
+BATCH_LOAD_PROCESS
+
+This procedure is the core process for the cost center bulk upload batch
+that invokes all the 5 categories of cost center creations
+Territory, Store, Administration, Real Estate and Other
+
+******************************************************************************/
+;
  END COST_CENTER_UPLOAD;
 /
 
