@@ -1,3 +1,4 @@
+create or replace 
 package CCN_UI_INTERFACE_APP_PKG
     as
 -- PACKAGE SPEC
@@ -163,7 +164,14 @@ created : 08/26/2013 CCN Project....
 *******************************************************************************/
 IN_FLAG      IN VARCHAR2,
 IN_ROW_DATA  IN VARCHAR2);
- 
-end CCN_UI_INTERFACE_APP_PKG;
-/
 
+FUNCTION TERMINAL_NUMBER_S
+/*********************************************************************
+TERMINAL_NUMBER_S
+This function will return the next terminal number from the sequence 
+terminal_number_seq
+*************************************************************************/
+
+RETURN NUMBER ;
+
+end CCN_UI_INTERFACE_APP_PKG;
