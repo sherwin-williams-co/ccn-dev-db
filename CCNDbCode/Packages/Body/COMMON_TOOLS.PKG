@@ -1,3 +1,4 @@
+create or replace 
 PACKAGE BODY COMMON_TOOLS as 
 /*********************************************************** 
 This package BODY is intended to hold reuseable objects that are 
@@ -473,7 +474,7 @@ begin
   WHEN OTHERS THEN
      v_COST_CENTER_CODE := in_COST_CENTER;
     
-    
+
 end cost_center_look_up_fnc;
                             
 function country_look_up_fnc( 
@@ -577,7 +578,7 @@ PROCEDURE CHECK_DUP_COST_CENTER(
 in_COST_CENTER_CODE - Input Cost Center to validate for duplication
 in_CATEGORY_CODE    - Input category code
 
-created : 09/11/2013 kdp CCN Project....
+created : 09/11/2013 jxc517 CCN Project....
 **********************************************************/
    in_COST_CENTER_CODE    IN VARCHAR2,
    in_CATEGORY_CODE       IN VARCHAR2) IS
@@ -632,7 +633,7 @@ PROCEDURE COPY_COST_CENTER(
 IN_OLD_CC - Input Cost Center to be removed
 IN_NEW_CC - Input Cost Center to be created
 
-created : 09/11/2013 kdp CCN Project....
+created : 09/11/2013 jxc517 CCN Project....
 **********************************************************/
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2) IS
@@ -664,16 +665,25 @@ BEGIN
        ORDER BY COLUMN_ID;
       
       FOR i IN 1..COL_TABLE.LAST LOOP
+         /*IF COL_TABLE(i).DATA_TYPE = 'DATE' THEN
+            VAR := VAR || ',TO_CHAR(' || COL_TABLE(i).COLUMN_NAME || ',''DD-MON-YYYY HH24:MI:SS'')';
+         ELSE
+            VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
+         END IF;*/
          VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
       END LOOP;
       
       --For Territory table, cost_center_code is not first column, so special handling is needed
       IF REC.TABLE_NAME NOT IN ('TERRITORY') THEN
+         --Data in VAR for COST_CENTER_TABLE will be ,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
+         --Take the column names excluding COST_CENTER_CODE whcih will be from 19th character till the end
          SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
                                                                  ' SELECT '''|| TO_CC ||''','|| SUBSTR(VAR,19) || 
                                                                  ' FROM ' || REC.TABLE_NAME || 
                                                                  ' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''';
       ELSE
+         --Data in VAR for TERRITORY will be ,TERRITORY_SLS_MGR_CODE,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
+         --Take the column names excluding COST_CENTER_CODE whcih will be from 42nd character till the end
          SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
                                              ' SELECT TERRITORY_SLS_MGR_CODE,'''|| TO_CC ||''',' || SUBSTR(VAR,42) || 
                                              ' FROM ' || REC.TABLE_NAME || 
@@ -705,8 +715,9 @@ BEGIN
    FOR REC IN (SELECT * FROM AUDIT_LOG WHERE TRANSACTION_ID LIKE '%'||FROM_CC||'%') LOOP
       SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO AUDIT_LOG VALUES ('||
                                          '(SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),'||''''||
-                                         REPLACE(REC.TRANSACTION_ID,FROM_CC,TO_CC)||''','''||
-                                         REC.TRANSACTION_DATE||''','''||
+                                         REPLACE(REC.TRANSACTION_ID,FROM_CC,TO_CC)||''','||
+                                         --Date should be stored with timestamp for audit to pick the records correctly
+                                         'TO_DATE('''||TO_CHAR(REC.TRANSACTION_DATE,'DD-MON-YYYY HH24:MI:SS')||''',''DD-MON-YYYY HH24:MI:SS'')'||','''||
                                          REC.TABLE_NAME||''','''||
                                          REPLACE(REC.TABLE_ROW_DATA.GETSTRINGVAL(),FROM_CC,TO_CC)||''','''||
                                          REC.CHANGE_BY||''','''||
@@ -735,17 +746,127 @@ BEGIN
 
    --Loop through all the statements and execute one by one in that order
    FOR i IN 1..SQL_STATEMENTS_TAB.COUNT LOOP
-      --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i));
-      EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
+      DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
+      --EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
    END LOOP;
    
    --Commit all the changes in the database
-   COMMIT;
+   --COMMIT;
 
 EXCEPTION
    WHEN OTHERS THEN
       DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
 END COPY_COST_CENTER;
+
+PROCEDURE SEND_MAIL(
+/**********************************************************
+	SEND_MAIL
+
+	This procedure will send emails based on the category of the mail
+  Currently we have below categories:
+                    INIT_LOAD_START
+                    INIT_LOAD_END
+                    HIER_LOAD_START
+                    HIER_LOAD_END
+                    STOP_JBOSS
+                    START_JBOSS
+                    INCOMPLETE_CC
+                    
+   For more details around the above category please look into MAILING table
+
+IN_MAIL_CATEGORY - Input Category for which email needs to be sent
+
+created : 09/11/2013 jxc517 CCN Project....
+**********************************************************/
+   IN_MAIL_CATEGORY VARCHAR2)
+IS
+   v_mail_host   VARCHAR2 (30) := 'smtp.sherwin.com'; --'sthq.sherwin.com';
+   v_mail_conn   UTL_SMTP.connection;
+   v_recipient   VARCHAR2(32000);
+   v_index       number;
+   crlf          VARCHAR2 (2) := CHR (13) || CHR (10);
+   
+   l_boundary1    VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE1';
+   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
+   V_INCOMPLETE_CC_COUNT NUMBER := 0;
+BEGIN
+   --Loop through all the emails for this passed category code
+   FOR rec IN (SELECT * FROM MAILING WHERE MAIL_CATEGORY = IN_MAIL_CATEGORY) LOOP
+      
+      
+      --Don't send an email itself if there are no incomeplete cost centers
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         BEGIN
+            SELECT COUNT(*) INTO V_INCOMPLETE_CC_COUNT
+              FROM COST_CENTER
+             WHERE GLOBAL_HIERARCHY_IND <> 'Y';
+         EXCEPTION
+            WHEN OTHERS THEN
+               V_INCOMPLETE_CC_COUNT := 0;
+         END;
+         IF V_INCOMPLETE_CC_COUNT = 0 THEN
+            EXIT;
+         END IF;
+      END IF;
+      
+      --This process starts only if above condition is not met
+      --Below staeps involves the email creation based on category and sending across
+      v_index := 0;
+      v_index := rec.RECEPIENTS.FIRST;
+      --Open the connection for email server
+      v_mail_conn := UTL_SMTP.open_connection (v_mail_host, 25);
+      UTL_SMTP.helo (v_mail_conn, v_mail_host);
+      UTL_SMTP.mail (v_mail_conn, rec.FROM_P);
+      WHILE v_index IS NOT NULL LOOP
+         UTL_SMTP.rcpt (v_mail_conn, rec.RECEPIENTS(v_index));
+         v_recipient := v_recipient || ', '||rec.RECEPIENTS(v_index);
+         v_index := rec.RECEPIENTS.NEXT(v_index);
+      END LOOP;
+      UTL_SMTP.open_data(v_mail_conn);
+      
+      --Set the required message paremeters
+      UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'To: ' || v_recipient || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || rec.SUBJECT || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+      
+      --Boundary should be set for this email body
+      UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Hi All' || crlf || crlf
+                                       || rec.MESSAGE || crlf || crlf
+                                       || 'Please let us know if there are any issues.' || crlf || crlf
+                                       || rec.SIGNATURE || crlf);
+      --UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || '--' || UTL_TCP.crlf);
+      
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'incomplete_cc.csv' || '"' || UTL_TCP.crlf);
+         
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Number, Cost Center Name,' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent 
+         FOR rec IN (SELECT COST_CENTER_CODE, COST_CENTER_NAME FROM COST_CENTER WHERE GLOBAL_HIERARCHY_IND <> 'Y') LOOP
+            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.COST_CENTER_NAME || ',' || UTL_TCP.crlf);
+         END LOOP;
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || '--' || UTL_TCP.crlf);
+      END IF;
+      
+      UTL_SMTP.close_data(v_mail_conn);  
+      UTL_SMTP.quit (v_mail_conn);
+   END LOOP;
+EXCEPTION
+   WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
+   THEN
+      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+END SEND_MAIL;
+
 
 END COMMON_TOOLS;
 /

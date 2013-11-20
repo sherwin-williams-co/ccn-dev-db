@@ -1,16 +1,15 @@
 #!/bin/sh
 #############################################################################
-# Script Name   :  AUDIT_INITLOAD
+# Script Name   :  LOAD_HIERARCHY
 #
-# Description    :  This shell program will initiate the AUDIT_INITLOAD_SP 
+# Description    :  This shell program will initiate the HIER_LOAD_MAIN_SP 
 #
-# This shell program will initiate the AUDIT_INITLOAD script that 
-#    * Disables all the Triggers 
-#    * Deletes all the CCN tables
-#    * Loads all the CCN tables
-#    * Loads the Audit tables
+# This shell program will initiate the LOAD_HIERARCHY script that 
+#    * Disables all the Hierarchy Triggers 
+#    * Deletes all the CCN Hierarchy tables
+#    * Loads all the CCN Hierarchy tables
 #    * Re-Enables the Triggers
-# from files sent from the Legacy IDMS CCN Database.
+#    * from files sent from the Legacy IDMS CCN Database.
 #
 # It also sends the emails regarding starting and ending of the process
 #
@@ -18,8 +17,8 @@
 ############################################################################
 . /app/ccn/ccn.config
 
- proc="ccn_audit_initload_sp"
- LOGDIR="/app/ccn/initLoad"
+ proc="hier_load_main_sp"
+ LOGDIR="/app/ccn/hier"
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
@@ -30,9 +29,9 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
-execute COMMON_TOOLS.send_mail('INIT_LOAD_START');
-execute INITLOAD.CCN_AUDIT_INITLOAD_SP;
-execute COMMON_TOOLS.send_mail('INIT_LOAD_END');
+execute COMMON_TOOLS.send_mail('HIER_LOAD_START');
+execute HIERARCHY_LOADING_PKG.HIER_LOAD_MAIN_SP;
+execute COMMON_TOOLS.send_mail('HIER_LOAD_END');
 
 exit;
 END
