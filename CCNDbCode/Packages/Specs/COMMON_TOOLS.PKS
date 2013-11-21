@@ -184,20 +184,6 @@ created : 09/11/2013 kdp CCN Project....
    in_COST_CENTER_CODE    IN VARCHAR2,
    in_CATEGORY_CODE       IN VARCHAR2);
 
-PROCEDURE COPY_COST_CENTER(
-/**********************************************************
-	COPY_COST_CENTER
-
-	This procedure will copy the OLD cost center into NEW cost center
-
-IN_OLD_CC - Input Cost Center to be removed
-IN_NEW_CC - Input Cost Center to be created
-
-created : 09/11/2013 kdp CCN Project....
-**********************************************************/
-          IN_OLD_CC IN VARCHAR2,
-          IN_NEW_CC IN VARCHAR2);
-
 PROCEDURE SEND_MAIL(
 /**********************************************************
 	SEND_MAIL
@@ -218,9 +204,7 @@ IN_MAIL_CATEGORY - Input Category for which email needs to be sent
 
 created : 09/11/2013 jxc517 CCN Project....
 **********************************************************/
-   IN_MAIL_CATEGORY VARCHAR2)
-;
-
+   IN_MAIL_CATEGORY VARCHAR2);
 
 END COMMON_TOOLS;
 /

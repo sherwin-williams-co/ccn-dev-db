@@ -1,4 +1,4 @@
-PACKAGE errpkg 
+PACKAGE             "ERRPKG" 
 /*********************************************************** 
 This package will hold all procedures/functions used to process business
 and system errors throughout the entire CCN applications
@@ -59,7 +59,7 @@ Created: 04/15/2013 SH
    ,in_errm         IN   VARCHAR2  
    ,IN_COST_CENTER  IN   VARCHAR2
    );
-   
+
 PROCEDURE STORE_WARNINGS(
 /*******************************************************************************
   This Procedure logs Processing Warnings into the Memory Table

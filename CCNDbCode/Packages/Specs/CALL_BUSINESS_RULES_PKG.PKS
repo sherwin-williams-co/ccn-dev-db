@@ -1,4 +1,4 @@
-PACKAGE CALL_BUSINESS_RULES_PKG AS
+PACKAGE             "CALL_BUSINESS_RULES_PKG" AS
 /******************************************************************************
 This package SPEC has procedures and functions related to the CALL_BUSINESS_RULES Package
 
