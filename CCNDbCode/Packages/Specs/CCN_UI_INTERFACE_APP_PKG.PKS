@@ -1,4 +1,3 @@
-create or replace 
 package CCN_UI_INTERFACE_APP_PKG
     as
 -- PACKAGE SPEC
@@ -175,3 +174,5 @@ terminal_number_seq
 RETURN NUMBER ;
 
 end CCN_UI_INTERFACE_APP_PKG;
+/
+

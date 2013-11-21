@@ -116,6 +116,111 @@ EXCEPTION
       RETURN FALSE;
 END IS_COSTCNTR_IN_GLOBAL_HRCHY;
 
+PROCEDURE SELECT_AUDIT_HIERARCHY_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process for hierarchy_detail table alone
+
+created : 06/07/2012
+**********************************************************/
+
+IS
+
+CURSOR SEL_AUDIT_LOG IS
+SELECT DISTINCT TABLE_NAME,
+       TRANSACTION_ID
+  FROM AUDIT_LOG
+ WHERE AUDIT_REC_FLAG IS NULL
+   AND TABLE_NAME = 'HIERARCHY_DETAIL'
+   AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                              FROM BATCH_JOB
+                             WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
+
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+DIFF_XML            XMLTYPE;
+v_code              NUMBER;
+V_LOG_ID            NUMBER;
+v_errm              varchar2(500);  
+V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
+V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+v_change_type       varchar2(1) := 'A';
+       
+BEGIN
+
+V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
+CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+    BEGIN
+         --Process the record only if cost center in the key is associated with global
+         --NOTE: All details of other hierarchies also should be taken in to consideration 
+         IF IS_COSTCNTR_IN_GLOBAL_HRCHY(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME) THEN
+            SAVEPOINT NEXT_AUDIT_REC;
+
+            V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+
+            PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
+                                  ,SEL_AUDIT_REC.TRANSACTION_ID
+                                  ,V_CC_CODE
+  				                        ,V_CHANGE_TYPE
+                                  ,DIFF_XML
+                                  ,V_LOG_ID);
+
+            V_CONTEXT:='Call procedure Build_File_SP';
+            BUILD_FILE_SP(V_CC_CODE
+                          ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
+                          ,SYSDATE			--in_ROW_DATE   IN DATE
+                          ,DIFF_XML			--in_Row_data   IN sys.xmltype
+                          ,V_CHANGE_TYPE
+                          ,V_LOG_ID);
+            --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
+            UPDATE AUDIT_LOG
+               SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
+             WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+               AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+               AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y';
+         ELSE
+            --set the GLOBAL_HIERARCHY_SKIP_FLAG to 'Y', which means pick again in further batch processing
+            UPDATE AUDIT_LOG
+               SET GLOBAL_HIERARCHY_SKIP_FLAG = 'Y'
+             WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+               AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+               AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
+               AND AUDIT_REC_FLAG             IS NULL;
+         END IF;
+      EXCEPTION
+           WHEN OTHERS THEN
+             ROLLBACK TO NEXT_AUDIT_REC;
+             V_TRANS_STATUS := 'ERROR';
+             v_code  := SQLCODE;
+             v_errm  := substr(SQLERRM,1,500);
+             --write to error log
+             errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_HIERARCHY_LOG', v_errm, V_CC_CODE); 
+      END;
+     
+END LOOP;  
+      
+      V_CONTEXT:='Updating the Status in batch_job table';
+      CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+      
+EXCEPTION WHEN OTHERS THEN
+         
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+	ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_HIERARCHY_LOG',V_CONTEXT);
+ 
+END SELECT_AUDIT_HIERARCHY_LOG;
+
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
 Selects all rows from audit_log that have changed from
@@ -171,6 +276,7 @@ BEGIN
 
 V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
 CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
+CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
     BEGIN
   
@@ -226,7 +332,8 @@ FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
 END LOOP;  
       
       V_CONTEXT:='Updating the Status in batch_job table';
-      CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS); 
+      CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
       
 EXCEPTION WHEN OTHERS THEN
          

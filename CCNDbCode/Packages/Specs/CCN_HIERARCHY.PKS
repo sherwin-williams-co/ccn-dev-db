@@ -1,4 +1,3 @@
-create or replace 
 PACKAGE CCN_HIERARCHY
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;

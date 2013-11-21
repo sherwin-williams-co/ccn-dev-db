@@ -2371,6 +2371,19 @@ PRAGMA EXCEPTION_INIT
 (exc_incomplete_cc_err , -20514);
 
 /*********************************************************** 
+The "en_hierarachy_not_exists" passes a numerical error of -20515.
+This error will state an error that a hierarchy is broken at particular level
+
+created : 11/14/2013 JXC517 CCN Project
+revisions: 
+
+************************************************************/
+en_hierarachy_not_exists  CONSTANT NUMBER := -20515;
+exc_hierarachy_not_exists EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hierarachy_not_exists , -20515);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says

@@ -597,6 +597,67 @@ BEGIN
             --ERRPKG.RAISE_ERR(V_CODE, V_ERRTEXT); 
 END DUPLICATE_COST_CENTER;
 
+FUNCTION VALIDATE_HIERARCHY(
+/*******************************************************************************
+ VALIDATE_HIERARCHY  
+   
+  This procedure will validate the hierarchy from bottom to top and raise 
+  corresponding error if particular level value doesn't exist
+
+created : JXC517 11/14/2013
+********************************************************************************/
+    IN_HRCHY_HDR_NAME         VARCHAR2,
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN BOOLEAN
+IS
+    V_HRCHY_DTL_CURR_ROW_VAL    VARCHAR2(100);
+    V_START_POSITION            NUMBER := 1;
+    V_HIERARCHY_DETAIL_REC      HIERARCHY_DETAIL%ROWTYPE;
+
+    CC_HIERARCHY_MISSING  EXCEPTION;
+    V_CODE                NUMBER;
+    V_ERRTEXT             VARCHAR2(500);
+BEGIN
+    --Loop through all the levels for the passed hierarchy header name excluding cost center level
+    FOR rec IN (SELECT * 
+                  FROM HIERARCHY_DESCRIPTION
+                 WHERE HRCHY_HDR_NAME = IN_HRCHY_HDR_NAME
+                   AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                 ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+        
+        --Calculate the current row value based on the level and details from the description
+        V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,
+                                           V_START_POSITION,
+                                           rec.LVL_VALUE_SIZE);
+        
+        --check if the record exists with the current row value and level in given hierarchy
+        --if record doesn't exists, meaning the hierarchy is broken at that level
+        --corresponding error description is build here, if fails
+        BEGIN
+            SELECT * INTO V_HIERARCHY_DETAIL_REC
+              FROM HIERARCHY_DETAIL
+             WHERE HRCHY_DTL_CURR_ROW_VAL = V_HRCHY_DTL_CURR_ROW_VAL
+               AND HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
+               AND HRCHY_DTL_LEVEL        = rec.HRCHY_HDR_LVL_NBR
+               AND ROWNUM < 2;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                V_ERRTEXT := 'The hierarchy Level ''' || rec.HRCHY_HDR_LVL_DESC || 
+                             ''' with value of '''    || V_HRCHY_DTL_CURR_ROW_VAL || 
+                             ''' doesn''t exists in ' || IN_HRCHY_HDR_NAME || 
+                             ' Structure at level '   || rec.HRCHY_HDR_LVL_NBR;
+                RAISE CC_HIERARCHY_MISSING;
+        END;
+        
+        --This starting position will be the one that is used in next iteration to calculate the current row value
+        V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+    END LOOP;
+    RETURN TRUE;
+EXCEPTION 
+    WHEN CC_HIERARCHY_MISSING THEN
+        V_CODE := errnums.en_hierarachy_not_exists;
+        errpkg.raise_err(V_CODE, V_ERRTEXT);
+END VALIDATE_HIERARCHY;
+
 PROCEDURE HIER_BUSINESS_RULES_MAIN(
 /*******************************************************************************
  HIER_BUSINESS_RULES_MAIN  

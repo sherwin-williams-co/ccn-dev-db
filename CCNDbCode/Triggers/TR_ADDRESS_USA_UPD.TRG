@@ -45,7 +45,7 @@ begin
         ,v_address_usa_row.COUNTY COUNTY
         ,v_address_usa_row.FIPS_CODE FIPS_CODE
         ,v_address_usa_row.DESTINATION_POINT DESTINATION_POINT
-        ,v_address_usa_row.CHECK_DIGIT CHECK_DEIGIT
+        ,v_address_usa_row.CHECK_DIGIT CHECK_DIGIT
         ,v_address_usa_row.VALID_ADDRESS VALID_ADDRESS
         ,v_address_usa_row.COUNTRY_CODE COUNTRY_CODE
 			)) AS  "result"

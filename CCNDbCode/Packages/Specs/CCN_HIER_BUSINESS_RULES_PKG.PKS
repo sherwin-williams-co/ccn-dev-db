@@ -165,6 +165,18 @@ in_HRCHY_HDR_NAME             HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
 in_HRCHY_DTL_LEVEL            HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
 in_HRCHY_DTL_CURR_ROW_VAL     HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE);
 
+FUNCTION VALIDATE_HIERARCHY(
+/*******************************************************************************
+ VALIDATE_HIERARCHY  
+   
+  This procedure will validate the hierarchy from bottom to top and raise 
+  corresponding error if particular level value doesn't exist
+
+created : JXC517 11/14/2013
+********************************************************************************/
+    IN_HRCHY_HDR_NAME         VARCHAR2,
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN BOOLEAN;
+
 PROCEDURE HIER_BUSINESS_RULES_MAIN(
 /*******************************************************************************
  HIER_BUSINESS_RULES_MAIN  

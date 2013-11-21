@@ -8,6 +8,12 @@ revisions:
 
 ************************************************************/
 IS
+
+TYPE ERROR_WARNINGS_RECORD_TYPE IS RECORD(ERR_CODE VARCHAR2(100),
+                                          ERR_MSG VARCHAR2(500));
+TYPE ERROR_WARNINGS_TABLE_TYPE IS TABLE OF ERROR_WARNINGS_RECORD_TYPE INDEX BY BINARY_INTEGER;
+ERROR_WARNINGS_TABLE     ERROR_WARNINGS_TABLE_TYPE;
+
 PROCEDURE raise_err (
 /*********************************************************** 
 This procedure will raise errors to the calling procedure/application
@@ -54,6 +60,23 @@ Created: 04/15/2013 SH
    ,IN_COST_CENTER  IN   VARCHAR2
    );
    
+PROCEDURE STORE_WARNINGS(
+/*******************************************************************************
+  This Procedure logs Processing Warnings into the Memory Table
+  
+Created: 10/24/2013 SH
+*******************************************************************************/
+   err_Code IN VARCHAR2,
+   err_Msg  IN VARCHAR2);
+
+PROCEDURE RAISE_WARNINGS
+/*******************************************************************************
+  This Procedure raises first of the stored Warnings from the Memory Table
+  
+Created: 10/24/2013 SH
+*******************************************************************************/
+;
+
 END errpkg;
 /
 

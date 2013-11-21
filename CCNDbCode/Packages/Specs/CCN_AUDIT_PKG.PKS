@@ -7,6 +7,14 @@ revisions:
 
 ************************************************************/
 
+PROCEDURE SELECT_AUDIT_HIERARCHY_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process for hierarchy_detail table alone
+
+created : 06/07/2012
+**********************************************************/
+;
   
 PROCEDURE SELECT_AUDIT_LOG
 /*******************************************************

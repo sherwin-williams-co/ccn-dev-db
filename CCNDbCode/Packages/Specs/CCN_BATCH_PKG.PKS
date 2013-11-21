@@ -60,6 +60,23 @@ revised :
 PROCEDURE UPDATE_TERR_PHONE_NUMBERS_SP
 (FIRST_CHARACTER IN VARCHAR) ;
 
+PROCEDURE LOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : LOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+revised : 
+******************************************************************************/
+;
+
+PROCEDURE UNLOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : unLOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+revised : 
+******************************************************************************/
+;
+
+
 END CCN_BATCH_PKG;
 /
 

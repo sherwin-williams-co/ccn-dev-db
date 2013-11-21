@@ -1,4 +1,3 @@
-create or replace 
 PACKAGE COMMON_TOOLS as 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
