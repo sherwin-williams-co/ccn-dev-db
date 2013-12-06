@@ -132,7 +132,15 @@ CREATE TABLE "COSTCNTR"."COST_CENTER_STORE"
 	"FAX_PHONE_NUMBER_TYPE" VARCHAR2(5 BYTE), 
 	"FAX_PHONE_AREA_CODE" VARCHAR2(4 BYTE), 
 	"FAX_PHONE_NUMBER" VARCHAR2(7 BYTE), 
-	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE)
+	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE),
+	"ADMIN_TO_SALES_AREA" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DISTRICT" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DIVISION" VARCHAR2(100 BYTE),
+	"ALTERNATE_DAD" VARCHAR2(100 BYTE),
+	"FACTS_DIVISION" VARCHAR2(100 BYTE),
+	"LEGACY_GL_DIVISION" VARCHAR2(100 BYTE),
+	"GLOBAL_HIERARCHY" VARCHAR2(100 BYTE),
+	"MANAGER_ID" VARCHAR2(20 BYTE)
 ) 
 ORGANIZATION EXTERNAL(
          TYPE ORACLE_LOADER
@@ -141,7 +149,7 @@ ORGANIZATION EXTERNAL(
          (RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_STORE.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_STORE.log'
-          FIELDS TERMINATED BY ','
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL(COST_CENTER_CODE,
                                         COST_CENTER_NAME,
                                         CATEGORY,
@@ -260,7 +268,15 @@ ORGANIZATION EXTERNAL(
                                         FAX_PHONE_NUMBER_TYPE,
                                         FAX_PHONE_AREA_CODE,
                                         FAX_PHONE_NUMBER,
-                                        FAX_PHONE_EXTENSION)
+                                        FAX_PHONE_EXTENSION,
+                                        ADMIN_TO_SALES_AREA,
+                                        ADMIN_TO_SALES_DISTRICT,
+                                        ADMIN_TO_SALES_DIVISION,
+                                        ALTERNATE_DAD,
+                                        FACTS_DIVISION,
+                                        LEGACY_GL_DIVISION,
+                                        GLOBAL_HIERARCHY,
+                                        MANAGER_ID)
          )
          LOCATION ('COST_CENTER_STORE.csv')
 )REJECT LIMIT UNLIMITED;
@@ -316,7 +332,15 @@ CREATE TABLE "COSTCNTR"."COST_CENTER_TERRITORY"
 	"FAX_PHONE_NUMBER_TYPE" VARCHAR2(5 BYTE), 
 	"FAX_PHONE_AREA_CODE" VARCHAR2(4 BYTE), 
 	"FAX_PHONE_NUMBER" VARCHAR2(7 BYTE), 
-	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE)
+	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE),
+	"ADMIN_TO_SALES_AREA" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DISTRICT" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DIVISION" VARCHAR2(100 BYTE),
+	"ALTERNATE_DAD" VARCHAR2(100 BYTE),
+	"FACTS_DIVISION" VARCHAR2(100 BYTE),
+	"LEGACY_GL_DIVISION" VARCHAR2(100 BYTE),
+	"GLOBAL_HIERARCHY" VARCHAR2(100 BYTE),
+	"MANAGER_ID" VARCHAR2(20 BYTE)
 ) 
 ORGANIZATION EXTERNAL(
          TYPE ORACLE_LOADER
@@ -325,7 +349,7 @@ ORGANIZATION EXTERNAL(
          (RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_TERRITORY.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_TERRITORY.log'
-          FIELDS TERMINATED BY ','
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL(COST_CENTER_CODE,
                                         COST_CENTER_NAME,
                                         CATEGORY,
@@ -375,7 +399,15 @@ ORGANIZATION EXTERNAL(
                                         FAX_PHONE_NUMBER_TYPE,
                                         FAX_PHONE_AREA_CODE,
                                         FAX_PHONE_NUMBER,
-                                        FAX_PHONE_EXTENSION)
+                                        FAX_PHONE_EXTENSION,
+                                        ADMIN_TO_SALES_AREA,
+                                        ADMIN_TO_SALES_DISTRICT,
+                                        ADMIN_TO_SALES_DIVISION,
+                                        ALTERNATE_DAD,
+                                        FACTS_DIVISION,
+                                        LEGACY_GL_DIVISION,
+                                        GLOBAL_HIERARCHY,
+                                        MANAGER_ID)
          )
          LOCATION ('COST_CENTER_TERRITORY.csv')
 )REJECT LIMIT UNLIMITED;
@@ -479,7 +511,15 @@ CREATE TABLE "COSTCNTR"."COST_CENTER_ADMINISTRATION"
 	"FAX_PHONE_NUMBER_TYPE" VARCHAR2(5 BYTE), 
 	"FAX_PHONE_AREA_CODE" VARCHAR2(4 BYTE), 
 	"FAX_PHONE_NUMBER" VARCHAR2(7 BYTE), 
-	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE)
+	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE),
+	"ADMIN_TO_SALES_AREA" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DISTRICT" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DIVISION" VARCHAR2(100 BYTE),
+	"ALTERNATE_DAD" VARCHAR2(100 BYTE),
+	"FACTS_DIVISION" VARCHAR2(100 BYTE),
+	"LEGACY_GL_DIVISION" VARCHAR2(100 BYTE),
+	"GLOBAL_HIERARCHY" VARCHAR2(100 BYTE),
+	"MANAGER_ID" VARCHAR2(20 BYTE)
 ) 
 ORGANIZATION EXTERNAL(
          TYPE ORACLE_LOADER
@@ -488,7 +528,7 @@ ORGANIZATION EXTERNAL(
          (RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_ADMINISTRATION.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_ADMINISTRATION.log'
-          FIELDS TERMINATED BY ','
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL(COST_CENTER_CODE,
                                         COST_CENTER_NAME,
                                         CATEGORY,
@@ -586,7 +626,15 @@ ORGANIZATION EXTERNAL(
                                         FAX_PHONE_NUMBER_TYPE,
                                         FAX_PHONE_AREA_CODE,
                                         FAX_PHONE_NUMBER,
-                                        FAX_PHONE_EXTENSION)
+                                        FAX_PHONE_EXTENSION,
+                                        ADMIN_TO_SALES_AREA,
+                                        ADMIN_TO_SALES_DISTRICT,
+                                        ADMIN_TO_SALES_DIVISION,
+                                        ALTERNATE_DAD,
+                                        FACTS_DIVISION,
+                                        LEGACY_GL_DIVISION,
+                                        GLOBAL_HIERARCHY,
+                                        MANAGER_ID)
          )
          LOCATION ('COST_CENTER_ADMINISTRATION.csv')
 )REJECT LIMIT UNLIMITED;
@@ -688,7 +736,15 @@ CREATE TABLE "COSTCNTR"."COST_CENTER_REAL_ESTATE"
 	"FAX_PHONE_NUMBER_TYPE" VARCHAR2(5 BYTE), 
 	"FAX_PHONE_AREA_CODE" VARCHAR2(4 BYTE), 
 	"FAX_PHONE_NUMBER" VARCHAR2(7 BYTE), 
-	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE)
+	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE),
+	"ADMIN_TO_SALES_AREA" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DISTRICT" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DIVISION" VARCHAR2(100 BYTE),
+	"ALTERNATE_DAD" VARCHAR2(100 BYTE),
+	"FACTS_DIVISION" VARCHAR2(100 BYTE),
+	"LEGACY_GL_DIVISION" VARCHAR2(100 BYTE),
+	"GLOBAL_HIERARCHY" VARCHAR2(100 BYTE),
+	"MANAGER_ID" VARCHAR2(20 BYTE)
 ) 
 ORGANIZATION EXTERNAL(
          TYPE ORACLE_LOADER
@@ -697,7 +753,7 @@ ORGANIZATION EXTERNAL(
          (RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_REAL_ESTATE.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_REAL_ESTATE.log'
-          FIELDS TERMINATED BY ','
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL(COST_CENTER_CODE,
                                         COST_CENTER_NAME,
                                         CATEGORY,
@@ -793,7 +849,15 @@ ORGANIZATION EXTERNAL(
                                         FAX_PHONE_NUMBER_TYPE,
                                         FAX_PHONE_AREA_CODE,
                                         FAX_PHONE_NUMBER,
-                                        FAX_PHONE_EXTENSION)
+                                        FAX_PHONE_EXTENSION,
+                                        ADMIN_TO_SALES_AREA,
+                                        ADMIN_TO_SALES_DISTRICT,
+                                        ADMIN_TO_SALES_DIVISION,
+                                        ALTERNATE_DAD,
+                                        FACTS_DIVISION,
+                                        LEGACY_GL_DIVISION,
+                                        GLOBAL_HIERARCHY,
+                                        MANAGER_ID)
          )
          LOCATION ('COST_CENTER_REAL_ESTATE.csv')
 )REJECT LIMIT UNLIMITED;
@@ -895,7 +959,15 @@ CREATE TABLE "COSTCNTR"."COST_CENTER_OTHER"
 	"FAX_PHONE_NUMBER_TYPE" VARCHAR2(5 BYTE), 
 	"FAX_PHONE_AREA_CODE" VARCHAR2(4 BYTE), 
 	"FAX_PHONE_NUMBER" VARCHAR2(7 BYTE), 
-	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE)
+	"FAX_PHONE_EXTENSION" VARCHAR2(6 BYTE),
+	"ADMIN_TO_SALES_AREA" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DISTRICT" VARCHAR2(100 BYTE),
+	"ADMIN_TO_SALES_DIVISION" VARCHAR2(100 BYTE),
+	"ALTERNATE_DAD" VARCHAR2(100 BYTE),
+	"FACTS_DIVISION" VARCHAR2(100 BYTE),
+	"LEGACY_GL_DIVISION" VARCHAR2(100 BYTE),
+	"GLOBAL_HIERARCHY" VARCHAR2(100 BYTE),
+	"MANAGER_ID" VARCHAR2(20 BYTE)
 ) 
 ORGANIZATION EXTERNAL(
          TYPE ORACLE_LOADER
@@ -904,7 +976,7 @@ ORGANIZATION EXTERNAL(
          (RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_OTHER.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_OTHER.log'
-          FIELDS TERMINATED BY ','
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL(COST_CENTER_CODE,
                                         COST_CENTER_NAME,
                                         CATEGORY,
@@ -1000,7 +1072,15 @@ ORGANIZATION EXTERNAL(
                                         FAX_PHONE_NUMBER_TYPE,
                                         FAX_PHONE_AREA_CODE,
                                         FAX_PHONE_NUMBER,
-                                        FAX_PHONE_EXTENSION)
+                                        FAX_PHONE_EXTENSION,
+                                        ADMIN_TO_SALES_AREA,
+                                        ADMIN_TO_SALES_DISTRICT,
+                                        ADMIN_TO_SALES_DIVISION,
+                                        ALTERNATE_DAD,
+                                        FACTS_DIVISION,
+                                        LEGACY_GL_DIVISION,
+                                        GLOBAL_HIERARCHY,
+                                        MANAGER_ID)
          )
          LOCATION ('COST_CENTER_OTHER.csv')
 )REJECT LIMIT UNLIMITED;
