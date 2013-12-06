@@ -1,4 +1,4 @@
-PACKAGE             "CCN_BATCH_PKG" AS
+PACKAGE CCN_BATCH_PKG AS
 /*********************************************************** 
 This package "SPEC" has procedures and functions related to the batch
 job table
@@ -75,6 +75,7 @@ created : 11/15/2013 CCN KDP Project....
 revised : 
 ******************************************************************************/
 ;
+
 
 END CCN_BATCH_PKG;
 /

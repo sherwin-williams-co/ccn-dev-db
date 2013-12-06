@@ -108,6 +108,6 @@ begin
                 ,'TR_COST_CENTER_UPD');
      --END IF;      
       
-END tr_cost_center_upd;
+END TR_COST_CENTER_UPD;
 /
 
