@@ -1,0 +1,446 @@
+CREATE OR REPLACE PACKAGE BODY CCN_BATCH_PKG AS
+/*********************************************************** 
+This package "BODY" has procedures and functions related to the batch
+job table
+
+created : 04/10/2013 SH CCN project
+revisions: 
+************************************************************/
+  
+PROCEDURE INSERT_BATCH_JOB (
+/**********************************************************
+	INSERT_BATCH_JOB
+
+	This procedure is intended to insert a record in the Batch_Job
+        table with the details related to the batch run
+
+created : 04/10/2013 SH CCN project....
+**********************************************************/
+    IN_BATCH_JOB_NAME      IN  BATCH_JOB.BATCH_JOB_NAME%TYPE,
+    OUT_BATCH_NUMBER       OUT BATCH_JOB.BATCH_JOB_NUMBER%TYPE
+ )
+IS
+
+V_CONTEXT	    VARCHAR2(200);
+--V_BATCH_JOB_NUMBER  BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+SQ		    INTEGER;
+SE		    VARCHAR2(1000);
+
+BEGIN
+  INSERT
+  INTO BATCH_JOB
+    (
+      BATCH_JOB_NAME,
+      BATCH_JOB_NUMBER,
+      BATCH_JOB_STATUS,
+      BATCH_JOB_START_DATE,
+      BATCH_JOB_END_DATE,
+      BATCH_JOB_LAST_RUN_DATE,
+      TRANS_STATUS
+    )
+    VALUES
+    (
+      IN_BATCH_JOB_NAME,
+      BATCH_JOB_NUMBER_SEQ.NEXTVAL,
+      'PROCESSING',
+      SYSDATE,
+      NULL,
+      NULL,
+      NULL
+    ) RETURNING BATCH_JOB_NUMBER INTO OUT_BATCH_NUMBER;
+
+EXCEPTION 
+    WHEN OTHERS THEN
+
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+        
+	ERRPKG.RAISE_ERR(-20003,'INSERT_BATCH_JOB',V_CONTEXT);   
+        
+END INSERT_BATCH_JOB;
+
+PROCEDURE UPDATE_BATCH_JOB(
+/**********************************************************
+	UPDATE_BATCH_JOB
+
+	This procedure is intended to update the record in the Batch_Job
+        table with the Status of - IN_PROCESSING, COMPLETED OR ERROR
+
+created : 04/10/2013 SH CCN project....
+**********************************************************/
+    IN_BATCH_JOB_NAME      IN BATCH_JOB.BATCH_JOB_NAME%TYPE,
+    IN_BATCH_JOB_NUMBER    IN BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
+    IN_TRANS_STATUS        IN BATCH_JOB.TRANS_STATUS%TYPE
+                          )
+IS
+
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+BEGIN
+
+      UPDATE BATCH_JOB
+         SET BATCH_JOB_STATUS = 'COMPLETED',
+             TRANS_STATUS = IN_TRANS_STATUS,
+             BATCH_JOB_END_DATE  =  SYSDATE,
+             BATCH_JOB_LAST_RUN_DATE = SYSDATE
+       WHERE BATCH_JOB_NAME      =  IN_BATCH_JOB_NAME
+         AND BATCH_JOB_NUMBER    =  IN_BATCH_JOB_NUMBER;
+
+EXCEPTION
+       WHEN OTHERS THEN
+
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+        
+	ERRPKG.RAISE_ERR(-20003,'UPDATE_BATCH_JOB',V_CONTEXT); 
+        
+END UPDATE_BATCH_JOB;
+
+
+PROCEDURE LOAD_FIPS_CODE_UPDATES 
+/*****************************************************************************
+	LOAD_FIPS_CODE_UPDATES
+
+	This procedure is intended to perform the FIPS Code updates to USA Addresses.
+  The FIPS Code Updates will be available from a Flat File from the HEARS Group.
+  That Flat File is currently referenced as an exteral Temp Table definition.
+  
+	This Procedure will Loop thru the Temp Table and process each entry.
+  For each entry:
+    Locate the 6 digit Cost Center referenced by the 4 digit Cost Center supplied.
+    Verify that the Cost Center is a USA Cost Center.
+    Select the Address_USA associated with the Cost_Center.
+    Compare the existing FIPS Code to the new FIPS Code.
+    IF they are different, then 
+      Replace the existing FIPS Code with the new FIPS Code.
+      Update the Address_USA entry.
+      
+created : 05/15/2013 TAL CCN Project....
+revised : 
+******************************************************************************/
+    
+      IS
+
+   v_code varchar2(06);
+   v_errm varchar2(500);
+   v_proc varchar2(32)  :=  'LOAD_FIPS_CODE_UPDATES';
+   v_note varchar2(200) :=   null;
+
+   v_rec_inp_cnt   integer := 0;
+   v_ccn_fnd_cnt   integer := 0;
+   v_ccn_nof_cnt   integer := 0;
+   v_ccn_usa_cnt   integer := 0;
+   v_ccn_oth_cnt   integer := 0;
+   v_adr_fnd_cnt   integer := 0;
+   v_adr_nof_cnt   integer := 0;
+   v_adr_upd_cnt   integer := 0;
+   v_commit        integer := 0;
+   
+   v_cost_center_code   varchar(06);
+   v_read_addr_sw       varchar(01);
+   
+   v_cost_center_row    COST_CENTER%rowtype ;
+   v_address_usa_row    ADDRESS_USA%rowtype ;
+ 
+   cursor fips_code_cur is
+      select    FIPS_CODE, 
+                FIPS_STORE_NBR             	             	
+		from "COSTCNTR"."TEMP_FIPS_CODE_UPDATE"
+    
+    order by FIPS_STORE_NBR ;
+
+--------------------------------------------------------------------------------
+BEGIN   --  Fips_Code_Rec Processing
+--------------------------------------------------------------------------------
+
+  for fips_code_rec in fips_code_cur 
+
+--------------------------------------------------------------------------------
+    LOOP
+--------------------------------------------------------------------------------
+   
+      v_rec_inp_cnt  := v_rec_inp_cnt  + 1;
+      v_cost_center_code := ('xx' || fips_code_rec.fips_store_nbr);
+      
+--------------------------------------------------------------------------------
+      BEGIN   --  Select of Cost_Center
+--------------------------------------------------------------------------------
+      
+        v_read_addr_sw   :=  ' ';
+            
+--      if  fips_code_rec.fips_store_nbr  is not 4 digits numeric  then
+        if  not regexp_like(fips_code_rec.fips_store_nbr, '\d{4}') then
+            raise no_data_found;
+        end if;
+  
+        select * into  v_cost_center_row
+         from  COST_CENTER
+        where  cost_center_code  like  ('%' || fips_code_rec.fips_store_nbr);
+            
+        v_ccn_fnd_cnt   :=  v_ccn_fnd_cnt + 1;
+                
+        If  v_cost_center_row.country_code  =  'USA'  then
+            v_ccn_usa_cnt   :=  v_ccn_usa_cnt + 1;
+            v_read_addr_sw  :=  'Y';
+        else
+            v_ccn_oth_cnt   :=  v_ccn_oth_cnt + 1;
+            v_read_addr_sw  :=  'N';
+        End If;
+                                
+        EXCEPTION
+          WHEN NO_DATA_FOUND then
+            v_read_addr_sw   :=  'N';
+            v_ccn_nof_cnt    :=  v_ccn_nof_cnt + 1;
+--    Write a message to the Error_Log
+        v_code := errnums.en_invalid_cost_center_err;
+        v_errm := ('Cost_Center Not Found For - ' || 'xx' || fips_code_rec.fips_store_nbr );
+        v_note  :=  'Cost_Center Error';
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+--                              LOG_PROCEDURE_ERRORS(v_code, v_proc,
+                            v_errm, ('xx' || fips_code_rec.fips_store_nbr), v_note ) ;
+      
+--------------------------------------------------------------------------------
+      END;    --  Select of Cost_Center   
+--------------------------------------------------------------------------------
+      
+--------------------------------------------------------------------------------
+      BEGIN   --  Select of Address_USA    
+--------------------------------------------------------------------------------
+      
+        if  v_read_addr_sw  =  'N'  then
+            raise no_data_found;
+        end if;
+  
+        select * into  v_address_usa_row
+         from  ADDRESS_USA
+        where  cost_center_code  =  v_cost_center_row.cost_center_code
+         and   expiration_date  is  null ;
+         
+        v_adr_fnd_cnt   :=  v_adr_fnd_cnt + 1;
+        
+        If  v_address_usa_row.fips_code   <>    fips_code_rec.fips_code  then
+            v_address_usa_row.fips_code   :=  fips_code_rec.fips_code;
+          
+            update  Address_USA  set row  =  v_address_usa_row
+             where  cost_center_code  =  v_cost_center_code
+              and   expiration_date  is  null  ;
+    
+            v_adr_upd_cnt   :=  v_adr_upd_cnt + 1;
+              
+        End If;
+                    
+        EXCEPTION
+          WHEN NO_DATA_FOUND then
+            If  v_read_addr_sw  =  'Y'  then
+                v_adr_nof_cnt   :=  v_adr_nof_cnt + 1;
+--    Write a message to the Error_Log
+        v_code := errnums.en_invalid_addr_usa_err;
+        v_errm := ('Address_USA Not Found For - ' || 'xx' || fips_code_rec.fips_store_nbr );
+        v_note  :=  'Address_USA Error';
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+--                              LOG_PROCEDURE_ERRORS(v_code, v_proc,
+                            v_errm, ('xx' || fips_code_rec.fips_store_nbr), v_note ) ;
+            End If;
+
+--------------------------------------------------------------------------------
+      END;    --  Select of Address_USA
+--------------------------------------------------------------------------------
+      
+      v_commit := v_commit + 1;
+      if v_commit > 500 then
+         commit;
+         v_commit := 0;
+      end if;
+      
+--------------------------------------------------------------------------------
+    END LOOP;   --  Fips_Code_Rec Processing
+--------------------------------------------------------------------------------
+  
+        v_code              :=  '-UINFO';
+        v_cost_center_code  :=  '------';
+        v_note              :=  'Report Totals';
+  
+--  Messages are in reverse order so that they dis[play in order on the ERROR_LOG        
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Address_USA Updated = ' || v_adr_upd_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Address_USA NOT Fnd = ' || v_adr_nof_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Address_USA Rec Fnd = ' || v_adr_fnd_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Cost_Center OTH Fnd = ' || v_ccn_oth_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Cost_Center USA Fnd = ' || v_ccn_usa_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Cost_Center NOT Fnd = ' || v_ccn_nof_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Cost_Center WAS Fnd = ' || v_ccn_fnd_cnt, v_cost_center_code, v_note ) ;
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'FIPS CODE INPUTs    = ' || v_rec_inp_cnt, v_cost_center_code, v_note ) ;
+
+--------------------------------------------------------------------------------
+EXCEPTION
+--------------------------------------------------------------------------------
+
+   when others then
+--    Write a message to the Error_Log
+        v_code := substr(sqlerrm,4,6);
+				v_errm := substr(sqlerrm,1, 500);
+        v_note := 'Batch Load of FIPS Codes Was NOT Completed';
+        CALL_BUSINESS_RULES_PKG.LOG_PROCEDURE_ERRORS(v_code, v_proc,
+--                              LOG_PROCEDURE_ERRORS(v_code, v_proc,
+           'Table Not Loaded - Stopped on Record - ' || v_rec_inp_cnt || ' ' || 
+           'Cost_Center_Code = ' || v_cost_center_code || ' ' || v_errm, 
+           v_cost_center_code, v_note ) ;
+
+--------------------------------------------------------------------------------
+END LOAD_FIPS_CODE_UPDATES;    --  Procedure
+--------------------------------------------------------------------------------
+
+
+PROCEDURE UPDATE_TERR_PHONE_NUMBERS_SP
+(FIRST_CHARACTER IN VARCHAR)
+as
+/*
+   This is a file of Territory Phone number from CPR group containing
+   Territory phone numbers to be updated to CCN phone number record.
+   Updating the PHONE Table from the Temporary Territory Phone Table.
+   
+Created by: BLR 5-15-13 for CCNA-382
+*/
+ 
+ -- DECLARE
+
+   cursor CCNTERR_PHONE_CUR is
+     select COST_CENTER_CODE,	         
+	     MAINT_FUNCTION, 
+       MAINTENANCE_TYPE,
+	     MAINTENANCE_CODE,		     
+	     PHONE_AREA_CODE,
+	     PHONE_NUMBER,
+       PHONE_EXTENSION FROM TEMP_TERR_PHONE;
+       
+
+  
+  in_cost_center varchar2(4);
+  v_cost_center_code varchar2(6);
+   v_count integer := 0;   
+   v_commit integer := 0;
+   v_phone_row PHONE%rowtype;
+   v_cc_row cost_center%rowtype;
+   
+Begin
+
+   for ccnterr_phone_rec in CCNTERR_PHONE_CUR loop
+
+ Begin
+ v_cost_center_code :=  COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC ( ccnterr_phone_rec.cost_center_code) ;
+ 
+    select  * into v_cc_row
+        from COST_CENTER 
+    where COST_CENTER_CODE = v_cost_center_code;
+
+ 
+-- if COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC ( 'cost_center_code' in_cost_center) then  -- value not found in table 
+--       return v_cost_center_code;
+-- else      
+--       
+--   end if; 
+
+   if ccnterr_phone_rec.maintenance_code = 'C' then	
+      if ccnterr_phone_rec.phone_number is not null then      
+         v_phone_row.phone_area_code := ccnterr_phone_rec.phone_area_code;
+         v_phone_row.phone_number := ccnterr_phone_rec.phone_number;
+         v_phone_row.phone_extension := ccnterr_phone_rec.phone_extension;        
+         UPDATE  PHONE set row = v_phone_row 
+            where v_phone_row.cost_center_code = v_cost_center_code;
+   --        where v_phone_row.cost_center_code = ccnterr_phone_rec.cost_center_code;
+      
+         v_phone_row := null;
+         v_count := v_count + 1;
+
+         v_commit := v_commit + 1;
+
+         if v_commit > 500 then
+            commit;
+            v_commit := 0;
+         end if;   
+         
+      end if;
+      
+  end if;
+  
+     
+
+   EXCEPTION
+
+      WHEN others then
+         dbms_output.put_line('Invalid Update of Phone Table ' 
+            || ccnterr_phone_rec.cost_center_code  
+	    || ' '	            
+            || sqlerrm);
+
+ END;
+
+END LOOP;
+
+   dbms_output.put_line('Total Update Phones '
+      || v_count);
+
+EXCEPTION
+
+   when others then
+      dbms_output.put_line('Table Not updated Stopped on Record - ' 
+      || v_count);
+
+
+END UPDATE_TERR_PHONE_NUMBERS_SP;
+
+PROCEDURE LOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : LOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+	adding commit since this will only be used for batch jobs
+revised : 
+******************************************************************************/
+IS
+
+PRAGMA AUTONOMOUS_TRANSACTION;
+
+BEGIN
+    UPDATE SECURITY_MATRIX   
+	     SET INSERT_FLAG = 'Y',
+	         UPDATE_FLAG = 'Y'
+	   WHERE USER_ID = 'batusr';
+	
+	COMMIT;
+END LOCK_DATABASE_SP;
+
+
+PROCEDURE UNLOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : unLOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+revised : 
+******************************************************************************/
+IS
+
+PRAGMA AUTONOMOUS_TRANSACTION;
+
+BEGIN
+    UPDATE SECURITY_MATRIX   
+	     SET INSERT_FLAG = 'N',
+	         UPDATE_FLAG = 'N'
+	   WHERE USER_ID = 'batusr';
+	
+	COMMIT;
+END UNLOCK_DATABASE_SP;
+
+END CCN_BATCH_PKG;
+

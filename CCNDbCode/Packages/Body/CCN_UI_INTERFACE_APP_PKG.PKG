@@ -1,0 +1,1640 @@
+CREATE OR REPLACE 
+package body CCN_UI_INTERFACE_APP_PKG
+    as
+-- PACKAGE BODY
+/****************************************************************************** 
+This package is intended to return data for the cost_center table
+
+created : 09/18/2012 TAL -- CCN coding project
+changed : 09/21/2012 TAL -- Split into Table_IU and Interface_UI
+        : 04/04/2013 TAL -- Modified Error Messages to be easier to read
+******************************************************************************/
+
+--TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
+
+PROCEDURE TEST_COST_CENTER_S_SP(
+/******************************************************************************
+	TEST_COST_CENTER_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the cost center table.  
+
+created : 
+*******************************************************************************/
+ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+, out_COST_CENTER_REF_CUR OUT REF_CURSOR
+, out_STORE_REF_CUR OUT REF_CURSOR)
+        is                  
+
+	BEGIN
+
+		  OPEN out_COST_CENTER_REF_CUR FOR
+			  SELECT * 
+			  FROM cost_center 
+			  where cost_center_code = in_COST_CENTER;
+			  
+		  OPEN out_STORE_REF_CUR FOR
+			  SELECT * 
+			  FROM store 
+			  where cost_center_code = in_COST_CENTER;			  
+	  
+	END TEST_COST_CENTER_S_SP;
+
+--REMOVE TESTING
+
+PROCEDURE SECURITY_S_SP(
+/******************************************************************************
+	SECURITY_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the SECURITY table.  
+
+created : 
+*******************************************************************************/
+in_user_id IN SECURITY_MATRIX.USER_ID%TYPE 
+,out_USER_REF_CUR OUT REF_CURSOR)
+        is                  
+
+	BEGIN
+
+		  OPEN out_USER_REF_CUR FOR
+			  SELECT * 
+			  FROM SECURITY_MATRIX 
+			  where user_id = in_user_id;			  
+	  
+	END SECURITY_S_SP;
+
+PROCEDURE ADDRESS_UI_SP ( inCost_center                   in COST_CENTER.cost_center_code%type
+                         ,inCountry_code                  in COST_CENTER.country_code%type
+                         ,inAddressType					          in ADDRESS_USA.address_type%type DEFAULT NULL                                                 
+                         ,out_ADDRESS_REF_CUR             out sys_refcursor)
+/*******************************************************************************
+	ADDRESS_UI_SP
+
+	This procedure is intended to return an address ref cursor with data to be
+	used for java  ADDRESS screen. 
+     
+created : 09/05/2012 BLR CCN UI Project....
+revised :
+*******************************************************************************/
+        is                  
+ v_code number;
+ v_errm varchar2(500);
+ v_in_costctr varchar2(6);  
+ 
+ v_cost_center_row         COST_CENTER%ROWTYPE;
+ v_home_store              TERRITORY.home_store%TYPE;
+ 
+ invalid_country_code_err    EXCEPTION;
+-- invalid_cost_center_err     EXCEPTION;
+
+  BEGIN 
+         
+/*  
+ 1.0  For VALIDATION OF COUNTRY_CODE INPUT 
+*/		
+      if  not common_tools.code_detail_valid ('COUNTRY_CODE',inCountry_code) then  
+      -- value not found in table 
+              raise invalid_country_code_err; 
+      end if; 
+  
+ /*  
+ 2.0  Get Cost Center Table for Category code validation
+*/	
+      
+      select * into v_cost_center_row
+              from COST_CENTER
+              where cost_center_code =   inCost_center;
+ 
+/*  
+ 3.0  when category code equal 'T' use home_store cost center
+*/  
+   
+      if v_cost_center_row.category = 'T'  then    
+         select home_store 
+           into v_home_store
+           from TERRITORY
+           where cost_center_code =   inCost_center;	         
+         else
+           v_home_store := inCost_center;      
+      end if;
+ /*  
+4.0  Validate which Country code column is being processed to extract correct
+      address table such as:
+      - ADDRESS_USA;
+      - ADDRESS_CAN;
+      - ADDRESS_MEX;
+      - ADDRESS_OTHER
+      ADDRESS_OTHER TABLE HOUSES ALL COUNTRIES EXCEPT USA, CANADA, PUERTO RICO, OR MEXICO
+*/   
+       
+	    CASE ( inCountry_code ) 
+        when 'USA' then
+           CCN_TABLE_IU_PKG.ADDRESS_USA_S_SP (  
+            v_home_store  
+           ,inAddressType
+           ,out_ADDRESS_REF_CUR );     
+         
+         when 'PRI' then
+           CCN_TABLE_IU_PKG.ADDRESS_USA_S_SP (  
+            v_home_store  
+           ,inAddressType
+           ,out_ADDRESS_REF_CUR );    
+            
+         when 'CAN' then
+            CCN_TABLE_IU_PKG.ADDRESS_CAN_S_SP (                
+             v_home_store 
+             ,inAddressType
+             ,out_ADDRESS_REF_CUR );
+                
+         when 'MEX' then
+            CCN_TABLE_IU_PKG.ADDRESS_MEX_S_SP (            
+              v_home_store
+             ,inAddressType
+             ,out_ADDRESS_REF_CUR );
+         else 
+            CCN_TABLE_IU_PKG.ADDRESS_OTHER_S_SP (           
+             v_home_store
+            ,inAddressType
+            ,out_ADDRESS_REF_CUR );
+      
+  END CASE; 
+         
+     
+  EXCEPTION
+       
+   when invalid_country_code_err then  
+        v_code := errnums.en_invalid_code_detail_err;
+        errpkg.raise_err(v_code, 'ADDRESS_UI_SP.invalid_country_code_err ',    
+        'Entered Country_Code was "' || InCountry_code || '". ' || 
+        'CCN_TABLE_IU_PKG ' || 'Country code must be found on "CODE_DETAIL TABLE ". '); 
+  
+  
+    when OTHERS then
+       v_code := sqlcode;
+	     v_errm := substr(sqlerrm,1, 500);
+       errpkg.raise_err(v_code, v_errm ||
+        'CCN_TABLE_IU_PKG '  || 'No errors found');
+       
+ END ADDRESS_UI_SP;
+ 
+ 
+PROCEDURE COST_CENTER_UI_SP ( 
+ /******************************************************************************
+	COST_CENTER_UI_SP   --    Cost Center User Interface Procedure
+
+	This procedure is intended to return a ref cursor with data from 
+	from the COST_CENTER, ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
+  STATUS, TYPE, MARKETING, PHONE, TAXWARE, and ADDRESS tables.  
+
+created : 09/06/2012 MDH CCN Project....
+*******************************************************************************/
+            IN_COST_CENTER          IN  COST_CENTER.COST_CENTER_CODE%TYPE
+ --          
+					, OUT_COST_CENTER_REF_CUR       OUT SYS_REFCURSOR
+ 					, OUT_CC_CATEGORY_REF_CUR       OUT SYS_REFCURSOR    
+          , OUT_STATUS_REF_CUR            OUT SYS_REFCURSOR     
+    			, OUT_TYPE_REF_CUR              OUT SYS_REFCURSOR   
+     			, OUT_MARKETING_REF_CUR         OUT SYS_REFCURSOR   
+  				, OUT_TAXWARE_REF_CUR           OUT SYS_REFCURSOR    
+      		, OUT_PHONE_REF_CUR             OUT SYS_REFCURSOR     
+      		, OUT_ADDRESS_REF_CUR           OUT SYS_REFCURSOR  )
+
+       IS   
+
+v_code                 number;
+v_errm                 VARCHAR(500);
+v_address_type         VARCHAR2(1)  := 'M';
+v_cost_center_rowtype  COST_CENTER%rowtype;
+v_break                VARCHAR(100);
+v_cost_center          COST_CENTER.cost_center_code%TYPE;
+invalid_cost_center_err     EXCEPTION;
+
+BEGIN --  COST_CENTER_UI_SP
+--
+
+  BEGIN
+  v_break  := ('Convert the in_cost_center to 6 digit ' );
+    
+  v_cost_center := common_tools.cost_center_look_up_fnc(in_COST_CENTER);
+  EXCEPTION
+     WHEN OTHERS then
+           raise invalid_cost_center_err;
+                  
+  END; -- get 6 digit Cost Center
+
+  BEGIN -- Get Cost Center
+                
+  v_break  := ('Entered the Cost_Center_UI_SP ' 
+                || ' in_cost_center = ' || v_cost_center || ' ' );
+--
+/**  Call COST_CENTER to get Category Code  ***/
+      select * into v_cost_center_rowtype
+            from COST_CENTER          
+            where cost_center_code = v_cost_center; 
+            
+  EXCEPTION
+     WHEN NO_DATA_FOUND then
+           raise invalid_cost_center_err;
+                  
+  END; -- get Cost Center
+--
+--
+/**  Call COST_CENTER Reference Cursor  ***/
+
+      CCN_TABLE_IU_PKG.COST_CENTER_S_SP(
+            v_cost_center          
+ 					, out_cost_center_ref_cur);      
+--
+--
+/******************************************************************************
+	Use the Category code of the COST_CENTER table to determine the type of 
+	processing to be done as follows:
+  
+	  S  -->  Store, Marketing, and Taxware data
+	  A  -->  Administration data
+	  R  -->  Real_Estate data
+	  T  -->  Territory data
+    O  -->  Other, Marketing, and Taxware data    
+*******************************************************************************/
+--
+v_break  :=  ('Entered the Category Routine ' 
+              || ' in_cost_center = ' || v_cost_center 
+              || ' category <' || v_cost_center_rowtype.category || '> ');
+--
+      CASE ( v_cost_center_rowtype.category) 
+        when 'S' then
+ --         STORE Table
+          v_break  :=  ('Entered the STORE Category Routine ' );
+          CCN_TABLE_IU_PKG.STORE_S_SP(
+            v_cost_center          
+					, out_cc_category_ref_cur);  
+ --         MARKETING Table
+          CCN_TABLE_IU_PKG.MARKETING_S_SP(
+            v_cost_center
+          , null
+					, out_marketing_ref_cur);    
+ --         TAXWARE Table
+          CCN_TABLE_IU_PKG.TAXWARE_S_SP(
+            v_cost_center
+					, out_taxware_ref_cur);             
+          
+        when 'A' then
+ --         ADMINISTRATION Table
+          v_break  :=  ('Entered the ADMINISTRATION Category Routine ' );
+          CCN_TABLE_IU_PKG.ADMINISTRATION_S_SP(
+            v_cost_center          
+					, out_cc_category_ref_cur);  
+          
+        when 'R' then
+ --         REAL_ESTATE Table
+          v_break  :=  ('Entered the REAL ESTATE Category Routine ' );
+          CCN_TABLE_IU_PKG.REAL_ESTATE_S_SP(
+            v_cost_center          
+					, out_cc_category_ref_cur);    
+          
+        when 'T' then
+ --         TERRITORY Table
+          v_break  :=  ('Entered the TERRITORY Category Routine ' );
+          CCN_TABLE_IU_PKG.TERRITORY_S_SP(
+            null   
+           ,v_cost_center
+					, out_cc_category_ref_cur);    
+  
+        when 'O' then
+ --         OTHER Table
+          v_break  :=  ('Entered the OTHER Category Routine ' );
+          CCN_TABLE_IU_PKG.OTHER_S_SP(
+            v_cost_center  
+					, out_cc_category_ref_cur);  
+ --          MARKETING Table
+          CCN_TABLE_IU_PKG.MARKETING_S_SP(
+            v_cost_center
+          , null
+					, out_marketing_ref_cur);
+           --         TAXWARE Table
+          CCN_TABLE_IU_PKG.TAXWARE_S_SP(
+            v_cost_center
+					, out_taxware_ref_cur);             
+
+        when 'M' then
+
+ --         OTHER Table
+          v_break  :=  ('Entered the OTHER Category Routine ' );
+          CCN_TABLE_IU_PKG.OTHER_S_SP(
+            v_cost_center  
+					, out_cc_category_ref_cur);  
+ --          MARKETING Table
+          CCN_TABLE_IU_PKG.MARKETING_S_SP(
+            v_cost_center
+          , null
+					, out_marketing_ref_cur);
+           --         TAXWARE Table
+          CCN_TABLE_IU_PKG.TAXWARE_S_SP(
+            v_cost_center
+					, out_taxware_ref_cur);             
+          
+     END CASE;         
+--
+--
+/**  Call STATUS Reference Cursor  ***/
+--
+v_break  := ('Entered the STATUS Routine ' 
+             || ' in_cost_center = ' || v_cost_center 
+             || ' category <' || v_cost_center_rowtype.category || '> ');
+--
+      CCN_TABLE_IU_PKG.STATUS_S_SP(
+            v_cost_center          
+ 					, null
+ 					, out_status_ref_cur);
+--
+--
+/**  Call TYPE Reference Cursor  ***/
+--
+v_break  := ('Entered the STATUS Routine ' 
+             || ' in_cost_center = ' || v_cost_center 
+             || ' category <' || v_cost_center_rowtype.category || '> ');
+--
+      CCN_TABLE_IU_PKG.TYPE_S_SP(
+            v_cost_center          
+ 					, null
+          , out_type_ref_cur);
+--
+--
+/**  Call PHONE Reference Cursor  ***/
+--
+v_break  := ('Entered the PHONE Routine ' 
+             || ' in_cost_center = ' || v_cost_center 
+             || ' category <' || v_cost_center_rowtype.category || '> ');
+--
+      CCN_TABLE_IU_PKG.PHONE_S_SP(
+            v_cost_center          
+ 					, out_phone_ref_cur);
+--
+--
+/******************************************************************************
+	Call the ADDRESS_UI_SP procedure to obtain the "Mailing" address only for 
+	the cost center being processed.
+  
+ v_address_type is set to 'M' 
+*******************************************************************************/	
+--	
+v_break  :=  ('Entered the ADDRESS Routine ' 
+               || ' in_cost_center = ' || v_cost_center 
+               || ' category <' || v_cost_center_rowtype.category || '>'
+               || ' address type <' || v_address_type || '>'
+               || ' country <' || v_cost_center_rowtype.country_code || '> ' );
+--
+/**  Call ADDRESS Reference Cursor  based on country_code ***/  
+--
+--      CCN_TABLE_IU_PKG.ADDRESS_UI_SP(
+      ADDRESS_UI_SP(
+            v_cost_center
+          , v_cost_center_rowtype.country_code
+          , v_address_type
+ 					, out_address_ref_cur);
+--
+   v_break  := ('Ended call to COST_CENTER_UI_SP ' );
+--   
+--
+ EXCEPTION
+       
+       when invalid_cost_center_err then  
+        v_code := errnums.en_invalid_cost_center_err;
+        errpkg.raise_err(v_code, 'COST_CENTER_UI_SP.invalid_cost_center_err '
+        || v_break,    
+        'Entered Cost_Center_Code was "' ||  v_COST_CENTER || '". ' || 
+        'CCN_TABLE_IU_PKG ' || 'Cost Center is not found - Would you like to Add? '
+        ); 
+        
+       when OTHERS then
+                    v_code := sqlcode;
+                    v_errm := substr(sqlerrm,1, 500);
+                    errpkg.raise_err(v_code, v_errm || ' ' 
+                    || v_break || ' ' 
+                    || 'COST_CENTER_UI_SP Error '
+                    );   
+ 
+       
+       null;
+  
+end COST_CENTER_UI_SP;
+
+
+PROCEDURE POLLING_UI_SP (
+/******************************************************************************
+	POLLING_UI_SP   --    Polling User Interface Stored Procedure
+
+	This procedure is intended to return a ref cursor with data from 
+	from the POLLING, BANK_CARD, and TERMINAL tables.  
+
+created : 09/05/2012 TAL CCN Project....
+********************************************************************************/
+            in_cost_center            in  polling.cost_center_code%type
+ 					, in_polling_status_code    in  polling.polling_status_code%type
+          , in_merchant_id_code       in  bank_card.merchant_id%type
+          , in_terminal_number        in  terminal.terminal_number%type
+					, out_polling_refcur        out sys_refcursor
+ 					, out_bank_card_refcur      out sys_refcursor
+			    , OUT_TERMINAL_REFCUR       OUT SYS_REFCURSOR
+          )
+       is
+
+v_code                 number;
+v_errm                 varchar(500);
+v_break                VARCHAR(100);
+V_POLLING_STATUS_CODE POLLING.POLLING_STATUS_CODE%TYPE;
+invalid_cost_center_err     EXCEPTION;
+V_COST_CENTER          COST_CENTER.COST_CENTER_CODE%TYPE;
+BEGIN --  POLLING_UI_SP     
+
+  BEGIN
+  v_break  := ('Convert the in_cost_center to 6 digit ' );
+    
+  v_cost_center := common_tools.cost_center_look_up_fnc(in_COST_CENTER);
+  EXCEPTION
+     WHEN OTHERS then
+           raise invalid_cost_center_err;
+                  
+  END; -- get 6 digit Cost Center
+
+/**  Call POLLING Reference Cursor  ***/
+
+      v_break   :=    'Begin call to CCN_TABLE_IU_PKG.POLLING_S_SP ';
+
+      CCN_TABLE_IU_PKG.POLLING_S_SP(
+            in_cost_center          
+ 					, v_polling_status_code        
+					, OUT_POLLING_REFCUR);  
+          
+      v_break   :=    'Ended call to CCN_TABLE_IU_PKG.POLLING_S_SP ';      
+      
+/**  Call BANK_CARD Reference Cursor  ***/
+
+      v_break   :=    'Begin call to CCN_TABLE_IU_PKG.BANK_CARD_S_SP ';
+
+      CCN_TABLE_IU_PKG.BANK_CARD_S_SP(
+            in_cost_center          
+ 					, v_polling_status_code
+          , in_merchant_id_code
+					, OUT_BANK_CARD_REFCUR);
+
+      v_break   :=    'Ended call to CCN_TABLE_IU_PKG.BANK_CARD_S_SP ';
+      
+/**  Call TERMINAL Reference Cursor  ***/
+
+      V_BREAK   :=    'Begin call to CCN_TABLE_IU_PKG.TERMINAL_S_SP ';
+      CCN_TABLE_IU_PKG.TERMINAL_S_SP(
+            in_cost_center          
+ 					, V_POLLING_STATUS_CODE
+          , in_terminal_number
+					, out_terminal_refcur);
+
+      v_break   :=    'Ended call to CCN_TABLE_IU_PKG.TERMINAL_S_SP ';
+
+ EXCEPTION  
+ 
+        when invalid_cost_center_err then  
+        v_code := errnums.en_invalid_cost_center_err;
+        errpkg.raise_err(v_code, 'POLLING_UI_SP.invalid_cost_center_err '
+        || v_break,    
+        'Entered Cost_Center_Code was "' ||  v_COST_CENTER || '". ' || 
+        'CCN_TABLE_IU_PKG ' || 'Cost Center is not found'
+        ); 
+        
+       when OTHERS then
+                    v_code := sqlcode;
+                    v_errm := substr(sqlerrm,1, 500);
+                    errpkg.raise_err(v_code, v_errm ||
+             		'COST_CENTER_UI_SP Error ' || 
+                'Last Break Point was '    || v_break );   
+ 
+       null;
+ 
+END POLLING_UI_SP;
+
+PROCEDURE POLLING_UI_UPSERT_SP ( 
+/******************************************************************************
+	POLLING_UI_UPSERT_SP   --    POLLING User Interface Update/Insert Procedure
+
+	This procedure is intended to update the database for the following tables 
+       used in the Polling UI.
+
+	Tables: 
+            POLLING
+          , BANK_CARD
+          , TERMINAL
+  
+created : 11/09/2012 MDH CCN Project....
+revised : 12/19/2012 MDH take inserts/updates out of loop process.
+revised:   08/26/2013 CCN Project : Business Rules Validation ....
+*******************************************************************************/
+--
+in_row_data  IN  varchar2)--sys.xmltype 
+
+is
+--cursor to get table names....
+
+cursor TABLES_CUR is
+
+    	SELECT
+           distinct table_name
+      	FROM all_tab_columns a
+      	WHERE owner = 'COSTCNTR'
+      	AND table_name not like 'TEMP%'
+        AND table_name not like '%$%';
+
+/*
+*/
+v_Row_data xmltype := sys.xmltype(in_row_data);
+
+v_row_value varchar2(500);
+v_row_xml_frag sys.xmltype;
+v_row_xml_clob_frag clob;
+v_xml_frag clob;
+--
+v_code number;
+v_errm varchar2(500);
+--
+v_xml_polling_frag clob;
+v_xml_bank_card_frag clob;
+v_xml_terminal_frag clob;
+--
+V_BANK_CARD_ROWTYPE      BANK_CARD%rowtype;
+V_POLLING_ROWTYPE        POLLING%rowtype;
+V_TERMInAL_ROWTYPE       TERMINAL%rowtype;
+--
+v_count integer := 1;
+--
+BEGIN
+--
+--    Removing fragments to send to individual procedures.
+--
+--Validating Business Rules
+VALIDATE_BUSINESS_RULES('POLLING',in_row_data);
+
+ FOR tables_rec in tables_cur loop 
+    
+    if (v_Row_data.existsNode('/POLLING_UI/'|| tables_rec.table_name) = 1) then
+     
+        v_xml_frag := v_Row_data.extract('/POLLING_UI/'|| tables_rec.table_name).getCLOBVal();
+     
+        CASE tables_rec.table_name
+            when 'POLLING'   then 
+            	V_XML_POLLING_FRAG   := V_XML_FRAG;
+            when 'BANK_CARD' then 
+            	V_XML_BANK_CARD_FRAG := V_XML_FRAG;
+            	
+        else
+            null;
+        END CASE;
+    end if;
+
+    
+--
+--
+ END LOOP; --TABLES_CUR
+--
+--
+--********************************************************************************
+-- POLLING insert/update process - must be processed before BANK_CARD or TERMINAL
+--*********************************************************************************
+   BEGIN
+       IF V_XML_POLLING_FRAG  IS NOT NULL  THEN
+              CCN_TABLE_IU_PKG.POLLING_I_SP (
+                 'POLLING'             
+                , v_xml_polling_frag
+                , v_polling_rowtype );
+                
+       end if;
+
+
+     EXCEPTION
+          when dup_val_on_index  then
+            BEGIN
+              CCN_TABLE_IU_PKG.POLLING_U_SP (
+                  'POLLING'
+                , v_xml_polling_frag 
+                , V_POLLING_ROWTYPE );
+            EXCEPTION 
+               WHEN OTHERS THEN 
+                   v_code  := SQLCODE;
+                   v_errm  := substr(SQLERRM,1,200);
+                   errpkg.raise_err(v_code, 'POLLING_UI_UPSERT_SP ' ||
+                   v_errm ||
+                   ' Polling Update Error ' );
+           END;
+   END;
+--
+--
+--******************************************************************************
+-- TERMINAL insert/update process with loop - This is processed second
+--******************************************************************************
+-- 
+     WHILE v_Row_data.existsNode('/POLLING_UI/TERMINAL_TABLE/' || 'TERMINAL' || '[' || v_count || ']') = 1 LOOP
+
+           v_xml_terminal_frag := v_Row_data.extract('/POLLING_UI/TERMINAL_TABLE/'|| 'TERMINAL' || '[' || v_count || ']').getCLOBVal();
+ 
+            -- TERMINAL insert/update process 
+            BEGIN
+                if v_xml_terminal_frag  is not null  then
+                    CCN_TABLE_IU_PKG.TERMINAL_I_SP (
+                      'TERMINAL'             
+                     , v_xml_terminal_frag
+                     , v_terminal_rowtype );
+                end if;
+            EXCEPTION
+                  when dup_val_on_index  then
+                   BEGIN
+                       CCN_TABLE_IU_PKG.TERMINAL_U_SP (
+                           'TERMINAL'
+                         , v_xml_terminal_frag 
+                         , v_terminal_rowtype );
+                    EXCEPTION 
+                        WHEN OTHERS THEN 
+                            v_code  := SQLCODE;
+                            v_errm  := substr(SQLERRM,1,200);
+                            errpkg.raise_err(v_code, 'POLLING_UI_UPSERT_SP ' ||
+                            v_errm  ||
+                            ' Terminal Update Error ' );
+                    END;  
+            END;
+--                
+            v_count := v_count + 1;
+--                
+     END LOOP; -- TERMINALS
+--
+--
+--******************************************************************************
+-- BANK_CARD insert/update process - This is processed third
+--******************************************************************************
+   BEGIN
+          IF V_XML_BANK_CARD_FRAG  IS NOT NULL  THEN 
+              CCN_TABLE_IU_PKG.BANK_CARD_I_SP (
+                 null
+               , null
+               , null
+               , null
+               , 'BANK_CARD'
+               , null
+               , v_xml_bank_card_frag);
+          end if;
+   EXCEPTION
+         when dup_val_on_index  then
+          BEGIN
+              CCN_TABLE_IU_PKG.BANK_CARD_U_SP (
+                  null
+                , null
+                , null
+                , null
+                , 'BANK_CARD'
+                , null
+                , V_XML_BANK_CARD_FRAG); 
+         EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'POLLING_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' Bank_Card Update Error ' );
+          END; 
+   END;
+   
+   --Below call will check if there are any warnings and raise those from here
+   ERRPKG.RAISE_WARNINGS();
+
+--
+--
+EXCEPTION
+
+    when others then
+        v_code  := SQLCODE;
+        v_errm  := substr(SQLERRM,1,200);
+        errpkg.raise_err(v_code, 'POLLING_UI_UPSERT_SP ' ||
+                            v_errm || ' in Others ' );
+                            
+END POLLING_UI_UPSERT_SP;
+
+PROCEDURE ADDRESS_UI_UPSERT_SP ( 
+/******************************************************************************
+	ADDRESS_UI_UPSERT_SP   --    ADDRESS User Interface Update/Insert Procedure
+
+	This procedure is intended to update the database for the following tables 
+       used in the ADDRESS UI.
+
+	Tables: 
+            ADDRESS_CAN, 
+            ADDRESS_USA, 
+            ADDRESS_MEX, 
+            ADDRESS_OTHER
+  
+created : 12/12/2012 TAL CCN Project....
+revised : 08/26/2013 CCN Project : Business Rules Validation ....
+*******************************************************************************/
+
+in_row_data  IN  varchar2 ) --sys.xmltype 
+
+is
+--cursor to get table names....
+
+cursor TABLES_CUR is
+
+    	SELECT
+           distinct table_name
+      	FROM all_tab_columns a
+      	WHERE owner = 'COSTCNTR'
+      	AND table_name not like 'TEMP%'
+        AND table_name not like '%$%';
+
+/*
+*/
+
+v_Row_data xmltype := sys.xmltype(in_Row_data);
+
+-- v_row_value varchar2(500);
+-- v_row_xml_frag sys.xmltype;
+-- v_row_xml_clob_frag clob;
+v_xml_frag clob;
+--
+v_code number;
+v_errm varchar2(500);
+--
+v_xml_ADDRESS_CAN_frag clob;
+v_xml_ADDRESS_USA_frag clob;
+v_xml_ADDRESS_MEX_frag clob;
+v_xml_ADDRESS_OTH_frag clob;
+--
+V_ADDRESS_CAN_ROWTYPE        ADDRESS_CAN%rowtype;
+V_ADDRESS_USA_ROWTYPE        ADDRESS_USA%rowtype;
+V_ADDRESS_MEX_ROWTYPE        ADDRESS_MEX%rowtype;                           
+V_ADDRESS_OTH_ROWTYPE        ADDRESS_OTHER%rowtype;
+--
+v_count integer := 1;
+
+begin
+
+    
+--Validating Business Rules
+VALIDATE_BUSINESS_RULES('ADDRESS',in_row_data);
+
+--    Removing fragments to send to individual procedures.
+
+ for tables_rec in tables_cur loop 
+    
+    if (v_Row_data.existsNode('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name) = 1) then
+     
+     
+        --v_xml_frag := v_Row_data.extract('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name).getCLOBVal();
+		v_xml_frag := v_Row_data.extract('/ADDRESS_UI_UPSERT').getCLOBVal();
+     
+        case tables_rec.table_name
+            when 'ADDRESS_CAN'   then v_xml_ADDRESS_CAN_frag   := v_xml_frag;
+            when 'ADDRESS_USA'   then v_xml_ADDRESS_USA_frag   := v_xml_frag;
+            when 'ADDRESS_MEX'   then v_xml_ADDRESS_MEX_frag   := v_xml_frag;
+            when 'ADDRESS_OTHER' then v_xml_ADDRESS_OTH_frag   := v_xml_frag;
+        else
+            null;
+        end case;
+        
+BEGIN      -- ADDRESS Processing
+           
+  BEGIN      -- ADDRESS_CAN Insert Process 
+          
+            if v_xml_ADDRESS_CAN_frag  is not null  then
+                    
+                CCN_TABLE_IU_PKG.ADDRESS_CAN_I_SP (
+                    null                                --in_cost_center
+                  , null                                --in_address_type
+                  , null                                --in_effective_date
+                  , 'ADDRESS_CAN'                       --in_table_name
+                  , null                                --in_row_date
+                  , V_XML_ADDRESS_CAN_FRAG );           --in_row_data   xml
+         
+            end if;
+          
+         EXCEPTION
+            WHEN OTHERS THEN
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,200);
+                errpkg.raise_err(v_code, 'ADDRESS_CAN_UI_UPSERT_SP ' ||
+                v_errm ||
+                ' ADDRESS_CAN Insert Error ' );
+
+            
+  END;       -- ADDRESS_CAN Insert Process 
+           
+  BEGIN      -- ADDRESS_USA Insert Process 
+          
+            if v_xml_ADDRESS_USA_frag  is not null  then
+                    
+                CCN_TABLE_IU_PKG.ADDRESS_USA_I_SP (
+                    null                                --in_cost_center
+                  , null                                --in_address_type
+                  , null                                --in_effective_date
+                  , 'ADDRESS_USA'                       --in_table_name
+                  , null                                --in_row_date
+                  , v_xml_ADDRESS_USA_frag );           --in_row_data   xml
+                     
+            end if;
+          
+         EXCEPTION
+            WHEN OTHERS THEN
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,200);
+                errpkg.raise_err(v_code, 'ADDRESS_USA_UI_UPSERT_SP ' ||
+                v_errm ||
+                ' ADDRESS_USA Insert Error ' );
+                
+            
+  END;       -- ADDRESS_USA Insert Process 
+           
+  BEGIN      -- ADDRESS_MEX Insert Process 
+          
+            if v_xml_ADDRESS_MEX_frag  is not null  then
+                    
+                CCN_TABLE_IU_PKG.ADDRESS_MEX_I_SP (
+                    null                                --in_cost_center
+                  , null                                --in_address_type
+                  , null                                --in_effective_date
+                  , 'ADDRESS_MEX'                       --in_table_name
+                  , null                                --in_row_date
+                  , v_xml_ADDRESS_MEX_frag );           --in_row_data   xml
+                
+         
+            end if;
+          
+         EXCEPTION
+            WHEN OTHERS THEN
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,200);
+                errpkg.raise_err(v_code, 'ADDRESS_MEX_UI_UPSERT_SP ' ||
+                v_errm ||
+                ' ADDRESS_MEX Insert Error ' );
+                
+            
+  END;       -- ADDRESS_MEX Insert Process 
+           
+  BEGIN      -- ADDRESS_OTH Insert Process 
+          
+            if v_xml_ADDRESS_OTH_frag  is not null  then
+            
+                CCN_TABLE_IU_PKG.ADDRESS_OTHER_I_SP (
+                    null                                --in_cost_center
+                  , null                                --in_address_type
+                  , null                                --in_effective_date
+                  , 'ADDRESS_OTHER'                     --in_table_name
+                  , null                                --in_row_date
+                  , v_xml_ADDRESS_OTH_frag );           --in_row_data   xml
+                
+         
+            end if;
+          
+         EXCEPTION
+            WHEN OTHERS THEN
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,200);
+                errpkg.raise_err(v_code, 'ADDRESS_OTH_UI_UPSERT_SP ' ||
+                v_errm ||
+                ' ADDRESS_OTH Insert Error ' );
+                
+            
+  END;       -- ADDRESS_OTH Insert Process 
+
+END;       -- ADDRESS Processing
+
+End if;    -- if (v_Row_data.existsNode('/ADDRESS_UI_UPSERT/'
+
+
+ end loop; --TABLES_CUR
+
+exception
+
+    when others then
+        v_code  := SQLCODE;
+        v_errm  := substr(SQLERRM,1,200);
+        errpkg.raise_err(v_code, 'ADDRESS_UI_UPSERT_SP ' ||
+                            v_errm || ' in Others ' );
+
+END ADDRESS_UI_UPSERT_SP;
+
+PROCEDURE COST_CENTER_UI_UPSERT_SP ( 
+ /******************************************************************************
+	COST_CENTER_UI_UPSERT_SP   --    Cost Center User Interface Update delete
+        Procedure
+
+	This procedure is intended to update the database for the following tables used in
+        Cost Center UI.
+	Tables: 
+              COST_CENTER
+           ,  ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
+            , STATUS
+            , TYPE
+            , MARKETING
+            , PHONE
+            , TAXWARE
+            , ADDRESS tables.  
+
+created : 10/26/2012 KDP CCN Project....
+revised:   12/03/2012 BLR  CCN Project....
+revised:   08/26/2013 CCN Project : Business Rules Validation ....
+*******************************************************************************/
+
+ in_row_data  in varchar2) --sys.xmltype
+ 
+ IS
+
+--cursor to get table names....
+
+ cursor TABLES_CUR is
+ 
+ SELECT table_name
+ FROM insertorder
+ ORDER BY table_order
+ ;
+
+v_Row_data xmltype := sys.xmltype(in_Row_data);
+
+in_table_name varchar2(25);
+
+v_row_value varchar2(500);
+v_row_xml_frag sys.xmltype;
+v_row_xml_clob_frag clob;
+v_xml_frag clob;
+--
+v_code number;
+v_errm varchar2(500);
+
+--
+v_xml_cost_center_frag clob;
+v_xml_phone_frag clob;
+v_xml_addr_usa_frag clob;
+v_xml_addr_can_frag clob;
+v_xml_addr_oth_frag clob;
+v_xml_addr_mex_frag clob;
+v_xml_type_frag clob;
+v_xml_status_frag clob;
+v_xml_taxware_frag clob;
+v_xml_marketing_frag clob;
+v_xml_administration_frag clob;
+v_xml_store_frag clob;
+v_xml_other_frag clob;
+v_xml_real_estate_frag clob;
+v_xml_territory_frag clob;
+--
+
+V_COST_CENTER_ROWTYPE      COST_CENTER%rowtype;
+V_PHONE_ROWTYPE                  PHONE%rowtype;
+V_ADDRUSA_ROWTYPE              ADDRESS_USA%rowtype;
+V_ADDRCAN_ROWTYPE              ADDRESS_CAN%rowtype;
+V_ADDRMEX_ROWTYPE              ADDRESS_MEX%rowtype;
+V_ADDROTHER_ROWTYPE          ADDRESS_OTHER%rowtype;
+V_TYPE_ROWTYPE                     TYPE%rowtype;
+V_STATUS_ROWTYPE                  STATUS%rowtype;
+V_TAXWARE_ROWTYPE              TAXWARE%rowtype;
+V_MARKETING_ROWTYPE           MARKETING%rowtype;
+V_TERRITORY_ROWTYPE            TERRITORY%rowtype;
+V_STORE_ROWTYPE                   STORE%rowtype;
+V_OTHER_ROWTYPE                   OTHER%rowtype;
+V_ADMINISTRATION_ROWTYPE    ADMINISTRATION%rowtype;
+V_REAL_ESTATE_ROWTYPE        REAL_ESTATE%rowtype;
+
+--
+v_count integer := 1;
+begin
+
+--
+--    Removing fragments to send to individual procedures.
+--
+
+--Validating Business Rules
+VALIDATE_BUSINESS_RULES('COST_CENTER',in_row_data);
+
+ for tables_rec in tables_cur loop 
+
+    if (v_Row_data.existsNode('/COST_CENTER_UI/ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/'|| tables_rec.table_name) = 1) then
+    
+       v_xml_frag := v_Row_data.extract('/COST_CENTER_UI/ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/'|| tables_rec.table_name).getCLOBVal();
+
+       if tables_rec.table_name in ('ADDRESS_USA', 'ADDRESS_CAN', 'ADDRESS_MEX', 'ADDRESS_OTHER') then  
+    --      EXECUTE CC_ADDRESS_TABLES_UI; 
+              CCN_TABLE_IU_PKG.CC_ADDRESS_TABLES_UI_SP (
+              tables_rec.table_name                      
+             ,in_Row_data);         
+       end if;
+
+	end if;
+   
+    if (v_Row_data.existsNode('/COST_CENTER_UI/'|| tables_rec.table_name) = 1) then
+     
+        v_xml_frag := v_Row_data.extract('/COST_CENTER_UI/'|| tables_rec.table_name).getCLOBVal();
+     
+        case tables_rec.table_name
+            when 'COST_CENTER' 	then v_xml_cost_center_frag := v_xml_frag;
+            when 'STATUS' 		  then v_xml_status_frag := v_xml_frag;
+            when 'TYPE'		      then v_xml_type_frag := v_xml_frag;
+            when 'TAXWARE'	  	then v_xml_taxware_frag := v_xml_frag;
+            when 'MARKETING'		then v_xml_marketing_frag := v_xml_frag;
+            when 'ADMINISTRATION' 	then v_xml_administration_frag := v_xml_frag;
+            when 'STORE' 	     	then v_xml_store_frag := v_xml_frag;
+            when 'OTHER'		    then v_xml_other_frag := v_xml_frag;
+            when 'REAL_ESTATE'	then v_xml_real_estate_frag := v_xml_frag;
+            when 'TERRITORY'		then v_xml_territory_frag := v_xml_frag;		
+--            when 'ADDRESS_USA' 	then v_xml_addr_usa_frag := v_xml_frag;
+--            when 'ADDRESS_CAN' 	then v_xml_addr_can_frag := v_xml_frag;
+--            when 'ADDRESS_MEX' 	then v_xml_addr_mex_frag := v_xml_frag;
+            when 'ADDRESS_OTHER'	then v_xml_addr_oth_frag := v_xml_frag;           
+        else
+            null;
+        end case;
+
+        in_table_name := tables_rec.table_name;  		
+ 
+ 
+        if tables_rec.table_name in ('ADMINISTRATION', 'STORE', 'OTHER', 'REAL_ESTATE', 'TERRITORY') then  
+    --      EXECUTE CC_ADDTL_TABLES_UI; 
+    
+            CCN_TABLE_IU_PKG.CC_ADDTL_TABLES_UI_SP (
+             in_table_name                      
+            ,in_Row_data
+            );
+                             
+        end if;
+            
+ --  COST_CENTER insert/update process 
+       begin
+        
+          if v_xml_cost_center_frag  is not null  
+          	and tables_rec.table_name = 'COST_CENTER' then
+                CCN_TABLE_IU_PKG.COST_CENTER_I_SP (
+                  null   
+                , 'COST_CENTER' 
+                , null
+                , v_xml_cost_center_frag);    
+                 --   , v_cost_center_rowtype );
+           end if; 
+          
+       EXCEPTION
+          when dup_val_on_index  then 
+            begin
+              CCN_TABLE_IU_PKG.COST_CENTER_U_SP (                 
+                 null   
+                , 'COST_CENTER' 
+                , null
+                , v_xml_cost_center_frag);        
+	
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' Cost Center Update Error ' );
+            end;
+       end;
+
+ --  STATUS insert/update process 
+ 
+       begin
+       
+          if v_xml_status_frag  is not null 
+          and tables_rec.table_name = 'STATUS' then
+          
+              CCN_TABLE_IU_PKG.STATUS_I_SP (
+                'STATUS'             
+                , v_xml_status_frag                
+                , V_STATUS_ROWTYPE );
+            end if;
+      EXCEPTION
+          when dup_val_on_index  then
+            begin
+              CCN_TABLE_IU_PKG.STATUS_U_SP (
+                'STATUS'
+                , v_xml_status_frag                 
+                , v_status_rowtype );
+                
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' Status Update Error ' );
+            end;
+      end;
+
+ --  TYPE insert/update process 
+
+      begin
+        
+          if v_xml_type_frag  is not null 
+          and tables_rec.table_name = 'TYPE' then
+              CCN_TABLE_IU_PKG.TYPE_I_SP (
+                 'TYPE'                
+                , v_xml_type_frag                
+                , V_TYPE_ROWTYPE );
+          end if;
+      EXCEPTION
+          when dup_val_on_index  then
+            begin
+              CCN_TABLE_IU_PKG.TYPE_U_SP (
+                  'TYPE'             
+                , v_xml_type_frag                
+                , v_type_rowtype );
+                
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' Type Update Error ' );
+           end;
+      end;
+
+
+--  MARKETING insert/update process 
+
+       begin
+        
+          if v_xml_marketing_frag  is not null 
+          and tables_rec.table_name = 'MARKETING' then
+              CCN_TABLE_IU_PKG.MARKETING_I_SP (                            
+                       null
+                     , null                     
+                     , 'MARKETING'   
+                     , null
+                     , v_xml_marketing_frag);                 
+             
+          end if;
+       EXCEPTION
+          when dup_val_on_index  then
+            begin
+              CCN_TABLE_IU_PKG.MARKETING_U_SP (                  
+                       null
+                     , null                     
+                     , 'MARKETING'   
+                     , null
+                     , v_xml_marketing_frag); 
+
+                                          
+                     
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' MARKETING Update Error ' );
+           end;
+        end;
+
+--  TAXWARE insert/update process 
+
+       begin
+                
+          if v_xml_taxware_frag  is not null 
+          and tables_rec.table_name = 'TAXWARE' then
+          
+              CCN_TABLE_IU_PKG.TAXWARE_I_SP (                            
+                 'TAXWARE' 
+                , v_xml_taxware_frag
+                , V_TAXWARE_ROWTYPE);    
+          end if;                             
+          
+       EXCEPTION
+          when dup_val_on_index  then
+            begin
+              CCN_TABLE_IU_PKG.TAXWARE_U_SP (                  
+                 'TAXWARE' 
+                , v_xml_taxware_frag
+                , v_taxware_rowtype);  
+                
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                 v_errm ||
+                 ' TAXWARE Update Error ' );
+           end;
+        end;
+
+  end if;   
+
+ -- 
+      if (v_Row_data.existsNode('/COST_CENTER_UI/PHONE_TABLE/' || tables_rec.table_name || '[' || v_count || ']') = 1) then
+ --/COST_CENTER_UI/PHONE_TABLE/PHONE[1] 
+        
+              WHILE V_ROW_DATA.EXISTSNODE('/COST_CENTER_UI/PHONE_TABLE/' || TABLES_REC.TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+                 v_xml_phone_frag := v_Row_data.extract('/COST_CENTER_UI/PHONE_TABLE/'|| tables_rec.table_name || '[' || v_count || ']').getCLOBVal();
+ 
+                
+    
+ --  PHONE_TABLE insert/update process 
+              begin
+              
+                if v_xml_phone_frag  is not null  then
+                   CCN_TABLE_IU_PKG.PHONE_I_SP (
+                       null
+                     , null                     
+                     , 'PHONE'   
+                     , null
+                     , v_xml_phone_frag);                    
+                  
+                end if;
+          
+              EXCEPTION
+                 when dup_val_on_index  then
+                   begin
+                     CCN_TABLE_IU_PKG.PHONE_U_SP (
+                       null
+                     , null                     
+                     , 'PHONE'   
+                     , null
+                     , v_xml_phone_frag);
+
+
+                     
+              EXCEPTION 
+                 WHEN OTHERS THEN 
+                   v_code  := SQLCODE;
+                   v_errm  := substr(SQLERRM,1,200);
+                   errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+                   v_errm ||
+                   ' Phone Update Error ' );
+             end;
+           end;
+              v_count := v_count + 1;
+              
+              END LOOP; --phone loop
+      end if;    
+
+
+
+   end loop; --tables_cur
+    EXCEPTION
+    when others then
+         v_code  := SQLCODE;
+         v_errm  := substr(SQLERRM,1,200);
+         errpkg.raise_err(v_code, 'COST_CENTER_UI_UPSERT_SP ' ||
+          v_errm ||
+          ' Errors' );
+ 
+END COST_CENTER_UI_UPSERT_SP;
+
+PROCEDURE VALIDATE_BUSINESS_RULES(
+ /******************************************************************************
+	VALIDATE_BUSINESS_RULES   --    User Interface Update delete business rules validator
+
+	This procedure is intended to validate the business rules based on the flag sent using
+  the input XML fragment.
+
+created : 08/26/2013 CCN Project....
+*******************************************************************************/
+IN_FLAG      IN VARCHAR2,
+IN_ROW_DATA  IN VARCHAR2)
+IS
+   TYPE    GenCurTyp   IS REF CURSOR;
+   SUBTYPE XMLFragType IS VARCHAR2(32000);
+   
+   V_GENERIC_CURSOR            GenCurTyp;
+   V_TABLE_NAME                VARCHAR2(500);
+   V_XML_FRAG                  XMLFragType;
+   V_ROW_DATA                  XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+   V_COUNT                     NUMBER;
+   V_ROW_DATE                  DATE;
+   
+   V_XML_COST_CENTER_FRAG      XMLFragType;
+   V_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE;
+   V_XML_ADDR_CAN_FRAG         XMLFragType;
+   V_ADDRESS_CAN_ROWTYPE       ADDRESS_CAN%ROWTYPE;
+   V_XML_ADDR_MEX_FRAG         XMLFragType;
+   V_ADDRESS_MEX_ROWTYPE       ADDRESS_MEX%ROWTYPE;
+   V_XML_ADDR_OTH_FRAG         XMLFragType;
+   V_ADDRESS_OTHER_ROWTYPE     ADDRESS_OTHER%ROWTYPE;
+   V_XML_ADDR_USA_FRAG         XMLFragType;
+   V_ADDRESS_USA_ROWTYPE       ADDRESS_USA%ROWTYPE;
+   V_XML_TYPE_FRAG             XMLFragType;
+   V_XML_STATUS_FRAG           XMLFragType;
+   V_XML_TAXWARE_FRAG          XMLFragType;
+   V_XML_MARKETING_FRAG        XMLFragType;
+   V_XML_ADMINISTRATION_FRAG   XMLFragType;
+   V_XML_STORE_FRAG            XMLFragType;
+   V_XML_OTHER_FRAG            XMLFragType;
+   V_XML_REAL_ESTATE_FRAG      XMLFragType;
+   V_XML_TERRITORY_FRAG        XMLFragType;
+   V_XML_BANK_CARD_FRAG        XMLFragType;
+   V_XML_POLLING_FRAG          XMLFRAGTYPE;
+   V_POLLING_ROWTYPE           POLLING%ROWTYPE;
+   V_XML_PHONE_FRAG            XMLFragType;
+   V_XML_PHONE_PRI_FRAG        XMLFragType;
+   V_XML_PHONE_SCD_FRAG        XMLFragType;
+   V_XML_SALES_REP_FRAG        XMLFragType;
+   V_XML_TERMINAL_FRAG         XMLFragType;
+   V_TERMINAL_ROWTYPE          TERMINAL%ROWTYPE;
+   V_XML_TERR_ASGN_FRAG        XMLFragType;
+   V_XML_TERR_SLS_MGR_FRAG     XMLFragType;
+   
+   V_FRAGMENT_HEADER           VARCHAR2(100);
+   
+BEGIN
+
+   CASE
+
+      WHEN IN_FLAG = 'COST_CENTER' THEN
+
+         --Set the XML search header for Cost Center UI Process
+         V_FRAGMENT_HEADER := '/COST_CENTER_UI/';
+
+         --Opening Ref cursor for Cost Center UI Process
+         OPEN V_GENERIC_CURSOR FOR
+            SELECT CASE TABLE_NAME
+                      WHEN 'PHONE'         THEN 'PHONE_TABLE/PHONE'
+                      WHEN 'TERMINAL'      THEN 'TERMINAL_TABLE/TERMINAL'
+                      WHEN 'ADDRESS_CAN'   THEN 'ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/ADDRESS_CAN'
+                      WHEN 'ADDRESS_MEX'   THEN 'ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/ADDRESS_MEX'
+                      WHEN 'ADDRESS_OTHER' THEN 'ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/ADDRESS_OTHER'
+                      WHEN 'ADDRESS_USA'   THEN 'ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/ADDRESS_USA'
+                      ELSE TABLE_NAME
+                   END CASE
+              FROM INSERTORDER
+             ORDER BY TABLE_ORDER;
+             
+         --We need to cerate the Cost Center Record Type here itself during Cost Center creation
+         --as address validations requires this record type as input from this procedure
+         V_XML_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || 'COST_CENTER').GETSTRINGVAL();
+         CCN_TABLE_IU_PKG.COST_CENTER_ROWTYPE_SP(NULL
+                                                 ,'COST_CENTER'  
+                                                 ,V_ROW_DATE    
+                                                 ,V_XML_FRAG    
+                                                 ,V_COST_CENTER_ROWTYPE );
+
+         --Validate Duplicate cost center code [Based on last four characters of cost center code]
+         COMMON_TOOLS.CHECK_DUP_COST_CENTER(V_COST_CENTER_ROWTYPE.COST_CENTER_CODE
+                                           ,V_COST_CENTER_ROWTYPE.CATEGORY);
+      WHEN IN_FLAG IN ('ADDRESS','POLLING') THEN
+
+         CASE
+
+            WHEN IN_FLAG = 'ADDRESS' THEN
+               --Set the XML search header for Address UI Process
+               V_FRAGMENT_HEADER := '/ADDRESS_UI_UPSERT/';
+            WHEN IN_FLAG = 'POLLING' THEN
+               --Set the XML search header for Polling UI Process
+               V_FRAGMENT_HEADER := '/POLLING_UI/';
+               
+               --We need to cerate the Polling Record Type here itself
+               --as terminal validations requires this record type as input from this procedure
+               V_XML_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || 'POLLING').GETSTRINGVAL();
+               CCN_TABLE_IU_PKG.POLLING_ROWTYPE_SP('POLLING'  
+                                                   ,V_XML_FRAG    
+                                                   ,V_POLLING_ROWTYPE );
+            ELSE NULL;
+
+         END CASE;
+
+         --Opening Ref cursor for Polling / Address UI Process
+         OPEN V_GENERIC_CURSOR FOR
+            SELECT DISTINCT
+                   CASE TABLE_NAME
+                      WHEN 'TERMINAL'      THEN 'TERMINAL_TABLE/TERMINAL'
+                      ELSE TABLE_NAME
+                   END CASE
+              FROM ALL_TAB_COLUMNS A
+             WHERE OWNER = 'COSTCNTR'
+               AND TABLE_NAME NOT LIKE 'TEMP%'
+               AND TABLE_NAME NOT LIKE '%$%';
+      ELSE NULL;
+
+   END CASE;
+
+   LOOP
+
+      FETCH V_GENERIC_CURSOR INTO V_TABLE_NAME;
+      IF (V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME) = 1) THEN
+
+         V_XML_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME).GETSTRINGVAL();
+
+         --Extracting fragments for each required table, if present
+         CASE
+            --For ADDRESS_CAN, ADDRESS_MEX, ADDRESS_OTHER, ADDRESS_USA the XML Fragment comes differently[Multiple Levels] as coded below
+-- removed kdp needs debugging
+            WHEN V_TABLE_NAME LIKE '%ADDRESS_CAN'         THEN --V_XML_ADDR_CAN_FRAG       := V_XML_FRAG;
+                 V_COUNT := 1;
+
+                 WHILE V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+
+                    V_XML_ADDR_CAN_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']').GETSTRINGVAL();
+
+                    IF V_XML_ADDR_CAN_FRAG  IS NOT NULL  THEN
+
+                       CCN_TABLE_IU_PKG.ADDRESS_CAN_ROWTYPE_SP(NULL
+                                                              ,NULL
+                                                              ,NULL
+                                                              ,'ADDRESS_CAN'
+                                                              ,V_ROW_DATE    
+                                                              ,V_XML_ADDR_CAN_FRAG    
+                                                              ,V_ADDRESS_CAN_ROWTYPE);
+                       
+                       CCN_BUSINESS_RULES_PKG.ADDRESS_CAN_BR_SP(V_ADDRESS_CAN_ROWTYPE, V_COST_CENTER_ROWTYPE ); 
+                       
+                    END IF;
+
+                    V_COUNT := V_COUNT + 1;
+                    
+                  END LOOP;
+            WHEN V_TABLE_NAME LIKE '%ADDRESS_MEX'         THEN --V_XML_ADDR_MEX_FRAG       := V_XML_FRAG;
+                 V_COUNT := 1;
+
+                 WHILE V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+
+                    V_XML_ADDR_MEX_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']').GETSTRINGVAL();
+
+                    IF V_XML_ADDR_MEX_FRAG  IS NOT NULL  THEN
+
+                       CCN_TABLE_IU_PKG.ADDRESS_MEX_ROWTYPE_SP(NULL
+                                                              ,NULL
+                                                              ,NULL
+                                                              ,'ADDRESS_MEX'
+                                                              ,V_ROW_DATE    
+                                                              ,V_XML_ADDR_MEX_FRAG    
+                                                              ,V_ADDRESS_MEX_ROWTYPE);
+                       
+                       CCN_BUSINESS_RULES_PKG.ADDRESS_MEX_BR_SP(V_ADDRESS_MEX_ROWTYPE, V_COST_CENTER_ROWTYPE ); 
+                       
+                    END IF;
+
+                    V_COUNT := V_COUNT + 1;
+
+                 END LOOP;
+            WHEN V_TABLE_NAME LIKE '%ADDRESS_OTHER'       THEN --V_XML_ADDR_OTH_FRAG       := V_XML_FRAG;
+                 V_COUNT := 1;
+
+                 WHILE V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+
+                    V_XML_ADDR_OTH_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']').GETSTRINGVAL();
+
+                    IF V_XML_ADDR_OTH_FRAG  IS NOT NULL  THEN
+
+                       CCN_TABLE_IU_PKG.ADDRESS_OTHER_ROWTYPE_SP(NULL
+                                                                ,NULL
+                                                                ,NULL
+                                                                ,'ADDRESS_OTHER'
+                                                                ,V_ROW_DATE    
+                                                                ,V_XML_ADDR_OTH_FRAG    
+                                                                ,V_ADDRESS_OTHER_ROWTYPE);
+                       
+                       CCN_BUSINESS_RULES_PKG.ADDRESS_OTH_BR_SP(V_ADDRESS_OTHER_ROWTYPE, V_COST_CENTER_ROWTYPE ); 
+                       
+                    END IF;
+
+                    V_COUNT := V_COUNT + 1;
+
+                 END LOOP;
+
+            WHEN V_TABLE_NAME LIKE '%ADDRESS_USA'         THEN --V_XML_ADDR_USA_FRAG       := V_XML_FRAG;
+                 V_COUNT := 1;
+
+                 WHILE V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+
+                    V_XML_ADDR_USA_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']').GETSTRINGVAL();
+
+                    IF V_XML_ADDR_USA_FRAG  IS NOT NULL  THEN
+
+                       CCN_TABLE_IU_PKG.ADDRESS_USA_ROWTYPE_SP(NULL
+                                                              ,NULL
+                                                              ,NULL
+                                                              ,'ADDRESS_USA'
+                                                              ,V_ROW_DATE    
+                                                              ,V_XML_ADDR_USA_FRAG    
+                                                              ,V_ADDRESS_USA_ROWTYPE);
+                       
+                       CCN_BUSINESS_RULES_PKG.ADDRESS_USA_BR_SP(V_ADDRESS_USA_ROWTYPE, V_COST_CENTER_ROWTYPE ); 
+                       
+                    END IF;
+
+                    V_COUNT := V_COUNT + 1;
+
+                 END LOOP;
+            WHEN V_TABLE_NAME LIKE 'ADMINISTRATION'       THEN V_XML_ADMINISTRATION_FRAG := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'BANK_CARD'            THEN V_XML_BANK_CARD_FRAG      := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'COST_CENTER'          THEN V_XML_COST_CENTER_FRAG    := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'MARKETING'            THEN V_XML_MARKETING_FRAG      := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'OTHER'                THEN V_XML_OTHER_FRAG          := V_XML_FRAG;
+            --For PHONE_TABLE the XML Fragment comes differently as coded below for COST_CENTER
+            WHEN V_TABLE_NAME LIKE '%PHONE'          THEN
+            
+                 IF (V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[1]') = 1) THEN
+                    V_XML_PHONE_PRI_FRAG  := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[1]').GETSTRINGVAL();
+                 END IF;
+            
+                 IF (V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[2]') = 1) THEN
+                    V_XML_PHONE_SCD_FRAG  := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[2]').GETSTRINGVAL();
+                 END IF;
+
+                 IF (V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[3]') = 1) THEN
+                    V_XML_PHONE_FRAG      := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[3]').GETSTRINGVAL();
+                 END IF;
+            
+            WHEN V_TABLE_NAME LIKE 'POLLING'              THEN V_XML_POLLING_FRAG        := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'REAL_ESTATE'          THEN V_XML_REAL_ESTATE_FRAG    := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'SALES_REP'            THEN V_XML_SALES_REP_FRAG      := V_XML_FRAG; -- Found Table
+            WHEN V_TABLE_NAME LIKE 'STATUS'               THEN V_XML_STATUS_FRAG         := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'STORE'                THEN V_XML_STORE_FRAG          := V_XML_FRAG;
+            --For TERMINAL_TABLE the XML Fragment comes differently[Multiple Levels] as coded below for POLLING
+            WHEN V_TABLE_NAME LIKE '%TERMINAL'       THEN -- Found Table
+                 V_COUNT := 1;
+
+                 WHILE V_ROW_DATA.EXISTSNODE(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']') = 1 LOOP
+
+                    V_XML_TERMINAL_FRAG := V_ROW_DATA.EXTRACT(V_FRAGMENT_HEADER || V_TABLE_NAME || '[' || V_COUNT || ']').GETSTRINGVAL();
+
+                    IF V_XML_TERMINAL_FRAG  IS NOT NULL  THEN
+
+                       CCN_TABLE_IU_PKG.TERMINAL_ROWTYPE_SP('TERMINAL' 
+                                                            ,V_XML_TERMINAL_FRAG
+                                                            ,V_TERMINAL_ROWTYPE);
+
+                       CCN_BUSINESS_RULES_PKG.TERMINAL_BR_SP(V_TERMINAL_ROWTYPE,
+                                                             V_POLLING_ROWTYPE);
+
+                    END IF;
+
+                    V_COUNT := V_COUNT + 1;
+
+                 END LOOP;
+            WHEN V_TABLE_NAME LIKE 'TERRITORY'            THEN V_XML_TERRITORY_FRAG      := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'TERRITORY_ASSIGNMENT' THEN V_XML_TERR_ASGN_FRAG      := V_XML_FRAG; -- Found Table
+            WHEN V_TABLE_NAME LIKE 'TERRITORY_SALES_MGR'  THEN V_XML_TERR_SLS_MGR_FRAG   := V_XML_FRAG; -- Found Table
+            WHEN V_TABLE_NAME LIKE 'TYPE'                 THEN V_XML_TYPE_FRAG           := V_XML_FRAG;
+            WHEN V_TABLE_NAME LIKE 'TAXWARE'              THEN V_XML_TAXWARE_FRAG        := V_XML_FRAG;
+            ELSE NULL;
+
+         END CASE;
+
+      END IF;
+
+      EXIT WHEN V_GENERIC_CURSOR%NOTFOUND;
+
+   END LOOP;
+
+   --Close the cursor before exiting the function
+   IF V_GENERIC_CURSOR%ISOPEN THEN
+       CLOSE V_GENERIC_CURSOR;
+   END IF;
+
+   --Calling the business rules package with all these obtained fragments as inputs
+   CCN_BUSINESS_RULES_PKG.BUSINESS_RULES_SP(V_XML_ADDR_CAN_FRAG,
+                                            V_XML_ADDR_MEX_FRAG,
+                                            V_XML_ADDR_OTH_FRAG,
+                                            V_XML_ADDR_USA_FRAG,
+                                            V_XML_ADMINISTRATION_FRAG,
+                                            V_XML_BANK_CARD_FRAG,
+                                            V_XML_COST_CENTER_FRAG,
+                                            V_XML_MARKETING_FRAG,
+                                            V_XML_OTHER_FRAG,
+                                            V_XML_PHONE_FRAG,
+                                            V_XML_PHONE_PRI_FRAG,
+                                            V_XML_PHONE_SCD_FRAG,
+                                            V_XML_POLLING_FRAG,
+                                            V_XML_REAL_ESTATE_FRAG,
+                                            V_XML_SALES_REP_FRAG,
+                                            V_XML_STATUS_FRAG,
+                                            V_XML_STORE_FRAG,
+                                            V_XML_TERMINAL_FRAG,
+                                            V_XML_TERRITORY_FRAG,
+                                            V_XML_TERR_ASGN_FRAG,
+                                            V_XML_TERR_SLS_MGR_FRAG,
+                                            V_XML_TYPE_FRAG);
+
+EXCEPTION
+   WHEN OTHERS THEN
+      --Close the cursor if it is already open
+      IF V_GENERIC_CURSOR%ISOPEN THEN
+          CLOSE V_GENERIC_CURSOR;
+      END IF;
+      
+      --Raise the exception all the way back to the place where it is logged
+      errpkg.raise_err(SQLCODE, ' VALIDATE_BUSINESS_RULES (xmltype) Error ', SUBSTR(SQLERRM,12, 500));
+END VALIDATE_BUSINESS_RULES;
+
+FUNCTION TERMINAL_NUMBER_S
+/*********************************************************************
+TERMINAL_NUMBER_S
+This function will return the next terminal number from the 
+sequence terminal_number_seq
+*************************************************************************/
+   RETURN NUMBER 
+AS 
+ V_SEQUENCE_NUMBER NUMBER := TERMINAL_NUMBER_SEQ.NEXTVAL;
+ BEGIN 
+ -- WHILE V_SEQUENCE_NUMBER = TERMINAL_NUMBER_SEQ.NEXTVAL
+		IF V_SEQUENCE_NUMBER IN ('771882', '99111', '99112', '99308') THEN 
+			RETURN TERMINAL_NUMBER_S;
+  	ELSE
+	   RETURN V_SEQUENCE_NUMBER;
+	END IF;
+END TERMINAL_NUMBER_S;
+
+end CCN_UI_INTERFACE_APP_PKG;
+

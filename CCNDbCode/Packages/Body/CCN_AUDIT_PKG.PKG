@@ -1,0 +1,786 @@
+CREATE OR REPLACE PACKAGE BODY CCN_AUDIT_PKG as 
+/*********************************************************** 
+This package has procedures and functions related to the audit_log table
+created : 02/29/2012 tal CCN project
+revisions: 
+************************************************************/
+
+FUNCTION XML_EXTRACT_NO_EXCEPTION
+/**********************************************************
+This function returns null if XPATH does not exist within xmltype, 
+oracle throws an exception if not handled this way
+**********************************************************/
+( p_xml IN XMLTYPE
+, p_xpath IN VARCHAR2
+) RETURN VARCHAR2 
+
+IS
+
+BEGIN
+
+    RETURN 
+	    CASE WHEN P_XML.EXTRACT(P_XPATH) IS NOT NULL THEN
+	      p_xml.extract(p_xpath || '/text()').getstringval()
+	    ELSE 
+	       NULL
+	    END;
+
+END XML_EXTRACT_NO_EXCEPTION;
+
+FUNCTION REQUIRED_TABLE_CHECK
+/**********************************************************
+this function checks for the table to be excluded or included
+by checking the excluded indicator and the table name from the 
+'CCN_AUDIT_EXCLUDED_TABLES' table
+
+created : 08/20/2012
+**********************************************************/
+(IN_TABLE_NAME   IN   VARCHAR2)
+RETURN VARCHAR2
+IS
+  L_RETURN_VALUE VARCHAR2(1) := 'Y';
+BEGIN
+
+  SELECT CASE WHEN COUNT(*) > 0 THEN
+                    'N'
+                   ELSE
+                    'Y'
+                   END CASE
+    INTO L_RETURN_VALUE
+    FROM CCN_AUDIT_EXCLUDED_TABLES
+   WHERE TABLE_NAME         = UPPER(IN_TABLE_NAME)
+     AND EXCLUDED_INDICATOR = 'Y';
+
+  RETURN L_RETURN_VALUE;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN L_RETURN_VALUE;
+END REQUIRED_TABLE_CHECK;
+
+FUNCTION IS_COSTCNTR_IN_GLOBAL_HRCHY(
+/**********************************************************
+	IS_COSTCNTR_IN_GLOBAL_HRCHY
+
+	This function returns true if the cost center is associated with global hierarchy
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 09/10/2013 kdp CCN Project....
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_COUNT             NUMBER := 0;
+   V_COST_CENTER_CODE  VARCHAR2(10);
+BEGIN
+   --For Hierarchy_Detail, the key will of any two below formats
+   IF in_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+      --If 3 digits prior to last '|' is ~~~ meaning its last level
+      IF SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-3,3) = '~~~' THEN
+         --GLOBAL_HIERARCHY|9|0101010106510101|0101010106510101888842|~~~|11-SEP-13
+         --Extract prior 6 characters from SECOND LAST '|' for cost center, in example 888842
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
+      ELSE --If 3 digits prior to last '|' is NOT ~~~ meaning its 2nd last level
+         --GLOBAL_HIERARCHY|8|01010101065101|0101010106510101|0101010106510101888842|11-SEP-13
+         --Extract prior 6 characters from LAST '|' for cost center, in example 888842
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-6,6);
+      END IF;
+   ELSE
+      IF in_TABLE_NAME = 'TERRITORY' THEN
+	       V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
+	      
+      	 --|02295B|755547|T|
+      	 --Getting last cost center after 2nd '|' from the end
+      ELSE   
+         --Transaction Id input will have format as |888826|S|AA|05-SEP-13| for all other tables apart from Hierarchy_Detail
+         --i.e.., from 2nd character till 7th character its the cost center code = 888826 in above example
+         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,2,6);
+      END IF;
+   END IF;
+   CCN_HIERARCHY.update_cc_global_hrchy_ind(V_COST_CENTER_CODE);
+   
+   --Below query will check if cost center is part of global hierarchy
+   SELECT COUNT(*) INTO V_COUNT
+     FROM COST_CENTER
+    WHERE COST_CENTER_CODE              = V_COST_CENTER_CODE
+      AND NVL(GLOBAL_HIERARCHY_IND,'N') = 'Y';
+
+   IF V_COUNT = 1 THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN FALSE;
+END IS_COSTCNTR_IN_GLOBAL_HRCHY;
+
+PROCEDURE SELECT_AUDIT_HIERARCHY_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process for hierarchy_detail table alone
+
+created : 06/07/2012
+**********************************************************/
+
+IS
+
+CURSOR SEL_AUDIT_LOG IS
+SELECT DISTINCT TABLE_NAME,
+       TRANSACTION_ID
+  FROM AUDIT_LOG
+ WHERE AUDIT_REC_FLAG IS NULL
+   AND TABLE_NAME = 'HIERARCHY_DETAIL'
+   AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                              FROM BATCH_JOB
+                             WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
+
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+DIFF_XML            XMLTYPE;
+v_code              NUMBER;
+V_LOG_ID            NUMBER;
+v_errm              varchar2(500);  
+V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
+V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+v_change_type       varchar2(1) := 'A';
+       
+BEGIN
+
+V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
+CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+    BEGIN
+         --Process the record only if cost center in the key is associated with global
+         --NOTE: All details of other hierarchies also should be taken in to consideration 
+         IF IS_COSTCNTR_IN_GLOBAL_HRCHY(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME) THEN
+            SAVEPOINT NEXT_AUDIT_REC;
+
+            V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+
+            PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
+                                  ,SEL_AUDIT_REC.TRANSACTION_ID
+                                  ,V_CC_CODE
+  				                        ,V_CHANGE_TYPE
+                                  ,DIFF_XML
+                                  ,V_LOG_ID);
+
+            V_CONTEXT:='Call procedure Build_File_SP';
+            BUILD_FILE_SP(V_CC_CODE
+                          ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
+                          ,SYSDATE			--in_ROW_DATE   IN DATE
+                          ,DIFF_XML			--in_Row_data   IN sys.xmltype
+                          ,V_CHANGE_TYPE
+                          ,V_LOG_ID);
+            --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
+            UPDATE AUDIT_LOG
+               SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
+             WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+               AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+               AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y';
+         ELSE
+            --set the GLOBAL_HIERARCHY_SKIP_FLAG to 'Y', which means pick again in further batch processing
+            UPDATE AUDIT_LOG
+               SET GLOBAL_HIERARCHY_SKIP_FLAG = 'Y'
+             WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+               AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+               AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
+               AND AUDIT_REC_FLAG             IS NULL;
+         END IF;
+      EXCEPTION
+           WHEN OTHERS THEN
+             ROLLBACK TO NEXT_AUDIT_REC;
+             V_TRANS_STATUS := 'ERROR';
+             v_code  := SQLCODE;
+             v_errm  := substr(SQLERRM,1,500);
+             --write to error log
+             errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_HIERARCHY_LOG', v_errm, V_CC_CODE); 
+      END;
+     
+END LOOP;  
+      
+      V_CONTEXT:='Updating the Status in batch_job table';
+      CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+      
+EXCEPTION WHEN OTHERS THEN
+         
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+	ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_HIERARCHY_LOG',V_CONTEXT);
+ 
+END SELECT_AUDIT_HIERARCHY_LOG;
+
+PROCEDURE SELECT_AUDIT_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process
+
+created : 06/07/2012
+**********************************************************/
+
+IS
+
+/*CURSOR SEL_AUDIT_LOG IS
+SELECT 'COST_CENTER' AS TABLE_NAME --AL.TABLE_NAME
+,'12345678'AS TRANSACTION_ID       --,AL.TRANSACTION_ID
+FROM DUAL;
+*/
+
+CURSOR SEL_AUDIT_LOG IS
+/*SELECT DISTINCT AL.TABLE_NAME,
+                AL.TRANSACTION_ID
+  FROM AUDIT_LOG AL,
+       BATCH_JOB BATCH
+ WHERE BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
+   AND AL.TRANSACTION_DATE  >= BATCH.BATCH_JOB_LAST_RUN_DATE
+--and    TABLE_NAME IN ('COST_CENTER','TAXWARE') -- for testing only, remove after testing
+   AND    BATCH.BATCH_JOB_LAST_RUN_DATE IN (SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+                                              FROM BATCH_JOB B1
+                                             WHERE B1.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+   AND AL.AUDIT_REC_FLAG IS NULL;*/
+SELECT DISTINCT TABLE_NAME,
+       TRANSACTION_ID
+  FROM AUDIT_LOG
+ WHERE AUDIT_REC_FLAG IS NULL
+   AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                              FROM BATCH_JOB
+                             WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
+
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+DIFF_XML            XMLTYPE;
+v_code              NUMBER;
+V_LOG_ID            NUMBER;
+v_errm              varchar2(500);  
+V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
+V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+v_change_type       varchar2(1) := 'A';
+       
+BEGIN
+
+V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
+CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+    BEGIN
+  
+            --Check if audit process is needed for the current table and if cost center is part of global hierarchy  
+            IF REQUIRED_TABLE_CHECK(SEL_AUDIT_REC.TABLE_NAME) = 'Y' THEN
+                  --Process the record only if cost center in the key is associated with global
+                  --NOTE: All details of other hierarchies also should be taken in to consideration 
+                  IF IS_COSTCNTR_IN_GLOBAL_HRCHY(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME) THEN
+                     SAVEPOINT NEXT_AUDIT_REC;
+                            
+                     V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+                     
+                     PARSE_DIFFERENCE_XML( SEL_AUDIT_REC.TABLE_NAME
+                                          ,SEL_AUDIT_REC.TRANSACTION_ID
+                                          ,V_CC_CODE
+  				                                ,V_CHANGE_TYPE
+                                          ,DIFF_XML
+                                          ,V_LOG_ID);
+
+                     V_CONTEXT:='Call procedure Build_File_SP';
+                     BUILD_FILE_SP(V_CC_CODE
+                                   ,SEL_AUDIT_REC.TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
+                                   ,SYSDATE			--in_ROW_DATE   IN DATE
+                                   ,DIFF_XML			--in_Row_data   IN sys.xmltype
+                                   ,V_CHANGE_TYPE
+                                   ,V_LOG_ID);
+                     --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
+                     UPDATE AUDIT_LOG
+                        SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
+                      WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+                        AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+                        AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y';
+                  ELSE
+                     --set the GLOBAL_HIERARCHY_SKIP_FLAG to 'Y', which means pick again in further batch processing
+                     UPDATE AUDIT_LOG
+                        SET GLOBAL_HIERARCHY_SKIP_FLAG = 'Y'
+                      WHERE TRANSACTION_ID             = SEL_AUDIT_REC.TRANSACTION_ID
+                        AND TABLE_NAME                 = SEL_AUDIT_REC.TABLE_NAME
+                        AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
+                        AND AUDIT_REC_FLAG             IS NULL;
+                  END IF;
+            END IF;
+      EXCEPTION
+           WHEN OTHERS THEN
+             ROLLBACK TO NEXT_AUDIT_REC;
+             V_TRANS_STATUS := 'ERROR';
+             v_code  := SQLCODE;
+             v_errm  := substr(SQLERRM,1,500);
+             --write to error log
+             errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_LOG', v_errm, V_CC_CODE); 
+      END;
+     
+END LOOP;  
+      
+      V_CONTEXT:='Updating the Status in batch_job table';
+      CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+      
+EXCEPTION WHEN OTHERS THEN
+         
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+	ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_LOG',V_CONTEXT);
+ 
+END SELECT_AUDIT_LOG;
+
+FUNCTION GET_HRCHY_DTL_LEVEL
+/**********************************************************
+this function gets the hierarchy detail level based on header value passed 
+using 'HIERARCHY_DESCRIPTION' table
+
+created : 08/21/2012
+**********************************************************/
+(IN_HRCHY_HDR_NAME   IN   VARCHAR2)
+RETURN VARCHAR2
+IS
+  L_RETURN_VALUE VARCHAR2(2) := 'XX';
+BEGIN
+
+  SELECT SUBSTR('00', 1,2 - LENGTH(HRCHY_HDR_LEVELS)) || HRCHY_HDR_LEVELS
+    INTO L_RETURN_VALUE
+    FROM HIERARCHY_HEADER
+   WHERE UPPER(HRCHY_HDR_NAME) = UPPER(IN_HRCHY_HDR_NAME);
+
+  RETURN L_RETURN_VALUE;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN L_RETURN_VALUE;
+END GET_HRCHY_DTL_LEVEL;
+
+PROCEDURE PARSE_DIFFERENCE_XML
+
+/*******************************************************
+Procedure to Parse xmls from the audit_log table and 
+create an output xml with the differences
+
+Author   : 
+
+versions : 02/22/2012
+*******************************************************/
+
+( IN_TABLE_NAME IN VARCHAR2
+, IN_KEY        IN VARCHAR2
+, OUT_CC_CODE 	OUT VARCHAR2
+, OUT_CHANGE_TYPE OUT VARCHAR2
+, OUT_DIFF OUT XMLTYPE
+, OUT_LOG_ID OUT NUMBER
+)
+
+IS
+
+ROW_CURR	          AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+V_LOG_ID_CURR       AUDIT_LOG.LOG_ID%TYPE;
+ROW_PREV	          AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+PK_CURR             AUDIT_LOG.TABLE_PK_VALUE%TYPE;
+V_LOG_ID_PREV       AUDIT_LOG.LOG_ID%TYPE;
+V_CONTEXT	          VARCHAR2(200);
+V_COSTCENTERCODE    COST_CENTER.COST_CENTER_CODE%TYPE;
+v_change_type       VARCHAR2(1);
+V_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+V_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+
+COMP_CURR           VARCHAR2(1000);
+COMP_PREV	          VARCHAR2(1000);
+
+XMLSTRING	          VARCHAR2(30000):='';
+
+SQ		              INTEGER; 
+SE		              VARCHAR2(1000);
+
+CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
+   SELECT COLUMN_NAME,
+          COLUMN_ID
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE
+   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
+   UNION
+   SELECT COLUMN_NAME,
+          COLUMN_ID
+     FROM CCN_ADDITIONAL_AUDIT_FIELDS
+    WHERE TABLE_NAME = IN_TABLE
+    ORDER BY COLUMN_ID ASC;
+
+BEGIN
+
+	V_CONTEXT := 'Selecting Previous Row from Audit_Log';
+
+	BEGIN
+
+   SELECT TABLE_ROW_DATA,
+          LOG_ID
+     INTO ROW_PREV,
+          V_LOG_ID_PREV
+     FROM AUDIT_LOG AL,
+          BATCH_JOB BATCH
+    WHERE AL.TABLE_NAME        = IN_TABLE_NAME
+      AND BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
+		  --AND TRUNC(BATCH.BATCH_JOB_LAST_RUN_DATE) = TRUNC(AL.AUDIT_REC_EFF_DATE)
+      AND AL.AUDIT_REC_FLAG    = 'R'
+      AND AL.TRANSACTION_ID    = IN_KEY
+      AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                    FROM AUDIT_LOG AL1
+                                   WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                     AND AL1.TRANSACTION_ID = IN_KEY
+                                     AND AL1.AUDIT_REC_FLAG = 'R')
+      AND BATCH.BATCH_JOB_LAST_RUN_DATE IN(SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+                                             FROM BATCH_JOB B1
+                                            WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG')
+      AND ROWNUM < 2
+    ORDER BY AL.LOG_ID DESC;
+    
+    V_CHANGE_TYPE := 'C';
+       
+	EXCEPTION
+
+		WHEN NO_DATA_FOUND THEN
+				
+					 v_change_type := 'A';
+	    --NULL;
+	END;
+	
+	V_CONTEXT := 'Selecting Current Row from Audit_Log';
+	
+  SELECT TABLE_ROW_DATA,
+         LOG_ID,
+         TABLE_PK_VALUE
+    INTO ROW_CURR,
+         V_LOG_ID_CURR,
+         PK_CURR -- Added to accomodate population of primary key columns in backFeed files generated
+    FROM AUDIT_LOG AL
+   WHERE TABLE_NAME        = IN_TABLE_NAME
+     AND AL.TRANSACTION_ID = IN_KEY
+     AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                   FROM AUDIT_LOG AL1
+                                  WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                    AND AL1.TRANSACTION_ID = IN_KEY)
+     AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
+                        FROM	AUDIT_LOG AL2
+                       WHERE AL2.TABLE_NAME = AL.TABLE_NAME
+                         AND AL2.TRANSACTION_ID = IN_KEY)
+     AND ROWNUM < 2;
+
+	V_CONTEXT := 'Parsing the XMLType';
+	
+	--Start building the XML string
+  
+	XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
+	
+	
+  FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
+
+    /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
+    p_xml.extract(p_xpath || '/text()').getstringval() */
+
+     IF V_CHANGE_TYPE = 'C' THEN
+        COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+     END IF; 
+     
+     COMP_CURR := XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME);
+
+     IF (COMP_CURR IS NULL) THEN
+         COMP_CURR := '~';
+     END IF;
+     
+     IF GET_COLS_REC.COLUMN_NAME = 'COST_CENTER_CODE' THEN
+        v_CostCenterCode := COMP_CURR;
+     END IF;
+
+	 IF IN_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+      IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_DTL_LEVEL' THEN
+	 	     V_HRCHY_DTL_LEVEL := COMP_CURR; 
+      END IF;
+      IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_HDR_NAME' THEN
+	 	     V_HRCHY_HDR_NAME := COMP_CURR; 
+      END IF;
+	 END IF;
+	
+   IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_DTL_CURR_ROW_VAL' AND V_HRCHY_DTL_LEVEL = GET_HRCHY_DTL_LEVEL(V_HRCHY_HDR_NAME) THEN
+			--Only for the final level of the hierarchy header we need to populate the Cost Center
+      v_CostCenterCode := COMP_CURR;
+	 END IF;
+	 
+
+
+     --If the elements have changed OR new row, append them to the XML string
+     IF v_change_type = 'A' THEN
+        XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+     ELSE
+        --Populate the XML String only if the value is changed or if particular column is part of primary key
+        --Also for Bank_Card table we should populate below fields with previous records value if it's a change
+        IF (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
+                                                                    'BANK_CARD - QUALITY_CODE',
+                                                                    'BANK_CARD - AMEX_SE_ID',
+                                                                    'BANK_CARD - DISCOVER_ID') THEN
+           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || NVL(COMP_PREV,'~') || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+        ELSE
+           IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
+              OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL THEN
+              XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+           END IF;
+        END IF;
+     END IF;
+
+	END LOOP;
+
+           V_CONTEXT := 'Updating the PREV AUDIT_REC_FLAG to C';
+            UPDATE AUDIT_LOG
+               SET AUDIT_REC_FLAG = 'C',
+                   AUDIT_REC_EFF_DATE = SYSDATE
+             WHERE TABLE_NAME = IN_TABLE_NAME
+               AND LOG_ID = V_LOG_ID_PREV
+               AND TRANSACTION_ID = IN_KEY
+               AND AUDIT_REC_FLAG = 'R';
+        
+            V_CONTEXT := 'Updating the CURR AUDIT_REC_FLAG to R';
+            UPDATE AUDIT_LOG
+               SET AUDIT_REC_FLAG = 'R'
+            WHERE TABLE_NAME = IN_TABLE_NAME
+               AND LOG_ID = V_LOG_ID_CURR
+               AND TRANSACTION_ID = IN_KEY
+               AND AUDIT_REC_FLAG IS NULL;
+               
+	V_CONTEXT := 'Final value being set';
+		
+	XMLSTRING := XMLSTRING || '</' || IN_Table_name || '>';
+		
+	V_CONTEXT := 'Converting to XMLType';
+	
+  --Convert the final XML String to XMLType and set it to the OUT parameter
+  
+	OUT_DIFF  := XMLType(XMLSTRING);
+	OUT_CC_CODE := v_CostCenterCode;
+	OUT_CHANGE_TYPE := v_change_type;
+  OUT_LOG_ID := V_LOG_ID_CURR;
+
+EXCEPTION WHEN OTHERS THEN
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+ 	ERRPKG.RAISE_ERR(-20003,'PARSE_DIFFERENCE_XML for ' || IN_TABLE_NAME || ' ' || IN_KEY || 'at ', V_CONTEXT);
+	
+END PARSE_DIFFERENCE_XML; 
+
+FUNCTION IS_COLUMN_PART_OF_KEY(
+/**********************************************************
+	IS_COLUMN_DT_PART_OF_PK
+
+	This function returns true if the passed input column part of key specified(as input)
+  in the passed input table
+
+in_TABLE_NAME - specifies the table name that needs to be verified for
+in_COLUMN_NAME - specifies the column name that needs to be verified for
+in_KEY_TYPE - specifies the key that needs to be verified for - 'P' => Primary Key
+
+created : 09/04/2012 kdp CCN Project....
+**********************************************************/
+in_TABLE_NAME  IN VARCHAR2,
+in_COLUMN_NAME IN VARCHAR2,
+in_KEY_TYPE    IN VARCHAR2) RETURN BOOLEAN IS
+   V_COUNT NUMBER := 0;
+BEGIN
+   SELECT COUNT(*) INTO V_COUNT
+     FROM all_constraints cons,
+          all_cons_columns cols
+    WHERE cons.constraint_type = upper(in_KEY_TYPE)
+      AND cols.table_name      = upper(in_TABLE_NAME)
+      AND cols.column_name     = upper(in_COLUMN_NAME)
+      AND cons.constraint_name = cols.constraint_name
+      AND cons.owner           = cols.owner
+      AND cols.owner           = 'COSTCNTR';
+
+   IF V_COUNT = 1 THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN FALSE;
+END IS_COLUMN_PART_OF_KEY;
+
+PROCEDURE Build_File_SP (
+/**********************************************************
+	Build_File_SP
+
+	This procedure is intended to build a file based on the table layout
+	in order to be consumed by the Mainframe to backfill Legacy MainFrame
+
+	CostCenter - Cost Center that changed
+	OracleTableName -Table name for row
+	varible (based on the table that was updated)
+
+
+created : 02/21/2012 kdp CCN Project....
+**********************************************************/
+IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+,in_TABLE_NAME IN VARCHAR2
+,in_ROW_DATE   IN DATE
+,in_Row_data    IN sys.XMLTYPE           
+,in_CHANGE_TYPE in VARCHAR2
+,in_LOG_ID      in NUMBER
+)
+ is 
+CURSOR table_fields_cur IS
+   SELECT COLUMN_NAME,
+          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+          DATA_TYPE,
+          COLUMN_ID
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE_NAME
+   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
+   UNION
+   SELECT COLUMN_NAME,
+          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+          DATA_TYPE,
+          COLUMN_ID
+     FROM CCN_ADDITIONAL_AUDIT_FIELDS
+    WHERE TABLE_NAME = IN_TABLE_NAME
+    ORDER BY COLUMN_ID ASC;
+--;
+--
+
+  PATH        	        VARCHAR2(50) := 'CCN_DATAFILES'; -- directory created in Oracle database UNTIL NEW ONE CREATED
+  filename  	          VARCHAR2(50) := in_TABLE_NAME || '_backfeed' ;
+  stamp       		      VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- used to create timestamp for data file 
+  v_cost_center		      VARCHAR2(6)  := '      '; --added for spaces with tables that don't use cost center
+  V_CHANGE_TYPE         VARCHAR2(1);
+  output_file 		      UTL_FILE.FILE_TYPE;
+-------------
+  l_out_file            UTL_FILE.FILE_TYPE;
+  l_buffer              RAW(32767);
+  l_amount              BINARY_INTEGER := 32767;
+  l_pos                 INTEGER        := 1;
+  L_BLOB_LEN            INTEGER;
+  v_out_clob            CLOB;
+  v_value               VARCHAR2(32000);
+  V_CONTEXT	            VARCHAR2(200);
+  SQ		                INTEGER; 
+  SE		                VARCHAR2(1000);
+
+BEGIN
+
+   -- working just remove for debbuging un comment for writing file
+   V_CONTEXT := 'Creating the file on server';
+   output_file := UTL_FILE.FOPEN (path
+                                  ,filename|| stamp
+                                  , 'w' --binary
+                                 , 32767);
+   --adding header information for the backload file
+   IF IN_COST_CENTER IS NOT NULL THEN
+      V_COST_CENTER := IN_COST_CENTER; 
+   END IF;
+
+V_CONTEXT := 'Generating the CLOB Output';
+   
+   --Getting the Change Type : 
+   --For Hierarchy_Detail table it should always be 'A'
+   --For all other tables it should be 'C', except for tables that come as 'C' and having effective date 
+   -- as part of primary key in which case it should be 'D'
+   IF IN_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+      V_CHANGE_TYPE := 'A';
+   ELSE
+      IF IN_CHANGE_TYPE = 'C' AND IS_COLUMN_PART_OF_KEY(IN_TABLE_NAME,'EFFECTIVE_DATE','P') THEN
+         V_CHANGE_TYPE := 'D';
+      ELSE
+         V_CHANGE_TYPE := 'C';
+      END IF;
+   END IF;
+   
+   --V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
+   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || LPAD(in_LOG_ID,14,'0') ||
+                 V_CHANGE_TYPE; --IN_CHANGE_TYPE;
+   
+   FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+ 
+      IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+         V_CONTEXT := 'Building by extracting the Existing Data';
+         IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - POS_PROG_VER_NBR' )) THEN
+            V_OUT_CLOB := V_OUT_CLOB ||
+                          UPPER(LPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
+                                     TABLE_FIELDS_REC.COLUMN_SIZE, '0'));
+         ELSE
+            
+            v_value := UPPER(RPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
+                                      TABLE_FIELDS_REC.COLUMN_SIZE));
+            
+            --If there is a change and if the changed value is null then it comes here as '~'
+            --We need to capture these ~'s and convert into proper formatting
+            --like we do for null values for specific fields
+            IF TRIM(v_value) = '~' THEN
+            
+               --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
+               IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
+            
+                  V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
+                  --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
+                  --which have null values so that we can pass it to main frame
+                  --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
+            
+               ELSE
+            
+                  IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
+                                                                               'BANK_CARD - QUALITY_CODE',
+                                                                               'BANK_CARD - AMEX_SE_ID',
+                                                                               'BANK_CARD - DISCOVER_ID',
+                                                                               'PHONE - PHONE_NUMBER',
+                                                                               'PHONE - PHONE_AREA_CODE',
+                                                                               'ADDRESS_USA - DESTINATION_POINT',
+                                                                               'ADDRESS_USA - CHECK_DIGIT'))) THEN
+                     V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
+            
+                  ELSE
+                     V_OUT_CLOB := V_OUT_CLOB || v_value;
+                  END IF;
+               
+               END IF;
+            
+            ELSE
+               V_OUT_CLOB := V_OUT_CLOB || v_value;
+            END IF;   
+            
+         END IF;
+ 
+      ELSE
+         V_CONTEXT := 'Building by extracting the Non-Existing Data';
+         V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
+      END IF;
+   END LOOP;
+    
+  --working just remove for debbuging un comment for writing file
+     UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
+     UTL_FILE.FCLOSE(output_file);
+EXCEPTION WHEN OTHERS THEN
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+ 
+ 	ERRPKG.RAISE_ERR(-20003,'Build_File_SP in ' || IN_TABLE_NAME || ' for ' || IN_COST_CENTER || 'at ', V_CONTEXT);
+END Build_File_SP;
+
+END CCN_AUDIT_PKG;
+

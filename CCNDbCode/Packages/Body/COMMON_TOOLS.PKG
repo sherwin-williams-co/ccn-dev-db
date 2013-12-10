@@ -1,0 +1,872 @@
+CREATE OR REPLACE 
+PACKAGE BODY COMMON_TOOLS as 
+/*********************************************************** 
+This package BODY is intended to hold reuseable objects that are 
+available to be used by the entire schema
+
+-	DATE_BLANK(in_date)
+created : 08/24/2010 kdp 
+revised : 05/30/2013 mdh EXPIRE_DATA_SP changes.
+************************************************************/
+
+PROCEDURE ALTER_ALL_TRIGGERS ( 
+/******************************************************************************
+	ALTER_ALL_TRIGGERS   --    Alter all table(s) triggers
+
+	This procedure will enable and/or disable all table(s) triggers based on an
+  input "status" parameter.  
+	  
+created : 11/14/2012 MDH CCN Project....
+*******************************************************************************/
+IN_STATUS  IN VARCHAR2 )
+IS
+CURSOR c_tr IS (SELECT 'ALTER TRIGGER ' || 
+                        trigger_name AS stmnt FROM USER_TRIGGERS);
+--
+--
+v_code number;
+v_errm varchar2(500);
+--
+BEGIN
+--
+IF IN_STATUS NOT IN ('ENABLE', 'enable', 'DISABLE', 'disable') THEN 
+   DBMS_OUTPUT.PUT_LINE('COMMON_TOOLS.ALTER_ALL_TRIGGERS ' ||
+                        'Status: <' || IN_STATUS  || '>' ||
+                        ' IS Invalid, only ' || 'ENABLE or DISABLE' ||
+                        ' are accepted as valid parameters');
+   RAISE VALUE_ERROR;
+END IF;
+--
+FOR tr IN c_tr LOOP
+      EXECUTE IMMEDIATE tr.stmnt || ' ' || IN_STATUS;
+END LOOP;
+--
+  EXCEPTION
+--
+        WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'COMMONT_TOOLS.ALTER_ALL_TRIGGERS' ||
+                 v_errm ||
+                 'Polling Update Error' );
+--
+END alter_all_triggers;
+
+FUNCTION CODE_DETAIL_VALID
+/**********************************************************
+	CODE_DETAIL_VALID(in_field_name, in_value_code)
+		code_detail_valid function will be used to verify if a value is valid for a field.
+    The field name and the field value must be passed.  
+    This function will return a TRUE or FALSE condition. 
+
+created : 08/15/2012 tal Cost Center Nucleus project.....
+**********************************************************/
+  ( in_field_name  in  varchar2
+  , in_value_code  in  varchar2
+  ) return boolean as 
+
+   v_count  number;
+
+begin
+
+    select  count(1)  into  v_count
+     from     code_detail
+    where CODE_DETAIL.CODE_HEADER_NAME   =  IN_FIELD_NAME
+     and  CODE_DETAIL.CODE_DETAIL_VALUE  =  IN_VALUE_CODE;
+
+    if  v_count > 0  then  --  entry was found in the CODE_DETAIL table
+        return true;
+    else                   --  entry not found in the CODE_DETAIL table
+        return false;
+    end if;
+    
+end code_detail_valid;
+
+FUNCTION COMPUTE_EXPIRATION_DATE
+/******************************************************************************
+	COMPUTE_EXPIRATOIN_DATE (in_date)
+  
+		This function will be used to read in a date and subtract one day
+    from that date (effective) and return a new date (expiration) which
+    is one day prior.
+    
+    The an input date must be passed.  
+    This function will return a new (expiration) date. 
+
+created : 12/04/2012 mdh Cost Center Nucleus project.....
+revised:
+******************************************************************************/
+  ( in_date  in  date 
+   ) return date 
+   IS 
+
+v_return_date date ;
+v_curr_date date := sysdate;
+v_code number;
+v_errm varchar(500);
+
+begin
+ 	if in_date is not null then
+    	v_return_date := in_date - 1; -- input date minus 1 day
+	else
+		v_return_date := v_curr_date - 1;  -- default date
+	end if; 
+	return(v_return_date);
+   
+END COMPUTE_EXPIRATION_DATE;
+
+
+PROCEDURE COUNTY_NAMES_S_SP (
+/*******************************************************************************
+	COUNTY_NAMES_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the COUNTY_NAME table. For a State_code entered a Ref_Cursor will be 
+  returned pointing to a table of all the County_Names for that State_Code
+
+created : 06/07/2013 tal CCN Project....
+changed : 
+*******************************************************************************/
+     in_STATE_CODE  IN  COUNTY_NAMES.STATE_CODE%TYPE
+		,out_REF_CUR    OUT sys_refcursor   )
+        IS
+        
+v_code number;
+v_errm varchar2(500);
+
+	BEGIN
+
+		  OPEN out_REF_CUR FOR
+			  
+			  SELECT * 
+			  FROM COUNTY_NAMES
+			  where state_code = in_STATE_CODE;
+	  
+  EXCEPTION
+	  WHEN OTHERS THEN 
+      v_code  := SQLCODE;
+      v_errm  := substr(SQLERRM,1,200);
+      errpkg.raise_err(v_code, 'COUNTY_NAMES_S_SP, ' || ' ' ||
+             ' STATE_CODE is ' || in_STATE_CODE || '; ' || v_errm);
+                     
+END COUNTY_NAMES_S_SP;
+
+
+FUNCTION DATE_BLANK
+/**********************************************************
+	DATE_BLANK(in_date)
+		blank Date function to fill in default date to an oracle NULL for insert into tables
+		this is created since oracle cannot handle blank strings being converted to 
+		date fields
+
+created : 08/24/2010 kdp Payroll reporting project.....
+**********************************************************/
+    (in_date in varchar2)
+    RETURN varchar2
+IS 
+
+v_return_date VARCHAR2(12);
+
+BEGIN
+	if ascii(in_date) = '32' then
+    	v_return_date := ''; -- default date
+	else
+		v_return_date := in_date;
+	end if; 
+	
+	return(v_return_date);
+   
+END DATE_BLANK;
+
+procedure EMPLOYEE_DATA_S_SP   
+/*******************************************************************************
+	EMPLOYEE_DATA_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the EMP_DATA table.  Specifically, this procedure is intended to 
+  return the Social Security Number (national Identifier), given the 
+  GEMS Employee ID necessary for the Feed-Back Process into the IDMS
+  System.
+
+created : 10/22/2012 MDH CCN Project....
+changed : 
+*******************************************************************************/
+ ( IN_GEMS_EMPLOYEE_ID   IN  EMP_DATA.EMPLOYEE_NUMBER%TYPE
+                          , OUT_EMP_DATA_ROWTYPE OUT EMP_DATA%rowtype)
+        is         
+--
+emp_data_not_act_exp              EXCEPTION;
+no_emp_data_exp                   EXCEPTION;
+-- 
+v_code number;
+v_errm varchar2(500);
+v_curr_date date := sysdate;
+v_break                varchar(100);
+
+	BEGIN
+
+/*******************************************************************************
+  The GEMS Emplyee I.D. must be numeric.  
+*******************************************************************************/
+--
+--
+begin			  
+v_break  := ('Select Employee_Data Table ' );  
+
+			  SELECT *  into OUT_EMP_DATA_ROWTYPE
+			  from emp_data
+			  where employee_number = in_gems_employee_id;
+        
+v_break  := ('GOOD Select Employee_Data Table ' );  
+--        
+--       if OUT_EMPLOYEE_DATA_ROWTYPE.emp_payroll_status not in ('A')  then
+--           raise emp_data_not_act_exp;
+--       end if;
+EXCEPTION
+  when no_data_found then
+     raise no_emp_data_exp;
+--  See First Error A
+end;
+--
+	  
+  EXCEPTION
+ 
+-- First Error A    
+               when no_emp_data_exp then
+                    v_code := errnums.en_no_emp_data_err;     
+                    errpkg.raise_err(v_code, 'EMPLOYEE_DATA_S_SP.no_emp_data_exp '  ,
+                   'GEMS I.D. "' || in_gems_employee_id || 
+                   '" not found in GEMS Master File "' );  
+-- Second Error B    
+--               when emp_data_not_act_exp then
+--                    v_code := errnums.en_no_emp_data_err;   
+--                    errpkg.raise_err(v_code, 'EMPLOYEE_DATA_S_SP.sls_emp_data_not_act_exp '  ,
+--                   'GEMS I.D. "' || ingems_employee_id || 
+--                   '" does not have an active status on GEMS "' );    
+--                   
+	  WHEN OTHERS THEN 
+      v_code  := SQLCODE;
+      v_errm  := substr(SQLERRM,1,200);
+      errpkg.raise_err(v_code, 'EMPLOYEE_DATA_S_SP' ||
+             'GEMS_EMPLOYEE_ID' || in_gems_employee_id ||
+              v_errm ||
+              v_break);
+                     
+
+end EMPLOYEE_DATA_S_SP;
+
+
+PROCEDURE EXPIRE_DATA_SP (
+/******************************************************************************
+	EXPIRE_DATA_SP   --    Expire selected Table Rows Procedure
+
+	This procedure is intended to expire specific row row(s) of data based on 
+       table_name, Cost_Center, Address_Type(Addresses only), and Effective_Date. 
+       
+  This procedure is intended to be used for the follownig tables: 
+  
+            ADDRESS_CAN, ADDRESS_USA, ADDRESS_MEX, ADDRESS_OTHER
+          , BANK_CARD
+          , MARKETING
+          , STATUS
+          , TYPE
+  
+created : 12/04/2012 MDH CCN Project.....
+revised : 05/23/2014 MDH Add Address_Type Parm for Address Records only.
+*******************************************************************************/
+--
+  in_ROW_TABLE            IN  varchar2
+, in_COST_CENTER          IN  COST_CENTER.COST_CENTER_CODE%TYPE
+, in_EFFECTIVE_DATE       IN  date 
+, in_ADDRESS_TYPE         IN  ADDRESS_USA.ADDRESS_TYPE%TYPE DEFAULT NULL)
+
+is
+ v_code            number;
+ v_errm            varchar2(500);
+ v_expiration_Date date;
+ v_date            date;
+ v_row_id          rowid;
+ v_count           integer := 0;
+ sql_stmt          varchar2(400);
+ v_break           varchar(100);
+--
+ parameter_null_exp	      EXCEPTION;
+ multiple_expire_exp	    EXCEPTION;
+ no_unexpire_exp	        EXCEPTION;
+ record_update_exp	      EXCEPTION;
+--
+--
+begin
+
+-- verify that the input parameters are not null
+v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP ' ); 
+  if in_ROW_TABLE is null   or
+     in_COST_CENTER is null  or
+     (in_ROW_TABLE in ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA')
+        AND  in_ADDRESS_TYPE  is null)  or
+     in_EFFECTIVE_DATE is null      then
+        raise parameter_null_exp;
+  end if;
+--
+--******************************************************************************
+-- select the table (in_row_table) for the cost_center 
+-- verify that only one row for the cost center has null expiration date.
+-- 05/23/2013 MDH for Address records add the ADDRESS_TYPE parameter
+--******************************************************************************
+  begin
+--     
+       v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Count unexpire recs)' ); 
+--
+    if in_ROW_TABLE in ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') then
+      sql_stmt := ('select COUNT(1) from ' ||
+                    in_ROW_TABLE || 
+                    ' where COST_CENTER_CODE  =  :in_COST_CENTER ' || 
+                    ' and ADDRESS_TYPE  =  :in_ADDRESS_TYPE ' ||
+                    ' and  EXPIRATION_DATE is null');
+      EXECUTE IMMEDIATE sql_stmt INTO v_count USING in_COST_CENTER, in_ADDRESS_TYPE;              
+    else
+       sql_stmt := ('select COUNT(1) from ' ||
+                    in_ROW_TABLE || 
+                    ' where COST_CENTER_CODE  =  :in_COST_CENTER ' || 
+                    ' and  EXPIRATION_DATE is null');
+       EXECUTE IMMEDIATE sql_stmt INTO v_count USING in_COST_CENTER;               
+    end if;
+--                  
+--      EXECUTE IMMEDIATE sql_stmt INTO v_count USING in_COST_CENTER, in_ADDRESS_TYPE;
+                   
+      if v_count  >  1  then
+          raise multiple_expire_exp;
+      end if;
+  end;
+--
+--*****************************************************************************
+-- select the table (in_row_table) for the cost_center
+-- 05/23/2013 MDH for Address records add the ADDRESS_TYPE parameter
+-- 05/30/2013 MDH only finish this procedure if v_count >0 otherwise let it
+--                drop out as there are no records to expire.
+--*****************************************************************************
+if v_count  >  0  then
+  begin
+    v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Found unexpire recd)' ); 
+--
+    if in_ROW_TABLE in ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') then
+        sql_stmt := ('select EXPIRATION_DATE, ROWID from ' ||
+                  in_ROW_TABLE || 
+                  ' where COST_CENTER_CODE =  :in_COST_CENTER ' ||
+                  ' and ADDRESS_TYPE  =  :in_ADDRESS_TYPE ' || 
+                  ' and EXPIRATION_DATE is null');
+         EXECUTE IMMEDIATE sql_stmt INTO v_expiration_date, v_row_id USING in_COST_CENTER, in_ADDRESS_TYPE;          
+    else
+        sql_stmt := ('select EXPIRATION_DATE, ROWID from ' ||
+                  in_ROW_TABLE || 
+                  ' where COST_CENTER_CODE =  :in_COST_CENTER ' || 
+                  ' and EXPIRATION_DATE is null');
+        EXECUTE IMMEDIATE sql_stmt INTO v_expiration_date, v_row_id USING in_COST_CENTER;          
+    end if;                 
+--
+--      EXECUTE IMMEDIATE sql_stmt INTO v_expiration_date, v_row_id USING in_COST_CENTER, in_ADDRESS_TYPE;
+--               
+  exception
+     when others then
+        raise no_unexpire_exp;
+  
+  end;
+--
+--************************************************************************************
+-- if found, compute the expiration date using the COMPUTE_EXPIRATION_DATE function
+--  in_ROW_TABLE.expiration_date := COMPUTE_EXPIRATION_DATE ( in_EFFECTIVE_DATE);
+--************************************************************************************
+--
+    --v_date := COMPUTE_EXPIRATION_DATE (sysdate);--in_EFFECTIVE_DATE); --in_EFFECTIVE_DATE - 1   
+    --Future dated effective dates are not possible
+    --If past dated effective date => expiration date = effective date - 1
+    --If current dated effective date => expiration date = system date - 1
+    v_date := COMPUTE_EXPIRATION_DATE (in_EFFECTIVE_DATE);
+--
+--    
+--*****************************************************************************
+--  update the table/row for IN_ROW_TABLE
+--*****************************************************************************
+  begin
+       v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Update expire date)' ); 
+       v_expiration_date := v_date;
+       sql_stmt := ('UPDATE ' || in_ROW_TABLE ||
+                    ' SET EXPIRATION_DATE =  :v_expiration_date ' ||
+                    ' WHERE  rowid = :v_row_id ');
+ 
+       EXECUTE IMMEDIATE sql_stmt USING v_expiration_date, v_row_id;
+       dbms_output.put_line('ran update??' || 'v_expiration_date '  || v_expiration_date || 'with table ' || in_ROW_TABLE);
+-- 
+--   
+            EXCEPTION 
+             WHEN OTHERS THEN 
+                 raise record_update_exp;
+--
+  end;
+end if;
+
+EXCEPTION
+
+   when parameter_null_exp then  
+        v_code := errnums.en_parameter_null_err;
+		      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.parameter_null_exp ' 
+             		,'One or more input parameteres is null ' );     
+                
+   when multiple_expire_exp then  
+		   		v_code := errnums.en_multipl_expire_err;
+			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.multipl_expire_exp ' 
+             		,'More than 1 unexpired rows found for table: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
+                  in_COST_CENTER );     
+               
+   when no_unexpire_exp then  
+		   		v_code := errnums.en_no_unexpire_err;
+			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.no_unexpire_exp ' 
+             		,'No unexpired rows found for table: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
+                  in_COST_CENTER );     
+              
+   when record_update_exp then  
+ 		   		v_code := errnums.en_record_update_err;
+			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.record_update_exp ' 
+            		,'Record Update Error for table: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
+                  in_COST_CENTER  ||
+                  ' ROW ID: ' || V_ROW_ID);
+                   
+    when others then
+        v_code  := SQLCODE;
+        v_errm  := substr(SQLERRM,1,500);
+        errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP Error' ||
+                         v_errm || 
+                        v_break );
+
+end EXPIRE_DATA_SP;
+
+-------------------
+
+function cost_center_look_up_fnc( 
+/**********************************************************
+This function will return 6 digit COST_CENTER_CODE
+when the 4-digit code is passed
+
+parameters: in
+
+created : 04/19/2013 SH CCN Project
+**********************************************************/
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
+)
+return varchar2
+is
+
+	v_COST_CENTER_CODE COST_CENTER.COST_CENTER_CODE%TYPE;
+--
+begin
+
+    select COST_CENTER_CODE
+      INTO v_COST_CENTER_CODE
+      from COST_CENTER
+     where cost_center_code like '%' || upper(in_COST_CENTER);
+  
+     RETURN v_COST_CENTER_CODE;
+     
+ EXCEPTION
+  WHEN OTHERS THEN
+     v_COST_CENTER_CODE := in_COST_CENTER;
+    
+
+end cost_center_look_up_fnc;
+                            
+function country_look_up_fnc( 
+/**********************************************************
+This function will return COUNTRY_CODE
+
+
+parameters: in
+
+created : 05/17/2013 kdp CCN Project
+**********************************************************/
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
+)
+return varchar2
+is
+
+	v_COUNTRY_CODE COST_CENTER.COUNTRY_CODE%TYPE;
+	v_COST_CENTER_CODE COST_CENTER.COST_CENTER_CODE%TYPE :=	COMMON_TOOLS.cost_center_look_up_fnc(in_COST_CENTER);
+--
+begin
+
+    SELECT COUNTRY_CODE
+      INTO v_COUNTRY_CODE
+      FROM COST_CENTER
+     where cost_center_code = v_COST_CENTER_CODE;
+  
+     RETURN v_COUNTRY_CODE;
+     
+ EXCEPTION
+  WHEN OTHERS THEN
+     v_COST_CENTER_CODE := in_COST_CENTER;
+     
+    
+end country_look_up_fnc;
+
+FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
+/**********************************************************
+This function will replace special characters from input text
+
+
+parameters:
+
+IO_TEXT_STRING  IN OUT
+
+created : 08/08/2013 CCN Project
+**********************************************************/
+IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2
+IS
+   V_TEXT_STRING VARCHAR2(32000) := IO_TEXT_STRING;
+BEGIN
+   --Replaces &lt; with <
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&lt;','<');
+   --Replaces &gt; with >
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&gt;','>');
+   --Replaces &amp; with &
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&amp;','&');
+   --Replaces &quot; with "
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&quot;','"');
+   --Replaces &apos; with '
+   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&apos;','''');
+   RETURN V_TEXT_STRING;
+END ELIMINATE_SPECIAL_CHRCTRS;
+
+FUNCTION IS_AUTHERIZED_USER(
+/**********************************************************
+This function will authorize the user based on SECURITY_MATRIX table
+
+
+parameters:
+
+IN  IN_USER_ID
+
+created : 09/04/2013 CCN Project
+**********************************************************/
+IN_USER_ID    IN    VARCHAR2) RETURN BOOLEAN
+IS
+   V_USER_ID SECURITY_MATRIX.USER_ID%TYPE;
+BEGIN
+   SELECT USER_ID INTO V_USER_ID
+     FROM SECURITY_MATRIX
+    WHERE UPPER(USER_ID) = UPPER(IN_USER_ID)
+      AND (ADMIN_FLAG = 'Y' OR INSERT_FLAG = 'Y');
+
+   IF V_USER_ID IS NOT NULL THEN
+      RETURN TRUE;
+   ELSE
+      RETURN FALSE;
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to return false if no records found
+      RETURN FALSE;
+END IS_AUTHERIZED_USER;
+
+PROCEDURE CHECK_DUP_COST_CENTER(
+/**********************************************************
+	CHECK_DUP_COST_CENTER
+
+	This procedure logs error if a cost center has a dup based on the last four digits
+
+in_COST_CENTER_CODE - Input Cost Center to validate for duplication
+in_CATEGORY_CODE    - Input category code
+
+created : 09/11/2013 jxc517 CCN Project....
+**********************************************************/
+   in_COST_CENTER_CODE    IN VARCHAR2,
+   in_CATEGORY_CODE       IN VARCHAR2) IS
+   V_COUNT                     NUMBER := 0;
+   dup_mainframe_costcntr_err  EXCEPTION;
+   first_two_digit_err         EXCEPTION;
+BEGIN
+   --Last 4 digit dup value validation is not needed for territory category
+   IF NVL(in_CATEGORY_CODE,'X') <> 'T' THEN
+      --Cost center usually is of 6 characters, in which last 4 characters need to be validated
+      --Thats implies from 3rd position till 6th position
+      --Example : 781234 - last 4 characters implies "1234"
+      SELECT COUNT(*) INTO V_COUNT
+        FROM COST_CENTER
+       WHERE SUBSTR(COST_CENTER_CODE,3) = SUBSTR(in_COST_CENTER_CODE,3)
+       AND COST_CENTER_CODE <> IN_COST_CENTER_CODE;
+
+      IF V_COUNT > 0 THEN
+         RAISE dup_mainframe_costcntr_err;
+      END IF;
+   END IF;
+   --Cost center usually is of 6 characters, in which first 2 characters need to be validated
+   --Thats implies from 1st position till 2nd position
+   --Example : 781234 - first 2 characters implies "78"
+  SELECT COUNT(*) INTO V_COUNT
+     FROM CODE_DETAIL
+    where CODE_DETAIL_VALUE = UPPER(SUBSTR(IN_COST_CENTER_CODE,1,2))
+      and CODE_HEADER_NAME  = 'COST_CENTER_PREFIX'
+      AND CODE_HEADER_TYPE  = 'COD';
+
+   IF V_COUNT = 0 THEN
+      RAISE first_two_digit_err;
+   END IF;
+EXCEPTION
+   WHEN dup_mainframe_costcntr_err THEN
+        errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err, 
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
+                         'COMMON_TOOLS ' || 'Cost Center with last four characters as ''' || SUBSTR(in_COST_CENTER_CODE,3) || ''' already exists in the Mainframe');
+                         
+   WHEN first_two_digit_err THEN
+        errpkg.raise_err(errnums.en_first_two_digit_err, 
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
+                         'COMMON_TOOLS ' || 'Cost Center with first two digit as ''' || SUBSTR(IN_COST_CENTER_CODE,1,2) || ''' is not allowed in Mainframe');
+END CHECK_DUP_COST_CENTER;
+
+PROCEDURE COPY_COST_CENTER(
+/**********************************************************
+	COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center
+
+IN_OLD_CC - Input Cost Center to be removed
+IN_NEW_CC - Input Cost Center to be created
+
+created : 09/11/2013 jxc517 CCN Project....
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2) IS
+  
+   TYPE TAB_TYPE                IS TABLE OF USER_TAB_COLUMNS%ROWTYPE INDEX BY PLS_INTEGER;
+   TYPE SQL_STATEMENTS_TAB_TYPE IS TABLE OF VARCHAR2(10000)          INDEX BY BINARY_INTEGER;
+   
+   COL_TABLE          TAB_TYPE;
+   VAR                VARCHAR2(30000);
+   V_CC_NAME          VARCHAR2(100);
+   FROM_CC            VARCHAR2(6) := IN_OLD_CC;
+   TO_CC              VARCHAR2(6) := IN_NEW_CC;
+   SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
+   
+BEGIN
+
+   --Loop through all the tables which holds cost center details
+   --Below tabels are not needed as they are not associated with cost_center
+   --'SALES_REP','TERRITORY_SALES_MGR','TERRITORY','TERRITORY_ASSIGNMENT','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL'
+   FOR REC IN (SELECT * FROM INSERTORDER
+                WHERE TABLE_NAME NOT IN ('SALES_REP','TERRITORY_ASSIGNMENT','TERRITORY_SALES_MGR','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                ORDER BY 2) LOOP
+
+      --Build the column list from the data dictionary and store in variable VAR
+      VAR := NULL;
+      SELECT * BULK COLLECT INTO COL_TABLE
+        FROM USER_TAB_COLUMNS
+       WHERE TABLE_NAME = REC.TABLE_NAME
+       ORDER BY COLUMN_ID;
+      
+      FOR i IN 1..COL_TABLE.LAST LOOP
+         /*IF COL_TABLE(i).DATA_TYPE = 'DATE' THEN
+            VAR := VAR || ',TO_CHAR(' || COL_TABLE(i).COLUMN_NAME || ',''DD-MON-YYYY HH24:MI:SS'')';
+         ELSE
+            VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
+         END IF;*/
+         VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
+      END LOOP;
+      
+      --For Territory table, cost_center_code is not first column, so special handling is needed
+      IF REC.TABLE_NAME NOT IN ('TERRITORY') THEN
+         --Data in VAR for COST_CENTER_TABLE will be ,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
+         --Take the column names excluding COST_CENTER_CODE whcih will be from 19th character till the end
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                                                 ' SELECT '''|| TO_CC ||''','|| SUBSTR(VAR,19) || 
+                                                                 ' FROM ' || REC.TABLE_NAME || 
+                                                                 ' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''';
+      ELSE
+         --Data in VAR for TERRITORY will be ,TERRITORY_SLS_MGR_CODE,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
+         --Take the column names excluding COST_CENTER_CODE whcih will be from 42nd character till the end
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                             ' SELECT TERRITORY_SLS_MGR_CODE,'''|| TO_CC ||''',' || SUBSTR(VAR,42) || 
+                                             ' FROM ' || REC.TABLE_NAME || 
+                                             ' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''';
+      END IF;
+   END LOOP;
+   
+   --SQL Statement to insert NEW cost center records from OLD cost center Hierarchy_Detail records
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO HIERARCHY_DETAIL' ||
+                                     ' SELECT HRCHY_HDR_NAME,'||
+                                              'HRCHY_DTL_LEVEL,'||
+                                              'HRCHY_DTL_PREV_LVL_VAL,' ||
+                                              'REPLACE(HRCHY_DTL_CURR_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_CURR_LVL_VAL,'||
+                                              'REPLACE(HRCHY_DTL_NEXT_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_NEXT_LVL_VAL,'||
+                                              'HRCHY_DTL_EFF_DATE,'||
+                                              'HRCHY_DTL_EXP_DATE,'||
+                                              'HRCHY_DTL_DESC,'||
+                                              ''''||TO_CC||''' HRCHY_DTL_CURR_ROW_VAL,'||
+                                              'UPPER_LVL_VER_VALUE'||
+                                     '  FROM HIERARCHY_DETAIL '||
+                                     ' WHERE HRCHY_DTL_CURR_LVL_VAL LIKE ''%' || FROM_CC || '%'' '||
+                                     '    OR HRCHY_DTL_NEXT_LVL_VAL LIKE ''%' || FROM_CC || '%''';
+
+   --Delete all inserted Audit_Log records as we need to copy those from OLD cost center
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM AUDIT_LOG '||
+                                                           ' WHERE TRANSACTION_ID LIKE ''%'|| TO_CC ||'%''';
+
+   --SQL Statement to insert NEW cost center records from OLD cost center Audit_Log records
+   FOR REC IN (SELECT * FROM AUDIT_LOG WHERE TRANSACTION_ID LIKE '%'||FROM_CC||'%') LOOP
+      SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO AUDIT_LOG VALUES ('||
+                                         '(SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),'||''''||
+                                         REPLACE(REC.TRANSACTION_ID,FROM_CC,TO_CC)||''','||
+                                         --Date should be stored with timestamp for audit to pick the records correctly
+                                         'TO_DATE('''||TO_CHAR(REC.TRANSACTION_DATE,'DD-MON-YYYY HH24:MI:SS')||''',''DD-MON-YYYY HH24:MI:SS'')'||','''||
+                                         REC.TABLE_NAME||''','''||
+                                         REPLACE(REC.TABLE_ROW_DATA.GETSTRINGVAL(),FROM_CC,TO_CC)||''','''||
+                                         REC.CHANGE_BY||''','''||
+                                         REPLACE(REC.TABLE_PK_VALUE.GETSTRINGVAL(),FROM_CC,TO_CC)||''','''||
+                                         REC.AUDIT_REC_FLAG||''','||
+                                         'NULL,'||
+                                         'NULL)';
+   END LOOP;
+   
+   --SQL Statement to delete the OLD cost center records from all cost center related Tables
+   FOR REC IN (SELECT 'DELETE FROM '||TABLE_NAME||' WHERE COST_CENTER_CODE = '''|| FROM_CC ||'''' AS VALUE 
+                 FROM INSERTORDER
+                WHERE TABLE_NAME NOT IN ('SALES_REP','TERRITORY_ASSIGNMENT','TERRITORY_SALES_MGR','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                ORDER BY TABLE_ORDER DESC) LOOP
+      SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := REC.VALUE;
+   END LOOP;
+   
+   --SQL Statement to delete the OLD cost center records from Hierarchy_Detail Table
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM HIERARCHY_DETAIL '||
+                                                           ' WHERE HRCHY_DTL_CURR_LVL_VAL LIKE ''%'|| FROM_CC ||'%'' '||
+                                                           '    OR HRCHY_DTL_NEXT_LVL_VAL LIKE ''%'|| FROM_CC ||'%''';
+
+   --SQL Statement to delete the OLD cost center records from Audit_Log Table
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM AUDIT_LOG '||
+                                                           ' WHERE TRANSACTION_ID  LIKE ''%'|| FROM_CC ||'%''';
+
+   --Loop through all the statements and execute one by one in that order
+   FOR i IN 1..SQL_STATEMENTS_TAB.COUNT LOOP
+      DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
+      --EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
+   END LOOP;
+   
+   --Commit all the changes in the database
+   --COMMIT;
+
+EXCEPTION
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
+END COPY_COST_CENTER;
+
+PROCEDURE SEND_MAIL(
+/**********************************************************
+	SEND_MAIL
+
+	This procedure will send emails based on the category of the mail
+  Currently we have below categories:
+                    INIT_LOAD_START
+                    INIT_LOAD_END
+                    HIER_LOAD_START
+                    HIER_LOAD_END
+                    STOP_JBOSS
+                    START_JBOSS
+                    INCOMPLETE_CC
+                    
+   For more details around the above category please look into MAILING table
+
+IN_MAIL_CATEGORY - Input Category for which email needs to be sent
+
+created : 09/11/2013 jxc517 CCN Project....
+**********************************************************/
+   IN_MAIL_CATEGORY VARCHAR2)
+IS
+   v_mail_host   VARCHAR2 (30) := 'smtp.sherwin.com'; --'sthq.sherwin.com';
+   v_mail_conn   UTL_SMTP.connection;
+   v_recipient   VARCHAR2(32000);
+   v_index       number;
+   crlf          VARCHAR2 (2) := CHR (13) || CHR (10);
+   
+   l_boundary1    VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE1';
+   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
+   V_INCOMPLETE_CC_COUNT NUMBER := 0;
+BEGIN
+   --Loop through all the emails for this passed category code
+   FOR rec IN (SELECT * FROM MAILING WHERE MAIL_CATEGORY = IN_MAIL_CATEGORY) LOOP
+      
+      
+      --Don't send an email itself if there are no incomeplete cost centers
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         BEGIN
+            SELECT COUNT(*) INTO V_INCOMPLETE_CC_COUNT
+              FROM COST_CENTER
+             WHERE GLOBAL_HIERARCHY_IND <> 'Y';
+         EXCEPTION
+            WHEN OTHERS THEN
+               V_INCOMPLETE_CC_COUNT := 0;
+         END;
+         IF V_INCOMPLETE_CC_COUNT = 0 THEN
+            EXIT;
+         END IF;
+      END IF;
+      
+      --This process starts only if above condition is not met
+      --Below staeps involves the email creation based on category and sending across
+      v_index := 0;
+      v_index := rec.RECEPIENTS.FIRST;
+      --Open the connection for email server
+      v_mail_conn := UTL_SMTP.open_connection (v_mail_host, 25);
+      UTL_SMTP.helo (v_mail_conn, v_mail_host);
+      UTL_SMTP.mail (v_mail_conn, rec.FROM_P);
+      WHILE v_index IS NOT NULL LOOP
+         UTL_SMTP.rcpt (v_mail_conn, rec.RECEPIENTS(v_index));
+         v_recipient := v_recipient || ', '||rec.RECEPIENTS(v_index);
+         v_index := rec.RECEPIENTS.NEXT(v_index);
+      END LOOP;
+      UTL_SMTP.open_data(v_mail_conn);
+      
+      --Set the required message paremeters
+      UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'To: ' || v_recipient || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || rec.SUBJECT || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+      
+      --Boundary should be set for this email body
+      UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Hi All' || crlf || crlf
+                                       || rec.MESSAGE || crlf || crlf
+                                       || 'Please let us know if there are any issues.' || crlf || crlf
+                                       || rec.SIGNATURE || crlf);
+      --UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || '--' || UTL_TCP.crlf);
+      
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'incomplete_cc.csv' || '"' || UTL_TCP.crlf);
+         
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Number, Cost Center Name,' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent 
+         FOR rec IN (SELECT COST_CENTER_CODE, COST_CENTER_NAME FROM COST_CENTER WHERE GLOBAL_HIERARCHY_IND <> 'Y') LOOP
+            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.COST_CENTER_NAME || ',' || UTL_TCP.crlf);
+         END LOOP;
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || '--' || UTL_TCP.crlf);
+      END IF;
+      
+      UTL_SMTP.close_data(v_mail_conn);  
+      UTL_SMTP.quit (v_mail_conn);
+   END LOOP;
+EXCEPTION
+   WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
+   THEN
+      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+END SEND_MAIL;
+
+
+END COMMON_TOOLS;
+
