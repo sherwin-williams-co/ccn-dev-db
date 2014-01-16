@@ -1,24 +1,29 @@
 CREATE OR REPLACE PACKAGE COST_CENTER_UPLOAD AS 
-PROCEDURE COST_CENTER_UPSERT( 
- /******************************************************************************
-	COST_CENTER_UPSERT   --    Cost Center Update delete Procedure
-
-	This procedure is intended to update the database for the following tables used in
-        Cost Center UI.
-	Tables: 
-              COST_CENTER
-           ,  ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
-            , STATUS
-            , TYPE
-            , MARKETING
-            , PHONE
-            , TAXWARE
-            , ADDRESS tables.  
-
-*******************************************************************************/
-
- IN_ROW_DATA  IN VARCHAR2);
  
+ FUNCTION BUILD_TAG(
+/******************************************************************************
+BUILD_TAG
+
+This function will build the tag based on passed input parameters
+
+******************************************************************************/
+                      IN_VALUE     IN VARCHAR2,
+                      IN_TAG_NAME  IN VARCHAR2,
+                      IN_DATE_FLAG IN VARCHAR2 DEFAULT 'N')
+   RETURN VARCHAR2;
+
+PROCEDURE LOG_ERROR(
+/******************************************************************************
+LOG_ERROR
+
+This procedure is an autonomous transaction that logs the errors and proceeds 
+with the execution of rest of the cost centers
+
+******************************************************************************/
+                    IN_CC      IN VARCHAR2,
+                    IN_SQLERRM IN VARCHAR2,
+                    IN_SQLCODE IN NUMBER);
+
  PROCEDURE BATCH_LOAD_PROCESS
 /******************************************************************************
 BATCH_LOAD_PROCESS

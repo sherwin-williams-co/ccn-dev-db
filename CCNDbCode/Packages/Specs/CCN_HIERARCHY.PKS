@@ -569,5 +569,76 @@ revised : kdp 11/21/2013 Changed to return y/n
     IN_HRCHY_HDR_NAME         VARCHAR2,
     IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR;
 
+PROCEDURE HIERARCHY_DETAIL_DELETE(
+/**********************************************************
+	HIERARCHY_DETAIL_DELETE
+
+      This Procedure will perform the core delete process
+        
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD Structure</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>01</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>02</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>10</HRCHY_LEVEL3>
+      <HRCHY_DTL_DESC>Ohio</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-10-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+  </row_data>
+</HIERARCHY_DETAIL>
+
+created : 12/18/2013 JXC517 CCN Project....
+**********************************************************/
+    IN_XML                VARCHAR2);
+
+PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_INSERT_CLOB
+
+This procedure builds the xml as clob for Hierarchy Insert Process based on 
+input parameters
+created : 12/18/2013 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE             IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID          IN        VARCHAR2,
+                IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                OUT_XML_AS_CLOB        OUT       CLOB);
+
+PROCEDURE BUILD_HIERARCHY_TRNSFR_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_TRNSFR_CLOB
+
+This procedure builds the xml as clob for Hierarchy Transfer Process based on 
+input parameters
+created : 1/14/2014 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE                  IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID               IN        VARCHAR2,
+                IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+                OUT_XML_AS_CLOB                OUT    CLOB);
+
+PROCEDURE HIERARCHY_BULK_TRNSFR_PROCESS
+/******************************************************************************
+HIERARCHY_BULK_TRNSFR_PROCESS
+
+This procedure is the for the Hierarchy bulk transfer process
+
+Created : JXC517 1/14/2014
+******************************************************************************/
+;
+
 END CCN_HIERARCHY;
 

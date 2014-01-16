@@ -804,7 +804,7 @@ IS
         V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
         
           OPEN OUT_HIERARCHY_REF_CUR FOR
-        SELECT DISTINCT HH.HRCHY_HDR_LEVELS,HD.HRCHY_HDR_LVL_DESC, HD.HRCHY_HDR_LVL_NBR
+        SELECT DISTINCT HH.HRCHY_HDR_LEVELS,HD.HRCHY_HDR_LVL_DESC, HD.HRCHY_HDR_LVL_NBR, HD.LVL_VALUE_SIZE
           from hierarchy_header hh, hierarchy_description hd
          WHERE UPPER(HH.HRCHY_HDR_NAME) = UPPER(HD.HRCHY_HDR_NAME)
            AND UPPER(HH.HRCHY_HDR_NAME) = UPPER(V_HRCHY_HDR_NAME)
@@ -1950,7 +1950,8 @@ BEGIN
 
    --Validate if the header name matches with the number of levels passed
    --This validation should be done only once, that too for the last level OR first iteration
-   IF IN_LAST_LEVEL = 'Y' THEN
+   --We don't need these validations on FROM side of the transfer
+   IF IN_LAST_LEVEL = 'Y' AND IN_FLAG <> 'FROM' THEN
       IF NOT IS_VALID_HEADER_LVL(IN_HRCHY_HDR_NAME, IN_HRCHY_DTL_LEVEL) THEN
          BUSSINESS_RULES_ERR_CODE   := errnums.en_invalid_levels_err;
          BUSSINESS_RULES_ERR_DESC   := 'The number of levels for the Hierarchy ' || IN_HRCHY_HDR_NAME || ' is not in range';
@@ -1969,7 +1970,8 @@ BEGIN
    
    --Validate if the passed statement type matches with the once in the cost center
    --This validation should be done only once, that too for the last level OR first iteration
-   IF IN_LAST_LEVEL = 'Y' THEN
+   --We don't need these validations on FROM side of the transfer
+   IF IN_LAST_LEVEL = 'Y' AND IN_FLAG <> 'FROM' THEN
       IF NOT IS_STATEMENT_TYPE_VALID(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL,
                                      IN_FLAG,
                                      IN_XML,
@@ -2219,7 +2221,7 @@ IS
   
    BEGIN
        OPEN OUT_HIERARCHY_REF_CUR FOR
-          SELECT DISTINCT HRCHY_HDR_NAME FROM HIERARCHY_DESCRIPTION;
+          SELECT DISTINCT HRCHY_HDR_NAME  FROM HIERARCHY_DESCRIPTION;
          
   EXCEPTION WHEN OTHERS THEN
           SQ := SQLCODE;
@@ -2248,6 +2250,465 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
           errpkg.raise_err(SQLCODE, SQLERRM);
 END VALIDATE_HIERARCHY;
+
+PROCEDURE BUILD_DELETE_COMPOSITE_KEYS(
+/***********************************************************
+      BUILD_DELETE_COMPOSITE_KEYS 
+      This Procedure will build composite keys for the DELETE Procedures
+
+Input :-
+
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>05</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>04</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>86</HRCHY_LEVEL3>
+      <HRCHY_LEVEL4>785900</HRCHY_LEVEL4>
+      <HRCHY_DTL_DESC>PF WEST REGION</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-JAN-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE>01-JAN-9999</HRCHY_DTL_EXP_DATE>
+      <UPPER_LVL_VER_VALUE>01</UPPER_LVL_VER_VALUE>
+  </row_data>
+</HIERARCHY_DETAIL>
+
+
+      IN_LAST_LEVEL    This is a flag to tell if this is the last level composite key generation or not
+Created : 12/18/2013 JXC517  CCN Project
+************************************************************/
+            IN_XML                   IN     VARCHAR2,
+            IN_HRCHY_HDR_NAME        IN     VARCHAR2,
+            IN_HRCHY_DTL_LEVEL       in     VARCHAR2,
+            IN_LAST_LEVEL            IN     VARCHAR2,
+            OUT_HIERARCHY_DETAIL_ROW OUT HIERARCHY_DETAIL%ROWTYPE)
+is
+  V_CONTEXT      VARCHAR2(3000);
+  V_NEXT_ROW_VAL VARCHAR2(100);
+
+  V_ROW_DATA     XMLTYPE := SYS.XMLTYPE(IN_XML); 
+  SQ             INTEGER;
+  SE             VARCHAR2(1000);
+
+BEGIN
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME    := IN_HRCHY_HDR_NAME;
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL   := IN_HRCHY_DTL_LEVEL;
+
+   V_CONTEXT := 'Extracting DELETE Hierarchy Details';
+   --Building composite 'DELETE' keys using 'DELETE' XML
+   FOR i IN 1..IN_HRCHY_DTL_LEVEL - 1 LOOP
+       OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL  :=  OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+   END LOOP;
+
+   --Extract all available values from 'DELETE' XML
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC           := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_DESC/text()').GETSTRINGVAL(); 
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL   := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || IN_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL();
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE      := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EFF_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()') = 1) THEN
+       OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE   := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY'); 
+   END IF;
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/attributes') = 1) THEN
+     OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE     := SYS.XMLTYPE.CREATEXML(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/attributes').GETCLOBVAL());
+   END IF;
+   --Next value should be extracted using 'DELETE' XML with current iteration + 1, if one exists
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()') =1) THEN
+      V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || (IN_HRCHY_DTL_LEVEL + '1') ||'/text()').GETSTRINGVAL();
+   END IF;
+
+   --Current Level Value should extract values of all levels as well as current level
+   OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL := OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+
+   IF IN_LAST_LEVEL = 'Y' THEN
+      --HRCHY_DTL_NEXT_LVL_VAL is '~~~' for next val of last level
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
+   ELSE
+     OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL || V_NEXT_ROW_VAL;
+   END IF;
+
+   --Assign Previous Level value for 1st Level as ~~~
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL = 1 THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL := '~~~';
+   END IF;
+
+   --Getting descriptions for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC := HIERARCHY_DESC_RETURN(OUT_HIERARCHY_DETAIL_ROW);
+   END IF;
+
+   ---Getting attribute value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE := HIERARCHY_ATTRIBUTE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+   ---Getting Effective Date value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE := HIERARCHY_EFF_DATE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+   ---Getting Expiration Date value for the corresponding level, if not present
+   IF OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE IS NULL THEN
+      OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE := HIERARCHY_EXP_DATE_RETURN(OUT_HIERARCHY_DETAIL_ROW);  
+   END IF;
+   
+EXCEPTION
+    
+     WHEN OTHERS THEN
+           SQ := SQLCODE;
+           SE := SQLERRM;
+           
+           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+           ERRPKG.RAISE_ERR(-20004,'BUILD_DELETE_COMPOSITE_KEYS ',V_CONTEXT);
+END BUILD_DELETE_COMPOSITE_KEYS;
+
+PROCEDURE INSERT_PROCESS_FOR_DELETE(
+/***********************************************************
+      INSERT_PROCESS_FOR_DELETE 
+      This Procedure will perform the core insert process for delete
+      
+Created : 12/18/2013 JXC517 CCN Project
+************************************************************/
+                         IN_XML                  IN VARCHAR2,
+                         IN_HRCHY_HDR_NAME       IN VARCHAR2,
+                         IN_HRCHY_DTL_LEVEL      IN VARCHAR2,
+                         IN_LAST_LEVEL           IN VARCHAR2)
+IS
+   V_HIERARCHY_DETAIL_ROW        HIERARCHY_DETAIL%ROWTYPE;
+   V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
+   V_ROW_DATA                    XMLTYPE := SYS.XMLTYPE(IN_XML);
+   MISSING_HIERARCHY_NAMES       VARCHAR2(1000);
+BEGIN
+
+   --Building the Composite key based on parameters passed
+   BUILD_DELETE_COMPOSITE_KEYS(IN_XML,
+                               IN_HRCHY_HDR_NAME,
+                               IN_HRCHY_DTL_LEVEL,
+                               IN_LAST_LEVEL,
+                               V_HIERARCHY_DETAIL_ROW);
+
+   --Get the previous level record, if one exists
+   GET_PREVIOUS_LVL('H',
+                    V_HIERARCHY_DETAIL_ROW,
+                    V_HIERARCHY_DETAIL_ROW_PREV);
+   IF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_CURR_LVL_VAL IS NOT NULL THEN
+      IF NVL(V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL,'~~~') = '~~~' THEN
+         --If previous level's Next Value is ~~~, we need to update that with current level value
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+         HIERARCHY_UPDATE_WRAPPER('H', V_HIERARCHY_DETAIL_ROW_PREV);
+      ELSIF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL <> V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL THEN
+         --If previous level's Next Value is NOT ~~~ and NOT current level value, insert one
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+         V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_EFF_DATE     := NVL(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE, SYSDATE);
+         CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW_PREV);
+      END IF;
+   ELSE
+     --Previous Level Doesn't exists, recursively insert all previous levels
+     --Also iteration should not lead to infinite loop, so add below condition to iterate back only till 1st level
+     IF (V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1') > 0 THEN
+        INSERT_PROCESS_FOR_DELETE(IN_XML,
+                                  IN_HRCHY_HDR_NAME,
+                                  V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1', --Reduce the iteration to insert previous level
+                                  'N');                                         --If it comes here, meaning it is not the last level
+     END IF;
+   END IF;
+   
+   IF CURRENT_LVL_EXISTS('H', V_HIERARCHY_DETAIL_ROW) = 'N' THEN
+      --Always insert the record if it doesn't exists
+      CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW);
+   END IF;
+  
+   --Delete only the last level record from HIERARCHY_DETAIL table, if the input flag is 'FROM'
+   IF IN_LAST_LEVEL = 'Y' THEN
+      DELETE_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW);
+   END IF;
+
+END INSERT_PROCESS_FOR_DELETE;
+
+PROCEDURE HIERARCHY_DETAIL_DELETE(
+/**********************************************************
+	HIERARCHY_DETAIL_DELETE
+
+      This Procedure will perform the core delete process
+        
+<HIERARCHY_DETAIL>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD Structure</HRCHY_HDR_NAME> 
+      <HRCHY_DTL_LEVEL>3</HRCHY_DTL_LEVEL> 
+      <HRCHY_LEVEL1>01</HRCHY_LEVEL1> 
+      <HRCHY_LEVEL2>02</HRCHY_LEVEL2> 
+      <HRCHY_LEVEL3>10</HRCHY_LEVEL3>
+      <HRCHY_DTL_DESC>Ohio</HRCHY_DTL_DESC>
+      <HRCHY_DTL_EFF_DATE>01-10-2013</HRCHY_DTL_EFF_DATE>
+      <HRCHY_DTL_EXP_DATE/>
+      <attributes>
+         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>US</Value> 
+         </upper_lvl_ver_desc>
+      </attributes>
+  </row_data>
+</HIERARCHY_DETAIL>
+
+created : 12/18/2013 JXC517 CCN Project....
+**********************************************************/
+    IN_XML                VARCHAR2)
+IS
+  V_XML_FRAG                       CLOB;
+  V_ROW_DATA                       XMLTYPE := SYS.XMLTYPE(IN_XML);
+  V_HRCHY_HDR_NAME                 HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+  V_HRCHY_DTL_LEVEL                HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+
+  V_CONTEXT   VARCHAR2(3000);
+  SQ          INTEGER;
+  SE          VARCHAR2(1000);
+
+BEGIN
+
+   V_CONTEXT := 'Extracting Hierarchy Details';
+   IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
+      V_HRCHY_HDR_NAME  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+      V_HRCHY_DTL_LEVEL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
+   END IF;
+  
+   V_CONTEXT := 'Calling INSERT_PROCESS_FOR_DELETE';
+   INSERT_PROCESS_FOR_DELETE(IN_XML,              --XML input
+                             V_HRCHY_HDR_NAME,    --Header Name
+                             V_HRCHY_DTL_LEVEL,   --Header Level to start the process with
+                             'Y');                --Last Level Indicator
+
+EXCEPTION
+    WHEN OTHERS THEN
+       SQ := SQLCODE;
+       SE := SQLERRM;
+
+       V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+       ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_DELETE ',V_CONTEXT);
+END HIERARCHY_DETAIL_DELETE;
+
+PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_INSERT_CLOB
+
+This procedure builds the xml as clob for Hierarchy Insert Process based on 
+input parameters
+created : 12/18/2013 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE             IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID          IN        VARCHAR2,
+                IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                OUT_XML_AS_CLOB        OUT       CLOB)
+AS
+    V_CLOB                     CLOB;
+    V_LVL                      NUMBER := 0;
+    V_HRCHY_DTL_CURR_ROW_VAL   VARCHAR2(100);
+    V_CC_RECORD                COST_CENTER%ROWTYPE;
+    V_START_POSITION           NUMBER := 1;
+BEGIN
+      V_CLOB := '<HIERARCHY_DETAIL>';
+      V_CLOB := V_CLOB || '<row_data>';
+      
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(IN_HIERARCHY_NAME, 'HRCHY_HDR_NAME');
+      --Get the Header Levels
+      SELECT HRCHY_HDR_LEVELS INTO V_LVL
+        FROM HIERARCHY_HEADER
+       WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME;
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_LVL, 'HRCHY_DTL_LEVEL');
+      V_LVL := 1;
+      --Loop through and build the Level Tags with values
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_LVL);
+      --get COST_CENTER_NAME from COST_CENTER table
+      SELECT * INTO V_CC_RECORD
+        FROM COST_CENTER
+       WHERE COST_CENTER_CODE = IN_CC_CODE;
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_CC_RECORD.COST_CENTER_NAME, 'HRCHY_DTL_DESC');
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
+      
+      V_CLOB := V_CLOB || '     <attributes>';
+      V_CLOB := V_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value> 
+         </upper_lvl_ver_desc>';
+      IF IN_HIERARCHY_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
+          V_CLOB := V_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>Manager ID</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(IN_MANAGER_ID,'')||'</Value> 
+         </upper_lvl_ver_desc>';
+      END IF;
+      V_CLOB := V_CLOB || '     </attributes>';
+      
+      V_CLOB := V_CLOB || '</row_data>';
+      V_CLOB := V_CLOB || '</HIERARCHY_DETAIL>';
+      
+      OUT_XML_AS_CLOB := V_CLOB;
+END BUILD_HIERARCHY_INSERT_CLOB;
+
+PROCEDURE BUILD_HIERARCHY_TRNSFR_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_TRNSFR_CLOB
+
+This procedure builds the xml as clob for Hierarchy Transfer Process based on 
+input parameters
+created : 1/14/2014 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE                  IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID               IN        VARCHAR2,
+                IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+                OUT_XML_AS_CLOB                OUT    CLOB)
+AS
+    V_CLOB                     CLOB;
+    V_FROM_CLOB                CLOB;
+    V_TO_CLOB                  CLOB;
+    V_LVL                      NUMBER := 0;
+    V_HRCHY_DTL_CURR_ROW_VAL   VARCHAR2(100);
+    V_CC_RECORD                COST_CENTER%ROWTYPE;
+    V_START_POSITION           NUMBER := 1;
+BEGIN
+      V_CLOB := '<HIERARCHY_DETAIL>';
+      V_CLOB := V_CLOB || '<row_data>';
+      
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(IN_HIERARCHY_NAME, 'HRCHY_HDR_NAME');
+      --Get the Header Levels
+      SELECT HRCHY_HDR_LEVELS INTO V_LVL
+        FROM HIERARCHY_HEADER
+       WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME;
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_LVL, 'HRCHY_DTL_LEVEL');
+      V_LVL := 1;
+      
+      --Building From Clob
+      --Loop through and build the Level Tags with values
+      V_FROM_CLOB := '';
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_FROM_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_FROM_CLOB := V_FROM_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_FROM_CLOB, 'FROM_HIERARCHY');
+      
+      V_CLOB := V_CLOB || '<TRANSFER_TO>';
+      
+      --Building To Clob
+      --Loop through and build the Level Tags with values
+      V_TO_CLOB := '';
+      V_START_POSITION := 1;
+      V_LVL := 1;
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_TO_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_LVL);
+      --get COST_CENTER_NAME from COST_CENTER table
+      SELECT * INTO V_CC_RECORD
+        FROM COST_CENTER
+       WHERE COST_CENTER_CODE = IN_CC_CODE;
+      V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_CC_RECORD.COST_CENTER_NAME, 'HRCHY_DTL_DESC');
+      --V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
+      --Hard coding the date for this run <NEED TO CHANGE IN FUTURE>
+      V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG('20140101', 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_TO_CLOB := V_TO_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
+      
+      V_TO_CLOB := V_TO_CLOB || '     <attributes>';
+      V_TO_CLOB := V_TO_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value> 
+         </upper_lvl_ver_desc>';
+      IF IN_HIERARCHY_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
+          V_TO_CLOB := V_TO_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>Manager ID</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(IN_MANAGER_ID,'')||'</Value> 
+         </upper_lvl_ver_desc>';
+      END IF;
+      V_TO_CLOB := V_TO_CLOB || '     </attributes>';
+      V_CLOB := V_CLOB || COST_CENTER_UPLOAD.BUILD_TAG(V_TO_CLOB, 'TO_HIERARCHY');
+      
+      V_CLOB := V_CLOB || '</TRANSFER_TO>';
+      V_CLOB := V_CLOB || '</row_data>';
+      V_CLOB := V_CLOB || '</HIERARCHY_DETAIL>';
+      
+      OUT_XML_AS_CLOB := V_CLOB;
+END BUILD_HIERARCHY_TRNSFR_CLOB;
+
+PROCEDURE HIERARCHY_BULK_TRNSFR_PROCESS
+/******************************************************************************
+HIERARCHY_BULK_TRNSFR_PROCESS
+
+This procedure is the for the Hierarchy bulk transfer process
+
+Created : JXC517 1/14/2014
+******************************************************************************/
+AS
+   V_CLOB CLOB;
+
+BEGIN
+   
+   FOR rec IN (SELECT * FROM COST_CENTER_HIERARCHY_TRNSFR) LOOP
+      BEGIN
+         SAVEPOINT HIERARCHY_TRANSFER_LOAD;
+         CCN_HIERARCHY.BUILD_HIERARCHY_TRNSFR_CLOB(rec.COST_CENTER_CODE,
+                                                   rec.MANAGER_ID,
+                                                   rec.HIERARCHY_NAME,
+                                                   rec.FROM_HIERARCHY,
+                                                   rec.TO_HIERARCHY,
+                                                   V_CLOB);
+         CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB);
+         --DBMS_OUTPUT.PUT_LINE(V_CLOB);
+         COMMIT;
+      EXCEPTION
+         WHEN OTHERS THEN
+            --Log the Cost Center # that failed to load
+            --DBMS_OUTPUT.PUT_LINE(rec.COST_CENTER_CODE || ' failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+            COST_CENTER_UPLOAD.LOG_ERROR(rec.COST_CENTER_CODE, SQLERRM, SQLCODE);
+            ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
+      END;
+   END LOOP;
+EXCEPTION
+   WHEN OTHERS THEN
+      --Log the Cost Center # that failed to load
+      --DBMS_OUTPUT.PUT_LINE('Failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+      COST_CENTER_UPLOAD.LOG_ERROR('000000', SQLERRM, SQLCODE);      
+      ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
+      RAISE;
+END HIERARCHY_BULK_TRNSFR_PROCESS;
 
 END CCN_HIERARCHY;
 
