@@ -1,0 +1,67 @@
+create or replace PACKAGE BODY mail_pkg AS
+
+
+PROCEDURE SEND_MAIL( IN_GROUP_ID IN VARCHAR2, IN_TERMINL_NUMBER IN NUMBER)
+IS
+   v_mail_host   VARCHAR2 (30) := 'smtp.sherwin.com'; --'sthq.sherwin.com';
+   v_mail_conn   UTL_SMTP.connection;
+   v_recipient   VARCHAR2(32000);
+   v_index       number;
+   crlf          VARCHAR2 (2) := CHR (13) || CHR (10);
+   
+   l_boundary1    VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE1';
+   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
+   v_add_src      VARCHAR2(10000);
+   vTolist        VARCHAR2(10000);
+   v_addr         VARCHAR2(10000);
+   slen           NUMBER := 1;
+
+BEGIN
+    --Loop through all the emails for this passed category code
+     FOR rec IN (SELECT  A.*, B.MAIL_ID FROM MAILING_DETAILS A, mailing_group b WHERE A.GROUP_ID = IN_GROUP_ID AND A.group_id = b.group_id) LOOP
+        v_mail_conn := UTL_SMTP.open_connection (v_mail_host, 25);
+        UTL_SMTP.helo (v_mail_conn, v_mail_host);
+        UTL_SMTP.mail (v_mail_conn, rec.FROM_P);
+
+            if(instr(rec.mail_id,';') = 0) then
+		 utl_smtp.rcpt(v_mail_conn, rec.mail_id);
+            else
+		v_add_src := rec.mail_id || ';';
+		while(instr(v_add_src,';',slen) > 0) loop
+                      v_addr := substr(v_add_src, slen, instr(substr(v_add_src, slen),';')-1);
+		      slen := slen+instr(substr(v_add_src, slen),';');
+                      vTolist := vTolist || ', ' || v_addr;
+                      utl_smtp.rcpt(v_mail_conn, v_addr);
+                END loop;
+
+	    END IF;
+            
+      UTL_SMTP.open_data(v_mail_conn);
+      --Set the required message paremeters
+      UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'To: ' || vTolist || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || rec.SUBJECT || crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+
+      --Boundary should be set for this email body
+      UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Hi All' || crlf || crlf
+                                       || REPLACE(rec.MESSAGE, 'XXXXX', IN_TERMINL_NUMBER)  || crlf || crlf
+                                       || 'Please let us know if there are any issues.' || crlf || crlf
+                                       || rec.SIGNATURE || crlf);
+      
+      UTL_SMTP.close_data(v_mail_conn);  
+      UTL_SMTP.quit (v_mail_conn);
+   END LOOP;
+
+EXCEPTION
+   WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
+   THEN
+      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+END SEND_MAIL;
+END mail_pkg;
+

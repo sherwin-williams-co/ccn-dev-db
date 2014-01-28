@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_HIER_BUSINESS_RULES_PKG AS
+create or replace PACKAGE CCN_HIER_BUSINESS_RULES_PKG AS
 /******************************************************************************
 	CCN_HIER_BUSINESS_RULES_PKG
 
@@ -161,9 +161,7 @@ procedure DUPLICATE_COST_CENTER(
 
 created : SH 06/27/2013
 *********************************************************************************/
-in_HRCHY_HDR_NAME             HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
-in_HRCHY_DTL_LEVEL            HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE, 
-in_HRCHY_DTL_CURR_ROW_VAL     HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE);
+IN_HIERARCHY_DETAIL_REC             HIERARCHY_DETAIL%ROWTYPE);
 
 FUNCTION VALIDATE_HIERARCHY(
 /*******************************************************************************

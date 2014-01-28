@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE errnums
+create or replace PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -2153,6 +2152,19 @@ PRAGMA EXCEPTION_INIT
 (exc_first_two_digit_err , -20157);
 
 /*********************************************************** 
+The "invalid_amex_id_size_err" passes a numerical error of -20158.
+This error will state that the AMEX ID entered is not of valid size. 
+
+created : 12/19/2013 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_amex_id_size_err CONSTANT NUMBER := -20158;
+exc_invalid_amex_id_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_amex_id_size_err , -20158);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
@@ -2382,7 +2394,35 @@ revisions:
 en_hierarachy_not_exists  CONSTANT NUMBER := -20515;
 exc_hierarachy_not_exists EXCEPTION;
 PRAGMA EXCEPTION_INIT
-(exc_hierarachy_not_exists , -20515);
+(EXC_HIERARACHY_NOT_EXISTS , -20515);
+
+/*********************************************************** 
+The "en_code_detail_err" passes a numerical error of -20516.
+This error will state an error that a code detail value for cost center prefix and cost center type mismatch
+
+created : 12/19/2013 NXK CCN Project
+revisions: 
+
+************************************************************/
+en_code_detail_err  CONSTANT NUMBER := -20516;
+exc_code_detail_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_CODE_DETAIL_ERR , -20516);
+
+
+/*********************************************************** 
+The "EN_DIVISION_ERR" passes a numerical error of -20517.
+This error will state an error that the division can not allowed for the code detail
+value for cost center prefix and cost center type 
+
+created : 12/19/2013 NXK CCN Project
+revisions: 
+
+************************************************************/
+EN_DIVISION_ERR  CONSTANT NUMBER := -20517;
+EXC_DIVISION_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_DIVISION_ERR , -20517);
 
 /*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE HIERARCHY_LOADING_PKG as 
+create or replace PACKAGE HIERARCHY_LOADING_PKG as 
 /*********************************************************** 
 This package is intended to load files from mainframe into the 
 HIERARCHY tables
@@ -97,6 +97,16 @@ This Procedure
 
 Created: SH 05/06/2013
 ******************************************************************/
+;
+
+PROCEDURE HIERARCHY_BULK_LOAD_PROCESS
+/******************************************************************************
+HIERARCHY_LOAD_PROCESS
+
+This procedure is the for the Hierarchy bulk upload process
+
+Created : SH 12/23/2013
+******************************************************************************/
 ;
 
 END HIERARCHY_LOADING_PKG;

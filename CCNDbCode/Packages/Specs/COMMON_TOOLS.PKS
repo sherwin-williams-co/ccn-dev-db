@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COMMON_TOOLS as 
+create or replace PACKAGE COMMON_TOOLS as 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -168,7 +168,8 @@ IN  IN_USER_ID
 
 created : 09/04/2013 CCN Project
 **********************************************************/
-IN_USER_ID    IN    VARCHAR2) RETURN BOOLEAN;
+IN_USER_ID    IN    VARCHAR2,
+IN_ROLE_CODE  IN    VARCHAR2) RETURN BOOLEAN;
 
 PROCEDURE CHECK_DUP_COST_CENTER(
 /**********************************************************
