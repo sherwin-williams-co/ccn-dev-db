@@ -199,6 +199,42 @@ created : 09/11/2013 kdp CCN Project....
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2);
 
+PROCEDURE DELETE_COST_CENTER(
+/**********************************************************
+	DELETE_COST_CENTER
+
+	This procedure will delete the passed cost center
+
+IN_COST_CENTER - Input Cost Center to be removed
+
+created : 01/29/2013 jxc517 CCN Project....
+**********************************************************/
+          IN_COST_CENTER IN VARCHAR2);
+
+ FUNCTION BUILD_TAG(
+/******************************************************************************
+BUILD_TAG
+
+This function will build the tag based on passed input parameters
+
+******************************************************************************/
+                      IN_VALUE     IN VARCHAR2,
+                      IN_TAG_NAME  IN VARCHAR2,
+                      IN_DATE_FLAG IN VARCHAR2 DEFAULT 'N')
+   RETURN VARCHAR2;
+
+PROCEDURE LOG_ERROR(
+/******************************************************************************
+LOG_ERROR
+
+This procedure is an autonomous transaction that logs the errors and proceeds 
+with the execution of rest of the cost centers
+
+******************************************************************************/
+                    IN_CC      IN VARCHAR2,
+                    IN_SQLERRM IN VARCHAR2,
+                    IN_SQLCODE IN NUMBER);
+
 PROCEDURE SEND_MAIL(
 /**********************************************************
 	SEND_MAIL

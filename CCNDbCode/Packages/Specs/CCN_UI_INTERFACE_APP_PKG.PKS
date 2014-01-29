@@ -1,4 +1,4 @@
-CREATE OR REPLACE package CCN_UI_INTERFACE_APP_PKG
+create or replace package CCN_UI_INTERFACE_APP_PKG
     as
 -- PACKAGE SPEC
 /****************************************************************************** 
@@ -172,6 +172,32 @@ terminal_number_seq
 *************************************************************************/
 
 RETURN NUMBER ;
+
+PROCEDURE COPY_COST_CENTER(
+/**********************************************************
+	COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center
+
+IN_OLD_CC - Input Cost Center to be removed
+IN_NEW_CC - Input Cost Center to be created
+
+created : 09/11/2013 kdp CCN Project....
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2);
+
+PROCEDURE DELETE_COST_CENTER(
+/**********************************************************
+	DELETE_COST_CENTER
+
+	This procedure will delete the passed cost center
+
+IN_COST_CENTER - Input Cost Center to be removed
+
+created : 01/29/2013 jxc517 CCN Project....
+**********************************************************/
+          IN_COST_CENTER IN VARCHAR2);
 
 end CCN_UI_INTERFACE_APP_PKG;
 
