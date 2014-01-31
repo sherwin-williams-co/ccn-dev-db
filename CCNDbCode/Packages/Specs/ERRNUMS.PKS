@@ -2165,6 +2165,19 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_amex_id_size_err , -20158);
 
 /*********************************************************** 
+The "invalid_duns_nbr_size_err" passes a numerical error of -20159.
+This error will state that the Dums Number entered is not of valid size(9). 
+
+created : 01/31/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_duns_nbr_size_err CONSTANT NUMBER := -20159;
+exc_invalid_duns_nbr_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_duns_nbr_size_err , -20159);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
