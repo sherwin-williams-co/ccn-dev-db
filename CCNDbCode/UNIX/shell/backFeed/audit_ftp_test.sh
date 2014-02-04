@@ -4,11 +4,11 @@
 # Shell Script will FTP to the Mainframe system all adds and changes
 # made to the Oracle database daily. This flat file will be used to 
 # update the IDMS database on the Mainframe System HostX.
-# IDMS Mainframe file is 'STST.MDH01R.CCN00600.DEV.INPUT(+1)'
+# IDMS Mainframe file is 'STST.MDH01R.CCN00600.QA.INPUT(+1)'
 
 #This shell script has 2 processes:
 #
-#1) put AuditBackfeed.txt  'STST.MDH01R.CCN00600.DEV.INPUT(+1)' 
+#1) put AuditBackfeed.txt  'STST.MDH01R.CCN00600.QA.INPUT(+1)' 
 #2) mv AuditBackfeed.txt   current_datetime.log 
 # Created Date =11/27/2012  by B.Ramsey
 # Revised Date =06/18/2013  SH 
@@ -32,7 +32,7 @@ quote USER $mainframe_user
 quote PASS $mainframe_pw
 quote SITE RECFM=FB,LRECL=6000,BLKSIZE=24000,SPACE=(300,150),VOL(GDG350) CYL
 #put $file_name  'SMIS1.ORACLE.CCN00600.INPUT(+1)' 
-put $file_name  'STST.MDH01R.CCN00600.DEV.INPUT(+1)' 
+put $file_name  'STST.MDH01R.CCN00600.QA.INPUT(+1)'
 bye
 FTP_MF`
 echo "\n FTP to Mainframe COMPLETED \n"
