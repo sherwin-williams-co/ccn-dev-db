@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_AUDIT_PKG as 
+create or replace PACKAGE BODY CCN_AUDIT_PKG as 
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 created : 02/29/2012 tal CCN project
@@ -9,6 +9,7 @@ FUNCTION XML_EXTRACT_NO_EXCEPTION
 /**********************************************************
 This function returns null if XPATH does not exist within xmltype, 
 oracle throws an exception if not handled this way
+
 **********************************************************/
 ( p_xml IN XMLTYPE
 , p_xpath IN VARCHAR2
@@ -26,6 +27,184 @@ BEGIN
 	    END;
 
 END XML_EXTRACT_NO_EXCEPTION;
+
+PROCEDURE EXTRACT_HST_ATTRBTS_XML(
+/**********************************************************
+PARSE_DIFFERENCE_ATTRBTS_XML
+
+This procedure will accept the XMLTYPE Previous Table_Row & Current Table_Row values
+Then start extracting the attributes from those and compare before assigning those
+to the in out parameters
+
+created : 02/05/2014 jxc517 CCN Project Team
+
+**********************************************************/
+    IN_CURRENT_ATTRIBUTE_NAME IN     VARCHAR2,
+    IN_XMLSTRING              IN     XMLTYPE,
+    IN_OUT_ATTRIBUTE_NAME     IN OUT VARCHAR2,
+    IN_OUT_ATTRIBUTE_VALUE    IN OUT VARCHAR2)
+IS
+BEGIN
+
+    IF IN_OUT_ATTRIBUTE_NAME IS NULL THEN
+        --Special Condition to accomodate the historical records
+        --Prior to CCN 2.0 release we used to store the extracted attributes in audit_log table
+        --As part of CCN 2.0 release we will be storing the entire attribute values itseld in audit_log table
+        --So if the new extraction didn't fetch anything we need to go for the old extraction as well
+        --Logic to extract old Statement Type or statement_type attributes
+        IF IN_CURRENT_ATTRIBUTE_NAME = 'STATEMENT_TYPE' THEN
+            IF CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//STATEMENT_TYPE') IS NOT NULL THEN
+                IN_OUT_ATTRIBUTE_NAME := 'STATEMENT_TYPE';
+                IN_OUT_ATTRIBUTE_VALUE := CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//STATEMENT_TYPE');
+            END IF;
+        END IF;
+        --Logic to extract old Manager Id or managername attributes
+        IF IN_CURRENT_ATTRIBUTE_NAME = 'EMPLOYEE_NAME' THEN
+            IF CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//EMPLOYEE_NAME') IS NOT NULL THEN
+                IN_OUT_ATTRIBUTE_NAME := 'EMPLOYEE_NAME';
+                IN_OUT_ATTRIBUTE_VALUE := CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//EMPLOYEE_NAME');
+            END IF;
+        END IF;
+    END IF;
+
+END EXTRACT_HST_ATTRBTS_XML;
+
+PROCEDURE PARSE_DIFFERENCE_ATTRBTS_XML(
+/**********************************************************
+PARSE_DIFFERENCE_ATTRBTS_XML
+
+This procedure will accept the XMLTYPE Previous Table_Row & Current Table_Row values
+Then start extracting the attributes from those and compare before assigning those
+to the in out xml string
+
+created : 02/05/2014 jxc517 CCN Project Team
+
+**********************************************************/
+    IN_COMP_CURR     IN     XMLTYPE,
+    IN_COMP_PREV     IN     XMLTYPE,
+    IN_OUT_XMLSTRING IN OUT LONG)
+IS
+    V_COMP_CURR_ATTRIBUTES     XMLTYPE;
+    V_COMP_PREV_ATTRIBUTES     XMLTYPE;
+    V_CURR_COUNT               NUMBER := 1;
+    V_PREV_COUNT               NUMBER := 1;
+    V_CURR_ATTRIBUTE_NAME      VARCHAR2(200);
+    V_PREV_ATTRIBUTE_NAME      VARCHAR2(200);
+    V_CURR_ATTRIBUTE_VALUE     VARCHAR2(200);
+    V_PREV_ATTRIBUTE_VALUE     VARCHAR2(200);
+    V_STATENMENT_TYPE_FLAG     BOOLEAN := FALSE;
+    V_EMPLOYEE_NAME_FLAG       BOOLEAN := FALSE;
+    V_ATRIBUTE_TAG_VALUE       VARCHAR2(100) := 'ATTRIBUTES';
+BEGIN
+    
+    --Extract the attribute values from the input XMLTYPE Current Table_Row
+    IF IN_COMP_CURR.EXTRACT('//'||V_ATRIBUTE_TAG_VALUE) IS NOT NULL THEN
+        V_COMP_CURR_ATTRIBUTES := SYS.XMLTYPE(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(
+                               IN_COMP_CURR.extract('//'||V_ATRIBUTE_TAG_VALUE).getstringval()));
+    END IF;
+
+    --Below code should not fail as historical data prior to CCN 2.0 release 
+    --doesn't contain <ATTRIBUTES> tag in which case below code throws exception
+    BEGIN
+        --Extract the attribute values from the input XMLTYPE Previous Table_Row
+        IF IN_COMP_PREV.EXTRACT('//'||V_ATRIBUTE_TAG_VALUE) IS NOT NULL THEN
+            V_COMP_PREV_ATTRIBUTES := SYS.XMLTYPE(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(
+                                   IN_COMP_PREV.extract('//'||V_ATRIBUTE_TAG_VALUE).getstringval()));
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    
+    IF V_COMP_CURR_ATTRIBUTES IS NOT NULL THEN
+        --Loop through the Current record attributes
+        WHILE V_COMP_CURR_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']') = 1 LOOP
+            --Get current record attribute name
+            IF (V_COMP_CURR_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']/Name/text()') = 1) THEN
+                V_CURR_ATTRIBUTE_NAME := V_COMP_CURR_ATTRIBUTES.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']/Name/text()').GETSTRINGVAL();
+            END IF;
+            
+            --Get current record attribute value
+            IF (V_COMP_CURR_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']/Value/text()') = 1) THEN
+                V_CURR_ATTRIBUTE_VALUE := V_COMP_CURR_ATTRIBUTES.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']/Value/text()').GETSTRINGVAL();
+            END IF;
+
+            --Extracts attribute name and value if not found using CCN 2.0 release logic
+            IF V_CURR_ATTRIBUTE_NAME IS NULL THEN
+                IF NOT V_STATENMENT_TYPE_FLAG THEN
+                    --Extracts attribute name and value if not found using CCN 2.0 release logic
+                    EXTRACT_HST_ATTRBTS_XML('STATEMENT_TYPE',
+                                            IN_COMP_CURR,
+                                            V_CURR_ATTRIBUTE_NAME,
+                                            V_CURR_ATTRIBUTE_VALUE);
+                    V_STATENMENT_TYPE_FLAG := TRUE;
+                ELSIF NOT V_EMPLOYEE_NAME_FLAG THEN
+                    --Extracts attribute name and value if not found using CCN 2.0 release logic
+                    EXTRACT_HST_ATTRBTS_XML('EMPLOYEE_NAME',
+                                            IN_COMP_CURR,
+                                            V_CURR_ATTRIBUTE_NAME,
+                                            V_CURR_ATTRIBUTE_VALUE);
+                    V_EMPLOYEE_NAME_FLAG := TRUE;                
+                END IF;
+            END IF;
+            
+            --Get previous attribute name and value, if one exists
+            IF V_COMP_PREV_ATTRIBUTES IS NOT NULL THEN
+                --Loop through the Previous record attributes
+                WHILE V_COMP_PREV_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']') = 1 LOOP
+                    --check if the previous attribute name exists
+                    IF (V_COMP_PREV_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']/Name/text()') = 1) THEN
+                        V_PREV_ATTRIBUTE_NAME := V_COMP_PREV_ATTRIBUTES.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']/Name/text()').GETSTRINGVAL();
+                    END IF;
+                    
+                    --if exists then get the previous attribute value
+                    IF V_CURR_ATTRIBUTE_NAME = V_PREV_ATTRIBUTE_NAME THEN
+                        IF (V_COMP_PREV_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']/Value/text()') = 1) THEN
+                            V_PREV_ATTRIBUTE_VALUE := V_COMP_PREV_ATTRIBUTES.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']/Value/text()').GETSTRINGVAL();
+                        END IF;
+                        EXIT;
+                    END IF;
+                    
+                    --Increment the loop count to avoid INFINITE loop
+                    V_PREV_COUNT := V_PREV_COUNT + 1;
+                END LOOP;
+                
+                --Reset the previous count to 1 for next outer iteration
+                V_PREV_COUNT := 1;
+            END IF;
+
+            --Special conditions for existing attributes before CCN 2.0 release
+            IF V_CURR_ATTRIBUTE_NAME IN ('Statement Type', 'statement_type') THEN
+                V_CURR_ATTRIBUTE_NAME := 'STATEMENT_TYPE';
+            ELSIF V_CURR_ATTRIBUTE_NAME IN ('ManagerName','Manager ID') THEN
+                V_CURR_ATTRIBUTE_NAME := 'EMPLOYEE_NAME';
+            END IF;
+
+            IF IN_COMP_PREV IS NOT NULL THEN
+                --Extracts attribute name and value if not found using CCN 2.0 release logic
+                EXTRACT_HST_ATTRBTS_XML(V_CURR_ATTRIBUTE_NAME,
+                                        IN_COMP_PREV,
+                                        V_PREV_ATTRIBUTE_NAME,
+                                        V_PREV_ATTRIBUTE_VALUE);
+            END IF;
+
+            --Compare current values with previous values
+            IF NVL(V_CURR_ATTRIBUTE_VALUE,'A') <> NVL(V_PREV_ATTRIBUTE_VALUE,'A') THEN
+                IN_OUT_XMLSTRING := IN_OUT_XMLSTRING || '<' || V_CURR_ATTRIBUTE_NAME || '>' || NVL(V_CURR_ATTRIBUTE_VALUE,'~') ||'</' || V_CURR_ATTRIBUTE_NAME || '>';
+            END IF;
+            
+            --Nullify the values for next iteration
+            V_CURR_ATTRIBUTE_NAME  := NULL;
+            V_CURR_ATTRIBUTE_VALUE := NULL;
+            V_PREV_ATTRIBUTE_NAME  := NULL;
+            V_PREV_ATTRIBUTE_VALUE := NULL;
+
+            --Increment the loop count to avoid INFINITE loop
+            V_CURR_COUNT := V_CURR_COUNT + 1;
+        END LOOP;
+    END IF;
+
+END PARSE_DIFFERENCE_ATTRBTS_XML;
 
 FUNCTION REQUIRED_TABLE_CHECK
 /**********************************************************
@@ -116,12 +295,15 @@ EXCEPTION
       RETURN FALSE;
 END IS_COSTCNTR_IN_GLOBAL_HRCHY;
 
-PROCEDURE SELECT_AUDIT_HIERARCHY_LOG
+PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
+SELECT_HIERARCHY_AUDIT_LOG
+
 Selects all rows from audit_log that have changed from
 the last run of the backfeed process for hierarchy_detail table alone
 
-created : 06/07/2012
+created : 10/20/2013 jxc517 CCN Project Team . . . 
+modified : 02/05/2014 jxc517 CCN Project Team . . . 
 **********************************************************/
 
 IS
@@ -201,7 +383,7 @@ FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
              v_code  := SQLCODE;
              v_errm  := substr(SQLERRM,1,500);
              --write to error log
-             errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_HIERARCHY_LOG', v_errm, V_CC_CODE); 
+             errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_HIERARCHY_LOG', v_errm, V_CC_CODE);
       END;
      
 END LOOP;  
@@ -219,7 +401,7 @@ EXCEPTION WHEN OTHERS THEN
  
 	ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_HIERARCHY_LOG',V_CONTEXT);
  
-END SELECT_AUDIT_HIERARCHY_LOG;
+END SELECT_HIERARCHY_AUDIT_LOG;
 
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
@@ -231,24 +413,7 @@ created : 06/07/2012
 
 IS
 
-/*CURSOR SEL_AUDIT_LOG IS
-SELECT 'COST_CENTER' AS TABLE_NAME --AL.TABLE_NAME
-,'12345678'AS TRANSACTION_ID       --,AL.TRANSACTION_ID
-FROM DUAL;
-*/
-
 CURSOR SEL_AUDIT_LOG IS
-/*SELECT DISTINCT AL.TABLE_NAME,
-                AL.TRANSACTION_ID
-  FROM AUDIT_LOG AL,
-       BATCH_JOB BATCH
- WHERE BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
-   AND AL.TRANSACTION_DATE  >= BATCH.BATCH_JOB_LAST_RUN_DATE
---and    TABLE_NAME IN ('COST_CENTER','TAXWARE') -- for testing only, remove after testing
-   AND    BATCH.BATCH_JOB_LAST_RUN_DATE IN (SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
-                                              FROM BATCH_JOB B1
-                                             WHERE B1.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-   AND AL.AUDIT_REC_FLAG IS NULL;*/
 SELECT DISTINCT TABLE_NAME,
        TRANSACTION_ID
   FROM AUDIT_LOG
@@ -415,14 +580,7 @@ CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
    SELECT COLUMN_NAME,
           COLUMN_ID
      FROM ALL_TAB_COLUMNS
-    WHERE TABLE_NAME = IN_TABLE
-   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
-   UNION
-   SELECT COLUMN_NAME,
-          COLUMN_ID
-     FROM CCN_ADDITIONAL_AUDIT_FIELDS
-    WHERE TABLE_NAME = IN_TABLE
-    ORDER BY COLUMN_ID ASC;
+    WHERE TABLE_NAME = IN_TABLE;
 
 BEGIN
 
@@ -516,6 +674,11 @@ BEGIN
       IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_HDR_NAME' THEN
 	 	     V_HRCHY_HDR_NAME := COMP_CURR; 
       END IF;
+      
+      IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
+	 	     --CCN 2.0 release changes to extract attributes dynamically
+         PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR,ROW_PREV,XMLSTRING);
+      END IF;
 	 END IF;
 	
    IF GET_COLS_REC.COLUMN_NAME = 'HRCHY_DTL_CURR_ROW_VAL' AND V_HRCHY_DTL_LEVEL = GET_HRCHY_DTL_LEVEL(V_HRCHY_HDR_NAME) THEN
@@ -530,12 +693,12 @@ BEGIN
         XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
      ELSE
         --Populate the XML String only if the value is changed or if particular column is part of primary key
-        --Also for Bank_Card table we should populate below fields with previous records value if it's a change
+        --Also for Bank_Card table we should always populate below fields with current records value if it's a change
         IF (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
                                                                     'BANK_CARD - QUALITY_CODE',
                                                                     'BANK_CARD - AMEX_SE_ID',
                                                                     'BANK_CARD - DISCOVER_ID') THEN
-           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || NVL(COMP_PREV,'~') || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+           XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
         ELSE
            IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
               OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL THEN
@@ -543,7 +706,7 @@ BEGIN
            END IF;
         END IF;
      END IF;
-
+     
 	END LOOP;
 
            V_CONTEXT := 'Updating the PREV AUDIT_REC_FLAG to C';
@@ -570,7 +733,7 @@ BEGIN
 	V_CONTEXT := 'Converting to XMLType';
 	
   --Convert the final XML String to XMLType and set it to the OUT parameter
-  
+
 	OUT_DIFF  := XMLType(XMLSTRING);
 	OUT_CC_CODE := v_CostCenterCode;
 	OUT_CHANGE_TYPE := v_change_type;
@@ -678,6 +841,7 @@ CURSOR table_fields_cur IS
   L_BLOB_LEN            INTEGER;
   v_out_clob            CLOB;
   v_value               VARCHAR2(32000);
+  v_extracted_value     VARCHAR2(32000);
   V_CONTEXT	            VARCHAR2(200);
   SQ		                INTEGER; 
   SE		                VARCHAR2(1000);
@@ -717,19 +881,19 @@ V_CONTEXT := 'Generating the CLOB Output';
    --V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
    V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || LPAD(in_LOG_ID,14,'0') ||
                  V_CHANGE_TYPE; --IN_CHANGE_TYPE;
-   
+
    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
  
       IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
          V_CONTEXT := 'Building by extracting the Existing Data';
+         v_extracted_value := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
          IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - POS_PROG_VER_NBR' )) THEN
             V_OUT_CLOB := V_OUT_CLOB ||
-                          UPPER(LPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
+                          UPPER(LPAD(v_extracted_value,
                                      TABLE_FIELDS_REC.COLUMN_SIZE, '0'));
          ELSE
-            
-            v_value := UPPER(RPAD(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL()),
-                                      TABLE_FIELDS_REC.COLUMN_SIZE));
+            v_value := UPPER(RPAD(v_extracted_value,
+                                  NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value))));
             
             --If there is a change and if the changed value is null then it comes here as '~'
             --We need to capture these ~'s and convert into proper formatting
@@ -773,10 +937,11 @@ V_CONTEXT := 'Generating the CLOB Output';
          V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
       END IF;
    END LOOP;
-    
+
   --working just remove for debbuging un comment for writing file
      UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
      UTL_FILE.FCLOSE(output_file);
+
 EXCEPTION WHEN OTHERS THEN
 	SQ := SQLCODE;
 	SE := SQLERRM;
@@ -784,6 +949,68 @@ EXCEPTION WHEN OTHERS THEN
  
  	ERRPKG.RAISE_ERR(-20003,'Build_File_SP in ' || IN_TABLE_NAME || ' for ' || IN_COST_CENTER || 'at ', V_CONTEXT);
 END Build_File_SP;
+
+PROCEDURE AUDIT_FIELDS_IU(
+/**********************************************************
+	AUDIT_FIELDS_IU
+
+	This procedure is intended to insert records into CCN_ADDITIONAL_AUDIT_FIELDS
+  table based on the input XML type passed
+  
+  If record already exists, ignore
+  If record doesn't exist, insert one accordingly
+
+created : 02/05/2014 jxc517 CCN Project....
+**********************************************************/
+    IN_UPPER_LVL_VER_VALUE XMLTYPE)
+IS
+    V_COUNT           NUMBER := 0;
+    V_MAX_VALUE       NUMBER := 0;
+    V_ATTR_COUNT      NUMBER := 1;
+    V_ATTRIBTUE_NAME  VARCHAR2(100);
+BEGIN
+   --Loop through all the attribtues in the given input parameter
+   WHILE IN_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_ATTR_COUNT || ']') = 1 LOOP
+       
+       --Extract the attribute name
+       V_ATTRIBTUE_NAME := UPPER(REPLACE(IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_ATTR_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+       
+       --For below attribute names, it has been historically defined as 'EMPLOYEE_NAME'
+       IF V_ATTRIBTUE_NAME NOT IN ('MANAGER_ID','MANAGERNAME') THEN
+           V_ATTRIBTUE_NAME := 'EMPLOYEE_NAME';
+       END IF;
+       
+       --Check if the attribute name is already there in the table
+       BEGIN
+           SELECT COUNT(*) 
+             INTO V_COUNT
+             FROM CCN_ADDITIONAL_AUDIT_FIELDS
+            WHERE UPPER(COLUMN_NAME) = V_ATTRIBTUE_NAME
+              AND TABLE_NAME         = 'HIERARCHY_DETAIL';
+       EXCEPTION
+           WHEN OTHERS THEN 
+               V_COUNT := 0;
+       END;
+       
+       --If no record exists inser one
+       IF V_COUNT = 0 THEN
+           --Below query will get the maximum value + 1 which will be used as COLUMN_ID later in audit build
+           SELECT MAX(COLUMN_ID)+1
+             INTO V_MAX_VALUE
+             FROM CCN_ADDITIONAL_AUDIT_FIELDS;
+           
+           --Inserting the record into CCN_ADDITIONAL_AUDIT_FIELDS table
+           INSERT INTO CCN_ADDITIONAL_AUDIT_FIELDS 
+           VALUES ('HIERARCHY_DETAIL',
+                   V_ATTRIBTUE_NAME,
+                   'VARCHAR2',
+                   NULL,
+                   V_MAX_VALUE);
+       END IF;
+       --Loop incrementation to avoid INFINTE loop
+       V_ATTR_COUNT := V_ATTR_COUNT + 1;
+   END LOOP;
+END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
 

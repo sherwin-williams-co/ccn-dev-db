@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_AUDIT_PKG AS
+create or replace PACKAGE CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 
@@ -7,12 +7,15 @@ revisions:
 
 ************************************************************/
 
-PROCEDURE SELECT_AUDIT_HIERARCHY_LOG
+PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
+SELECT_HIERARCHY_AUDIT_LOG
+
 Selects all rows from audit_log that have changed from
 the last run of the backfeed process for hierarchy_detail table alone
 
-created : 06/07/2012
+created : 10/20/2013 jxc517 CCN Project Team . . . 
+modified : 02/05/2014 jxc517 CCN Project Team . . . 
 **********************************************************/
 ;
   
@@ -65,6 +68,20 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_CHANGE_TYPE in VARCHAR2
 ,in_LOG_ID      in NUMBER
 );
+
+PROCEDURE AUDIT_FIELDS_IU(
+/**********************************************************
+	AUDIT_FIELDS_IU
+
+	This procedure is intended to insert records into CCN_ADDITIONAL_AUDIT_FIELDS
+  table based on the input XML type passed
+  
+  If record already exists, ignore
+  If record doesn't exist, insert one accordingly
+
+created : 02/05/2014 jxc517 CCN Project....
+**********************************************************/
+    IN_UPPER_LVL_VER_VALUE XMLTYPE);
     
 END CCN_AUDIT_PKG;
 

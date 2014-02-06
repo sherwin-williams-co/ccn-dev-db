@@ -196,6 +196,63 @@ created : 02/13/2013 SH CCN Project....
 **********************************************************/
     IN_XML                VARCHAR2);
 
+PROCEDURE HIERARCHY_DSCRPTN_ATTR_UPDATE(
+/**********************************************************
+	HIERARCHY_DSCRPTN_ATTR_UPDATE
+
+	This procedure will update the attributes in the table HIERARCHY_DESCRIPTION 
+        
+<HIERARCHY_DESCRIPTION>
+  <row_data>
+    <HRCHY_LEVELS>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_LVL_NBR>03</HRCHY_HDR_LVL_NBR> 
+      <HRCHY_HDR_LVL_DESC>AREA</HRCHY_HDR_LVL_DESC>
+      <HRCHY_GLOBAL_LVL_NBR>9</HRCHY_GLOBAL_LVL_NBR>
+      <LVL_VALUE_SIZE>2</LVL_VALUE_SIZE>
+      <attributes>
+	   <upper_lvl_ver_desc> 
+	      <Name>statement_type</Name>
+	      <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	      <Name>ManagerName</Name>
+              <Description>CC Mgr Name</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	       <Name>state_code</Name>
+	       <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+      </attributes>
+    </HRCHY_LEVELS> 
+  	<HRCHY_LEVELS>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_LVL_NBR>04</HRCHY_HDR_LVL_NBR> 
+      <HRCHY_HDR_LVL_DESC>DIST</HRCHY_HDR_LVL_DESC> 
+      <HRCHY_GLOBAL_LVL_NBR>9</HRCHY_GLOBAL_LVL_NBR>
+      <LVL_VALUE_SIZE>2</LVL_VALUE_SIZE>
+      <attributes>
+	   <upper_lvl_ver_desc> 
+	      <Name>statement_type</Name>
+	      <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	      <Name>ManagerName</Name>
+              <Description>CC Mgr Name</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	       <Name>state_code</Name>
+	       <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+      </attributes>
+    </HRCHY_LEVELS> 
+  </row_data>
+</HIERARCHY_DESCRIPTION>
+
+created : 02/03/2014 JXC517 CCN Project....
+**********************************************************/
+    in_XML                VARCHAR2);
+
 FUNCTION CURRENT_LVL_EXISTS (
 /***********************************************************
       CURRENT_LVL_EXISTS 

@@ -199,5 +199,17 @@ created : 01/29/2013 jxc517 CCN Project....
 **********************************************************/
           IN_COST_CENTER IN VARCHAR2);
 
+PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
+/**********************************************************
+SELECT_HIERARCHY_AUDIT_LOG
+
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process for hierarchy_detail table alone
+
+created : 10/20/2013 jxc517 CCN Project Team . . . 
+modified : 02/05/2014 jxc517 CCN Project Team . . . 
+**********************************************************/
+;
+
 end CCN_UI_INTERFACE_APP_PKG;
 
