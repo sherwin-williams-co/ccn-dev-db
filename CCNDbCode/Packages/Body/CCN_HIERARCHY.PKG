@@ -1,12 +1,6 @@
 create or replace PACKAGE BODY CCN_HIERARCHY
     AS
 
---Stored global level memory variable to store duplicate CC
-DUPLICATE_COST_CENTER       HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
-BUSSINESS_RULES_ERR_CODE    INTEGER;
-BUSSINESS_RULES_ERR_DESC    VARCHAR2(2000);
-BUSINESS_RULES_EXCEPTION    EXCEPTION;
-
 /*********************************************************** 
 This package is will return data from the hierarchy_detail table
 
@@ -151,14 +145,14 @@ PROCEDURE RETURN_HIERARCHY (
 	ex. CCN_HIERARCHY.RETURN_HIERARCHY('DAD Structure','703252','DOWN',OUT_DEFINED_REF_CURSOR)
 
 created : 03/22/2012 OD CCN Project....
+revised : 02/14/2014 kdp CCN Phase 1.1 adding code to use composite key for IN_CURR_ROW_VAL
 **********************************************************/
 
-				IN_HEADER_NAME 		IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
-			    , 	IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
-			    ,	IN_LEVEL		IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
-			    ,	IN_TRAVERSE		IN VARCHAR2 DEFAULT 'UP'
-			    ,   OUT_HIERARCHY_REF_CUR IN OUT REF_CURSOR
-       --  ,   OUT_HIERARCHY_REF_CUR IN OUT SYS_REFCURSOR
+				IN_HEADER_NAME 				IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
+			    , 	IN_CURR_ROW_VAL			IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
+			    ,	IN_LEVEL				IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+			    ,	IN_TRAVERSE				IN VARCHAR2 DEFAULT 'UP'
+			    ,   OUT_HIERARCHY_REF_CUR 	IN OUT REF_CURSOR
 			   )
                                                                                                
 	
@@ -194,7 +188,7 @@ created : 03/22/2012 OD CCN Project....
                 AR.UPPER_LVL_VER_VALUE
 				FROM
 				(
-				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_LVL_VAL ) lev,  --02/14/2104 kdp
 						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
 						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
      				hr.HRCHY_HDR_NAME,
@@ -206,8 +200,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
             		hr.HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
-            		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
+            		xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -234,7 +228,7 @@ created : 03/22/2012 OD CCN Project....
                 AR.UPPER_LVL_VER_VALUE
 				FROM
 				(
-				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_LVL_VAL ) lev, --02/14/2104 kdp
 						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
 						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
      				hr.HRCHY_HDR_NAME,
@@ -246,8 +240,8 @@ created : 03/22/2012 OD CCN Project....
           			hr.HRCHY_DTL_EXP_DATE,
             		hr.HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
-            		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
+            		xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -2096,10 +2090,13 @@ Created : 01/17/2014 JXC517 CCN Project
             IN_COUNT                IN NUMBER)
 is
   V_CONTEXT                     VARCHAR2(3000);
-  CC_EXISTS_ERR                 EXCEPTION;
   MISSING_HIERARCHY_NAMES       VARCHAR2(1000);  
   V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
   V_LAST_LEVEL_FLAG             VARCHAR2(1);
+
+	BUSSINESS_RULES_ERR_CODE    INTEGER;
+ 	BUSSINESS_RULES_ERR_DESC    VARCHAR2(2000);
+  BUSINESS_RULES_EXCEPTION    EXCEPTION;
 
   SQ             INTEGER;
   SE             VARCHAR2(1000);
@@ -2117,7 +2114,10 @@ BEGIN
             END IF;
         EXCEPTION
             WHEN OTHERS THEN
-                RAISE CC_EXISTS_ERR;
+                BUSSINESS_RULES_ERR_CODE := ERRNUMS.EN_CC_EXISTS_ERR; 
+                BUSSINESS_RULES_ERR_DESC := 'The Cost Center ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL
+                                                || ' already exists in Hierarchy ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
+                RAISE BUSINESS_RULES_EXCEPTION;
         END;
     END IF;
 
@@ -2139,6 +2139,7 @@ BEGIN
             WHEN OTHERS THEN
                 BUSSINESS_RULES_ERR_CODE   := SQLCODE;
                 BUSSINESS_RULES_ERR_DESC   := SQLERRM;
+                RAISE BUSINESS_RULES_EXCEPTION;
         END;
 
         --Validate if the header name matches with the number of levels passed
@@ -2194,9 +2195,8 @@ BEGIN
     END IF;
 
 EXCEPTION
-     WHEN CC_EXISTS_ERR THEN  
-             SQ := ERRNUMS.EN_CC_EXISTS_ERR;
-             ERRPKG.RAISE_ERR(SQ, 'The Cost Center ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL|| ' already exists');
+     WHEN BUSINESS_RULES_EXCEPTION THEN
+           ERRPKG.RAISE_ERR(BUSSINESS_RULES_ERR_CODE,BUSSINESS_RULES_ERR_DESC);
      WHEN OTHERS THEN
            SQ := SQLCODE;
            SE := SQLERRM;
@@ -2424,7 +2424,7 @@ EXCEPTION
            SQ := SQLCODE;
            SE := SQLERRM;
            V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
-           ERRPKG.RAISE_ERR(-20004,'BUILD_COMPOSITE_KEYS ',V_CONTEXT);
+           ERRPKG.RAISE_ERR(-20004,'BUILD_INSERT_COMPOSITE_KEYS ',V_CONTEXT);
 END BUILD_INSERT_COMPOSITE_KEYS;
 
 PROCEDURE BUILD_FROM_COMPOSITE_KEYS(
@@ -2523,7 +2523,7 @@ EXCEPTION
            SQ := SQLCODE;
            SE := SQLERRM;
            V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
-           ERRPKG.RAISE_ERR(-20004,'BUILD_COMPOSITE_KEYS ',V_CONTEXT);
+           ERRPKG.RAISE_ERR(-20004,'BUILD_FROM_COMPOSITE_KEYS ',V_CONTEXT);
 END BUILD_FROM_COMPOSITE_KEYS;
 
 PROCEDURE BUILD_TO_COMPOSITE_KEYS(
@@ -2596,7 +2596,7 @@ EXCEPTION
            SQ := SQLCODE;
            SE := SQLERRM;
            V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
-           ERRPKG.RAISE_ERR(-20004,'BUILD_COMPOSITE_KEYS ',V_CONTEXT);
+           ERRPKG.RAISE_ERR(-20004,'BUILD_TO_COMPOSITE_KEYS ',V_CONTEXT);
 END BUILD_TO_COMPOSITE_KEYS;
 
 PROCEDURE BUILD_DELETE_COMPOSITE_KEYS(
@@ -2744,11 +2744,6 @@ IS
 
 BEGIN
 
-   --Delete the memory variables before starting the process
-   DUPLICATE_COST_CENTER    := NULL;
-   BUSSINESS_RULES_ERR_CODE := NULL;
-   BUSSINESS_RULES_ERR_DESC := NULL;
-
    V_CONTEXT := 'Calling BUILD_INSERT_COMPOSITE_KEYS';
    BUILD_INSERT_COMPOSITE_KEYS(IN_XML,
                                V_HIERARCHY_DETAIL_ROW);
@@ -2759,17 +2754,7 @@ BEGIN
                          'INSERT',
                          NULL);
 
-   --When this came to this point means, there are no oracle exception or hard edits
-   IF BUSSINESS_RULES_ERR_CODE IS NOT NULL THEN
-      RAISE BUSINESS_RULES_EXCEPTION;
-   END IF;
-
 EXCEPTION
-    WHEN CCN_HIERARCHY.CC_EXISTS_ERR THEN  
-       SQ := ERRNUMS.EN_CC_EXISTS_ERR;
-       ERRPKG.RAISE_ERR(SQ, 'The Cost Center ' || DUPLICATE_COST_CENTER || ' already exists in Hierarchy ' || V_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME);
-    WHEN BUSINESS_RULES_EXCEPTION THEN
-       ERRPKG.RAISE_ERR(BUSSINESS_RULES_ERR_CODE, BUSSINESS_RULES_ERR_DESC);
     WHEN OTHERS THEN
        SQ := SQLCODE;
        SE := SQLERRM;
@@ -2858,11 +2843,6 @@ IN_XML IN CLOB) IS
 
 BEGIN
 
-   --Delete the memory variables before starting the process
-   DUPLICATE_COST_CENTER    := NULL;
-   BUSSINESS_RULES_ERR_CODE := NULL;
-   BUSSINESS_RULES_ERR_DESC := NULL;
-
    --Extracting the TO_HIERARCHY
    WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP
       WHILE NOT V_PREV_LVL_EXISTS LOOP
@@ -2900,13 +2880,7 @@ BEGIN
       V_COUNT := V_COUNT + 1;
    END LOOP;
 
-   --When this came to this point means, there are no oracle exception or hard edits
-   IF BUSSINESS_RULES_ERR_CODE IS NOT NULL THEN
-      RAISE BUSINESS_RULES_EXCEPTION;
-   END IF;
 EXCEPTION
-    WHEN BUSINESS_RULES_EXCEPTION THEN
-       ERRPKG.RAISE_ERR(BUSSINESS_RULES_ERR_CODE, BUSSINESS_RULES_ERR_DESC);
     WHEN OTHERS THEN
        SQ := SQLCODE;
        SE := SQLERRM;
@@ -2969,11 +2943,6 @@ IS
   SE          VARCHAR2(1000);
 
 BEGIN
-
-   --Delete the memory variables before starting the process
-   DUPLICATE_COST_CENTER    := NULL;
-   BUSSINESS_RULES_ERR_CODE := NULL;
-   BUSSINESS_RULES_ERR_DESC := NULL;
 
       WHILE NOT V_PREV_LVL_EXISTS LOOP
           V_HIERARCHY_DETAIL_ROW := V_HIERARCHY_DETAIL_TEMP;
