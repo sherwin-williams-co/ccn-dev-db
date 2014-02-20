@@ -2438,6 +2438,19 @@ PRAGMA EXCEPTION_INIT
 (EXC_DIVISION_ERR , -20517);
 
 /*********************************************************** 
+The "EN_DIVISION_ERR" passes a numerical error of -20518.
+This error will state a soft error has occured while processing transfer process
+
+created : 02/10/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+EN_TRANSFER_ERR  CONSTANT NUMBER := -20518;
+EXC_TRANSFER_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_TRANSFER_ERR , -20518);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says

@@ -1,8 +1,6 @@
 create or replace PACKAGE CCN_HIERARCHY
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
---Declaring global level exception
-CC_EXISTS_ERR       EXCEPTION;
 
 PROCEDURE update_cc_global_hrchy_ind(
 /***********************************************************
@@ -55,6 +53,23 @@ created : 06/22/2012 kdp CCN Project....
 			    ,   OUT_HIERARCHY_REF_CUR IN OUT REF_CURSOR
 			   );
 
+
+PROCEDURE RETURN_HIERARCHY_DETAIL_CC_LVL (	
+/**********************************************************
+	RETURN_HIERARCHY_DETAIL_CC_LVL
+
+	This procedure will return a ref cursor with data from 
+	from the hierarchy_detail lowest level table based on header name, current value , t
+
+
+created : 02/20/2012 kdp CCN Project....Phase 1.1
+**********************************************************/
+
+				IN_HEADER_NAME 				IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
+			    ,	IN_LEVEL				IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+			    ,	IN_COST_CENTER_CODE		IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
+			    ,   OUT_HIERARCHY_REF_CUR 	IN OUT REF_CURSOR
+			   );
 
 /**********************************************************
 	RETURN_HIERARCHY
