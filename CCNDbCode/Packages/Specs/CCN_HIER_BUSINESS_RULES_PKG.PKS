@@ -152,9 +152,9 @@ in_HRCHY_HDR_NAME          hierarchy_detail.hrchy_hdr_name%TYPE,
 in_HRCHY_DTL_LEVEL         hierarchy_detail.hrchy_dtl_level%TYPE,
 in_HRCHY_DTL_CURR_ROW_VAL  hierarchy_detail.hrchy_dtl_curr_row_val%TYPE);
 
-procedure DUPLICATE_COST_CENTER(
+procedure DUPLICATE_LEVEL_VALIDATION(
 /*******************************************************************************
- DUPLICATE_COST_CENTER  
+ DUPLICATE_LEVEL_VALIDATION  
    
   This procedure will validate the business rules same Hierarchy, 
   where duplication of a Cost Center in the same hierarchy is not allowed
