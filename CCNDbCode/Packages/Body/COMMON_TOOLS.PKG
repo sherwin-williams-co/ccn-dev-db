@@ -774,6 +774,108 @@ EXCEPTION
       RAISE;
 END COPY_COST_CENTER;
 
+PROCEDURE BULK_COPY_COST_CENTER
+/**********************************************************
+	BULK_COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center in batch as bulk
+
+created : 02/21/2014 jxc517 CCN Project....
+**********************************************************/
+IS
+BEGIN
+
+    FOR rec IN (SELECT * FROM COST_CENTER_COPY) LOOP
+      BEGIN
+         SAVEPOINT COST_CENTER_COPY_LOAD;
+         COPY_COST_CENTER(rec.COST_CENTER_CODE_OLD,rec.COST_CENTER_CODE_NEW);
+      EXCEPTION
+         WHEN OTHERS THEN
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE_OLD, SQLERRM, SQLCODE);
+            ROLLBACK TO COST_CENTER_COPY_LOAD;
+      END;
+    END LOOP;
+
+EXCEPTION
+   WHEN OTHERS THEN
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);      
+      ROLLBACK TO COST_CENTER_COPY_LOAD;
+      RAISE;
+END BULK_COPY_COST_CENTER;
+
+PROCEDURE BULK_COPY_COST_CENTER_PROCESS(
+/******************************************************************************
+BULK_COPY_COST_CENTER_PROCESS
+
+This procedure is the core process for the cost center copying/correcting through UI
+that invokes bulk load for copying cost centers from one another
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created by jxc517 02/24/2014
+******************************************************************************/
+IN_BLOB            IN       BLOB
+)
+IS
+    -- Define output file directory
+    V_OUTPUT_FILE     UTL_FILE.FILE_TYPE;
+    V_LENGTH          NUMBER := DBMS_LOB.GETLENGTH(IN_BLOB);
+    V_START           NUMBER := 1;
+    V_BYTE_LENGHT     NUMBER := 32000;
+    V_TEMP_LENGTH     NUMBER;
+    V_TEMP_BLOB       RAW(32000);
+    V_CONTEXT   VARCHAR2(3000);
+  	SQ          INTEGER;
+  	SE          VARCHAR2(1000);    
+BEGIN
+       
+    V_OUTPUT_FILE := UTL_FILE.FOPEN('CCN_LOAD_FILES',
+                                    'COST_CENTER_COPY.csv',
+                                    'w',
+                                    32760);
+
+    -- Save blob length in temporary variable
+    V_TEMP_LENGTH := V_LENGTH;
+    
+    IF V_LENGTH < 32760 THEN
+        UTL_FILE.PUT_RAW(V_OUTPUT_FILE,
+                         IN_BLOB);
+        UTL_FILE.FFLUSH(V_OUTPUT_FILE);
+    ELSE -- write in pieces
+        V_START := 1;
+        WHILE V_START < V_LENGTH AND V_BYTE_LENGHT > 0 LOOP
+            DBMS_LOB.READ(IN_BLOB,
+                          V_BYTE_LENGHT,
+                          V_START,
+                          V_TEMP_BLOB);
+            UTL_FILE.PUT_RAW(V_OUTPUT_FILE,
+                             V_TEMP_BLOB);
+            UTL_FILE.FFLUSH(V_OUTPUT_FILE); 
+            -- Set the start position for the next cut
+            V_START       := V_START + V_BYTE_LENGHT;
+            -- Set the end position if less than 32000 bytes
+            V_TEMP_LENGTH := V_TEMP_LENGTH - V_BYTE_LENGHT;
+            IF V_TEMP_LENGTH < 32000 THEN
+                V_BYTE_LENGHT := V_TEMP_LENGTH;
+            END IF;
+        END LOOP;
+    END IF;
+    
+    UTL_FILE.FCLOSE(V_OUTPUT_FILE);    
+    
+    BULK_COPY_COST_CENTER();
+ 
+EXCEPTION
+
+    WHEN OTHERS THEN
+       SQ := SQLCODE;
+       SE := SQLERRM;
+
+       V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+       ERRPKG.RAISE_ERR(-20004,'BULK_COPY_COST_CENTER_PROCESS ',V_CONTEXT); 
+ 
+END BULK_COPY_COST_CENTER_PROCESS;
+
 PROCEDURE DELETE_COST_CENTER(
 /**********************************************************
 	DELETE_COST_CENTER

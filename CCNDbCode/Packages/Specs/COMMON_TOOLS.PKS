@@ -199,6 +199,30 @@ created : 09/11/2013 kdp CCN Project....
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2);
 
+PROCEDURE BULK_COPY_COST_CENTER
+/**********************************************************
+	BULK_COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center in batch as bulk
+
+created : 02/21/2014 jxc517 CCN Project....
+**********************************************************/
+;
+
+PROCEDURE BULK_COPY_COST_CENTER_PROCESS(
+/******************************************************************************
+BULK_COPY_COST_CENTER_PROCESS
+
+This procedure is the core process for the cost center copying/correcting through UI
+that invokes bulk load for copying cost centers from one another
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created by jxc517 02/24/2014
+******************************************************************************/
+IN_BLOB            IN       BLOB
+);
+
 PROCEDURE DELETE_COST_CENTER(
 /**********************************************************
 	DELETE_COST_CENTER

@@ -193,6 +193,38 @@ created : 02/13/2013 SH CCN Project....
 **********************************************************/
     in_XML                VARCHAR2);
 
+PROCEDURE HIERARCHY_HEADER_ATTR_UPDATE(
+/**********************************************************
+	HIERARCHY_HEADER_ATTR_UPDATE
+
+	This procedure will update the attributes in the table HIERARCHY_HEADER 
+        
+<HIERARCHY_HEADER>
+  <row_data>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_LEVELS>04</HRCHY_HDR_LEVELS> 
+      <HRCHY_HDR_DESC>Div Area Dist Structure</HRCHY_HDR_DESC> 
+      <attributes>
+	   <upper_lvl_ver_desc> 
+	      <Name>statement_type</Name>
+	      <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	      <Name>ManagerName</Name>
+              <Description>CC Mgr Name</Description>
+	   </upper_lvl_ver_desc>
+           <upper_lvl_ver_desc> 
+	       <Name>state_code</Name>
+	       <Description>pkListValue</Description>
+	   </upper_lvl_ver_desc>
+      </attributes>
+  </row_data>
+</HIERARCHY_HEADER>
+
+created : 02/24/2014 jxc517 CCN Project. . . 
+**********************************************************/
+    in_XML                CLOB);
+
 PROCEDURE HIERARCHY_DESCRIPTION_INSERT(
 /**********************************************************
 	HIERARCHY_DESCRIPTION_INSERT
