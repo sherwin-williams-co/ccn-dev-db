@@ -2178,6 +2178,20 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_duns_nbr_size_err , -20159);
 
 /*********************************************************** 
+The "invalid_code_hdr_size_err" passes a numerical error of -20160.
+This error will state that the Size of the code detail value 
+should not exceed the value defined in the code header. 
+
+created : 03/05/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_code_hdr_size_err CONSTANT NUMBER := -20160;
+exc_invalid_code_hdr_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_code_hdr_size_err , -20160);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for

@@ -663,5 +663,48 @@ Created by Kdp 01/22/2014
 IN_BLOB            IN       BLOB
 );
 
+PROCEDURE HIERARCHY_DETAIL_UPDATE(
+/**********************************************************
+	HIERARCHY_DETAIL_UPDATE
+
+	This procedure will be called from UI to update particular hierarchy record
+
+Inputs:
+IN_XML - XML that contains the details of the hierarchy to be updated
+
+Example Input:
+<?xml version="1.0" encoding="UTF-8"?>
+<HIERARCHY_DETAIL>
+    <userId>pxp301</userId>
+    <row_data>
+        <HRCHY_HDR_NAME>GLOBAL_HIERARCHY</HRCHY_HDR_NAME>
+        <HRCHY_DTL_LEVEL>9</HRCHY_DTL_LEVEL>
+        <HRCHY_LEVEL1>01</HRCHY_LEVEL1>
+        <HRCHY_LEVEL2>01</HRCHY_LEVEL2>
+        <HRCHY_LEVEL3>01</HRCHY_LEVEL3>
+        <HRCHY_LEVEL4>01</HRCHY_LEVEL4>
+        <HRCHY_LEVEL5>01</HRCHY_LEVEL5>
+        <HRCHY_LEVEL6>01</HRCHY_LEVEL6>
+        <HRCHY_LEVEL7>01</HRCHY_LEVEL7>
+        <HRCHY_LEVEL8>01</HRCHY_LEVEL8>
+        <HRCHY_LEVEL9>70DDDD</HRCHY_LEVEL9>
+        <HRCHY_DTL_DESC>Cuyahoga</HRCHY_DTL_DESC>
+        <HRCHY_DTL_EFF_DATE>01-24-2014</HRCHY_DTL_EFF_DATE>
+        <HRCHY_DTL_EXP_DATE>01-31-2014</HRCHY_DTL_EXP_DATE>
+        <attributes>
+            <upper_lvl_ver_desc>
+                <Name>Statement Type</Name>
+                <Description>Picklist Value</Description>
+                <Value>US</Value>
+            </upper_lvl_ver_desc>
+        </attributes>
+    </row_data>
+</HIERARCHY_DETAIL>
+
+Created : 01/17/2014 JXC517
+
+**********************************************************/
+    IN_XML                CLOB);
+
 END CCN_HIERARCHY;
 

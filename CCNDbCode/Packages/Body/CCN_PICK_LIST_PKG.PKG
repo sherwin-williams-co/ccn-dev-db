@@ -155,12 +155,14 @@ PROCEDURE CODE_DETAIL_INSERT(
 **********************************************************/
     in_XML                VARCHAR2)
 IS
-    V_XML                     XMLTYPE := SYS.XMLTYPE(IN_XML);
-    V_COUNT				            NUMBER := 1;
-    V_CONTEXT                 varchar2(100);
-    V_CODE_DETAIL_ROW         CODE_DETAIL%ROWTYPE;
-    V_CODE NUMBER;
-    V_ERRM VARCHAR2(500);
+    V_XML                      XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_COUNT				             NUMBER := 1;
+    V_CONTEXT                  VARCHAR2(100);
+    V_CODE_DETAIL_ROW          CODE_DETAIL%ROWTYPE;
+    V_CODE_HEADER_DTL_VAL_SIZE CODE_HEADER.CODE_HEADER_DTL_VAL_SIZE%TYPE;
+    V_CODE                     NUMBER;
+    V_ERRM                     VARCHAR2(500);
+    invalid_code_hdr_size_err  EXCEPTION;
 BEGIN
     WHILE V_XML.EXISTSNODE('/CODE_DETAIL_UI/CODE_DETAIL_TABLE/CODE_DETAIL' ||  '[' || V_COUNT || ']') = 1 LOOP
         
@@ -169,6 +171,21 @@ BEGIN
                                V_XML.EXTRACT('/CODE_DETAIL_UI/CODE_DETAIL_TABLE/CODE_DETAIL' || '[' || V_COUNT || ']').getCLOBVal(),
                                V_CODE_DETAIL_ROW);
 
+        BEGIN
+            SELECT CODE_HEADER_DTL_VAL_SIZE
+              INTO V_CODE_HEADER_DTL_VAL_SIZE
+              FROM CODE_HEADER
+             WHERE CODE_HEADER_NAME   	= V_CODE_DETAIL_ROW.CODE_HEADER_NAME
+               AND CODE_HEADER_TYPE    = V_CODE_DETAIL_ROW.CODE_HEADER_TYPE;
+        EXCEPTION 
+            WHEN OTHERS THEN
+                V_CODE_HEADER_DTL_VAL_SIZE := NULL;
+        END;
+
+        IF V_CODE_HEADER_DTL_VAL_SIZE <> LENGTH(V_CODE_DETAIL_ROW.CODE_DETAIL_VALUE) THEN
+            RAISE invalid_code_hdr_size_err;
+        END IF;
+
         V_CONTEXT := 'Inserted in to code_detail table';
         INSERT INTO CODE_DETAIL  VALUES V_CODE_DETAIL_ROW;
 
@@ -176,6 +193,9 @@ BEGIN
     END LOOP;   
 
 EXCEPTION
+    WHEN invalid_code_hdr_size_err THEN
+        errpkg.raise_err(errnums.en_home_store_cctr_cat_err, 
+                         'Size of the code detail value should not exceed the value defined in the code header');
     WHEN OTHERS THEN 
         v_code  := SQLCODE;
         V_ERRM  := SUBSTR(SQLERRM,1,200);
@@ -211,7 +231,7 @@ BEGIN
         UPDATE CODE_DETAIL  SET ROW = V_CODE_DETAIL_ROW
          WHERE CODE_HEADER_NAME   	= V_CODE_DETAIL_ROW.CODE_HEADER_NAME
            AND CODE_HEADER_TYPE    	= V_CODE_DETAIL_ROW.CODE_HEADER_TYPE
-           AND CODE_DETAIL_VALUE   	= V_CODE_DETAIL_ROW.CODE_DETAIL_VALUE;
+          AND  CODE_DETAIL_VALUE   	= V_CODE_DETAIL_ROW.CODE_DETAIL_VALUE;
 
         V_COUNT := V_COUNT + 1;
     END LOOP;

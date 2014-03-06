@@ -282,6 +282,17 @@ created : 09/11/2013 jxc517 CCN Project....
    IN_MAIL_CATEGORY VARCHAR2)
 ;
 
+FUNCTION CONVERT_SPECIAL_CHRCTRS(
+/**********************************************************
+This function will build special characters from input text
+
+parameters:
+
+IO_TEXT_STRING  IN
+
+created : 03/04/2014 CCN Project
+**********************************************************/
+IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
 END COMMON_TOOLS;
 

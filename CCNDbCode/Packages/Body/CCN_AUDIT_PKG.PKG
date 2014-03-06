@@ -61,6 +61,52 @@ EXCEPTION
     RETURN L_RETURN_VALUE;
 END REQUIRED_TABLE_CHECK;
 
+FUNCTION IS_IN_LAST_TWO_LVLS_OF_HRCHY(
+/**********************************************************
+	IS_COSTCNTR_IN_GLOBAL_HRCHY
+
+	This function returns true if the hierarchy level is in last 2 levels of that hierarchy
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 03/06/2014 jxc517 CCN Project....
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_HRCHY_HDR_LVL_NBR    HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+   V_HRCHY_HDR_NAME       HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE;
+   V_RETURN_VALUE         BOOLEAN := TRUE;
+   V_COUNT                NUMBER  := 0;
+BEGIN
+    --This validation is applicable only for HIERARCHY_DETAIL table
+    --For all other tables this function should return true
+    IF in_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
+        --ADMIN_TO_SALES_DIVISION|3|0101|010112|~~~|05-MAR-14
+        V_HRCHY_HDR_NAME    := substr(in_TRANSACTION_ID,1,INSTR(in_TRANSACTION_ID,'|',1)-1);
+        V_HRCHY_HDR_LVL_NBR := substr(in_TRANSACTION_ID,
+                                      INSTR(in_TRANSACTION_ID,'|',1)+1,
+                                      (INSTR(in_TRANSACTION_ID,'|',1,2)-(INSTR(in_TRANSACTION_ID,'|',1)+1)));
+        SELECT COUNT(*)
+          INTO  V_COUNT
+          FROM HIERARCHY_DESCRIPTION HD,
+               HIERARCHY_HEADER HH
+         WHERE HD.HRCHY_HDR_NAME       = HH.HRCHY_HDR_NAME
+           AND HD.HRCHY_HDR_NAME       = V_HRCHY_HDR_NAME
+           AND HH.HRCHY_HDR_LEVELS - 1 > V_HRCHY_HDR_LVL_NBR;
+
+        IF V_COUNT > 0 THEN
+            V_RETURN_VALUE := FALSE;
+        END IF;
+    END IF;
+    
+    RETURN V_RETURN_VALUE;
+
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN V_RETURN_VALUE;
+END IS_IN_LAST_TWO_LVLS_OF_HRCHY;
+
 FUNCTION IS_COSTCNTR_IN_GLOBAL_HRCHY(
 /**********************************************************
 	IS_COSTCNTR_IN_GLOBAL_HRCHY
@@ -239,11 +285,10 @@ BEGIN
     END IF;
 
     --Special conditions for existing attributes before CCN 2.0 release
-    IF OUT_ATTRIBUTE_NAME IN ('Statement Type', 'statement_type') THEN
-        OUT_ATTRIBUTE_NAME := 'STATEMENT_TYPE';
-    ELSIF OUT_ATTRIBUTE_NAME IN ('ManagerName','Manager ID') THEN
-        OUT_ATTRIBUTE_NAME := 'EMPLOYEE_NAME';
+    IF OUT_ATTRIBUTE_VALUE IN ('MANAGER_ID','MANAGERNAME') THEN
+        OUT_ATTRIBUTE_VALUE := 'EMPLOYEE_NAME';
     END IF;
+
 EXCEPTION
     WHEN OTHERS THEN
         OUT_ATTRIBUTE_NAME  := NULL;
@@ -768,8 +813,10 @@ BEGIN
     --Check if audit process is needed for the current table and if cost center is part of global hierarchy  
     IF REQUIRED_TABLE_CHECK(IN_TABLE_NAME) = 'Y' THEN
         --Process the record only if cost center in the key is associated with global
+        --or hierarchy_detail record that is NOT in last two levels of any hierarchy
         --NOTE: All details of other hierarchies also should be taken in to consideration 
-        IF IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) THEN
+        IF IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) 
+           OR NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME
                                   ,IN_TRANSACTION_ID
@@ -955,7 +1002,7 @@ BEGIN
        V_ATTRIBTUE_NAME := UPPER(REPLACE(IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_ATTR_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
        
        --For below attribute names, it has been historically defined as 'EMPLOYEE_NAME'
-       IF V_ATTRIBTUE_NAME NOT IN ('MANAGER_ID','MANAGERNAME') THEN
+       IF V_ATTRIBTUE_NAME IN ('MANAGER_ID','MANAGERNAME') THEN
            V_ATTRIBTUE_NAME := 'EMPLOYEE_NAME';
        END IF;
        
