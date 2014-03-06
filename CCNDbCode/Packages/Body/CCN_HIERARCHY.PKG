@@ -1823,6 +1823,63 @@ EXCEPTION
       RETURN V_RETURN_VALUE;
 END IS_STATEMENT_TYPE_VALID;
 
+FUNCTION IS_CURR_STMNNT_TYPE_MATCH_PREV (
+/***********************************************************
+      IS_STATEMENT_TYPE_VALID 
+      This overloaded procedure will compare previous  
+
+Created : 03/06/2014 jxc517 CCN Project
+************************************************************/
+            IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+RETURN BOOLEAN
+IS
+   V_CURR_LVL_STATEMENT_TYPE   VARCHAR2(10);
+   V_PREV_LVL_STATEMENT_TYPE   VARCHAR2(10);
+   V_RETURN_VALUE              BOOLEAN                          := FALSE;
+BEGIN
+
+   IF IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
+      --Get the previous level statement type from HIERARCHY_DETAIL table
+      BEGIN
+         SELECT EXTRACT(UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
+           INTO V_PREV_LVL_STATEMENT_TYPE
+           FROM HIERARCHY_DETAIL 
+          WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
+            AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+            AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - 1)
+            AND ROWNUM < 2;
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_PREV_LVL_STATEMENT_TYPE := NULL;
+      END;
+
+      --Get the current level statement type from IN_HIERARCHY_DETAIL_ROW parameter itself
+      --as it might have been udpated and sent back
+      BEGIN
+         SELECT EXTRACT(IN_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
+           INTO V_CURR_LVL_STATEMENT_TYPE
+           FROM DUAL;
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_CURR_LVL_STATEMENT_TYPE := NULL;
+      END;
+
+      --NOTE: Error should not be thrown if the previous level is a wild card replaced character of '**'
+      IF V_PREV_LVL_STATEMENT_TYPE = V_CURR_LVL_STATEMENT_TYPE OR V_PREV_LVL_STATEMENT_TYPE = '**' THEN
+         V_RETURN_VALUE := TRUE;
+      END IF;
+   ELSE
+      V_RETURN_VALUE := TRUE;
+   END IF;
+   
+   RETURN V_RETURN_VALUE;
+   
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      --This exception is to return false if no records found
+      RETURN V_RETURN_VALUE;
+END IS_CURR_STMNNT_TYPE_MATCH_PREV;
+
 PROCEDURE IS_COMPLETE_COST_CENTER (
 /***********************************************************
       IS_COMPLETE_COST_CENTER 
@@ -2319,6 +2376,7 @@ BEGIN
       FROM HIERARCHY_HEADER
      WHERE HRCHY_HDR_NAME = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
 
+    --Below condition makes sure that the validations for cost center level and previous levels are properly seperated
     IF V_LAST_LEVEL_FLAG = 'Y' THEN
         V_CONTEXT := 'Calling the Business Rules pkg';
         BEGIN
@@ -2383,6 +2441,12 @@ BEGIN
             BUSSINESS_RULES_ERR_CODE   := errnums.en_previous_level_missing_err;
             BUSSINESS_RULES_ERR_DESC   := 'Level ' || (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1') || ' is missing in '
                                                    || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME || ' hierarchy';
+            RAISE BUSINESS_RULES_EXCEPTION;
+        END IF;
+    ELSE
+        IF NOT IS_CURR_STMNNT_TYPE_MATCH_PREV(IN_HIERARCHY_DETAIL_ROW) THEN
+            BUSSINESS_RULES_ERR_CODE   := errnums.en_invalid_stmnt_type_err;
+            BUSSINESS_RULES_ERR_DESC   := 'Current level statement type does not match with Previous levels statement type';
             RAISE BUSINESS_RULES_EXCEPTION;
         END IF;
     END IF;
@@ -3233,6 +3297,9 @@ BEGIN
    BUILD_INSERT_COMPOSITE_KEYS(IN_XML,
                                V_HIERARCHY_DETAIL_ROW);
 
+   V_CONTEXT := 'Calling IS_CURR_STMNNT_TYPE_MATCH_PREV';
+   IF IS_CURR_STMNNT_TYPE_MATCH_PREV(V_HIERARCHY_DETAIL_ROW) THEN
+
       UPDATE HIERARCHY_DETAIL
          SET HRCHY_DTL_EFF_DATE  = V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE,
              UPPER_LVL_VER_VALUE = V_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE,
@@ -3240,7 +3307,12 @@ BEGIN
        WHERE HRCHY_HDR_NAME         = V_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
          AND HRCHY_DTL_LEVEL        = V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
          AND HRCHY_DTL_CURR_LVL_VAL = V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
-   
+
+   ELSE
+      ERRPKG.RAISE_ERR(errnums.en_invalid_stmnt_type_err,'HIERARCHY_DETAIL_UPDATE '||
+                  'Current level statement type does not match with Previous levels statement type');
+   END IF;
+
 EXCEPTION
     WHEN OTHERS THEN
        SQ := SQLCODE;
