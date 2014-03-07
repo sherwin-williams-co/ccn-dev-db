@@ -23,15 +23,24 @@
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
+ORACLE_HOME=/swstores/oracle/stpresq/product/11g
+export ORACLE_HOME
+
+ORACLE_SID=STPRESQ1
+export ORACLE_SID
+
+PATH=$PATH:$ORACLE_HOME/bin 
+export PATH
+
 echo "\n Processing Started for $proc at $TIME on $DATE \n"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+$ORACLE_HOME/bin/sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
-execute COMMON_TOOLS.send_mail('HIER_LOAD_START');
+execute MAIL_PKG.send_mail('HIER_LOAD_START');
 execute HIERARCHY_LOADING_PKG.HIER_LOAD_MAIN_SP;
-execute COMMON_TOOLS.send_mail('HIER_LOAD_END');
+execute MAIL_PKG.send_mail('HIER_LOAD_END');
 
 exit;
 END

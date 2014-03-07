@@ -10,18 +10,27 @@
 . /app/ccn/ccn.config
 
  proc="incomplete cost center email"
- LOGDIR="/app/ccn/hier"
+ LOGDIR="/app/ccn/batchJobs/backFeed/Archive"
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
+ORACLE_HOME=/swstores/oracle/stpresq/product/11g
+export ORACLE_HOME
+
+ORACLE_SID=STPRESQ1
+export ORACLE_SID
+
+PATH=$PATH:$ORACLE_HOME/bin 
+export PATH
+
 echo "\n Processing Started for $proc at $TIME on $DATE \n"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+$ORACLE_HOME/bin/sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
-execute COMMON_TOOLS.send_mail('INCOMPLETE_CC');
+execute MAIL_PKG.send_mail('INCOMPLETE_CC');
 
 exit;
 END
@@ -38,8 +47,6 @@ fi
 
 TIME=`date +"%H:%M:%S"`
 echo "\n Processing finished for $proc at ${TIME} on ${DATE}\n"  
-
-exit 0
 
 ############################################################################
 
