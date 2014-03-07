@@ -1,3 +1,6 @@
+--Drop if table already exists
+DROP TABLE MAILING_GROUP;
+DROP TABLE MAILING_DETAILS;
 
 --script to create MAILING_GROUP table
 CREATE TABLE "COSTCNTR"."MAILING_GROUP"
