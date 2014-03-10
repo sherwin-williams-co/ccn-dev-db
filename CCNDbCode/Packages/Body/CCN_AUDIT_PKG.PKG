@@ -61,6 +61,33 @@ EXCEPTION
     RETURN L_RETURN_VALUE;
 END REQUIRED_TABLE_CHECK;
 
+PROCEDURE GET_HIERARCHY_HEADER_NAME_LVL(
+/**********************************************************
+	IS_COSTCNTR_IN_GLOBAL_HRCHY
+
+	This function returns true if the hierarchy level is in last 2 levels of that hierarchy
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 03/06/2014 jxc517 CCN Project....
+**********************************************************/
+in_TRANSACTION_ID     IN        VARCHAR2,
+OUT_HRCHY_HDR_NAME       OUT    HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE,
+OUT_HRCHY_HDR_LVL_NBR    OUT    HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE) IS
+BEGIN
+
+    --ADMIN_TO_SALES_DIVISION|3|0101|010112|~~~|05-MAR-14
+    OUT_HRCHY_HDR_NAME    := substr(in_TRANSACTION_ID,1,INSTR(in_TRANSACTION_ID,'|',1)-1);
+    OUT_HRCHY_HDR_LVL_NBR := substr(in_TRANSACTION_ID,
+                                  INSTR(in_TRANSACTION_ID,'|',1)+1,
+                                  (INSTR(in_TRANSACTION_ID,'|',1,2)-(INSTR(in_TRANSACTION_ID,'|',1)+1)));
+
+EXCEPTION
+   WHEN OTHERS THEN
+      NULL;
+END GET_HIERARCHY_HEADER_NAME_LVL;
+
 FUNCTION IS_IN_LAST_TWO_LVLS_OF_HRCHY(
 /**********************************************************
 	IS_COSTCNTR_IN_GLOBAL_HRCHY
@@ -82,16 +109,13 @@ BEGIN
     --This validation is applicable only for HIERARCHY_DETAIL table
     --For all other tables this function should return true
     IF in_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
-        --ADMIN_TO_SALES_DIVISION|3|0101|010112|~~~|05-MAR-14
-        V_HRCHY_HDR_NAME    := substr(in_TRANSACTION_ID,1,INSTR(in_TRANSACTION_ID,'|',1)-1);
-        V_HRCHY_HDR_LVL_NBR := substr(in_TRANSACTION_ID,
-                                      INSTR(in_TRANSACTION_ID,'|',1)+1,
-                                      (INSTR(in_TRANSACTION_ID,'|',1,2)-(INSTR(in_TRANSACTION_ID,'|',1)+1)));
+        GET_HIERARCHY_HEADER_NAME_LVL(in_TRANSACTION_ID,V_HRCHY_HDR_NAME,V_HRCHY_HDR_LVL_NBR); 
+
         SELECT COUNT(*)
           INTO  V_COUNT
           FROM HIERARCHY_HEADER HH
-         WHERE HH.HRCHY_HDR_NAME       = V_HRCHY_HDR_NAME
-           AND HH.HRCHY_HDR_LEVELS - 1 > V_HRCHY_HDR_LVL_NBR;
+         WHERE HH.HRCHY_HDR_NAME       = UPPER(V_HRCHY_HDR_NAME)
+           AND HH.HRCHY_HDR_LEVELS - 1 > UPPER(V_HRCHY_HDR_LVL_NBR);
 
         IF V_COUNT > 0 THEN
             V_RETURN_VALUE := FALSE;
@@ -120,15 +144,29 @@ in_TRANSACTION_ID    IN     VARCHAR2,
 in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
    V_COUNT             NUMBER := 0;
    V_COST_CENTER_CODE  VARCHAR2(10);
+   V_HRCHY_HDR_LVL_NBR    HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE;
+   V_HRCHY_HDR_NAME       HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE;
 BEGIN
    --For Hierarchy_Detail, the key will of any two below formats
    IF in_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
       --If 3 digits prior to last '|' is ~~~ meaning its last level
       IF SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-3,3) = '~~~' THEN
-         --GLOBAL_HIERARCHY|9|0101010106510101|0101010106510101888842|~~~|11-SEP-13
-         --Extract prior 6 characters from SECOND LAST '|' for cost center, in example 888842
-         V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
-      ELSE --If 3 digits prior to last '|' is NOT ~~~ meaning its 2nd last level
+         GET_HIERARCHY_HEADER_NAME_LVL(in_TRANSACTION_ID,V_HRCHY_HDR_NAME,V_HRCHY_HDR_LVL_NBR);
+
+         SELECT COUNT(*)
+           INTO  V_COUNT
+           FROM HIERARCHY_HEADER HH
+          WHERE HH.HRCHY_HDR_NAME   = UPPER(V_HRCHY_HDR_NAME)
+            AND HH.HRCHY_HDR_LEVELS = UPPER(V_HRCHY_HDR_LVL_NBR);
+
+         IF V_COUNT > 0 THEN --Last Level of the hierarchy => Get the cost center value to validate completeness
+             --GLOBAL_HIERARCHY|9|0101010106510101|0101010106510101888842|~~~|11-SEP-13
+             --Extract prior 6 characters from SECOND LAST '|' for cost center, in example 888842
+             V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1,2)-6,6);
+         ELSE --Not the last Level of the hierarchy => Send it to Audit, irrespective of hierarchy
+            RETURN TRUE;
+         END IF;
+      ELSE--If 3 digits prior to last '|' is NOT ~~~ meaning its NOT the last level
          --GLOBAL_HIERARCHY|8|01010101065101|0101010106510101|0101010106510101888842|11-SEP-13
          --Extract prior 6 characters from LAST '|' for cost center, in example 888842
          V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,INSTR(in_TRANSACTION_ID,'|',-1)-6,6);
@@ -813,8 +851,8 @@ BEGIN
         --Process the record only if cost center in the key is associated with global
         --or hierarchy_detail record that is NOT in last two levels of any hierarchy
         --NOTE: All details of other hierarchies also should be taken in to consideration 
-        IF IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) 
-           OR NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) THEN
+        IF (NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME))
+           OR IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME
                                   ,IN_TRANSACTION_ID
@@ -993,6 +1031,7 @@ IS
     V_ATTR_COUNT      NUMBER := 1;
     V_ATTRIBTUE_NAME  VARCHAR2(100);
 BEGIN
+   proc_iex(IN_UPPER_LVL_VER_VALUE.getStringVal());
    --Loop through all the attribtues in the given input parameter
    WHILE IN_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_ATTR_COUNT || ']') = 1 LOOP
        

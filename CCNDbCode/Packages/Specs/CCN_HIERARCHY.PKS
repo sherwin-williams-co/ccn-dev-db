@@ -241,7 +241,7 @@ PROCEDURE HIERARCHY_DESCRIPTION_INSERT(
 
 created : 02/13/2013 SH CCN Project....
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_XML                CLOB);
 
 PROCEDURE HIERARCHY_DSCRPTN_ATTR_UPDATE(
 /**********************************************************
@@ -298,7 +298,7 @@ PROCEDURE HIERARCHY_DSCRPTN_ATTR_UPDATE(
 
 created : 02/03/2014 JXC517 CCN Project....
 **********************************************************/
-    in_XML                VARCHAR2);
+    in_XML                CLOB);
 
 FUNCTION CURRENT_LVL_EXISTS (
 /***********************************************************

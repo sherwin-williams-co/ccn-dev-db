@@ -2465,6 +2465,20 @@ PRAGMA EXCEPTION_INIT
 (EXC_TRANSFER_ERR , -20518);
 
 /*********************************************************** 
+The "CURR_LVL_VAL_NOT_EXISTS" passes a numerical error of -20519.
+This error states that the current level value doesn't exists in
+hierarchy_detail table to transfer from
+
+created : 02/10/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+EN_CURR_LVL_VAL_NOT_EXISTS  CONSTANT NUMBER := -20519;
+EXC_CURR_LVL_VAL_NOT_EXISTS EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_CURR_LVL_VAL_NOT_EXISTS , -20519);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
