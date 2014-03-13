@@ -203,11 +203,21 @@ PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
 SELECT_HIERARCHY_AUDIT_LOG
 
-Selects all rows from audit_log that have changed from
-the last run of the backfeed process for hierarchy_detail table alone
+Wrapper for call to CCN_AUDIT_PKG.SELECT_HIERARCHY_AUDIT_LOG
 
-created : 10/20/2013 jxc517 CCN Project Team . . . 
-modified : 02/05/2014 jxc517 CCN Project Team . . . 
+created : 03/11/2014 jxc517 CCN Project Team . . . 
+modified :
+**********************************************************/
+;
+
+PROCEDURE SELECT_AUDIT_LOG
+/**********************************************************
+SELECT_AUDIT_LOG
+
+Wrapper for call to CCN_AUDIT_PKG.SELECT_AUDIT_LOG
+
+created : 03/11/2014 jxc517 CCN Project Team . . . 
+modified :
 **********************************************************/
 ;
 
