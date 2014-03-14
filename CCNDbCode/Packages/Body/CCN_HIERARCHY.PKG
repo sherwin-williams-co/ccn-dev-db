@@ -370,19 +370,37 @@ Created : 09/18/2013 CCN Project
 RETURN VARCHAR2 IS
    V_RETURN_VALUE          VARCHAR2(32000);
    V_COST_CENTER_STMNT_TYP COST_CENTER.STATEMENT_TYPE%TYPE;
+   V_COUNT                 NUMBER := 1;
+   V_STMNT_TYPE_ATTR_POS   NUMBER := NULL;
+   V_ATTRIBUTE_NAME        VARCHAR2(100);
 BEGIN
    SELECT STATEMENT_TYPE
      INTO V_COST_CENTER_STMNT_TYP
      FROM COST_CENTER 
     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
    IF V_COST_CENTER_STMNT_TYP IS NOT NULL THEN
-      SELECT UPDATEXML(IN_UPPER_LVL_VER_VALUE, '/attributes/upper_lvl_ver_desc[1]/Value/text()',V_COST_CENTER_STMNT_TYP).GETSTRINGVAL()
-        INTO V_RETURN_VALUE
-        FROM DUAL;
-   ELSE
-      V_RETURN_VALUE := IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL();
+
+       WHILE IN_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
+           V_ATTRIBUTE_NAME := UPPER(REPLACE(IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+           IF V_ATTRIBUTE_NAME = 'STATEMENT_TYPE' THEN
+               V_STMNT_TYPE_ATTR_POS := V_COUNT;
+               EXIT;
+           END IF;
+           V_COUNT := V_COUNT + 1;
+       END LOOP;
+
+      IF V_STMNT_TYPE_ATTR_POS IS NOT NULL THEN
+          SELECT UPDATEXML(IN_UPPER_LVL_VER_VALUE,
+                           '/attributes/upper_lvl_ver_desc['||V_STMNT_TYPE_ATTR_POS||']/Value/text()',
+                           V_COST_CENTER_STMNT_TYP).GETSTRINGVAL()
+            INTO V_RETURN_VALUE
+            FROM DUAL;
+      END IF;
+
    END IF;
-   RETURN V_RETURN_VALUE;
+
+   RETURN NVL(V_RETURN_VALUE,IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL());
 EXCEPTION
    WHEN OTHERS THEN
        RETURN IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL();
@@ -1742,6 +1760,7 @@ IS
    V_ROW_DATA     XMLTYPE := SYS.XMLTYPE(IN_XML); 
    V_RETURN_VALUE              BOOLEAN                          := FALSE;
    V_COST_CENTER_STMNT_TYP     COST_CENTER.STATEMENT_TYPE%TYPE;
+   V_UPPER_LVL_VER_VALUE       HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
    V_STATEMENT_TYPE            VARCHAR2(10);
    V_LEVEL                     NUMBER;
    V_PREV_VALUE                VARCHAR2(100);
@@ -1795,14 +1814,17 @@ BEGIN
       END LOOP;
       --Get the statement type from HIERARCHY_DETAIL table using above obtained values
       BEGIN
-         SELECT EXTRACT(UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
-           INTO V_STATEMENT_TYPE
+         SELECT UPPER_LVL_VER_VALUE
+           INTO V_UPPER_LVL_VER_VALUE
            FROM HIERARCHY_DETAIL 
           WHERE HRCHY_DTL_PREV_LVL_VAL = V_PREV_VALUE
             AND HRCHY_DTL_CURR_LVL_VAL = V_CURR_VALUE
             AND HRCHY_DTL_NEXT_LVL_VAL = V_NEXT_VALUE
             AND HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
             AND HRCHY_DTL_LEVEL        = V_LEVEL;
+          CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_UPPER_LVL_VER_VALUE,
+                                                  'STATEMENT_TYPE',
+                                                  V_STATEMENT_TYPE);
       EXCEPTION
          WHEN OTHERS THEN
             V_STATEMENT_TYPE := NULL;
@@ -1836,18 +1858,23 @@ IS
    V_CURR_LVL_STATEMENT_TYPE   VARCHAR2(10);
    V_PREV_LVL_STATEMENT_TYPE   VARCHAR2(10);
    V_RETURN_VALUE              BOOLEAN                          := FALSE;
+   V_UPPER_LVL_VER_VALUE       HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
 BEGIN
 
    IF IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
       --Get the previous level statement type from HIERARCHY_DETAIL table
       BEGIN
-         SELECT EXTRACT(UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
-           INTO V_PREV_LVL_STATEMENT_TYPE
+         SELECT UPPER_LVL_VER_VALUE
+           INTO V_UPPER_LVL_VER_VALUE
            FROM HIERARCHY_DETAIL 
           WHERE HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL
             AND HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
             AND HRCHY_DTL_LEVEL        = (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - 1)
             AND ROWNUM < 2;
+            
+          CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_UPPER_LVL_VER_VALUE,
+                                                  'STATEMENT_TYPE',
+                                                  V_PREV_LVL_STATEMENT_TYPE);
       EXCEPTION
          WHEN OTHERS THEN
             V_PREV_LVL_STATEMENT_TYPE := NULL;
@@ -1855,17 +1882,15 @@ BEGIN
 
       --Get the current level statement type from IN_HIERARCHY_DETAIL_ROW parameter itself
       --as it might have been udpated and sent back
-      BEGIN
-         SELECT EXTRACT(IN_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE,'/attributes/upper_lvl_ver_desc[1]/Value/text()').GETSTRINGVAL()
-           INTO V_CURR_LVL_STATEMENT_TYPE
-           FROM DUAL;
-      EXCEPTION
-         WHEN OTHERS THEN
-            V_CURR_LVL_STATEMENT_TYPE := NULL;
-      END;
+      CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(IN_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE,
+                                              'STATEMENT_TYPE',
+                                              V_CURR_LVL_STATEMENT_TYPE);
 
       --NOTE: Error should not be thrown if the previous level is a wild card replaced character of '**'
-      IF V_PREV_LVL_STATEMENT_TYPE = V_CURR_LVL_STATEMENT_TYPE OR V_PREV_LVL_STATEMENT_TYPE = '**' THEN
+      --For first level we will never have a previous level statement type, so always return TRUE in this scenario
+      IF V_PREV_LVL_STATEMENT_TYPE = V_CURR_LVL_STATEMENT_TYPE 
+         OR V_PREV_LVL_STATEMENT_TYPE = '**' 
+         OR IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL = '1' THEN
          V_RETURN_VALUE := TRUE;
       END IF;
    ELSE
@@ -3338,6 +3363,34 @@ EXCEPTION
        ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_UPDATE ',V_CONTEXT);
 
 END HIERARCHY_DETAIL_UPDATE;
+
+PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
+/***********************************************************
+      GET_RQSTD_ATTRIBUTE_VALUE 
+      This Procedure will get the requested attribute value for from
+      the passed UPPER_LVL_VER_DESC XML
+      
+Created : 30/14/2014 jxc517 CCN Project
+************************************************************/
+    IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IN_ATTRIBUTE_NAME       IN     VARCHAR2,
+    OUT_ATTRIBUTE_VALUE        OUT VARCHAR2)
+IS
+    V_COUNT           NUMBER        := 1;
+    V_ATTRIBUTE_NAME  VARCHAR2(100);
+BEGIN
+    WHILE IN_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
+        V_ATTRIBUTE_NAME := UPPER(REPLACE(IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+        IF V_ATTRIBUTE_NAME = UPPER(REPLACE(IN_ATTRIBUTE_NAME,' ','_'))
+           AND (IN_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc[' || V_COUNT || ']/Value/text()') = 1) THEN
+            OUT_ATTRIBUTE_VALUE := IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc[' || V_COUNT || ']/Value/text()').GETSTRINGVAL();
+        END IF;
+        V_COUNT := V_COUNT + 1;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        OUT_ATTRIBUTE_VALUE := NULL;
+END GET_RQSTD_ATTRIBUTE_VALUE;
 
 END CCN_HIERARCHY;
 

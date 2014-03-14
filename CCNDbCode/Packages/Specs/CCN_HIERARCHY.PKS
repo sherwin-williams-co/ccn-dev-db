@@ -706,5 +706,17 @@ Created : 01/17/2014 JXC517
 **********************************************************/
     IN_XML                CLOB);
 
+PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
+/***********************************************************
+      GET_RQSTD_ATTRIBUTE_VALUE 
+      This Procedure will get the requested attribute value for from
+      the passed UPPER_LVL_VER_DESC XML
+      
+Created : 30/14/2014 jxc517 CCN Project
+************************************************************/
+    IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IN_ATTRIBUTE_NAME       IN     VARCHAR2,
+    OUT_ATTRIBUTE_VALUE        OUT VARCHAR2);
+
 END CCN_HIERARCHY;
 
