@@ -99,15 +99,5 @@ Created: SH 05/06/2013
 ******************************************************************/
 ;
 
-PROCEDURE HIERARCHY_BULK_LOAD_PROCESS
-/******************************************************************************
-HIERARCHY_LOAD_PROCESS
-
-This procedure is the for the Hierarchy bulk upload process
-
-Created : SH 12/23/2013
-******************************************************************************/
-;
-
 END HIERARCHY_LOADING_PKG;
 

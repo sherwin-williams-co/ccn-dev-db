@@ -43,7 +43,7 @@ PROCEDURE Header_Lvl_Validation_sp (
 
 created : MDH 10/04//2012
 ******************************************************************************/	
-    in_row_data                VARCHAR2
+    in_row_data                CLOB
  );
 
 procedure cost_center_change_Rules(

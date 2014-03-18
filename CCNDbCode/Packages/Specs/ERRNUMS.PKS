@@ -2479,6 +2479,20 @@ PRAGMA EXCEPTION_INIT
 (EXC_CURR_LVL_VAL_NOT_EXISTS , -20519);
 
 /*********************************************************** 
+The "BELOW_LEVELS_NOT_EXPIRED" passes a numerical error of -20520.
+This error states that the current level can not be expired as lower/below levels
+are not expired yet
+
+created : 03/12/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+EN_BELOW_LEVELS_NOT_EXPIRED  CONSTANT NUMBER := -20520;
+EXC_BELOW_LEVELS_NOT_EXPIRED EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_BELOW_LEVELS_NOT_EXPIRED , -20520);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says

@@ -1,3 +1,7 @@
+DELETE FROM MAILING_DETAILS;
+
+DELETE FROM MAILING_GROUP;
+
   --insert into MAILING_GROUP table
   Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('1','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com');
   Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('2','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com');
@@ -39,3 +43,5 @@ Sherwin Williams - Stores IT');
 Keith D. Parker 
 Senior Developer 
 Sherwin Williams - Stores IT');
+
+COMMIT;

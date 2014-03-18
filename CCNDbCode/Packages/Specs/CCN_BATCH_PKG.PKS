@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_BATCH_PKG AS
+create or replace PACKAGE CCN_BATCH_PKG AS
 /*********************************************************** 
 This package "SPEC" has procedures and functions related to the batch
 job table
@@ -76,6 +76,18 @@ revised :
 ******************************************************************************/
 ;
 
+PROCEDURE FILE_UPLOAD(
+/******************************************************************************
+FILE_UPLOAD
+
+This procedure will create file on server and dump the passed BLOB data Into the file created
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+IN_FILE_NAME     - name of the file on server
+
+******************************************************************************/
+IN_BLOB        IN       BLOB,
+IN_FILE_NAME   IN       VARCHAR2);
 
 END CCN_BATCH_PKG;
 

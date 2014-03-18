@@ -829,40 +829,9 @@ IS
   	SE          VARCHAR2(1000);    
 BEGIN
        
-    V_OUTPUT_FILE := UTL_FILE.FOPEN('CCN_LOAD_FILES',
-                                    'COST_CENTER_COPY.csv',
-                                    'w',
-                                    32760);
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
+                              'COST_CENTER_COPY.csv');
 
-    -- Save blob length in temporary variable
-    V_TEMP_LENGTH := V_LENGTH;
-    
-    IF V_LENGTH < 32760 THEN
-        UTL_FILE.PUT_RAW(V_OUTPUT_FILE,
-                         IN_BLOB);
-        UTL_FILE.FFLUSH(V_OUTPUT_FILE);
-    ELSE -- write in pieces
-        V_START := 1;
-        WHILE V_START < V_LENGTH AND V_BYTE_LENGHT > 0 LOOP
-            DBMS_LOB.READ(IN_BLOB,
-                          V_BYTE_LENGHT,
-                          V_START,
-                          V_TEMP_BLOB);
-            UTL_FILE.PUT_RAW(V_OUTPUT_FILE,
-                             V_TEMP_BLOB);
-            UTL_FILE.FFLUSH(V_OUTPUT_FILE); 
-            -- Set the start position for the next cut
-            V_START       := V_START + V_BYTE_LENGHT;
-            -- Set the end position if less than 32000 bytes
-            V_TEMP_LENGTH := V_TEMP_LENGTH - V_BYTE_LENGHT;
-            IF V_TEMP_LENGTH < 32000 THEN
-                V_BYTE_LENGHT := V_TEMP_LENGTH;
-            END IF;
-        END LOOP;
-    END IF;
-    
-    UTL_FILE.FCLOSE(V_OUTPUT_FILE);    
-    
     BULK_COPY_COST_CENTER();
  
 EXCEPTION
@@ -1120,6 +1089,37 @@ BEGIN
    V_TEXT_STRING := REPLACE(V_TEXT_STRING,'''','&apos;');
    RETURN V_TEXT_STRING;
 END CONVERT_SPECIAL_CHRCTRS;
+
+FUNCTION EXECUTE_UNIX_COMMAND(
+/**********************************************************
+This function will build special characters from input text
+
+parameters:
+
+IN_UNIX_COMMAND  IN - Command to be executed
+
+created : 03/13/2014 CCN Project
+**********************************************************/
+IN_UNIX_COMMAND VARCHAR2) RETURN BOOLEAN
+IS
+   output_file 		      UTL_FILE.FILE_TYPE;
+   filename  	          VARCHAR2(50) := 'cmd_start.sh';
+   path                 VARCHAR2(20) := 'CCN_DATAFILES';
+   v_out_clob           CLOB;
+BEGIN
+    IF DBMS_LOB.FILEEXISTS(BFILENAME(path, filename)) = 1 THEN
+        DBMS_OUTPUT.PUT_LINE('PREVIOUS COMMAND STILL EXECUTING. PLEASE TRY AGAIN AFTER SOME TIME');
+    ELSE
+        v_out_clob := NVL(IN_UNIX_COMMAND,'ls -ltr');
+        output_file := UTL_FILE.FOPEN (path, filename, 'w', 32767);
+        UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
+        UTL_FILE.FCLOSE(output_file);
+    END IF;
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END EXECUTE_UNIX_COMMAND;
 
 END COMMON_TOOLS;
 

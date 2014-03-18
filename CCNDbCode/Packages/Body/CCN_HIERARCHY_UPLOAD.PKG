@@ -1,0 +1,318 @@
+create or replace PACKAGE BODY CCN_HIERARCHY_UPLOAD
+    AS
+
+PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_INSERT_CLOB
+
+This procedure builds the xml as clob for Hierarchy Insert Process based on 
+input parameters
+created : 12/18/2013 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE             IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID          IN        VARCHAR2,
+                IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                OUT_XML_AS_CLOB        OUT       CLOB)
+AS
+    V_CLOB                     CLOB;
+    V_LVL                      NUMBER := 0;
+    V_HRCHY_DTL_CURR_ROW_VAL   VARCHAR2(100);
+    V_CC_RECORD                COST_CENTER%ROWTYPE;
+    V_START_POSITION           NUMBER := 1;
+BEGIN
+      V_CLOB := '<HIERARCHY_DETAIL>';
+      V_CLOB := V_CLOB || '<row_data>';
+      
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(IN_HIERARCHY_NAME, 'HRCHY_HDR_NAME');
+      --Get the Header Levels
+      SELECT HRCHY_HDR_LEVELS INTO V_LVL
+        FROM HIERARCHY_HEADER
+       WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME;
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_LVL, 'HRCHY_DTL_LEVEL');
+      V_LVL := 1;
+      --Loop through and build the Level Tags with values
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_LVL);
+      --get COST_CENTER_NAME from COST_CENTER table
+      SELECT * INTO V_CC_RECORD
+        FROM COST_CENTER
+       WHERE COST_CENTER_CODE = IN_CC_CODE;
+      --Convert special characters as needed by XML
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_CC_RECORD.COST_CENTER_NAME), 'HRCHY_DTL_DESC');
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
+      
+      V_CLOB := V_CLOB || '     <attributes>';
+      V_CLOB := V_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value> 
+         </upper_lvl_ver_desc>';
+      IF IN_HIERARCHY_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
+          V_CLOB := V_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>Manager ID</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(IN_MANAGER_ID,'')||'</Value> 
+         </upper_lvl_ver_desc>';
+      END IF;
+      V_CLOB := V_CLOB || '     </attributes>';
+      
+      V_CLOB := V_CLOB || '</row_data>';
+      V_CLOB := V_CLOB || '</HIERARCHY_DETAIL>';
+      
+      OUT_XML_AS_CLOB := V_CLOB;
+END BUILD_HIERARCHY_INSERT_CLOB;
+
+PROCEDURE BUILD_HIERARCHY_TRNSFR_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_TRNSFR_CLOB
+
+This procedure builds the xml as clob for Hierarchy Transfer Process based on 
+input parameters
+created : 1/14/2014 JXC517 CCN Project....
+
+******************************************************************************/
+                IN_CC_CODE                  IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+                IN_MANAGER_ID               IN        VARCHAR2,
+                IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+                IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+                OUT_XML_AS_CLOB                OUT    CLOB)
+AS
+    V_CLOB                     CLOB;
+    V_FROM_CLOB                CLOB;
+    V_TO_CLOB                  CLOB;
+    V_LVL                      NUMBER := 0;
+    V_HRCHY_DTL_CURR_ROW_VAL   VARCHAR2(100);
+    V_CC_RECORD                COST_CENTER%ROWTYPE;
+    V_START_POSITION           NUMBER := 1;
+BEGIN
+      V_CLOB := '<HIERARCHY_DETAIL>';
+      V_CLOB := V_CLOB || '<row_data>';
+      
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(IN_HIERARCHY_NAME, 'HRCHY_HDR_NAME');
+      --Get the Header Levels
+      SELECT HRCHY_HDR_LEVELS INTO V_LVL
+        FROM HIERARCHY_HEADER
+       WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME;
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_LVL, 'HRCHY_DTL_LEVEL');
+      V_LVL := 1;
+      
+      --Building From Clob
+      --Loop through and build the Level Tags with values
+      V_FROM_CLOB := '';
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_FROM_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_FROM_CLOB := V_FROM_CLOB || COMMON_TOOLS.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_FROM_CLOB, 'FROM_HIERARCHY');
+      
+      V_CLOB := V_CLOB || '<TRANSFER_TO>';
+      
+      --Building To Clob
+      --Loop through and build the Level Tags with values
+      V_TO_CLOB := '';
+      V_START_POSITION := 1;
+      V_LVL := 1;
+      FOR rec IN (SELECT *
+                    FROM HIERARCHY_DESCRIPTION
+                   WHERE HRCHY_HDR_NAME = IN_HIERARCHY_NAME
+                     AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
+                   ORDER BY HRCHY_HDR_LVL_NBR) LOOP
+          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(REPLACE(IN_TO_COMPOSITE_KEYVALUE,' ',''),
+                                             V_START_POSITION,
+                                             rec.LVL_VALUE_SIZE);
+          V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(V_HRCHY_DTL_CURR_ROW_VAL, 'HRCHY_LEVEL'||V_LVL);
+          V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
+          V_LVL := V_LVL + 1;
+      END LOOP;
+      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_LVL);
+      --get COST_CENTER_NAME from COST_CENTER table
+      SELECT * INTO V_CC_RECORD
+        FROM COST_CENTER
+       WHERE COST_CENTER_CODE = IN_CC_CODE;
+      --Convert special characters as needed by XML
+      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_CC_RECORD.COST_CENTER_NAME), 'HRCHY_DTL_DESC');
+      --V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
+      --Hard coding the date for this run <NEED TO CHANGE IN FUTURE>
+      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG('20140101', 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
+      
+      V_TO_CLOB := V_TO_CLOB || '     <attributes>';
+      V_TO_CLOB := V_TO_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>statement_type</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value> 
+         </upper_lvl_ver_desc>';
+      IF IN_HIERARCHY_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
+          V_TO_CLOB := V_TO_CLOB ||
+'         <upper_lvl_ver_desc>
+         <Name>Manager ID</Name> 
+         <Description>pkListValue</Description> 
+         <Value>'||NVL(IN_MANAGER_ID,'')||'</Value> 
+         </upper_lvl_ver_desc>';
+      END IF;
+      V_TO_CLOB := V_TO_CLOB || '     </attributes>';
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_TO_CLOB, 'TO_HIERARCHY');
+      
+      V_CLOB := V_CLOB || '</TRANSFER_TO>';
+      V_CLOB := V_CLOB || '</row_data>';
+      V_CLOB := V_CLOB || '</HIERARCHY_DETAIL>';
+      
+      OUT_XML_AS_CLOB := V_CLOB;
+END BUILD_HIERARCHY_TRNSFR_CLOB;
+
+PROCEDURE HIERARCHY_BULK_TRNSFR_PROCESS
+/******************************************************************************
+HIERARCHY_BULK_TRNSFR_PROCESS
+
+This procedure is the for the Hierarchy bulk transfer process
+
+Created : JXC517 1/14/2014
+******************************************************************************/
+AS
+   V_CLOB CLOB;
+   V_BATCH_NUMBER          BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+   V_TRANS_STATUS          BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+   V_COUNT                 NUMBER := 0;
+   CURR_LVL_VAL_NOT_EXISTS EXCEPTION;
+BEGIN
+
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('BULK_HIER_TRNSFR', V_BATCH_NUMBER);
+   CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+   
+   FOR rec IN (SELECT * FROM COST_CENTER_HIERARCHY_TRNSFR) LOOP
+      BEGIN
+         SAVEPOINT HIERARCHY_TRANSFER_LOAD;
+         --Before starting the build process check if the cost center exists in the given from hierarchy/composite key value
+         SELECT COUNT(*)
+           INTO V_COUNT
+           FROM HIERARCHY_DETAIL
+          WHERE HRCHY_DTL_CURR_LVL_VAL = rec.FROM_HIERARCHY || rec.COST_CENTER_CODE
+            AND HRCHY_HDR_NAME         = rec.HIERARCHY_NAME;
+         IF V_COUNT <> 1 THEN
+             RAISE CURR_LVL_VAL_NOT_EXISTS;
+         END IF;
+         CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_TRNSFR_CLOB(rec.COST_CENTER_CODE,
+                                                          rec.MANAGER_ID,
+                                                          rec.HIERARCHY_NAME,
+                                                          rec.FROM_HIERARCHY,
+                                                          rec.TO_HIERARCHY,
+                                                   V_CLOB);
+         CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB);
+         --DBMS_OUTPUT.PUT_LINE(V_CLOB);
+         COMMIT;
+      EXCEPTION
+         WHEN CURR_LVL_VAL_NOT_EXISTS THEN
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE,
+                                   'current level value do not exist in hierarchy_detail table to transfer from',
+                                   ERRNUMS.EN_CURR_LVL_VAL_NOT_EXISTS);
+            ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
+         WHEN OTHERS THEN
+            --Log the Cost Center # that failed to load
+            --DBMS_OUTPUT.PUT_LINE(rec.COST_CENTER_CODE || ' failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE, SQLERRM, SQLCODE);
+            ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
+      END;
+   END LOOP;
+   
+   CCN_BATCH_PKG.UPDATE_BATCH_JOB('BULK_HIER_TRNSFR', V_BATCH_NUMBER, V_TRANS_STATUS);
+   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+   
+EXCEPTION
+   WHEN OTHERS THEN
+      --Log the Cost Center # that failed to load
+      --DBMS_OUTPUT.PUT_LINE('Failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);      
+      ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
+      RAISE;
+END HIERARCHY_BULK_TRNSFR_PROCESS;
+
+PROCEDURE HIERARCHY_BULK_LOAD_PROCESS
+/******************************************************************************
+HIERARCHY_LOAD_PROCESS
+
+This procedure is the for the Hierarchy bulk upload process
+
+Created : SH 12/23/2013
+******************************************************************************/
+AS
+   V_CLOB CLOB;
+
+BEGIN
+   
+   FOR rec IN (SELECT * FROM COST_CENTER_HIERARCHY) LOOP
+      BEGIN
+         SAVEPOINT HIERARCHY_LOAD;
+         IF rec.ADMIN_TO_SALES_AREA IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_AREA',rec.ADMIN_TO_SALES_AREA,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.ADMIN_TO_SALES_DISTRICT IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_DISTRICT',rec.ADMIN_TO_SALES_DISTRICT,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.ADMIN_TO_SALES_DIVISION IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_DIVISION',rec.ADMIN_TO_SALES_DIVISION,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.ALTERNATE_DAD IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ALTERNATE_DAD',rec.ALTERNATE_DAD,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.FACTS_DIVISION IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'FACTS_DIVISION',rec.FACTS_DIVISION,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.LEGACY_GL_DIVISION IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'LEGACY_GL_DIVISION',rec.LEGACY_GL_DIVISION,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         IF rec.GLOBAL_HIERARCHY IS NOT NULL THEN
+             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'GLOBAL_HIERARCHY',rec.GLOBAL_HIERARCHY,V_CLOB);
+             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+         END IF;
+         COMMIT;
+      EXCEPTION
+         WHEN OTHERS THEN
+            --Log the Cost Center # that failed to load
+            --DBMS_OUTPUT.PUT_LINE(rec.COST_CENTER_CODE || ' failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE, SQLERRM, SQLCODE);
+            ROLLBACK TO HIERARCHY_LOAD;
+      END;
+   END LOOP;
+EXCEPTION
+   WHEN OTHERS THEN
+      --Log the Cost Center # that failed to load
+      --DBMS_OUTPUT.PUT_LINE('Failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);      
+      ROLLBACK TO HIERARCHY_LOAD;
+      RAISE;
+END HIERARCHY_BULK_LOAD_PROCESS;
+
+END CCN_HIERARCHY_UPLOAD;
+
