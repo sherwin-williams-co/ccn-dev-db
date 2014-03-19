@@ -2493,6 +2493,19 @@ PRAGMA EXCEPTION_INIT
 (EXC_BELOW_LEVELS_NOT_EXPIRED , -20520);
 
 /*********************************************************** 
+The invalid_last_lvl passes a numerical error of -20521.
+This error states that the last level in the hierarchy is not cost center
+
+created : 03/19/2014 SXH487 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_last_lvl  CONSTANT NUMBER := -20521;
+exc_invalid_last_lvl EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_last_lvl , -20521);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2509,4 +2522,3 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 END errnums;
-
