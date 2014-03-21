@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_PICK_LIST_PKG
+create or replace PACKAGE CCN_PICK_LIST_PKG
 /**********************************************************
 	CCN_PICK_LIST_PKG
 
@@ -45,6 +45,20 @@ created :
 		--,in_DETAIL_VALUE IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
     	, out_CODE_DETAIL_CUR OUT REF_CUR_CODE)
 ;
+
+FUNCTION GET_CODE_DETAIL_VALUE_DSCRPTN (
+/**********************************************************
+	GET_CODE_DETAIL_VALUE_DSCRPTN
+
+	This procedure is intended to return the description for the code detail value
+  from CODE_DETAIL table based on the passed parameters.  
+
+created : 
+**********************************************************/
+	in_HEADER_NAME  IN CODE_DETAIL.CODE_HEADER_NAME%TYPE,
+	in_HEADER_TYPE  IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE,
+	in_DETAIL_VALUE IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE)
+RETURN VARCHAR2;
 
 	PROCEDURE CODE_TABLE_D_DESC_SP (
 /**********************************************************

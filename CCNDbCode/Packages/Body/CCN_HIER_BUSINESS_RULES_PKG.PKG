@@ -73,6 +73,40 @@ exception
        RETURN ('Invalid HRCHY_HDR_LVL_NBR ');
 END GET_HDR_LVL_DESC_SP;
 
+FUNCTION GET_CURR_LVL_VAL(
+/***********************************************************
+      GET_CURR_LVL_VAL 
+      This Procedure will get the extract the value from
+      the composite key passed based and the header description
+      and hierarchy name
+
+Created : SXHCCN 03/20/2014 CCN Project
+************************************************************/
+    IN_HRCHY_DTL_CURR_LVL_VAL    IN     HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE,
+    IN_HEADER_NAME               IN     VARCHAR2,
+    IN_LVL_DESCRIPTION           IN     VARCHAR2)
+RETURN VARCHAR2
+
+IS
+    V_CURR_LVL_VALUE  VARCHAR2(100);
+BEGIN
+
+    SELECT SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,1 + (SELECT NVL(SUM(LVL_VALUE_SIZE),0)
+                                                   FROM HIERARCHY_DESCRIPTION
+                                                  WHERE HRCHY_HDR_LVL_NBR < HDESC.HRCHY_HDR_LVL_NBR
+                                                    AND HRCHY_HDR_NAME = HDESC.HRCHY_HDR_NAME),HDESC.LVL_VALUE_SIZE)
+      INTO V_CURR_LVL_VALUE
+      FROM HIERARCHY_DESCRIPTION HDESC
+     WHERE UPPER(HDESC.HRCHY_HDR_NAME)     = UPPER(IN_HEADER_NAME)
+       AND UPPER(HDESC.HRCHY_HDR_LVL_DESC) = UPPER(IN_LVL_DESCRIPTION);
+
+    RETURN V_CURR_LVL_VALUE;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_CURR_LVL_VAL;
+
 PROCEDURE Header_Lvl_Validation_sp (
 /*******************************************************************************
  Header_Lvl_Validation_sp  
@@ -607,6 +641,59 @@ BEGIN
     END IF;
 
 END DUPLICATE_LEVEL_VALIDATION;
+
+PROCEDURE SGL_DIVISION_VALIDATION(
+/*******************************************************************************
+ SGL_DIVISION_VALIDATION  
+   
+  This procedure will validate the business rule that when a cost center is assigned to the 
+  SGL Division - the division that the cost center is being assigned to should
+	match the division the cost center is assigned to in Global Hierarchy
+  
+created : SXH 03/20/2014
+********************************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
+IS
+
+    V_CODE         NUMBER;
+    V_ERRTEXT      VARCHAR2(500);
+    invalid_GL_div EXCEPTION;
+    
+    V_CURR_VAL                 HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
+    V_DIVISION                 HIERARCHY_DETAIL_VIEW.DIVISION%TYPE;
+
+BEGIN
+
+   IF IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION' THEN 
+
+      --get the division the cost center belongs to in GLOBAL HIERARCHY
+      BEGIN
+         SELECT CCN_HIER_BUSINESS_RULES_PKG.GET_CURR_LVL_VAL(HRCHY_DTL_CURR_LVL_VAL, 'GLOBAL_HIERARCHY', 'Division')
+           INTO V_CURR_VAL
+           FROM HIERARCHY_DETAIL
+          WHERE HRCHY_HDR_NAME         = 'GLOBAL_HIERARCHY'
+            AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+      EXCEPTION
+         WHEN OTHERS THEN
+            V_CURR_VAL := NULL;
+      END;
+   
+      --get the division the FOR LEGACY_GL_DIVISION
+      V_DIVISION := GET_CURR_LVL_VAL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL, IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME, 'Division');
+  
+      --Error should be thrown if the cost center is not found in GLOBAL or if the division does not match the one in GLOBAL
+      IF NVL(V_DIVISION,'XX') <> NVL(V_CURR_VAL,'YY') THEN
+          RAISE invalid_GL_div;
+      END IF;
+   
+  END IF;
+
+EXCEPTION
+    WHEN invalid_GL_div THEN
+       v_code := errnums.en_invalid_GL_div;
+       errpkg.raise_err(v_code, 'The Division does not match the one in Global Hierarchy');
+       
+END SGL_DIVISION_VALIDATION;
 
 FUNCTION VALIDATE_HIERARCHY(
 /*******************************************************************************

@@ -35,6 +35,20 @@ in_HRCHY_HDR_NAME      IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE,
 in_HRCHY_HDR_LVL_NBR   IN HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE
 ) RETURN VARCHAR2;
 
+FUNCTION GET_CURR_LVL_VAL(
+/***********************************************************
+      GET_CURR_LVL_VAL 
+      This Procedure will get the extract the value from
+      the composite key passed based and the header description
+      and hierarchy name
+
+Created : SXHCCN 03/20/2014 CCN Project
+************************************************************/
+    IN_HRCHY_DTL_CURR_LVL_VAL    IN     HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE,
+    IN_HEADER_NAME               IN     VARCHAR2,
+    IN_LVL_DESCRIPTION           IN     VARCHAR2)
+RETURN VARCHAR2;
+
 PROCEDURE Header_Lvl_Validation_sp (
 /*******************************************************************************
  Hier_Business_Rules_sp  
@@ -174,6 +188,18 @@ created : JXC517 11/14/2013
 ********************************************************************************/
     IN_HRCHY_HDR_NAME         VARCHAR2,
     IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR;
+
+PROCEDURE SGL_DIVISION_VALIDATION(
+/*******************************************************************************
+ SGL_DIVISION_VALIDATION  
+   
+  This procedure will validate the business rule that when a cost center is assigned to the 
+  SGL Division - the division that the cost center is being assigned to should
+	match the division the cost center is assigned to in Global Hierarchy
+  
+created : SXH 03/20/2014
+********************************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 
 PROCEDURE HIER_BUSINESS_RULES_MAIN(
 /*******************************************************************************
