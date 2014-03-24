@@ -300,6 +300,7 @@ This procedure will accept the XMLTYPE and estracts the name and value out of it
 created : 02/05/2014 jxc517 CCN Project Team
 
 **********************************************************/
+    IN_HRCHY_HDR_NAME         IN     HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
     IN_XMLSTRING              IN     XMLTYPE,
     IN_ATTRIBUTE_COUNT        IN     NUMBER,
     OUT_ATTRIBUTE_NAME           OUT VARCHAR2,
@@ -321,7 +322,8 @@ BEGIN
     END IF;
 
     --Special conditions for existing attributes before CCN 2.0 release
-    IF OUT_ATTRIBUTE_NAME IN ('MANAGER_ID','MANAGERNAME') THEN
+    IF OUT_ATTRIBUTE_NAME IN ('MANAGERNAME')  
+        AND IN_HRCHY_HDR_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION')THEN
         OUT_ATTRIBUTE_NAME := 'EMPLOYEE_NAME';
     END IF;
 
@@ -384,14 +386,18 @@ IS
     V_PREV_ATTRIBUTE_NAME      VARCHAR2(200);
     V_CURR_ATTRIBUTE_VALUE     VARCHAR2(200);
     V_PREV_ATTRIBUTE_VALUE     VARCHAR2(200);
+    V_HRCHY_HDR_NAME           HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
 BEGIN
+    
+    --Get the Hierarchy Header Name used later in EXTRACT_ATTRIBUTE_NAME_VALUE procedure
+    V_HRCHY_HDR_NAME := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_HDR_NAME'),'~');
     
     EXTRACT_ATTRIBUTES_XML(IN_COMP_CURR, V_COMP_CURR_ATTRIBUTES);
 
     IF V_COMP_CURR_ATTRIBUTES IS NOT NULL THEN
         --Loop through the Current record attributes
         WHILE V_COMP_CURR_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_CURR_COUNT || ']') = 1 LOOP
-            EXTRACT_ATTRIBUTE_NAME_VALUE(V_COMP_CURR_ATTRIBUTES, V_CURR_COUNT, V_CURR_ATTRIBUTE_NAME, V_CURR_ATTRIBUTE_VALUE);
+            EXTRACT_ATTRIBUTE_NAME_VALUE(V_HRCHY_HDR_NAME, V_COMP_CURR_ATTRIBUTES, V_CURR_COUNT, V_CURR_ATTRIBUTE_NAME, V_CURR_ATTRIBUTE_VALUE);
 
             EXTRACT_ATTRIBUTES_XML(IN_COMP_PREV, V_COMP_PREV_ATTRIBUTES);
 
@@ -399,7 +405,7 @@ BEGIN
             IF V_COMP_PREV_ATTRIBUTES IS NOT NULL THEN
                 --Loop through the Previous record attributes
                 WHILE V_COMP_PREV_ATTRIBUTES.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || V_PREV_COUNT || ']') = 1 LOOP
-                    EXTRACT_ATTRIBUTE_NAME_VALUE(V_COMP_PREV_ATTRIBUTES, V_PREV_COUNT, V_PREV_ATTRIBUTE_NAME, V_PREV_ATTRIBUTE_VALUE);
+                    EXTRACT_ATTRIBUTE_NAME_VALUE(V_HRCHY_HDR_NAME, V_COMP_PREV_ATTRIBUTES, V_PREV_COUNT, V_PREV_ATTRIBUTE_NAME, V_PREV_ATTRIBUTE_VALUE);
 
                     IF V_CURR_ATTRIBUTE_NAME = V_PREV_ATTRIBUTE_NAME THEN
                         --Exit out the loop if a match is found, as we got required previoius attribute value
@@ -408,6 +414,10 @@ BEGIN
                     
                     --Increment the loop count to avoid INFINITE loop
                     V_PREV_COUNT := V_PREV_COUNT + 1;
+
+                    --If came here => attribute name doesn't match for this iteration
+                    --If not set this, then the final iteration attribute value will be used in below comparision which is wrong
+                    V_PREV_ATTRIBUTE_VALUE := NULL;
                 END LOOP;
                 
                 --Reset the previous count to 1 for next outer iteration
@@ -1025,6 +1035,7 @@ PROCEDURE AUDIT_FIELDS_IU(
 
 created : 02/05/2014 jxc517 CCN Project....
 **********************************************************/
+    IN_HRCHY_HDR_NAME      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
     IN_UPPER_LVL_VER_VALUE XMLTYPE)
 IS
     V_COUNT           NUMBER := 0;
@@ -1039,7 +1050,8 @@ BEGIN
        V_ATTRIBTUE_NAME := UPPER(REPLACE(IN_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_ATTR_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
        
        --For below attribute names, it has been historically defined as 'EMPLOYEE_NAME'
-       IF V_ATTRIBTUE_NAME IN ('MANAGER_ID','MANAGERNAME') THEN
+       IF V_ATTRIBTUE_NAME IN ('MANAGERNAME') 
+           AND IN_HRCHY_HDR_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
            V_ATTRIBTUE_NAME := 'EMPLOYEE_NAME';
        END IF;
        

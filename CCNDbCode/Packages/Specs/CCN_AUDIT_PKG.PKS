@@ -40,6 +40,7 @@ PROCEDURE AUDIT_FIELDS_IU(
 
 created : 02/05/2014 jxc517 CCN Project....
 **********************************************************/
+    IN_HRCHY_HDR_NAME      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
     IN_UPPER_LVL_VER_VALUE XMLTYPE);
     
 END CCN_AUDIT_PKG;
