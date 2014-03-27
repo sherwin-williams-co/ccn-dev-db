@@ -476,7 +476,8 @@ v_errm varchar2(500);
 			  SELECT HRCHY_HDR_NAME
                 ,HRCHY_HDR_LVL_NBR
                 ,HRCHY_HDR_LVL_DESC
-                ,xmltype.getStringVal(UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                --,xmltype.getStringVal(UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                ,extract(UPPER_LVL_VER_VALUE,'/attributes').getStringVal() UPPER_LVL_VER_VALUE
                 ,HRCHY_GLOBAL_LVL_NBR
                 ,LVL_VALUE_SIZE 
 			  FROM HIERARCHY_DESCRIPTION
@@ -2756,6 +2757,9 @@ changed : 04/03/2013 BLR error message pointing to wrong procedure
  v_row_value     varchar2(500);
  v_Row_data      sys.xmltype := xmltype(in_Row_data);
  v_temp_date     date;
+
+v_skip_flag       BOOLEAN := FALSE;
+v_status_row_prev status%rowtype;
 --
 --
 begin
@@ -2767,23 +2771,43 @@ begin
         ,out_status_row 
                    );
 
-       -- update the move_date to effective date for the cost center for the status code of RELO. COMP. CC
-      IF OUT_STATUS_ROW.STATUS_CODE = '3' THEN
-         UPDATE COST_CENTER
-            SET MOVE_DATE        = OUT_STATUS_ROW.EFFECTIVE_DATE
-          WHERE COST_CENTER_CODE = OUT_STATUS_ROW.COST_CENTER_CODE;
+      BEGIN
+         SELECT * INTO v_status_row_prev
+           FROM STATUS
+          WHERE COST_CENTER_CODE = out_status_row.COST_CENTER_CODE
+            AND EXPIRATION_DATE  IS NULL
+            AND ROWNUM < 2;
+      EXCEPTION
+         WHEN OTHERS THEN
+            v_status_row_prev := NULL;
+      END;
+
+      IF v_status_row_prev.COST_CENTER_CODE IS NOT NULL AND 
+         (v_status_row_prev.STATUS_CODE = out_status_row.STATUS_CODE 
+          AND v_status_row_prev.EFFECTIVE_DATE = out_status_row.EFFECTIVE_DATE) THEN
+          v_skip_flag := TRUE;
       END IF;
 
---
---  Expire currently active STATUS Record before insert --
-      COMMON_TOOLS.EXPIRE_DATA_SP (
+      IF NOT v_skip_flag THEN
+
+            -- update the move_date to effective date for the cost center for the status code of RELO. COMP. CC
+            IF OUT_STATUS_ROW.STATUS_CODE = '3' THEN
+               UPDATE COST_CENTER
+                  SET MOVE_DATE        = OUT_STATUS_ROW.EFFECTIVE_DATE
+                WHERE COST_CENTER_CODE = OUT_STATUS_ROW.COST_CENTER_CODE;
+            END IF;
+
+            --
+            --  Expire currently active STATUS Record before insert --
+            COMMON_TOOLS.EXPIRE_DATA_SP (
       'STATUS'
 		 , out_status_row.COST_CENTER_CODE
      , out_status_row.EFFECTIVE_DATE);
---
---  Insert new STATUS row --                  
-      --out_status_row.EFFECTIVE_DATE := trunc(sysdate);
-      insert into status values out_status_row;
+            --
+            --  Insert new STATUS row --                  
+            --out_status_row.EFFECTIVE_DATE := trunc(sysdate);
+            insert into status values out_status_row;
+      END IF;
 
   EXCEPTION
    WHEN dup_val_on_index THEN
@@ -3205,6 +3229,8 @@ changed : 04/03/2013 BLR error message pointing to wrong procedure
  v_Row_data      sys.xmltype := xmltype(in_Row_data);
   V_TEMP_DATE     DATE;
   
+v_skip_flag      BOOLEAN := FALSE;
+v_type_row_prev  type%rowtype;
 --
 --
 begin
@@ -3215,18 +3241,36 @@ begin
         ,in_Row_Data
         ,out_type_row 
                    );
---
---  Expire currently active TYPE Record before insert --
-  COMMON_TOOLS.EXPIRE_DATA_SP (
-      'TYPE'
-		 , out_type_row.COST_CENTER_CODE
-     , out_type_row.EFFECTIVE_DATE);
---
---  Insert new TYPE row -- 
-      --out_type_row.EFFECTIVE_DATE := trunc(sysdate);
-      INSERT INTO TYPE VALUES OUT_TYPE_ROW;
-     
-            
+
+      BEGIN
+         SELECT * INTO v_type_row_prev
+           FROM TYPE
+          WHERE COST_CENTER_CODE = out_type_row.COST_CENTER_CODE
+            AND EXPIRATION_DATE  IS NULL
+            AND ROWNUM < 2;
+      EXCEPTION
+         WHEN OTHERS THEN
+            v_type_row_prev := NULL;
+      END;
+
+      IF v_type_row_prev.COST_CENTER_CODE IS NOT NULL AND 
+         (v_type_row_prev.TYPE_CODE = out_type_row.TYPE_CODE 
+          AND v_type_row_prev.EFFECTIVE_DATE = out_type_row.EFFECTIVE_DATE) THEN
+          v_skip_flag := TRUE;
+      END IF;
+
+      IF NOT v_skip_flag THEN
+            --
+            --  Expire currently active TYPE Record before insert --
+            COMMON_TOOLS.EXPIRE_DATA_SP ('TYPE'
+                                         , out_type_row.COST_CENTER_CODE
+                                         , out_type_row.EFFECTIVE_DATE);
+            --
+            --  Insert new TYPE row -- 
+            --out_type_row.EFFECTIVE_DATE := trunc(sysdate);
+            INSERT INTO TYPE VALUES OUT_TYPE_ROW;
+      END IF;
+
        EXCEPTION
    WHEN dup_val_on_index THEN
       BEGIN
