@@ -294,5 +294,41 @@ created : 03/04/2014 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION EXECUTE_UNIX_COMMAND(
+/**********************************************************
+This function will build special characters from input text
+
+parameters:
+
+IN_UNIX_COMMAND  IN - Command to be executed
+
+created : 03/13/2014 CCN Project
+**********************************************************/
+IN_UNIX_COMMAND VARCHAR2) RETURN BOOLEAN;
+
+FUNCTION convert_to_clob(
+/**********************************************************
+This function will convert blob to clob
+
+parameters:
+
+IN_BLOB  IN - BLOB that needs to be converted into CLOB
+
+created : 03/28/2014 CCN Project
+**********************************************************/
+IN_BLOB IN BLOB) RETURN CLOB;
+
+FUNCTION convert_to_blob(
+/**********************************************************
+This function will convert blob to clob
+
+parameters:
+
+IN_CLOB  IN - CLOB that needs to be converted into BLOB
+
+created : 03/28/2014 CCN Project
+**********************************************************/
+IN_CLOB IN CLOB) RETURN BLOB;
+
 END COMMON_TOOLS;
 
