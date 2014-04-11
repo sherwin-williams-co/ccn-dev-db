@@ -1,4 +1,4 @@
-create or replace PACKAGE COMMON_TOOLS as 
+CREATE OR REPLACE PACKAGE COSTCNTR.COMMON_TOOLS AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -10,7 +10,7 @@ available to be used by the entire schema
 created : 08/24/2010 kdp Payroll reporting project.....
 ************************************************************/
    
-procedure ALTER_ALL_TRIGGERS   
+PROCEDURE ALTER_ALL_TRIGGERS   
 /*******************************************************************************
 	ALTER_ALL_TRIGGERS   --    Alter all table(s) triggers
 
@@ -30,9 +30,9 @@ FUNCTION CODE_DETAIL_VALID
 
 created : 08/15/2012 tal Cost Center Nucleus project.....
 **********************************************************/
-    ( in_field_name  in  varchar2
-    , in_value_code  in  varchar2 ) 
-    return boolean;
+    ( in_field_name  IN  varchar2
+    , in_value_code  IN  varchar2 ) 
+    RETURN BOOLEAN;
     
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
@@ -48,8 +48,8 @@ FUNCTION COMPUTE_EXPIRATION_DATE
 created : 12/04/2012 mdh Cost Center Nucleus project.....
 revised:
 ******************************************************************************/
-  ( in_date  in  date 
-   ) return date; 
+  ( in_date  IN  date 
+   ) RETURN date; 
 
 
 PROCEDURE COUNTY_NAMES_S_SP (
@@ -75,10 +75,10 @@ FUNCTION DATE_BLANK
 
 created : 08/24/2010 kdp Payroll reporting project.....
 **********************************************************/
-    (in_date in varchar2)
-    return varchar2;
+    (in_date IN varchar2)
+    RETURN varchar2;
     
-procedure EMPLOYEE_DATA_S_SP   
+PROCEDURE EMPLOYEE_DATA_S_SP   
 /*******************************************************************************
 	EMPLOYEE_DATA_S_SP
 
@@ -92,7 +92,7 @@ created : 10/22/2012 MDH CCN Project....
 changed : 
 *******************************************************************************/
  ( IN_GEMS_EMPLOYEE_ID   IN  EMP_DATA.EMPLOYEE_NUMBER%TYPE
-                          , OUT_EMP_DATA_ROWTYPE OUT EMP_DATA%rowtype);
+                          , OUT_EMP_DATA_ROWTYPE OUT EMP_DATA%ROWTYPE);
                                                     
 PROCEDURE EXPIRE_DATA_SP (
 /******************************************************************************
@@ -118,7 +118,7 @@ revised : 05/30/2013 MDH add ADDRESS_TYPE to procedure
 , in_EFFECTIVE_DATE       IN  date
 , in_ADDRESS_TYPE         IN  ADDRESS_USA.ADDRESS_TYPE%TYPE DEFAULT NULL ); 
 
-function cost_center_look_up_fnc( 
+FUNCTION cost_center_look_up_fnc( 
 /**********************************************************
 This function will return 6 digit COST_CENTER_CODE
 when the 4-digit code is passed
@@ -131,7 +131,7 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 )
 RETURN VARCHAR2;   
 
-function country_look_up_fnc( 
+FUNCTION country_look_up_fnc( 
 /**********************************************************
 This function will return COUNTRY_CODE
 
@@ -142,7 +142,7 @@ created : 05/17/2013 kdp CCN Project
 **********************************************************/
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
 )
-return varchar2;
+RETURN varchar2;
 
 FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
 /**********************************************************
@@ -330,5 +330,17 @@ created : 03/28/2014 CCN Project
 **********************************************************/
 IN_CLOB IN CLOB) RETURN BLOB;
 
-END COMMON_TOOLS;
 
+FUNCTION GET_PHONE_NUMBER(
+/***********************************************
+Fucntion to get Pri, Scd, Fax phone_number using 
+COST_CENTER_CODE and PHONE_NUMBER as Parameters
+
+created : 04/10/2014  CCN Project
+***********************************************/
+IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE,
+IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
+RETURN VARCHAR2;
+
+END COMMON_TOOLS;
+/
