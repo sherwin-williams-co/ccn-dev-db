@@ -16,26 +16,17 @@
 #
 # Created           :  SH 09/24/2013
 ############################################################################
-. /app/ccn/ccn.config
-
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
  proc="ccn_audit_initload_sp"
- LOGDIR="/app/ccn/initLoad"
+ LOGDIR="$HOME/initLoad"
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-ORACLE_HOME=/swstores/oracle/stpresq/product/11g
-export ORACLE_HOME
+echo "Processing Started for $proc at $TIME on $DATE "
 
-ORACLE_SID=STPRESQ1
-export ORACLE_SID
-
-PATH=$PATH:$ORACLE_HOME/bin 
-export PATH
-
-echo "\n Processing Started for $proc at $TIME on $DATE \n"
-
-$ORACLE_HOME/bin/sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
@@ -52,12 +43,12 @@ END
 status=$?
 if test $status -ne 0
 then
-     echo "\n processing FAILED for $proc at ${TIME} on ${DATE}\n"
+     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "\n Processing finished for $proc at ${TIME} on ${DATE}\n"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
 exit 0
 

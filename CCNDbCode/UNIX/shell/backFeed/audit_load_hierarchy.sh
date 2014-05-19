@@ -16,39 +16,34 @@
 #
 ##########################################################################################
 
-echo "\n begin audit_load.sh script"
+echo " begin audit_load.sh script"
 
-# link to parameter file
-. /app/ccn/ccn.config
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
 
 # establish parameter names for this script
 PROC="audit_load_hierarchy.sql"
-DATAFILES="/app/ccn/datafiles"
-CUR_DIR="/app/ccn/batchJobs/backFeed/current"
-LOG_DIR="/app/ccn/batchJobs/backFeed/logs"
+DATAFILES="$HOME/datafiles"
+CUR_DIR="$HOME/batchJobs/backFeed/current"
+LOG_DIR="$HOME/batchJobs/backFeed/logs"
 
 # establish the date and time
 DATE=`date +"%Y-%m-%d"`
 TIME=`date +"%H:%M:%S"`
 
-ORACLE_HOME=/swstores/oracle/stcprd/product/11g
-export ORACLE_HOME
-
-ORACLE_SID=STCPRD
-export ORACLE_SID
 
 echo "\nProcessing Started for $PROC at $TIME on $DATE"
-$ORACLE_HOME/bin/sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-@/app/ccn/batchJobs/sql/$PROC
+@$HOME/batchJobs/sql/$PROC
  
 exit;
 END
 
-echo "\n return from $PROC \n"
+echo "return from $PROC"
 
 ##############################################
 #  ERROR STATUS CHECK
@@ -57,15 +52,15 @@ status=$?
 if test $status -ne 0
    then
      TIME=`date +"%H:%M:%S"`
-     echo "\n processing of $PROC failed at ${TIME} on ${DATE}"
+     echo "processing of $PROC failed at ${TIME} on ${DATE}"
      exit 1;
 else
    #move all the datafiles for backFeed to current
    mv `find $DATAFILES/*_backfeed* -type f` $CUR_DIR
-   echo "\n Successfully moved datafiles to current at ${TIME} on ${DATE} "
+   echo "Successfully moved datafiles to current at ${TIME} on ${DATE} "
 fi
 
-echo "\n ending audit_load.sh script \n"
+echo "ending audit_load.sh script"
 
 ##############################
 #  end of script             #

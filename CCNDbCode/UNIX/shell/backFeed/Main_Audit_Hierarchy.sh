@@ -14,18 +14,21 @@
 # Created           :  MDH 11/19/2012
 # Revised           :  SH  06/20/2013
 ##############################################################################################
-. /app/ccn/ccn.config
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
 
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
- BACKFEED_PATH="/app/ccn/batchJobs/backFeed/"
+ 
+ BACKFEED_PATH="$HOME/batchJobs/backFeed/"
+ ##BACKFEED_PATH="$HOME/batchJobs/backFeed/"
  cd $BACKFEED_PATH
 
-echo "\n Processing Started for backfeed process at ${TIME} on ${DATE}"
+echo "Processing Started for backfeed process at ${TIME} on ${DATE}"
 ############################################################################
 #         execute audit_load.sh shell to create CCN Backfeed File
 ############################################################################
-echo "\n Processing Started for audit_load at ${TIME} on ${DATE}"
+echo "Processing Started for audit_load at ${TIME} on ${DATE}"
 ./audit_load_hierarchy.sh
 
 
@@ -35,20 +38,20 @@ echo "\n Processing Started for audit_load at ${TIME} on ${DATE}"
 status=$?
 if test $status -ne 0 
    then
-     echo "\n processing FAILED for audit_load at ${TIME} on ${DATE}"
+     echo "processing FAILED for audit_load at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "\n Processing Finished for audit_load at ${TIME} on ${DATE}"
+echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
 
 ##############################################################################
 #  Execute Backfeed_CAT.sh to Concatenate all the files in order to send to MF
 ##############################################################################
-echo "\n Concatenating Started at ${TIME} on ${DATE}"
+echo "Concatenating Started at ${TIME} on ${DATE}"
 ./Backfeed_CAT.sh
 
-echo "\n Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
+echo "Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
 
 
 ##############################################
@@ -57,14 +60,14 @@ echo "\n Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
 status=$?
 if test $status -ne 0
    then
-     echo "\n processing FAILED for Backfeed_CAT at ${TIME} on ${DATE}"
+     echo "processing FAILED for Backfeed_CAT at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 ############################################################################
 #   execute audit_ftp.sh shell to send CCN Backfeed File to Mainframe
 ############################################################################
-echo "\n Processing Started for audit_ftp at ${TIME} on ${DATE}"
+echo "Processing Started for audit_ftp at ${TIME} on ${DATE}"
 #./audit_ftp.sh
 
 ##############################################
@@ -73,17 +76,17 @@ echo "\n Processing Started for audit_ftp at ${TIME} on ${DATE}"
 status=$?
 if test $status -ne 0
    then
-     echo "\n processing FAILED for audit_ftp at ${TIME} on ${DATE}"
+     echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "\n Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-echo "\n Processing finished for backfeed process at ${TIME} on ${DATE}"  
+echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
+echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
 
 ############################################################################
 #   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
 ############################################################################
-echo "\n Processing Started for incomplete_cc at ${TIME} on ${DATE}"
+echo "Processing Started for incomplete_cc at ${TIME} on ${DATE}"
 ./incomplete_cc.sh
 
 ##############################################
@@ -92,12 +95,12 @@ echo "\n Processing Started for incomplete_cc at ${TIME} on ${DATE}"
 status=$?
 if test $status -ne 0
    then
-     echo "\n processing FAILED for audit_ftp at ${TIME} on ${DATE}"
+     echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "\n Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-echo "\n Processing finished for backfeed process at ${TIME} on ${DATE}"  
+echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
+echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
 
 exit 0
 

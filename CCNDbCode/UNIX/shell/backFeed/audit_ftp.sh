@@ -13,20 +13,21 @@
 # Created Date =11/27/2012  by B.Ramsey
 # Revised Date =06/18/2013  SH 
 
-. /app/ccn/ccn.config 
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
 
-echo "\n Start script for FTP of Audit.txt \n" 
+echo "Start script for FTP of Audit.txt" 
 
-#/app/ccn/batchJobs/backFeed/logs; directory used for move
+#$HOME/batchJobs/backFeed/logs; directory used for move
 cdate=`date +'%Y%m%d%H%M%S'`
 
-AUDIT_PATH="/app/ccn/batchJobs/backFeed/current/"
-LOG_PATH="/app/ccn/batchJobs/backFeed/logs"
-ARC_PATH="/app/ccn/batchJobs/backFeed/Archive"
+AUDIT_PATH="$HOME/batchJobs/backFeed/current/"
+LOG_PATH="$HOME/batchJobs/backFeed/logs"
+ARC_PATH="$HOME/batchJobs/backFeed/Archive"
 file_name="Audit_backfeed.txt"
 
 cd $AUDIT_PATH
-echo "\n  Execute FTP to Mainframe \n" 
+echo "Execute FTP to Mainframe" 
 ftpResult=`ftp -n $mainframe_host <<FTP_MF
 quote USER $mainframe_user
 quote PASS $mainframe_pw
@@ -35,7 +36,7 @@ quote SITE RECFM=FB,LRECL=6000,BLKSIZE=24000,SPACE=(300,150),VOL(GDG350) CYL
 put $file_name  'STST.MDH01R.CCN00600.DEV.INPUT(+1)' 
 bye
 FTP_MF`
-echo "\n FTP to Mainframe COMPLETED \n"
+echo "FTP to Mainframe COMPLETED"
 
 if [ "$ftpResult" -ne 0 ] ; then
   echo "ERROR: ftp of $file_name failed"
@@ -43,10 +44,10 @@ if [ "$ftpResult" -ne 0 ] ; then
 else
   echo "SUCCESS: ftp of $file_name completed successfully"
   #Archive the concatenated file
-  echo "\n Move of Audit File to log \n"
+  echo "Move of Audit File to log"
   mv $file_name $LOG_PATH/$file_name"_"$cdate
 
-  echo "\n Move of Data Files from current to Archive \n" 
+  echo "Move of Data Files from current to Archive" 
   mv `find *_backfeed* -type f` $ARC_PATH
 
   echo "$file_name has been archived to $LOG_PATH path"

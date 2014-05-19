@@ -1,48 +1,41 @@
 #!/bin/sh
-#############################################################################
-# Script Name   :  AUDIT_INITLOAD
-#
-# Description    :  This shell program will initiate the AUDIT_INITLOAD_SP 
-#
-# This shell program will initiate the AUDIT_INITLOAD script that 
-#    * Disables all the Triggers 
-#    * Deletes all the CCN tables
-#    * Loads all the CCN tables
-#    * Loads the Audit tables
-#    * Re-Enables the Triggers
-# from files sent from the Legacy IDMS CCN Database.
-#
-# It also sends the emails regarding starting and ending of the process
-#
-# Created           :  SH 09/24/2013
-############################################################################
-. /app/ccn/ccn.config
 
- proc="ccn_audit_initload_sp"
- LOGDIR="/app/ccn/initLoad"
- TIME=`date +"%H:%M:%S"`
- DATE=`date +"%m/%d/%Y"`
- TimeStamp=`date '+%Y%m%d%H%M%S'`
+##########################################################################################
+#
+# purpose of this script will be to invoke COST_CENTER_UPLOAD.BATCH_LOAD_PROCESS
+#
+# Date Created: 11/01/2013 JXC
+# Date Updated: 
+#
+##########################################################################################
+echo "\n begin cc_batch_load.sh script"
 
-ORACLE_HOME=/swstores/oracle/stcprq/product/11g
-export ORACLE_HOME
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
 
-ORACLE_SID=STCPRQ2
+proc="COST_CENTER_UPLOAD.BATCH_LOAD_PROCESS"
+LOGDIR="$HOME/hier"
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+
+
+ORACLE_HOME=/swpkg/oracle/product/stccn/11.2.0.3
+export ORACLE_HOME 
+
+ORACLE_SID=STCCND1
 export ORACLE_SID
-
-PATH=$PATH:$ORACLE_HOME/bin 
-export PATH
 
 echo "\n Processing Started for $proc at $TIME on $DATE \n"
 
-$ORACLE_HOME/bin/sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
 execute MAIL_PKG.send_mail('CC_BATCH_LOAD_START');
 execute  COST_CENTER_UPLOAD.BATCH_LOAD_PROCESS();
 execute MAIL_PKG.send_mail('CC_BATCH_LOAD_END');
-
+ 
 exit;
 END
 

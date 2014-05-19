@@ -1,19 +1,22 @@
 #Run below command to make the process run in the background even after shutdown
-#nohup sh /app/ccn/host_unix_command.sh > /app/ccn/host_unix_command.log 2>&1 &
+#nohup sh $HOME/host_unix_command.sh > $HOME/host_unix_command.log 2>&1 &
+
 #Below statement will be used to check if the process is running in the background
-#ps -fe | grep -i host_unix_command.sh | grep -v grep
+#ps -elf | grep -i host_unix_command.sh
+
+# below command will get the path for ccn.config respective to the environment from which it is run from
+. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
 
 #path where the Command file is stored
-cmd_path="/app/ccn/datafiles"
-
-now=`date +"%Y-%m-%d.%H%M%S"`
-renamedfile="$cmd_path/cmd_start.$now.sh"
-# Example renamedfile: /app/ccn/datafiles/cmd_start.2013-10-30.134513.sh
+cmd_path="$HOME/datafiles"
 
 # Search for the file named cmd_start.sh
 while true; do
    if [ -s $cmd_path/cmd_start.sh ]
    then
+      now=`date +"%Y-%m-%d.%H%M%S"`
+      renamedfile="$cmd_path/cmd_start.$now.sh"
+      # Example renamedfile: $HOME/datafiles/cmd_start.2013-10-30.134513.sh
       echo "running the passed in command"
       sh $cmd_path/cmd_start.sh
 
