@@ -1,4 +1,5 @@
-create or replace package body CCN_UI_INTERFACE_APP_PKG
+create or replace 
+package body CCN_UI_INTERFACE_APP_PKG
     as
 -- PACKAGE BODY
 /****************************************************************************** 
@@ -702,6 +703,13 @@ VALIDATE_BUSINESS_RULES('POLLING',in_row_data);
           END; 
    END;
 
+   --Release the restriction on all the objects
+   v_count := 1;
+   WHILE v_Row_data.existsNode('/POLLING_UI/RESTRICTION_TABLE/' || 'RESTRICTION_ID' || '[' || v_count || ']') = 1 LOOP
+      CCN_RESTRICTION_PKG.RELEASE_OBJECT(v_Row_data.extract('/POLLING_UI/RESTRICTION_TABLE/'|| 'RESTRICTION_ID' || '[' || v_count || ']').getStringVal());
+      v_count := v_count + 1;
+   END LOOP;
+   
    --Below call will check if there are any warnings and raise those from here
    ERRPKG.RAISE_WARNINGS();
 
@@ -1298,19 +1306,34 @@ updated : nxk 3/18/14
    RETURN NUMBER 
 AS 
      V_SEQUENCE_NUMBER NUMBER;
-	 
+     V_USER_ID         VARCHAR2(10);
+     V_RESTRICTION_ID  NUMBER;
 BEGIN
-   SELECT NVL(MAX(TERMINAL_NUMBER), 0) + 1 INTO V_SEQUENCE_NUMBER 
-   FROM TERMINAL
-   WHERE TERMINAL_NUMBER not in ('99308', '99112', '99111', '71882');
-	
-CASE
-WHEN V_SEQUENCE_NUMBER  IN ('99308','71882') THEN  V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 1;
-WHEN V_SEQUENCE_NUMBER   = '99111' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 2; --(because of two consecutive terminal numbers '99111' and '99112')
-ELSE V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER ;
-END case;
-	
-RETURN V_SEQUENCE_NUMBER;
+
+   --Check if object is already restricted
+   --Also get the User ID as we need to pass it back to the UI, in error message
+   V_USER_ID := CCN_RESTRICTION_PKG.IS_OBJECT_RESTRICTED('TERMINAL');
+
+   IF V_USER_ID IS NULL THEN
+      SELECT NVL(MAX(TERMINAL_NUMBER), 0) + 1 INTO V_SEQUENCE_NUMBER 
+        FROM TERMINAL
+       WHERE TERMINAL_NUMBER not in ('99308', '99112', '99111', '71882');
+
+      CASE
+         WHEN V_SEQUENCE_NUMBER  IN ('99308','71882') THEN  V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 1;
+         WHEN V_SEQUENCE_NUMBER   = '99111' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 2; --(because of two consecutive terminal numbers '99111' and '99112')
+         ELSE V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER ;
+      END case;
+      
+      --Restrict the table for access by other sessions
+      --Also get the Restriction ID as we need to pass it back to the UI
+      V_RESTRICTION_ID := CCN_RESTRICTION_PKG.RESTRICT_OBJECT('TERMINAL');
+      
+      RETURN V_SEQUENCE_NUMBER;
+	 ELSE
+      errpkg.raise_err(SQLCODE, ' TERMINAL_NUMBER_S ', 'TERMINAL table has been locked by '||V_USER_ID
+                                                       ||'.Please try processing again after some time');
+   END IF;
 
 END TERMINAL_NUMBER_S;
 
@@ -1361,8 +1384,18 @@ modified :
 **********************************************************/
 IS
 SELECT_AUDIT_LOG_HIER_EXC EXCEPTION;
+V_PATH                    VARCHAR2(100);
 BEGIN
-   IF NOT COMMON_TOOLS.EXECUTE_UNIX_COMMAND('sh /app/ccn/batchJobs/backFeed/Main_Audit_Hierarchy.sh') THEN
+   SELECT SUBSTR(DIRECTORY_PATH,1,
+                 --4th occurance of '/' in all other environments (dev, test and qa)
+                 --3rd occurance of '/' in production
+                 INSTR(DIRECTORY_PATH,'/',1,DECODE(sys_context('USERENV','SERVICE_NAME'),'STCCNP',3,4)))
+     INTO V_PATH
+     FROM ALL_DIRECTORIES
+    WHERE DIRECTORY_NAME = 'CCN_DATAFILES'
+      AND ROWNUM < 2;
+
+   IF NOT COMMON_TOOLS.EXECUTE_UNIX_COMMAND('cd '||TRIM(V_PATH)||'batchJobs/backFeed' || CHR(10) || 'sh Main_Audit_Hierarchy.sh') THEN
        RAISE SELECT_AUDIT_LOG_HIER_EXC;
    END IF;
 EXCEPTION
@@ -1381,8 +1414,18 @@ modified :
 **********************************************************/
 IS
 SELECT_AUDIT_LOG_EXCEPTION EXCEPTION;
+V_PATH                    VARCHAR2(100);
 BEGIN
-   IF NOT COMMON_TOOLS.EXECUTE_UNIX_COMMAND('sh /app/ccn/batchJobs/backFeed/Main_Audit.sh') THEN
+   SELECT SUBSTR(DIRECTORY_PATH,1,
+                 --4th occurance of '/' in all other environments (dev, test and qa)
+                 --3rd occurance of '/' in production
+                 INSTR(DIRECTORY_PATH,'/',1,DECODE(sys_context('USERENV','SERVICE_NAME'),'STCCNP',3,4)))
+     INTO V_PATH
+     FROM ALL_DIRECTORIES
+    WHERE DIRECTORY_NAME = 'CCN_DATAFILES'
+      AND ROWNUM < 2;
+
+   IF NOT COMMON_TOOLS.EXECUTE_UNIX_COMMAND('cd '||TRIM(V_PATH)||'batchJobs/backFeed' || CHR(10) || 'sh Main_Audit.sh') THEN
        RAISE SELECT_AUDIT_LOG_EXCEPTION;
    END IF;
 EXCEPTION
@@ -1391,4 +1434,3 @@ EXCEPTION
 END SELECT_AUDIT_LOG;
 
 end CCN_UI_INTERFACE_APP_PKG;
-
