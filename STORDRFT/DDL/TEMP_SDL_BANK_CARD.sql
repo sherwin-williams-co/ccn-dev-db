@@ -1,0 +1,39 @@
+CREATE TABLE "STORDRFT"."TEMP_SDL_BANK_CARD" 
+   (	"COST_CENTER_CODE" VARCHAR2(6 BYTE), 
+	"TRANSACTION_DATE" VARCHAR2(8 BYTE), 
+	"TERM_NUMBER" VARCHAR2(5 BYTE), 
+	"TRANSACTION_NUMBER" VARCHAR2(5 BYTE), 
+	"SEGMENT_CODE" VARCHAR2(2 BYTE), 
+	"SUB_SEGMENT_CODE" VARCHAR2(2 BYTE), 
+	"BANK_CARD_ACCOUNT_NUMBER" VARCHAR2(16 BYTE), 
+	"BANK_AUTH" VARCHAR2(9 BYTE), 
+	"BANK_AMOUNT" VARCHAR2(9 BYTE), 
+	"BANK_AMOUNT_SGN" VARCHAR2(1 BYTE), 
+	"BANK_TYPE" VARCHAR2(1 BYTE)
+   ) 
+   ORGANIZATION EXTERNAL 
+    ( TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "STORDRFT_LOAD_FILES"
+      ACCESS PARAMETERS
+      ( RECORDS FIXED 66 
+        badfile "STORDRFT_LOAD_FILES":'TEMP_SDL_BANK_CARD.bad'
+        logfile "STORDRFT_LOAD_FILES":'TEMP_SDL_BANK_CARD.log'
+        discardfile "STORDRFT_LOAD_FILES":'TEMP_SDL_BANK_CARD.dsc'
+        FIELDS(
+                COST_CENTER_CODE         CHAR(6),
+                TRANSACTION_DATE         CHAR(8),
+                TERM_NUMBER              CHAR(5),
+                TRANSACTION_NUMBER       CHAR(5),
+                SEGMENT_CODE             CHAR(2),
+                SUB_SEGMENT_CODE         CHAR(2),
+                BANK_CARD_ACCOUNT_NUMBER CHAR(16),
+                BANK_AUTH                CHAR(9),
+                BANK_AMOUNT              CHAR(9),
+                BANK_AMOUNT_SGN          CHAR(1),
+                BANK_TYPE                CHAR(1)
+                               )
+              )
+      LOCATION
+       ( 'CCN99CTR_LBKCARD.TXT'
+       )
+    );

@@ -1,0 +1,52 @@
+CREATE TABLE "STORDRFT"."DLY_CSTMR_FORM_OF_PAY" 
+   (	"COST_CENTER_CODE" VARCHAR2(4 BYTE), 
+	"TERMINAL_NUMBER" VARCHAR2(5 BYTE), 
+	"TRANSACTION_NUMBER" VARCHAR2(5 BYTE), 
+	"SORT_FORCE" VARCHAR2(3 BYTE), 
+	"SEGMENT_CODE" VARCHAR2(2 BYTE), 
+	"SUB_SEGMENT_CODE" VARCHAR2(2 BYTE), 
+	"FILLER" VARCHAR2(5 BYTE), 
+	"PAY_DISC_CODE" VARCHAR2(1 BYTE), 
+	"TRANSACTION_TOTAL_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
+	"TRANSACTION_TOTAL_AMOUNT" VARCHAR2(7 BYTE), 
+	"POS_LINE_CNT" VARCHAR2(5 BYTE), 
+	"PAY_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
+	"PAY_AMOUNT" VARCHAR2(7 BYTE), 
+	"POS_DISC_SIGN" VARCHAR2(1 BYTE), 
+	"POS_DISC" VARCHAR2(7 BYTE), 
+	"SALES_DISC_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
+	"SALES_DISC_AMOUNT" VARCHAR2(7 BYTE)
+   ) 
+   ORGANIZATION EXTERNAL 
+    ( TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "STORDRFT_LOAD_FILES"
+      ACCESS PARAMETERS
+      ( RECORDS DELIMITED BY NEWLINE
+        badfile "STORDRFT_LOAD_FILES":'DLY_CSTMR_FORM_OF_PAY.bad'
+        logfile "STORDRFT_LOAD_FILES":'DLY_CSTMR_FORM_OF_PAY.log'
+        discardfile "STORDRFT_LOAD_FILES":'DLY_CSTMR_FORM_OF_PAY.dsc'       
+        LOAD WHEN ((18:19) = '06' OR (18:19) = '07')
+        FIELDS(
+                COST_CENTER_CODE         CHAR(4),
+                TERMINAL_NUMBER          CHAR(5),
+                TRANSACTION_NUMBER       CHAR(5),
+                SORT_FORCE               CHAR(3),
+                SEGMENT_CODE             CHAR(2),
+                SUB_SEGMENT_CODE         CHAR(2),
+                FILLER                   CHAR(5),
+                PAY_DISC_CODE            CHAR(1),
+                TRANSACTION_TOTAL_AMOUNT_SIGN CHAR(1),
+                TRANSACTION_TOTAL_AMOUNT CHAR(7),
+                POS_LINE_CNT             CHAR(5),
+                PAY_AMOUNT_SIGN          CHAR(1),
+                PAY_AMOUNT               CHAR(7),
+                POS_DISC_SIGN            CHAR(1),
+                POS_DISC                 CHAR(7),
+                SALES_DISC_AMOUNT_SIGN   CHAR(1),
+                SALES_DISC_AMOUNT        CHAR(7)
+                               )
+              )
+      LOCATION
+       ( 'CUSTOMER_LABOR.TXT'
+       )
+    );

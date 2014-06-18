@@ -1,0 +1,35 @@
+CREATE TABLE "STORDRFT"."TEMP_SDL_SALES_TAX" 
+   (	"COST_CENTER_CODE" VARCHAR2(6 BYTE), 
+	"TRANSACTION_DATE" VARCHAR2(8 BYTE), 
+	"TERM_NUMBER" VARCHAR2(5 BYTE), 
+	"TRANSACTION_NUMBER" VARCHAR2(5 BYTE), 
+	"SALES_TAX_CORR_IND" VARCHAR2(1 BYTE), 
+	"SALES_TAX_COLL_AMT" VARCHAR2(7 BYTE), 
+	"SALES_TAX_IND" VARCHAR2(1 BYTE), 
+	"SALES_TAX_RATE" VARCHAR2(5 BYTE), 
+	"SALES_TAX_CODE" VARCHAR2(5 BYTE)
+   ) 
+   ORGANIZATION EXTERNAL 
+    ( TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "STORDRFT_LOAD_FILES"
+      ACCESS PARAMETERS
+      ( RECORDS FIXED 66 
+        badfile "STORDRFT_LOAD_FILES":'TEMP_SDL_SALES_TAX.bad'
+        logfile "STORDRFT_LOAD_FILES":'TEMP_SDL_SALES_TAX.log'
+        discardfile "STORDRFT_LOAD_FILES":'TEMP_SDL_SALES_TAX.dsc'
+        FIELDS(
+                COST_CENTER_CODE         CHAR(6),
+                TRANSACTION_DATE         CHAR(8),
+                TERM_NUMBER              CHAR(5),
+                TRANSACTION_NUMBER       CHAR(5),
+                SALES_TAX_CORR_IND       CHAR(1),
+                SALES_TAX_COLL_AMT       CHAR(7),
+                SALES_TAX_IND            CHAR(1),
+                SALES_TAX_RATE           CHAR(5),
+                SALES_TAX_CODE           CHAR(5)
+                               )
+              )
+      LOCATION
+       ( 'CCN99CTR_LSLSTAX.TXT'
+       )
+    );
