@@ -1,0 +1,823 @@
+CREATE OR REPLACE PACKAGE BODY STORDRFT.initLoad
+/****************************************************************************** 
+This package BODY will load:
+  
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+******************************************************************************/
+AS
+
+FUNCTION VALIDATE_DATA_BEFORE_LOAD(
+/*****************************************************************************
+	VALIDATE_DATA_BEFORE_LOAD
+
+	This function will validate if the value is some default value in idms
+  which should go as NULL in database.  
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+    IN_VALUE     IN    VARCHAR2) RETURN VARCHAR2
+IS
+BEGIN
+    --If IN_VALUE contains all 0's then return NULL else return theinput value
+    IF TO_NUMBER(IN_VALUE) = 0 THEN
+        RETURN NULL;
+    ELSE
+        RETURN IN_VALUE;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN IN_VALUE;
+END VALIDATE_DATA_BEFORE_LOAD;
+
+FUNCTION RETURN_NUMBER(
+/*****************************************************************************
+	RETURN_NUMBER
+
+	This function will return the number based on precision and scale passed
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+    IN_VALUE     IN    VARCHAR2,
+    IN_PRECISION IN    NUMBER,
+    IN_SCALE     IN    NUMBER) RETURN NUMBER
+IS
+    V_WHOLE_NUM_SIZE NUMBER := IN_PRECISION - IN_SCALE;
+BEGIN
+    --Example: Column defined as NUMBER(7,2) has precision as 7 and Sclae as 2
+    --Data we get from file is like 0023499 which is equivalent to 234.99
+    --We need to extract (precision-scale) # of characters append it with a period(.) followed by scale # of characters
+    RETURN TO_NUMBER(SUBSTR(IN_VALUE,1,V_WHOLE_NUM_SIZE)||'.'||SUBSTR(IN_VALUE,V_WHOLE_NUM_SIZE,IN_SCALE));
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END RETURN_NUMBER;
+
+PROCEDURE TRUNCATE_TABLE(
+/*****************************************************************************
+	TRUNCATE_TABLE
+
+	This procedure will truncate all loaded data for the table passed in.
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IN_TABLE_NAME IN VARCHAR2)
+IS
+    CURSOR C_CONSTRAINTS IS
+        SELECT CONSTRAINT_NAME, TABLE_NAME
+          FROM USER_CONSTRAINTS
+         WHERE R_CONSTRAINT_NAME IN (SELECT CONSTRAINT_NAME
+                                       FROM USER_CONSTRAINTS
+                                      WHERE TABLE_NAME = IN_TABLE_NAME);
+BEGIN
+    FOR rec IN C_CONSTRAINTS LOOP
+        EXECUTE IMMEDIATE 'ALTER TABLE ' || rec.TABLE_NAME ||
+                          ' DISABLE CONSTRAINT ' || rec.CONSTRAINT_NAME;
+    END LOOP;
+
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE ' || IN_TABLE_NAME;
+
+    FOR rec IN C_CONSTRAINTS LOOP
+        EXECUTE IMMEDIATE 'ALTER TABLE ' || rec.TABLE_NAME ||
+                          ' ENABLE CONSTRAINT ' || rec.CONSTRAINT_NAME;
+    END LOOP;        
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END TRUNCATE_TABLE;
+
+PROCEDURE TRUNCATE_SD_TABLES
+/*****************************************************************************
+	TRUNCATE_SD_TABLES
+
+	This procedure will truncate all loaded data before reloading data from files created off
+  of the legacy idms database.
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IS
+BEGIN
+
+    TRUNCATE_TABLE('CUSTOMER_SALES_TAX');
+    TRUNCATE_TABLE('CUSTOMER_FORM_OF_PAY');
+    TRUNCATE_TABLE('CUSTOMER_BANK_CARD');
+    TRUNCATE_TABLE('CUSTOMER_DETAILS');
+    TRUNCATE_TABLE('CUSTOMER');
+    TRUNCATE_TABLE('STORE_DRAFTS_DETAIL');
+    TRUNCATE_TABLE('STORE_DRAFTS');
+    TRUNCATE_TABLE('UNATTACHED_MNL_DRFT_DTL');
+    --truncate temporary intermediate tables as they will be reloaded in next step
+    TRUNCATE_TABLE('STORE_DRAFTS_T');
+    TRUNCATE_TABLE('STORE_DRAFT_DETAIL_T');
+    TRUNCATE_TABLE('CUSTOMER_T');
+    TRUNCATE_TABLE('CUSTOMER_DETAILS_T');
+    TRUNCATE_TABLE('CUSTOMER_FORM_OF_PAY_T');
+    TRUNCATE_TABLE('CUSTOMER_BANK_CARD_T');
+    TRUNCATE_TABLE('CUSTOMER_CC_ACCOUNT_T');
+    TRUNCATE_TABLE('CUSTOMER_SALES_TAX_T');
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END TRUNCATE_SD_TABLES;
+
+PROCEDURE DELETE_SD_TABLES
+/******************************************************************
+   DELETE_SD_TABLES
+
+   This Procedure will delete the tables along with their dependent tables data
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+IS
+BEGIN
+
+     --SD_TABLE_IU_PKG.STORE_DRAFTS_D_SP('STORE_DRAFTS',NULL);
+     NULL;
+
+EXCEPTION
+    WHEN OTHERS THEN
+         RAISE;
+END DELETE_SD_TABLES;
+
+PROCEDURE LOAD_STORE_DRAFTS
+/*****************************************************************************
+	LOAD_STORE_DRAFTS
+
+	This function will load the STORE_DRAFTS table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR STOREDRAFT_TEMP_CUR is
+        SELECT *
+        FROM STORE_DRAFTS_T;
+
+
+    V_COMMIT                    NUMBER := 0;
+    V_STOREDRAFT_TEMP_ROW       STORE_DRAFTS%ROWTYPE;
+BEGIN
+
+    FOR rec IN STOREDRAFT_TEMP_CUR LOOP
+        BEGIN
+            V_STOREDRAFT_TEMP_ROW.COST_CENTER_CODE        := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_STOREDRAFT_TEMP_ROW.CHECK_SERIAL_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.TRANSACTION_DATE        := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.TERMINAL_NUMBER         := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.TRANSACTION_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_ACCOUNT_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.CUSTOMER_JOB_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_JOB_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.POS_TRANSACTION_CODE    := VALIDATE_DATA_BEFORE_LOAD(rec.POS_TRANSACTION_CODE);
+            V_STOREDRAFT_TEMP_ROW.POS_TRANSACTION_TIME    := VALIDATE_DATA_BEFORE_LOAD(rec.POS_TRANSACTION_TIME);
+            V_STOREDRAFT_TEMP_ROW.BANK_NUMBER             := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.BANK_ACCOUNT_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_ACCOUNT_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.BANK_REFERENCE          := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_REFERENCE);
+            V_STOREDRAFT_TEMP_ROW.PAYEE_NAME              := VALIDATE_DATA_BEFORE_LOAD(rec.PAYEE_NAME);
+            V_STOREDRAFT_TEMP_ROW.ADDRESS_LINE_1          := VALIDATE_DATA_BEFORE_LOAD(rec.ADDRESS_LINE_1);
+            V_STOREDRAFT_TEMP_ROW.ADDRESS_LINE_2          := VALIDATE_DATA_BEFORE_LOAD(rec.ADDRESS_LINE_2);
+            V_STOREDRAFT_TEMP_ROW.CITY                    := VALIDATE_DATA_BEFORE_LOAD(rec.CITY);
+            V_STOREDRAFT_TEMP_ROW.STATE_CODE              := VALIDATE_DATA_BEFORE_LOAD(rec.STATE_CODE);
+            V_STOREDRAFT_TEMP_ROW.ZIP_CODE_PREFIX         := VALIDATE_DATA_BEFORE_LOAD(rec.ZIP_CODE_PREFIX);
+            V_STOREDRAFT_TEMP_ROW.ZIP_CODE_SUFFIX         := VALIDATE_DATA_BEFORE_LOAD(rec.ZIP_CODE_SUFFIX);
+            V_STOREDRAFT_TEMP_ROW.PHONE_AREA_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.PHONE_AREA_CODE);
+            V_STOREDRAFT_TEMP_ROW.PHONE_NUMBER            := VALIDATE_DATA_BEFORE_LOAD(rec.PHONE_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.EMPLOYEE_NUMBER         := VALIDATE_DATA_BEFORE_LOAD(rec.EMPLOYEE_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.ISSUE_DATE              := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.ISSUE_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.PAID_DATE               := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.PAID_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.STOP_PAY_DATE           := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.STOP_PAY_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.STOP_PAY_REMOVE_DATE    := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.STOP_PAY_REMOVE_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.VOID_DATE               := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.VOID_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.AMOUNT_CHANGE_DATE      := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.AMOUNT_CHANGE_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.GROSS_AMOUNT            := RETURN_NUMBER(rec.GROSS_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT           := RETURN_NUMBER(rec.RETAIN_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.NET_AMOUNT              := RETURN_NUMBER(rec.NET_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.ORIGINAL_NET_AMOUNT     := RETURN_NUMBER(rec.ORIGINAL_NET_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.BANK_PAID_AMOUNT        := RETURN_NUMBER(rec.BANK_PAID_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.TRANSACTION_SOURCE      := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_SOURCE);
+            V_STOREDRAFT_TEMP_ROW.CHANGE_DATE             := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.CHANGE_DATE),'RRRRMMDD');
+            V_STOREDRAFT_TEMP_ROW.CHANGE_SOURCE           := VALIDATE_DATA_BEFORE_LOAD(rec.CHANGE_SOURCE);
+            V_STOREDRAFT_TEMP_ROW.SLS_BOOK_DATE           := VALIDATE_DATA_BEFORE_LOAD(rec.SLS_BOOK_DATE);
+            V_STOREDRAFT_TEMP_ROW.CYCLE_RUN_NUMBER        := VALIDATE_DATA_BEFORE_LOAD(rec.CYCLE_RUN_NUMBER);
+            V_STOREDRAFT_TEMP_ROW.BOOK_DATE_SEQUENCE      := VALIDATE_DATA_BEFORE_LOAD(rec.BOOK_DATE_SEQUENCE);
+            V_STOREDRAFT_TEMP_ROW.REASON_CODE             := VALIDATE_DATA_BEFORE_LOAD(rec.REASON_CODE);
+
+            INSERT INTO STORE_DRAFTS VALUES V_STOREDRAFT_TEMP_ROW;
+
+            V_STOREDRAFT_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_STORE_DRAFTS',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.CHECK_SERIAL_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+                                           
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_STORE_DRAFTS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_STORE_DRAFTS;
+
+PROCEDURE LOAD_STORE_DRAFTS_DETAIL
+/*****************************************************************************
+	LOAD_STORE_DRAFTS_DETAIL
+
+	This function will load the STORE_DRAFT_DETAIL table from data  
+	file from TEMP_STORE_DRAFT_DETAIL table
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR STOREDRAFT_DETAIL_CUR IS   
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY cost_center_code,check_serial_number,transaction_date order by transaction_date) SRLNO,A.*
+          FROM STORE_DRAFT_DETAIL_T A;
+
+    V_COMMIT                INTEGER := 0;
+    V_STOREDRAFT_DETAIL_ROW       STORE_DRAFTS_DETAIL%ROWTYPE;
+    V_UNMTCHED_STOREDRAFT_DTL_ROW UNATTACHED_MNL_DRFT_DTL%ROWTYPE;
+BEGIN
+
+    FOR rec IN STOREDRAFT_DETAIL_CUR LOOP
+        BEGIN
+            V_STOREDRAFT_DETAIL_ROW.STORE_DRAFTS_DETAIL_ID  := rec.SRLNO;
+            V_STOREDRAFT_DETAIL_ROW.COST_CENTER_CODE        := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_STOREDRAFT_DETAIL_ROW.CHECK_SERIAL_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.TRANSACTION_DATE        := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE), 'RRRRMMDD');
+            V_STOREDRAFT_DETAIL_ROW.TERMINAL_NUMBER         := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.TRANSACTION_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.CUSTOMER_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_ACCOUNT_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.CUSTOMER_JOB_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_JOB_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.GL_PRIME_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.GL_PRIME_ACCOUNT_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.GL_SUB_ACCOUNT_NUMBER   := VALIDATE_DATA_BEFORE_LOAD(rec.GL_SUB_ACCOUNT_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.ITEM_QUANTITY           := RETURN_NUMBER(rec.ITEM_QUANTITY,7,2);
+            V_STOREDRAFT_DETAIL_ROW.ITEM_PRICE              := RETURN_NUMBER(rec.ITEM_PRICE,7,2);
+            V_STOREDRAFT_DETAIL_ROW.ITEM_EXT_AMOUNT         := RETURN_NUMBER(rec.ITEM_EXT_AMOUNT,7,2);
+            V_STOREDRAFT_DETAIL_ROW.BOOK_DATE_SEQUENCE      := VALIDATE_DATA_BEFORE_LOAD(rec.BOOK_DATE_SEQUENCE);
+            V_STOREDRAFT_DETAIL_ROW.LBR_TRANSACTION_DATE    := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TRANSACTION_DATE), 'RRRRMMDD');
+            V_STOREDRAFT_DETAIL_ROW.LBR_TERMINAL_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TERM_NUMBER);
+            V_STOREDRAFT_DETAIL_ROW.LBR_TRANSACTION_NUMBER  := VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TRANSACTION_NUMBER);
+
+            INSERT INTO STORE_DRAFTS_DETAIL VALUES V_STOREDRAFT_DETAIL_ROW;
+
+            V_STOREDRAFT_DETAIL_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                BEGIN
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.COST_CENTER_CODE        := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.CHECK_SERIAL_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.TRANSACTION_DATE        := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE), 'RRRRMMDD');
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.TERMINAL_NUMBER         := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.TRANSACTION_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.CUSTOMER_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_ACCOUNT_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.CUSTOMER_JOB_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_JOB_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.GL_PRIME_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.GL_PRIME_ACCOUNT_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.GL_SUB_ACCOUNT_NUMBER   := VALIDATE_DATA_BEFORE_LOAD(rec.GL_SUB_ACCOUNT_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.ITEM_QUANTITY           := RETURN_NUMBER(rec.ITEM_QUANTITY,7,2);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.ITEM_PRICE              := RETURN_NUMBER(rec.ITEM_PRICE,7,2);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.ITEM_EXT_AMOUNT         := RETURN_NUMBER(rec.ITEM_EXT_AMOUNT,7,2);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.BOOK_DATE_SEQUENCE      := VALIDATE_DATA_BEFORE_LOAD(rec.BOOK_DATE_SEQUENCE);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.LBR_TRANSACTION_DATE    := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TRANSACTION_DATE), 'RRRRMMDD');
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.LBR_TERMINAL_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TERM_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.LBR_TRANSACTION_NUMBER  := VALIDATE_DATA_BEFORE_LOAD(rec.LBR_TRANSACTION_NUMBER);
+                    V_UNMTCHED_STOREDRAFT_DTL_ROW.PROCESS_DATE            := SYSDATE;
+                    
+                    INSERT INTO UNATTACHED_MNL_DRFT_DTL VALUES V_UNMTCHED_STOREDRAFT_DTL_ROW;
+                    
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                                   'LOAD_STORE_DRAFTS_DETAIL',
+                                                   SQLERRM,
+                                                   rec.COST_CENTER_CODE,
+                                                   NVL(rec.CHECK_SERIAL_NUMBER,'')||':'||
+                                                   NVL(rec.TRANSACTION_DATE,'')||':'||
+                                                   NVL(rec.TERM_NUMBER,'')||':'||
+                                                   NVL(rec.TRANSACTION_NUMBER,''));
+                END;
+        END;
+    END LOOP;  
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_STORE_DRAFTS_DETAIL',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_STORE_DRAFTS_DETAIL;
+
+PROCEDURE LOAD_CUSTOMER
+/*****************************************************************************
+	LOAD_CUSTOMER
+
+	This function will load the CUSTOMER table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR TEMP_CUR is
+        SELECT *
+        FROM CUSTOMER_T;
+
+
+    V_COMMIT         NUMBER := 0;
+    V_TEMP_ROW       CUSTOMER%ROWTYPE;
+BEGIN
+
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            V_TEMP_ROW.COST_CENTER_CODE             := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.TRANSACTION_DATE             := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.TERMINAL_NUMBER              := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_TEMP_ROW.TRANSACTION_NUMBER           := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_ACCOUNT_NUMBER);
+            V_TEMP_ROW.CUSTOMER_JOB_NUMBER          := VALIDATE_DATA_BEFORE_LOAD(rec.CUSTOMER_JOB_NUMBER);
+            V_TEMP_ROW.POS_TRANSACTION_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.POS_TRANSACTION_CODE);
+            V_TEMP_ROW.POS_TRANSACTION_BATCH_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.POS_TRANSACTION_BATCH_NUMBER);
+            V_TEMP_ROW.POS_TRANSACTION_TIME         := VALIDATE_DATA_BEFORE_LOAD(rec.POS_TRANSACTION_TIME);
+            V_TEMP_ROW.CYCLE_RUN_NUMBER             := VALIDATE_DATA_BEFORE_LOAD(rec.CYCLE_RUN_NUMBER);
+            V_TEMP_ROW.EMPLOYEE_NUMBER              := VALIDATE_DATA_BEFORE_LOAD(rec.EMPLOYEE_NUMBER);
+            V_TEMP_ROW.BUSSINESS_TYPE_CODE          := VALIDATE_DATA_BEFORE_LOAD(rec.BUSINESS_TYPE_CODE);
+            V_TEMP_ROW.SALES_TERRITORY_NUMBER       := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TERRITORY_NUMBER);
+            V_TEMP_ROW.SALES_TERRITORY_NUMBER_COR   := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TERRITORY_NUMBER_COR);
+            V_TEMP_ROW.ORGNL_POS_TRANSACTION_DATE   := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.ORGNL_POS_TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.ORGNL_POS_TERM_NUMBER        := VALIDATE_DATA_BEFORE_LOAD(rec.ORGNL_POS_TERM_NUMBER);
+            V_TEMP_ROW.ORGNL_POS_TRANSACTION_NBR    := VALIDATE_DATA_BEFORE_LOAD(rec.ORGNL_POS_TRANSACTION_NBR);
+            V_TEMP_ROW.PURCHASE_ORDER_NUMBER        := VALIDATE_DATA_BEFORE_LOAD(rec.PURCHASE_ORDER_NUMBER);
+            V_TEMP_ROW.BOOK_DATE_SEQUENCE           := VALIDATE_DATA_BEFORE_LOAD(rec.BOOK_DATE_SEQUENCE);
+
+            INSERT INTO CUSTOMER VALUES V_TEMP_ROW;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_CUSTOMER',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+                                           
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_CUSTOMER',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_CUSTOMER;
+
+PROCEDURE LOAD_CUSTOMER_DETAILS
+/*****************************************************************************
+	LOAD_CUSTOMER_DETAILS
+
+	This function will load the CUSTOMER_DETAILS table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR TEMP_CUR is
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY cost_center_code,transaction_date,term_number,transaction_number order by transaction_date) SRLNO,A.*
+        FROM CUSTOMER_DETAILS_T A;
+
+
+    V_COMMIT         NUMBER := 0;
+    V_TEMP_ROW       CUSTOMER_DETAILS%ROWTYPE;
+BEGIN
+
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            V_TEMP_ROW.CUSTOMER_DETAIL_ID         := rec.SRLNO;
+            V_TEMP_ROW.COST_CENTER_CODE           := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.TRANSACTION_DATE           := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.TERMINAL_NUMBER            := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_TEMP_ROW.TRANSACTION_NUMBER         := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_TEMP_ROW.SEGMENT_CODE               := VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
+            V_TEMP_ROW.SALES_NUMBER               := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_NUMBER);
+            V_TEMP_ROW.ITEM_QUANTITY              := RETURN_NUMBER(rec.ITEM_QTY,7,2);
+            V_TEMP_ROW.ITEM_PRICE                 := RETURN_NUMBER(rec.ITEM_PRICE,7,2);
+            V_TEMP_ROW.ITEM_EXT_AMOUNT            := RETURN_NUMBER(rec.ITEM_EXT_AMOUNT,7,2);
+            V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT       := RETURN_NUMBER(rec.ITEM_DISC_AMOUNT,7,2);
+            V_TEMP_ROW.ITEM_SALES_TAX_IND         := VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_SLS_TAX_IND);
+            V_TEMP_ROW.ITEM_DISCOUNT_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_DISC_CODE);
+            V_TEMP_ROW.ITEM_DISCOUNT_TYPE         := VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_DISC_TYPE);
+            V_TEMP_ROW.SALES_PROMO_CODE           := VALIDATE_DATA_BEFORE_LOAD(rec.SLS_PROMO_CODE);
+            V_TEMP_ROW.GL_PRIME_ACCOUNT_NUMBER    := VALIDATE_DATA_BEFORE_LOAD(rec.GL_PRIME_ACCT_NBR);
+            V_TEMP_ROW.GL_SUB_ACCOUNT_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.GL_SUB_ACCT_NBR);
+            V_TEMP_ROW.SCHEDULE_TYPE              := VALIDATE_DATA_BEFORE_LOAD(rec.SCHED_TYPE);
+            V_TEMP_ROW.SCHEDULE_VERSION           := VALIDATE_DATA_BEFORE_LOAD(rec.SCHED_VERSION);
+            V_TEMP_ROW.PRICE_LEVEL_CODE           := VALIDATE_DATA_BEFORE_LOAD(rec.PRICE_LVL_CODE);
+            V_TEMP_ROW.PERCENT_OFF_LEVEL          := RETURN_NUMBER(rec.PERCENT_OFF_LVL,7,2);
+            V_TEMP_ROW.PROD_DESC_SRCE             := VALIDATE_DATA_BEFORE_LOAD(rec.PROD_DESC_SRCE);
+            V_TEMP_ROW.ORGNL_POS_TERM_NUMBER      := VALIDATE_DATA_BEFORE_LOAD(rec.ORIG_POS_TERM_NBR);
+            V_TEMP_ROW.ORGNL_POS_TRANS_NUMBER     := VALIDATE_DATA_BEFORE_LOAD(rec.ORIG_POS_TRAN_NBR);
+
+            INSERT INTO CUSTOMER_DETAILS VALUES V_TEMP_ROW;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_CUSTOMER_DETAILS',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+                                           
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_CUSTOMER_DETAILS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_CUSTOMER_DETAILS;
+
+PROCEDURE LOAD_CUSTOMER_FORM_OF_PAY
+/*****************************************************************************
+	LOAD_CUSTOMER_FORM_OF_PAY
+
+	This function will load the CUSTOMER_FORM_OF_PAY table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR TEMP_CUR is
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY cost_center_code,transaction_date,term_number,transaction_number order by transaction_date) SRLNO,A.*
+          FROM CUSTOMER_FORM_OF_PAY_T A;
+
+    V_COMMIT     NUMBER := 0;
+    V_TEMP_ROW   CUSTOMER_FORM_OF_PAY%ROWTYPE;
+BEGIN
+
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            V_TEMP_ROW.CUSTOMER_FORM_OF_PAY_ID  := rec.SRLNO;
+            V_TEMP_ROW.COST_CENTER_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.TRANSACTION_DATE         := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.TERMINAL_NUMBER          := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_TEMP_ROW.TRANSACTION_NUMBER       := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_TEMP_ROW.SEGMENT_CODE             := VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
+            V_TEMP_ROW.SUB_SEGMENT_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.SUB_SEGMENT_CODE);
+            V_TEMP_ROW.PAY_DISC_CODE            := VALIDATE_DATA_BEFORE_LOAD(rec.PAY_DISC_CODE);
+            V_TEMP_ROW.TRANSACTION_TOTAL_AMT    := RETURN_NUMBER(rec.TRANSACTION_TOTAL_AMT,7,2);
+            V_TEMP_ROW.POS_LINE_COUNT           := VALIDATE_DATA_BEFORE_LOAD(rec.POS_LINE_COUNT);
+            V_TEMP_ROW.PAY_AMOUNT               := RETURN_NUMBER(rec.PAY_AMOUNT,7,2);
+            V_TEMP_ROW.PAY_DISCOUNT             := RETURN_NUMBER(rec.PAY_DISCOUNT,7,2);
+            V_TEMP_ROW.SALES_DISCOUNT_AMT       := RETURN_NUMBER(rec.SALES_DISCOUNT_AMT,7,2);
+
+            INSERT INTO CUSTOMER_FORM_OF_PAY VALUES V_TEMP_ROW;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_CUSTOMER_FORM_OF_PAY',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_CUSTOMER_FORM_OF_PAY',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_CUSTOMER_FORM_OF_PAY;
+
+PROCEDURE LOAD_CUSTOMER_BANK_CARD
+/*****************************************************************************
+	LOAD_CUSTOMER_BANK_CARD
+
+	This function will load the CUSTOMER_BANK_CARD table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR TEMP_CUR is
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY cost_center_code,transaction_date,term_number,transaction_number order by transaction_date) SRLNO,A.*
+          FROM CUSTOMER_BANK_CARD_T A;
+
+    V_COMMIT     NUMBER := 0;
+    V_TEMP_ROW   CUSTOMER_BANK_CARD%ROWTYPE;
+BEGIN
+
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            V_TEMP_ROW.CUSTOMER_BANK_CARD_ID    := rec.SRLNO;
+            V_TEMP_ROW.COST_CENTER_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.TRANSACTION_DATE         := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.TERMINAL_NUMBER          := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_TEMP_ROW.TRANSACTION_NUMBER       := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_TEMP_ROW.SEGMENT_CODE             := VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
+            V_TEMP_ROW.SUB_SEGMENT_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.SUB_SEGMENT_CODE);
+            V_TEMP_ROW.BANK_CARD_ACCOUNT_NUMBER := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_CARD_ACCOUNT_NUMBER);
+            V_TEMP_ROW.BANK_AUTH                := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_AUTH);
+            V_TEMP_ROW.BANK_AMOUNT              := RETURN_NUMBER(rec.BANK_AMOUNT,9,2);
+            V_TEMP_ROW.BANK_TYPE                := VALIDATE_DATA_BEFORE_LOAD(rec.BANK_TYPE);
+
+            INSERT INTO CUSTOMER_BANK_CARD VALUES V_TEMP_ROW;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_CUSTOMER_BANK_CARD',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_CUSTOMER_BANK_CARD',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_CUSTOMER_BANK_CARD;
+
+PROCEDURE LOAD_CUSTOMER_SALES_TAX
+/*****************************************************************************
+	LOAD_CUSTOMER_SALES_TAX
+
+	This function will load the CUSTOMER_SALES_TAX table from data  
+	file from legacy idms database.  
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+IS
+    CURSOR TEMP_CUR is
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY cost_center_code,transaction_date,term_number,transaction_number order by transaction_date) SRLNO,A.*
+          FROM CUSTOMER_SALES_TAX_T A;
+
+    V_COMMIT     NUMBER := 0;
+    V_TEMP_ROW   CUSTOMER_SALES_TAX%ROWTYPE;
+BEGIN
+
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            V_TEMP_ROW.CUSTOMER_SALES_TAX_ID    := rec.SRLNO;
+            V_TEMP_ROW.COST_CENTER_CODE         := VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.TRANSACTION_DATE         := TO_DATE(VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_DATE),'RRRRMMDD');
+            V_TEMP_ROW.TERMINAL_NUMBER          := VALIDATE_DATA_BEFORE_LOAD(rec.TERM_NUMBER);
+            V_TEMP_ROW.TRANSACTION_NUMBER       := VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
+            V_TEMP_ROW.SALES_TAX_CORR_IND       := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TAX_CORR_IND);
+            V_TEMP_ROW.SALES_TAX_COLL_AMT       := RETURN_NUMBER(rec.SALES_TAX_COLL_AMT,7,2);
+            V_TEMP_ROW.SALES_TAX_IND            := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TAX_IND);
+            V_TEMP_ROW.SALES_TAX_RATE           := RETURN_NUMBER(rec.SALES_TAX_RATE,5,3);
+            V_TEMP_ROW.SALES_TAX_CODE           := VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TAX_CODE);
+
+            INSERT INTO CUSTOMER_SALES_TAX VALUES V_TEMP_ROW;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_CUSTOMER_SALES_TAX',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.TRANSACTION_DATE,'')||':'||
+                                           NVL(rec.TERM_NUMBER,'')||':'||
+                                           NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_CUSTOMER_SALES_TAX',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_CUSTOMER_SALES_TAX;
+
+PROCEDURE LOAD_TEMP_TABLES
+/******************************************************************
+   LOAD_TEMP_TABLES
+
+   This Procedure loads the intermediate tables that are used in this process
+
+created : 05/20/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+IS
+BEGIN
+
+      INSERT INTO STORE_DRAFTS_T
+          SELECT * FROM TEMP_STORE_DRAFT;
+      COMMIT;
+
+      INSERT INTO STORE_DRAFT_DETAIL_T
+          SELECT * FROM TEMP_STORE_DRAFT_DETAIL;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_T
+          SELECT * FROM TEMP_STORE_DRAFT_LABOR;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_DETAILS_T
+          SELECT * FROM TEMP_STORE_DRAFTS_LABOR_DETAIL;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_FORM_OF_PAY_T
+          SELECT * FROM TEMP_SDL_FORM_OF_PAY;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_BANK_CARD_T
+          SELECT * FROM TEMP_SDL_BANK_CARD;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_CC_ACCOUNT_T
+          SELECT * FROM TEMP_SDL_CC_ACCOUNT;
+      COMMIT;
+
+      INSERT INTO CUSTOMER_SALES_TAX_T
+          SELECT * FROM TEMP_SDL_SALES_TAX;
+      COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_TEMP_TABLES',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_TEMP_TABLES;
+
+PROCEDURE INITLOAD_SP
+/******************************************************************
+   INITLOAD_SP
+
+   This Procedure is a wrapper for the Initial Load of the store drafts tables
+    * Deletes all the store drafts tables
+    * Loads all the store drafts tables
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+******************************************************************/
+AS
+    V_CONTEXT    VARCHAR2(200);
+    V_START_TIME NUMBER;
+BEGIN
+
+      --Load data from external table to intermediate table as indexes are not possible on external table
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Loading Temporary Tables';
+      LOAD_TEMP_TABLES();
+      DBMS_OUTPUT.PUT_LINE('Temporary Tables loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load STORE_DRAFTS Table';
+      LOAD_STORE_DRAFTS();
+      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load STORE_DRAFTS_DETAIL Table ';
+      LOAD_STORE_DRAFTS_DETAIL();
+      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS_DETAIL loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER Table ';
+      LOAD_CUSTOMER();
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_DETAILS Table ';
+      LOAD_CUSTOMER_DETAILS();
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_DETAILS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_FORM_OF_PAY Table ';
+      LOAD_CUSTOMER_FORM_OF_PAY();
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_FORM_OF_PAY loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_BANK_CARD Table ';
+      LOAD_CUSTOMER_BANK_CARD();
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_BANK_CARD loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_SALES_TAX Table ';
+      LOAD_CUSTOMER_SALES_TAX();
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_SALES_TAX loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'INITLOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END INITLOAD_SP;
+
+PROCEDURE CCN_SD_INITLOAD_SP
+/******************************************************************
+CCN_SD_INITLOAD_SP
+
+This Procedure is a wrapper for the Initial Load of the store drafts tables
+    * Deletes all the store drafts tables
+    * Loads all the store drafts tables
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+******************************************************************/
+AS
+    V_CONTEXT    VARCHAR2(200);
+    V_START_TIME NUMBER;
+BEGIN
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Truncate store drafts Tables ';
+      TRUNCATE_SD_TABLES();
+      DBMS_OUTPUT.PUT_LINE('Truncating completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      INITLOAD_SP();
+
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'CCN_SD_INITLOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END CCN_SD_INITLOAD_SP;
+
+END initLoad;
