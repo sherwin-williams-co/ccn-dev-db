@@ -2520,6 +2520,34 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_GL_div , -20522);
 
 /*********************************************************** 
+The invalid_hist_rec passes a numerical error of -20523.
+This error states that the record passed doesn't match
+the record in the respective table
+
+created : 04/17/2014 NXK CCN Project
+
+
+************************************************************/
+en_invalid_hist_rec  CONSTANT NUMBER := -20523;
+exc_invalid_hist_rec EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_hist_rec , -20523);
+
+/*********************************************************** 
+The lvl_val_size_err passes a numerical error of -20524.
+This error states that the size of the value passed for
+particular level doesn't match with that of reference data
+
+created : 06/18/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_lvl_val_size_err  CONSTANT NUMBER := -20524;
+exc_lvl_val_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_lvl_val_size_err , -20524);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
