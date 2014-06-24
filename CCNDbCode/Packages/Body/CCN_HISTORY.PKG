@@ -1,0 +1,255 @@
+create or replace PACKAGE BODY CCN_HISTORY
+    AS
+
+/*********************************************************** 
+This package is will return data HISTORY detail
+
+created :  04/17/2014 nxk 
+**************************************************/
+
+
+PROCEDURE RETURN_HIERARCHY_HIST (
+/**********************************************************
+	RETURN_HIERARCHY_HIST
+
+	This procedure will return a ref cursor with data from 
+	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
+	and structure as of history date 
+	ex. CCN_HIERARCHY_HIST.RETURN_HIERARCHY_HIST('DAD Structure','703252','DOWN',TO_DATE(03/24/2011','MM/DD/YYYY'),OUT_DEFINED_REF_CURSOR)
+
+created :
+**********************************************************/
+				 	IN_HEADER_NAME 	IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
+					    , 	IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
+					    ,	IN_LEVEL	IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+					    ,	IN_TRAVERSE	IN VARCHAR2 DEFAULT 'UP'
+					    ,	IN_HIST_DATE	IN HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
+					    ,   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
+					   )
+
+        IS                 
+        
+        EFF_DATE DATE;
+        SQ INTEGER;
+        SE VARCHAR2(100);
+        V_CONTEXT VARCHAR2(100);
+
+	BEGIN
+	
+/* Selecting the Maximum date that is less than or equal to the effective date passed in So as to get the structure as of that date */
+		   
+       V_CONTEXT := 'Select maximum date that is less than or equal to the effective date passed';
+       
+			SELECT MAX(HRCHY_DTL_EFF_DATE) INTO EFF_DATE
+			  FROM HIERARCHY_DETAIL
+			 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME 
+			   AND HRCHY_DTL_EFF_DATE <= IN_HIST_DATE;	
+	
+	
+		IF IN_TRAVERSE = 'UP' THEN
+
+ --Concatenation is needed because We need level and value to get the hierarchy as sometimes the value accross levels could be the same
+ 
+      V_CONTEXT := 'Traverse Up History Query';
+ 
+ 			OPEN  OUT_HIERARCHY_REF_CUR FOR
+                               SELECT DISTINCT
+                                AR.LEV,
+                                AR.HRCHY_HDR_NAME,
+				AR.HRCHY_DTL_LEVEL,
+				AR.HRCHY_DTL_PREV_LVL_VAL,
+				AR.HRCHY_DTL_CURR_LVL_VAL,
+				AR.HRCHY_DTL_NEXT_LVL_VAL,
+				AR.HRCHY_DTL_EFF_DATE,
+				AR.HRCHY_DTL_EXP_DATE,
+				AR.HRCHY_DTL_DESC,
+                                AR.HRCHY_DTL_CURR_ROW_VAL,
+                                AR.UPPER_LVL_VER_VALUE
+				FROM
+				(
+				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+     				hr.HRCHY_HDR_NAME,
+    				hr.HRCHY_DTL_LEVEL,
+    				hr.HRCHY_DTL_PREV_LVL_VAL,
+    				hr.HRCHY_DTL_CURR_LVL_VAL,
+      				hr.HRCHY_DTL_NEXT_LVL_VAL,
+        			hr.HRCHY_DTL_EFF_DATE,
+          			hr.HRCHY_DTL_EXP_DATE,
+                                hr.HRCHY_DTL_DESC,
+                                hr.HRCHY_DTL_CURR_ROW_VAL,
+                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                 extract(hr.UPPER_LVL_VER_VALUE,'/attributes').getStringVal() UPPER_LVL_VER_VALUE
+                                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
+				  FROM HIERARCHY_DETAIL_HST hr
+				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+                                   AND HRCHY_DTL_EFF_DATE = NVL(EFF_DATE, HRCHY_DTL_EFF_DATE)
+				)  AR
+				START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+				CONNECT BY  PRIOR AR.PA =  AR.CH
+        		order by AR.lev; 
+
+        			
+        	ELSE
+          
+          V_CONTEXT := 'Traverse Down History Query';
+        	
+        		OPEN  OUT_HIERARCHY_REF_CUR FOR
+                                SELECT DISTINCT
+                                AR.LEV,
+                                AR.HRCHY_HDR_NAME,
+				AR.HRCHY_DTL_LEVEL,
+				AR.HRCHY_DTL_PREV_LVL_VAL,
+				AR.HRCHY_DTL_CURR_LVL_VAL,
+				AR.HRCHY_DTL_NEXT_LVL_VAL,
+				AR.HRCHY_DTL_EFF_DATE,
+				AR.HRCHY_DTL_EXP_DATE,
+				AR.HRCHY_DTL_DESC,
+                                AR.HRCHY_DTL_CURR_ROW_VAL,
+                                AR.UPPER_LVL_VER_VALUE
+				FROM
+				(
+				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+     				hr.HRCHY_HDR_NAME,
+    				hr.HRCHY_DTL_LEVEL,
+    				hr.HRCHY_DTL_PREV_LVL_VAL,
+    				hr.HRCHY_DTL_CURR_LVL_VAL,
+      				hr.HRCHY_DTL_NEXT_LVL_VAL,
+        			hr.HRCHY_DTL_EFF_DATE,
+          			hr.HRCHY_DTL_EXP_DATE,
+                                hr.HRCHY_DTL_DESC,
+                                hr.HRCHY_DTL_CURR_ROW_VAL,
+                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                                extract(hr.UPPER_LVL_VER_VALUE,'/attributes').getStringVal() UPPER_LVL_VER_VALUE
+                                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
+				  FROM HIERARCHY_DETAIL_HST hr
+				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+				   AND HRCHY_DTL_EFF_DATE = EFF_DATE
+				)  AR
+				START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+				CONNECT BY  PRIOR AR.CH =  AR.PA
+        		order by AR.lev;
+
+		END IF;
+    
+EXCEPTION WHEN OTHERS THEN
+
+	SQ := SQLCODE;
+	SE := SQLERRM;
+	
+	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+  
+
+	ERRPKG.RAISE_ERR(-20004,'RETURN_HIERARCHY_HIST',V_CONTEXT);    
+        			    
+
+END RETURN_HIERARCHY_HIST;
+
+PROCEDURE RETURN_STATUS_HIST (
+/**********************************************************
+	RETURN_STATUS_HIST
+
+	This procedure will return a ref cursor with data from 
+	from the STATUS table based on COST_CENTER_CODE, EXPIRATION_DATE
+
+created : 04/17/2014 nxk 
+**********************************************************/
+IN_COST_CENTER_CODE IN STATUS.COST_CENTER_CODE%TYPE,
+IN_HIST_DATE IN STATUS.EFFECTIVE_DATE%TYPE,
+OUT_STATUS_REF_CUR OUT REF_CURSOR)
+IS
+    SQ INTEGER;
+    SE VARCHAR2(100);
+		V_CONTEXT VARCHAR2(100);       
+BEGIN
+	
+	OPEN OUT_STATUS_REF_CUR FOR
+        SELECT * FROM STATUS 
+		     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+			   AND EFFECTIVE_DATE <= IN_HIST_DATE
+         ORDER BY EFFECTIVE_DATE DESC;
+	    
+ 			    
+EXCEPTION
+    WHEN OTHERS THEN
+        SQ := SQLCODE;
+        SE := SQLERRM;
+        V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+
+        ERRPKG.RAISE_ERR(-20523,'RETURN_STATUS_HIST',V_CONTEXT); 
+END RETURN_STATUS_HIST;
+
+PROCEDURE RETURN_TYPE_HIST (
+/**********************************************************
+	RETURN_TYPE_HIST
+
+	This procedure will return a ref cursor with data from 
+	from the TYPE table based on COST_CENTER_CODE, EXPIRATION_DATE
+
+created : 04/17/2014 nxk 
+**********************************************************/
+IN_COST_CENTER_CODE IN TYPE.COST_CENTER_CODE%TYPE,
+IN_HIST_DATE IN TYPE.EFFECTIVE_DATE%TYPE,
+OUT_TYPE_REF_CUR OUT REF_CURSOR)
+IS                 
+    SQ INTEGER;
+    SE VARCHAR2(100);
+		V_CONTEXT VARCHAR2(100);
+BEGIN
+
+	OPEN OUT_TYPE_REF_CUR FOR
+        SELECT * FROM TYPE 
+			   WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+			   AND EFFECTIVE_DATE <= IN_HIST_DATE
+         ORDER BY EFFECTIVE_DATE DESC;
+	    
+ 			    
+EXCEPTION
+    WHEN OTHERS THEN
+        SQ := SQLCODE;
+        SE := SQLERRM;
+        V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+
+        ERRPKG.RAISE_ERR(-20523,'RETURN_TYPE_HIST',V_CONTEXT); 
+END RETURN_TYPE_HIST;
+
+PROCEDURE RETURN_POLLING_HIST (
+/**********************************************************
+	RETURN_POLLING_HIST
+
+	This procedure will return a ref cursor with data from 
+	from the POLLING table based on COST_CENTER_CODE, changed date
+
+created : 04/17/2014 nxk 
+UPDATED : 
+**********************************************************/
+IN_COST_CENTER_CODE IN POLLING.COST_CENTER_CODE%TYPE,
+IN_HIST_DATE IN POLLING_HST.CHANGED_DATE%TYPE,
+OUT_POLLING_REF_CUR OUT REF_CURSOR)
+IS                 
+    SQ INTEGER;
+    SE VARCHAR2(100);
+    V_CONTEXT VARCHAR2(100);
+BEGIN
+
+	OPEN OUT_POLLING_REF_CUR FOR
+        SELECT * FROM POLLING_HST 
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+         AND TRUNC(CHANGED_DATE) <= IN_HIST_DATE
+         ORDER BY CHANGED_DATE DESC;
+      -- ORDER BY CURRENT_FLAG DESC; --Y should come first than N 4/17/2014 nxk
+
+EXCEPTION
+    WHEN OTHERS THEN
+        SQ := SQLCODE;
+        SE := SQLERRM;
+        V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+
+        ERRPKG.RAISE_ERR(-20523,'RETURN_POLLING_HIST',V_CONTEXT);    
+END RETURN_POLLING_HIST;
+
+END CCN_HISTORY;
+
