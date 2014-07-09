@@ -1,0 +1,10 @@
+--Correcting the size for a code header
+SELECT * 
+  FROM CODE_HEADER 
+ WHERE CODE_HEADER_NAME = 'ADMIN_COST_CNTR_TYPE';
+--1 Row(s) Selected
+UPDATE CODE_HEADER 
+   SET CODE_HEADER_DTL_VAL_SIZE = 2 
+ WHERE CODE_HEADER_NAME = 'ADMIN_COST_CNTR_TYPE';
+--1 Row(s) Updated
+COMMIT;
