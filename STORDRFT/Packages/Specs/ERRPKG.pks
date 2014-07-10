@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.errpkg 
+create or replace PACKAGE errpkg 
 /*********************************************************** 
 This package will hold all procedures/functions used to process business
 and system errors throughout the entire CCN applications
@@ -78,3 +78,4 @@ changed :
 ;
 
 END errpkg;
+

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.errnums
+create or replace PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -23,3 +23,4 @@ PRAGMA EXCEPTION_INIT
 (exc_code_detail_val_size_err , -20023);
 
 END errnums;
+

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.SD_PICK_LIST_PKG
+create or replace PACKAGE SD_PICK_LIST_PKG
 /**********************************************************
 	SD_PICK_LIST_PKG
 
@@ -262,3 +262,4 @@ changed :
     in_XML                VARCHAR2);
 
 END SD_PICK_LIST_PKG;
+

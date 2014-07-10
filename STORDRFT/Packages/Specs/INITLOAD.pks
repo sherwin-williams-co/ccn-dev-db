@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.initLoad
+create or replace PACKAGE initLoad
 /**************************************************************** 
 This package will load the new CCN Store Drafts Oracle Database
 created : 04/29/2013 jxc517 CCN Project....
@@ -43,3 +43,4 @@ changed :
 ;
 
 END initLoad;
+

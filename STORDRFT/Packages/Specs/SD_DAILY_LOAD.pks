@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.SD_DAILY_LOAD
+create or replace PACKAGE SD_DAILY_LOAD
 /**************************************************************** 
 This package will load the existing CCN Store Drafts Oracle Database
 created : 06/11/2013 jxc517 CCN Project....
@@ -41,4 +41,17 @@ changed :
 ******************************************************************/
 ;
 
+PROCEDURE CCN_SD_DAILY_HST_LOAD_SP
+/******************************************************************
+CCN_SD_DAILY_HST_LOAD_SP
+
+This Procedure is a wrapper for the Daily Load of the store drafts history tables
+    * Loads all the store drafts tables
+
+created : 06/26/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+;
+
 END SD_DAILY_LOAD;
+

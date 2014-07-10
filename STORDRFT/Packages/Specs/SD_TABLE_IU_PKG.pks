@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE STORDRFT.SD_TABLE_IU_PKG 
+create or replace PACKAGE          SD_TABLE_IU_PKG 
 AS
 /**********************************************************
 	SD_TABLE_IU_PKG
@@ -532,3 +532,4 @@ IN_TABLE_NAME IN     VARCHAR2
 
 
 END SD_TABLE_IU_PKG;
+
