@@ -1,0 +1,24 @@
+BEGIN
+    --lock all users out and Disable the triggers
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    COMMON_TOOLS.ALTER_ALL_TRIGGERS('DISABLE');
+
+    UPDATE COST_CENTER
+       SET ACQUISITION_CODE = NULL
+     WHERE STATEMENT_TYPE NOT IN ('CX','PK','FP','CO','GC','KP')
+       AND ACQUISITION_CODE IS NOT NULL;
+
+    COMMIT;
+
+    --unlock all users and Enable the triggers
+    COMMON_TOOLS.ALTER_ALL_TRIGGERS('ENABLE');
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+END;
+/
+/*
+SELECT *
+  FROM COST_CENTER 
+ WHERE STATEMENT_TYPE NOT IN ('CX','PK','FP','CO','GC','KP')
+   AND ACQUISITION_CODE IS NOT NULL;
+--Should return no records after execution for the test to complete
+*/
