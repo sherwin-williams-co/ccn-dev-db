@@ -1969,6 +1969,9 @@ PROCEDURE TERRITORY_ROWTYPE_SP (
   Territory_ROWTYPE  -  Territory Data Row
 
 created : 09/26/2012 TAL -- CCN Project....
+changed : 07/17/2014 CCN Project, prod issue : territory vs close date
+          Added a paramater to distinguish between business rule validation calls 
+          and database update calls
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  IN_TABLE_NAME           IN  VARCHAR2 
