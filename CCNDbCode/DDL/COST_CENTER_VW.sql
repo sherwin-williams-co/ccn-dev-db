@@ -5,13 +5,15 @@
 --  DDL for View COST_CENTER_VW
 --------------------------------------------------------
 
-  CREATE OR REPLACE VIEW "COSTCNTR"."COST_CENTER_VW" ("COST_CENTER_CODE", "COST_CENTER_NAME", "CATEGORY", "CATEGORY_DESCRIPTION", "STATEMENT_TYPE", "STATEMENT_TYPE_DESCRIPTION", "COUNTRY_CODE", "COUNTRY_CODE_DESCRIPTION", "BEGIN_DATE", "OPEN_DATE", "MOVE_DATE", "CLOSE_DATE", "MISSION_TYPE_CODE", "MISSION_TYPE_CODE_DESCRIPTION", "DUNS_NUMBER", "ACQUISITION_CODE") AS 
-  SELECT
+CREATE OR REPLACE VIEW "COSTCNTR"."COST_CENTER_VW" 
+AS 
+SELECT
 /* ---comments
 This View holds all the required data for a cost_center its country_code, Mission_type_code along with their descriptions
 and also Acquisition_code from COST_CENTER table
 created  : 03/18/2014 for CCN project and 
-revisions: 07/21/2014'
+Modified : 07/18/14 Added ACQUISITION_CODE column.
+revisions: 07/21/2014
 */ 
 COST_CENTER_CODE,
 COST_CENTER_NAME,
