@@ -1,0 +1,188 @@
+create or replace PACKAGE BODY CCN_BATCH_PKG AS
+/*********************************************************** 
+This package "BODY" has procedures and functions related to the batch
+job table
+
+created : 04/10/2013 SH CCN project
+revisions: 
+************************************************************/
+  
+PROCEDURE INSERT_BATCH_JOB (
+/**********************************************************
+	INSERT_BATCH_JOB
+
+	This procedure is intended to insert a record in the Batch_Job
+        table with the details related to the batch run
+
+created : 04/10/2013 SH CCN project....
+**********************************************************/
+    IN_BATCH_JOB_NAME      IN  BATCH_JOB.BATCH_JOB_NAME%TYPE,
+    OUT_BATCH_NUMBER       OUT BATCH_JOB.BATCH_JOB_NUMBER%TYPE
+ )
+IS
+
+V_CONTEXT	    VARCHAR2(200);
+--V_BATCH_JOB_NUMBER  BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+SQ		    INTEGER;
+SE		    VARCHAR2(1000);
+
+BEGIN
+  INSERT
+  INTO BATCH_JOB
+    (
+      BATCH_JOB_NAME,
+      BATCH_JOB_NUMBER,
+      BATCH_JOB_STATUS,
+      BATCH_JOB_START_DATE,
+      BATCH_JOB_END_DATE,
+      BATCH_JOB_LAST_RUN_DATE,
+      TRANS_STATUS
+    )
+    VALUES
+    (
+      IN_BATCH_JOB_NAME,
+      BATCH_JOB_NUMBER_SEQ.NEXTVAL,
+      'PROCESSING',
+      SYSDATE,
+      NULL,
+      NULL,
+      NULL
+    ) RETURNING BATCH_JOB_NUMBER INTO OUT_BATCH_NUMBER;
+
+END INSERT_BATCH_JOB;
+
+PROCEDURE UPDATE_BATCH_JOB(
+/**********************************************************
+	UPDATE_BATCH_JOB
+
+	This procedure is intended to update the record in the Batch_Job
+        table with the Status of - IN_PROCESSING, COMPLETED OR ERROR
+
+created : 04/10/2013 SH CCN project....
+**********************************************************/
+    IN_BATCH_JOB_NAME      IN BATCH_JOB.BATCH_JOB_NAME%TYPE,
+    IN_BATCH_JOB_NUMBER    IN BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
+    IN_TRANS_STATUS        IN BATCH_JOB.TRANS_STATUS%TYPE
+                          )
+IS
+
+V_CONTEXT	VARCHAR2(200);
+SQ		INTEGER;
+SE		VARCHAR2(1000);
+
+BEGIN
+
+      UPDATE BATCH_JOB
+         SET BATCH_JOB_STATUS = 'COMPLETED',
+             TRANS_STATUS = IN_TRANS_STATUS,
+             BATCH_JOB_END_DATE  =  SYSDATE,
+             BATCH_JOB_LAST_RUN_DATE = SYSDATE
+       WHERE BATCH_JOB_NAME      =  IN_BATCH_JOB_NAME
+         AND BATCH_JOB_NUMBER    =  IN_BATCH_JOB_NUMBER;
+        
+END UPDATE_BATCH_JOB;
+
+PROCEDURE LOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : LOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+	adding commit since this will only be used for batch jobs
+revised : 
+******************************************************************************/
+IS
+
+PRAGMA AUTONOMOUS_TRANSACTION;
+
+BEGIN
+    UPDATE ROLE_DETAILS
+       SET INSERT_FLAG = 'Y',
+           UPDATE_FLAG = 'Y'
+     WHERE ROLE_CODE = 'batusr';
+
+    COMMIT;
+END LOCK_DATABASE_SP;
+
+
+PROCEDURE UNLOCK_DATABASE_SP
+/*****************************************************************************
+Name:   : unLOCK_DATABASE_SP
+created : 11/15/2013 CCN KDP Project....
+revised : 
+******************************************************************************/
+IS
+
+PRAGMA AUTONOMOUS_TRANSACTION;
+
+BEGIN
+    UPDATE ROLE_DETAILS
+       SET INSERT_FLAG = 'N',
+           UPDATE_FLAG = 'N'
+     WHERE ROLE_CODE = 'batusr';
+
+    COMMIT;
+END UNLOCK_DATABASE_SP;
+
+PROCEDURE FILE_UPLOAD(
+/******************************************************************************
+FILE_UPLOAD
+
+This procedure will create file on server and dump the passed BLOB data Into the file created
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+IN_FILE_NAME     - name of the file on server
+
+******************************************************************************/
+IN_BLOB        IN       BLOB,
+IN_FILE_NAME   IN       VARCHAR2,
+IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES')
+IS
+    -- Define output file directory
+    V_OUTPUT_FILE     UTL_FILE.FILE_TYPE;
+    V_LENGTH          NUMBER := DBMS_LOB.GETLENGTH(IN_BLOB);
+    V_START           NUMBER := 1;
+    V_BYTE_LENGTH     NUMBER := 32000;
+    V_TEMP_LENGTH     NUMBER;
+    V_TEMP_BLOB       BLOB; --RAW(32000);
+    V_TEMP_CLOB       CLOB;
+BEGIN
+       
+    V_OUTPUT_FILE := UTL_FILE.FOPEN(IN_DIRECTORY,
+                                    IN_FILE_NAME,
+                                    'w',
+                                    32760);
+
+    -- Save blob length in temporary variable
+    V_TEMP_LENGTH := V_LENGTH;
+    
+    IF V_LENGTH < 32760 THEN
+        V_TEMP_CLOB := CCN_COMMON_TOOLS.convert_to_clob(IN_BLOB);
+        UTL_FILE.PUT_LINE(V_OUTPUT_FILE,
+                          V_TEMP_CLOB);
+        UTL_FILE.FFLUSH(V_OUTPUT_FILE);
+    ELSE -- write in pieces
+        V_START := 1;
+        WHILE V_START < V_LENGTH AND V_BYTE_LENGTH > 0 LOOP
+            DBMS_LOB.READ(IN_BLOB,
+                          V_BYTE_LENGTH,
+                          V_START,
+                          V_TEMP_BLOB);
+            V_TEMP_CLOB := CCN_COMMON_TOOLS.convert_to_clob(V_TEMP_BLOB);
+            UTL_FILE.PUT_LINE(V_OUTPUT_FILE,
+                              V_TEMP_CLOB);
+            UTL_FILE.FFLUSH(V_OUTPUT_FILE); 
+            -- Set the start position for the next cut
+            V_START       := V_START + V_BYTE_LENGTH;
+            -- Set the end position if less than 32000 bytes
+            V_TEMP_LENGTH := V_TEMP_LENGTH - V_BYTE_LENGTH;
+            IF V_TEMP_LENGTH < 32000 THEN
+                V_BYTE_LENGTH := V_TEMP_LENGTH;
+            END IF;
+        END LOOP;
+    END IF;
+    
+    UTL_FILE.FCLOSE(V_OUTPUT_FILE);    
+
+END FILE_UPLOAD;
+
+END CCN_BATCH_PKG;
+
