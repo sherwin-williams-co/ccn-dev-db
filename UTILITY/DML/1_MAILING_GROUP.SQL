@@ -1,4 +1,4 @@
-SET SCA OFF;
+SET SCAN OFF;
 REM INSERTING into MAILING_GROUP
 SET DEFINE OFF;
 Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('1','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com');
