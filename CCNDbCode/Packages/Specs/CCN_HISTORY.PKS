@@ -8,23 +8,41 @@ created :
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
 		
-PROCEDURE RETURN_HIERARCHY_HIST (	
-/**********************************************************
-	RETURN_HIERARCHY_HIST
+PROCEDURE RETURN_HIERARCHY_HIST(
+ /**********************************************************
+ 	RETURN_HIERARCHY_HIST
+ 
+ 	This procedure will return a ref cursor with data from 
+ 	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
+ 	and structure as of history date 
 
-	This procedure will return a ref cursor with data from 
-	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
-	and structure as of history date 
-	ex. CCN_HIERARCHY.RETURN_HIERARCHY('DAD Structure','703252','DOWN',TO_DATE('03/24/2011','MM/DD/YYYY'),OUT_DEFINED_REF_CURSOR)
+set serveroutput on;
+declare
+out_var ccn_history.REF_CURSOR;
+begin
+CCN_HISTORY.RETURN_HIERARCHY_HIST('GLOBAL_HIERARCHY','779010','9','UP','01-JAN-2006',out_var);
+end;
+ 
+ created : 08/01/2014 CCN Project....
+ modified:
+ **********************************************************/
+     IN_HEADER_NAME         IN      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
+     ,IN_CURR_ROW_VAL       IN      HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
+     ,IN_LEVEL              IN      HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+     ,IN_TRAVERSE           IN      VARCHAR2 DEFAULT 'UP'
+     ,IN_HIST_DATE          IN      HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
+     ,OUT_HIERARCHY_REF_CUR    OUT  REF_CURSOR);
 
-created : 
+ PROCEDURE RELEASE_LOCK_FOR_HRCHY_HST
+  /**********************************************************
+	RELEASE_LOCK_FOR_HRCHY_HST
+
+	This procedure will release the lock on the history table
+
+ created : 08/01/2014 CCN Project....
+ modified:
 **********************************************************/
-IN_HEADER_NAME 	IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
-IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE,
-IN_LEVEL	IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE,
-IN_TRAVERSE	IN VARCHAR2 DEFAULT 'UP',
-IN_HIST_DATE	IN HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL,
-OUT_HIERARCHY_REF_CUR OUT REF_CURSOR);
+;
 
 PROCEDURE RETURN_STATUS_HIST (
 /**********************************************************

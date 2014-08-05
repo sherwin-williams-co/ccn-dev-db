@@ -2192,6 +2192,20 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_code_hdr_size_err , -20160);
 
 /*********************************************************** 
+The "terminal_window_locked_err" passes a numerical error of -20161.
+This error will state that the terminal window has been locked by 
+some user. 
+
+created : 07/07/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_terminal_window_locked_err CONSTANT NUMBER := -20161;
+exc_terminal_window_locked_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_terminal_window_locked_err , -20161);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for

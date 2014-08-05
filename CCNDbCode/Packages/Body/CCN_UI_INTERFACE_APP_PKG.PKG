@@ -492,7 +492,6 @@ BEGIN --  POLLING_UI_SP
 					, out_terminal_refcur);
 
       v_break   :=    'Ended call to CCN_TABLE_IU_PKG.TERMINAL_S_SP ';
-
  EXCEPTION  
  
         when invalid_cost_center_err then  
@@ -702,12 +701,8 @@ VALIDATE_BUSINESS_RULES('POLLING',in_row_data);
           END; 
    END;
 
-   /*--Release the restriction on all the objects
-   v_count := 1;
-   WHILE v_Row_data.existsNode('/POLLING_UI/RESTRICTION_TABLE/' || 'RESTRICTION_ID' || '[' || v_count || ']') = 1 LOOP
-      CCN_RESTRICTION_PKG.RELEASE_OBJECT(v_Row_data.extract('/POLLING_UI/RESTRICTION_TABLE/'|| 'RESTRICTION_ID' || '[' || v_count || ']').getStringVal());
-      v_count := v_count + 1;
-   END LOOP;*/
+
+   CCN_RESTRICTION_PKG.RELEASE_OBJECT('TERMINAL');
    
    --Below call will check if there are any warnings and raise those from here
    ERRPKG.RAISE_WARNINGS();
@@ -1329,18 +1324,17 @@ This function will return the next terminal number from the
 sequence terminal_number_seq
 updated : nxk 3/18/14 
 *************************************************************************/
-   RETURN NUMBER 
+   RETURN NUMBER
 AS 
-     V_SEQUENCE_NUMBER NUMBER;
-     V_USER_ID         VARCHAR2(10);
-     V_RESTRICTION_ID  NUMBER;
+     V_SEQUENCE_NUMBER      NUMBER;
+     V_IS_OBJECT_RESTRICTED BOOLEAN;
 BEGIN
 
-   --Check if object is already restricted
-   --Also get the User ID as we need to pass it back to the UI, in error message
-   --V_USER_ID := CCN_RESTRICTION_PKG.IS_OBJECT_RESTRICTED('TERMINAL');
+   V_IS_OBJECT_RESTRICTED := CCN_RESTRICTION_PKG.IS_OBJECT_RESTRICTED('TERMINAL');
 
-   --IF V_USER_ID IS NULL THEN
+   IF NOT V_IS_OBJECT_RESTRICTED THEN
+      CCN_RESTRICTION_PKG.RESTRICT_OBJECT('TERMINAL');
+
       SELECT NVL(MAX(TERMINAL_NUMBER), 0) + 1 INTO V_SEQUENCE_NUMBER 
         FROM TERMINAL
        WHERE TERMINAL_NUMBER not in ('99308', '99112', '99111', '71882');
@@ -1349,17 +1343,14 @@ BEGIN
          WHEN V_SEQUENCE_NUMBER  IN ('99308','71882') THEN  V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 1;
          WHEN V_SEQUENCE_NUMBER   = '99111' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 2; --(because of two consecutive terminal numbers '99111' and '99112')
          ELSE V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER ;
-      END case;
+      END CASE;
       
-  /*    --Restrict the table for access by other sessions
-      --Also get the Restriction ID as we need to pass it back to the UI
-      V_RESTRICTION_ID := CCN_RESTRICTION_PKG.RESTRICT_OBJECT('TERMINAL');
-      
-	 ELSE
-      errpkg.raise_err(SQLCODE, ' TERMINAL_NUMBER_S ', 'TERMINAL table has been locked by '||V_USER_ID
-                                                       ||'.Please try processing again after some time');
-   END IF;*/
       RETURN V_SEQUENCE_NUMBER;
+	 ELSE
+      errpkg.raise_err(errnums.en_terminal_window_locked_err,
+                       ' TERMINAL_NUMBER_S ', 
+                       'TERMINAL table has been locked. Please try processing again after some time');
+   END IF;
 
 END TERMINAL_NUMBER_S;
 
@@ -1458,6 +1449,177 @@ EXCEPTION
     WHEN OTHERS THEN
 	      ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_LOG', SQLCODE || ' ' || SQLERRM);
 END SELECT_AUDIT_LOG;
+
+ PROCEDURE RELEASE_OBJECT(
+ /******************************************************************************
+ RELEASE_OBJECT
+ 
+ This procedure will release the restriction on passed object based on passed 
+ restriction ID
+ 
+ IN_RESTRICTION_ID     - Restriction ID that needs to be released
+ 
+ ******************************************************************************/
+ IN_OBJECT_NAME     IN       CCN_RESTRICTION.OBJECT_NAME%TYPE)
+ IS
+ BEGIN
+ 
+     CCN_RESTRICTION_PKG.RELEASE_TIMED_OUT_OBJECTS(0);
+ 
+ EXCEPTION 
+     WHEN OTHERS THEN
+        RAISE;
+ END RELEASE_OBJECT;
+
+PROCEDURE EMPLOYEE_DETAILS_S_SP (
+/*******************************************************************************
+	EMPLOYEE_DETAILS_S_SP
+
+	This procedure is intended to select records from EMPLOYEE_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXX</EMPLOYEE_NUMBER>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<EMPLOYEE_NAME>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</EMPLOYEE_NAME>
+<LAST_NAME>XXXXXXXXXXXXXXXXXXXX</LAST_NAME>
+<FIRST_NAME>XXXXXXXXXXXXXXXXXXXX</FIRST_NAME>
+<MIDDLE_INITIAL>XX</MIDDLE_INITIAL>
+<HOME_ADDRESS_LINE1>XXXXXXXXXXXXXXXXXXXX</HOME_ADDRESS_LINE1>
+<HOME_ADDRESS_LINE2>XXXXXXXXXXXXXXXXXXXX</HOME_ADDRESS_LINE2>
+<HOME_CITY_STATE>XXXXXXXXXXXXXXXXXXXX</HOME_CITY_STATE>
+<HOME_CITY>XXXXXXXXXXXXXXXXXXXX</HOME_CITY>
+<HOME_STATE>XX</HOME_STATE>
+<HOME_POSTAL_CODE>XXXXXXXXX</HOME_POSTAL_CODE>
+<HOME_PHONE>XXXXXXXXXX</HOME_PHONE>
+<COMPANY_CODE>XXX</COMPANY_CODE>
+<SEX>X</SEX>
+<EMP_PAYROLL_STATUS>X</EMP_PAYROLL_STATUS>
+<EMP_ASSIGNMENT_STATUS>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</EMP_ASSIGNMENT_STATUS>
+<EMP_DIVISION>XXXX</EMP_DIVISION>
+<HIRE_DATE>MM-DD-RRRR</HIRE_DATE>
+<TERM_DATE>MM-DD-RRRR</TERM_DATE>
+<ADJUSTED_SERVICE_DATE>MM-DD-RRRR</ADJUSTED_SERVICE_DATE>
+<JOB_CODE>XXXXX</JOB_CODE>
+<JOB_DIVISION>XXXX</JOB_DIVISION>
+<JOB_FAMILY>XXXXXXXXXX</JOB_FAMILY>
+<JOB_TITLE>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</JOB_TITLE>
+<JOB_TYPE>XXXXXXXXXXXXXXX</JOB_TYPE>
+<JOB_LEVEL>XXXXXXXXXX</JOB_LEVEL>
+<JOB_FUNCTION>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</JOB_FUNCTION>
+<DAD_CODE>XXXXXXXX</DAD_CODE>
+</EMPLOYEE_DETAILS>
+</EMPLOYEE_DETAILS_UI>
+
+Created : 06/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+
+    CCN_EMPLOYEE_DETAILS_PKG.EMPLOYEE_DETAILS_S_SP(IN_TABLE_NAME,
+                                                   IN_ROW_DATA,
+                                                   OUT_REF_CUR);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END EMPLOYEE_DETAILS_S_SP;
+
+PROCEDURE EMPLOYEE_ADMIN_DETAILS_S_SP (
+/*******************************************************************************
+	EMPLOYEE_ADMIN_DETAILS_S_SP
+
+	This procedure is intended to select records from EMPLOYEE_ADMIN_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_ADMIN_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_ADMIN_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXX</EMPLOYEE_NUMBER>
+<ADMIN_COST_CENTER_CODE>XXXXXX</ADMIN_COST_CENTER_CODE>
+<EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
+<EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+</EMPLOYEE_ADMIN_DETAILS>
+</EMPLOYEE_ADMIN_DETAILS_UI>
+
+Created : 06/23/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+
+    CCN_EMPLOYEE_DETAILS_PKG.EMPLOYEE_ADMIN_DETAILS_S_SP(IN_TABLE_NAME,
+                                                         IN_ROW_DATA,
+                                                         OUT_REF_CUR);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END EMPLOYEE_ADMIN_DETAILS_S_SP;
+
+PROCEDURE EMPLOYEE_ADMIN_DETAILS_UPSERT (
+/*******************************************************************************
+	EMPLOYEE_ADMIN_DETAILS_UPSERT
+
+	This procedure is intended to insert/update records into EMPLOYEE_ADMIN_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_ADMIN_DETAILS_UPSERT xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_ADMIN_DETAILS_UI>
+<EMPLOYEE_ADMIN_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXXXX</EMPLOYEE_NUMBER>
+<ADMIN_COST_CENTER_CODE>XXXXXX</ADMIN_COST_CENTER_CODE>
+<EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
+<EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+<ADMIN_JOB_CODE>XXXXX</ADMIN_JOB_CODE>
+<EMPLOYEE_FIRST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_FIRST_NAME>
+<EMPLOYEE_LAST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_LAST_NAME>
+<EMPLOYEE_MIDDLE_NAME>XX</EMPLOYEE_MIDDLE_NAME>
+</EMPLOYEE_ADMIN_DETAILS>
+</EMPLOYEE_ADMIN_DETAILS_UI>
+<EMPLOYEE_ADMIN_DETAILS_UI>
+<EMPLOYEE_ADMIN_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXXXX</EMPLOYEE_NUMBER>
+<ADMIN_COST_CENTER_CODE>XXXXXX</ADMIN_COST_CENTER_CODE>
+<EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
+<EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+<ADMIN_JOB_CODE>XXXXX</ADMIN_JOB_CODE>
+<EMPLOYEE_FIRST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_FIRST_NAME>
+<EMPLOYEE_LAST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_LAST_NAME>
+<EMPLOYEE_MIDDLE_NAME>XX</EMPLOYEE_MIDDLE_NAME>
+</EMPLOYEE_ADMIN_DETAILS>
+</EMPLOYEE_ADMIN_DETAILS_UI>
+</EMPLOYEE_ADMIN_DETAILS_UPSERT>
+
+Created : 07/24/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB)
+IS
+    V_COUNT     NUMBER := 1;
+    V_ROW_DATA  CLOB;
+    V_XML       XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+BEGIN
+
+    WHILE V_XML.EXISTSNODE('//EMPLOYEE_ADMIN_DETAILS_UPSERT/EMPLOYEE_ADMIN_DETAILS_UI[' || V_COUNT || ']') = 1 LOOP
+        V_ROW_DATA := V_XML.EXTRACT('//EMPLOYEE_ADMIN_DETAILS_UPSERT/EMPLOYEE_ADMIN_DETAILS_UI[' || V_COUNT || ']').GETCLOBVAL();
+        CCN_EMPLOYEE_DETAILS_PKG.EMPLOYEE_ADMIN_DETAILS_I_SP(IN_TABLE_NAME,
+                                                             V_ROW_DATA);
+        V_COUNT := V_COUNT + 1;
+    END LOOP;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END EMPLOYEE_ADMIN_DETAILS_UPSERT;
 
 end CCN_UI_INTERFACE_APP_PKG;
 

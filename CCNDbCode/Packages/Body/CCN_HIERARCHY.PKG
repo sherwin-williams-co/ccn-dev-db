@@ -432,9 +432,13 @@ created : 06/22/2012 kdp CCN Project....
         SQ INTEGER;
         SE VARCHAR2(100);
         V_CONTEXT VARCHAR2(100);
-
+V_COMPOSITE_KEY HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE;
 	BEGIN
-	
+  IF IN_HEADER_NAME = 'SALES_MANAGER_HIERARCHY' THEN --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
+        V_COMPOSITE_KEY := SUBSTR(IN_COMPOSITE_KEY,1,12-1)||' '||SUBSTR(IN_COMPOSITE_KEY,12);
+  ELSE
+       V_COMPOSITE_KEY := IN_COMPOSITE_KEY;
+  END IF;
     V_CONTEXT := 'START';
 
     V_CONTEXT := 'Traverse Down Query';  
@@ -473,7 +477,7 @@ created : 06/22/2012 kdp CCN Project....
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
 				WHERE HRCHY_DTL_LEVEL = IN_LEVEL
-				AND HRCHY_DTL_PREV_LVL_VAL = IN_COMPOSITE_KEY
+				AND HRCHY_DTL_PREV_LVL_VAL = V_COMPOSITE_KEY --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
 				--CONNECT BY  PRIOR AR.CH =  AR.PA
         		order by AR.lev;
 
@@ -609,7 +613,7 @@ created : 03/22/2012 OD CCN Project....
        V_CONTEXT := 'Select maximum date that is less than or equal to the effective date passed';
        
 			SELECT MAX(HRCHY_DTL_EFF_DATE) INTO EFF_DATE
-			  FROM HIERARCHY_DETAIL
+			  FROM HIERARCHY_DETAIL_HST
 			 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME 
 			   AND HRCHY_DTL_EFF_DATE <= IN_HIST_DATE;	
 	
@@ -803,33 +807,47 @@ IS
     V_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
     V_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
     V_CURR_VAL          HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
+    
+    V_LVL_VALUE_SIZE NUMBER; --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
   
    BEGIN
+
          IF (v_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
              V_CONTEXT := 'Extracting HRCHY_HDR_NAME';
              V_HRCHY_HDR_NAME := v_XML.extract('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
-
-
                          
              V_CONTEXT := 'Extracting HRCHY_DTL_LEVEL';
              V_HRCHY_DTL_LEVEL := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_DTL_LEVEL/text()').GETSTRINGVAL();
-
-
+             
+             --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
+             IF V_HRCHY_DTL_LEVEL = '9' AND V_HRCHY_HDR_NAME = 'SALES_MANAGER_HIERARCHY' THEN
+                 V_HRCHY_DTL_LEVEL := '8';
+             END IF;
                          
              V_CONTEXT := 'Extracting HRCHY LEVELS';
              /* for each level, extract elements to form the composite key */
               WHILE V_COUNT < V_HRCHY_DTL_LEVEL LOOP
-                    V_CURR_VAL := V_CURR_VAL || v_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_COUNT ||'/text()').GETSTRINGVAL();
+        
+        --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
+        BEGIN
+            SELECT NVL(LVL_VALUE_SIZE,0)
+              INTO V_LVL_VALUE_SIZE
+              FROM HIERARCHY_DESCRIPTION
+             WHERE HRCHY_HDR_NAME    = upper(v_hrchy_hdr_name)
+               AND HRCHY_HDR_LVL_NBR = V_COUNT;
+        EXCEPTION WHEN OTHERS THEN
+            V_LVL_VALUE_SIZE := 0;
+        END;
+                    --temporary fix for SLAES_MANAGER_HIERARCHY [validate data with mainframe]
+                    V_CURR_VAL := V_CURR_VAL || RPAD(v_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_LEVEL' || V_COUNT ||'/text()').GETSTRINGVAL(),V_LVL_VALUE_SIZE,' ');
                     V_COUNT := V_COUNT + 1;
               END LOOP;
          END IF;
-
-
                
         V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
         V_HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_DTL_LEVEL);
         V_CURR_VAL        := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_CURR_VAL);
-        
+
         V_CONTEXT := 'Selecting for Ref Cursor';
         open OUT_HIERARCHY_REF_CUR for
           SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL, HRCHY_DTL_DESC

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY COSTCNTR.COMMON_TOOLS AS 
+create or replace PACKAGE BODY          COMMON_TOOLS AS 
 /*********************************************************** 
 This package BODY is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -98,20 +98,8 @@ revised:
   ( in_date  IN  date 
    ) RETURN date 
    IS 
-
-v_return_date date ;
-v_curr_date date := sysdate;
-v_code number;
-v_errm varchar(500);
-
 BEGIN
- 	IF in_date IS NOT NULL THEN
-    	v_return_date := in_date - 1; -- input date minus 1 day
-	ELSE
-		v_return_date := v_curr_date - 1;  -- default date
-	END IF; 
-	RETURN(v_return_date);
-   
+	RETURN CCN_COMMON_TOOLS.COMPUTE_EXPIRATION_DATE(in_date);
 END COMPUTE_EXPIRATION_DATE;
 
 
@@ -163,18 +151,8 @@ created : 08/24/2010 kdp Payroll reporting project.....
     (in_date IN varchar2)
     RETURN varchar2
 IS 
-
-v_return_date VARCHAR2(12);
-
 BEGIN
-	IF ascii(in_date) = '32' THEN
-    	v_return_date := ''; -- default date
-	ELSE
-		v_return_date := in_date;
-	END IF; 
-	
-	RETURN(v_return_date);
-   
+	RETURN CCN_COMMON_TOOLS.DATE_BLANK(in_date);
 END DATE_BLANK;
 
 PROCEDURE EMPLOYEE_DATA_S_SP   
@@ -472,6 +450,8 @@ BEGIN
  EXCEPTION
   WHEN OTHERS THEN
      v_COST_CENTER_CODE := in_COST_CENTER;
+        errpkg.raise_err(SQLCODE, 
+        'cost center not found COMMON_TOOLS.cost_center_look_up_fnc Error');
     
 
 END cost_center_look_up_fnc;
@@ -522,19 +502,8 @@ created : 08/08/2013 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2
 IS
-   V_TEXT_STRING VARCHAR2(32000) := IO_TEXT_STRING;
 BEGIN
-   --Replaces &lt; with <
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&lt;','<');
-   --Replaces &gt; with >
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&gt;','>');
-   --Replaces &amp; with &
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&amp;','&');
-   --Replaces &quot; with "
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&quot;','"');
-   --Replaces &apos; with '
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&apos;','''');
-   RETURN V_TEXT_STRING;
+   RETURN CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IO_TEXT_STRING);
 END ELIMINATE_SPECIAL_CHRCTRS;
 
 FUNCTION IS_AUTHERIZED_USER(
@@ -552,26 +521,8 @@ created : 09/04/2013 CCN Project
 IN_USER_ID    IN    VARCHAR2,
 IN_ROLE_CODE  IN    VARCHAR2) RETURN BOOLEAN
 IS
-   V_USER_ID SECURITY_MATRIX.USER_ID%TYPE;
 BEGIN
-   SELECT USER_ID INTO V_USER_ID
-     FROM SECURITY_MATRIX SM
-    WHERE UPPER(USER_ID)   = UPPER(IN_USER_ID)
-      AND UPPER(ROLE_CODE) = UPPER(IN_ROLE_CODE)
-      AND EXISTS (SELECT 1
-                    FROM ROLE_DETAILS
-                   WHERE ROLE_CODE = SM.ROLE_CODE
-                     AND (ADMIN_FLAG = 'Y' OR INSERT_FLAG = 'Y'));
-
-   IF V_USER_ID IS NOT NULL THEN
-      RETURN TRUE;
-   ELSE
-      RETURN FALSE;
-   END IF;
-EXCEPTION
-   WHEN NO_DATA_FOUND THEN
-      --This exception is to return false if no records found
-      RETURN FALSE;
+   RETURN CCN_COMMON_TOOLS.IS_AUTHERIZED_USER(IN_USER_ID,IN_ROLE_CODE);
 END IS_AUTHERIZED_USER;
 
 PROCEDURE CHECK_DUP_COST_CENTER(
@@ -918,14 +869,7 @@ This function will build the tag based on passed input parameters
                       IN_DATE_FLAG IN VARCHAR2 DEFAULT 'N')
    RETURN VARCHAR2 IS
 BEGIN
-      IF IN_VALUE IS NULL THEN
-         RETURN '<' || IN_TAG_NAME || '/>';
-      END IF;
-      IF IN_DATE_FLAG = 'N' THEN
-         RETURN '<' || IN_TAG_NAME || '>' || TRIM(IN_VALUE) || '</' || IN_TAG_NAME || '>';
-      ELSE
-         RETURN '<' || IN_TAG_NAME || '>' || TO_CHAR(TO_DATE(TRIM(IN_VALUE),'RRRRMMDD'),'MM-DD-RRRR') || '</' || IN_TAG_NAME || '>';
-      END IF;
+      RETURN CCN_COMMON_TOOLS.BUILD_TAG(IN_VALUE,IN_TAG_NAME,IN_DATE_FLAG);
 END BUILD_TAG;
    
 PROCEDURE LOG_ERROR(
@@ -953,115 +897,6 @@ EXCEPTION
          RAISE;
 END LOG_ERROR;
 
-PROCEDURE SEND_MAIL(
-/**********************************************************
-	SEND_MAIL
-
-	This procedure will send emails based on the category of the mail
-  Currently we have below categories:
-                    INIT_LOAD_START
-                    INIT_LOAD_END
-                    HIER_LOAD_START
-                    HIER_LOAD_END
-                    STOP_JBOSS
-                    START_JBOSS
-                    INCOMPLETE_CC
-                    
-   For more details around the above category please look into MAILING table
-
-IN_MAIL_CATEGORY - Input Category for which email needs to be sent
-
-created : 09/11/2013 jxc517 CCN Project....
-**********************************************************/
-   IN_MAIL_CATEGORY VARCHAR2)
-IS
-   v_mail_host   VARCHAR2 (30) := 'smtp.sherwin.com'; --'sthq.sherwin.com';
-   v_mail_conn   UTL_SMTP.connection;
-   v_recipient   VARCHAR2(32000);
-   v_index       number;
-   crlf          VARCHAR2 (2) := CHR (13) || CHR (10);
-   
-   l_boundary1    VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE1';
-   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
-   V_INCOMPLETE_CC_COUNT NUMBER := 0;
-BEGIN
-   --Loop through all the emails for this passed category code
-   FOR rec IN (SELECT * FROM MAILING WHERE MAIL_CATEGORY = IN_MAIL_CATEGORY) LOOP
-      
-      
-      --Don't send an email itself if there are no incomeplete cost centers
-      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
-         BEGIN
-            SELECT COUNT(*) INTO V_INCOMPLETE_CC_COUNT
-              FROM COST_CENTER
-             WHERE GLOBAL_HIERARCHY_IND <> 'Y';
-         EXCEPTION
-            WHEN OTHERS THEN
-               V_INCOMPLETE_CC_COUNT := 0;
-         END;
-         IF V_INCOMPLETE_CC_COUNT = 0 THEN
-            EXIT;
-         END IF;
-      END IF;
-      
-      --This process starts only if above condition is not met
-      --Below staeps involves the email creation based on category and sending across
-      v_index := 0;
-      v_index := rec.RECEPIENTS.FIRST;
-      --Open the connection for email server
-      v_mail_conn := UTL_SMTP.open_connection (v_mail_host, 25);
-      UTL_SMTP.helo (v_mail_conn, v_mail_host);
-      UTL_SMTP.mail (v_mail_conn, rec.FROM_P);
-      WHILE v_index IS NOT NULL LOOP
-         UTL_SMTP.rcpt (v_mail_conn, rec.RECEPIENTS(v_index));
-         v_recipient := v_recipient || ', '||rec.RECEPIENTS(v_index);
-         v_index := rec.RECEPIENTS.NEXT(v_index);
-      END LOOP;
-      UTL_SMTP.open_data(v_mail_conn);
-      
-      --Set the required message paremeters
-      UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'To: ' || v_recipient || crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || rec.SUBJECT || crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
-      UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
-      
-      --Boundary should be set for this email body
-      UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || UTL_TCP.crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'Hi All' || crlf || crlf
-                                       || rec.MESSAGE || crlf || crlf
-                                       || 'Please let us know if there are any issues.' || crlf || crlf
-                                       || rec.SIGNATURE || crlf);
-      --UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || '--' || UTL_TCP.crlf);
-      
-      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
-         --Boundary should be set for this email to attach an excel
-         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
-         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
-         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'incomplete_cc.csv' || '"' || UTL_TCP.crlf);
-         
-         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
-         --Header fot the excel that is being sent
-         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Number, Cost Center Name,' ||  UTL_TCP.crlf);
-         --Content for the excel that is being sent 
-         FOR rec IN (SELECT COST_CENTER_CODE, COST_CENTER_NAME FROM COST_CENTER WHERE GLOBAL_HIERARCHY_IND <> 'Y') LOOP
-            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.COST_CENTER_NAME || ',' || UTL_TCP.crlf);
-         END LOOP;
-         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || '--' || UTL_TCP.crlf);
-      END IF;
-      
-      UTL_SMTP.close_data(v_mail_conn);  
-      UTL_SMTP.quit (v_mail_conn);
-   END LOOP;
-EXCEPTION
-   WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
-   THEN
-      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
-END SEND_MAIL;
-
 FUNCTION CONVERT_SPECIAL_CHRCTRS(
 /**********************************************************
 This function will build special characters from input text
@@ -1074,19 +909,8 @@ created : 03/04/2014 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2
 IS
-   V_TEXT_STRING VARCHAR2(32000) := IO_TEXT_STRING;
 BEGIN
-   --Replaces &lt; from <
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'<','&lt;');
-   --Replaces &gt; from >
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'>','&gt;');
-   --Replaces &amp; from &
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'&','&amp;');
-   --Replaces &quot; from "
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'"','&quot;');
-   --Replaces &apos; from '
-   V_TEXT_STRING := REPLACE(V_TEXT_STRING,'''','&apos;');
-   RETURN V_TEXT_STRING;
+   RETURN CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(IO_TEXT_STRING);
 END CONVERT_SPECIAL_CHRCTRS;
 
 FUNCTION EXECUTE_UNIX_COMMAND(
@@ -1101,20 +925,8 @@ created : 03/13/2014 CCN Project
 **********************************************************/
 IN_UNIX_COMMAND VARCHAR2) RETURN BOOLEAN
 IS
-   output_file 		      UTL_FILE.FILE_TYPE;
-   filename  	          VARCHAR2(50) := 'cmd_start.sh';
-   path                 VARCHAR2(20) := 'CCN_DATAFILES';
-   v_out_clob           CLOB;
 BEGIN
-    IF DBMS_LOB.FILEEXISTS(BFILENAME(path, filename)) = 1 THEN
-        DBMS_OUTPUT.PUT_LINE('PREVIOUS COMMAND STILL EXECUTING. PLEASE TRY AGAIN AFTER SOME TIME');
-    ELSE
-        v_out_clob := NVL(IN_UNIX_COMMAND,'ls -ltr');
-        output_file := UTL_FILE.FOPEN (path, filename, 'w', 32767);
-        UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
-        UTL_FILE.FCLOSE(output_file);
-    END IF;
-    RETURN TRUE;
+    RETURN CCN_COMMON_TOOLS.EXECUTE_UNIX_COMMAND(IN_UNIX_COMMAND);
 EXCEPTION
     WHEN OTHERS THEN
         RETURN FALSE;
@@ -1131,22 +943,8 @@ IN_BLOB  IN - BLOB that needs to be converted into CLOB
 created : 03/28/2014 CCN Project
 **********************************************************/
 IN_BLOB IN BLOB) RETURN CLOB IS
-   l_clob         CLOB;
-   l_dest_offset  NUMBER := 1;
-   l_src_offset   NUMBER := 1;
-   l_lang_context NUMBER := dbms_lob.default_lang_ctx;
-   l_warning      NUMBER;
 BEGIN
-   dbms_lob.createtemporary(l_clob, TRUE);
-   dbms_lob.converttoclob(dest_lob     => l_clob,
-                          src_blob     => IN_BLOB,
-                          amount       => dbms_lob.lobmaxsize,
-                          dest_offset  => l_dest_offset,
-                          src_offset   => l_src_offset,
-                          blob_csid    => nls_charset_id('WE8ISO8859P1'), --('AL32UTF8'),
-                          lang_context => l_lang_context,
-                          warning      => l_warning);
-   RETURN REPLACE(REPLACE(l_clob,CHR(13),''),CHR(12),'');
+   RETURN CCN_COMMON_TOOLS.CONVERT_TO_CLOB(IN_BLOB);
 END convert_to_clob;
 
 FUNCTION convert_to_blob(
@@ -1160,27 +958,13 @@ IN_CLOB  IN - CLOB that needs to be converted into BLOB
 created : 03/28/2014 CCN Project
 **********************************************************/
 IN_CLOB IN CLOB) RETURN BLOB IS
-   l_blob         BLOB;
-   l_dest_offset  NUMBER := 1;
-   l_src_offset   NUMBER := 1;
-   l_lang_context NUMBER := dbms_lob.default_lang_ctx;
-   l_warning      NUMBER;
 BEGIN
-   dbms_lob.createtemporary(l_blob, TRUE);
-   dbms_lob.converttoblob(dest_lob     => l_blob,
-                          src_clob     => IN_CLOB,
-                          amount       => dbms_lob.lobmaxsize,
-                          dest_offset  => l_dest_offset,
-                          src_offset   => l_src_offset,
-                          blob_csid    => nls_charset_id('WE8ISO8859P1'), --('AL32UTF8'),
-                          lang_context => l_lang_context,
-                          warning      => l_warning);
-   RETURN l_blob;
+   RETURN CCN_COMMON_TOOLS.CONVERT_TO_BLOB(IN_CLOB);
 END convert_to_blob;
 
 FUNCTION GET_PHONE_NUMBER(
 /***********************************************
-Fucntion to get Pri, Scd, Fax phone_number using 
+Function to get Pri, Scd, Fax phone_number using 
 COST_CENTER_CODE and PHONE_NUMBER as Parameters
 
 created : 04/10/2014  CCN Project

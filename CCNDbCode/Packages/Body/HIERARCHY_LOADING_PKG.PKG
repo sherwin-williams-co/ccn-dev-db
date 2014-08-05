@@ -2322,6 +2322,287 @@ EXCEPTION
       dbms_output.put_line('HIERARCHY_LOADING_PKG failed at ' ||  V_CONTEXT);
 
 END HIER_LOAD_MAIN_SP;
+
+PROCEDURE SALES_MGR_HIERARCHY_HIER_LOAD
+/**********************************************************
+SALES_MGR_HIERARCHY_HIER_LOAD
+
+created : 06/26/2014 jxc517 CCN Project.... 
+*******************************************************************************/
+IS
+
+    v_commit integer := 0;
+    V_HRCHY_DTL_PREV_LVL_VAL HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE;
+    V_HRCHY_DTL_CURR_LVL_VAL HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+    V_HRCHY_DTL_NEXT_LVL_VAL HIERARCHY_DETAIL.HRCHY_DTL_NEXT_LVL_VAL%TYPE;
+    V_HRCHY_DTL_CURR_ROW_VAL HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+    V_UPPER_LVL_VER_VALUE    HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%type;
+    V_UPPER_LVL_VER_VALUE_N  SALES_MGR_HIERARCHY_EXT_DTL_T.UPPER_LVL_VER_VALUE%TYPE;
+    V_STMNT_TYPE             VARCHAR2(100);
+    V_HRCHY_DTL_DESC         HIERARCHY_DETAIL.HRCHY_DTL_DESC%TYPE;
+    V_hrchy_dtl_eff_date     HIERARCHY_DETAIL.hrchy_dtl_eff_date%TYPE;
+    V_hrchy_dtl_exp_date     HIERARCHY_DETAIL.hrchy_dtl_exp_date%TYPE;
+
+ V_CONTEXT VARCHAR2(200);
+
+  CURSOR ALL_REC_CUR IS
+     select HRCHY_HDR_NAME,
+           HRCHY_DTL_LEVEL,
+           HRCHY_DTL_PREV_LVL_VAL,
+           HRCHY_DTL_CURR_LVL_VAL,
+           HRCHY_DTL_NEXT_LVL_VAL,
+           HRCHY_DTL_EFF_DATE,
+           null HRCHY_DTL_EXP_DATE,
+           HRCHY_DTL_DESC,
+           UPPER_LVL_VER_VALUE
+     from SALES_MGR_HIERARCHY_EXT_DTL
+     where HRCHY_HDR_NAME IN ('SALES-MANAGER-HIERARCHY','SALES_MANAGER_HIERARCHY');
+time_before   PLS_INTEGER := DBMS_UTILITY.get_time;
+BEGIN 
+CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+      V_CONTEXT := 'Alter triggers - DISABLE ';
+      ALTER_HIER_TRIGGERS ( 'DISABLE' );
+
+delete from hierarchy_detail where HRCHY_HDR_NAME LIKE  'SALES%';
+delete from audit_log where transaction_id like '%SALES_MANAGER_HIERARCHY%';
+commit;
+
       
+      EXECUTE IMMEDIATE 'TRUNCATE TABLE SALES_MGR_HIERARCHY_EXT_DTL_T';
+      
+      INSERT INTO SALES_MGR_HIERARCHY_EXT_DTL_T
+         SELECT /*+ no_parallel (SALES_MGR_HIERARCHY_EXT_DTL)*/ 
+           HRCHY_HDR_NAME,
+           HRCHY_DTL_LEVEL,
+           HRCHY_DTL_PREV_LVL_VAL,
+           HRCHY_DTL_CURR_LVL_VAL,
+           HRCHY_DTL_NEXT_LVL_VAL,
+           HRCHY_DTL_EFF_DATE,
+           null,
+           HRCHY_DTL_DESC,
+           UPPER_LVL_VER_VALUE
+           FROM SALES_MGR_HIERARCHY_EXT_DTL;
+    
+      FOR EACH_REC IN ALL_REC_CUR
+      LOOP
+                     CASE WHEN EACH_REC.HRCHY_DTL_LEVEL = '1' THEN
+                          V_HRCHY_DTL_PREV_LVL_VAL := '~~~';
+                          V_HRCHY_DTL_CURR_ROW_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                     WHEN EACH_REC.HRCHY_DTL_LEVEL = '9' THEN
+                          V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0,(LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-6));
+                          V_HRCHY_DTL_NEXT_LVL_VAL := '~~~';
+                          V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -6, 6);
+                     WHEN EACH_REC.HRCHY_DTL_LEVEL = '6' THEN
+                         EACH_REC.HRCHY_DTL_CURR_LVL_VAL := RPAD(EACH_REC.HRCHY_DTL_CURR_LVL_VAL,12,' ');
+                         V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0, (LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-2));
+                         V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                     ELSE
+                         V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0, (LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-2));
+                         V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                     END CASE;
+     
+                     V_STMNT_TYPE := TRIM(EACH_REC.UPPER_LVL_VER_VALUE);
+                     IF length(V_STMNT_TYPE) >2 THEN 
+                          SELECT XMLELEMENT ( "attributes",
+                                   XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                               XMLFOREST(
+                                                         'Statement Type'  AS "Name"
+                                                         ,'Picklist Value' as "Description"
+                                                         ,NVL(substr(V_STMNT_TYPE, 1,2),'**') AS "Value"                                                     
+                                                         ))),
+                                            xmlelement("upper_lvl_ver_desc", 
+                                                    XMLFOREST(
+                                                          'ManagerName'  AS "Name"
+                                                         ,'Picklist Value' as "Description"
+                                                         ,SUBSTR(V_STMNT_TYPE, 3) as "Value"                                                     
+                                                         )))
+                                                  into V_UPPER_LVL_VER_VALUE
+                                                  from DUAL;  
+                    else
+                           SELECT XMLELEMENT ( "attributes",
+                                   XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                               XMLFOREST(
+                                                         'Statement Type'  AS "Name"
+                                                         ,'Picklist Value' AS "Description"
+                                                         ,NVL(substr(TRIM(V_STMNT_TYPE), 1,2),'**') AS "Value"
+                                                         ))))
+                                                  into V_UPPER_LVL_VER_VALUE
+                                                  from DUAL; 
+                    end if;                              
+                            INSERT INTO HIERARCHY_DETAIL (  HRCHY_HDR_NAME,
+                                                         HRCHY_DTL_LEVEL,
+                                                         HRCHY_DTL_PREV_LVL_VAL,
+                                                         HRCHY_DTL_CURR_LVL_VAL,
+                                                         HRCHY_DTL_NEXT_LVL_VAL,
+                                                         HRCHY_DTL_EFF_DATE,
+                                                         HRCHY_DTL_EXP_DATE,
+                                                         HRCHY_DTL_DESC,
+                                                         HRCHY_DTL_CURR_ROW_VAL,
+                                                         UPPER_LVL_VER_VALUE
+                                                      )
+                                                VALUES ( REPLACE(EACH_REC.HRCHY_HDR_NAME,'-','_'),
+                                                         EACH_REC.HRCHY_DTL_LEVEL,
+                                                         V_HRCHY_DTL_PREV_LVL_VAL,
+                                                         EACH_REC.HRCHY_DTL_CURR_LVL_VAL,
+                                                         V_HRCHY_DTL_NEXT_LVL_VAL,
+                                                         EACH_REC.HRCHY_DTL_EFF_DATE,
+                                                         EACH_REC.HRCHY_DTL_EXP_DATE,
+                                                         EACH_REC.HRCHY_DTL_DESC,
+                                                         V_HRCHY_DTL_CURR_ROW_VAL,
+                                                         V_UPPER_LVL_VER_VALUE
+                                                       );
+
+                        UPDATE HIERARCHY_DETAIL
+                                 SET HRCHY_DTL_NEXT_LVL_VAL = EACH_REC.HRCHY_DTL_CURR_LVL_VAL
+                               WHERE HRCHY_HDR_NAME = REPLACE(EACH_REC.HRCHY_HDR_NAME,'-','_')
+                                 AND HRCHY_DTL_CURR_LVL_VAL = V_HRCHY_DTL_PREV_LVL_VAL
+                                 AND HRCHY_DTL_NEXT_LVL_VAL IS NULL
+                                 AND HRCHY_DTL_LEVEL = TO_CHAR(EACH_REC.HRCHY_DTL_LEVEL-1);
+
+               IF SQL%ROWCOUNT = 0 THEN      
+                                 
+                   IF EACH_REC.HRCHY_DTL_LEVEL <> '1' THEN
+                                
+                         CASE WHEN EACH_REC.HRCHY_DTL_LEVEL = '1' THEN
+                              V_HRCHY_DTL_CURR_LVL_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                              V_HRCHY_DTL_CURR_ROW_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                         WHEN EACH_REC.HRCHY_DTL_LEVEL = '2' THEN
+                              V_HRCHY_DTL_PREV_LVL_VAL := '~~~';
+                              V_HRCHY_DTL_CURR_ROW_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                              V_HRCHY_DTL_CURR_LVL_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                         WHEN EACH_REC.HRCHY_DTL_LEVEL = '9' THEN
+                              V_HRCHY_DTL_CURR_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0,(LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-6));
+                              V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(V_HRCHY_DTL_CURR_LVL_VAL, 0, (LENGTH(V_HRCHY_DTL_CURR_LVL_VAL)-2));
+                              V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(V_HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                         WHEN EACH_REC.HRCHY_DTL_LEVEL = '6' THEN
+                             EACH_REC.HRCHY_DTL_CURR_LVL_VAL := RPAD(EACH_REC.HRCHY_DTL_CURR_LVL_VAL,12,' ');
+                             V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0, (LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-4));
+                             V_HRCHY_DTL_CURR_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0,(LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-2));
+                             V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(V_HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                         ELSE 
+                             V_HRCHY_DTL_PREV_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0, (LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-4));
+                             V_HRCHY_DTL_CURR_LVL_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, 0,(LENGTH(EACH_REC.HRCHY_DTL_CURR_LVL_VAL)-2));
+                             V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(V_HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                         END CASE;
+ 
+                         begin
+                            select /*+ INDEX(SALES_MGR_HIERARCHY_EXT_DTL_T INDX_SALES_MGR_HIERARCHY_T )*/
+                                   HRCHY_DTL_DESC, HRCHY_DTL_EFF_DATE, HRCHY_DTL_EXP_DATE, TRIM(UPPER_LVL_VER_VALUE)
+                              into V_HRCHY_DTL_DESC, V_HRCHY_DTL_EFF_DATE, V_HRCHY_DTL_EXP_DATE, V_UPPER_LVL_VER_VALUE_N  
+                              FROM SALES_MGR_HIERARCHY_EXT_DTL_T
+                             WHERE HRCHY_HDR_NAME IN ('SALES-MANAGER-HIERARCHY','SALES_MANAGER_HIERARCHY')
+                               and HRCHY_DTL_LEVEL = TO_CHAR(EACH_REC.HRCHY_DTL_LEVEL-1)
+                               and HRCHY_DTL_CURR_LVL_VAL = V_HRCHY_DTL_CURR_LVL_VAL;
+                        EXCEPTION
+                           WHEN OTHERS THEN
+                                NULL;
+                                DBMS_OUTPUT.PUT_LINE('SALES_MGR_HIERARCHY_HIER_LOAD Failed at ::::: '|| V_HRCHY_DTL_CURR_LVL_VAL || '-' || SQLERRM); 
+                        END;
+                        
+                        if length(V_UPPER_LVL_VER_VALUE_N) >2 then  
+
+                          SELECT XMLELEMENT ( "attributes",
+                                   XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                               XMLFOREST(
+                                                         'Statement Type'  AS "Name"
+                                                         ,'Picklist Value' as "Description"
+                                                         ,NVL(substr(V_UPPER_LVL_VER_VALUE_N, 1,2),'**') AS "Value"                                                     
+                                                         ))),
+                                            xmlelement("upper_lvl_ver_desc", 
+                                                    XMLFOREST(
+                                                          'ManagerName'  AS "Name"
+                                                         ,'Picklist Value' as "Description"
+                                                         ,SUBSTR(V_UPPER_LVL_VER_VALUE_N, 3) as "Value"                                                     
+                                                         )))
+                                                  into V_UPPER_LVL_VER_VALUE
+                                                  from DUAL;     
+                    else
+                        SELECT XMLELEMENT ( "attributes",
+                                   XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                               XMLFOREST(
+                                                         'Statement Type'  AS "Name"
+                                                         ,'Picklist Value' AS "Description"
+                                                         ,NVL(substr(TRIM(V_UPPER_LVL_VER_VALUE_N), 1,2),'**') AS "Value"
+                                                         ))))
+                                                  into V_UPPER_LVL_VER_VALUE
+                                                  FROM DUAL; 
+                    end if;
+
+                         INSERT INTO HIERARCHY_DETAIL (  HRCHY_HDR_NAME,
+                                                         HRCHY_DTL_LEVEL,
+                                                         HRCHY_DTL_PREV_LVL_VAL,
+                                                         HRCHY_DTL_CURR_LVL_VAL,
+                                                         HRCHY_DTL_NEXT_LVL_VAL,
+                                                         HRCHY_DTL_EFF_DATE,
+                                                         HRCHY_DTL_EXP_DATE,
+                                                         HRCHY_DTL_DESC,
+                                                         HRCHY_DTL_CURR_ROW_VAL,
+                                                         UPPER_LVL_VER_VALUE
+                                                      )
+                                                VALUES ( REPLACE(EACH_REC.HRCHY_HDR_NAME,'-','_'),
+                                                         EACH_REC.HRCHY_DTL_LEVEL-1,
+                                                         V_HRCHY_DTL_PREV_LVL_VAL,
+                                                         V_HRCHY_DTL_CURR_LVL_VAL, --prev of 4 will be curr of 3
+                                                         EACH_REC.HRCHY_DTL_CURR_LVL_VAL,
+                                                         nvl(V_hrchy_dtl_eff_date, sysdate),
+                                                         V_hrchy_dtl_exp_date,
+                                                         V_HRCHY_DTL_DESC,
+                                                         V_HRCHY_DTL_CURR_ROW_VAL,
+                                                         V_UPPER_LVL_VER_VALUE
+                                                       );
+                  END IF;
+               END IF;
+                       
+                      if v_commit > 100 then 
+                         commit;
+                         v_commit := 0;
+                      else
+                         v_commit := v_commit + 1;
+                      END IF;
+                      
+                    V_HRCHY_DTL_PREV_LVL_VAL := NULL;
+                    V_HRCHY_DTL_DESC         := NULL;
+                    V_HRCHY_DTL_EXP_DATE     := NULL;
+                    V_HRCHY_DTL_EFF_DATE     := NULL;
+                    V_HRCHY_DTL_CURR_ROW_VAL := NULL;
+                    V_HRCHY_DTL_NEXT_LVL_VAL := NULL;
+                    V_HRCHY_DTL_CURR_ROW_VAL := NULL;   
+                    V_UPPER_LVL_VER_VALUE    := NULL;
+                    V_UPPER_LVL_VER_VALUE_N  := NULL;
+            end LOOP;
+  COMMIT;
+  
+  --update elevel 6 description with level 5 description
+for rec in (
+select (SELECT HRCHY_DTL_DESC
+          from hierarchy_detail
+          where HRCHY_HDR_NAME = 'SALES_MANAGER_HIERARCHY'
+          and HRCHY_DTL_LEVEL = hd.HRCHY_DTL_LEVEL-1
+          and HRCHY_DTL_CURR_LVL_VAL = hd.HRCHY_DTL_PREV_LVL_VAL
+          and rownum < 2) col_desc, hd.*
+  from hierarchy_detail hd where HRCHY_HDR_NAME = 'SALES_MANAGER_HIERARCHY'
+and HRCHY_DTL_LEVEL = '6') loop
+    update hierarchy_detail
+       set HRCHY_DTL_DESC = rec.col_desc
+     where HRCHY_HDR_NAME = 'SALES_MANAGER_HIERARCHY'
+       and HRCHY_DTL_LEVEL = '6'
+       and HRCHY_DTL_PREV_LVL_VAL = rec.HRCHY_DTL_PREV_LVL_VAL
+       and HRCHY_DTL_CURR_LVL_VAL = rec.HRCHY_DTL_CURR_LVL_VAL
+       and HRCHY_DTL_NEXT_LVL_VAL = rec.HRCHY_DTL_NEXT_LVL_VAL;
+end loop;
+
+  DBMS_OUTPUT.put_line (DBMS_UTILITY.get_time - time_before);
+  DBMS_OUTPUT.PUT_LINE('SALES_MGR_HIERARCHY_HIER_LOAD completed. ');
+
+      V_CONTEXT := 'Alter triggers - ENABLE ';
+      ALTER_HIER_TRIGGERS ( 'ENABLE' );
+
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+
+EXCEPTION
+  when OTHERS then
+       DBMS_OUTPUT.PUT_LINE('SALES_MGR_HIERARCHY_HIER_LOAD Failed at '|| V_HRCHY_DTL_CURR_LVL_VAL || '-' || SQLERRM); 
+END SALES_MGR_HIERARCHY_HIER_LOAD;
+
 END HIERARCHY_LOADING_PKG;
 

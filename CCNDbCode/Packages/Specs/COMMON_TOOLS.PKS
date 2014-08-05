@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.COMMON_TOOLS AS 
+create or replace PACKAGE            "COMMON_TOOLS" AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -259,29 +259,6 @@ with the execution of rest of the cost centers
                     IN_SQLERRM IN VARCHAR2,
                     IN_SQLCODE IN NUMBER);
 
-PROCEDURE SEND_MAIL(
-/**********************************************************
-	SEND_MAIL
-
-	This procedure will send emails based on the category of the mail
-  Currently we have below categories:
-                    INIT_LOAD_START
-                    INIT_LOAD_END
-                    HIER_LOAD_START
-                    HIER_LOAD_END
-                    STOP_JBOSS
-                    START_JBOSS
-                    INCOMPLETE_CC
-                    
-   For more details around the above category please look into MAILING table
-
-IN_MAIL_CATEGORY - Input Category for which email needs to be sent
-
-created : 09/11/2013 jxc517 CCN Project....
-**********************************************************/
-   IN_MAIL_CATEGORY VARCHAR2)
-;
-
 FUNCTION CONVERT_SPECIAL_CHRCTRS(
 /**********************************************************
 This function will build special characters from input text
@@ -343,3 +320,4 @@ IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
 RETURN VARCHAR2;
 
 END COMMON_TOOLS;
+

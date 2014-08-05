@@ -11,58 +11,71 @@ create or replace PACKAGE BODY            "CCN_RESTRICTION_PKG" AS
  /******************************************************************************
  IS_OBJECT_RESTRICTED
  
- This function will check if there is a restriction already placed on passed in object
+ This procedure will check if there is a restriction already placed on passed in object
  Returns USER_ID who is locking the object if restricted
  Returns NULL if NOT restricted
  
  IN_OBJECT_NAME - Name of the Object on which restriction needs to be checked
  
  ******************************************************************************/
- IN_OBJECT_NAME   IN   CCN_RESTRICTION.OBJECT_NAME%TYPE) RETURN VARCHAR2
+ IN_OBJECT_NAME   IN     CCN_RESTRICTION.OBJECT_NAME%TYPE) RETURN BOOLEAN
  IS
-     V_USER_ID     CCN_RESTRICTION.RESTRICTING_USER_ID%TYPE;
+     V_IS_OBJECT_RESTRICTED BOOLEAN := FALSE;
  BEGIN
  
-     SELECT RESTRICTING_USER_ID
-       INTO V_USER_ID
-       FROM CCN_RESTRICTION
-      WHERE OBJECT_NAME = IN_OBJECT_NAME
-        AND RESTRICTION_TERM_DATE IS NULL;
+     FOR rec IN (SELECT A.*,
+                        SYS_CONTEXT('USERENV', 'SID', 15) OS_SID
+                   FROM CCN_RESTRICTION A
+                  WHERE OBJECT_NAME = IN_OBJECT_NAME
+                    AND RESTRICTION_TERM_DATE IS NULL) LOOP
+        IF rec.SESSION_ID <> rec.OS_SID THEN
+            V_IS_OBJECT_RESTRICTED := TRUE;
+            EXIT;
+        END IF;
+    END LOOP;
 
-    RETURN V_USER_ID;
+    RETURN V_IS_OBJECT_RESTRICTED;
  
  EXCEPTION 
      WHEN OTHERS THEN
          RETURN NULL;
  END IS_OBJECT_RESTRICTED;
  
- FUNCTION RESTRICT_OBJECT(
+ PROCEDURE RESTRICT_OBJECT(
  /******************************************************************************
  RESTRICT_OBJECT
  
  This procedure will place restriction on passed object
- It also passes back the restriction id back to the UI
  
  IN_OBJECT_NAME     - Name of the Object on which restriction needs to be placed
- OUT_RESTRICTION_ID - Restriction ID to track from UI
  
  ******************************************************************************/
- IN_OBJECT_NAME     IN       CCN_RESTRICTION.OBJECT_NAME%TYPE) RETURN NUMBER
+ IN_OBJECT_NAME     IN       CCN_RESTRICTION.OBJECT_NAME%TYPE)
  IS
      PRAGMA AUTONOMOUS_TRANSACTION;
-     V_RESTRICTION_ID     CCN_RESTRICTION.RESTRICTION_ID%TYPE;
+     V_COUNT                NUMBER := 0;
  BEGIN
-      
-      V_RESTRICTION_ID := CCN_RESTRICTION_SEQ.NEXTVAL;
-      
-      INSERT INTO CCN_RESTRICTION VALUES(V_RESTRICTION_ID,
-                                         IN_OBJECT_NAME,
-                                         SYSDATE,
-                                         NULL, 
-                                         USER);
-      COMMIT;
 
-      RETURN V_RESTRICTION_ID;
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM CCN_RESTRICTION
+         WHERE OBJECT_NAME         = IN_OBJECT_NAME
+           AND SESSION_ID          = SYS_CONTEXT('USERENV', 'SID', 15)
+           AND RESTRICTION_TERM_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_COUNT := 0;
+    END;
+    IF V_COUNT = 0 THEN
+        INSERT INTO CCN_RESTRICTION VALUES(CCN_RESTRICTION_SEQ.NEXTVAL,
+                                           IN_OBJECT_NAME,
+                                           SYSDATE,
+                                           NULL, 
+                                           SYS_CONTEXT('USERENV', 'SID', 15));
+    END IF;
+
+    COMMIT;
 
  EXCEPTION 
      WHEN OTHERS THEN
@@ -79,13 +92,18 @@ create or replace PACKAGE BODY            "CCN_RESTRICTION_PKG" AS
  IN_RESTRICTION_ID     - Restriction ID that needs to be released
  
  ******************************************************************************/
- IN_RESTRICTION_ID     IN       CCN_RESTRICTION.RESTRICTION_ID%TYPE)
+ IN_OBJECT_NAME     IN       CCN_RESTRICTION.OBJECT_NAME%TYPE)
  IS
+      PRAGMA AUTONOMOUS_TRANSACTION;
  BEGIN
  
      UPDATE CCN_RESTRICTION
         SET RESTRICTION_TERM_DATE = SYSDATE
-      WHERE RESTRICTION_ID = IN_RESTRICTION_ID;
+      WHERE OBJECT_NAME         = IN_OBJECT_NAME
+        AND SESSION_ID          = SYS_CONTEXT('USERENV', 'SID', 15)
+        AND RESTRICTION_TERM_DATE IS NULL;
+        
+    COMMIT;
  
  EXCEPTION 
      WHEN OTHERS THEN
@@ -103,6 +121,7 @@ create or replace PACKAGE BODY            "CCN_RESTRICTION_PKG" AS
  ******************************************************************************/
  IN_TIME_OUT_MINUTES     IN       NUMBER)
  IS
+      PRAGMA AUTONOMOUS_TRANSACTION; 
  BEGIN
  
      UPDATE CCN_RESTRICTION
@@ -110,6 +129,7 @@ create or replace PACKAGE BODY            "CCN_RESTRICTION_PKG" AS
       WHERE ((SYSDATE - RESTRICTION_EFFECTIVE_DATE) * 24 * 60) > IN_TIME_OUT_MINUTES
         AND RESTRICTION_TERM_DATE IS NULL;
  
+     COMMIT;
  EXCEPTION 
      WHEN OTHERS THEN
         RAISE;

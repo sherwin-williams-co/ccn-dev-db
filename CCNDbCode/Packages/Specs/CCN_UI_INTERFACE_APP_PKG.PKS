@@ -167,11 +167,11 @@ IN_ROW_DATA  IN VARCHAR2);
 FUNCTION TERMINAL_NUMBER_S
 /*********************************************************************
 TERMINAL_NUMBER_S
-This function will return the next terminal number from the sequence 
-terminal_number_seq
+This function will return the next terminal number from the 
+sequence terminal_number_seq
+created : 08/04/2014 CCN Project
 *************************************************************************/
-
-RETURN NUMBER ;
+RETURN NUMBER;
 
 PROCEDURE COPY_COST_CENTER(
 /**********************************************************
@@ -220,6 +220,115 @@ created : 03/11/2014 jxc517 CCN Project Team . . .
 modified :
 **********************************************************/
 ;
+
+ PROCEDURE RELEASE_OBJECT(
+ /******************************************************************************
+ RELEASE_OBJECT
+ 
+ This procedure will release the restriction on passed object based on passed 
+ restriction ID
+ 
+ IN_RESTRICTION_ID     - Restriction ID that needs to be released
+ 
+ ******************************************************************************/
+ IN_OBJECT_NAME     IN       CCN_RESTRICTION.OBJECT_NAME%TYPE);
+
+PROCEDURE EMPLOYEE_DETAILS_S_SP (
+/*******************************************************************************
+	EMPLOYEE_DETAILS_S_SP
+
+	This procedure is intended to select records from EMPLOYEE_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXX</EMPLOYEE_NUMBER>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<EMPLOYEE_NAME>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</EMPLOYEE_NAME>
+<LAST_NAME>XXXXXXXXXXXXXXXXXXXX</LAST_NAME>
+<FIRST_NAME>XXXXXXXXXXXXXXXXXXXX</FIRST_NAME>
+<MIDDLE_INITIAL>XX</MIDDLE_INITIAL>
+<HOME_ADDRESS_LINE1>XXXXXXXXXXXXXXXXXXXX</HOME_ADDRESS_LINE1>
+<HOME_ADDRESS_LINE2>XXXXXXXXXXXXXXXXXXXX</HOME_ADDRESS_LINE2>
+<HOME_CITY_STATE>XXXXXXXXXXXXXXXXXXXX</HOME_CITY_STATE>
+<HOME_CITY>XXXXXXXXXXXXXXXXXXXX</HOME_CITY>
+<HOME_STATE>XX</HOME_STATE>
+<HOME_POSTAL_CODE>XXXXXXXXX</HOME_POSTAL_CODE>
+<HOME_PHONE>XXXXXXXXXX</HOME_PHONE>
+<COMPANY_CODE>XXX</COMPANY_CODE>
+<SEX>X</SEX>
+<EMP_PAYROLL_STATUS>X</EMP_PAYROLL_STATUS>
+<EMP_ASSIGNMENT_STATUS>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</EMP_ASSIGNMENT_STATUS>
+<EMP_DIVISION>XXXX</EMP_DIVISION>
+<HIRE_DATE>MM-DD-RRRR</HIRE_DATE>
+<TERM_DATE>MM-DD-RRRR</TERM_DATE>
+<ADJUSTED_SERVICE_DATE>MM-DD-RRRR</ADJUSTED_SERVICE_DATE>
+<JOB_CODE>XXXXX</JOB_CODE>
+<JOB_DIVISION>XXXX</JOB_DIVISION>
+<JOB_FAMILY>XXXXXXXXXX</JOB_FAMILY>
+<JOB_TITLE>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</JOB_TITLE>
+<JOB_TYPE>XXXXXXXXXXXXXXX</JOB_TYPE>
+<JOB_LEVEL>XXXXXXXXXX</JOB_LEVEL>
+<JOB_FUNCTION>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</JOB_FUNCTION>
+<DAD_CODE>XXXXXXXX</DAD_CODE>
+</EMPLOYEE_DETAILS>
+</EMPLOYEE_DETAILS_UI>
+
+Created : 06/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR);
+
+PROCEDURE EMPLOYEE_ADMIN_DETAILS_S_SP (
+/*******************************************************************************
+	EMPLOYEE_ADMIN_DETAILS_S_SP
+
+	This procedure is intended to select records from EMPLOYEE_ADMIN_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_ADMIN_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_ADMIN_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXX</EMPLOYEE_NUMBER>
+<ADMIN_COST_CENTER_CODE>XXXXXX</ADMIN_COST_CENTER_CODE>
+<EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
+<EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+</EMPLOYEE_ADMIN_DETAILS>
+</EMPLOYEE_ADMIN_DETAILS_UI>
+
+Created : 06/23/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR);
+
+PROCEDURE EMPLOYEE_ADMIN_DETAILS_UPSERT (
+/*******************************************************************************
+	EMPLOYEE_ADMIN_DETAILS_UPSERT
+
+	This procedure is intended to insert/update records into EMPLOYEE_ADMIN_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<EMPLOYEE_ADMIN_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<EMPLOYEE_ADMIN_DETAILS>
+<EMPLOYEE_NUMBER>XXXXXXXXX</EMPLOYEE_NUMBER>
+<ADMIN_COST_CENTER_CODE>XXXXXX</ADMIN_COST_CENTER_CODE>
+<EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
+<EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+<ADMIN_JOB_CODE>XXXXX</ADMIN_JOB_CODE>
+<EMPLOYEE_FIRST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_FIRST_NAME>
+<EMPLOYEE_LAST_NAME>XXXXXXXXXXXXXXXXXXXX</EMPLOYEE_LAST_NAME>
+<EMPLOYEE_MIDDLE_NAME>XX</EMPLOYEE_MIDDLE_NAME>
+</EMPLOYEE_ADMIN_DETAILS>
+</EMPLOYEE_ADMIN_DETAILS_UI>
+
+Created : 07/24/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB);
 
 end CCN_UI_INTERFACE_APP_PKG;
 

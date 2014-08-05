@@ -7,146 +7,228 @@ This package is will return data HISTORY detail
 created :  04/17/2014 nxk 
 **************************************************/
 
-
-PROCEDURE RETURN_HIERARCHY_HIST (
-/**********************************************************
-	RETURN_HIERARCHY_HIST
-
-	This procedure will return a ref cursor with data from 
-	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
-	and structure as of history date 
-	ex. CCN_HIERARCHY_HIST.RETURN_HIERARCHY_HIST('DAD Structure','703252','DOWN',TO_DATE(03/24/2011','MM/DD/YYYY'),OUT_DEFINED_REF_CURSOR)
-
-created :
-**********************************************************/
-				 	IN_HEADER_NAME 	IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
-					    , 	IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
-					    ,	IN_LEVEL	IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
-					    ,	IN_TRAVERSE	IN VARCHAR2 DEFAULT 'UP'
-					    ,	IN_HIST_DATE	IN HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
-					    ,   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
-					   )
-
-        IS                 
-        
-        EFF_DATE DATE;
-        SQ INTEGER;
-        SE VARCHAR2(100);
-        V_CONTEXT VARCHAR2(100);
-
-	BEGIN
-	
-/* Selecting the Maximum date that is less than or equal to the effective date passed in So as to get the structure as of that date */
-		   
-       V_CONTEXT := 'Select maximum date that is less than or equal to the effective date passed';
-       
-			SELECT MAX(HRCHY_DTL_EFF_DATE) INTO EFF_DATE
-			  FROM HIERARCHY_DETAIL
-			 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME 
-			   AND HRCHY_DTL_EFF_DATE <= IN_HIST_DATE;	
-	
-	
-		IF IN_TRAVERSE = 'UP' THEN
-
- --Concatenation is needed because We need level and value to get the hierarchy as sometimes the value accross levels could be the same
+PROCEDURE RETURN_HIERARCHY_HIST(
+ /**********************************************************
+ 	RETURN_HIERARCHY_HIST
  
-      V_CONTEXT := 'Traverse Up History Query';
+ 	This procedure will return a ref cursor with data from 
+ 	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
+ 	and structure as of history date 
+
+set serveroutput on;
+declare
+out_var ccn_history.REF_CURSOR;
+begin
+CCN_HISTORY.RETURN_HIERARCHY_HIST('GLOBAL_HIERARCHY','779010','9','UP','01-JAN-2006',out_var);
+end;
  
- 			OPEN  OUT_HIERARCHY_REF_CUR FOR
-                               SELECT DISTINCT
-                                AR.LEV,
-                                AR.HRCHY_HDR_NAME,
-				AR.HRCHY_DTL_LEVEL,
-				AR.HRCHY_DTL_PREV_LVL_VAL,
-				AR.HRCHY_DTL_CURR_LVL_VAL,
-				AR.HRCHY_DTL_NEXT_LVL_VAL,
-				AR.HRCHY_DTL_EFF_DATE,
-				AR.HRCHY_DTL_EXP_DATE,
-				AR.HRCHY_DTL_DESC,
-                                AR.HRCHY_DTL_CURR_ROW_VAL,
-                                AR.UPPER_LVL_VER_VALUE
-				FROM
-				(
-				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-     				hr.HRCHY_HDR_NAME,
-    				hr.HRCHY_DTL_LEVEL,
-    				hr.HRCHY_DTL_PREV_LVL_VAL,
-    				hr.HRCHY_DTL_CURR_LVL_VAL,
-      				hr.HRCHY_DTL_NEXT_LVL_VAL,
-        			hr.HRCHY_DTL_EFF_DATE,
-          			hr.HRCHY_DTL_EXP_DATE,
-                                hr.HRCHY_DTL_DESC,
-                                hr.HRCHY_DTL_CURR_ROW_VAL,
-                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                 extract(hr.UPPER_LVL_VER_VALUE,'/attributes').getStringVal() UPPER_LVL_VER_VALUE
-                                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
-				  FROM HIERARCHY_DETAIL_HST hr
-				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-                                   AND HRCHY_DTL_EFF_DATE = NVL(EFF_DATE, HRCHY_DTL_EFF_DATE)
-				)  AR
-				START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-				CONNECT BY  PRIOR AR.PA =  AR.CH
-        		order by AR.lev; 
+ created : 08/01/2014 CCN Project....
+ modified:
+ **********************************************************/
+     IN_HEADER_NAME         IN      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
+     ,IN_CURR_ROW_VAL       IN      HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
+     ,IN_LEVEL              IN      HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
+     ,IN_TRAVERSE           IN      VARCHAR2 DEFAULT 'UP'
+     ,IN_HIST_DATE          IN      HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
+     ,OUT_HIERARCHY_REF_CUR    OUT  REF_CURSOR)
+IS
+/*
+--For Testing purpose only
+TYPE HIERARCHY_DETAIL_HST_REC_TYPE IS RECORD (
+         LEV                      VARCHAR2(100),
+         HRCHY_HDR_NAME           VARCHAR2(100),
+         HRCHY_DTL_LEVEL          VARCHAR2(2), 
+         HRCHY_DTL_PREV_LVL_VAL   VARCHAR2(1000),
+         HRCHY_DTL_CURR_LVL_VAL   VARCHAR2(1000),
+         HRCHY_DTL_NEXT_LVL_VAL   VARCHAR2(1000),
+         HRCHY_DTL_EFF_DATE       DATE,
+         HRCHY_DTL_EXP_DATE       DATE,
+         HRCHY_DTL_DESC           VARCHAR2(100),
+         HRCHY_DTL_CURR_ROW_VAL   VARCHAR2(100),
+         UPPER_LVL_VER_VALUE      VARCHAR2(32000));
+HIERARCHY_DETAIL_HST_REC HIERARCHY_DETAIL_HST_REC_TYPE;
+*/
+     CURSOR up_cursor(in_date IN DATE) IS
+         SELECT DISTINCT AR.LEV,
+                        AR.HRCHY_HDR_NAME,
+                        AR.HRCHY_DTL_LEVEL,
+                        AR.HRCHY_DTL_PREV_LVL_VAL,
+                        AR.HRCHY_DTL_CURR_LVL_VAL,
+                        AR.HRCHY_DTL_NEXT_LVL_VAL,
+                        AR.HRCHY_DTL_EFF_DATE,
+                        AR.HRCHY_DTL_EXP_DATE,
+                        AR.HRCHY_DTL_DESC,
+                        AR.HRCHY_DTL_CURR_ROW_VAL,
+                        AR.UPPER_LVL_VER_VALUE
+         FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+                               (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+                               (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+                               hr.HRCHY_HDR_NAME,
+                               hr.HRCHY_DTL_LEVEL,
+                               hr.HRCHY_DTL_PREV_LVL_VAL,
+                               hr.HRCHY_DTL_CURR_LVL_VAL,
+                               hr.HRCHY_DTL_NEXT_LVL_VAL,
+                               hr.HRCHY_DTL_EFF_DATE,
+                               hr.HRCHY_DTL_EXP_DATE,
+                               hr.HRCHY_DTL_DESC,
+                               hr.HRCHY_DTL_CURR_ROW_VAL,
+                               xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                 FROM HIERARCHY_DETAIL_HST hr
+                WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+                  AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
+                             AND HRCHY_DTL_LEVEL = IN_LEVEL)
+                        OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
+                  AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
+                START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+              CONNECT BY PRIOR AR.PA =  AR.CH
+                ORDER BY AR.LEV;
+              
+     CURSOR down_cursor(in_date IN DATE) IS
+         SELECT DISTINCT AR.LEV,
+                        AR.HRCHY_HDR_NAME,
+                        AR.HRCHY_DTL_LEVEL,
+                        AR.HRCHY_DTL_PREV_LVL_VAL,
+                        AR.HRCHY_DTL_CURR_LVL_VAL,
+                        AR.HRCHY_DTL_NEXT_LVL_VAL,
+                        AR.HRCHY_DTL_EFF_DATE,
+                        AR.HRCHY_DTL_EXP_DATE,
+                        AR.HRCHY_DTL_DESC,
+                        AR.HRCHY_DTL_CURR_ROW_VAL,
+                        AR.UPPER_LVL_VER_VALUE
+         FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+                               (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+                               (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+                               hr.HRCHY_HDR_NAME,
+                               hr.HRCHY_DTL_LEVEL,
+                               hr.HRCHY_DTL_PREV_LVL_VAL,
+                               hr.HRCHY_DTL_CURR_LVL_VAL,
+                               hr.HRCHY_DTL_NEXT_LVL_VAL,
+                               hr.HRCHY_DTL_EFF_DATE,
+                               hr.HRCHY_DTL_EXP_DATE,
+                               hr.HRCHY_DTL_DESC,
+                               hr.HRCHY_DTL_CURR_ROW_VAL,
+                               xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                 FROM HIERARCHY_DETAIL_HST hr
+                WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+                  AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
+                             AND HRCHY_DTL_LEVEL = IN_LEVEL)
+                        OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
+                  AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
+                START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+              CONNECT BY PRIOR AR.CH =  AR.PA
+                ORDER BY AR.LEV;
 
-        			
-        	ELSE
-          
-          V_CONTEXT := 'Traverse Down History Query';
-        	
-        		OPEN  OUT_HIERARCHY_REF_CUR FOR
-                                SELECT DISTINCT
-                                AR.LEV,
-                                AR.HRCHY_HDR_NAME,
-				AR.HRCHY_DTL_LEVEL,
-				AR.HRCHY_DTL_PREV_LVL_VAL,
-				AR.HRCHY_DTL_CURR_LVL_VAL,
-				AR.HRCHY_DTL_NEXT_LVL_VAL,
-				AR.HRCHY_DTL_EFF_DATE,
-				AR.HRCHY_DTL_EXP_DATE,
-				AR.HRCHY_DTL_DESC,
-                                AR.HRCHY_DTL_CURR_ROW_VAL,
-                                AR.UPPER_LVL_VER_VALUE
-				FROM
-				(
-				SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-						(HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-						(HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-     				hr.HRCHY_HDR_NAME,
-    				hr.HRCHY_DTL_LEVEL,
-    				hr.HRCHY_DTL_PREV_LVL_VAL,
-    				hr.HRCHY_DTL_CURR_LVL_VAL,
-      				hr.HRCHY_DTL_NEXT_LVL_VAL,
-        			hr.HRCHY_DTL_EFF_DATE,
-          			hr.HRCHY_DTL_EXP_DATE,
-                                hr.HRCHY_DTL_DESC,
-                                hr.HRCHY_DTL_CURR_ROW_VAL,
-                                --xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                extract(hr.UPPER_LVL_VER_VALUE,'/attributes').getStringVal() UPPER_LVL_VER_VALUE
-                                --COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE
-				  FROM HIERARCHY_DETAIL_HST hr
-				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-				   AND HRCHY_DTL_EFF_DATE = EFF_DATE
-				)  AR
-				START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-				CONNECT BY  PRIOR AR.CH =  AR.PA
-        		order by AR.lev;
+     SQ         INTEGER;
+     SE         VARCHAR2(100);
+     V_CONTEXT  VARCHAR2(100);
+     V_INDEX    NUMBER := 0;
 
-		END IF;
+ BEGIN
+ 
+    IF CCN_RESTRICTION_PKG.IS_OBJECT_RESTRICTED('TEMP_RETURN_HIERARCHY_HST') THEN
+        errpkg.raise_err(errnums.en_terminal_window_locked_err,
+                         ' RETURN_HIERARCHY_HIST ', 
+                         'TEMP_RETURN_HIERARCHY_HST table has been locked. Please try processing again after some time');
+    ELSE
+        CCN_RESTRICTION_PKG.RESTRICT_OBJECT('TEMP_RETURN_HIERARCHY_HST');
+    END IF;
     
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE TEMP_RETURN_HIERARCHY_HST';
+    FOR rec IN (SELECT HRCHY_DTL_EFF_DATE
+                  FROM HIERARCHY_DETAIL_HST
+                 WHERE HRCHY_HDR_NAME         =  IN_HEADER_NAME 
+                   AND HRCHY_DTL_EFF_DATE     <= IN_HIST_DATE
+                   AND HRCHY_DTL_LEVEL        = IN_LEVEL
+                   AND HRCHY_DTL_CURR_ROW_VAL = IN_CURR_ROW_VAL) LOOP
+        IF IN_TRAVERSE = 'UP' THEN
+            FOR rec1 in up_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
+                   V_INDEX := V_INDEX + 1;
+                   INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
+                       V_INDEX,
+                       rec1.LEV,
+                       rec1.HRCHY_HDR_NAME,
+                       rec1.HRCHY_DTL_LEVEL,
+                       rec1.HRCHY_DTL_PREV_LVL_VAL,
+                       rec1.HRCHY_DTL_CURR_LVL_VAL,
+                       rec1.HRCHY_DTL_NEXT_LVL_VAL,
+                       rec1.HRCHY_DTL_EFF_DATE,
+                       rec1.HRCHY_DTL_EXP_DATE,
+                       rec1.HRCHY_DTL_DESC,
+                       rec1.HRCHY_DTL_CURR_ROW_VAL,
+                       rec1.UPPER_LVL_VER_VALUE);
+            END LOOP;
+        ELSE
+            FOR rec1 in down_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
+                   V_INDEX := V_INDEX + 1;
+                   INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
+                       V_INDEX,
+                       rec1.LEV,
+                       rec1.HRCHY_HDR_NAME,
+                       rec1.HRCHY_DTL_LEVEL,
+                       rec1.HRCHY_DTL_PREV_LVL_VAL,
+                       rec1.HRCHY_DTL_CURR_LVL_VAL,
+                       rec1.HRCHY_DTL_NEXT_LVL_VAL,
+                       rec1.HRCHY_DTL_EFF_DATE,
+                       rec1.HRCHY_DTL_EXP_DATE,
+                       rec1.HRCHY_DTL_DESC,
+                       rec1.HRCHY_DTL_CURR_ROW_VAL,
+                       rec1.UPPER_LVL_VER_VALUE);
+            END LOOP;
+        END IF;
+    END LOOP;
+    COMMIT;
+
+    OPEN OUT_HIERARCHY_REF_CUR FOR 
+        SELECT LEV,
+               HRCHY_HDR_NAME,
+               HRCHY_DTL_LEVEL,
+               HRCHY_DTL_PREV_LVL_VAL,
+               HRCHY_DTL_CURR_LVL_VAL,
+               HRCHY_DTL_NEXT_LVL_VAL,
+               HRCHY_DTL_EFF_DATE,
+               HRCHY_DTL_EXP_DATE,
+               HRCHY_DTL_DESC,
+               HRCHY_DTL_CURR_ROW_VAL,
+               dbms_lob.substr(UPPER_LVL_VER_VALUE,32000,1)
+          FROM TEMP_RETURN_HIERARCHY_HST
+         ORDER BY ID;
+/*
+    --Testing Block for the result as well as the order of the result
+    LOOP
+        FETCH OUT_HIERARCHY_REF_CUR INTO HIERARCHY_DETAIL_HST_REC;
+        EXIT WHEN OUT_HIERARCHY_REF_CUR%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(HIERARCHY_DETAIL_HST_REC.HRCHY_HDR_NAME || '-' || 
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_LEVEL || '-' ||
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_PREV_LVL_VAL || '-' ||
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_CURR_LVL_VAL || '-' ||
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_NEXT_LVL_VAL || '-' ||
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_EFF_DATE || '-' ||
+                             HIERARCHY_DETAIL_HST_REC.HRCHY_DTL_EXP_DATE || '-' );
+    END LOOP;
+    
+    CLOSE OUT_HIERARCHY_REF_CUR;
+*/
 EXCEPTION WHEN OTHERS THEN
-
-	SQ := SQLCODE;
-	SE := SQLERRM;
-	
-	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
-  
-
-	ERRPKG.RAISE_ERR(-20004,'RETURN_HIERARCHY_HIST',V_CONTEXT);    
-        			    
-
+     SQ := SQLCODE;
+     SE := SQLERRM;
+     V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
+     ERRPKG.RAISE_ERR(-20004,'RETURN_HIERARCHY_HIST',V_CONTEXT);
 END RETURN_HIERARCHY_HIST;
+
+ PROCEDURE RELEASE_LOCK_FOR_HRCHY_HST
+  /**********************************************************
+	RELEASE_LOCK_FOR_HRCHY_HST
+
+	This procedure will release the lock on the history table
+
+ created : 08/01/2014 CCN Project....
+ modified:
+**********************************************************/
+ IS
+ BEGIN
+     CCN_RESTRICTION_PKG.RELEASE_OBJECT('TEMP_RETURN_HIERARCHY_HST');
+     EXECUTE IMMEDIATE 'TRUNCATE TABLE TEMP_RETURN_HIERARCHY_HST';
+ END RELEASE_LOCK_FOR_HRCHY_HST;
 
 PROCEDURE RETURN_STATUS_HIST (
 /**********************************************************
