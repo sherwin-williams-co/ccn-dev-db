@@ -1,81 +1,89 @@
-CREATE TABLE "STORDRFT"."DLY_ISSUE_CHANGE_DATA" 
-   (	"TRANSACTION_SOURCE" VARCHAR2(1 BYTE), 
-	"TRANSACTION_TYPE" VARCHAR2(1 BYTE), 
-	"COST_CENTER_CODE" VARCHAR2(4 BYTE), 
-	"CHECK_SERIAL_NUMBER" VARCHAR2(10 BYTE), 
-	"PROCESS_DATE" VARCHAR2(7 BYTE), 
-	"FILLER" VARCHAR2(16 BYTE), 
-	"TRANSACTION_SEGMENT_TYPE" VARCHAR2(1 BYTE), 
-	"NET_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
-	"NET_AMOUNT" VARCHAR2(9 BYTE), 
-	"GROSS_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
-	"GROSS_AMOUNT" VARCHAR2(9 BYTE), 
-	"RETAINAGE_AMOUNT_SIGN" VARCHAR2(1 BYTE), 
-	"RETAINAGE_AMOUNT" VARCHAR2(9 BYTE), 
-	"ISSUE_DATE" VARCHAR2(7 BYTE), 
-	"TRANSACTION_DATE" VARCHAR2(7 BYTE), 
-	"TERMINAL_NUMBER" VARCHAR2(5 BYTE), 
-	"TRANSACTION_NUMBER" VARCHAR2(5 BYTE), 
-	"CUSTOMER_ACCOUNT_NUMBER" VARCHAR2(9 BYTE), 
-	"CUSTOMER_JOB_NUMBER" VARCHAR2(2 BYTE), 
-	"POS_TRANSACTION_CODE" VARCHAR2(2 BYTE), 
-	"PAYEE_NAME" VARCHAR2(30 BYTE), 
-	"ADDRESS_LINE_1" VARCHAR2(30 BYTE), 
-	"ADDRESS_LINE_2" VARCHAR2(30 BYTE), 
-	"CITY" VARCHAR2(15 BYTE), 
-	"STATE_CODE" VARCHAR2(2 BYTE), 
-	"ZIP_CODE" VARCHAR2(10 BYTE), 
-	"PHONE_NUMBER" VARCHAR2(10 BYTE), 
-	"TRANSACTION_TIME" VARCHAR2(4 BYTE), 
-	"EMPLOYEE_NUMBER" VARCHAR2(2 BYTE), 
-	"BOOK_DATE" VARCHAR2(4 BYTE), 
-	"CYCLE_RUN_NUMBER" VARCHAR2(2 BYTE), 
-	"REASON_CODE" VARCHAR2(2 BYTE)
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE DLY_ISSUE_CHANGE_DATA';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+  CREATE TABLE DLY_ISSUE_CHANGE_DATA 
+   (	TRANSACTION_SOURCE VARCHAR2(1 BYTE), 
+	TRANSACTION_TYPE VARCHAR2(1 BYTE), 
+	COST_CENTER_CODE VARCHAR2(4 BYTE), 
+	CHECK_SERIAL_NUMBER VARCHAR2(10 BYTE), 
+	DRAFT_NUMBER VARCHAR2(4 BYTE), 
+	PROCESS_DATE VARCHAR2(7 BYTE), 
+	FILLER VARCHAR2(16 BYTE), 
+	TRANSACTION_SEGMENT_TYPE VARCHAR2(1 BYTE), 
+	NET_AMOUNT_SIGN VARCHAR2(1 BYTE), 
+	NET_AMOUNT VARCHAR2(9 BYTE), 
+	GROSS_AMOUNT_SIGN VARCHAR2(1 BYTE), 
+	GROSS_AMOUNT VARCHAR2(9 BYTE), 
+	RETAINAGE_AMOUNT_SIGN VARCHAR2(1 BYTE), 
+	RETAINAGE_AMOUNT VARCHAR2(9 BYTE), 
+	ISSUE_DATE VARCHAR2(7 BYTE), 
+	TRANSACTION_DATE VARCHAR2(7 BYTE), 
+	TERMINAL_NUMBER VARCHAR2(5 BYTE), 
+	TRANSACTION_NUMBER VARCHAR2(5 BYTE), 
+	CUSTOMER_ACCOUNT_NUMBER VARCHAR2(9 BYTE), 
+	CUSTOMER_JOB_NUMBER VARCHAR2(2 BYTE), 
+	POS_TRANSACTION_CODE VARCHAR2(2 BYTE), 
+	PAYEE_NAME VARCHAR2(30 BYTE), 
+	ADDRESS_LINE_1 VARCHAR2(30 BYTE), 
+	ADDRESS_LINE_2 VARCHAR2(30 BYTE), 
+	CITY VARCHAR2(15 BYTE), 
+	STATE_CODE VARCHAR2(2 BYTE), 
+	ZIP_CODE VARCHAR2(10 BYTE), 
+	PHONE_NUMBER VARCHAR2(10 BYTE), 
+	TRANSACTION_TIME VARCHAR2(4 BYTE), 
+	EMPLOYEE_NUMBER VARCHAR2(2 BYTE), 
+	BOOK_DATE VARCHAR2(4 BYTE), 
+	CYCLE_RUN_NUMBER VARCHAR2(2 BYTE), 
+	REASON_CODE VARCHAR2(2 BYTE)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
-      DEFAULT DIRECTORY "STORDRFT_LOAD_FILES"
+      DEFAULT DIRECTORY STORDRFT_LOAD_FILES
       ACCESS PARAMETERS
       ( RECORDS DELIMITED BY NEWLINE
-        badfile "STORDRFT_LOAD_FILES":'DLY_ISSUE_CHANGE_DATA.bad'
-        logfile "STORDRFT_LOAD_FILES":'DLY_ISSUE_CHANGE_DATA.log'
-        discardfile "STORDRFT_LOAD_FILES":'DLY_ISSUE_CHANGE_DATA.dsc'
+        badfile STORDRFT_LOAD_FILES:'DLY_ISSUE_CHANGE_DATA.bad'
+        logfile STORDRFT_LOAD_FILES:'DLY_ISSUE_CHANGE_DATA.log'
+        discardfile STORDRFT_LOAD_FILES:'DLY_ISSUE_CHANGE_DATA.dsc'
         LOAD WHEN ((40:40) = 'I' OR (40:40) = 'M')
         FIELDS(
-                TRANSACTION_SOURCE        CHAR(1),
-                TRANSACTION_TYPE          CHAR(1),
-                COST_CENTER_CODE          CHAR(4),
-                CHECK_SERIAL_NUMBER       CHAR(10),
-                PROCESS_DATE              CHAR(7),
-                FILLER                    CHAR(16),
-                TRANSACTION_SEGMENT_TYPE  CHAR(1),
-                NET_AMOUNT_SIGN           CHAR(1),
-                NET_AMOUNT                CHAR(9),
-                GROSS_AMOUNT_SIGN         CHAR(1),
-                GROSS_AMOUNT              CHAR(9),
-                RETAINAGE_AMOUNT_SIGN     CHAR(1),
-                RETAINAGE_AMOUNT          CHAR(9),
-                ISSUE_DATE                CHAR(7),
-                TRANSACTION_DATE          CHAR(7),
-                TERMINAL_NUMBER           CHAR(5),
-                TRANSACTION_NUMBER        CHAR(5),
-                CUSTOMER_ACCOUNT_NUMBER   CHAR(9),
-                CUSTOMER_JOB_NUMBER       CHAR(2),
-                POS_TRANSACTION_CODE      CHAR(2),
-                PAYEE_NAME                CHAR(30),
-                ADDRESS_LINE_1            CHAR(30),
-                ADDRESS_LINE_2            CHAR(30),
-                CITY                      CHAR(15),
-                STATE_CODE                CHAR(2),
-                ZIP_CODE                  CHAR(10),
-                PHONE_NUMBER              CHAR(10),
-                TRANSACTION_TIME          CHAR(4),
-                EMPLOYEE_NUMBER           CHAR(2),
-                BOOK_DATE                 CHAR(4),
-                CYCLE_RUN_NUMBER          CHAR(2),
-                REASON_CODE               CHAR(2)
+                TRANSACTION_SOURCE        POSITION(1:1)   CHAR(1),
+                TRANSACTION_TYPE          POSITION(2:2)   CHAR(1),
+                COST_CENTER_CODE          POSITION(3:6)   CHAR(4),
+                CHECK_SERIAL_NUMBER       POSITION(7:16)   CHAR(10),
+                DRAFT_NUMBER              POSITION(12:15)   CHAR(4),          
+                PROCESS_DATE              POSITION(17:23)   CHAR(7),
+                FILLER                       CHAR(16),
+                TRANSACTION_SEGMENT_TYPE     CHAR(1),
+                NET_AMOUNT_SIGN              CHAR(1),
+                NET_AMOUNT                   CHAR(9),
+                GROSS_AMOUNT_SIGN            CHAR(1),
+                GROSS_AMOUNT                 CHAR(9),
+                RETAINAGE_AMOUNT_SIGN        CHAR(1),
+                RETAINAGE_AMOUNT             CHAR(9),
+                ISSUE_DATE                   CHAR(7),
+                TRANSACTION_DATE             CHAR(7),
+                TERMINAL_NUMBER              CHAR(5),
+                TRANSACTION_NUMBER           CHAR(5),
+                CUSTOMER_ACCOUNT_NUMBER      CHAR(9),
+                CUSTOMER_JOB_NUMBER          CHAR(2),
+                POS_TRANSACTION_CODE         CHAR(2),
+                PAYEE_NAME                   CHAR(30),
+                ADDRESS_LINE_1               CHAR(30),
+                ADDRESS_LINE_2               CHAR(30),
+                CITY                         CHAR(15),
+                STATE_CODE                   CHAR(2),
+                ZIP_CODE                     CHAR(10),
+                PHONE_NUMBER                 CHAR(10),
+                TRANSACTION_TIME             CHAR(4),
+                EMPLOYEE_NUMBER              CHAR(2),
+                BOOK_DATE                    CHAR(4),
+                CYCLE_RUN_NUMBER             CHAR(2),
+                REASON_CODE                  CHAR(2)
                                )
-              )
+                          )
       LOCATION
        ( 'STORE_DRAFT.TXT'
        )
