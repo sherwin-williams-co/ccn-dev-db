@@ -1,0 +1,204 @@
+create or replace PACKAGE body SD_FILE_BUILD_PKG
+/****************************************************************************** 
+This package will have all the procedures to build the files on server
+
+created : 07/25/2014 jxc517 CCN Project....
+changed :
+******************************************************************************/
+AS
+
+FUNCTION FORMAT_INPUT_FOR_FILE(
+/*****************************************************************************
+	FORMAT_INPUT_FOR_FILE
+
+	This function will return the formatted data as requested  
+
+created : 07/25/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IN_VALUE         IN VARCHAR2,
+IN_PADDING_VALUE IN VARCHAR2,
+IN_LENGTH        IN NUMBER,
+IN_PRECISION     IN NUMBER DEFAULT 0
+) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE      VARCHAR2(32000);
+    V_DECIMAL_LOCATION  NUMBER;
+    V_LEFT_SIDE_VALUE   VARCHAR2(32000) := IN_PADDING_VALUE;
+    V_RIGHT_SIDE_VALUE  VARCHAR2(32000) := IN_PADDING_VALUE;
+BEGIN
+    IF IN_VALUE IS NOT NULL THEN
+        V_DECIMAL_LOCATION := INSTR(IN_VALUE,'.');
+        IF V_DECIMAL_LOCATION <> 0 THEN
+            V_LEFT_SIDE_VALUE  := SUBSTR(IN_VALUE,1,V_DECIMAL_LOCATION - 1);
+            V_RIGHT_SIDE_VALUE := SUBSTR(IN_VALUE,V_DECIMAL_LOCATION + 1);
+        ELSE
+            V_LEFT_SIDE_VALUE  := IN_VALUE;
+        END IF;
+    END IF;
+    RETURN LPAD(V_LEFT_SIDE_VALUE,IN_LENGTH-IN_PRECISION,IN_PADDING_VALUE) || 
+           RPAD(V_RIGHT_SIDE_VALUE,IN_PRECISION,IN_PADDING_VALUE);
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END FORMAT_INPUT_FOR_FILE;
+
+FUNCTION IS_VALUE_CHANGED(
+/*****************************************************************************
+	FORMAT_INPUT_FOR_FILE
+
+	This function will return the formatted data as requested  
+
+created : 07/25/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IN_PREV_VALUE IN VARCHAR2,
+IN_CURR_VALUE IN VARCHAR2) RETURN BOOLEAN
+IS
+BEGIN
+    RETURN (NVL(IN_PREV_VALUE,'X')<>NVL(IN_CURR_VALUE,'X'));
+END IS_VALUE_CHANGED;
+
+PROCEDURE BUILD_1099_FILE
+/*****************************************************************************
+	BUILD_1099_FILE
+
+	This procedure will build the 1099 file from CPR views.  
+
+created : 07/25/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IS
+    CURSOR cur IS
+        SELECT '1234567' AS FILE_NUMBER
+               ,SUBSTR(COST_CENTER_CODE,3,4) AS STORE_NUMBER
+               ,'1234' AS CHECK_NUMBER
+               ,GROSS_AMOUNT AS CHECK_AMOUNT
+               ,TO_CHAR(SYSDATE,'MMDDYY') AS CHECK_DATE
+               ,'123456' AS JV_NUMBER
+               ,'0' AS FILLER
+               ,'00' AS TRANSACTION_CODE
+               ,ccn_common_tools.DecryptSQL('123456789', (select value from JAVA_ENCRYPT)) AS TAX_ID
+          FROM STORE_DRAFTS
+         WHERE ROWNUM < 1000;
+
+    PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME  			VARCHAR2(50) := '1099';
+    STAMP       		VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
+    OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
+
+	  V_OUT_CLOB      CLOB;
+    V_PREV_REC      cur%ROWTYPE;
+    V_STORE_COUNT   NUMBER := 0;
+    V_STORE_AMOUNT  NUMBER := 0;
+    V_TOTAL_COUNT   NUMBER := 0;
+    V_TOTAL_AMOUNT  NUMBER := 0;
+
+    PROCEDURE BUILD_HEADER(IN_OUT_CLOB IN OUT CLOB)
+    IS
+    BEGIN
+        IN_OUT_CLOB := IN_OUT_CLOB 
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(SYSDATE,'MMDDYY'),'0',6)
+                       ||CHR(10);
+    END BUILD_HEADER;
+    
+    PROCEDURE BUILD_TRAILER(IN_RECORD            IN     cur%ROWTYPE,
+                            IN_TOTAL_DRAFST_PAID IN     NUMBER,
+                            IN_TOTAL_AMOUNT_PAID IN     NUMBER,
+                            IN_OUT_CLOB          IN OUT CLOB)
+    IS
+    BEGIN
+        IF V_PREV_REC.FILE_NUMBER IS NOT NULL THEN
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_TOTAL_DRAFST_PAID,'0',6)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_TOTAL_AMOUNT_PAID,'0',10,2)
+                           ||CHR(10);
+        END IF;
+    END BUILD_TRAILER;
+
+    PROCEDURE BUILD_STORE_HEADER(IN_RECORD   IN     cur%ROWTYPE,
+                                 IN_OUT_CLOB IN OUT CLOB)
+    IS
+    BEGIN
+        IN_OUT_CLOB := IN_OUT_CLOB 
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.STORE_NUMBER,'0',4);
+    END BUILD_STORE_HEADER;
+    
+    PROCEDURE BUILD_STORE_TRAILER(IN_RECORD            IN     cur%ROWTYPE,
+                                  IN_TOTAL_DRAFST_PAID IN     NUMBER,
+                                  IN_TOTAL_AMOUNT_PAID IN     NUMBER,
+                                  IN_OUT_CLOB          IN OUT CLOB)
+    IS
+    BEGIN
+        IF V_PREV_REC.FILE_NUMBER IS NOT NULL THEN
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_TOTAL_DRAFST_PAID,'0',6)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_TOTAL_AMOUNT_PAID,'0',10,2)
+                           ||CHR(10);
+        END IF;
+    END BUILD_STORE_TRAILER;
+    
+    PROCEDURE BUILD_BODY(IN_RECORD   IN     cur%ROWTYPE,
+                         IN_OUT_CLOB IN OUT CLOB)
+    IS
+    BEGIN
+        IN_OUT_CLOB := IN_OUT_CLOB 
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.FILE_NUMBER,'0',7)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.STORE_NUMBER,'0',4)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.CHECK_NUMBER,'0',4)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.CHECK_AMOUNT,'0',10,2)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.CHECK_DATE,'0',6)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.JV_NUMBER,'0',6)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.FILLER,'0',1)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.TRANSACTION_CODE,'0',2)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_RECORD.TAX_ID,'0',9)
+                       ||CHR(10);
+    END BUILD_BODY;
+
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME || STAMP
+                                   ,'W' --BINARY
+                                   ,32767); 
+
+    BUILD_HEADER(V_OUT_CLOB);
+    FOR rec IN cur LOOP
+        IF SD_FILE_BUILD_PKG.IS_VALUE_CHANGED(V_PREV_REC.STORE_NUMBER,rec.STORE_NUMBER) THEN
+           BUILD_STORE_TRAILER(V_PREV_REC,
+                               V_STORE_COUNT,
+                               V_STORE_AMOUNT,
+                               V_OUT_CLOB);
+           BUILD_STORE_HEADER(rec,
+                              V_OUT_CLOB);
+           V_STORE_COUNT  := 0;
+           V_STORE_AMOUNT := 0;
+           UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+           V_OUT_CLOB := NULL;
+        END IF;
+        BUILD_BODY(rec,
+                   V_OUT_CLOB);
+        V_STORE_COUNT  := V_STORE_COUNT + 1;
+        V_STORE_AMOUNT := V_STORE_AMOUNT + rec.CHECK_AMOUNT;
+        V_TOTAL_COUNT  := V_TOTAL_COUNT + 1;
+        V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + rec.CHECK_AMOUNT;
+        V_PREV_REC := rec;
+    END LOOP;
+    BUILD_STORE_TRAILER(V_PREV_REC,
+                        V_STORE_COUNT,
+                        V_STORE_AMOUNT,
+                        V_OUT_CLOB);
+    BUILD_TRAILER(V_PREV_REC,
+                  V_TOTAL_COUNT,
+                  V_TOTAL_AMOUNT,
+                  V_OUT_CLOB);
+
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+	  UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END BUILD_1099_FILE;
+
+END SD_FILE_BUILD_PKG;

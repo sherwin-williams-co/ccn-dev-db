@@ -23,4 +23,3 @@ PRAGMA EXCEPTION_INIT
 (exc_code_detail_val_size_err , -20023);
 
 END errnums;
-

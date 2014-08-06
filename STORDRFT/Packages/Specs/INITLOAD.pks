@@ -43,4 +43,3 @@ changed :
 ;
 
 END initLoad;
-

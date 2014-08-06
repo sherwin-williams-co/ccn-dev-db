@@ -54,4 +54,3 @@ changed :
 ;
 
 END SD_DAILY_LOAD;
-
