@@ -133,12 +133,11 @@ This function will decrypt the input value
 
 parameters:
 
-p_text  IN - RAW that needs to be decrypted
+pVal  IN - value that needs to be decrypted
 
 created : 07/30/2014 CCN Project
 **********************************************************/
-pVal         in varchar2,
-in_key_value in varchar2) RETURN VARCHAR2;
+pVal         in varchar2) RETURN VARCHAR2;
 
 END CCN_COMMON_TOOLS;
 
