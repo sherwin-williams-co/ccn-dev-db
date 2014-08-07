@@ -16,9 +16,21 @@ BEGIN
 END GET_CODE_LONG;
 /
 
+EXECUTE DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'STORAGE',FALSE);
+EXECUTE DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'TABLESPACE',FALSE);
+EXECUTE DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'SEGMENT_ATTRIBUTES',FALSE);
+
 SPOOL 'C:\code\code_generator.sql'
 SELECT 'SET SERVEROUTPUT ON'||CHR(10)||
        'SET FEEDBACK OFF' FROM DUAL;
+SELECT 'SPOOL C:\code\' || TABLE_NAME || '.SQL;'||CHR(10)||
+       'EXECUTE DBMS_OUTPUT.PUT_LINE(REPLACE(REPLACE(DBMS_METADATA.GET_DDL(''TABLE'','''||TABLE_NAME||'''),''"'',''''),'''||USER||'.'',''''));'||CHR(10)||
+       'SPOOL OFF;'
+  FROM USER_TABLES;
+SELECT 'SPOOL C:\code\' || INDEX_NAME || '.SQL;'||CHR(10)||
+       'EXECUTE DBMS_OUTPUT.PUT_LINE(REPLACE(REPLACE(DBMS_METADATA.GET_DDL(''INDEX'','''||INDEX_NAME||'''),''"'',''''),'''||USER||'.'',''''));'||CHR(10)||
+       'SPOOL OFF;'
+  FROM USER_INDEXES;
 SELECT 'SPOOL C:\code\' || NAME || DECODE(TYPE,'PACKAGE','.PKS',
                                                'PACKAGE BODY','.PKG',
                                                'TRIGGER','.TRG',
@@ -56,6 +68,10 @@ SELECT '@C:\code\' || NAME || DECODE(TYPE,'PACKAGE','.PKS',
                                'PACKAGE BODY','B',
                                'TRIGGER', 'C',
                                'D'));
+SELECT '@C:\code\' || TABLE_NAME || '.SQL;'
+  FROM USER_TABLES;
+SELECT '@C:\code\' || INDEX_NAME || '.SQL;'
+  FROM USER_INDEXES;
 SELECT '*/' FROM DUAL;
 SPOOL OFF;
 @C:\code\code_generator.sql;
