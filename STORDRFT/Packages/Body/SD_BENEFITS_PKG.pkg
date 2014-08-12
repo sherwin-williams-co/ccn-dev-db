@@ -1,0 +1,68 @@
+create or replace PACKAGE body SD_BENEFITS_PKG
+/****************************************************************************** 
+This package will hold all pl/sql objects that are needed to 
+create and build the Monthy benefits monthly JV with ADP information
+for US and Canada
+
+created : 07/03/2014 sxh 
+
+revisions: 
+******************************************************************************/
+AS
+
+PROCEDURE CREATE_JV
+/*****************************************************************************
+	Create_US_File
+
+This procedure will create JV entries for Benefits file
+
+created : 07/03/2014 sxh  Storedraft project  
+revision: 
+
+*****************************************************************************/
+IS
+
+in_closing_date   date:=SYSDATE;
+V_BATCH_NUMBER    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+
+cursor cost_center_cur  is 
+
+			select SD.cost_center_code, sum(net_amount) net_amount, TRANSACTION_DATE
+       from STORE_DRAFTS SD
+			 WHERE SD.TRANSACTION_DATE >=  (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                       FROM BATCH_JOB
+                                      WHERE BATCH_JOB_NAME = 'BENEFIT_JOB')
+        and SD.TRANSACTION_DATE <= in_closing_date
+        and paid_date is not null
+			  and gross_amount <> 0
+        group by cost_center_code, TRANSACTION_DATE;
+  
+   v_paid_amount  store_drafts.net_amount%type;
+   V_COUNT           NUMBER := 0;
+   
+begin
+
+       CCN_BATCH_PKG.INSERT_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER);      
+       for cost_center_rec in cost_center_cur loop  
+          
+					INSERT INTO STOREDRFT_JV(	COST_CENTER_CODE, net_amount, DRAFT_DATE, JV_TYPE) 
+               values(cost_center_rec.cost_center_code,cost_center_rec.net_amount, cost_center_rec.TRANSACTION_DATE, 'DRAFTS'); 
+         
+          V_COUNT := V_COUNT + 1;
+            IF V_COUNT > 500 THEN
+                COMMIT;
+                V_COUNT := 0;
+            END IF; 
+            V_COUNT := V_COUNT + 1;
+            
+       end loop; --end cost_center_rec
+       CCN_BATCH_PKG.UPDATE_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
+       
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+
+END CREATE_JV;
+
+END SD_BENEFITS_PKG;
