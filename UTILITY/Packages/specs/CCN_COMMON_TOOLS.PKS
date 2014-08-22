@@ -9,7 +9,7 @@ available to be used by the entire schema
 		date fields
 created : 08/24/2010 kdp Payroll reporting project.....
 ************************************************************/
-   
+
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
 	COMPUTE_EXPIRATOIN_DATE (in_date)
@@ -138,6 +138,43 @@ pVal  IN - value that needs to be decrypted
 created : 07/30/2014 CCN Project
 **********************************************************/
 pVal         in varchar2) RETURN VARCHAR2;
+
+FUNCTION VALIDATE_DATA_BEFORE_LOAD(
+/*****************************************************************************
+	VALIDATE_DATA_BEFORE_LOAD
+
+	This function will validate if the value is some default value in idms
+  which should go as NULL in database.  
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+    IN_VALUE     IN    VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION RETURN_NUMBER(
+/*****************************************************************************
+	RETURN_NUMBER
+
+	This function will return the number based on precision and scale passed
+
+created : 04/29/2013 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+    IN_VALUE     IN    VARCHAR2,
+    IN_PRECISION IN    NUMBER,
+    IN_SCALE     IN    NUMBER) RETURN NUMBER;
+
+FUNCTION GET_DATE_VALUE(
+/*****************************************************************************
+	VALIDATE_DATA_BEFORE_LOAD
+
+	This function will get the date value for the input passed.  
+
+created : 06/11/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+    IN_VALUE     IN    VARCHAR2,
+    IN_FORMAT    IN    VARCHAR2) RETURN DATE;
 
 END CCN_COMMON_TOOLS;
 
