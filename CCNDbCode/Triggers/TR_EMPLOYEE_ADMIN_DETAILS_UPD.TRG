@@ -18,6 +18,8 @@ BEGIN
     v_employee_admin_details_row.employee_first_name    := :new.employee_first_name;
     v_employee_admin_details_row.employee_last_name     := :new.employee_last_name;
     v_employee_admin_details_row.employee_middle_name   := :new.employee_middle_name;
+    v_employee_admin_details_row.job_type               := :new.job_type;
+    v_employee_admin_details_row.description            := :new.description;    
 
     SELECT XMLELEMENT ( "EMPLOYEE_ADMIN_DETAILS",
                         XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
