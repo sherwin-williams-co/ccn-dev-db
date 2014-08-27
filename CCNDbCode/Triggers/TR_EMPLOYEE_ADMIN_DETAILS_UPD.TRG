@@ -31,6 +31,8 @@ BEGIN
                                   ,v_employee_admin_details_row.employee_first_name                  EMPLOYEE_FIRST_NAME
                                   ,v_employee_admin_details_row.employee_last_name                   EMPLOYEE_LAST_NAME
                                   ,v_employee_admin_details_row.employee_middle_name                 EMPLOYEE_MIDDLE_NAME
+                                  ,v_employee_admin_details_row.job_type                             JOB_TYPE
+                                  ,v_employee_admin_details_row.description                          DESCRIPTION
                                   )) AS "result",
                         XMLELEMENT ( "PrimaryKey",
                                      XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
