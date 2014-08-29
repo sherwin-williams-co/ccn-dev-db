@@ -271,4 +271,21 @@ Changed :
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
 
+FUNCTION IS_AUTHORIZED_USER(
+/**********************************************************
+This function will authorize the user based on SECURITY_MATRIX table
+
+
+parameters:
+
+IN  IN_USER_ID
+OUT OUT_REF_CURSOR
+
+created : 08/27/2014 jxc517 CCN Project
+modified: 
+**********************************************************/
+IN_USER_ID      IN     VARCHAR2,
+OUT_REF_CURSOR     OUT CCN_COMMON_TOOLS.REF_CURSOR) RETURN VARCHAR2;
+
 END SD_UI_INTERFACE_APP_PKG;
+

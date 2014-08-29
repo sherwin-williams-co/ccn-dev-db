@@ -549,7 +549,9 @@ PROCEDURE HIERARCHY_HDR_PICKLIST(
         
 
 created : 04/25/2013 kdp CCN Project....
+modified: 08/27/2014 jxc517 CCN Project
 **********************************************************/
+  IN_USER_ID         IN     VARCHAR2,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
   );
 

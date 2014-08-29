@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_BUSINESS_RULES_PKG
+create or replace PACKAGE BODY          CCN_BUSINESS_RULES_PKG
     AS
 /******************************************************************************
 	CCN_BUSINESS_RULES_PKG  BODY
@@ -12,8 +12,6 @@ revised :mdh 9/24/2012
          mdh 1/17/2013 - Address Warning Messages added
          mdh 5/09/2013 - Close_CCNTR_SP fix (ORA-20010)
          mdh 5/17/2013 - CLOSE_CCNTR_SP fix (ORA-2010) Add CLose Stat of 8
-         sxt 8/06/2014 - Added code, not to check the Merchant_id rules when 
-                         polling status changes to 'I'
 ******************************************************************************/
 PROCEDURE BUSINESS_RULES_SP( 
 /*******************************************************************************
@@ -458,8 +456,8 @@ PROCEDURE Business_Rules_sp (
 
 created : MDH  9/25//2012
 revised : MDH 10/11/2012
-          SXT 8/06/2014 - Added code, not to check the Merchant_id rules when 
-                          polling status changes to 'I'
+          SXT 8/27/2014 - Adding the logic to suppress merchant id rules, bank card rules and history rules when status changed to I
+          jxc517 08/27/2014 CCN Project - Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
@@ -490,6 +488,7 @@ v_errm                 varchar(500);
 v_cost_center_rowtype  COST_CENTER%ROWTYPE;
 v_break                varchar(100);
 V_TERMINAL_ACTIVE_FLAG varchar2(1)  := 'Y';
+V_STATEMENT_TYPE       COST_CENTER.STATEMENT_TYPE%TYPE;
 --
 --
 BEGIN --  BUSINESS_RULES_SP
@@ -565,10 +564,22 @@ v_break  := ('Entering Table Specific Business Rules'
             inadmin_rowtype          
  					, incost_center_rowtype); 
    END IF ;
+
+       BEGIN
+           SELECT STATEMENT_TYPE
+             INTO V_STATEMENT_TYPE
+             FROM COST_CENTER
+            WHERE COST_CENTER_CODE = inBANKCARD_ROWTYPE.cost_center_code;
+       EXCEPTION WHEN OTHERS THEN NULL;
+       END;
 --
 --
 /**  Call BANK_CARD Table Business Rule ***/
-   IF (inBANKCARD_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
+   IF (inBANKCARD_ROWTYPE.cost_center_code  IS NOT NULL AND 
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
+       NVL(V_STATEMENT_TYPE,'XXX') NOT IN ('TR') AND
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when status changed to I
+       inBANKCARD_ROWTYPE.polling_status_code <> 'I') THEN
        v_break  := ('Processing BankCard Business Rules '); 
        CCN_BUSINESS_RULES_PKG.BANK_CARD_BR_SP(
             inbankcard_rowtype          
@@ -769,7 +780,11 @@ END IF;
 --
 --
 /**  Call MERCHANT ID Business Rule ***/
-   IF (inBANKCARD_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
+   IF (inBANKCARD_ROWTYPE.cost_center_code  IS NOT NULL AND 
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
+       NVL(V_STATEMENT_TYPE,'XXX') NOT IN ('TR') AND
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when status changed to I
+       inBANKCARD_ROWTYPE.polling_status_code <> 'I')  THEN
       v_break  := ('Processing Merchant ID Business Rules ');      
       CCN_BUSINESS_RULES_PKG.MERCHANT_ID_SP(
             inbankcard_rowtype.MERCHANT_ID          
@@ -777,27 +792,16 @@ END IF;
  					, inPOLLING_ROWTYPE.polling_status_code);
    END IF ;
 --
-   
-   /**  Calling MERCHANT ID Business Rule when Polling_status change to 'I' **/
-   IF (inBANKCARD_ROWTYPE.polling_status_code='I') THEN     
-       v_break  := ('Not Processing Merchant ID Business Rules ');
-   ELSE
-    IF
-      (inBANKCARD_ROWTYPE.polling_status_code='P') OR (inBANKCARD_ROWTYPE.polling_status_code='Q') THEN
-       v_break  := ('Processing Merchant ID Business Rules ');      
-       CCN_BUSINESS_RULES_PKG.MERCHANT_ID_SP(
-            inbankcard_rowtype.MERCHANT_ID          
-                     , inPOLLING_ROWTYPE.COST_CENTER_CODE 
-                     , inPOLLING_ROWTYPE.polling_status_code);
-    END IF ;
-   END IF ; 
-   
 --
 /**  Call POLLING STATUS HISTORY Business Rule ***/
 /***   add V_TERMINAL_ACTIVE_FLAG parameter to verify that there is an
            active terminal record.  mdh 10/11/2012)                     ***/
    IF (inPOLLING_ROWTYPE.cost_center_code  IS NOT NULL)  AND  
-      (inPOLLING_ROWTYPE.polling_status_code  IS NOT NULL)      THEN
+      (inPOLLING_ROWTYPE.polling_status_code  IS NOT NULL) AND
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
+       NVL(V_STATEMENT_TYPE,'XXX') NOT IN ('TR') AND
+       --Adding the logic to suppress merchant id rules, bank card rules and history rules when status changed to I
+       inBANKCARD_ROWTYPE.polling_status_code <> 'I' THEN
 --      dbms_output.put_line('Processing Polling Status Business Rules ');        
       v_break  := ('Processing Polling Status Business Rules ');     
       CCN_BUSINESS_RULES_PKG.POLLING_STATUS_HIST_SP(
@@ -7908,3 +7912,4 @@ created : MDH 9/24/2012
 *******************************************************************************/	
 
 END CCN_BUSINESS_RULES_PKG;
+

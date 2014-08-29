@@ -157,7 +157,7 @@ created : 08/08/2013 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
-FUNCTION IS_AUTHERIZED_USER(
+FUNCTION IS_AUTHORIZED_USER(
 /**********************************************************
 This function will authorize the user based on SECURITY_MATRIX table
 
@@ -165,11 +165,13 @@ This function will authorize the user based on SECURITY_MATRIX table
 parameters:
 
 IN  IN_USER_ID
+OUT OUT_REF_CURSOR
 
 created : 09/04/2013 CCN Project
+modified: 08/27/2014 jxc517 CCN Project
 **********************************************************/
-IN_USER_ID    IN    VARCHAR2,
-IN_ROLE_CODE  IN    VARCHAR2) RETURN BOOLEAN;
+IN_USER_ID      IN     VARCHAR2,
+OUT_REF_CURSOR     OUT CCN_COMMON_TOOLS.REF_CURSOR) RETURN VARCHAR2;
 
 PROCEDURE CHECK_DUP_COST_CENTER(
 /**********************************************************

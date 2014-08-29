@@ -25,18 +25,6 @@ created :
 --TESTING DELETE LATER....
 
 
-PROCEDURE SECURITY_S_SP(
-/******************************************************************************
-	SECURITY_S_SP
-
-	This procedure is intended to return a ref cursor with data from 
-	from the SECURITY table.  
-
-created : 
-*******************************************************************************/
-in_user_id IN SECURITY_MATRIX.USER_ID%TYPE 
-,out_USER_REF_CUR OUT REF_CURSOR);
-
   PROCEDURE ADDRESS_UI_SP ( inCost_center in COST_CENTER.cost_center_code%type
                            ,inCountry_code in COST_CENTER.country_code%type
                            ,inAddressType	in ADDRESS_USA.address_type%type DEFAULT NULL                                                 
@@ -329,25 +317,6 @@ Changed :
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
-
-PROCEDURE ROLE_USER_RULES_PICKLIST(
-/*******************************************************************************
-    ROLE_USER_RULES_PICKLIST
-
-    This procedure will give the ruels based on inputs passed
-
-Inputs
-    IN_USER_ID     user id for which the role rules needs to be picked for
-    IN_WINDOW      which window rules to be picked up. eg HIERARCHY_WINDOW, TERRITORY_WINDOW
-    IN_CATEGORY    which category rules to be picked up. eg HIERARCHY_NAME, TERRITORY_FIELDS
-
-Created : 08/27/2014 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_USER_ID   IN     VARCHAR2,
-    IN_WINDOW    IN     VARCHAR2,
-    IN_CATEGORY  IN     VARCHAR2,
-    OUT_REF_CUR     OUT REF_CURSOR);
 
 end CCN_UI_INTERFACE_APP_PKG;
 

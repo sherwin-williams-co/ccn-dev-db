@@ -10,6 +10,8 @@ available to be used by the entire schema
 created : 08/24/2010 kdp Payroll reporting project.....
 ************************************************************/
 
+	 	TYPE REF_CURSOR IS REF CURSOR;
+
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
 	COMPUTE_EXPIRATOIN_DATE (in_date)
@@ -52,7 +54,7 @@ created : 08/08/2013 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
-FUNCTION IS_AUTHERIZED_USER(
+FUNCTION IS_AUTHORIZED_USER(
 /**********************************************************
 This function will authorize the user based on SECURITY_MATRIX table
 
@@ -60,11 +62,15 @@ This function will authorize the user based on SECURITY_MATRIX table
 parameters:
 
 IN  IN_USER_ID
+IN  IN_APP_CODE
+OUT  OUT_REF_CURSOR
 
 created : 09/04/2013 CCN Project
+modified: 08/27/2014 jxc517 CCN Project
 **********************************************************/
-IN_USER_ID    IN    VARCHAR2,
-IN_ROLE_CODE  IN    VARCHAR2) RETURN BOOLEAN;
+IN_USER_ID      IN     VARCHAR2,
+IN_APP_CODE     IN     VARCHAR2,
+OUT_REF_CURSOR     OUT REF_CURSOR) RETURN BOOLEAN;
 
 FUNCTION BUILD_TAG(
 /******************************************************************************
