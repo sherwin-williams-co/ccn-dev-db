@@ -524,6 +524,111 @@ BEGIN
 --Exceptions handled in calling procedure
 END GET_COST_CENTER_CODE;
 
+PROCEDURE EMP_MGR_TERRITORY_AUDIT_SP
+( 
+/*******************************************************
+EMP_MGR_TERRITORY_AUDIT_SP
+
+Procedure to create two lines in the Backfeed file for
+   MANAGER_EMPLOYEE and TERRITORY_EMPLOYEE if a Cost Center
+   or Employee Status changes
+   
+   ex:- For a change in cost center or employee status we need to send two 
+        records in the backfeed
+        1)First the Previous value with a 'D'
+        2)Second with the current value with a "A'
+    ELSE
+       it goes normally as a 'C'
+       
+Author   : sxh487 CCN Project Team
+created : 09/03/2014
+*******************************************************/
+
+  IN_COST_CENTER  IN  COST_CENTER.COST_CENTER_CODE%TYPE
+ ,in_TABLE_NAME   IN  VARCHAR2
+ ,in_LOG_ID_PREV  IN  NUMBER
+ ,in_LOG_ID_CURR  IN  NUMBER
+ ,IN_DIFF_XML     IN  sys.XMLTYPE   --diff xml
+ ,in_ROW_PREV     IN  sys.XMLTYPE   --Previous Row from Audit_Log        
+ ,in_ROW_CURR     IN  sys.XMLTYPE   --Current Row from Audit_Log
+ ,OUT_CLOB        OUT CLOB
+)
+AS
+ V_OUT_CLOB         CLOB;
+ v_OUT_CLOB1        CLOB;
+ V_OUT_CLOB2        CLOB;
+ v_value_prev       VARCHAR2(32000);
+ v_value_curr       VARCHAR2(32000);
+ v_extrd_val_prev   VARCHAR2(32000);
+ v_extrd_val_curr   VARCHAR2(32000);
+ 
+ V_CHANGE_TYPE      VARCHAR2(1);
+ V_CHANGED          VARCHAR2(1):= 'N';
+ V_CONTEXT	        VARCHAR2(200);
+
+ CURSOR table_fields_cur IS
+   SELECT COLUMN_NAME,
+          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+          DATA_TYPE,
+          COLUMN_ID
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE_NAME;
+    
+  BEGIN
+        --if cost_center_code or Employee status changes then send two rows in the backfeed 
+        --First with a D and next with an A (DELETE and ADD)
+        IF (NVL(in_ROW_CURR.EXTRACT('/'|| IN_TABLE_NAME|| '/EMP_PAYROLL_STATUS/text()').GETSTRINGVAL(),'~') <> 
+            NVL(in_ROW_PREV.EXTRACT('/'|| IN_TABLE_NAME|| '/EMP_PAYROLL_STATUS/text()').GETSTRINGVAL(),'~')) 
+            OR
+           (NVL(in_ROW_CURR.EXTRACT('/'|| IN_TABLE_NAME|| '/COST_CENTER_CODE/text()').GETSTRINGVAL(),'~') <> 
+            NVL(in_ROW_PREV.EXTRACT('/'|| IN_TABLE_NAME|| '/COST_CENTER_CODE/text()').GETSTRINGVAL(),'~')) THEN                           
+
+            V_CHANGED := 'Y';
+            V_OUT_CLOB1 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_PREV,14,'0')) ||  'D';
+            V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'A';
+         ELSE
+            V_CHANGED := 'N';
+            V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'C';
+         END IF;
+      
+      FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+          
+         IF V_CHANGED = 'Y' THEN
+            IF (in_ROW_PREV.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+                V_CONTEXT := 'Building the Previous Data';
+                            
+                v_extrd_val_prev := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(in_ROW_PREV.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
+                v_value_prev := UPPER(RPAD(v_extrd_val_prev, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_prev))));
+
+                V_OUT_CLOB1  := V_OUT_CLOB1 || v_value_prev;
+            END IF;
+            
+            IF (in_ROW_CURR.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+                V_CONTEXT := 'Building the Current Data';
+                   
+                v_extrd_val_curr := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(in_ROW_CURR.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
+                v_value_curr := UPPER(RPAD(v_extrd_val_curr, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_curr))));
+
+                V_OUT_CLOB2 := V_OUT_CLOB2 || v_value_curr;
+            END IF;
+   
+         ELSE --if the cost center or emp status did not change
+            IF (IN_DIFF_XML.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+                V_CONTEXT := 'Building the Current Data';
+                
+                v_extrd_val_curr := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_DIFF_XML.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
+                v_value_curr := UPPER(RPAD(v_extrd_val_curr, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_curr))));
+              
+                V_OUT_CLOB1 := V_OUT_CLOB2 || v_value_curr;
+            END IF;
+            
+         END IF;
+ 
+      END LOOP;   
+      OUT_CLOB := V_OUT_CLOB1 || CHR(10) ||V_OUT_CLOB2;
+      
+END EMP_MGR_TERRITORY_AUDIT_SP;
+
 PROCEDURE PARSE_DIFFERENCE_XML
 
 /*******************************************************
@@ -540,7 +645,10 @@ modified : 02/07/2014 jxc517 CCN Project Team . . .
 , IN_KEY        IN VARCHAR2
 , OUT_CC_CODE 	OUT VARCHAR2
 , OUT_CHANGE_TYPE OUT VARCHAR2
+, OUT_PREV_ROW    OUT XMLTYPE
+, OUT_CURR_ROW    OUT XMLTYPE
 , OUT_DIFF OUT XMLTYPE
+, OUT_LOG_ID_PREV OUT NUMBER
 , OUT_LOG_ID OUT NUMBER
 )
 
@@ -651,9 +759,12 @@ BEGIN
     V_CONTEXT := 'Converting to XMLType';
     --Convert the final XML String to XMLType and set it to the OUT parameter
     OUT_DIFF        := XMLType(XMLSTRING);
+    OUT_PREV_ROW    := ROW_PREV;
+    OUT_CURR_ROW    := ROW_CURR;
     OUT_CC_CODE     := v_CostCenterCode;
     OUT_CHANGE_TYPE := v_change_type;
     OUT_LOG_ID      := V_LOG_ID_CURR;
+    OUT_LOG_ID_PREV := V_LOG_ID_PREV;
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -680,8 +791,11 @@ created : 02/21/2012 kdp CCN Project....
 IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
+,IN_PREV_ROW   IN sys.XMLTYPE
+,IN_CURR_ROW   IN sys.XMLTYPE
 ,in_Row_data    IN sys.XMLTYPE           
 ,in_CHANGE_TYPE in VARCHAR2
+,in_LOG_ID_PREV in NUMBER
 ,in_LOG_ID      in NUMBER
 )
  is 
@@ -736,8 +850,27 @@ BEGIN
       V_COST_CENTER := IN_COST_CENTER; 
    END IF;
 
-V_CONTEXT := 'Generating the CLOB Output';
-   
+    V_CONTEXT := 'Generating the CLOB Output';
+ 
+   --For a change in cost center or employee status we need to send two records in the backfeed
+   --First the Previous value with a 'D'
+   --Second with the current value with a "A'
+   IF IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE') THEN
+      --calling the proc for MANAGER_EMPLOYEE or TERRITORY_EMPLOYEE to place two records
+      --if an employee changes Cost Center or Status
+      EMP_MGR_TERRITORY_AUDIT_SP
+                    ( 
+                       V_COST_CENTER
+                      ,in_TABLE_NAME 
+                      ,in_LOG_ID_PREV --PREV log_id
+                      ,in_LOG_ID     --CURR log_id
+                      ,in_Row_data   --diff xml from PARSE
+                      ,IN_PREV_ROW   --Previous Row from Audit_Log        
+                      ,IN_CURR_ROW   --Current Row from Audit_Log
+                      ,V_OUT_CLOB
+                    );
+   ELSE
+  
    --Getting the Change Type : 
    --For Hierarchy_Detail table it should always be 'A'
    --For all other tables it should be 'C', except for tables that come as 'C' and having effective date 
@@ -756,7 +889,7 @@ V_CONTEXT := 'Generating the CLOB Output';
    END IF;
    
    --V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
-   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || LPAD(in_LOG_ID,14,'0') ||
+   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID,14,'0')) ||
                  V_CHANGE_TYPE; --IN_CHANGE_TYPE;
 
    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
@@ -824,7 +957,7 @@ V_CONTEXT := 'Generating the CLOB Output';
          V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
       END IF;
    END LOOP;
-
+ END IF;
   --working just remove for debbuging un comment for writing file
      UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
      UTL_FILE.FCLOSE(output_file);
@@ -853,7 +986,10 @@ created : 02/07/2014 jxc517 CCN Project Team . . .
 IS
 V_CONTEXT	          VARCHAR2(200);
 DIFF_XML            XMLTYPE;
-V_LOG_ID            NUMBER;
+OUT_PREV_ROW        XMLTYPE;
+OUT_CURR_ROW        XMLTYPE;
+V_LOG_ID            NUMBER; --current log id
+V_LOG_ID_PREV       NUMBER; --Previous log id
 V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_CHANGE_TYPE       varchar2(1) := 'A';
 BEGIN
@@ -863,21 +999,30 @@ BEGIN
         --or hierarchy_detail record that is NOT in last two levels of any hierarchy
         --NOTE: All details of other hierarchies also should be taken in to consideration 
         IF (NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME))
-           OR IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) THEN
+           OR IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) 
+           OR IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE') --Added 09/04/2014 
+        THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME
                                   ,IN_TRANSACTION_ID
                                   ,V_CC_CODE
   				                        ,V_CHANGE_TYPE
+                                  ,OUT_PREV_ROW
+                                  ,OUT_CURR_ROW 
                                   ,DIFF_XML
-                                  ,V_LOG_ID);
+                                  ,V_LOG_ID_PREV
+                                  ,V_LOG_ID
+                                  );
 
             V_CONTEXT:='Call procedure Build_File_SP';
             BUILD_FILE_SP(V_CC_CODE
                           ,IN_TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
                           ,SYSDATE			--in_ROW_DATE   IN DATE
+                          ,OUT_PREV_ROW
+                          ,OUT_CURR_ROW
                           ,DIFF_XML			--in_Row_data   IN sys.xmltype
                           ,V_CHANGE_TYPE
+                          ,V_LOG_ID_PREV
                           ,V_LOG_ID);
             --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
             UPDATE AUDIT_LOG
@@ -1088,4 +1233,3 @@ BEGIN
 END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
-
