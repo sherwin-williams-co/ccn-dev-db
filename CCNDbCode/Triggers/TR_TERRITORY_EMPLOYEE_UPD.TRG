@@ -19,7 +19,8 @@ BEGIN
     v_territory_employee_row.state_cd             := :NEW.state_cd;
     v_territory_employee_row.full_part_code       := :NEW.full_part_code;
     v_territory_employee_row.emp_job_code         := :NEW.emp_job_code;
-
+    v_territory_employee_row.emp_payroll_status   := :NEW.emp_payroll_status;
+    
     SELECT XMLELEMENT ( "TERRITORY_EMPLOYEE",
                         XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                                         'http://www.oracle.com/Employee.xsd' AS
@@ -33,6 +34,7 @@ BEGIN
                                   ,v_territory_employee_row.state_cd                             STATE_CD
                                   ,v_territory_employee_row.full_part_code                       FULL_PART_CODE
                                   ,v_territory_employee_row.emp_job_code                         EMP_JOB_CODE
+                                  ,v_territory_employee_row.emp_payroll_status                   EMP_PAYROLL_STATUS
                                   )) AS "result",
                         XMLELEMENT ( "PrimaryKey",
                                      XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -62,4 +64,3 @@ BEGIN
                 ,v_rowdata
                 ,'TR_TERRITORY_EMPLOYEE_UPD');
 END tr_territory_employee_upd;
-
