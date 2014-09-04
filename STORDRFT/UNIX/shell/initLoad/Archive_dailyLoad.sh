@@ -6,26 +6,35 @@
 #################################################################
 # below command will Archive CUSTOMER_LABOR & STORE_DRAFT Files.
 
-. /app/stordrft/host.sh
+. /app/ccn/host.sh
+
+CUR_PATH="$HOME/initLoad/STORDRFT"
 
 DATE=`date +"%m%d%Y"`
 
-mkdir $HOME/dailyLoad/archieve/"dailyLoad"_"$DATE"
+# Control will output if $DIRECTORY exists.
+if [ -d "$CUR_PATH/archieve/"dailyLoad"_"$DATE"" ]; then
+   echo " Directory exists "
+else
+  mkdir $CUR_PATH/archieve/"dailyLoad"_"$DATE"
+  
+fi
+
 
 #Archive file for store_draft.
 if 
-    ls $HOME/dailyLoad/STORE_DRAFT_*.TXT &> /dev/null; then
+    ls $CUR_PATH/STORE_DRAFT_*.TXT &> /dev/null; then
     echo " Store Draft files exist "
-    find -name STORE_DRAFT_\*.TXT -exec mv {} $HOME/dailyLoad/archieve/"dailyLoad"_"$DATE" \;
+    find -maxdepth 1 -name STORE_DRAFT_\*.TXT -exec mv {} $CUR_PATH/archieve/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " Store Draft files doesn't exists "
 fi
 
 #Archive file for customer_labor.
 if 
-    ls $HOME/dailyLoad/CUSTOMER_LABOR_*.TXT &> /dev/null; then
+    ls $CUR_PATH/CUSTOMER_LABOR_*.TXT &> /dev/null; then
     echo " Customer Labor files exist "
-    find -name CUSTOMER_LABOR_\*.TXT -exec mv {} $HOME/dailyLoad/archieve/"dailyLoad"_"$DATE" \;
+    find -maxdepth 1 -name CUSTOMER_LABOR_\*.TXT -exec mv {} $CUR_PATH/archieve/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " Customer Labor files doesn't exists "
 fi

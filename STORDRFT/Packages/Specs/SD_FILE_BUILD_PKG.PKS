@@ -34,7 +34,7 @@ changed :
 IN_PREV_VALUE IN VARCHAR2,
 IN_CURR_VALUE IN VARCHAR2) RETURN BOOLEAN;
 
-PROCEDURE BUILD_1099_FILE
+PROCEDURE BUILD_1099_FILE(
 /*****************************************************************************
 	BUILD_1099_FILE
 
@@ -43,6 +43,8 @@ PROCEDURE BUILD_1099_FILE
 created : 07/25/2014 jxc517 CCN Project....
 changed :
 *****************************************************************************/
+IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
 ;
 
 END SD_FILE_BUILD_PKG;
+
