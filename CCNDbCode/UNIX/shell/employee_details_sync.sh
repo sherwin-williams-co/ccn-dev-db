@@ -11,7 +11,7 @@
 . /app/ccn/host.sh
 
  proc="SYNC_EMPLOYEE_DETAILS"
- LOGDIR="$HOME/batchJobs"
+ LOGDIR="$HOME/initLoad/STORDRFT"
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
