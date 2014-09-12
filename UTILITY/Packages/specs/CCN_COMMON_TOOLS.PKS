@@ -182,5 +182,16 @@ changed :
     IN_VALUE     IN    VARCHAR2,
     IN_FORMAT    IN    VARCHAR2) RETURN DATE;
 
+FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
+/******************************************************************************
+	MODULUS_10
+
+	This function will calculate the check digit for a number
+	passed in.  DO NOT PASS THE CHECK DIGIT WITH THE NUMBER.
+
+created : KDP 4/26/2012modulu
+******************************************************************************/	
+RETURN number;
+
 END CCN_COMMON_TOOLS;
 
