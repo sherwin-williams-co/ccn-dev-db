@@ -76,4 +76,19 @@ changed :
 *****************************************************************************/
     IN_STORE_DRAFTS_RECORD     IN    STORE_DRAFTS%ROWTYPE) RETURN BOOLEAN;
 
+
+FUNCTION GET_CHECK_SERIAL_NUMBER(
+/*****************************************************************************
+	GET_CHECK_SERIAL_NUMBER
+
+	This function will calculate the 10 digit check serial number based on passed cost center id
+  and the 4 digit check serial number
+
+created : 09/10/2014 jxc517 CCN Project . . .
+changed :
+*****************************************************************************/
+    IN_COST_CENTER_CODE IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
+    IN_CHECK_NUMBER     IN    VARCHAR2) RETURN VARCHAR2;
+
 END SD_BUSINESS_RULES_PKG;
+
