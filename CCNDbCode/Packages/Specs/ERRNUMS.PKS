@@ -1,4 +1,5 @@
-create or replace PACKAGE errnums
+create or replace 
+PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -2562,6 +2563,19 @@ PRAGMA EXCEPTION_INIT
 (exc_lvl_val_size_err , -20524);
 
 /*********************************************************** 
+The "invalid_pri_logo_group" passes a numerical error of -20525.
+This error will state that thepri_logo_group should be entered.
+
+created : 09/12/2014 nxk CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_pri_logo_group CONSTANT NUMBER := -20525;
+exc_invalid_pri_logo_group EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_pri_logo_group , -20525);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2578,4 +2592,3 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 END errnums;
-
