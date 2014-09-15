@@ -20,6 +20,7 @@ BEGIN
     v_manager_employee_row.full_part_code       := :new.full_part_code;
     v_manager_employee_row.emp_job_code         := :new.emp_job_code;
     v_manager_employee_row.emp_payroll_status   := :new.emp_payroll_status;
+    v_manager_employee_row.term_date            := :new.term_date;
     
     SELECT XMLELEMENT ( "MANAGER_EMPLOYEE",
                         XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -35,6 +36,8 @@ BEGIN
                                   ,v_manager_employee_row.full_part_code                       FULL_PART_CODE
                                   ,v_manager_employee_row.emp_job_code                         EMP_JOB_CODE
                                   ,v_manager_employee_row.emp_payroll_status                   EMP_PAYROLL_STATUS
+                                  ,to_char(v_manager_employee_row.term_date, 'yyyymmdd')       TERM_DATE
+                                  
                                   )) AS "result",
                         XMLELEMENT ( "PrimaryKey",
                                      XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
