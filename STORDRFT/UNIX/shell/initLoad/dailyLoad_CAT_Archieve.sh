@@ -5,8 +5,9 @@
 # axk326 / sxt410 08/19/2014
 ################################################################################
 
+. /app/ccn/host.sh
 
-cd /app/ccn/dev/initLoad/STORDRFT
+CUR_PATH="$HOME/initLoad/STORDRFT"
 
 # below command will call the script to concatenate CUSTOMER_LABOR & STORE_DRAFT Files.
 ./dailyLoad_CAT.sh
