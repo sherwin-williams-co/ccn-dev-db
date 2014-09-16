@@ -118,6 +118,31 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT UNATTACHED_MNL_DRFT_DTL%ROWTYPE);
 
+PROCEDURE HST_STORE_DRAFTS_ROWTYPE_SP (
+/*******************************************************************************
+	HST_STORE_DRAFTS_ROWTYPE_SP
+
+	This procedure is intended to build the HST_STORE_DRAFTS record type
+
+Created : 09/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT HST_STORE_DRAFTS%ROWTYPE);
+
+PROCEDURE HST_STR_DRFTS_DTL_ROWTYPE_SP (
+/*******************************************************************************
+	HST_STR_DRFTS_DTL_ROWTYPE_SP
+
+	This procedure is intended to build the HST_STORE_DRAFTS_DETAIL record type
+
+Created : 09/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT HST_STORE_DRAFTS_DETAIL%ROWTYPE);
 ---------------------------SELECT PROCEDURES---------------------------
 PROCEDURE CUSTOMER_SALES_TAX_S_SP (
 /*******************************************************************************
@@ -227,6 +252,31 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT REF_CURSOR);
 
+PROCEDURE HST_STORE_DRAFTS_S_SP (
+/*******************************************************************************
+	HST_STORE_DRAFTS_S_SP
+
+	This procedure is intended to select records from HST_STORE_DRAFTS table
+
+Created : 09/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR);
+
+PROCEDURE HST_STORE_DRAFTS_DETAIL_S_SP (
+/*******************************************************************************
+	HST_STORE_DRAFTS_DETAIL_S_SP
+
+	This procedure is intended to select records from HST_STORE_DRAFTS_DETAIL table
+
+Created : 09/16/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR);
 ---------------------------UPDATE PROCEDURES---------------------------
 
 PROCEDURE STORE_DRAFTS_DETAIL_U_SP (
@@ -532,3 +582,4 @@ IN_TABLE_NAME IN     VARCHAR2
 
 
 END SD_TABLE_IU_PKG;
+
