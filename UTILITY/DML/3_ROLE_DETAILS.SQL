@@ -127,4 +127,18 @@ Insert into ROLE_DETAILS values ('SDB','Share Draft Batch User','N','N','N','N',
 Insert into ROLE_DETAILS values ('SDD','Share Draft Developer','N','Y','Y','Y',NULL,NULL);
 Insert into ROLE_DETAILS values ('SDU','Share Draft User','Y','Y','Y','Y',NULL,NULL);
 Insert into ROLE_DETAILS values ('SDUS','Share Draft User','N','N','N','Y',NULL,NULL);
+Insert into ROLE_DETAILS values ('SDU1','Store Drafts User - 1','Y','Y','Y','Y',
+'<USER_RULES>
+   <STORE_DRAFTS_WINDOW>
+      <VALUE>PAID_FIELDS</VALUE>
+   </STORE_DRAFTS_WINDOW>
+</USER_RULES>',
+'<USER_RULES_DESCRIPTION>
+   <STORE_DRAFTS_WINDOW>
+      <PAID_FIELDS>
+         <VALUE>PAID_DATE</VALUE>
+         <VALUE>BANK_PAID_AMOUNT</VALUE>
+      </PAID_FIELDS>
+   </STORE_DRAFTS_WINDOW>
+</USER_RULES_DESCRIPTION>');
 COMMIT;
