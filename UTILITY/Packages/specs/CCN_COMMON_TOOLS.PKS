@@ -1,22 +1,22 @@
-create or replace PACKAGE CCN_COMMON_TOOLS AS 
+CREATE OR REPLACE PACKAGE CCN_COMMON_TOOLS AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
 
--	DATE_BLANK(in_date)
-		blank Date function to fill in default date to an oracle NULL for insert into tables
-		this is created since oracle cannot handle blank strings being converted to 
-		date fields
+-    DATE_BLANK(in_date)
+        blank Date function to fill in default date to an oracle NULL for insert into tables
+        this is created since oracle cannot handle blank strings being converted to 
+        date fields
 created : 08/24/2010 kdp Payroll reporting project.....
 ************************************************************/
 
-	 	TYPE REF_CURSOR IS REF CURSOR;
+         TYPE REF_CURSOR IS REF CURSOR;
 
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
-	COMPUTE_EXPIRATOIN_DATE (in_date)
+    COMPUTE_EXPIRATOIN_DATE (in_date)
   
-		This function will be used to read in a date and subtract one day
+        This function will be used to read in a date and subtract one day
     from that date (effective) and return a new date (expiration) which
     is one day prior.
     
@@ -31,10 +31,10 @@ revised:
 
 FUNCTION DATE_BLANK
 /**********************************************************
-	DATE_BLANK(in_date)
-		blank Date function to fill in default date to an oracle NULL for insert into tables
-		this is created since oracle cannot handle blank strings being converted to 
-		date fields
+    DATE_BLANK(in_date)
+        blank Date function to fill in default date to an oracle NULL for insert into tables
+        this is created since oracle cannot handle blank strings being converted to 
+        date fields
 
 created : 08/24/2010 kdp Payroll reporting project.....
 **********************************************************/
@@ -143,13 +143,13 @@ pVal  IN - value that needs to be decrypted
 
 created : 07/30/2014 CCN Project
 **********************************************************/
-pVal         in varchar2) RETURN VARCHAR2;
+pVal         IN varchar2) RETURN VARCHAR2;
 
 FUNCTION VALIDATE_DATA_BEFORE_LOAD(
 /*****************************************************************************
-	VALIDATE_DATA_BEFORE_LOAD
+    VALIDATE_DATA_BEFORE_LOAD
 
-	This function will validate if the value is some default value in idms
+    This function will validate if the value is some default value in idms
   which should go as NULL in database.  
 
 created : 04/29/2013 jxc517 CCN Project....
@@ -159,9 +159,9 @@ changed :
 
 FUNCTION RETURN_NUMBER(
 /*****************************************************************************
-	RETURN_NUMBER
+    RETURN_NUMBER
 
-	This function will return the number based on precision and scale passed
+    This function will return the number based on precision and scale passed
 
 created : 04/29/2013 jxc517 CCN Project....
 changed :
@@ -172,9 +172,9 @@ changed :
 
 FUNCTION GET_DATE_VALUE(
 /*****************************************************************************
-	VALIDATE_DATA_BEFORE_LOAD
+    VALIDATE_DATA_BEFORE_LOAD
 
-	This function will get the date value for the input passed.  
+    This function will get the date value for the input passed.  
 
 created : 06/11/2014 jxc517 CCN Project....
 changed :
@@ -184,14 +184,28 @@ changed :
 
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
-	MODULUS_10
+    MODULUS_10
 
-	This function will calculate the check digit for a number
-	passed in.  DO NOT PASS THE CHECK DIGIT WITH THE NUMBER.
+    This function will calculate the check digit for a number
+    passed in.  DO NOT PASS THE CHECK DIGIT WITH THE NUMBER.
 
 created : KDP 4/26/2012modulu
-******************************************************************************/	
+******************************************************************************/    
 RETURN number;
 
-END CCN_COMMON_TOOLS;
+FUNCTION VALIDATE_EMPLOYEE_FNC(
+/*******************************************************************************
+    VALIDATE_EMPLOYEE_FNC
+    This function will validate the employee name from the employee table and return
+    True if the employee exists or return False if the employee doesnt exists.
+    manager_flag checks if a employee is manager and validate against the
+    manager employee table.
 
+Created On  : 09/18/2014  SXT410 CCN Project
+Modified On :
+*******************************************************************************/
+    IN_EMP_NO   IN     MANAGER_EMPLOYEE.GEMS_ID_NUMBER%TYPE,
+    IN_MGR_FLAG IN     VARCHAR2,
+    OUT_VALID      OUT VARCHAR2) RETURN VARCHAR2;
+
+END CCN_COMMON_TOOLS;
