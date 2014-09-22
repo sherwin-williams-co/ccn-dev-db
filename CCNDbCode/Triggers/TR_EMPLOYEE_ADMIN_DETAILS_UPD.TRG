@@ -19,7 +19,7 @@ BEGIN
     v_employee_admin_details_row.employee_last_name     := :new.employee_last_name;
     v_employee_admin_details_row.employee_middle_name   := :new.employee_middle_name;
     v_employee_admin_details_row.job_type               := :new.job_type;
-    v_employee_admin_details_row.description            := :new.description;    
+    v_employee_admin_details_row.description            := :new.description;
 
     SELECT XMLELEMENT ( "EMPLOYEE_ADMIN_DETAILS",
                         XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -36,12 +36,19 @@ BEGIN
                                   ,v_employee_admin_details_row.job_type                             JOB_TYPE
                                   ,v_employee_admin_details_row.description                          DESCRIPTION
                                   )) AS "result",
-                        XMLELEMENT ( "PrimaryKey",
-                                     XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                                                     'http://www.oracle.com/Employee.xsd' AS
-                                                     "xsi:nonamespaceSchemaLocation" ),
-                                     XMLFOREST(v_employee_admin_details_row.employee_number           EMPLOYEE_NUMBER)) AS "primaryKey",
-                        ('|' || v_employee_admin_details_row.employee_number || '|') tran_id
+                         XMLELEMENT ( "PrimaryKey",               
+                                      XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+                                                      'http://www.oracle.com/Employee.xsd' AS
+                                                      "xsi:nonamespaceSchemaLocation" ),
+                                      XMLForest(
+                                              v_employee_admin_details_row.employee_number EMPLOYEE_NUMBER
+                                             ,v_employee_admin_details_row.ADMIN_COST_CENTER_CODE ADMIN_COST_CENTER_CODE
+                                             ,v_employee_admin_details_row.EFFECTIVE_DATE EFFECTIVE_DATE
+                                                   )) AS "primaryKey",
+                      ('|' || v_employee_admin_details_row.ADMIN_COST_CENTER_CODE || 
+                       '|' || v_employee_admin_details_row.EMPLOYEE_NUMBER || 
+                       '|' || TO_CHAR(v_employee_admin_details_row.EFFECTIVE_DATE,'DD-MON-YY')  || '|') as tran_id          
+                                  
       INTO V_ROWDATA
            ,v_primarykey
            ,v_transaction_id
@@ -64,4 +71,3 @@ BEGIN
                 ,v_rowdata
                 ,'TR_EMPLOYEE_ADMIN_DETAILS_UPD');
 END tr_employee_admin_details_upd;
-
