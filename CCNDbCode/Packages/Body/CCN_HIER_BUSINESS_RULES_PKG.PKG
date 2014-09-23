@@ -757,6 +757,85 @@ EXCEPTION
         errpkg.raise_err(V_CODE, V_ERRTEXT);
 END VALIDATE_HIERARCHY;
 
+PROCEDURE VALIDATE_CC_SALES_MANAGER_LVL(
+/*******************************************************************************
+ VALIDATE_CC_SALES_MANAGER_LVL  
+   
+  This procedure will validate if the sales manager level is valid or not for
+  the cost center that is being attached
+
+created : JXC517 09/18/2014
+revised :
+********************************************************************************/
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2,
+    IN_HRCHY_DTL_CURR_ROW_VAL VARCHAR2)
+IS
+    en_cc_sales_manager_lvl EXCEPTION;
+    V_CATEGORY              VARCHAR2(1);
+    V_MESSAGE               VARCHAR2(500);
+BEGIN
+    BEGIN
+        SELECT CATEGORY
+          INTO V_CATEGORY
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_HRCHY_DTL_CURR_ROW_VAL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    --For territory cost centers this value should be double alpha characters
+    IF V_CATEGORY = 'T' THEN
+        --Check if both the characters are capital alphabets
+        IF REGEXP_LIKE(SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,11,2),'[A-Z]+$') THEN
+            --check if they are double alpha characters meaning AA, BB, CC ....
+            --for 6th level its 11th and 12th character we need to validate and both should be same
+            IF SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,11,1) <> SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,12,1) THEN
+                V_MESSAGE := 'Territory Cost center should have sales manager level code as alphabets';
+                RAISE en_cc_sales_manager_lvl;
+            END IF;
+        ELSE
+            V_MESSAGE := 'Territory Cost center should have sales manager level code as alphabets';
+            RAISE en_cc_sales_manager_lvl;
+        END IF;
+    --For non territory cost centers this should be numeric
+    ELSE
+        --Check if both the characters are numeric
+        IF NOT REGEXP_LIKE(SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,11,2),'[0-9]+$') THEN
+            V_MESSAGE := 'Non-Territory Cost center should have sales manager level code as numeric';
+            RAISE en_cc_sales_manager_lvl;
+        END IF;
+    END IF;
+EXCEPTION 
+    WHEN en_cc_sales_manager_lvl THEN
+        errpkg.raise_err(errnums.en_cc_sales_manager_lvl_err, V_MESSAGE);
+END VALIDATE_CC_SALES_MANAGER_LVL;
+
+PROCEDURE VALIDATE_SALES_MANAGER_LVL(
+/*******************************************************************************
+ VALIDATE_SALES_MANAGER_LVL  
+   
+  This procedure will validate if the sales manager level is valid or not
+
+created : JXC517 09/18/2014
+revised :
+********************************************************************************/
+    IN_HRCHY_DTL_CURR_ROW_VAL VARCHAR2)
+IS
+    sales_manager_lvl_err   EXCEPTION;
+    V_MESSAGE               VARCHAR2(500);
+BEGIN
+    --Check if both the characters are capital alphabets or both are numeric
+    IF NOT (REGEXP_LIKE(IN_HRCHY_DTL_CURR_ROW_VAL,'[A-Z]+$')
+            OR
+            REGEXP_LIKE(IN_HRCHY_DTL_CURR_ROW_VAL,'[0-9]+$')) THEN
+        V_MESSAGE := 'Sales manager level code should be alphabets or numeric';
+        RAISE sales_manager_lvl_err;
+    END IF;
+EXCEPTION 
+    WHEN sales_manager_lvl_err THEN
+        errpkg.raise_err(errnums.en_sales_manager_lvl_err, V_MESSAGE);
+END VALIDATE_SALES_MANAGER_LVL;
+
 PROCEDURE HIER_BUSINESS_RULES_MAIN(
 /*******************************************************************************
  HIER_BUSINESS_RULES_MAIN  
@@ -810,9 +889,17 @@ BEGIN
        V_CONTEXT := 'Calling the Stmnt_Type_Validation_Rules';       
        CCN_HIER_BUSINESS_RULES_PKG.Stmnt_Type_Validation_Rules(IN_HIERARCHY_DETAIL_ROW);
 
-       IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' and v_hrchy_dtl_level = '9' then
-          V_CONTEXT := 'Calling the cost_center_change_Rules';
-          CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
+       IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' then
+          IF v_hrchy_dtl_level = '9' THEN
+              V_CONTEXT := 'Calling the cost_center_change_Rules';
+              CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
+              V_CONTEXT := 'Calling the VALIDATE_CC_SALES_MANAGER_LVL';
+              CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_CC_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL,
+                                                                        IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+          ELSIF v_hrchy_dtl_level = '6' THEN
+              V_CONTEXT := 'Calling the VALIDATE_SALES_MANAGER_LVL';
+              CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+          END IF;
        END IF;
 
        V_HRCHY_DTL_EXP_DATE := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE;
