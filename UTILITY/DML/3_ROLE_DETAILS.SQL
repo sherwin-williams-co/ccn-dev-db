@@ -102,6 +102,23 @@ Insert into ROLE_DETAILS values ('HWU','Hierarchy Window User','Y','Y','Y','Y',
       </HIERARCHY_NAME>
    </HIERARCHY_WINDOW>
 </USER_RULES_DESCRIPTION>');
+Insert into ROLE_DETAILS values ('HWU1','Hierarchy Window User 1','Y','Y','Y','Y',
+'<USER_RULES>
+   <HIERARCHY_WINDOW>
+      <VALUE>HIERARCHY_NAME</VALUE>
+      <VALUE>LEVEL_RESTRICTED_VAL</VALUE>
+   </HIERARCHY_WINDOW>
+</USER_RULES>',
+'<USER_RULES_DESCRIPTION>
+   <HIERARCHY_WINDOW>
+      <HIERARCHY_NAME>
+         <VALUE>GLOBAL_HIERARCHY</VALUE>
+      </HIERARCHY_NAME>
+      <LEVEL_RESTRICTED_VAL>
+         <VALUE>[A-Z]+$</VALUE>
+      </LEVEL_RESTRICTED_VAL>
+   </HIERARCHY_WINDOW>
+</USER_RULES_DESCRIPTION>');
 Insert into ROLE_DETAILS values ('HWUS','Hierarchy Window User - Select','N','N','N','Y',
 '<USER_RULES>
    <HIERARCHY_WINDOW>
