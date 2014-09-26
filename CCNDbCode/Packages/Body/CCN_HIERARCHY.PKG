@@ -778,6 +778,7 @@ PROCEDURE HIERARCHY_PICKLIST(
         
 <HIERARCHY_DETAIL>
   <row_data>
+      <USER_ID>xxxxxx</USER_ID> 
       <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
       <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
       <HRCHY_LEVEL1>04</HRCHY_LEVEL1> 
@@ -788,6 +789,7 @@ PROCEDURE HIERARCHY_PICKLIST(
 </HIERARCHY_DETAIL>
 
 created : 02/13/2013 SH CCN Project....
+modified: 09/25/2014 jxc517 CCN Project.....passing user_id to restrict users with only territory access
 **********************************************************/
   in_XML                VARCHAR2,--XMLTYPE,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR)
@@ -803,6 +805,8 @@ IS
     V_HRCHY_HDR_NAME    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
     V_HRCHY_DTL_LEVEL   HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
     V_CURR_VAL          HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
+    V_LEVEL_RESTRICTED_VAL VARCHAR2(100);
+    V_USER_ID           VARCHAR2(10);
   
    BEGIN
 
@@ -825,6 +829,25 @@ IS
         V_HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_DTL_LEVEL);
         V_CURR_VAL        := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_CURR_VAL);
 
+        BEGIN
+            IF V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data/USER_ID/text()') = 1 THEN
+                V_USER_ID   := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/USER_ID/text()').GETSTRINGVAL();
+            END IF;
+
+            SELECT x.value
+              INTO V_LEVEL_RESTRICTED_VAL
+              FROM ROLE_DETAILS RD,
+                   SECURITY_MATRIX SM,
+                   XMLTABLE ('/USER_RULES_DESCRIPTION/HIERARCHY_WINDOW/LEVEL_RESTRICTED_VAL/*'
+                             PASSING RD.USER_RULES_DESCRIPTION
+                             COLUMNS Value VARCHAR2(30) PATH 'text()') x
+             WHERE SM.USER_ID   = NVL(V_USER_ID,'XXXXXX')
+               AND SM.ROLE_CODE = RD.ROLE_CODE;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+
         V_CONTEXT := 'Selecting for Ref Cursor';
         open OUT_HIERARCHY_REF_CUR for
           SELECT DISTINCT HRCHY_DTL_CURR_ROW_VAL, HRCHY_DTL_DESC
@@ -835,6 +858,8 @@ IS
          where hrchy_hdr_name = upper(v_hrchy_hdr_name)
            and hrchy_dtl_level = v_hrchy_dtl_level
            and hrchy_dtl_prev_lvl_val = decode( v_hrchy_dtl_level, 1, hrchy_dtl_prev_lvl_val, v_curr_val)
+           and (hrchy_dtl_level <> '6' or 
+                (hrchy_dtl_level = '6' and REGEXP_LIKE(SUBSTR(HRCHY_DTL_CURR_LVL_VAL,11,2),NVL(V_LEVEL_RESTRICTED_VAL,'*'))))
            and HRCHY_DTL_EXP_DATE IS NULL
          ORDER BY HRCHY_DTL_CURR_ROW_VAL;
       
