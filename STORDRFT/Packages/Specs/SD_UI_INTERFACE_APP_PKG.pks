@@ -323,6 +323,29 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT REF_CURSOR);
 
+PROCEDURE SD_BANK_FILE_SENT_DTLS_UI_SP (
+/*******************************************************************************
+	SD_BANK_FILE_SENT_DTLS_UI_SP
+
+	This procedure is intended to select records from SD_BANK_FILE_SENT_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<SD_BANK_FILE_SENT_DETAILS_UI_SP xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SENT_DATE>MM-DD-RRRR</SENT_DATE>
+</SD_BANK_FILE_SENT_DETAILS>
+</SD_BANK_FILE_SENT_DETAILS_UI_SP>
+
+Created : 09/22/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR);
+
 PROCEDURE STORE_DRAFTS_UI_UPSERT (
 /*******************************************************************************
 	STORE_DRAFTS_UI_UPSERT
@@ -383,6 +406,40 @@ Changed :
 </STORE_DRAFTS>
 </STORE_DRAFTS_UI_SP>
 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB);
+
+PROCEDURE SD_BANK_FILE_SNT_DTL_UI_UPSERT (
+/*******************************************************************************
+	SD_BANK_FILE_SNT_DTL_UI_UPSERT
+
+	This procedure is intended to INSERT/UPDATE data in SD_BANK_FILE_SENT_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<SD_BANK_FILE_SENT_DETAILS_UI_SP xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+</SD_BANK_FILE_SENT_DETAILS_UI_SP>
+
+Created : 07/02/2014 jxc517 CCN Project....
+Changed : 
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);

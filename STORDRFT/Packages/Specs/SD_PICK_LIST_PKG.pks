@@ -29,10 +29,6 @@ changed :
 			, out_CODE_HEADER_CUR OUT REF_CUR_CODE)
 ;
 
-
-
-TYPE REF_CURSOR IS REF CURSOR;
-
 		PROCEDURE CODE_TABLE_D_SP (
 /**********************************************************
 	CODE_TABLE_D_SP
@@ -262,3 +258,4 @@ changed :
     in_XML                VARCHAR2);
 
 END SD_PICK_LIST_PKG;
+

@@ -410,6 +410,37 @@ BEGIN
 
 END HST_STORE_DRAFTS_DETAIL_UI_SP;
 
+PROCEDURE SD_BANK_FILE_SENT_DTLS_UI_SP (
+/*******************************************************************************
+	SD_BANK_FILE_SENT_DTLS_UI_SP
+
+	This procedure is intended to select records from SD_BANK_FILE_SENT_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<SD_BANK_FILE_SENT_DETAILS_UI_SP xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SENT_DATE>MM-DD-RRRR</SENT_DATE>
+</SD_BANK_FILE_SENT_DETAILS>
+</SD_BANK_FILE_SENT_DETAILS_UI_SP>
+
+Created : 09/22/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB
+,OUT_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+
+    SD_BANK_FILE_SENT_DETAILS_PKG.SD_BANK_FILE_SENT_DETAILS_S_SP(IN_TABLE_NAME,
+                                                                 EXTRACT_TABLE_CLOB(IN_TABLE_NAME,IN_ROW_DATA),
+                                                                 OUT_REF_CUR);
+
+END SD_BANK_FILE_SENT_DTLS_UI_SP;
+
 PROCEDURE STORE_DRAFTS_UI_UPSERT (
 /*******************************************************************************
 	STORE_DRAFTS_UI_UPSERT
@@ -474,12 +505,82 @@ Changed :
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB)
 IS
+    V_UPSERT_INDICATOR    VARCHAR2(1);
+    V_CHECK_SERIAL_NUMBER STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE;
+    V_STORE_DRAFTS_REC    STORE_DRAFTS%ROWTYPE;
 BEGIN
 
     SD_TABLE_IU_PKG.STORE_DRAFTS_I_SP(IN_TABLE_NAME,
                                       EXTRACT_TABLE_CLOB(IN_TABLE_NAME,IN_ROW_DATA));
 
+    --Take care fo inserting the details into SD_BANK_FILE_SENT_DETAILS table
+    SD_TABLE_IU_PKG.STORE_DRAFTS_ROWTYPE_SP(IN_TABLE_NAME,
+                                            EXTRACT_TABLE_CLOB(IN_TABLE_NAME,IN_ROW_DATA),
+                                            V_STORE_DRAFTS_REC);
+    
+    IF XMLTYPE(IN_ROW_DATA).EXISTSNODE('/STORE_DRAFTS_UI_SP/STORE_DRAFTS/UPSERT_INDICATOR/text()') = 1 THEN
+        V_UPSERT_INDICATOR   := UPPER(XMLTYPE(IN_ROW_DATA).EXTRACT('/STORE_DRAFTS_UI_SP/STORE_DRAFTS/UPSERT_INDICATOR/text()').GETSTRINGVAL());
+    END IF;
+    IF NVL(V_UPSERT_INDICATOR,'U') = 'I' THEN
+        V_CHECK_SERIAL_NUMBER := SD_BUSINESS_RULES_PKG.GET_CHECK_SERIAL_NUMBER(V_STORE_DRAFTS_REC.COST_CENTER_CODE,
+                                                                               V_STORE_DRAFTS_REC.CHECK_SERIAL_NUMBER);
+    ELSE
+        V_CHECK_SERIAL_NUMBER := V_STORE_DRAFTS_REC.CHECK_SERIAL_NUMBER;
+    END IF;
+    SD_BANK_FILE_SENT_DETAILS_PKG.SD_BANK_FILE_SENT_DETAILS_I_SP('SD_BANK_FILE_SENT_DETAILS',
+                                                                 '<SD_BANK_FILE_SENT_DETAILS>'||
+                                                                 '<COST_CENTER_CODE>'||V_STORE_DRAFTS_REC.COST_CENTER_CODE||'</COST_CENTER_CODE>'||
+                                                                 '<CHECK_SERIAL_NUMBER>'||V_CHECK_SERIAL_NUMBER||'</CHECK_SERIAL_NUMBER>'||
+                                                                 '<SEND_INDICATOR>Y</SEND_INDICATOR>'||
+                                                                 '</SD_BANK_FILE_SENT_DETAILS>');
+
 END STORE_DRAFTS_UI_UPSERT;
+
+PROCEDURE SD_BANK_FILE_SNT_DTL_UI_UPSERT (
+/*******************************************************************************
+	SD_BANK_FILE_SNT_DTL_UI_UPSERT
+
+	This procedure is intended to INSERT/UPDATE data in SD_BANK_FILE_SENT_DETAILS table
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<SD_BANK_FILE_SENT_DETAILS_UI_SP xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+<SD_BANK_FILE_SENT_DETAILS>
+<COST_CENTER_CODE>XXXXXX</COST_CENTER_CODE>
+<CHECK_SERIAL_NUMBER>XXXXXXXXXX</CHECK_SERIAL_NUMBER>
+<PROCESS_DATE>MM-DD-RRRR</PROCESS_DATE>
+<SEND_INDICATOR>X</SEND_INDICATOR>
+</SD_BANK_FILE_SENT_DETAILS>
+</SD_BANK_FILE_SENT_DETAILS_UI_SP>
+
+Created : 07/02/2014 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME IN     VARCHAR2
+,IN_ROW_DATA  IN     CLOB)
+IS
+    V_XML   XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA).EXTRACT('/' || IN_TABLE_NAME ||'_UI_SP');
+    V_COUNT NUMBER := 1;
+BEGIN
+
+    WHILE V_XML.EXISTSNODE('//'||IN_TABLE_NAME||'[' || V_COUNT || ']') = 1 LOOP
+        SD_BANK_FILE_SENT_DETAILS_PKG.SD_BANK_FILE_SENT_DETAILS_U_SP(IN_TABLE_NAME,
+                                                                     V_XML.EXTRACT('//'||IN_TABLE_NAME||'[' || V_COUNT || ']').GETCLOBVAL());
+        V_COUNT := V_COUNT + 1;
+    END LOOP;
+
+END SD_BANK_FILE_SNT_DTL_UI_UPSERT;
 
 FUNCTION IS_AUTHORIZED_USER(
 /**********************************************************

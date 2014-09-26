@@ -3,6 +3,8 @@ create or replace PACKAGE errnums
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
 
+THIS PACKAGE CONTAINS ERROR NUMBERS FROM -20000 ONWARDS
+
 created : 04/29/2011 jxc517 CCN Project
 revisions: 
 

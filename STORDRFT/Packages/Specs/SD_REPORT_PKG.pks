@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE SD_REPORT_PKG as 
+create or replace PACKAGE SD_REPORT_PKG as 
 /*********************************************************** 
 This package will hold all pl/sql objects that are needed to 
 store draft reports from 
@@ -10,7 +9,7 @@ created : 08/01/2014
 revisions: 
 ************************************************************/
 
-Procedure Store_draft_report_query
+Procedure sd_report_query
 /**********************************************************
 
 This procedure will build the store draft report data 
@@ -38,6 +37,15 @@ FUNCTION GET_MANAGER_NAME(
    IN_HRCHY_DTL_PREV_LVL_VAL IN HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
    )
       RETURN VARCHAR2;
-    
 
+
+PROCEDURE CCN_HIERARCHY_INFO
+/**********************************************************
+CCN_HIERARCHY_INFO 
+   This procedure is for truncating the CCN_HIERARCHY_INFO 
+   table and pull the updated data from the HIERARCHY_DETAIL_VIEW
+   created : 03/04/2014  nxk927
+**********************************************************/
+;
 end;
+
