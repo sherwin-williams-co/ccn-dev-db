@@ -112,5 +112,17 @@ changed :
 *****************************************************************************/
     IN_RECORD IN    STORE_DRAFTS%ROWTYPE);
 
+PROCEDURE SD_BANK_FILE_SENT_DETAILS_SP(
+/*****************************************************************************
+	SD_BANK_FILE_SENT_DETAILS_SP
+
+	This procedure will do the bussiness rules validations for SD_BANK_FILE_SENT_DETAILS table
+
+created : 09/29/2014 jxc517 CCN Project . . .
+changed :
+*****************************************************************************/
+    IN_COST_CENTER_CODE    IN    SD_BANK_FILE_SENT_DETAILS.COST_CENTER_CODE%TYPE,
+    IN_CHECK_SERIAL_NUMBER IN    SD_BANK_FILE_SENT_DETAILS.CHECK_SERIAL_NUMBER%TYPE);
+
 END SD_BUSINESS_RULES_PKG;
 
