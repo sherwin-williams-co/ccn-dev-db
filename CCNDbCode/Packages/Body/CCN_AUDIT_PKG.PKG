@@ -5,7 +5,7 @@ created : 02/29/2012 tal CCN project
 revisions: 
 ************************************************************/
 
-    V_ATRIBUTE_TAG_VALUE       VARCHAR2(100) := 'ATTRIBUTES';
+    V_ATRIBUTE_TAG_VALUE       VARCHAR2(100) := 'attributes';-- 'ATTRIBUTES';
 
 FUNCTION XML_EXTRACT_NO_EXCEPTION
 /**********************************************************
@@ -363,6 +363,29 @@ EXCEPTION
         OUT_ATTRIBUTE_VALUE := NULL;
 END EXTRACT_HST_ATTRIBUTE_VALUE;
 
+FUNCTION GET_MANAGER_NAME(
+/**********************************************************
+GET_MANAGER_NAME
+
+This function will return the manager name for the passed gems id as required by backfeed
+
+created : 10/08/2014 jxc517 CCN Project Team
+modified: 
+**********************************************************/
+IN_GEMS_ID        EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(400) := RPAD(' ', 360, ' ');
+BEGIN
+    SELECT RPAD(LAST_NAME,150,' ') || ' ' || RPAD(FIRST_NAME,150,' ') || ' ' || RPAD(MIDDLE_INITIAL,60,' ')
+      INTO V_RETURN_VALUE
+      FROM EMPLOYEE_DETAILS
+     WHERE EMPLOYEE_NUMBER = IN_GEMS_ID;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_MANAGER_NAME;
+
 PROCEDURE PARSE_DIFFERENCE_ATTRBTS_XML(
 /**********************************************************
 PARSE_DIFFERENCE_ATTRBTS_XML
@@ -372,7 +395,8 @@ Then start extracting the attributes from those and compare before assigning tho
 to the in out xml string
 
 created : 02/05/2014 jxc517 CCN Project Team
-
+modified: 10/08/2014 jxc517 CCN Project Team
+          GEMS_ID should be used to get the manager name for 6th level of global_hierarchy
 **********************************************************/
     IN_COMP_CURR     IN     XMLTYPE,
     IN_COMP_PREV     IN     XMLTYPE,
@@ -384,13 +408,18 @@ IS
     V_PREV_COUNT               NUMBER := 1;
     V_CURR_ATTRIBUTE_NAME      VARCHAR2(200);
     V_PREV_ATTRIBUTE_NAME      VARCHAR2(200);
-    V_CURR_ATTRIBUTE_VALUE     VARCHAR2(200);
-    V_PREV_ATTRIBUTE_VALUE     VARCHAR2(200);
+    V_CURR_ATTRIBUTE_VALUE     VARCHAR2(1000);
+    V_PREV_ATTRIBUTE_VALUE     VARCHAR2(1000);
     V_HRCHY_HDR_NAME           HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+    V_HRCHY_DTL_LEVEL          HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+    V_PREV_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
+    V_CURR_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
+    V_FLAG                     BOOLEAN := FALSE;
 BEGIN
     
     --Get the Hierarchy Header Name used later in EXTRACT_ATTRIBUTE_NAME_VALUE procedure
-    V_HRCHY_HDR_NAME := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_HDR_NAME'),'~');
+    V_HRCHY_HDR_NAME  := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_HDR_NAME'),'~');
+    V_HRCHY_DTL_LEVEL := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_DTL_LEVEL'),'~');
     
     EXTRACT_ATTRIBUTES_XML(IN_COMP_CURR, V_COMP_CURR_ATTRIBUTES);
 
@@ -427,11 +456,39 @@ BEGIN
                 EXTRACT_HST_ATTRIBUTE_VALUE(V_CURR_ATTRIBUTE_NAME, IN_COMP_PREV, V_PREV_ATTRIBUTE_VALUE);
             END IF;
 
+            --global 6th level needs special treatment w.r.t ManagerName
+            IF V_HRCHY_HDR_NAME                 = 'GLOBAL_HIERARCHY'
+               AND V_HRCHY_DTL_LEVEL            = '06'
+               AND UPPER(V_CURR_ATTRIBUTE_NAME) = 'MANAGERNAME' THEN
+                V_FLAG := TRUE;
+            ELSE
+                V_FLAG := FALSE;
+            END IF;
             --Compare current attribute value with previous attribute value
             --If different then only it should go into audit file
             IF NVL(V_CURR_ATTRIBUTE_VALUE,'A') <> NVL(V_PREV_ATTRIBUTE_VALUE,'A') 
                AND V_CURR_ATTRIBUTE_NAME IS NOT NULL THEN
-                IN_OUT_XMLSTRING := IN_OUT_XMLSTRING || '<' || V_CURR_ATTRIBUTE_NAME || '>' || NVL(V_CURR_ATTRIBUTE_VALUE,'~') ||'</' || V_CURR_ATTRIBUTE_NAME || '>';
+                IF V_FLAG THEN
+                    CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_COMP_CURR_ATTRIBUTES,
+                                                           'GEMS_ID',
+                                                            V_CURR_GEMS_ID);
+                    CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_COMP_PREV_ATTRIBUTES,
+                                                           'GEMS_ID',
+                                                            V_PREV_GEMS_ID);
+                    IF NVL(V_CURR_GEMS_ID,'A') <> NVL(V_PREV_GEMS_ID,'A') THEN --gems id is changed => pass gems_id + manager name
+                        V_CURR_ATTRIBUTE_VALUE := V_CURR_GEMS_ID || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
+                    ELSE --gems id is NOT changed => pass gems_id as 7 spaces + manager name
+                        V_CURR_ATTRIBUTE_VALUE := '       ' || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
+                    END IF;
+                ELSE
+                    V_CURR_ATTRIBUTE_VALUE := V_CURR_ATTRIBUTE_VALUE;
+                END IF;
+                --If GEMS_ID changes, ManagerName should change, so skip GEMS_ID attribute completely for global 6th evel
+                IF NOT (V_HRCHY_HDR_NAME                 = 'GLOBAL_HIERARCHY'
+                        AND V_HRCHY_DTL_LEVEL            = '06'
+                        AND UPPER(V_CURR_ATTRIBUTE_NAME) = 'GEMS_ID') THEN
+                    IN_OUT_XMLSTRING := IN_OUT_XMLSTRING || '<' || V_CURR_ATTRIBUTE_NAME || '>' || NVL(V_CURR_ATTRIBUTE_VALUE,'~') ||'</' || V_CURR_ATTRIBUTE_NAME || '>';
+                END IF;
             END IF;
             
             --Increment the loop count to avoid INFINITE loop
@@ -742,7 +799,11 @@ BEGIN
 
         IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
             --CCN 2.0 release changes to extract attributes dynamically
-            PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
+            --PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
+            PARSE_DIFFERENCE_ATTRBTS_XML(SYS.XMLTYPE(REPLACE(ROW_CURR.GETSTRINGVAL(),'ATTRIBUTES>','attributes>')), 
+                                         SYS.XMLTYPE(REPLACE(ROW_PREV.GETSTRINGVAL(),'ATTRIBUTES>','attributes>')),
+                                         XMLSTRING);
+            
         END IF;
 
         --If the elements have changed OR new row, append them to the XML string
@@ -1076,7 +1137,8 @@ IS
            AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
                                        FROM BATCH_JOB
                                       WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
+            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y')
+            AND TRANSACTION_ID LIKE 'GLOBAL_HIERARCHY|6|%';
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
@@ -1244,3 +1306,4 @@ BEGIN
 END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
+
