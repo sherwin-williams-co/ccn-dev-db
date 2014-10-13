@@ -318,7 +318,7 @@ BEGIN
     --check if the attribute value exists
     IF (IN_XMLSTRING.EXISTSNODE('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || IN_ATTRIBUTE_COUNT || ']/Value/text()') = 1) THEN
         --Get the attribute value
-        OUT_ATTRIBUTE_VALUE := IN_XMLSTRING.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || IN_ATTRIBUTE_COUNT || ']/Value/text()').GETSTRINGVAL();
+        OUT_ATTRIBUTE_VALUE := TRIM(IN_XMLSTRING.EXTRACT('/'||V_ATRIBUTE_TAG_VALUE||'/upper_lvl_ver_desc' || '[' || IN_ATTRIBUTE_COUNT || ']/Value/text()').GETSTRINGVAL());
     END IF;
 
     --Special conditions for existing attributes before CCN 2.0 release
@@ -355,7 +355,7 @@ BEGIN
     IF IN_XMLSTRING IS NOT NULL THEN
         --Logic to extract old Statement Type or statement_type and old Manager Id or managername attributes
         IF CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//'||IN_CURRENT_ATTRIBUTE_NAME) IS NOT NULL THEN
-            OUT_ATTRIBUTE_VALUE := CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//'||IN_CURRENT_ATTRIBUTE_NAME);
+            OUT_ATTRIBUTE_VALUE := TRIM(CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(IN_XMLSTRING,'//'||IN_CURRENT_ATTRIBUTE_NAME));
         END IF;
     END IF;
 EXCEPTION
@@ -374,9 +374,13 @@ modified:
 **********************************************************/
 IN_GEMS_ID        EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE) RETURN VARCHAR2
 IS
-    V_RETURN_VALUE VARCHAR2(400) := RPAD(' ', 360, ' ');
+    V_RETURN_VALUE VARCHAR2(400) := RPAD(' ', 362, ' ');
 BEGIN
-    SELECT RPAD(LAST_NAME,150,' ') || ' ' || RPAD(FIRST_NAME,150,' ') || ' ' || RPAD(MIDDLE_INITIAL,60,' ')
+    SELECT RPAD(NVL(LAST_NAME,' '),150,' ') 
+           || ' ' ||
+           RPAD(NVL(FIRST_NAME,' '),150,' ') 
+           || ' ' || 
+           RPAD(NVL(MIDDLE_INITIAL,' '),60,' ')
       INTO V_RETURN_VALUE
       FROM EMPLOYEE_DETAILS
      WHERE EMPLOYEE_NUMBER = IN_GEMS_ID;
@@ -385,6 +389,71 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VALUE;
 END GET_MANAGER_NAME;
+
+FUNCTION IS_GLBL_SIX_LVL_SPCL_ATTRBTS(
+/**********************************************************
+IS_GLBL_SIX_LVL_SPCL_ATTRBTS
+
+This function will specify if the passed record is of GLOBAL_HIERARCHY
+with 6th level and the current iterating attribute is MANAGERNAME or GEMS_ID
+
+created : 10/10/2014 jxc517 CCN Project Team
+modified: 
+**********************************************************/
+IN_HRCHY_HDR_NAME        VARCHAR2,
+IN_HRCHY_DTL_LEVEL       VARCHAR2,
+IN_CURR_ATTRIBUTE_NAME   VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    IF IN_HRCHY_HDR_NAME                 = 'GLOBAL_HIERARCHY'
+       AND IN_HRCHY_DTL_LEVEL            = '06'
+       AND UPPER(IN_CURR_ATTRIBUTE_NAME) IN ('MANAGERNAME','GEMS_ID') THEN
+        V_RETURN_VALUE := 'Y';
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_GLBL_SIX_LVL_SPCL_ATTRBTS;
+
+PROCEDURE GLBL_SIX_LVL_SPCL_ATTRBS_HNDLN(
+/**********************************************************
+GLBL_SIX_LVL_SPCL_ATTRBS_HNDLN
+
+This proedure handles the GLOBAL_HIERARCHY
+with 6th level and the current iterating attribute is MANAGERNAME or GEMS_ID
+
+created : 10/13/2014 jxc517 CCN Project Team
+modified: 
+**********************************************************/
+    IN_CURRENT_ATTRIBUTE_NAME   IN     VARCHAR2,
+    IN_COMP_CURR_ATTRIBUTES     IN     XMLTYPE,
+    IN_COMP_PREV_ATTRIBUTES     IN     XMLTYPE,
+    IN_OUT_XMLSTRING            IN OUT LONG)
+IS
+    V_CURR_ATTRIBUTE_VALUE     VARCHAR2(1000);
+    V_PREV_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
+    V_CURR_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
+BEGIN
+    --If GEMS_ID changes, ManagerName should change, so skip GEMS_ID attribute completely for global 6th evel
+    IF UPPER(IN_CURRENT_ATTRIBUTE_NAME) <> 'GEMS_ID' THEN
+        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(IN_COMP_CURR_ATTRIBUTES,
+                                                'GEMS_ID',
+                                                V_CURR_GEMS_ID);
+        IF IN_COMP_PREV_ATTRIBUTES IS NOT NULL THEN
+            CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(IN_COMP_PREV_ATTRIBUTES,
+                                                    'GEMS_ID',
+                                                    V_PREV_GEMS_ID);
+        END IF;
+        IF NVL(V_CURR_GEMS_ID,'A') <> NVL(V_PREV_GEMS_ID,'A') THEN --gems id is changed => pass gems_id + manager name
+            V_CURR_ATTRIBUTE_VALUE := RPAD(NVL(V_CURR_GEMS_ID,' '),7,' ') || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
+        ELSE --gems id is NOT changed => pass gems_id as 7 spaces + manager name
+            V_CURR_ATTRIBUTE_VALUE := RPAD(' ',7,' ') || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
+        END IF;
+        IN_OUT_XMLSTRING := IN_OUT_XMLSTRING || '<EMPLOYEE_NAME>' || NVL(V_CURR_ATTRIBUTE_VALUE,'~') ||'</EMPLOYEE_NAME>';
+    END IF;
+END GLBL_SIX_LVL_SPCL_ATTRBS_HNDLN;
 
 PROCEDURE PARSE_DIFFERENCE_ATTRBTS_XML(
 /**********************************************************
@@ -412,11 +481,8 @@ IS
     V_PREV_ATTRIBUTE_VALUE     VARCHAR2(1000);
     V_HRCHY_HDR_NAME           HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
     V_HRCHY_DTL_LEVEL          HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
-    V_PREV_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
-    V_CURR_GEMS_ID             EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
-    V_FLAG                     BOOLEAN := FALSE;
 BEGIN
-    
+
     --Get the Hierarchy Header Name used later in EXTRACT_ATTRIBUTE_NAME_VALUE procedure
     V_HRCHY_HDR_NAME  := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_HDR_NAME'),'~');
     V_HRCHY_DTL_LEVEL := NVL(XML_EXTRACT_NO_EXCEPTION(IN_COMP_CURR,'//HRCHY_DTL_LEVEL'),'~');
@@ -456,37 +522,13 @@ BEGIN
                 EXTRACT_HST_ATTRIBUTE_VALUE(V_CURR_ATTRIBUTE_NAME, IN_COMP_PREV, V_PREV_ATTRIBUTE_VALUE);
             END IF;
 
-            --global 6th level needs special treatment w.r.t ManagerName
-            IF V_HRCHY_HDR_NAME                 = 'GLOBAL_HIERARCHY'
-               AND V_HRCHY_DTL_LEVEL            = '06'
-               AND UPPER(V_CURR_ATTRIBUTE_NAME) = 'MANAGERNAME' THEN
-                V_FLAG := TRUE;
-            ELSE
-                V_FLAG := FALSE;
-            END IF;
             --Compare current attribute value with previous attribute value
             --If different then only it should go into audit file
             IF NVL(V_CURR_ATTRIBUTE_VALUE,'A') <> NVL(V_PREV_ATTRIBUTE_VALUE,'A') 
                AND V_CURR_ATTRIBUTE_NAME IS NOT NULL THEN
-                IF V_FLAG THEN
-                    CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_COMP_CURR_ATTRIBUTES,
-                                                           'GEMS_ID',
-                                                            V_CURR_GEMS_ID);
-                    CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_COMP_PREV_ATTRIBUTES,
-                                                           'GEMS_ID',
-                                                            V_PREV_GEMS_ID);
-                    IF NVL(V_CURR_GEMS_ID,'A') <> NVL(V_PREV_GEMS_ID,'A') THEN --gems id is changed => pass gems_id + manager name
-                        V_CURR_ATTRIBUTE_VALUE := V_CURR_GEMS_ID || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
-                    ELSE --gems id is NOT changed => pass gems_id as 7 spaces + manager name
-                        V_CURR_ATTRIBUTE_VALUE := '       ' || ' ' || GET_MANAGER_NAME(V_CURR_GEMS_ID);
-                    END IF;
+                IF IS_GLBL_SIX_LVL_SPCL_ATTRBTS(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL, V_CURR_ATTRIBUTE_NAME) = 'Y' THEN
+                    GLBL_SIX_LVL_SPCL_ATTRBS_HNDLN(V_CURR_ATTRIBUTE_NAME, V_COMP_CURR_ATTRIBUTES, V_COMP_PREV_ATTRIBUTES, IN_OUT_XMLSTRING);
                 ELSE
-                    V_CURR_ATTRIBUTE_VALUE := V_CURR_ATTRIBUTE_VALUE;
-                END IF;
-                --If GEMS_ID changes, ManagerName should change, so skip GEMS_ID attribute completely for global 6th evel
-                IF NOT (V_HRCHY_HDR_NAME                 = 'GLOBAL_HIERARCHY'
-                        AND V_HRCHY_DTL_LEVEL            = '06'
-                        AND UPPER(V_CURR_ATTRIBUTE_NAME) = 'GEMS_ID') THEN
                     IN_OUT_XMLSTRING := IN_OUT_XMLSTRING || '<' || V_CURR_ATTRIBUTE_NAME || '>' || NVL(V_CURR_ATTRIBUTE_VALUE,'~') ||'</' || V_CURR_ATTRIBUTE_NAME || '>';
                 END IF;
             END IF;
@@ -512,7 +554,6 @@ BEGIN
             END IF;
         END LOOP;
     END IF;
-
 END PARSE_DIFFERENCE_ATTRBTS_XML;
 
 PROCEDURE UPDATE_AUDIT_REC_FLAG(
@@ -570,7 +611,7 @@ BEGIN
         IF IN_COLUMN_NAME = 'COST_CENTER_CODE' THEN
             IN_OUT_COST_CENTER_CODE := IN_COMP_CURR;
         ELSIF IN_COLUMN_NAME = 'HRCHY_DTL_CURR_ROW_VAL' THEN
-            V_HRCHY_DTL_LEVEL := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//HRCHY_DTL_LEVEL'),'~');
+            V_HRCHY_DTL_LEVEL := substr(NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//HRCHY_DTL_LEVEL'),'~'),1,2);
             V_HRCHY_HDR_NAME  := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//HRCHY_HDR_NAME'),'~');
             IF V_HRCHY_DTL_LEVEL = GET_HRCHY_DTL_LEVEL(V_HRCHY_HDR_NAME) THEN
                 --Only for the final level of the hierarchy header we need to populate the Cost Center
@@ -732,9 +773,12 @@ V_COSTCENTERCODE    COST_CENTER.COST_CENTER_CODE%TYPE;
 v_change_type       VARCHAR2(1);
 COMP_CURR           VARCHAR2(1000);
 COMP_PREV	          VARCHAR2(1000);
-XMLSTRING	          VARCHAR2(30000):='';
+XMLSTRING	          CLOB:='';
 SQ		              INTEGER; 
 SE		              VARCHAR2(1000);
+
+V_ROW_PREV	          AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
+V_ROW_CURR	          AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
 
 CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
     SELECT COLUMN_NAME, COLUMN_ID FROM ALL_TAB_COLUMNS WHERE TABLE_NAME = IN_TABLE;
@@ -793,17 +837,22 @@ BEGIN
             COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
         END IF; 
         COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
-        
+
         --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
         GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
 
         IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
             --CCN 2.0 release changes to extract attributes dynamically
             --PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
-            PARSE_DIFFERENCE_ATTRBTS_XML(SYS.XMLTYPE(REPLACE(ROW_CURR.GETSTRINGVAL(),'ATTRIBUTES>','attributes>')), 
-                                         SYS.XMLTYPE(REPLACE(ROW_PREV.GETSTRINGVAL(),'ATTRIBUTES>','attributes>')),
+            IF ROW_CURR IS NOT NULL THEN
+                V_ROW_CURR := SYS.XMLTYPE(REPLACE(ROW_CURR.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>')); 
+            END IF;
+            IF ROW_PREV IS NOT NULL THEN
+                V_ROW_PREV := SYS.XMLTYPE(REPLACE(ROW_PREV.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>'));
+            END IF;
+            PARSE_DIFFERENCE_ATTRBTS_XML(V_ROW_CURR,
+                                         V_ROW_PREV,
                                          XMLSTRING);
-            
         END IF;
 
         --If the elements have changed OR new row, append them to the XML string
@@ -824,7 +873,7 @@ BEGIN
     END LOOP;
 
     UPDATE_AUDIT_REC_FLAG(IN_TABLE_NAME,IN_KEY, V_LOG_ID_PREV, V_LOG_ID_CURR, V_CONTEXT);
-               
+
     V_CONTEXT := 'Final value being set';
     XMLSTRING       := XMLSTRING || '</' || IN_Table_name || '>';
 
@@ -1035,7 +1084,7 @@ BEGIN
      UTL_FILE.FCLOSE(output_file);
 
 EXCEPTION WHEN OTHERS THEN
-	SQ := SQLCODE;
+  SQ := SQLCODE;
 	SE := SQLERRM;
 	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
  
@@ -1137,8 +1186,7 @@ IS
            AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
                                        FROM BATCH_JOB
                                       WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y')
-            AND TRANSACTION_ID LIKE 'GLOBAL_HIERARCHY|6|%';
+            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
