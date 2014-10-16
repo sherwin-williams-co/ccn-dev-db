@@ -1,15 +1,16 @@
 #!/bin/sh
 
 ##########################################################################################
+# Script Name   :  cc_employee_tax_load
 #
 # purpose of this script will be to load CUSTOMER_TAXID_VW table
 #
-# Date Created: 07/30/2014 JXC
-# Date Updated: 
+# Date Created: 07/30/2014 jxc517 CCN Project.....
+# Date Updated: 10/02/2014 jxc517 CCN Project.....
+#               Modified to get the tax details from synonym in COSTCNTR schema instead of 
+#               synonym in STCPR_READ schema
 #
 ##########################################################################################
-echo "\n begin cc_batch_load.sh script"
-
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
@@ -30,13 +31,7 @@ else
    echo "File $FILE does not exists"
 fi
 
-ORACLE_HOME=/swpkg/oracle/product/starcprd/11.2.0.3
-export ORACLE_HOME 
-
-ORACLE_SID=STARCPRD1
-export ORACLE_SID
-
-sqlplus -s -l $cpr_sqlplus_user/$cpr_sqlplus_pw >> ./$FILE <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> ./$FILE <<END
 set echo off
 set linesize 1000
 set feedback off
@@ -46,19 +41,11 @@ set scan off
 
 SELECT 'SET DEFINE OFF;' FROM DUAL;
 SELECT 'TRUNCATE TABLE CUSTOMER_TAXID_VW;' FROM DUAL;
---SELECT 'TRUNCATE TABLE JAVA_ENCRYPT;' FROM DUAL;
 SELECT 'INSERT INTO CUSTOMER_TAXID_VW VALUES ('''||CUSTNUM||''','''||TAXID||''','''||PARENT_STORE||''','''||REPLACE(CUSTNAME,'''','''''')||''','''||DCO_NUMBER||''');' FROM CUSTOMER_TAXID_VW;
---SELECT 'INSERT INTO JAVA_ENCRYPT VALUES ('''||VALUE||''');' FROM JAVA_ENCRYPT;
 SELECT 'COMMIT;' FROM DUAL;
 
 exit;
 END
-
-ORACLE_HOME=/swpkg/oracle/product/stccn/11.2.0.3
-export ORACLE_HOME 
-
-ORACLE_SID=STCCND1
-export ORACLE_SID
 
 sqlplus -s -l $strdrft_sqlplus_user/$strdrft_sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 
