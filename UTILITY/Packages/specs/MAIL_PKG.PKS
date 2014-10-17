@@ -24,7 +24,8 @@ created : 03/03/2013 sxh487 CCN Project....
 **********************************************************/
 IN_MAIL_CATEGORY VARCHAR2,
 IN_TERMINL_NUMBER IN NUMBER default NULL,
-IN_COST_CENTER_CD IN VARCHAR2 default NULL);
+IN_COST_CENTER_CD IN VARCHAR2 default NULL,
+IN_CLOB IN CLOB DEFAULT NULL);
 
 END mail_pkg;
 
