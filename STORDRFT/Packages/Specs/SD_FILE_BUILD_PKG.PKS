@@ -1,4 +1,5 @@
-create or replace PACKAGE SD_FILE_BUILD_PKG
+create or replace 
+PACKAGE SD_FILE_BUILD_PKG
 /**************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -46,5 +47,14 @@ changed :
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
 ;
 
-END SD_FILE_BUILD_PKG;
+PROCEDURE STORE_DRAFT_INTALLER_1099 
+/**********************************************************
 
+	This procedure will build the 1099 intaller file from CPR views.  
+
+created : 7/29/2014
+changed :
+**********************************************************/
+;
+
+END SD_FILE_BUILD_PKG;

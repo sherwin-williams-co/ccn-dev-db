@@ -1,4 +1,5 @@
-create or replace PACKAGE body SD_FILE_BUILD_PKG
+create or replace 
+PACKAGE body SD_FILE_BUILD_PKG
 /****************************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -134,5 +135,97 @@ EXCEPTION
         RAISE;
 END BUILD_1099_FILE;
 
-END SD_FILE_BUILD_PKG;
 
+PROCEDURE STORE_DRAFT_INTALLER_1099 
+/**********************************************************
+
+	This procedure will build the 1099 intaller file from CPR views.  
+
+created : 7/29/2014
+changed :
+**********************************************************/
+IS
+    CURSOR INSTALLER_CUR IS 
+          SELECT SD.DRAFT_NUMBER,
+               SUBSTR(SD.COST_CENTER_CODE,3,4) STORE_NBR,
+               SD.NET_AMOUNT * 100 as Net_amount,
+               to_char(SD.ISSUE_DATE,'MMDDYY') ISSUE_DATE,
+			         ccn_common_tools.DecryptSQL(cv.taxid) AS TAX_ID,
+               CV.CUSTNUM as VENDOR_NBR, 
+               CV.CUSTNAME as VENDOR_NAME,
+               sd.customer_account_number as CUSTOMER_ACCOUNT_NBR,
+               Payee_name CUSTOMER_ACCOUNT_NAME,
+			         CV.PARENT_STORE,
+			         CV.DCO_NUMBER,
+			         (case 
+               when to_char(ISSUE_DATE,'YYYY') = to_char(sysdate,'YYYY') then
+                net_amount *100
+                else 0
+               end) CY_YTD_AMT,
+               (case
+               when to_char(ISSUE_DATE,'YYYY') = to_char(sysdate,'YYYY')-1 then
+			         net_amount * 100
+              else 0
+                  end) LY_YTD_AMT			
+        FROM STORE_DRAFTS SD, customer_taxid_vw CV
+       where cv.custnum = sd.customer_account_number
+        ;
+
+	V_OUT_CLOB 				  CLOB;
+	V_DETAIL_CLOB 		  CLOB;
+
+  PATH        	   			VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+  FILENAME  			      VARCHAR2(50) := 'Installer_1099_QRTLY';
+  STAMP       			    VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
+  OUTPUT_FILE 			    UTL_FILE.FILE_TYPE;
+
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME-- ||' '|| STAMP
+                                   , 'W' --BINARY
+                                   , 32767); 
+
+ FOR INSTALLER_REC IN INSTALLER_CUR LOOP
+	V_OUT_CLOB := INSTALLER_REC.STORE_NBR
+                || '~'
+				        || INSTALLER_REC.DRAFT_NUMBER
+				        || '~'
+				        || LPAD(INSTALLER_REC.NET_AMOUNT,10,0)
+				        || '~' 
+				        || INSTALLER_REC.ISSUE_DATE
+				        || '~'
+				        || INSTALLER_REC.TAX_ID
+				        || '~'
+				        || '          '--INSTALLER_REC.VENDOR_NBR
+				        || '~'
+				        || '                              '--RPAD(INSTALLER_REC.VENDOR_NAME, 30, ' ')
+				        || '~'
+				        || INSTALLER_REC.CUSTOMER_ACCOUNT_NBR
+				        || '~' 
+				        || RPAD(INSTALLER_REC.CUSTOMER_ACCOUNT_NAME, 30, ' ' )
+				        || '~'
+				        || INSTALLER_REC.PARENT_STORE
+                || '~'
+				        || LPAD(INSTALLER_REC.DCO_NUMBER,5,0)
+				        || '~'
+                || LPAD(INSTALLER_REC.CY_YTD_AMT,14,0)
+				        || '~'
+				        || LPAD(INSTALLER_REC.LY_YTD_AMT, 14,0)
+				        || '~' 
+				        || '        '
+              --|| chr(10)
+                ;
+				 
+		UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+    end loop;
+	UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+  
+end STORE_DRAFT_INTALLER_1099;
+
+END SD_FILE_BUILD_PKG;
