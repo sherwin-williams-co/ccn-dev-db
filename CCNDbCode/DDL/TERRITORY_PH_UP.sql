@@ -22,7 +22,7 @@
 	       EMAIL_ADD char (22)
          )        )
       LOCATION
-       ( 'a.csv'
+       ( 'territory_phone.csv'
        )
     )
    REJECT LIMIT UNLIMITED ;
