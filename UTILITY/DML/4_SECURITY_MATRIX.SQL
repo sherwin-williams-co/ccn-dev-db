@@ -1,7 +1,6 @@
 SET SCAN OFF;
 REM INSERTING into SECURITY_MATRIX
 SET DEFINE OFF;
-TRUNCATE TABLE SECURITY_MATRIX;
 Insert into SECURITY_MATRIX values ('kdp465','kdppswrd','CCNU');
 Insert into SECURITY_MATRIX values ('kdp465','kdppswrd','HWA');
 Insert into SECURITY_MATRIX values ('kdp465','kdppswrd','SDA');
