@@ -58,6 +58,20 @@ REVISION:
 (IN_DATE IN DATE)
 ;
 
+PROCEDURE CREATE_NAM_AUDIT_BANK_FILE
+/*****************************************************************************
+	CREATE NAM_AUDIT_BANK_FILE  FILE
+
+THIS PROCEDURE WILL BUILD THE NAS AUDIT DAILY STORE DRAFT AUDITS, ISSUES, 
+VOIDS, STOP PAYS AND REMOVE STOP PAYS 
+
+CREATED : 08/12/2014 AXK326 
+REVISION: 
+
+*****************************************************************************/
+(IN_DATE IN DATE)
+;
+
 PROCEDURE CREATE_US_SUNTRUST_FILE
 /*****************************************************************************
 	CREATE US_SUNTRUST FILE
@@ -87,4 +101,3 @@ REVISION:
 ;
 
 END SD_AUDITFILES_PKG;
-
