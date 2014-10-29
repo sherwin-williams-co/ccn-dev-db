@@ -1,4 +1,4 @@
-create or replace PACKAGE CCN_HIERARCHY
+create or replace PACKAGE          CCN_HIERARCHY
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
@@ -14,7 +14,7 @@ in_COST_CENTER_CODE   IN   VARCHAR2);
 
 PROCEDURE hierarchy_insert_wrapper
 ( in_ind IN VARCHAR2,
-  in_hierarchy_detail_row IN hierarchy_detail%rowtype);
+  in_hierarchy_detail_row IN hierarchy_detail%ROWTYPE);
 
 /**********************************************************
 	RETURN_HIERARCHY
@@ -45,6 +45,7 @@ PROCEDURE RETURN_HIERARCHY_LAST_LVL (
 	
 
 created : 06/22/2012 kdp CCN Project....
+Modified: 10/16/2014 Axk326 CCN Project....
 **********************************************************/
 
 				IN_HEADER_NAME 			IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
@@ -103,7 +104,7 @@ created : 07/22/2012 OD CCN Project....
 					    , 	IN_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
 					    ,   OUT_HIERARCHY_REF_CUR IN OUT REF_CURSOR
 					   );
-               PROCEDURE HIERARCHY_PICKLIST(	
+PROCEDURE HIERARCHY_PICKLIST(	
 /**********************************************************
 	HIERARCHY_PICKLIST
 
@@ -115,8 +116,9 @@ created : 07/22/2012 OD CCN Project....
         
 <HIERARCHY_DETAIL>
   <row_data>
+      <USER_ID>xxxxxx</USER_ID> 
       <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_DTL_LVL>4</HRCHY_DTL_LVL> 
+      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
       <HRCHY_LEVEL1>04</HRCHY_LEVEL1> 
       <HRCHY_LEVEL2>02</HRCHY_LEVEL2>
       <HRCHY_LEVEL3>35</HRCHY_LEVEL3>
@@ -125,8 +127,9 @@ created : 07/22/2012 OD CCN Project....
 </HIERARCHY_DETAIL>
 
 created : 02/13/2013 SH CCN Project....
+modified: 09/25/2014 jxc517 CCN Project.....passing user_id to restrict users with only territory access
 **********************************************************/
-  in_XML                VARCHAR2,
+  in_XML                VARCHAR2,--XMLTYPE,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR);
 
 PROCEDURE HIERARCHY_STMNT_TYPE_PICKLIST(	
@@ -364,6 +367,36 @@ Created : 08/23/2013 CCN Project
 IN_COST_CENTER_CODE IN VARCHAR2)
 RETURN VARCHAR2;
 
+FUNCTION GET_MGR_NAME_FNC(
+/***********************************************************
+GET_MGR_NAME_FNC
+      This function will return the MANAGER_NAME 
+      from COST_CENTER into HRCHY_DTL_DESC
+Created : 10/07/2014 axk326 ccn project
+************************************************************/
+IN_COST_CENTER_CODE IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
+RETURN VARCHAR2;
+
+FUNCTION GET_TYPE_FNC(
+/***********************************************************
+GET_TYPE_FNC
+      This function will return the MANAGER_NAME 
+      from COST_CENTER into HRCHY_DTL_DESC
+Created : 10/07/2014 axk326 ccn project
+************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2)
+RETURN VARCHAR2;
+
+FUNCTION GET_CATEGORY_FNC(
+/***********************************************************
+GET_CATEGORY_FNC
+      This function will return the MANAGER_NAME 
+      from COST_CENTER into HRCHY_DTL_DESC
+Created : 10/07/2014 axk326 ccn project
+************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2)
+RETURN VARCHAR2;
+
 FUNCTION COST_CENTER_STATEMENT_TYPE(
 /***********************************************************
 COST_CENTER_STATEMENT_TYPE
@@ -374,6 +407,15 @@ Created : 09/18/2013 CCN Project
        IN_UPPER_LVL_VER_VALUE  IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
        IN_COST_CENTER_CODE     IN VARCHAR2)
 RETURN VARCHAR2;
+
+FUNCTION GET_COST_CENTER_STMNT_TYP_FNC(
+/***********************************************************
+GET_COST_CENTER_STMNT_TYP_FNC
+      This function will return the statement type for the cost center passed in
+
+Created : 10/28/2013 CCN Project
+************************************************************/
+       IN_COST_CENTER_CODE     IN VARCHAR2) RETURN VARCHAR2;
 
 FUNCTION HIERARCHY_EFF_DATE_RETURN (
 /***********************************************************

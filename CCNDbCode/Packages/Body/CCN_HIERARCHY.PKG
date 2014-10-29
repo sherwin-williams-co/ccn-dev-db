@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE BODY          CCN_HIERARCHY
+create or replace PACKAGE BODY          CCN_HIERARCHY
     AS
 
 /*********************************************************** 
@@ -408,6 +407,32 @@ EXCEPTION
        RETURN IN_UPPER_LVL_VER_VALUE.GETSTRINGVAL();
 END COST_CENTER_STATEMENT_TYPE;
 
+FUNCTION GET_COST_CENTER_STMNT_TYP_FNC(
+/***********************************************************
+GET_COST_CENTER_STMNT_TYP_FNC
+      This function will return the statement type for the cost center passed in
+
+Created : 10/28/2013 CCN Project
+************************************************************/
+       IN_COST_CENTER_CODE     IN VARCHAR2)
+RETURN VARCHAR2 IS
+   V_COST_CENTER_STMNT_TYP COST_CENTER.STATEMENT_TYPE%TYPE;
+BEGIN
+   BEGIN
+       SELECT STATEMENT_TYPE
+         INTO V_COST_CENTER_STMNT_TYP
+         FROM COST_CENTER 
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+   EXCEPTION 
+       WHEN OTHERS THEN
+           NULL;   
+   END;
+   RETURN V_COST_CENTER_STMNT_TYP;
+EXCEPTION
+   WHEN OTHERS THEN
+       RETURN V_COST_CENTER_STMNT_TYP;
+END GET_COST_CENTER_STMNT_TYP_FNC;
+
 FUNCTION GET_MGR_NAME_FNC(
 /*------------------------------------------------------------------------------
                                GET_MGR_NAME_FNC                
@@ -419,6 +444,7 @@ Purpose     : Function to return Manager Name for given Cost Center Code as an i
 Modification History
 --------------------
 Modifed Date         Modified By         Description
+29/10/2014           jxc517              Logic unnecessary, corrected
 --------------------------------------------------------------------------------
 ------------------------------------------------------------------------------*/
 IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE )RETURN VARCHAR2
@@ -426,41 +452,21 @@ IS
     V_MGR_NAME EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
     COUNT_REC  NUMBER;
 BEGIN
-
-    SELECT COUNT(*)
-      INTO COUNT_REC
-      FROM EMPLOYEE_DETAILS
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE; 
-
-    IF COUNT_REC != 1 THEN       
-        SELECT ED.EMPLOYEE_NAME
+   BEGIN
+       SELECT ED.EMPLOYEE_NAME
          INTO V_MGR_NAME
          FROM EMPLOYEE_DETAILS ED
-              --MANAGER_EMPLOYEE ME
-              --WHERE ED.EMPLOYEE_NUMBER  = ME.GEMS_ID_NUMBER
-              --AND ED.COST_CENTER_CODE = ME.COST_CENTER_CODE
-          WHERE UPPER(ED.JOB_TITLE) IN ('MGR','SALES REP')
+        WHERE UPPER(ED.JOB_TITLE) IN ('MGR','SALES REP')
           AND ED.COST_CENTER_CODE = IN_COST_CENTER_CODE
-          AND ROWNUM = 1;
-    ELSE
-        SELECT ED.EMPLOYEE_NAME
-          INTO V_MGR_NAME
-          FROM EMPLOYEE_DETAILS ED
-               --MANAGER_EMPLOYEE ME
-               --WHERE ED.EMPLOYEE_NUMBER  = ME.GEMS_ID_NUMBER
-               --AND ED.COST_CENTER_CODE = ME.COST_CENTER_CODE
-           WHERE UPPER(ED.JOB_TITLE) IN ('MGR','SALES REP')
-           AND ED.COST_CENTER_CODE = IN_COST_CENTER_CODE;    
-    END IF;
-    
-    RETURN V_MGR_NAME;
-    
+          AND ROWNUM < 2;
+   EXCEPTION 
+       WHEN OTHERS THEN
+           NULL;   
+   END;
+   RETURN V_MGR_NAME;    
 EXCEPTION    
-    WHEN NO_DATA_FOUND THEN
-         RETURN NULL;
-        
     WHEN OTHERS THEN
-         RETURN(SQLERRM);
+         RETURN V_MGR_NAME;
 END GET_MGR_NAME_FNC;
 
 FUNCTION GET_TYPE_FNC(
@@ -573,6 +579,7 @@ created : 06/22/2012 kdp CCN Project....
 				AR.HRCHY_DTL_DESC,
                 AR.HRCHY_DTL_CURR_ROW_VAL,
                 AR.UPPER_LVL_VER_VALUE,
+                AR.STATEMENT_TYPE,
                 AR.MGR_NAME,
                 AR.TYPE,
                 AR.CATEGORY
@@ -589,13 +596,14 @@ created : 06/22/2012 kdp CCN Project....
         			hr.HRCHY_DTL_EFF_DATE,
           			hr.HRCHY_DTL_EXP_DATE,
             		--hr.HRCHY_DTL_DESC,
-                COST_CENTER_DESCRIPTION(hr.HRCHY_DTL_CURR_ROW_VAL) HRCHY_DTL_DESC,
+                CCN_HIERARCHY.COST_CENTER_DESCRIPTION(hr.HRCHY_DTL_CURR_ROW_VAL) HRCHY_DTL_DESC,
             		hr.HRCHY_DTL_CURR_ROW_VAL,
             		--xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
                 COST_CENTER_STATEMENT_TYPE(hr.UPPER_LVL_VER_VALUE,hr.HRCHY_DTL_CURR_ROW_VAL) UPPER_LVL_VER_VALUE,
-                GET_MGR_NAME_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) MGR_NAME,
-                GET_TYPE_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) TYPE,
-                GET_CATEGORY_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) CATEGORY
+                CCN_HIERARCHY.GET_COST_CENTER_STMNT_TYP_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) STATEMENT_TYPE,
+                CCN_HIERARCHY.GET_MGR_NAME_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) MGR_NAME,
+                CCN_HIERARCHY.GET_TYPE_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) TYPE,
+                CCN_HIERARCHY.GET_CATEGORY_FNC(hr.HRCHY_DTL_CURR_ROW_VAL) CATEGORY
 				  FROM HIERARCHY_DETAIL hr
 				 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
 				)  AR
@@ -3186,11 +3194,11 @@ BEGIN
    END LOOP;
 
      --Sending mail for the category 'HIER_TRNSFR_TERRITORY'
-     if v_clob <> empty_clob() then
+     IF v_clob <> empty_clob() THEN
       MAIL_PKG.SEND_MAIL('HIER_TRNSFR_TERRITORY', NULL, NULL, V_CLOB);
-            else 
-         null;
-     end if;
+            ELSE 
+         NULL;
+     END IF;
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -3414,3 +3422,4 @@ EXCEPTION
 END GET_RQSTD_ATTRIBUTE_VALUE;
 
 END CCN_HIERARCHY;
+
