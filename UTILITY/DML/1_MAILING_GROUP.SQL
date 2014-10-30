@@ -10,4 +10,6 @@ insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('6','Nirajan.Karki@sherwin.
 insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('7','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;sinthujan.thamo@sherwin.com');
 insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('8','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;sinthujan.thamo@sherwin.com');
 insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('9','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;sinthujan.thamo@sherwin.com');
+insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('10','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;sinthujan.thamo@sherwin.com');
+insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('11','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;sinthujan.thamo@sherwin.com');
 COMMIT;
