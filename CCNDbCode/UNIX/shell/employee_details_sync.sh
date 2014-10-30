@@ -3,7 +3,7 @@
 # Script Name   :  employee_details_sync.sh
 #
 # Description    :  This shell program will invoke the procedure from the backend to 
-                    synchronize the data that has been udpated in the source environment via VIEW
+#                   synchronize the data that has been udpated in the source environment via VIEW
 #
 # Created           :  JXC517 08/27/2014
 ############################################################################
@@ -11,7 +11,7 @@
 . /app/ccn/host.sh
 
  proc="SYNC_EMPLOYEE_DETAILS"
- LOGDIR="$HOME/initLoad/STORDRFT"
+ LOGDIR="$HOME/batchJobs"
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
