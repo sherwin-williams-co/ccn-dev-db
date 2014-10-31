@@ -3,6 +3,7 @@ SET SCAN OFF;
 REM INSERTING into BATCH_JOB
 SET DEFINE OFF;
 
+--delete from BATCH_JOB where BATCH_JOB_NAME ='BENEFIT_JOB';
 INSERT
   INTO BATCH_JOB
     (
@@ -19,8 +20,8 @@ INSERT
       'BENEFIT_JOB',
       BATCH_JOB_NUMBER_SEQ.NEXTVAL,
       'COMPLETED',
-      SYSDATE,
-      NULL,
+      '01-OCT-2014',
+      '01-OCT-2014',
       '01-OCT-2014',
       'SUCCESSFUL'
     );
