@@ -8,7 +8,7 @@
 #				  
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/05/2014 axk326 CCN Project Team.....
-#			 Commented daily_drafts_load.sh and triggered it out in individual cron 
+#			 Commented daily_paids_load.sh and triggered it out in individual cron 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
