@@ -35,7 +35,7 @@ echo "Processing Started for $proc at $TIME on $DATE"
 ##############################################################################
 # Load the daily paids data from files into stordrft database
 ##############################################################################
-./daily_paids_load.sh
+#./daily_paids_load.sh
 
 ##############################################################################
 # Call for the daily issue interface files into stordrft database
