@@ -9,6 +9,20 @@ Changed :
 
 TYPE REF_CURSOR IS REF CURSOR;
 
+
+FUNCTION GET_JOB_CODE
+/**********************************************************
+ GET_JOB_CODE
+
+Returns the job_code from the Translation table
+created : 11/05/2014 sxh487 CCN Project....
+**********************************************************/
+(IN_JOB_TITLE  IN   JOB_CODE_TRANSALATION.JOB_TITLE_SEGMENT%TYPE,
+ IN_JOB_FAMILY IN   JOB_CODE_TRANSALATION.JOB_FAMILY_SEGMENT%TYPE,
+ IN_JOB_TYPE   IN   JOB_CODE_TRANSALATION.ORG_UNIT_NAME%TYPE
+ )
+RETURN VARCHAR2;
+
 PROCEDURE EMPLOYEE_DETAILS_S_SP (
 /*******************************************************************************
 	EMPLOYEE_DETAILS_S_SP
@@ -98,4 +112,3 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
 
 END CCN_EMPLOYEE_DETAILS_PKG;
-
