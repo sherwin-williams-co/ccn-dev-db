@@ -65,5 +65,33 @@ exc_mntnc_not_allwd_twice_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_mntnc_not_allwd_twice_err , -20026);
 
+/*********************************************************** 
+The "gl_prime_accnt_nbr_err" passes a numerical error of -20027.
+This error will be used if there is a gl_account passed with
+prime account number not equal to 4 characters
+
+created : 11/04/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_gl_prime_accnt_nbr_err CONSTANT NUMBER := -20027;
+exc_gl_prime_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_prime_accnt_nbr_err , -20027);
+
+/*********************************************************** 
+The "gl_sub_accnt_nbr_err" passes a numerical error of -20028.
+This error will be used if there is a gl_account passed with
+sub account number not equal to 3 characters
+
+created : 11/04/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_gl_sub_accnt_nbr_err CONSTANT NUMBER := -20028;
+exc_gl_sub_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_sub_accnt_nbr_err , -20028);
+
 END errnums;
 

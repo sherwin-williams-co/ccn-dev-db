@@ -239,20 +239,6 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT REF_CURSOR);
 
-PROCEDURE STORE_DRAFTS_FILTER_S_SP (
-/*******************************************************************************
-	STORE_DRAFTS_FILTER_S_SP
-
-	This procedure is intended to select records from STORE_DRAFTS & UNATTACHED_MNL_DRFT_DTL table
-  with all fields part of the filtering
-
-Created : 10/27/2014 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_TABLE_NAME IN     VARCHAR2
-,IN_ROW_DATA  IN     CLOB
-,OUT_REF_CUR     OUT REF_CURSOR);
-
 PROCEDURE UNATTACHED_MNL_DRFT_DTL_S_SP (
 /*******************************************************************************
 	UNATTACHED_MNL_DRFT_DTL_S_SP
@@ -596,3 +582,4 @@ IN_TABLE_NAME IN     VARCHAR2
 
 
 END SD_TABLE_IU_PKG;
+

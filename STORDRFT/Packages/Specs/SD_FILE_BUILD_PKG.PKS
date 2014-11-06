@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE SD_FILE_BUILD_PKG
+create or replace PACKAGE SD_FILE_BUILD_PKG
 /**************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -55,6 +54,8 @@ PROCEDURE STORE_DRAFT_INTALLER_1099
 created : 7/29/2014
 changed :
 **********************************************************/
+(in_date in date) 
 ;
 
 END SD_FILE_BUILD_PKG;
+

@@ -14,9 +14,9 @@ changed :
 
 --
 --
-		PROCEDURE CODE_TABLE_H_SP (
+		PROCEDURE CODE_HEADER_S_SP (
 /**********************************************************
-	CODE_TABLE_H_SP
+	CODE_HEADER_S_SP
 
 	This procedure is intended to return a ref cursor with data from 
 	from the CODE_HEADER.  
@@ -29,9 +29,9 @@ changed :
 			, out_CODE_HEADER_CUR OUT REF_CUR_CODE)
 ;
 
-		PROCEDURE CODE_TABLE_D_SP (
+		PROCEDURE CODE_DETAIL_S_SP (
 /**********************************************************
-	CODE_TABLE_D_SP
+	CODE_DETAIL_S_SP
 
 	This procedure is intended to return a ref cursor with data from 
 	from the CODE_DETAIL table.  
@@ -60,9 +60,9 @@ changed :
 	in_DETAIL_VALUE IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE)
 RETURN VARCHAR2;
 
-	PROCEDURE CODE_TABLE_D_DESC_SP (
+	PROCEDURE CODE_DETAIL_DESC_SP (
 /**********************************************************
-	CODE_TABLE_D_DESC_SP
+	CODE_DETAIL_DESC_SP
 
 	This procedure is intended to return a ref cursor with data from 
 	from the CODE_DETAIL table.  

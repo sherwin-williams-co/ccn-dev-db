@@ -124,5 +124,16 @@ changed :
     IN_COST_CENTER_CODE    IN    SD_BANK_FILE_SENT_DETAILS.COST_CENTER_CODE%TYPE,
     IN_CHECK_SERIAL_NUMBER IN    SD_BANK_FILE_SENT_DETAILS.CHECK_SERIAL_NUMBER%TYPE);
 
+PROCEDURE SD_GL_ACCOUNT_VALIDATION(
+/*****************************************************************************
+	SD_GL_ACCOUNT_VALIDATION
+
+	This procedure will do the bussiness rules validations for GL_ACCOUNT_NUMBER
+
+created : 11/04/2014 jxc517 CCN Project . . .
+changed :
+*****************************************************************************/
+    IN_GL_ACCOUNT_NUMBER    IN    VARCHAR2);
+
 END SD_BUSINESS_RULES_PKG;
 
