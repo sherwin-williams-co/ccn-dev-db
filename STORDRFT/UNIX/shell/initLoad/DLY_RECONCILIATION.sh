@@ -1,43 +1,23 @@
 #!/bin/sh
 #################################################################
-# Script name   : dailyLoad_CAT.sh
+# Script name   : DLY_RECONCILIATION.sh
 #
-# Description   : concatenate the dailyLoad files created
+# Description   : This script is to run the daily reconciliation report
 #
-# Created  : 10/22/2014 jxc517 CCN Project Team.....
+# Created  : 11/05/2014 jxc517 CCN Project Team.....
 # Modified :
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="dailyLoad_CAT"
+proc_name="DLY_RECONCILIATION"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-cd $HOME/initLoad
+P1=`date --d "1 day ago" "+%m/%d/%Y"`
 
-#Concatenating all the files
-if ls CUSTOMER_LABOR_*.TXT &> /dev/null;then
-   echo "  CUSTOMER files exists - concatenating customer data files"
-   cat /dev/null > CUSTOMER_LABOR.TXT
-   cat CUSTOMER_LABOR_*.TXT >> CUSTOMER_LABOR.TXT
-else
-   echo "  Customer files do not exist "
-   cat /dev/null > CUSTOMER_LABOR.TXT
-fi
-
-if ls STORE_DRAFT_*.TXT &> /dev/null;then
-   echo "  StoreDraft files exists - concatenating StoreDraft data files"
-   cat /dev/null > STORE_DRAFT.TXT
-   cat STORE_DRAFT_*.TXT >> STORE_DRAFT.TXT
-else
-   echo "  StoreDraft files do not exist "
-   cat /dev/null > STORE_DRAFT.TXT
-fi
-
-#Moving back to invoking folder as the process has to continue
-cd $HOME/dailyLoad
+./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.DISPLAY_AMOUNTS" "$P1"
 
 ############################################################################
 #                           ERROR STATUS CHECK 

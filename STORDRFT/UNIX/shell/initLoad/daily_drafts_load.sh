@@ -38,8 +38,8 @@ DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
+    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+exit 1;
 fi
 
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  

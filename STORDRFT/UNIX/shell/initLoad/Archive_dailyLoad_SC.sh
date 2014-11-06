@@ -1,17 +1,17 @@
 #!/bin/sh
 #################################################################
-# Script name   : Archive_dailyLoad.sh
+# Script name   : Archive_dailyLoad_SC.sh
 #
 # Description   : This shell program will Archive the dailyLoad files created 
-#                   for CUSTOMER_LABOR, STORE_DRAFT, Suntrust & Royal paid Files
+#                   for CUSTOMER_LABOR, STORE_DRAFT files
 #
-# Created  : 10/22/2014 jxc517 CCN Project Team.....
+# Created  : 11/06/2014 axk326 CCN Project Team.....
 # Modified :
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="Archive_dailyLoad"
+proc_name="Archive_dailyLoad_SC"
 CUR_PATH="$HOME/initLoad"
 ARCHIVE_PATH="$HOME/dailyLoad/archieve/drafts"
 TIME=`date +"%H:%M:%S"`
@@ -30,18 +30,18 @@ fi
 cd $CUR_PATH
 #Archive file for store_draft.
 if 
-    ls STORE_DRAFT_*.TXT &> /dev/null; then
-    echo " Store Draft files exist "
-    find -maxdepth 1 -name STORE_DRAFT_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
+    ls STORE_DRAFT.TXT &> /dev/null; then
+    echo " Store Draft file exist "
+    find -maxdepth 1 -name STORE_DRAFT.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " Store Draft files doesn't exists "
 fi
 
 #Archive file for customer_labor.
 if 
-    ls CUSTOMER_LABOR_*.TXT &> /dev/null; then
+    ls CUSTOMER_LABOR.TXT &> /dev/null; then
     echo " Customer Labor files exist "
-    find -maxdepth 1 -name CUSTOMER_LABOR_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
+    find -maxdepth 1 -name CUSTOMER_LABOR.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " Customer Labor files doesn't exists "
 fi

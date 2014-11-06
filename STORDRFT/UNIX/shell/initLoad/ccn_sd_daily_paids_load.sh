@@ -6,7 +6,8 @@
 #                 Loads all the store drafts tables paid details
 #				  
 # Created  : 11/05/2014 axk326 CCN Project Team.....
-# Modified : 
+# Modified : 11/06/2014 jxc517/axk326 CCN Project Team.....
+#            Added concatenation and archiving process before run
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -17,10 +18,19 @@ DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc at $TIME on $DATE"
 
 ##############################################################################
-# Load the daily drafts data from files into stordrft database
+# Run the shell script to concatenate the daily files and archiving the individual files
+##############################################################################
+./dailyLoad_CAT_Archieve_Paids.sh
+
+##############################################################################
+# Load the daily paids data from files into stordrft database
 ##############################################################################
 ./daily_paids_load.sh
 
+##############################################################################
+# Run the shell script to archive individual files for Royal and Suntrust
+##############################################################################
+./Archive_dailyLoad_Paid_Files.sh
 
 ############################################################################
 #                           ERROR STATUS CHECK 

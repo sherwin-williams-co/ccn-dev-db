@@ -34,14 +34,33 @@ echo "Processing Started for $proc at $TIME on $DATE"
 ./daily_drafts_load.sh
 
 ##############################################################################
-# Call for the daily issue interface files into stordrft database
+# if there is no error in the daily load then following process will run
+#      1) Call for the daily issue interface files into stordrft database
+#      2) Call for the daily reconciliation report
+# else it will send mail for the error. 
 ##############################################################################
-./DLY_DRAFT_LOAD.sh
+
+status=$?
+if test $status -ne 0
+then
+echo "Daily Load process failed"
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+set heading off;
+set verify off;
+execute MAIL_PKG.send_mail('SD_DAILY_LOAD_FAIL');
+exit;
+END
+exit 1
+else
+ echo "Running DLY_DRAFT_LOAD process"
+	./DLY_DRAFT_LOAD.sh
+	./DLY_RECONCILIATION.sh
+fi
 
 ##############################################################################
-# Call for the daily reconciliation report
+# Run the shell script to archive the STORE_DRAFT and CUSTOMER_LABOR files
 ##############################################################################
-./DLY_RECONCILIATION.sh
+./Archive_dailyLoad_SC.sh
 
 ############################################################################
 #                           ERROR STATUS CHECK 
