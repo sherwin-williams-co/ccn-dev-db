@@ -1,3 +1,14 @@
+#!/bin/sh
+#################################################################
+# Script name   : daily_paids_filewatcher.sh
+#
+# Description   : This shell program will initiate the script that
+#                 Loads all the paids when the paid files arrives 
+#				  on the server.
+#
+# Created  : 11/07/2014 axk326 CCN Project Team.....
+# Modified :
+#################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/dailyLoad/daily_paids_filewatcher.sh > $HOME/dailyLoad/archieve/logs/daily_paids_filewatcher.log 2>&1 &
 
