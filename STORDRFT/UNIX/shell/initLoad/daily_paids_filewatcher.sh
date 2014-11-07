@@ -10,7 +10,6 @@
 
 daily_paids_path="$HOME/dailyLoad"
 datafiles_path="$HOME/initLoad"
-originalfile="$datafiles_path/STBD0601_PAID_*.TXT"
 
 # Search for the file named STBD0601_PAID_*.TXT STBD0101_PAID_*.TXT
 while true; 
