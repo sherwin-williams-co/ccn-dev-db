@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE BODY SD_BANKFILES_PKG 
+create or replace PACKAGE BODY SD_BANKFILES_PKG 
 /****************************************************************************** 
 THIS PACKAGE BODY WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO 
 CREATE AND BUILD THE DAILY STORE DRAFT ISSUES, VOIDS, STOP PAYS, 
@@ -43,13 +42,13 @@ IS
         SELECT  DISTINCT SD.COST_CENTER_CODE,
                          --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
                          '8800600853' as BANK_ACCOUNT_NUMBER,
-                         SD.CHECK_SERIAL_NUMBER,
+                         nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER,
                          --SD.BANK_NUMBER,
                          '088' as BANK_NUMBER,
                         -- TO_CHAR(SD.ISSUE_DATE,'MMDDYY') ISSUE_DATE,
                          TO_CHAR(sysdate,'MMDDYY') ISSUE_DATE,
                          SD.BANK_PAID_AMOUNT * 100 AS BANK_PAID_AMOUNT,
-                         SD.NET_AMOUNT * 100 AS NET_AMOUNT,
+                         nvl(SD.NET_AMOUNT,0) * 100 AS NET_AMOUNT,
                          (SELECT SUM(ITEM_EXT_AMOUNT)
                             FROM STORE_DRAFTS_DETAIL SDD
                            WHERE SD.TRANSACTION_DATE = SDD.TRANSACTION_DATE
@@ -135,7 +134,7 @@ V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
                       || '*10'
                       ||LPAD( IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
                       ||LPAD( IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                      ||LPAD( IN_RECORD.NET_AMOUNT, 11, 0 )--LPAD( SD_REC.BANK_PAID_AMOUNT, 9, 0 )
+                      ||LPAD( SD_COMMON_TOOLS.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',IN_RECORD.NET_AMOUNT), 11, 0 )
                       ||RPAD( IN_RECORD.PAYEE_NAME, 15, ' ' )
                       ||'111111111'
                       || '                      ';
@@ -279,7 +278,7 @@ Modified:
     IN_DATE IN DATE)
 IS
     CURSOR SD_CUR IS
-        SELECT  DISTINCT SD.COST_CENTER_CODE,
+       SELECT  DISTINCT SD.COST_CENTER_CODE,
                          --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
                          '8800600275' as BANK_ACCOUNT_NUMBER,
                          nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER ,
@@ -318,6 +317,7 @@ IS
                               AND CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER
                               AND SEND_INDICATOR      = 'Y')
          ORDER BY BANK_ACCOUNT_NUMBER;
+
 
     V_OUT_CLOB                   CLOB;
   --  v_prev_rec                   SD_CUR%ROWTYPE;
@@ -376,7 +376,7 @@ V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
                       || '*10'
                       ||LPAD( IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
                       ||LPAD( IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                      ||LPAD( IN_RECORD.NET_AMOUNT, 11, 0 )--LPAD( SD_REC.BANK_PAID_AMOUNT, 9, 0 )
+                      ||LPAD( SD_COMMON_TOOLS.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',IN_RECORD.NET_AMOUNT), 11, 0 )
                       ||RPAD( IN_RECORD.PAYEE_NAME, 15, ' ' )
                       ||'111111111'
                       || '                      ';
@@ -774,4 +774,219 @@ BEGIN
     UTL_FILE.FCLOSE(OUTPUT_FILE);
 END CREATE_CAN_AUTO_FILE; 
 
+
+PROCEDURE CREATE_US_AUTO_PAID_FILE(
+/***************************************************************************** 
+        CREATE US_AUTO_PAID FILE  FILE 
+
+THIS PROCEDURE WILL BUILD THE US  AUTOMOTIVE DAILY STORE DRAFT ISSUES, VOIDS, STOP PAYS, 
+AND REMOVE STOP PAYS 
+
+CREATED : 07/23/2014 NXK 
+REVISION: 
+*****************************************************************************/ 
+    IN_DATE IN DATE)
+IS
+    CURSOR SD_CUR IS
+        SELECT DISTINCT SD.COST_CENTER_CODE,
+                        SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
+                        SD.CHECK_SERIAL_NUMBER,
+                        SD.BANK_NUMBER,
+                        SD.BANK_PAID_AMOUNT * 100 AS BANK_PAID_AMOUNT,
+                        SD.NET_AMOUNT * 100 AS NET_AMOUNT,
+                        (SELECT SUM(ITEM_QUANTITY)
+                           FROM STORE_DRAFTS_DETAIL SDD
+                          WHERE SD.TRANSACTION_DATE = SDD.TRANSACTION_DATE
+                            AND SD.CHECK_SERIAL_NUMBER = SDD.CHECK_SERIAL_NUMBER)* 100 AS ITEM_QUANTITY,
+                        SD.TRANSACTION_SOURCE,
+                        TO_CHAR(SD.PAID_DATE,'YYYYMMDD') PAID_DATE,
+                        SD.CHANGE_SOURCE,
+                        CH.STATEMENT_TYPE
+          FROM STORE_DRAFTS SD,
+               CCN_HIERARCHY_INFO CH
+         WHERE CH.COST_CENTER_CODE = SD.COST_CENTER_CODE
+           AND SD.TRANSACTION_DATE = IN_DATE
+           AND SD.PAY_INDICATOR    = 'Y'
+           AND CH.STATEMENT_TYPE   = 'AC'
+           AND CH.HRCHY_HDR_NAME   = 'GLOBAL_HIERARCHY'
+           AND NOT EXISTS (SELECT 1
+                             FROM SD_BANK_FILE_SENT_DETAILS
+                            WHERE COST_CENTER_CODE    = SD.COST_CENTER_CODE
+                              AND CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER
+                              AND SEND_INDICATOR      = 'Y')           
+         ORDER BY BANK_ACCOUNT_NUMBER;
+
+    V_TOTAL_COUNT                NUMBER := 0; 
+    V_TOTAL_AMOUNT               NUMBER := 0; 
+    V_OUT_CLOB                   CLOB;
+    v_prev_rec                   SD_CUR%ROWTYPE; 
+
+    PATH           VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE 
+    FILENAME       VARCHAR2(50) := 'US_AUTO_PAID'; 
+    STAMP          VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE 
+    OUTPUT_FILE    UTL_FILE.FILE_TYPE; 
+BEGIN 
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME || STAMP
+                                   , 'W' --BINARY
+                                   , 32767);
+    FOR SD_REC IN SD_CUR LOOP
+        IF IS_BANK_ACCOUNT_CHANGED(v_prev_rec.BANK_ACCOUNT_NUMBER,SD_REC.BANK_ACCOUNT_NUMBER) THEN 
+            IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN 
+                V_OUT_CLOB := V_OUT_CLOB
+                              || '*98'
+                              ||LPAD( v_prev_rec.BANK_NUMBER, 3, 0 )
+                              ||LPAD( v_prev_rec.BANK_ACCOUNT_NUMBER, 10, 0 )
+                              || '                                          '
+                              ||LPAD( V_TOTAL_COUNT, 9, 0 )
+                              ||LPAD( V_TOTAL_AMOUNT, 10, 0 );
+                V_TOTAL_COUNT  := 0;
+                V_TOTAL_AMOUNT := 0;
+            END IF;
+            V_OUT_CLOB := V_OUT_CLOB
+                          || '*00'
+                          ||LPAD( SD_REC.BANK_NUMBER, 3, 0 )
+                          ||LPAD( SD_REC.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || '                                                        '
+                          ||LPAD( SD_REC.PAID_DATE, 6, 0 )
+                          || CHR(10);
+        END IF;
+        V_OUT_CLOB := V_OUT_CLOB
+                      || '*50'
+                      ||LPAD( SD_REC.BANK_NUMBER, 3, 0 )
+                      ||LPAD( SD_REC.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      ||LPAD( SD_REC.CHECK_SERIAL_NUMBER, 10, 0 )
+                      ||LPAD( SD_REC.PAID_DATE, 6, 0 )
+                      ||LPAD( SD_REC.BANK_PAID_AMOUNT, 8, 0 )
+                      ||LPAD( SD_REC.CHANGE_SOURCE, 9, 0 )
+                      || '                             '
+                      || CHR(10);
+        V_TOTAL_COUNT  := V_TOTAL_COUNT + 1;
+        V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + SD_REC.BANK_PAID_AMOUNT;
+        v_prev_rec     := SD_REC;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+        V_OUT_CLOB := NULL;
+    END LOOP;
+    IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
+        ---CPR PAID ITEM FILE HEADER RECORD
+        V_OUT_CLOB := V_OUT_CLOB
+                      || '*98'
+                      ||LPAD( v_prev_rec.BANK_NUMBER, 3, 0 )
+                      ||LPAD( v_prev_rec.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      || '                                          '
+                      ||LPAD( V_TOTAL_COUNT, 9, 0 )
+                      ||LPAD( V_TOTAL_AMOUNT, 10, 0 );
+    END IF;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+END CREATE_US_AUTO_PAID_FILE;
+
+PROCEDURE CREATE_US_NONAUTO_PAID_FILE(
+/***************************************************************************** 
+        CREATE US_AUTO FILE 
+
+THIS PROCEDURE WILL BUILD THE US  STORE DAILY STORE DRAFT ISSUES, VOIDS, STOP PAYS, 
+AND REMOVE STOP PAYS 
+
+CREATED : 07/23/2014 NXK 
+REVISION: 
+
+*****************************************************************************/ 
+    IN_DATE IN DATE)
+IS
+    CURSOR SD_CUR IS
+        SELECT DISTINCT SD.COST_CENTER_CODE,
+                        SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
+                        SD.CHECK_SERIAL_NUMBER,
+                        SD.BANK_NUMBER,
+                        SD.BANK_PAID_AMOUNT * 100 AS BANK_PAID_AMOUNT,
+                        SD.NET_AMOUNT * 100 AS NET_AMOUNT,
+                        (SELECT SUM(ITEM_QUANTITY)
+                           FROM STORE_DRAFTS_DETAIL SDD
+                          WHERE SD.TRANSACTION_DATE = SDD.TRANSACTION_DATE
+                            AND SD.CHECK_SERIAL_NUMBER = SDD.CHECK_SERIAL_NUMBER)* 100 AS ITEM_QUANTITY,
+                        SD.TRANSACTION_SOURCE,
+                        TO_CHAR(SD.PAID_DATE,'YYYYMMDD') PAID_DATE,
+                        SD.CHANGE_SOURCE,
+                        CH.STATEMENT_TYPE
+          FROM STORE_DRAFTS SD,
+               CCN_HIERARCHY_INFO CH
+         WHERE CH.COST_CENTER_CODE = SD.COST_CENTER_CODE
+           AND SD.TRANSACTION_DATE = IN_DATE
+           AND SD.PAY_INDICATOR    = 'Y'
+           AND CH.STATEMENT_TYPE   NOT IN ('CN', 'DC', 'QC', 'AU', 'AC')
+           AND CH.HRCHY_HDR_NAME   = 'GLOBAL_HIERARCHY'
+           AND NOT EXISTS (SELECT 1
+                             FROM SD_BANK_FILE_SENT_DETAILS
+                            WHERE COST_CENTER_CODE    = SD.COST_CENTER_CODE
+                              AND CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER
+                              AND SEND_INDICATOR      = 'Y')
+         ORDER BY BANK_ACCOUNT_NUMBER;
+
+    V_TOTAL_COUNT                NUMBER := 0; 
+    V_TOTAL_AMOUNT               NUMBER := 0; 
+    V_OUT_CLOB                   CLOB; 
+    v_prev_rec                   SD_CUR%ROWTYPE; 
+
+    PATH           VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE 
+    FILENAME       VARCHAR2(50) := 'US_AUTO_PAID'; 
+    STAMP          VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE 
+    OUTPUT_FILE    UTL_FILE.FILE_TYPE;
+BEGIN 
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME || STAMP
+                                   , 'W' --BINARY
+                                   , 32767);
+    FOR SD_REC IN SD_CUR LOOP
+        IF IS_BANK_ACCOUNT_CHANGED(v_prev_rec.BANK_ACCOUNT_NUMBER,SD_REC.BANK_ACCOUNT_NUMBER) THEN 
+            IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN 
+                V_OUT_CLOB := V_OUT_CLOB
+                              || '*98'
+                              ||LPAD( v_prev_rec.BANK_NUMBER, 3, 0 )
+                              ||LPAD( v_prev_rec.BANK_ACCOUNT_NUMBER, 10, 0 )
+                              || '                                          '
+                              ||LPAD( V_TOTAL_COUNT, 9, 0 )
+                              ||LPAD( V_TOTAL_AMOUNT, 10, 0 );
+                V_TOTAL_COUNT  := 0;
+                V_TOTAL_AMOUNT := 0;
+            END IF;
+            V_OUT_CLOB := V_OUT_CLOB
+                          || '*00'
+                          ||LPAD( SD_REC.BANK_NUMBER, 3, 0 )
+                          ||LPAD( SD_REC.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || '                                                        '
+                          ||LPAD( SD_REC.PAID_DATE, 6, 0 )
+                          || CHR(10);
+        END IF;
+        V_OUT_CLOB := V_OUT_CLOB
+                      || '*50'
+                      ||LPAD( SD_REC.BANK_NUMBER, 3, 0 )
+                      ||LPAD( SD_REC.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      ||LPAD( SD_REC.CHECK_SERIAL_NUMBER, 10, 0 )
+                      ||LPAD( SD_REC.PAID_DATE, 6, 0 )
+                      ||LPAD( SD_REC.BANK_PAID_AMOUNT, 8, 0 )
+                      ||LPAD( SD_REC.CHANGE_SOURCE, 9, 0 )
+                      || '                             '
+                      || CHR(10);
+        V_TOTAL_COUNT  := V_TOTAL_COUNT + 1;
+        V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + SD_REC.BANK_PAID_AMOUNT;
+        v_prev_rec     := SD_REC;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+        V_OUT_CLOB := NULL;
+    END LOOP;
+   -- IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
+        ---CPR PAID ITEM FILE HEADER RECORD
+        V_OUT_CLOB := V_OUT_CLOB
+                      || '*98'
+                      ||LPAD( v_prev_rec.BANK_NUMBER, 3, 0 )
+                      ||LPAD( v_prev_rec.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      || '                                          '
+                      ||LPAD( V_TOTAL_COUNT, 9, 0 )
+                      ||LPAD( V_TOTAL_AMOUNT, 10, 0 );
+   -- END IF;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+END CREATE_US_NONAUTO_PAID_FILE; 
+
 END SD_BANKFILES_PKG;
+
