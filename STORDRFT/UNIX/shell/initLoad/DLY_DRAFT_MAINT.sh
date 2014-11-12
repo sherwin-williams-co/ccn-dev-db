@@ -11,14 +11,18 @@
 . /app/stordrft/host.sh
 
 proc_name="DLY_DRAFT_MAINT"
+proc_name1="DD_CAN_AM_FTP_ARCH"
+proc_name2="DD_CAN_NAM_FTP_ARCH"
+LOGDIR=$HOME/dailyLoad/logs
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ./DLY_MAINT_DRAFT_US_AM.sh
 ./DLY_MAINT_DRAFT_US_NAM.sh
-./DMD_US_AM_FTP_ARCH.sh
-./DMD_US_NAM_FTP_ARCH.sh
+./DMD_US_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
+./DMD_US_NAM_FTP_ARCH.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
 
 ############################################################################
 #                           ERROR STATUS CHECK 
