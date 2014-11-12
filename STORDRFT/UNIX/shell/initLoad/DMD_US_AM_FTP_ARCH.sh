@@ -22,17 +22,15 @@ date=`date +"%Y%m%d%H%M%S"`
 cd $HOME/initLoad
 
 # ftp to mainframe to thier respective production name
-#ftp -inv ${mainframe_host} <<FTP_MF
-#quote user ${mainframe_user}
-#quote pass ${mainframe_pw}
-#
-###quote SITE RECFM=FB,LRECL=100,BLKSIZE=27900,SPACE=(600,60),VOL(GDG350) TRACKS
-#put DLY_MAINT_DRAFT_US_AM 'SMIS1.STBD1362(+1)'
-#
-#bye
-#END_SCRIPT
-#echo "bye the transfer is complete"
-#FTP_MF
+ftp -inv ${mainframe_host} <<FTP_MF
+quote user ${mainframe_user}
+quote pass ${mainframe_pw}
+cd /BizLink/Application/CPRPP/RcvFromApp
+put DLY_MAINT_DRAFT_US_AM 'CPRPP_0275.AUTO_USA_CORRECTIONS.txt'
+bye
+END_SCRIPT
+echo "bye the transfer is complete"
+FTP_MF
 
 #Archieve the bank files
 mv "DLY_MAINT_DRAFT_US_AM" $ARCHIVE/DLY_MAINT_DRAFT_US_AM"_"$date
