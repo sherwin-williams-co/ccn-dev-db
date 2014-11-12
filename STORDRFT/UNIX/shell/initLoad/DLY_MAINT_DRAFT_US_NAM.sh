@@ -5,7 +5,8 @@
 # Description   : This script is to run the SD_AUDITFILES_PKG.CREATE_NAM_AUDIT_BANK_FILE
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
-# Modified :
+# Modified : 11/12/2014 axk326 CCN Project Team.....
+#            Date logic modified to run on every day. 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

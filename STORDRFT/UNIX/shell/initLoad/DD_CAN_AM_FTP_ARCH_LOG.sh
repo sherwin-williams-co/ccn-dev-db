@@ -5,7 +5,7 @@
 # Description   : This script is to run the FTP, Archiving and Logging for daily Automotive Canada issue files
 #
 # Created  : 11/12/2014 axk326 CCN Project Team.....
-# Modified :
+# Modified : 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
