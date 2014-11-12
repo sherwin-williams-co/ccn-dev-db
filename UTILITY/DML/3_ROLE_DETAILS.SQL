@@ -3,6 +3,7 @@ REM INSERTING into ROLE_DETAILS
 SET DEFINE OFF;
 TRUNCATE TABLE SECURITY_MATRIX;
 DELETE FROM ROLE_DETAILS;
+INSERT INTO ROLE_DETAILS VALUES ('batusr','Batch User', 'N','N','N','N',NULL,NULL);
 Insert into ROLE_DETAILS values ('CCNA','CCN Administrator','Y','Y','Y','Y',NULL,NULL);
 Insert into ROLE_DETAILS values ('CCNB','CCN Batch User','N','N','N','N',NULL,NULL);
 Insert into ROLE_DETAILS values ('CCND','CCN Developer','N','N','N','N',NULL,NULL);
@@ -159,7 +160,7 @@ Insert into ROLE_DETAILS values ('SDU1','Store Drafts User - 1','Y','Y','Y','Y',
       </PAID_FIELDS>
    </STORE_DRAFTS_WINDOW>
 </USER_RULES_DESCRIPTION>');
-SELECT * FROM SECURITY_MATRIX WHERE USER_ID IN ('jek74s','kmv600','ltk464','txs130') order by 1,2,3;
+--SELECT * FROM SECURITY_MATRIX WHERE USER_ID IN ('jek74s','kmv600','ltk464','txs130') order by 1,2,3;
 Insert into ROLE_DETAILS values ('CCNUS1','CCN User - Select 1','N','N','N','Y',
 '<USER_RULES>
    <COST_CENTER_WINDOW>
