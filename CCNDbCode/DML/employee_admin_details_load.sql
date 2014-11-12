@@ -1,9 +1,8 @@
 SET SERVEROUTPUT ON;
 BEGIN
-
-    --lock all users out and Disable the triggers
+    
+    --lock all users out
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    COMMON_TOOLS.ALTER_ALL_TRIGGERS('DISABLE');
     
     FOR rec IN (SELECT DISTINCT SUBSTR(GEMS_ID_NUMBER,3) GEMS_ID_NUMBER, 
                                 COST_CENTER_CODE,
@@ -33,7 +32,7 @@ BEGIN
                 DBMS_OUTPUT.PUT_LINE(rec.COST_CENTER_CODE || '-' || rec.GEMS_ID_NUMBER || '-' || SQLERRM);
         END;
     END LOOP;
-
+    
     UPDATE EMPLOYEE_ADMIN_DETAILS A
        SET (EMPLOYEE_FIRST_NAME, EMPLOYEE_LAST_NAME, EMPLOYEE_MIDDLE_NAME, JOB_TYPE, DESCRIPTION)
            = (SELECT FIRST_NAME, LAST_NAME, MIDDLE_INITIAL, JOB_TYPE, NULL
@@ -47,8 +46,7 @@ BEGIN
     
 COMMIT;
 
-    --unlock all users and Enable the triggers
-    COMMON_TOOLS.ALTER_ALL_TRIGGERS('ENABLE');
+    --unlock all users
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
     
 END;
