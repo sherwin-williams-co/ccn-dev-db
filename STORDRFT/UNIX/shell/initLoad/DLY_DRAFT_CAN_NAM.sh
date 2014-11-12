@@ -15,14 +15,8 @@ TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-P=`date '+%a'`
-
-if [ $P = 'Mon' ]
- then 
-P1=`date --d "3 day ago" "+%m/%d/%Y"`
-else 
 P1=`date --d "1 day ago" "+%m/%d/%Y"`
-fi
+
  
 ./EXEC_PROC_1PARAM.sh "SD_BANKFILES_PKG.CREATE_CAN_NONAUTO_FILE" "$P1"
 

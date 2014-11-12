@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/sh -e
+#set -e
 #################################################################
 # Script name   : DLY_DRAFT_LOAD.sh
 #
@@ -11,6 +12,12 @@
 . /app/stordrft/host.sh
 
 proc_name="DLY_DRAFT_LOAD"
+proc_name1="DD_US_AM_FTP_ARCH"
+proc_name2="DD_US_NAM_FTP_ARCH"
+proc_name3="DD_CAN_AM_FTP_ARCH"
+proc_name4="DD_CAN_NAM_FTP_ARCH"
+LOGDIR=$HOME/dailyLoad/logs
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
@@ -19,10 +26,10 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ./DLY_DRAFT_US_NAM.sh
 ./DLY_DRAFT_CAN_AM.sh
 ./DLY_DRAFT_CAN_NAM.sh
-./DD_US_AM_FTP_ARCH.sh
-./DD_US_NAM_FTP_ARCH.sh
-./DD_CAN_AM_FTP_ARCH.sh
-./DD_CAN_NAM_FTP_ARCH.sh
+./DD_US_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
+./DD_US_NAM_FTP_ARCH.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
+./DD_CAN_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name3"_"$TimeStamp.log 
+./DD_CAN_NAM_FTP_ARCH.sh >> $LOGDIR/$proc_name4"_"$TimeStamp.log 
 
 ############################################################################
 #                           ERROR STATUS CHECK 
