@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : DLY_MAINT_DRAFT_US_NAM.sh
 #
-# Description   : This script is to run the SD_AUDITFILES_PKG.CREATE_NAM_AUDIT_BANK_FILE
+# Description   : This script is to run the SD_AUDITFILES_PKG.CREATE_US_NONAUTO_BANK_FILE
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/12/2014 axk326 CCN Project Team.....
@@ -18,7 +18,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 
 P1=`date "+%m/%d/%y"`
 
-./EXEC_PROC_1PARAM.sh "SD_AUDITFILES_PKG.CREATE_NAM_AUDIT_BANK_FILE" "$P1"
+./EXEC_PROC_1PARAM.sh "SD_AUDITFILES_PKG.CREATE_US_NONAUTO_BANK_FILE" "$P1"
 
 ############################################################################
 #                           ERROR STATUS CHECK 
