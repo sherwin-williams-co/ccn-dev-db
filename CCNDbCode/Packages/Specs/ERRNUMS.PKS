@@ -1,8 +1,11 @@
-create or replace 
-PACKAGE errnums
+create or replace PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
+
+THIS PACKAGE CONTAINS ERROR NUMBERS FROM
+                   -20000 TILL -20500 FOR COSTCNTR
+                   -20500 ONWARDS FOR HIERARCHY
 
 created : 12/02/2011 blr CCN Project
 revisions: 
@@ -2207,6 +2210,20 @@ PRAGMA EXCEPTION_INIT
 (exc_terminal_window_locked_err , -20161);
 
 /*********************************************************** 
+The "actv_dup_terr_exists_err" passes a numerical error of -20162.
+This error will state that the terminal window has been locked by 
+some user. 
+
+created : 11/13/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_actv_dup_terr_exists_err CONSTANT NUMBER := -20162;
+exc_actv_dup_terr_exists_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_actv_dup_terr_exists_err , -20162);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
@@ -2574,6 +2591,32 @@ en_invalid_pri_logo_group CONSTANT NUMBER := -20525;
 exc_invalid_pri_logo_group EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pri_logo_group , -20525);
+
+/*********************************************************** 
+The "cc_sales_manager_lvl_err" passes a numerical error of -20526.
+This error will state that cost center attached to sales manager hierarchy is not valid.
+
+created : 09/18/2014 jxc517 CCN Project....
+revisions: 
+
+************************************************************/
+en_cc_sales_manager_lvl_err CONSTANT NUMBER := -20526;
+exc_cc_sales_manager_lvl_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_cc_sales_manager_lvl_err , -20526);
+
+/*********************************************************** 
+The "sales_manager_lvl_err" passes a numerical error of -20527.
+This error will state that level code for sales manager hierarchy is not valid.
+
+created : 09/18/2014 jxc517 CCN Project....
+revisions: 
+
+************************************************************/
+en_sales_manager_lvl_err CONSTANT NUMBER := -20527;
+exc_sales_manager_lvl_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_sales_manager_lvl_err , -20527);
 
 /*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
