@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE BODY SD_AUDITFILES_PKG
+create or replace PACKAGE BODY SD_AUDITFILES_PKG
 /****************************************************************************** 
 THIS PACKAGE BODY WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO 
 CREATE AND BUILD THE DAILY STORE DRAFT AUDITS, ISSUES, VOIDS, STOP PAYS, 
@@ -7,7 +6,8 @@ AND REMOVE STOP PAYS FOR U.S.,CAN, AUTOMOTIVE CAN AND AUTOMOTIVE U.S. STORES.
 
 CREATED : 08/12/2014 AXK326 (SMIS1.STBD1360.(+1) – STBD1300 STEP S040)
 
-REVISIONS: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 ******************************************************************************/
 AS
 
@@ -85,26 +85,26 @@ BEGIN
     RETURN (NVL(IN_PREV_BANK_ACCOUNT_NUMBER,'X') <> NVL(IN_CURR_BANK_ACCOUNT_NUMBER,'X'));
 END IS_BANK_ACCOUNT_CHANGED;
 
-PROCEDURE CREATE_US_AUDIT_BANK_FILE(
+PROCEDURE CREATE_US_AUTO_BANK_FILE(
 /*****************************************************************************
-	CREATE_US_AUDIT_BANK_FILE
+	CREATE_US_AUTO_BANK_FILE
 
 THIS PROCEDURE WILL BUILD THE US AUTOMOTIVE DAILY STORE DRAFT AUDITS, ISSUES, 
 VOIDS, STOP PAYS AND REMOVE STOP PAYS 
 
 CREATED : 08/12/2014 AXK326
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 *****************************************************************************/
     IN_DATE IN DATE)
 IS 
-    CURSOR SD_CURSOR_TEST IS 
+    CURSOR SD_CURSOR_AU_NAU IS 
         SELECT DISTINCT SD.COST_CENTER_CODE,
-                        --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER, 
                         '8800600853' BANK_ACCOUNT_NUMBER,
                         nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER,
-                        --SD.BANK_NUMBER,
                         '088' BANK_NUMBER,
-                        TO_CHAR(SYSDATE,'MMDDYY') ISSUE_DATE,  --TO_CHAR(SD.ISSUE_DATE,'YYYYMMDD') ISSUE_DATE, -- need to add sysdate 
+                        SD.ISSUE_DATE,
+                        TO_CHAR(SYSDATE,'MMDDYY') CHECK_DATE,
                         SD.BANK_PAID_AMOUNT * 100 AS BANK_PAID_AMOUNT,
                         nvl(SD.NET_AMOUNT,0) * 100 AS NET_AMOUNT,
                         (SELECT SUM(ITEM_EXT_AMOUNT) 
@@ -137,12 +137,11 @@ IS
                               AND SEND_INDICATOR      = 'N')
         UNION
         SELECT DISTINCT SD.COST_CENTER_CODE,
-                        --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER, 
                         '8800600853' BANK_ACCOUNT_NUMBER,
                         nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER,
-                        --SD.BANK_NUMBER,
                         '088' BANK_NUMBER,
-                        TO_CHAR(SYSDATE,'MMDDYY') ISSUE_DATE,  --TO_CHAR(SD.ISSUE_DATE,'YYYYMMDD') ISSUE_DATE, -- need to add sysdate 
+                        SD.ISSUE_DATE,
+                        TO_CHAR(SYSDATE,'MMDDYY') CHECK_DATE,
                         SD.BANK_PAID_AMOUNT * 100 AS BANK_PAID_AMOUNT,
                         nvl(SD.NET_AMOUNT,0) * 100 AS NET_AMOUNT,
                         (SELECT SUM(ITEM_EXT_AMOUNT) 
@@ -180,7 +179,7 @@ IS
     FILENAME             VARCHAR2(50) := 'DLY_MAINT_DRAFT_US_AM';
     STAMP                VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
     OUTPUT_FILE          UTL_FILE.FILE_TYPE;
-    V_PREV_REC           SD_CURSOR_TEST_REC_TYPE;
+    V_PREV_REC           SD_CURSOR_AU_NAU_REC_TYPE;
     v_count number := 1;
     V_TOTAL_AMOUNT               NUMBER := 0;
     
@@ -194,7 +193,7 @@ THIS PROCEDURE WILL BUILD THE HEADER WITH THE DETAILS PASSED IN
 CREATED : 08/12/2014 AXK326 
 REVISION: 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 
@@ -206,7 +205,7 @@ BEGIN
                 || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
                 --|| '0000000000'
                 || LPAD(IN_RECORD.BANK_NUMBER, 3, 0 )
-                || LPAD(IN_RECORD.ISSUE_DATE, 8, 0 )           
+                || LPAD(IN_RECORD.CHECK_DATE, 6, 0 )           
                 || '                                                '
                 || CHR(10);
                     
@@ -220,9 +219,10 @@ PROCEDURE BUILD_BODY(
 THIS PROCEDURE WILL BUILD THE BODY WITH THE DETAILS PASSED IN
 
 CREATED : 08/12/2014 AXK326 
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 
@@ -231,24 +231,66 @@ IS
 BEGIN
 --v_count := v_count +1 ;
 V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
-    IN_OUT_CLOB := IN_OUT_CLOB
+          
+       CASE 
+           WHEN to_char(IN_RECORD.ISSUE_DATE, 'MMDDYY') = IN_RECORD.CHECK_DATE
+           then
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                      || '*10'
+                      ||LPAD( IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      ||LPAD( IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                      ||LPAD( SD_COMMON_TOOLS.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',IN_RECORD.NET_AMOUNT), 11, 0 )
+                      ||RPAD( IN_RECORD.PAYEE_NAME, 15, ' ' )
+                      ||'111111111'
+                      || '                      '
+                      || CHR(10);           
+                      v_count := v_count +1 ;
+            WHEN IN_RECORD.STOP_INDICATOR = 'Y' THEN 
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                          || '*22'	
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
+                          || '                                   ' 
+                          ;--|| CHR(10)
+                           v_count := v_count + 1 ;
+                          
+                          --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)	 
+                WHEN IN_RECORD.PAY_INDICATOR = 'Y' THEN
+                 --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)
+               IN_OUT_CLOB := IN_OUT_CLOB				  
+                          || '*24'
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
+                          || '                                   ' 
+                          ;
+             v_count := v_count + 1 ;  
+                     WHEN IN_RECORD.VOID_INDICATOR = 'Y' THEN	
+				  --ACCOUNT DETAIL RECORD (CANCEL / VOID ITEM)
+              IN_OUT_CLOB := IN_OUT_CLOB
+                          || '*26'
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || '                                                   ' 
+                          || CHR(10);	
+               v_count := v_count + 1;		
+        ELSE
+            NULL;
+    END CASE;
+     IN_OUT_CLOB := IN_OUT_CLOB
                   --ACCOUNT DETAIL RECORD (ISSUE ITEM)
                   -- Changes made to reflect the file as compared with the mainframe  
-                  || '*26'
-                  || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                  || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                  || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                  || '                                                   ' 
-                  || CHR(10)
-                  
-                  || '*15'
+                  ||'*15'
                   || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
                   || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
                   || LPAD(IN_RECORD.NET_AMOUNT, 11, 0 )
-                 -- || RPAD(IN_RECORD.PAYEE_NAME, 15, 0 )
-                  --|| '111111111'
-                  || '                      ';
-                  --|| CHR(10);
+                  || '                                              ' 
+                -- || CHR(10);
+                ;
                  
                   --ACCOUNT DETAIL RECORD (ADDTL SOURCE)
                 /*  || '*13'
@@ -268,48 +310,7 @@ V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
                   || '                                              ' 
                   || CHR(10);*/
     --ACCOUNT DETAIL RECORD (STOP ITEM)
-     v_count := v_count +2 ;
-    CASE 
-            WHEN IN_RECORD.STOP_INDICATOR = 'Y' THEN 
-            IN_OUT_CLOB := IN_OUT_CLOB 
-                          || '*22'	
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
-                          || '                                   ' 
-                          || CHR(10)
-                          
-                          --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)	 
-                          || '*24'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
-                          || '                                   ' 
-                          || CHR(10)
-                          
-                          -- Added this transaction type on 10/24/2014
-                          || '*26'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || '                                                   ' ;
-                          --|| CHR(10);
-                           v_count := v_count +3 ;
-        WHEN IN_RECORD.VOID_INDICATOR = 'Y' THEN
-            IN_OUT_CLOB := IN_OUT_CLOB 
-                          || '*26'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || '                                                   ' 
-                          --|| CHR(10)
-                          ;
-                           v_count := v_count +1 ;
-        ELSE
-            NULL;
-    END CASE;
+     v_count := v_count +1 ;
    
 END BUILD_BODY;
 
@@ -322,7 +323,7 @@ THIS PROCEDURE WILL BUILD THE TRAILER WITH THE DETAILS PASSED IN
 CREATED : 08/12/2014 AXK326 
 REVISION: 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 BEGIN
@@ -359,7 +360,7 @@ BEGIN
                                    ,FILENAME --FILENAME || STAMP
                                    , 'W' --BINARY
                                    , 32767); 
-    FOR SD_REC IN SD_CURSOR_TEST LOOP
+    FOR SD_REC IN SD_CURSOR_AU_NAU LOOP
         IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
                                    SD_REC.BANK_ACCOUNT_NUMBER)THEN
             --For the first time we won't have the previous record and
@@ -387,28 +388,28 @@ BEGIN
     END IF;
     UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
     UTL_FILE.FCLOSE(OUTPUT_FILE);
-END CREATE_US_AUDIT_BANK_FILE;
+END CREATE_US_AUTO_BANK_FILE;
 
-PROCEDURE CREATE_NAM_AUDIT_BANK_FILE(
+PROCEDURE CREATE_US_NONAUTO_BANK_FILE(
 /*****************************************************************************
-	CREATE_NAM_AUDIT_BANK_FILE
+	CREATE_US_NONAUTO_BANK_FILE
 
 THIS PROCEDURE WILL BUILD THE NON AUTOMOTIVE DAILY STORE DRAFT AUDITS, ISSUES, 
 VOIDS, STOP PAYS AND REMOVE STOP PAYS 
 
 CREATED : 08/12/2014 AXK326
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 *****************************************************************************/
     IN_DATE IN DATE)
 IS 
-    CURSOR SD_CURSOR_TEST IS 
+    CURSOR SD_CURSOR_AU_NAU IS 
     SELECT DISTINCT SD.COST_CENTER_CODE,
-                        --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
                         '8800600275' BANK_ACCOUNT_NUMBER,
                         nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER,
-                        --SD.BANK_NUMBER,
                         '088' as BANK_NUMBER,
-                        TO_CHAR(SYSDATE,'MMDDYY') ISSUE_DATE,  --TO_CHAR(SD.ISSUE_DATE,'YYYYMMDD') ISSUE_DATE, -- need to add sysdate 
+                        SD.ISSUE_DATE,
+                        TO_CHAR(SYSDATE,'MMDDYY') CHECK_DATE,
                         nvl(SD.BANK_PAID_AMOUNT,0) * 100 AS BANK_PAID_AMOUNT,
                         nvl(SD.NET_AMOUNT,0) * 100 AS NET_AMOUNT,
                         (SELECT SUM(ITEM_EXT_AMOUNT) 
@@ -441,12 +442,11 @@ IS
                               AND SEND_INDICATOR      = 'N')
     UNION
     SELECT DISTINCT SD.COST_CENTER_CODE,
-                        --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
                         '8800600275' BANK_ACCOUNT_NUMBER,
                         nvl(SD.CHECK_SERIAL_NUMBER,0) CHECK_SERIAL_NUMBER,
-                        --SD.BANK_NUMBER,
                         '088' as BANK_NUMBER,
-                        TO_CHAR(SYSDATE,'MMDDYY') ISSUE_DATE,  --TO_CHAR(SD.ISSUE_DATE,'YYYYMMDD') ISSUE_DATE, -- need to add sysdate 
+                        SD.ISSUE_DATE,
+                        TO_CHAR(SYSDATE,'MMDDYY') CHECK_DATE,
                         nvl(SD.BANK_PAID_AMOUNT,0) * 100 AS BANK_PAID_AMOUNT,
                         nvl(SD.NET_AMOUNT,0) * 100 AS NET_AMOUNT,
                         (SELECT SUM(ITEM_EXT_AMOUNT) 
@@ -484,7 +484,7 @@ IS
     FILENAME             VARCHAR2(50) := 'DLY_MAINT_DRAFT_US_NAM';
     STAMP                VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
     OUTPUT_FILE          UTL_FILE.FILE_TYPE;
-    V_PREV_REC           SD_CURSOR_TEST_REC_TYPE;
+    V_PREV_REC           SD_CURSOR_AU_NAU_REC_TYPE;
      v_count number := 1;
     V_TOTAL_AMOUNT               NUMBER := 0;
     
@@ -496,9 +496,10 @@ PROCEDURE BUILD_HEADER(
 THIS PROCEDURE WILL BUILD THE HEADER WITH THE DETAILS PASSED IN
 
 CREATED : 08/12/2014 AXK326 
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 
@@ -508,9 +509,8 @@ BEGIN
                 || '*00'		
                 || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
                 || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                --|| '0000000000'
                 || LPAD(IN_RECORD.BANK_NUMBER, 3, 0 )
-                || LPAD(IN_RECORD.ISSUE_DATE, 8, 0 )           
+                || LPAD(IN_RECORD.CHECK_DATE, 6, 0 )           
                 || '                                                '
                 || CHR(10);
                     
@@ -526,7 +526,7 @@ THIS PROCEDURE WILL BUILD THE BODY WITH THE DETAILS PASSED IN
 CREATED : 08/12/2014 AXK326 
 REVISION: 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 
@@ -535,23 +535,66 @@ IS
 BEGIN
 --v_count := v_count +1 ;
 V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
-    IN_OUT_CLOB := IN_OUT_CLOB
+          
+       CASE 
+           WHEN to_char(IN_RECORD.ISSUE_DATE, 'MMDDYY') = IN_RECORD.CHECK_DATE
+           then
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                      || '*10'
+                      ||LPAD( IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                      ||LPAD( IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                      ||LPAD( SD_COMMON_TOOLS.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',IN_RECORD.NET_AMOUNT), 11, 0 )
+                      ||RPAD( IN_RECORD.PAYEE_NAME, 15, ' ' )
+                      ||'111111111'
+                      || '                      '
+                      || CHR(10);           
+                      v_count := v_count +1 ;
+            WHEN IN_RECORD.STOP_INDICATOR = 'Y' THEN 
+            IN_OUT_CLOB := IN_OUT_CLOB 
+                          || '*22'	
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
+                          || '                                   ' 
+                          ;--|| CHR(10)
+                           v_count := v_count + 1 ;
+                          
+                          --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)	 
+                WHEN IN_RECORD.PAY_INDICATOR = 'Y' THEN
+                 --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)
+               IN_OUT_CLOB := IN_OUT_CLOB				  
+                          || '*24'
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
+                          || '                                   ' 
+                          ;
+             v_count := v_count + 1 ;  
+                     WHEN IN_RECORD.VOID_INDICATOR = 'Y' THEN	
+				  --ACCOUNT DETAIL RECORD (CANCEL / VOID ITEM)
+              IN_OUT_CLOB := IN_OUT_CLOB
+                          || '*26'
+                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
+                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
+                          || '                                                   ' 
+                          || CHR(10);	
+               v_count := v_count + 1;		
+        ELSE
+            NULL;
+    END CASE;
+     IN_OUT_CLOB := IN_OUT_CLOB
                   --ACCOUNT DETAIL RECORD (ISSUE ITEM)
                   -- Changes made to reflect the file as compared with the mainframe  
-                  || '*26'
+                  ||'*15'
                   || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
                   || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                  || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                  || '                                                   ' 
-                  || CHR(10)
-                  || '*15'
-                  || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                  || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                  || LPAD( SD_COMMON_TOOLS.GET_HEX_VALUE_FOR_TRNSCTN_TYP('15',IN_RECORD.NET_AMOUNT), 11, 0 )
-                  --|| RPAD(IN_RECORD.PAYEE_NAME, 15, 0 )
-                  --|| '111111111'
-                  || '                      ' 
-                  || CHR(10);
+                  || LPAD(IN_RECORD.NET_AMOUNT, 11, 0 )
+                  || '                                              ' 
+                -- || CHR(10);
+                ;
                  
                   --ACCOUNT DETAIL RECORD (ADDTL SOURCE)
                 /*  || '*13'
@@ -571,48 +614,7 @@ V_TOTAL_AMOUNT := V_TOTAL_AMOUNT + IN_RECORD.NET_AMOUNT;
                   || '                                              ' 
                   || CHR(10);*/
     --ACCOUNT DETAIL RECORD (STOP ITEM)
-     v_count := v_count +2 ;
-    CASE 
-            WHEN IN_RECORD.STOP_INDICATOR = 'Y' THEN 
-            IN_OUT_CLOB := IN_OUT_CLOB 
-                          || '*22'	
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
-                          || '                                   ' 
-                          || CHR(10)
-                          
-                          --ACCOUNT DETAIL RECORD (REMOVE STOP ITEM)	 
-                          || '*24'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || RPAD(IN_RECORD.PAYEE_NAME, 16, 0 )
-                          || '                                   ' 
-                          || CHR(10)
-                          
-                          -- Added this transaction type on 10/24/2014
-                          || '*26'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || '                                                   ' 
-                          || CHR(10);
-                           v_count := v_count +3 ;
-        WHEN IN_RECORD.VOID_INDICATOR = 'Y' THEN
-            IN_OUT_CLOB := IN_OUT_CLOB 
-                          || '*26'
-                          || LPAD(IN_RECORD.BANK_ACCOUNT_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.CHECK_SERIAL_NUMBER, 10, 0 )
-                          || LPAD(IN_RECORD.TRANSACTION_DATE,6, 0 )
-                          || '                                                   ' 
-                          --|| CHR(10)
-                          ;
-                           v_count := v_count +1 ;
-        ELSE
-            NULL;
-    END CASE;
+     v_count := v_count +1 ;
    
 END BUILD_BODY;
 
@@ -625,7 +627,7 @@ THIS PROCEDURE WILL BUILD THE TRAILER WITH THE DETAILS PASSED IN
 CREATED : 08/12/2014 AXK326 
 REVISION: 
 *****************************************************************************/
-    IN_RECORD   IN     SD_CURSOR_TEST_REC_TYPE,
+    IN_RECORD   IN     SD_CURSOR_AU_NAU_REC_TYPE,
     IN_OUT_CLOB IN OUT CLOB)
 IS
 BEGIN
@@ -662,7 +664,7 @@ BEGIN
                                    ,FILENAME --FILENAME || STAMP
                                    , 'W' --BINARY
                                    , 32767); 
-    FOR SD_REC IN SD_CURSOR_TEST LOOP
+    FOR SD_REC IN SD_CURSOR_AU_NAU LOOP
         IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
                                    SD_REC.BANK_ACCOUNT_NUMBER)THEN
             --For the first time we won't have the previous record and
@@ -691,7 +693,7 @@ BEGIN
     UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
     UTL_FILE.FCLOSE(OUTPUT_FILE);
     
-END CREATE_NAM_AUDIT_BANK_FILE;
+END CREATE_US_NONAUTO_BANK_FILE;
 
 PROCEDURE CREATE_US_SUNTRUST_FILE(
 /*****************************************************************************

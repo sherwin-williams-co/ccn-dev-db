@@ -1,21 +1,23 @@
 create or replace PACKAGE SD_AUDITFILES_PKG
-/****************************************************************************** 
+/******************************************************************************************* 
 THIS PACKAGE BODY WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO 
 CREATE AND BUILD THE DAILY STORE DRAFT AUDITS, ISSUES, VOIDS, STOP PAYS, 
 AND REMOVE STOP PAYS FOR U.S.,CAN, AUTOMOTIVE CAN AND AUTOMOTIVE U.S. STORES.
 
 CREATED : 08/12/2014 AXK326
 
-REVISIONS:  
-******************************************************************************/
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
+********************************************************************************************/
 AS
 
-TYPE SD_CURSOR_TEST_REC_TYPE IS RECORD(
+TYPE SD_CURSOR_AU_NAU_REC_TYPE IS RECORD(
     COST_CENTER_CODE     STORE_DRAFTS.COST_CENTER_CODE%TYPE,
     BANK_ACCOUNT_NUMBER  STORE_DRAFTS.BANK_ACCOUNT_NUMBER%TYPE,
     CHECK_SERIAL_NUMBER  STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
     BANK_NUMBER          STORE_DRAFTS.BANK_NUMBER%TYPE,
-    ISSUE_DATE           VARCHAR2(8),
+    ISSUE_DATE           STORE_DRAFTS.ISSUE_DATE%TYPE,
+    CHECK_DATE           VARCHAR2(6),
     BANK_PAID_AMOUNT     NUMBER,
     NET_AMOUNT           NUMBER,
     ITEM_EXT_AMOUNT      NUMBER,
@@ -44,29 +46,31 @@ REVISION:
 (IN_DATE IN DATE)
 ;
 
-PROCEDURE CREATE_US_AUDIT_BANK_FILE
+PROCEDURE CREATE_US_AUTO_BANK_FILE
 /*****************************************************************************
-	CREATE US_AUDIT_BANK_FILE  FILE
+	CREATE_US_AUTO_BANK_FILE  FILE
 
 THIS PROCEDURE WILL BUILD THE US AUDIT DAILY STORE DRAFT AUDITS, ISSUES, 
 VOIDS, STOP PAYS AND REMOVE STOP PAYS 
 
 CREATED : 08/12/2014 AXK326 
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 
 *****************************************************************************/
 (IN_DATE IN DATE)
 ;
 
-PROCEDURE CREATE_NAM_AUDIT_BANK_FILE
+PROCEDURE CREATE_US_NONAUTO_BANK_FILE
 /*****************************************************************************
-	CREATE NAM_AUDIT_BANK_FILE  FILE
+	CREATE_US_NONAUTO_BANK_FILE  FILE
 
 THIS PROCEDURE WILL BUILD THE NAS AUDIT DAILY STORE DRAFT AUDITS, ISSUES, 
 VOIDS, STOP PAYS AND REMOVE STOP PAYS 
 
 CREATED : 08/12/2014 AXK326 
-REVISION: 
+REVISIONS: 11/13/2014 AXK326 
+           Made changes to cursor and also procedures name for automotive and non automotive 
 
 *****************************************************************************/
 (IN_DATE IN DATE)
