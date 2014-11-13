@@ -25,10 +25,8 @@ cd $HOME/initLoad
 #ftp -inv ${mainframe_host} <<FTP_MF
 #quote user ${mainframe_user}
 #quote pass ${mainframe_pw}
-#
-###quote SITE RECFM=FB,LRECL=100,BLKSIZE=27900,SPACE=(600,60),VOL(GDG350) TRACKS
-#put DLY_DRAFT_CAN_AM  'SMIS1.STBD1360'
-#
+#cd /BizLink/Application/CPRPP/RcvFromApp
+#put DLY_DRAFT_CAN_AM DLY_DRAFT_CAN_AM
 #bye
 #END_SCRIPT
 #echo "bye the transfer is complete"

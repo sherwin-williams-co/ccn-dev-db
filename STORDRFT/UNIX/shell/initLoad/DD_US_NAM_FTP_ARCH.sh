@@ -26,7 +26,7 @@ ftp -inv ${mainframe_host} <<FTP_MF
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
 cd /BizLink/Application/CPRPP/RcvFromApp
-put DLY_DRAFT_US_NAM 'CPRPP_0275.PSG_USA_ISSUE.txt'
+put DLY_DRAFT_US_NAM CPRPP_0275.PSG_USA_ISSUE.txt
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
