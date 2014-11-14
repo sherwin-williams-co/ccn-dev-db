@@ -681,30 +681,41 @@ AS
         --if cost_center_code or Employee status changes then send two rows in the backfeed 
         --First with a D and next with an A (DELETE and ADD)
         
-        v_emp_status_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'EMP_PAYROLL_STATUS'), '~');
-        v_emp_status_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || 'EMP_PAYROLL_STATUS'), '~');
+        IF in_ROW_PREV IS NOT NULL THEN
+            v_emp_status_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'EMP_PAYROLL_STATUS'), '~');
+            v_cc_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'COST_CENTER_CODE'), '~');
+        ELSE
+            v_emp_status_prev := '~';
+            v_cc_prev := '~';
+        END IF;
         
-        v_cc_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'COST_CENTER_CODE'), '~');
+        v_emp_status_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || 'EMP_PAYROLL_STATUS'), '~');
         v_cc_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || 'COST_CENTER_CODE'), '~');
         
-        IF (NVL(v_emp_status_prev,'~') <> NVL(V_emp_status_curr,'~'))
+        IF ((NVL(v_emp_status_prev,'~') <> NVL(V_emp_status_curr,'~'))
             OR
-           (NVL(v_cc_prev,'~') <> NVL(v_cc_curr,'~')) THEN                           
+           (NVL(v_cc_prev,'~') <> NVL(v_cc_curr,'~'))) 
+           AND in_ROW_PREV IS NOT NULL --This means that it is the first record, so it should be a new insert
+           THEN                           
 
             V_CHANGED := 'Y';
             V_OUT_CLOB1 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_PREV,14,'0')) ||  'D';
             V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'A';
-         ELSE
+        ELSE
             V_CHANGED := 'N';
             V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'C';
-         END IF;
+        END IF;
       
       FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
           
          IF V_CHANGED = 'Y' THEN
                 V_CONTEXT := 'Building the Previous Data';
                             
-                v_extrd_val_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
+                IF in_ROW_PREV IS NOT NULL THEN
+                    v_extrd_val_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
+                ELSE
+                    v_extrd_val_prev := '~';
+                END IF;
                 v_extrd_val_prev := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(v_extrd_val_prev), '~');
                 v_value_prev := UPPER(RPAD(v_extrd_val_prev, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_prev))));
 
@@ -1284,7 +1295,7 @@ BEGIN
                 v_code  := SQLCODE;
                 v_errm  := substr(SQLERRM,1,500);
                 --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT')); 
+                errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT'));
         END;
     END LOOP;  
 
