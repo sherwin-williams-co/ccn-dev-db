@@ -16,7 +16,7 @@ TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-P1=`date --d "1 day ago" "+%m/%d/%Y"`
+P1=`date "+%m/%d/%Y"`
 
 ./EXEC_PROC_1PARAM.sh "SD_BANKFILES_PKG.CREATE_US_NONAUTO_FILE" "$P1"
 

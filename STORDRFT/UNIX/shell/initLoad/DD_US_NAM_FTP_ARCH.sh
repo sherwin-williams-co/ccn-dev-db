@@ -21,10 +21,10 @@ date=`date +"%Y%m%d%H%M%S"`
 #Move to datafiles from where ever you are in
 cd $HOME/initLoad
 
-# ftp to mainframe to thier respective production name
-ftp -inv ${mainframe_host} <<FTP_MF
-quote user ${mainframe_user}
-quote pass ${mainframe_pw}
+# ftp to B2BizLink to thier respective production name
+ftp -inv ${B2BizLink_host} <<FTP_MF
+quote user ${B2BizLink_user}
+quote pass ${B2BizLink_pw}
 cd /BizLink/Application/CPRPP/RcvFromApp
 put DLY_DRAFT_US_NAM CPRPP_0275.PSG_USA_ISSUE.txt
 bye

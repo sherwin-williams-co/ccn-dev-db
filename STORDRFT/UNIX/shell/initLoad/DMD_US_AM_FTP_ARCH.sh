@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : DMD_US_AM_FTP_ARCH.sh
 #
-# Description   : Use to ftp to mainframe to be loaded to Mobius manframe
+# Description   : Use to ftp to B2BizLink to be loaded to Mobius manframe
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified :
@@ -21,10 +21,10 @@ date=`date +"%Y%m%d%H%M%S"`
 # Move to datafiles from where ever you are in
 cd $HOME/initLoad
 
-# ftp to mainframe to thier respective production name
-ftp -inv ${mainframe_host} <<FTP_MF
-quote user ${mainframe_user}
-quote pass ${mainframe_pw}
+# ftp to B2BizLink to thier respective production name
+ftp -inv ${B2BizLink_host} <<FTP_MF
+quote user ${B2BizLink_user}
+quote pass ${B2BizLink_pw}
 cd /BizLink/Application/CPRPP/RcvFromApp
 put DLY_MAINT_DRAFT_US_AM CPRPP_0275.AUTO_USA_CORRECTIONS.txt
 bye
