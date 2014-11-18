@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE SALES_VOLUME_CLASS_PKG
+CREATE OR REPLACE PACKAGE COSTCNTR.SALES_VOLUME_CLASS_PKG
 AS
 /*------------------------------------------------------------------------------
                                SALES_VOLUME_CLASS_PKG                
@@ -15,3 +15,4 @@ Modified Date         Modified By         Description
 ------------------------------------------------------------------------------*/
 PROCEDURE SALES_VOL_CLASS_PROC;    
 END SALES_VOLUME_CLASS_PKG;
+/
