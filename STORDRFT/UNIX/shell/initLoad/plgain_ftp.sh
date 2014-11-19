@@ -1,7 +1,7 @@
 #! /bin/sh
 
 # plgain_FTP.sh
-# Use to ftp to mainframe to be loaded to Mobius manframe
+# Use to ftp gain and loss report to mainframe to be loaded to Mobius manframe
 
 . /app/strdrft/dataloadInfo.txt
 
