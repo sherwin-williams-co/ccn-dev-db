@@ -23,4 +23,5 @@ BEGIN
              AND TERMINAL_NUMBER       				   = TRIM(rec.TERM_NUMBER)
              AND TRANSACTION_NUMBER    				   = TRIM(rec.TRANSACTION_NUMBER);
 END LOOP;
+COMMIT;
 END;
