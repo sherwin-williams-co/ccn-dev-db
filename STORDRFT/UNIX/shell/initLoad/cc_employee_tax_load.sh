@@ -29,25 +29,32 @@ else
 fi
 
 sqlplus -s -l $costcntr_sqlplus_user/$costcntr_sqlplus_pw >> ./$FILE <<END
-set echo off
-set linesize 1000
-set feedback off
-set heading off
-set verify off
-set scan off
 
-SELECT 'SET DEFINE OFF;' FROM DUAL;
-SELECT 'TRUNCATE TABLE CUSTOMER_TAXID_VW;' FROM DUAL;
-SELECT 'INSERT INTO CUSTOMER_TAXID_VW VALUES ('''||CUSTNUM||''','''||NVL(SSN,TAXID)||''','''||PARENT_STORE||''','''||REPLACE(CUSTNAME,'''','''''')||''','''||DCO_NUMBER||''');' FROM CUSTOMER_TAXID_VW;
-SELECT 'COMMIT;' FROM DUAL;
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE CUSTOMER_TAXID_VW_COSTCNTR';
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END;
+/
+CREATE TABLE CUSTOMER_TAXID_VW_COSTCNTR AS SELECT * FROM CUSTOMER_TAXID_VW;
+COMMIT;
+GRANT SELECT ON COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR TO STORDRFT;
 
 exit;
 END
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 
-@./$FILE
-
+TRUNCATE TABLE CUSTOMER_TAXID_VW;
+INSERT INTO CUSTOMER_TAXID_VW 
+    SELECT CUSTNUM,
+           NVL(SSN,TAXID),
+           PARENT_STORE,
+           CUSTNAME,
+           DCO_NUMBER
+      FROM COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR;
+COMMIT;
 exit;
 END
 
