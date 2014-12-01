@@ -1,3 +1,10 @@
+/*********************************************************** 
+This block will Update the amount fields with negative values
+
+created : 12/01/2014 axk326 CCN Project....
+changed :
+
+************************************************************/
 DECLARE
 BEGIN
     FOR rec IN (SELECT *
