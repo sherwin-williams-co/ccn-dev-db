@@ -59,34 +59,114 @@ BEGIN
     RETURN (NVL(IN_PREV_VALUE,'X')<>NVL(IN_CURR_VALUE,'X'));
 END IS_VALUE_CHANGED;
 
+PROCEDURE BUILD_1099_DIFF_FILE
+/*****************************************************************************
+	BUILD_1099_DIFF_FILE
+
+	This procedure will build the 1099 diff file from CPR views.  
+
+created : 11/24/2014 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IS
+    CURSOR cur IS
+        SELECT STORE_NUMBER
+               ,CHECK_NUMBER
+          FROM FILE_1099_MID_MONTHLY
+         MINUS
+        SELECT STORE_NUMBER
+               ,CHECK_NUMBER
+          FROM FILE_1099_MONTHLY;
+
+    PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME  			VARCHAR2(50) := '1099_DIFF_';
+    STAMP       		VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
+    OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
+
+	  V_OUT_CLOB      CLOB;
+    V_COUNT         NUMBER := 0;
+    rec1            FILE_1099_MID_MONTHLY%ROWTYPE;
+
+BEGIN
+    
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME || STAMP
+                                   ,'W' --BINARY
+                                   ,32767); 
+
+    FOR rec IN cur LOOP
+        V_COUNT := V_COUNT + 1;
+        SELECT *
+          INTO rec1
+          FROM FILE_1099_MID_MONTHLY
+         WHERE STORE_NUMBER = rec.STORE_NUMBER
+           AND CHECK_NUMBER = rec.CHECK_NUMBER
+           AND ROWNUM < 2;
+        V_OUT_CLOB := V_OUT_CLOB 
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.FILE_NUMBER,' ',7)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.STORE_NUMBER,'0',4)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.CHECK_NUMBER,'0',4)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.CHECK_AMOUNT,'0',10)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.CHECK_DATE,'0',6)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.JV_NUMBER,' ',6)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.FILLER,' ',1)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.TRANSACTION_CODE,'0',2)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.TAX_ID,' ',9)
+                       ||CHR(10);
+        IF V_COUNT = 100 THEN
+            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
+            V_COUNT := 0;
+        END IF;
+    END LOOP;
+
+	  IF V_OUT_CLOB IS NOT NULL THEN
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+        V_OUT_CLOB := NULL;
+        V_COUNT := 0;
+    END IF;
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END BUILD_1099_DIFF_FILE;
+
 PROCEDURE BUILD_1099_FILE(
 /*****************************************************************************
 	BUILD_1099_FILE
 
 	This procedure will build the 1099 file from CPR views.  
 
+Run Example:
+Monthly file for october will be run on 01-Nov-2014
+Mid Monthly file for october will be run on 15-Nov-2014
+Difference file will be (Mid Monthly file - Monthly file)
+
 created : 07/25/2014 jxc517 CCN Project....
-changed :
+changed : 11/24/2014 jxc517 CCN Project....
+          Modified to include date parameter to rnu for previous month
+          Modified to include a seperate logic to build diff file along with mid monthly file
 *****************************************************************************/
+IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
 IS
     CURSOR cur IS
         SELECT NULL AS FILE_NUMBER
                ,SUBSTR(COST_CENTER_CODE,3,4) AS STORE_NUMBER
                ,DRAFT_NUMBER AS CHECK_NUMBER
-               ,NET_AMOUNT AS CHECK_AMOUNT
-               ,TO_CHAR(SYSDATE,'MMDDYY') AS CHECK_DATE
+               ,sd_common_tools.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10', NET_AMOUNT *100) AS CHECK_AMOUNT
+               ,TO_CHAR(TRANSACTION_DATE,'MMDDYY') AS CHECK_DATE
                ,NULL AS JV_NUMBER
                ,NULL AS FILLER
                ,'00' AS TRANSACTION_CODE
                ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
           FROM STORE_DRAFTS
          WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '19' AND REASON_CODE = '04'))
-           AND TO_CHAR(ISSUE_DATE,'YYYYMM') = TO_CHAR(SYSDATE,'YYYYMM')
+           AND TO_CHAR(ISSUE_DATE,'YYYYMM') = TO_CHAR(IN_DATE,'YYYYMM')
            AND VOID_DATE IS NULL
            AND STOP_PAY_DATE IS NULL
-           --AND ROWNUM < 1000
-         ORDER BY COST_CENTER_CODE;
+         ORDER BY COST_CENTER_CODE, CHECK_NUMBER;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50);
@@ -105,9 +185,11 @@ BEGIN
     IF IN_MID_MNTHLY_IND = 'Y' THEN
         CCN_BATCH_PKG.INSERT_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER);
         FILENAME := '1099_MID_MONTHLY_';
+        EXECUTE IMMEDIATE 'TRUNCATE TABLE FILE_1099_MID_MONTHLY';
     ELSE
-        FILENAME := '1099_MONTHLY_';
         CCN_BATCH_PKG.INSERT_BATCH_JOB('1099_MONTHLY', V_BATCH_NUMBER);
+        FILENAME := '1099_MONTHLY_';
+        EXECUTE IMMEDIATE 'TRUNCATE TABLE FILE_1099_MONTHLY';
     END IF;
     
     OUTPUT_FILE := UTL_FILE.FOPEN (PATH
@@ -121,20 +203,33 @@ BEGIN
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.FILE_NUMBER,' ',7)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.STORE_NUMBER,'0',4)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_NUMBER,'0',4)
-                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_AMOUNT,'0',10,2)
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_AMOUNT,'0',10)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_DATE,'0',6)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.JV_NUMBER,' ',6)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.FILLER,' ',1)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TRANSACTION_CODE,'0',2)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TAX_ID,' ',9)
                        ||CHR(10);
+        IF IN_MID_MNTHLY_IND = 'Y' THEN
+            INSERT INTO FILE_1099_MID_MONTHLY VALUES rec;
+        ELSE
+            INSERT INTO FILE_1099_MONTHLY VALUES rec;
+        END IF;
         IF V_COUNT = 100 THEN
             UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-            V_OUT_CLOB := NULL;            
+            V_OUT_CLOB := NULL;
+            V_COUNT := 0;
+            COMMIT;
         END IF;
     END LOOP;
 
-	  UTL_FILE.FCLOSE(OUTPUT_FILE);
+	  IF V_OUT_CLOB IS NOT NULL THEN
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+        V_OUT_CLOB := NULL;
+        V_COUNT := 0;
+        COMMIT;
+    END IF;
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -142,11 +237,12 @@ EXCEPTION
 END;
 
 IF IN_MID_MNTHLY_IND = 'Y' THEN
+    BUILD_1099_DIFF_FILE();
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
 ELSE
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
 END IF;
-CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
     WHEN OTHERS THEN
         RAISE;

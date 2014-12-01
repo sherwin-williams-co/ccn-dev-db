@@ -40,11 +40,18 @@ PROCEDURE BUILD_1099_FILE(
 
 	This procedure will build the 1099 file from CPR views.  
 
+Run Example:
+Monthly file for october will be run on 01-Nov-2014
+Mid Monthly file for october will be run on 15-Nov-2014
+Difference file will be (Mid Monthly file - Monthly file)
+
 created : 07/25/2014 jxc517 CCN Project....
-changed :
+changed : 11/24/2014 jxc517 CCN Project....
+          Modified to include date parameter to rnu for previous month
+          Modified to include a seperate logic to build diff file along with mid monthly file
 *****************************************************************************/
-IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
-;
+IN_DATE           IN DATE,
+IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N');
 
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************

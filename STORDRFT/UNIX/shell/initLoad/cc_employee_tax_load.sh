@@ -38,13 +38,13 @@ set scan off
 
 SELECT 'SET DEFINE OFF;' FROM DUAL;
 SELECT 'TRUNCATE TABLE CUSTOMER_TAXID_VW;' FROM DUAL;
-SELECT 'INSERT INTO CUSTOMER_TAXID_VW VALUES ('''||CUSTNUM||''','''||TAXID||''','''||PARENT_STORE||''','''||REPLACE(CUSTNAME,'''','''''')||''','''||DCO_NUMBER||''');' FROM CUSTOMER_TAXID_VW;
+SELECT 'INSERT INTO CUSTOMER_TAXID_VW VALUES ('''||CUSTNUM||''','''||NVL(SSN,TAXID)||''','''||PARENT_STORE||''','''||REPLACE(CUSTNAME,'''','''''')||''','''||DCO_NUMBER||''');' FROM CUSTOMER_TAXID_VW;
 SELECT 'COMMIT;' FROM DUAL;
 
 exit;
 END
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 
 @./$FILE
 
