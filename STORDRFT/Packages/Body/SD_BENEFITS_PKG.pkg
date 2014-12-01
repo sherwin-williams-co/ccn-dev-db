@@ -28,17 +28,16 @@ V_TRANS_STATUS    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 
 cursor cost_center_cur  is 
 
-			select SD.cost_center_code, sum(net_amount) net_amount, TRANSACTION_DATE
+			select SD.cost_center_code, sum(net_amount) net_amount
        from STORE_DRAFTS SD
-			 WHERE SD.TRANSACTION_DATE >=  (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+			 WHERE SD.PAID_DATE >=  (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
                                        FROM BATCH_JOB
                                       WHERE BATCH_JOB_NAME = 'BENEFIT_JOB')
-        and SD.TRANSACTION_DATE <= in_closing_date
+        and SD.PAID_DATE < in_closing_date
         and paid_date is not null
 			  and gross_amount <> 0
-        group by cost_center_code, TRANSACTION_DATE;
-  
-   v_paid_amount  store_drafts.net_amount%type;
+        group by cost_center_code;
+        
    V_COUNT           NUMBER := 0;
    
 begin
@@ -46,15 +45,21 @@ begin
        CCN_BATCH_PKG.INSERT_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER);      
        for cost_center_rec in cost_center_cur loop  
           
-					INSERT INTO STOREDRFT_JV(	COST_CENTER_CODE, net_amount, DRAFT_DATE, JV_TYPE) 
-               values(cost_center_rec.cost_center_code,cost_center_rec.net_amount, cost_center_rec.TRANSACTION_DATE, 'DRAFTS'); 
+          BEGIN
+            INSERT INTO STOREDRFT_JV(	COST_CENTER_CODE, net_amount, UPDATE_DATE, JV_TYPE) 
+               values(cost_center_rec.cost_center_code,cost_center_rec.net_amount, trunc(SYSDATE), 'DRAFTS'); 
          
-            V_COUNT := V_COUNT + 1;
-            IF V_COUNT > 500 THEN
-               COMMIT;
-               V_COUNT := 0;
-            END IF; 
-            
+               V_COUNT := V_COUNT + 1;
+               IF V_COUNT > 500 THEN
+                  COMMIT;
+                  V_COUNT := 0;
+               END IF; 
+               
+         EXCEPTION
+            WHEN OTHERS THEN
+              dbms_output.put_line('Error INSERTING IN STOREDRFT_JV for ' || cost_center_rec.cost_center_code || sqlerrm);
+         END;
+         
        end loop; --end cost_center_rec
        COMMIT;
        CCN_BATCH_PKG.UPDATE_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
