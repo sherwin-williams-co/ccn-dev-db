@@ -1,0 +1,66 @@
+CREATE OR REPLACE PACKAGE BODY GAINLOSS_JV_PKG
+/****************************************************************************** 
+This package will hold all pl/sql objects that are needed to 
+create and build the Monthly GAINLOSS_JV
+
+created : 11/24/2014 NXK927
+
+revisions: 
+******************************************************************************/
+AS
+
+PROCEDURE CREATE_GAINLOSS_JV
+/*****************************************************************************
+	CREATE_GAINLOSS_JV
+
+This procedure will create JV entries for GAIN AND LOSS
+
+created : 11/24/2014 NXK927 
+revision: 
+
+*****************************************************************************/
+IS
+
+in_closing_date   date:=SYSDATE;
+V_BATCH_NUMBER    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+
+cursor gainloss_cur  is 
+      select cost_center_code,  sum(draft_amount) - sum(labor_amount)  net_amount, to_char(ADD_MONTHS(TO_DATE(sysdate),-1),'YYYY/MM') BOOK_DATE
+      from STORE_DRAFT_REPORT
+			/* WHERE TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                       FROM BATCH_JOB
+                                      WHERE BATCH_JOB_NAME = 'GAINLOSS_JOB')
+        where TRANSACTION_DATE <=in_closing_date*/
+          group by cost_center_code;
+
+   V_COUNT           NUMBER := 0;
+   
+begin
+     CCN_BATCH_PKG.INSERT_BATCH_JOB('GAINLOSS_JOB', V_BATCH_NUMBER);      
+       for gainloss_rec in gainloss_cur loop  
+          begin
+					INSERT INTO GAINLOSS_JV(COST_CENTER_CODE, NET_AMOUNT, BOOK_DATE) 
+               values(gainloss_rec.COST_CENTER_CODE,gainloss_rec.NET_AMOUNT, gainloss_rec.BOOK_DATE); 
+         
+            V_COUNT := V_COUNT + 1;
+            IF V_COUNT > 500 THEN
+               COMMIT;
+               V_COUNT := 0;
+            END IF; 
+         EXCEPTION
+            WHEN OTHERS THEN
+              dbms_output.put_line('Error INSERTING IN GAINLOSS_JV for ' || gainloss_rec.cost_center_code || sqlerrm);
+         END;
+            
+       end loop; --end cost_center_rec
+       COMMIT;
+       CCN_BATCH_PKG.UPDATE_BATCH_JOB('GAINLOSS_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
+       
+EXCEPTION
+    WHEN OTHERS THEN
+         dbms_output.put_line('CREATE_GAINLOSS_JV Procedure Failed ' || sqlerrm);
+
+END CREATE_GAINLOSS_JV;
+
+END;
