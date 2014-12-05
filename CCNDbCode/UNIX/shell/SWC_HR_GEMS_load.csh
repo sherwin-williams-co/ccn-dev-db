@@ -9,14 +9,14 @@
 
 ##accepts date parameter
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. host.csh
+. /app/ccn/host.sh
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
 echo " START TRUCATING AND LOADING : Process Started at $TIME on $DATE "
 
-sqlplus -s  $USR/$PASS <<END
+sqlplus -s  $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set verify off;
 set serveroutput on;
