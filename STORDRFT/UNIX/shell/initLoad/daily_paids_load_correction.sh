@@ -1,26 +1,33 @@
-create or replace PACKAGE body SD_PAID_DETAILS_LOAD
-/**************************************************************** 
-This package will update paid details in the existing CCN Store Drafts Oracle Database
-created : 07/23/2014 jxc517 CCN Project....
-changed :
-*****************************************************************/
-AS
+#!/bin/sh
+#################################################################
+# Script name   : daily_paids_load_correction.sh
+#
+# Description   : This shell program will correct the royal paid errors
+#
+# Created  : 12/08/2014 jxc517 CCN Project Team.....
+# Modified :
+#################################################################
+# below command will get the path for stordrft.config respective to the environment from which it is run from
+. /app/stordrft/host.sh
 
-PROCEDURE CCN_SD_PAID_LOAD_SP
-/******************************************************************
-This Procedure is a wrapper for the Paid details update of the store drafts tables
+proc="daily_paids_load_correction"
+LOGDIR=$HOME/dailyLoad/logs
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+echo "Processing Started for $proc at $TIME on $DATE"
 
-created : 07/23/2014 jxc517 CCN Project....
-changed :
-******************************************************************/
-AS
+find $HOME/dailyLoad/archieve/drafts -name STBD0601_ROYALBNK_PAID2.TXT -print0 | xargs -0 -I file cat file > $HOME/initLoad/STBD0601_ROYALBNK_PAID2.TXT
+
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+set heading off;
+set verify off;
+
+execute MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_START');
+
+DECLARE
     
     CURSOR TEMP_CUR is
-        SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE_PAID, 'MMDDYY') PAID_DATE,
-               CCN_COMMON_TOOLS.RETURN_NUMBER(PAID_AMONUT_ITEMS,10,2) AMOUNT,
-               PAID_CHECK_SERIAL_NUMBER CHECK_SERIAL_NUMBER
-          FROM TEMP_PAID_DETAILS_SUNTRUST
-        UNION
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
                FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK CHECK_SERIAL_NUMBER
@@ -108,7 +115,30 @@ EXCEPTION
                                     SQLERRM,
                                     '000000',
                                     '0000000000'); 
-END CCN_SD_PAID_LOAD_SP;
+END;
+/
 
-END SD_PAID_DETAILS_LOAD;
+execute MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_END');
 
+exit;
+END
+
+echo "removing the one time concatenated file"
+rm -f $HOME/initLoad/STBD0601_ROYALBNK_PAID2.TXT
+
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+
+exit 0
+############################################################################
