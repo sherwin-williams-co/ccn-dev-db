@@ -397,6 +397,8 @@ PROCEDURE LOAD_DLY_STORE_DRAFTS
 created : 06/12/2014 jxc517 CCN Project....
 changed : 11/24/2014 axk326 CCN Project....
           Code change to reflect the original net amount value
+          12/09/2014 axk326 CCN Project....
+          Code change to check for check_serial_number if it already exists
 ******************************************************************************/
 IS
     CURSOR STOREDRAFT_TEMP_CUR is
@@ -405,6 +407,7 @@ IS
 
 
     V_COMMIT                      NUMBER := 0;
+    V_COUNT                       NUMBER := 0;
     V_STOREDRAFT_TEMP_ROW         STORE_DRAFTS%ROWTYPE;
     V_COST_CENTER_CODE            STORE_DRAFTS.COST_CENTER_CODE%TYPE;
 BEGIN
@@ -481,7 +484,27 @@ BEGIN
                 IF V_STOREDRAFT_TEMP_ROW.TRANSACTION_DATE <= ADD_MONTHS(TRUNC(SYSDATE),-1 * SD_BUSINESS_RULES_PKG.G_HISTORY_MONTHS) THEN
                     INSERT INTO HST_STORE_DRAFTS VALUES V_STOREDRAFT_TEMP_ROW;
                 ELSE
-                    INSERT INTO STORE_DRAFTS VALUES V_STOREDRAFT_TEMP_ROW;
+                    SELECT COUNT(*)
+                      INTO V_COUNT
+                      FROM STORE_DRAFTS
+                     WHERE COST_CENTER_CODE    = V_STOREDRAFT_TEMP_ROW.COST_CENTER_CODE
+                       AND CHECK_SERIAL_NUMBER = V_STOREDRAFT_TEMP_ROW.CHECK_SERIAL_NUMBER;
+                    IF V_COUNT = 0 THEN
+                        INSERT INTO STORE_DRAFTS VALUES V_STOREDRAFT_TEMP_ROW;
+                    ELSE
+                       UPDATE STORE_DRAFTS
+                          SET ROW = V_STOREDRAFT_TEMP_ROW
+                        WHERE COST_CENTER_CODE    = V_STOREDRAFT_TEMP_ROW.COST_CENTER_CODE
+                          AND CHECK_SERIAL_NUMBER = V_STOREDRAFT_TEMP_ROW.CHECK_SERIAL_NUMBER;
+                       ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                                  'LOAD_DLY_STORE_DRAFTS',
+                                                  'DUPLICATE_SERIAL_NUMBER',
+                                                  NVL(V_COST_CENTER_CODE,rec.COST_CENTER_CODE),
+                                                  NVL(rec.CHECK_SERIAL_NUMBER,'')||':'||
+                                                  NVL(rec.TRANSACTION_DATE,'')||':'||
+                                                  NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                                  NVL(rec.TRANSACTION_NUMBER,''));
+                    END IF;
                 END IF;
             END IF;
 
