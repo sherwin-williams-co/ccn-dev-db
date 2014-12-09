@@ -1,206 +1,58 @@
-create or replace 
-PACKAGE  BODY SD_REPORT_PKG AS 
+create or replace PACKAGE  BODY SD_REPORT_PKG AS 
 /*********************************************************** 
-THIS PACKAGE WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO 
-STORE DRAFT REPORTS FROM 
+This package contains the core logic to load STORE_DRAFT_REPORTS  table
 
-
-CREATED : 08/01/2014
-
-REVISIONS: 
+Created : 12/04/2014 jxc517 and nxk927 CCN Project Team.....
+Modified: 
 ************************************************************/
 
-PROCEDURE sd_report_query
+PROCEDURE CCN_HIERARCHY_INFO
 /**********************************************************
+This procedure is for truncating the CCN_HIERARCHY_INFO  table
+and pull the updated data from the HIERARCHY_DETAIL_VIEW
 
-THIS PROCEDURE WILL BUILD THE STORE DRAFT REPORT DATA 
-
-CREATED : 08/01/2014
+Created : 03/04/2014  nxk927 CCN Project Team.....
 **********************************************************/
-(IN_START_DATE IN DATE,
-IN_END_DATE IN DATE 
-)
 IS
-CURSOR STORE_DRAFT_CUR IS
- SELECT A.*,
-       DIVISION,
-       AREA,
-       DISTRICT,
-       DIVISION_NAME,
-       AREA_NAME,
-       DISTRICT_NAME,
-       COST_CENTER_NAME,
-       PRIMARY_PHONE_NUMBER AS PHONE_NUMBER
-       FROM
-            ( SELECT cd.COST_CENTER_CODE AS CC_CODE,
-              SUBSTR(CD.COST_CENTER_CODE,3,4) COST_CENTER_CODE,
-	            CD.TERMINAL_NUMBER, 
-              CD.TRANSACTION_NUMBER,
-              CD.TRANSACTION_DATE,
-              NULL AS DRAFT_NUMBER,
-              CD.ITEM_QUANTITY,
-              ITEM_PRICE AS LABOR_AMOUNT,
-              NULL AS DRAFT_AMOUNT,
-             SD.CUSTOMER_ACCOUNT_NUMBER PAYEE_ACC_NUMBER,    
-             C.CUSTOMER_ACCOUNT_NUMBER,
-             c.PURCHASE_ORDER_NUMBER,
-             sd.PAYEE_NAME,
-             NULL AS LBR_TRANSACTION_NUMBER,
-             NULL AS LBR_TERMINAL_NUMBER,
-             NULL AS LBR_TRANSACTION_DATE
-      FROM CUSTOMER_DETAILS CD, customer c, store_drafts SD
-      WHERE cd.TRANSACTION_DATE BETWEEN IN_START_DATE AND  IN_END_DATE
-      and CD.TERMINAL_NUMBER= C.TERMINAL_NUMBER
-      AND CD.TRANSACTION_NUMBER = C.TRANSACTION_NUMBER
-      and SD.TERMINAL_NUMBER= CD.TERMINAL_NUMBER
-      AND SD.TRANSACTION_NUMBER = CD.TRANSACTION_NUMBER
-      union      
-        SELECT sdd.COST_CENTER_CODE AS CC_CODE,
-             SUBSTR(SDD.COST_CENTER_CODE,3,4) COST_CENTER_CODE,
-	           SDD.TERMINAL_NUMBER, 
-             SDD.TRANSACTION_NUMBER,
-             SDD.TRANSACTION_DATE,
-             SUBSTR(sdd.CHECK_SERIAL_NUMBER,6,5) AS DRAFT_NUMBER,
-             SDD.ITEM_QUANTITY,
-             NULL AS LABOR_AMOUNT,
-             SDD.ITEM_PRICE AS DRAFT_AMOUNT,
-             SD.CUSTOMER_ACCOUNT_NUMBER PAYEE_ACC_NUMBER,    
-             C.CUSTOMER_ACCOUNT_NUMBER,
-             C.PURCHASE_ORDER_NUMBER,
-             SD.PAYEE_NAME,
-             LBR_TRANSACTION_NUMBER,
-             LBR_TERMINAL_NUMBER,
-             LBR_TRANSACTION_DATE
-      FROM STORE_DRAFTS_DETAIL SDD, Customer C, STORE_DRAFTS SD
-      WHERE sdd.TRANSACTION_DATE BETWEEN IN_START_DATE AND  IN_END_DATE
-      and C.TERMINAL_NUMBER= SDD.TERMINAL_NUMBER
-     AND C.TRANSACTION_NUMBER = SDD.TRANSACTION_NUMBER
-     and SDD.CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER) A, 
-      CCN_HIERARCHY_INFO CH, 
-      PHONE_NBR P
-  WHERE SUBSTR(CH.COST_CENTER_CODE,3,4) = A.COST_CENTER_CODE
-  AND SUBSTR(P.COST_CENTER_CODE,3,4) = A.COST_CENTER_CODE
-  AND CH.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
-AND A.TERMINAL_NUMBER IS NOT NULL
-AND A.TRANSACTION_NUMBER IS NOT NULL;
-     
-V_COUNT                 NUMBER := 0;
-V_STORE_DRAFT_ROW       STORE_DRAFT_REPORT%ROWTYPE;
-V_PL_Date               STORE_DRAFT_REPORT.PL_date%type;
-
- 
+    V_COUNT     INTEGER := 0 ;
+    CURSOR ccn_hierarchy_info_cur IS
+        SELECT * FROM HIERARCHY_DETAIL_VIEW;
 BEGIN
+    --Deleting the CCN_Hierarchy_info table before inserting any data
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_HIERARCHY_INFO';
 
- FOR STORE_DRAFT_REC IN STORE_DRAFT_CUR LOOP
- 
- /***
-      PL_date 
-       1) checking to see if there is matching labor for the draft. 
-          a) If we have matching labor with the draft, we use P&L date as current date.
-          b) For The first month, if the labor doesn't match up with the draft then, 
-             The PL Date would be 0.
-          c)For the second month still we have labor than doesn't match to the draft
-            then the PL date would taken as sysdate.
-  ****/
-if 
---looking to see if we have labor matching the draft. if so using the PL date as sysdate
-(V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER = V_STORE_DRAFT_ROW.TERMINAL_NUMBER
-    and V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER = V_STORE_DRAFT_ROW.TRANSACTION_NUMBER
-    and ((to_char(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE, 'YYYY/MM') = to_char(V_STORE_DRAFT_ROW.TRANSACTION_DATE, 'YYYY/MM')) or 
-    to_char(add_months(to_date(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE),1), 'YYYY/MM') = to_char(V_STORE_DRAFT_ROW.TRANSACTION_DATE, 'YYYY/MM')))
---looking to see if we have labor matching the draft for the second month. if so using the PL date as sysdate
-OR
---looking to see if we have labor matching the draft for the second month. still if not, then using the PL date as sysdate
-   (V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER <> V_STORE_DRAFT_ROW.TERMINAL_NUMBER
-    and V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER <> V_STORE_DRAFT_ROW.TRANSACTION_NUMBER
-    and to_char(ADD_MONTHS(TO_DATE(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE),1),'YYYY/MM') = to_char(sysdate,'YYYY/MM'))
-then  V_PL_Date := trunc(sysdate);
-else 
---if if doesn't match on the first month we use nothing in the PL_date
- V_PL_Date:= null;
-end if;
-
-/*
-if 
-to_char(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE, 'YYYY/MM') = to_char(V_STORE_DRAFT_ROW.TRANSACTION_DATE, 'YYYY/MM') 
-		and V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER = V_STORE_DRAFT_ROW.TERMINAL_NUMBER
-		and V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER = V_STORE_DRAFT_ROW.TRANSACTION_NUMBER
-then V_PL_Date :=trunc(sysdate);
-elsif 
-    (V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER = V_STORE_DRAFT_ROW.TERMINAL_NUMBER
-    and V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER = V_STORE_DRAFT_ROW.TRANSACTION_NUMBER
-    and  to_char(add_months(to_date(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE),1), 'YYYY/MM') = to_char(V_STORE_DRAFT_ROW.TRANSACTION_DATE, 'YYYY/MM'))
-then V_PL_Date :=trunc(sysdate);
-elsif
-  (V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER <> V_STORE_DRAFT_ROW.TERMINAL_NUMBER
-    and V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER <> V_STORE_DRAFT_ROW.TRANSACTION_NUMBER
-    and to_char(ADD_MONTHS(TO_DATE(V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE),1),'YYYY/MM') = to_char(sysdate,'YYYY/MM'))
-then  V_PL_Date := sysdate;
-	else
-  V_PL_Date:= null;
-end if;
-*/
-
-   BEGIN
- 
-    V_STORE_DRAFT_ROW.COST_CENTER_CODE                 := STORE_DRAFT_REC.COST_CENTER_CODE;
-    V_STORE_DRAFT_ROW.COST_CENTER_NAME                  := STORE_DRAFT_REC.COST_CENTER_NAME;
-    V_STORE_DRAFT_ROW.COST_CENTER_MGR                   := SD_REPORT_PKG.CC_MANAGER(STORE_DRAFT_REC.CC_CODE);
-    V_STORE_DRAFT_ROW.CUSTOMER_ACCOUNT_NUMBER           := STORE_DRAFT_REC.CUSTOMER_ACCOUNT_NUMBER;
-    V_STORE_DRAFT_ROW.PAYEE_NAME                        := STORE_DRAFT_REC.PAYEE_NAME;
-    V_STORE_DRAFT_ROW.PAYEE_ACC_NUMBER                  := STORE_DRAFT_REC.PAYEE_ACC_NUMBER;
-    V_STORE_DRAFT_ROW.PURCHASE_ORDER_NUMBER             := nvl(STORE_DRAFT_REC.PURCHASE_ORDER_NUMBER, '***xNOxCUSTOMERxNAMEx***');
-    V_STORE_DRAFT_ROW.TERMINAL_NUMBER                   := STORE_DRAFT_REC.TERMINAL_NUMBER;
-    V_STORE_DRAFT_ROW.TRANSACTION_NUMBER                := STORE_DRAFT_REC.TRANSACTION_NUMBER;
-    V_STORE_DRAFT_ROW.TRANSACTION_DATE                  := STORE_DRAFT_REC.TRANSACTION_DATE;
-    V_STORE_DRAFT_ROW.LBR_TRANSACTION_NUMBER            := STORE_DRAFT_REC.LBR_TRANSACTION_NUMBER;
-    V_STORE_DRAFT_ROW.LBR_TERMINAL_NUMBER               := STORE_DRAFT_REC.LBR_TERMINAL_NUMBER;
-    V_STORE_DRAFT_ROW.LBR_TRANSACTION_DATE              := STORE_DRAFT_REC.LBR_TRANSACTION_DATE;
-    V_STORE_DRAFT_ROW.DRAFT_NUMBER                      := STORE_DRAFT_REC.DRAFT_NUMBER;
-    V_STORE_DRAFT_ROW.DRAFT_AMOUNT                      := STORE_DRAFT_REC.DRAFT_AMOUNT;
-    V_STORE_DRAFT_ROW.LABOR_AMOUNT                      := STORE_DRAFT_REC.LABOR_AMOUNT;
-    V_STORE_DRAFT_ROW.ITEM_QUANTITY                     := STORE_DRAFT_REC.ITEM_QUANTITY;
-    V_STORE_DRAFT_ROW.PHONE_NUMBER                      := STORE_DRAFT_REC.PHONE_NUMBER;
-    V_STORE_DRAFT_ROW.AREA                              := STORE_DRAFT_REC.AREA;
-    V_STORE_DRAFT_ROW.AREA_NAME                         := STORE_DRAFT_REC.AREA_NAME;
-    V_STORE_DRAFT_ROW.AREA_MGR                          := SD_REPORT_PKG.GET_MANAGER_NAME('AREA_MGR', STORE_DRAFT_REC.DIVISION || STORE_DRAFT_REC.AREA);
-    V_STORE_DRAFT_ROW.DISTRICT                          := STORE_DRAFT_REC.DISTRICT;
-    V_STORE_DRAFT_ROW.DISTRICT_NAME                     := STORE_DRAFT_REC.DISTRICT_NAME;
-    V_STORE_DRAFT_ROW.DISTRICT_MGR                      := SD_REPORT_PKG.GET_MANAGER_NAME('DIST_MGR',STORE_DRAFT_REC.DIVISION || STORE_DRAFT_REC.AREA || STORE_DRAFT_REC.DISTRICT);
-    V_STORE_DRAFT_ROW.DIVISION                          := STORE_DRAFT_REC.DIVISION;
-    V_STORE_DRAFT_ROW.DIVISION_NAME                     := STORE_DRAFT_REC.DIVISION_NAME;
-    V_STORE_DRAFT_ROW.DIVISION_MGR                      := SD_REPORT_PKG.GET_MANAGER_NAME('DIV_MGR',STORE_DRAFT_REC.DIVISION);
-    V_STORE_DRAFT_ROW.PL_DATE                           := V_PL_Date;
-    
-    INSERT INTO STORE_DRAFT_REPORT VALUES  V_STORE_DRAFT_ROW;
-                V_COUNT := V_COUNT + 1;
-            IF V_COUNT > 1000 THEN
-                COMMIT;
-                V_COUNT := 0;
-            END IF;   
+    FOR CCN_HIERARCHY_INFO_REC IN ccn_hierarchy_info_cur LOOP
+        BEGIN
+            INSERT INTO CCN_HIERARCHY_INFO VALUES CCN_HIERARCHY_INFO_REC;
         EXCEPTION
             WHEN OTHERS THEN
-                NULL;
-                 --  dbms_output.put_line(STORE_DRAFT_REC.PAYEE_NAME|| ' - ' || STORE_DRAFT_REC.CUSTOMER_ACCOUNT_NUMBER || '-' || SQLERRM);                        
+                DBMS_OUTPUT.PUT_LINE('FAILED CCN_HIERARCHY_INFO ' || ' ' || SQLCODE || ' ' || SQLERRM);
         END;
+        IF V_COUNT > 100 THEN
+            COMMIT; 
+            V_COUNT := 0;
+        END IF; 
+        V_COUNT := V_COUNT + 1;
     END LOOP;
     COMMIT;
+END CCN_HIERARCHY_INFO;
 
-END sd_report_query;
-
-FUNCTION GET_RQSTD_ATTRIBUTE_VALUE
+FUNCTION GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************
-      GET_RQSTD_ATTRIBUTE_VALUE 
-      This Procedure will get the requested attribute value for from
-      the passed UPPER_LVL_VER_DESC XML
+This Procedure will get the requested attribute value for from
+the passed UPPER_LVL_VER_DESC XML
       
-Created : 08/14/2014 nxk927 
+NEVER DELETE THIS PROCEDURE AS "REPORT_HRCHY_EMP_DTLS_VW" VIEW USES THIS PROCEDURE
+      
+Created : 08/14/2014 nxk927 CCN Project.....
+Modified: 12/04/2014 jxc517 CCN Project Team.....
+          COmments were added as this is not used here in the package but used in view
 ************************************************************/
-(   IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2
 IS
-    V_COUNT           NUMBER        := 1;
-    V_ATTRIBUTE_NAME  VARCHAR2(100);
+    V_COUNT             NUMBER := 1;
+    V_ATTRIBUTE_NAME    VARCHAR2(100);
     OUT_ATTRIBUTE_VALUE VARCHAR2(100);
 BEGIN
     WHILE IN_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
@@ -217,132 +69,389 @@ EXCEPTION
         RETURN OUT_ATTRIBUTE_VALUE;
 END GET_RQSTD_ATTRIBUTE_VALUE;
 
-FUNCTION CC_MANAGER
+FUNCTION CC_MANAGER(
 /***********************************************************
-      CC_MANAGER 
-      This Function will get the requested manager name for the
-      cost center
+This Function will get the requested manager name for the cost center
       
-Created :  08/14/2014 nxk927 
+Created :  08/14/2014 nxk927 CCN Project.....
+Modified:
 ************************************************************/
-(  IN_COST_CENTER_CODE EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
-    RETURN VARCHAR2
+    IN_COST_CENTER_CODE EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
 IS 
-V_CC_MANAGER EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
-
+    V_CC_MANAGER EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
 BEGIN 
-SELECT EMPLOYEE_NAME INTO V_CC_MANAGER
-FROM EMPLOYEE_DETAILS 
-WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-AND  UPPER(JOB_TITLE) like '%STORE MGR%'
-and UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE';
+    SELECT EMPLOYEE_NAME
+      INTO V_CC_MANAGER
+      FROM EMPLOYEE_DETAILS 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+       AND  UPPER(JOB_TITLE) LIKE '%STORE MGR%';
 
- RETURN V_CC_MANAGER;
- EXCEPTION
+    RETURN V_CC_MANAGER;
+EXCEPTION
     WHEN OTHERS THEN
         RETURN NULL;
+END CC_MANAGER;
 
-END;
-
-FUNCTION GET_MANAGER_NAME
+FUNCTION GET_MANAGER_NAME(
 /***********************************************************
-      GET_MANAGER_NAME 
-      This Function will get the requested manager name for the
-      div, area and district.
-      This function will call "GET_RQSTD_ATTRIBUTE_VALUE" function to pull
-      the attribute for the manager id which will be used to pull the manager
-      name for the passed indicator as : division or area or district 
-      
-Created :  08/14/2014 nxk927 
+This function contains the core logic to get the manager name
+for the passed division/area/district combinations
+
+Created : 12/04/2014 jxc517 CCN Project Team.....
+Modified: 
 ************************************************************/
-(  IN_IND in VARCHAR2,
-   IN_HRCHY_DTL_PREV_LVL_VAL IN HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
-  )
-      RETURN VARCHAR2
+    IN_HRCHY_HDR_NAME  IN     HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+    IN_LEVEL_VALUE     IN     VARCHAR2) RETURN VARCHAR2
 IS
     V_MANAGER_NAME VARCHAR2(100); -- EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
-    
 BEGIN
-IF IN_IND = 'AREA_MGR' THEN
---getting manager name for area
-  SELECT DISTINCT EMPLOYEE_NAME
-  INTO V_MANAGER_NAME
-  FROM EMPLOYEE_DETAILS,
-    HIERARCHY_DETAIL
-  WHERE SUBSTR(SD_REPORT_PKG.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'MANAGERNAME'),4) = EMPLOYEE_NUMBER
-  -- substr 4  used as manager number from the UPPER_LVL_VER_VALUE is having 2 extra spaces and 2 extra zeros before employee number
-  AND HRCHY_HDR_NAME                                                           = 'ADMIN_TO_SALES_AREA'
-  AND SUBSTR(HRCHY_DTL_PREV_LVL_VAL,5,4)                                       = IN_HRCHY_DTL_PREV_LVL_VAL;
-elsif IN_IND = 'DIST_MGR' THEN
---getting manager name for DIST
-  SELECT DISTINCT EMPLOYEE_NAME
-  INTO V_MANAGER_NAME
-  FROM EMPLOYEE_DETAILS,
-    HIERARCHY_DETAIL
-  WHERE SUBSTR(SD_REPORT_PKG.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'MANAGERNAME'),4) = EMPLOYEE_NUMBER
-  -- substr 4 used as manager number from the UPPER_LVL_VER_VALUE is having 2 extra spaces and 2 extra zeros before employee number
-  AND HRCHY_HDR_NAME                                                           = 'ADMIN_TO_SALES_DISTRICT'
-  AND SUBSTR(HRCHY_DTL_PREV_LVL_VAL,5,6)                                       = IN_HRCHY_DTL_PREV_LVL_VAL;
-elsif IN_IND = 'DIV_MGR' THEN
---getting manager name for DIV
-  SELECT DISTINCT EMPLOYEE_NAME
-  INTO V_MANAGER_NAME
-  FROM EMPLOYEE_DETAILS,
-    HIERARCHY_DETAIL
-  WHERE SUBSTR(SD_REPORT_PKG.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'MANAGERNAME'),4) = EMPLOYEE_NUMBER
-  -- substr 4 used as manager number from the UPPER_LVL_VER_VALUE is having 2 extra spaces and 2 extra zeros before employee number
-  AND HRCHY_HDR_NAME                                                           = 'ADMIN_TO_SALES_DIVISION'
-  AND SUBSTR(HRCHY_DTL_PREV_LVL_VAL,5,2)                                       = IN_HRCHY_DTL_PREV_LVL_VAL;
-ELSE
-  NULL;
-END IF;
- 
- RETURN V_MANAGER_NAME;
-
+    SELECT EMPLOYEE_NAME
+      INTO V_MANAGER_NAME
+      FROM REPORT_HRCHY_EMP_DTLS_VW
+     WHERE HRCHY_HDR_NAME = IN_HRCHY_HDR_NAME
+       AND LEVEL_VALUE    = IN_LEVEL_VALUE
+       AND ROWNUM < 2;
+    RETURN V_MANAGER_NAME;
 EXCEPTION
-  WHEN OTHERS THEN
-  RETURN NULL;
+    WHEN OTHERS THEN
+        RETURN V_MANAGER_NAME;
+END GET_MANAGER_NAME;
 
-END;
+PROCEDURE GET_HIERARCHY_DETAILS(
+/***********************************************************
+This procedure contains the core logic to get the hierarchy information for passed cost center
 
-PROCEDURE CCN_HIERARCHY_INFO
-/**********************************************************
-CCN_HIERARCHY_INFO 
-   This procedure is for truncating the CCN_HIERARCHY_INFO 
-   table and pull the updated data from the HIERARCHY_DETAIL_VIEW
-   created : 03/04/2014  nxk927
-**********************************************************/
-
-is
-
-SQ NUMBER;
-SE VARCHAR2(500);
-V_COUNT     INTEGER := 0 ;
-
-cursor ccn_hierarchy_info_cur is 
-SELECT *
-FROM HIERARCHY_DETAIL_VIEW;
-
+Created : 12/04/2014 jxc517 CCN Project Team.....
+Modified: 
+************************************************************/
+    IN_CC_CODE           IN     VARCHAR2,
+    OUT_COST_CENTER_NAME    OUT VARCHAR2,
+    OUT_COST_CENTER_MGR     OUT VARCHAR2,
+    OUT_COST_CENTER_PHN     OUT VARCHAR2,
+    OUT_AREA                OUT VARCHAR2,
+    OUT_AREA_NAME           OUT VARCHAR2,
+    OUT_AREA_MGR            OUT VARCHAR2,
+    OUT_DISTRICT            OUT VARCHAR2,
+    OUT_DISTRICT_NAME       OUT VARCHAR2,
+    OUT_DISTRICT_MGR        OUT VARCHAR2,
+    OUT_DIVISION            OUT VARCHAR2,
+    OUT_DIVISION_NAME       OUT VARCHAR2,
+    OUT_DIVISION_MGR        OUT VARCHAR2)
+IS
 BEGIN
---Deleting the CCN_Hierarchy_info table before inserting any data
-EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_HIERARCHY_INFO';
+    SELECT COST_CENTER_NAME,
+           SD_REPORT_PKG.CC_MANAGER(CCNHI.COST_CENTER_CODE) COST_CENTER_MGR,
+           (SELECT PRIMARY_PHONE_NUMBER
+              FROM PHONE_NBR
+             WHERE COST_CENTER_CODE = CCNHI.COST_CENTER_CODE
+               AND ROWNUM < 2) PHONE_NUMBER,
+           AREA,
+           AREA_NAME,
+           SD_REPORT_PKG.GET_MANAGER_NAME('ADMIN_TO_SALES_AREA', DIVISION||AREA) AREA_MGR,
+           DISTRICT, 
+           DISTRICT_NAME,
+           SD_REPORT_PKG.GET_MANAGER_NAME('ADMIN_TO_SALES_DISTRICT', DIVISION||AREA||DISTRICT) DISTRICT_MGR,
+           DIVISION,
+           DIVISION_NAME,
+           SD_REPORT_PKG.GET_MANAGER_NAME('ADMIN_TO_SALES_DIVISION', DIVISION) DIVISION_MGR
+      INTO OUT_COST_CENTER_NAME,
+           OUT_COST_CENTER_MGR,
+           OUT_COST_CENTER_PHN,
+           OUT_AREA,
+           OUT_AREA_NAME,
+           OUT_AREA_MGR,
+           OUT_DISTRICT,
+           OUT_DISTRICT_NAME,
+           OUT_DISTRICT_MGR,
+           OUT_DIVISION,
+           OUT_DIVISION_NAME,
+           OUT_DIVISION_MGR
+      FROM CCN_HIERARCHY_INFO CCNHI
+     WHERE COST_CENTER_CODE = IN_CC_CODE
+       AND HRCHY_HDR_NAME   = 'GLOBAL_HIERARCHY';
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END GET_HIERARCHY_DETAILS;
 
-    FOR CCN_HIERARCHY_INFO_REC IN ccn_hierarchy_info_cur LOOP
-        BEGIN
-            INSERT INTO CCN_HIERARCHY_INFO VALUES CCN_HIERARCHY_INFO_REC;
-        EXCEPTION
-            WHEN OTHERS THEN
-                SQ := SQLCODE;
-                SE := SQLERRM;
-                DBMS_OUTPUT.PUT_LINE('FAILED CCN_HIERARCHY_INFO ' || ' ' || SQ || ' ' || SE);
-        END;
-        IF V_COUNT > 100 THEN
-            COMMIT; 
-            V_COUNT := 0;
-        END IF; 
-        V_COUNT := V_COUNT + 1;
+PROCEDURE SD_DRAFT_MATCHED_QUERY(
+/**********************************************************
+This is the core procedure that gets invoked for loading the matched draft data
+
+Created : 12/04/2014 jxc517 CCN Project Team.....
+Modified: 
+**********************************************************/
+    IN_END_DATE     IN     DATE,
+    IN_OUT_PREV_REC IN OUT STORE_DRAFT_REPORT%ROWTYPE)
+IS
+    CURSOR DRAFT_MATCHED_CUR(IN_COST_CENTER_CODE    IN VARCHAR2,
+                             IN_TERMINAL_NUMBER     IN VARCHAR2,
+                             IN_TRANSACTION_NUMBER  IN VARCHAR2) IS
+              SELECT SD.PAYEE_NAME,
+                     SD.TERMINAL_NUMBER, 
+                     SD.TRANSACTION_NUMBER,
+                     SD.TRANSACTION_DATE,
+                     NVL(SDD.LBR_TERMINAL_NUMBER, SDD.TERMINAL_NUMBER) LBR_TERMINAL_NUMBER,
+                     NVL(SDD.LBR_TRANSACTION_NUMBER, SDD.TRANSACTION_NUMBER) LBR_TRANSACTION_NUMBER,
+                     NVL(SDD.LBR_TRANSACTION_DATE, SDD.TRANSACTION_DATE) LBR_TRANSACTION_DATE,
+                     SUBSTR(SD.CHECK_SERIAL_NUMBER,6,5) AS DRAFT_NUMBER,
+                     SDD.ITEM_EXT_AMOUNT AS DRAFT_AMOUNT,
+                     SDD.ITEM_QUANTITY,
+                     SD.CUSTOMER_ACCOUNT_NUMBER AS PAYEE_ACC_NUMBER
+                FROM STORE_DRAFTS SD,
+                     STORE_DRAFTS_DETAIL SDD                      
+               WHERE SD.CHECK_SERIAL_NUMBER     = SDD.CHECK_SERIAL_NUMBER
+                 AND SDD.BOOK_DATE_SEQUENCE IS NULL
+                 AND SDD.TRANSACTION_DATE       < IN_END_DATE --'01-DEC-2014'
+                 AND SDD.GL_SUB_ACCOUNT_NUMBER  = '120'
+                 AND SD.POS_TRANSACTION_CODE    = '13'
+                 AND SD.STOP_INDICATOR          <> 'Y'
+                 AND SDD.GL_PRIME_ACCOUNT_NUMBER || SDD.GL_SUB_ACCOUNT_NUMBER <> '7504101'
+                 AND SD.COST_CENTER_CODE                                     = IN_COST_CENTER_CODE
+                 AND NVL(SDD.LBR_TERMINAL_NUMBER, SDD.TERMINAL_NUMBER)       = IN_TERMINAL_NUMBER
+                 AND NVL(SDD.LBR_TRANSACTION_NUMBER, SDD.TRANSACTION_NUMBER) = IN_TRANSACTION_NUMBER;
+
+    V_MATCHED       VARCHAR2(1) := 'Y';
+BEGIN
+    FOR matched_draft_rec IN DRAFT_MATCHED_CUR(IN_OUT_PREV_REC.COST_CENTER_CODE,
+                                               IN_OUT_PREV_REC.TERMINAL_NUMBER,
+                                               IN_OUT_PREV_REC.TRANSACTION_NUMBER) LOOP
+        --If matched, irrespective of any other conditions this should be populated
+        IN_OUT_PREV_REC.PL_DATE                := ADD_MONTHS(IN_END_DATE, -1);
+        IF V_MATCHED = 'Y' THEN
+            UPDATE STORE_DRAFT_REPORT
+               SET PL_DATE = IN_OUT_PREV_REC.PL_DATE
+             WHERE COST_CENTER_CODE   = IN_OUT_PREV_REC.COST_CENTER_CODE
+               AND TERMINAL_NUMBER    = IN_OUT_PREV_REC.TERMINAL_NUMBER
+               AND TRANSACTION_NUMBER = IN_OUT_PREV_REC.TRANSACTION_NUMBER
+               AND PL_DATE IS NULL;
+            V_MATCHED := 'N';
+        END IF;
+        --Below 4 fields will be over-written
+        IN_OUT_PREV_REC.TERMINAL_NUMBER        := matched_draft_rec.TERMINAL_NUMBER;
+        IN_OUT_PREV_REC.TRANSACTION_NUMBER     := matched_draft_rec.TRANSACTION_NUMBER;
+        IN_OUT_PREV_REC.TRANSACTION_DATE       := matched_draft_rec.TRANSACTION_DATE;
+        IN_OUT_PREV_REC.ITEM_QUANTITY          := matched_draft_rec.ITEM_QUANTITY;
+        IN_OUT_PREV_REC.LABOR_AMOUNT           := NULL;
+        --Below fields are applicable only for drafts, not labor
+        IN_OUT_PREV_REC.PAYEE_NAME             := matched_draft_rec.PAYEE_NAME;
+        IN_OUT_PREV_REC.LBR_TERMINAL_NUMBER    := matched_draft_rec.LBR_TERMINAL_NUMBER;
+        IN_OUT_PREV_REC.LBR_TRANSACTION_NUMBER := matched_draft_rec.LBR_TRANSACTION_NUMBER;
+        IN_OUT_PREV_REC.LBR_TRANSACTION_DATE   := matched_draft_rec.LBR_TRANSACTION_DATE;
+        IN_OUT_PREV_REC.DRAFT_NUMBER           := matched_draft_rec.DRAFT_NUMBER;
+        IN_OUT_PREV_REC.DRAFT_AMOUNT           := matched_draft_rec.DRAFT_AMOUNT;
+        IN_OUT_PREV_REC.PAYEE_ACC_NUMBER       := matched_draft_rec.PAYEE_ACC_NUMBER;
+        INSERT INTO STORE_DRAFT_REPORT VALUES IN_OUT_PREV_REC;
     END LOOP;
     COMMIT;
-END;
+END SD_DRAFT_MATCHED_QUERY;
+
+PROCEDURE SD_DRAFT_UNMATCHED_QUERY(
+/**********************************************************
+This is the core procedure that gets invoked for loading the un-matched draft data
+
+Created : 12/04/2014 jxc517 CCN Project Team.....
+Modified: 
+**********************************************************/
+    IN_END_DATE     IN     DATE,
+    IN_REC          IN     STORE_DRAFT_REPORT%ROWTYPE)
+IS
+    CURSOR DRAFT_UNMATCHED_CUR(IN_COST_CENTER_CODE    IN VARCHAR2) IS
+              SELECT SD.PAYEE_NAME,
+                     SD.TERMINAL_NUMBER, 
+                     SD.TRANSACTION_NUMBER,
+                     SD.TRANSACTION_DATE,
+                     NVL(SDD.LBR_TERMINAL_NUMBER, SD.TERMINAL_NUMBER) LBR_TERMINAL_NUMBER,
+                     NVL(SDD.LBR_TRANSACTION_NUMBER, SD.TRANSACTION_NUMBER) LBR_TRANSACTION_NUMBER,
+                     NVL(SDD.LBR_TRANSACTION_DATE, SD.TRANSACTION_DATE) LBR_TRANSACTION_DATE,
+                     SUBSTR(SD.CHECK_SERIAL_NUMBER,6,5) AS DRAFT_NUMBER,
+                     SDD.ITEM_EXT_AMOUNT AS DRAFT_AMOUNT,
+                     SDD.ITEM_QUANTITY,
+                     SD.CUSTOMER_ACCOUNT_NUMBER AS PAYEE_ACC_NUMBER
+                FROM STORE_DRAFTS SD,
+                     STORE_DRAFTS_DETAIL SDD                      
+               WHERE SD.CHECK_SERIAL_NUMBER     = SDD.CHECK_SERIAL_NUMBER
+                 AND SDD.BOOK_DATE_SEQUENCE IS NULL
+                 AND SDD.TRANSACTION_DATE       < IN_END_DATE --'01-DEC-2014'
+                 AND SDD.GL_SUB_ACCOUNT_NUMBER  = '120'
+                 AND SD.POS_TRANSACTION_CODE    = '13'
+                 AND SD.STOP_INDICATOR          <> 'Y'
+                 AND SDD.GL_PRIME_ACCOUNT_NUMBER || SDD.GL_SUB_ACCOUNT_NUMBER <> '7504101'
+                 AND SD.COST_CENTER_CODE        = IN_COST_CENTER_CODE
+                 AND NOT EXISTS (SELECT 1
+                                   FROM CUSTOMER_DETAILS CD,
+                                        CUSTOMER C
+                                  WHERE CD.TRANSACTION_DATE      < IN_END_DATE --'01-DEC-2014'
+                                    AND CD.TERMINAL_NUMBER       = C.TERMINAL_NUMBER
+                                    AND CD.TRANSACTION_NUMBER    = C.TRANSACTION_NUMBER
+                                    AND CD.COST_CENTER_CODE      = C.COST_CENTER_CODE
+                                    AND CD.TRANSACTION_DATE      = C.TRANSACTION_DATE
+                                    AND C.BOOK_DATE_SEQUENCE IS NULL
+                                    AND CD.GL_SUB_ACCOUNT_NUMBER  = '121'
+                                    AND CD.TERMINAL_NUMBER       IS NOT NULL
+                                    AND CD.TRANSACTION_NUMBER    IS NOT NULL
+                                    AND CD.COST_CENTER_CODE      = SD.COST_CENTER_CODE
+                                    AND CD.TERMINAL_NUMBER       = NVL(SDD.LBR_TERMINAL_NUMBER, SDD.TERMINAL_NUMBER)
+                                    AND CD.TRANSACTION_NUMBER    = NVL(SDD.LBR_TRANSACTION_NUMBER, SDD.TRANSACTION_NUMBER));
+
+    V_REC STORE_DRAFT_REPORT%ROWTYPE := IN_REC;
+BEGIN
+    FOR matched_draft_rec IN DRAFT_UNMATCHED_CUR(V_REC.COST_CENTER_CODE) LOOP
+        --If NOT matched, irrespective of any other conditions this should NOT be populated
+        IF matched_draft_rec.TRANSACTION_DATE < ADD_MONTHS(IN_END_DATE, -1) THEN
+            V_REC.PL_DATE := ADD_MONTHS(IN_END_DATE, -1);
+        ELSE
+            V_REC.PL_DATE                := NULL;
+        END IF;
+        --Below 4 fields will be over-written
+        V_REC.CUSTOMER_ACCOUNT_NUMBER:= NULL;
+        V_REC.PURCHASE_ORDER_NUMBER  := '***xNOxCUSTOMERxNAMEx***';
+        V_REC.TERMINAL_NUMBER        := matched_draft_rec.TERMINAL_NUMBER;
+        V_REC.TERMINAL_NUMBER        := matched_draft_rec.TERMINAL_NUMBER;
+        V_REC.TRANSACTION_NUMBER     := matched_draft_rec.TRANSACTION_NUMBER;
+        V_REC.TRANSACTION_DATE       := matched_draft_rec.TRANSACTION_DATE;
+        V_REC.ITEM_QUANTITY          := matched_draft_rec.ITEM_QUANTITY;
+        V_REC.LABOR_AMOUNT           := NULL;
+        --Below fields are applicable only for drafts, not labor
+        V_REC.PAYEE_NAME             := matched_draft_rec.PAYEE_NAME;
+        V_REC.LBR_TERMINAL_NUMBER    := matched_draft_rec.LBR_TERMINAL_NUMBER;
+        V_REC.LBR_TRANSACTION_NUMBER := matched_draft_rec.LBR_TRANSACTION_NUMBER;
+        V_REC.LBR_TRANSACTION_DATE   := matched_draft_rec.LBR_TRANSACTION_DATE;
+        V_REC.DRAFT_NUMBER           := matched_draft_rec.DRAFT_NUMBER;
+        V_REC.DRAFT_AMOUNT           := matched_draft_rec.DRAFT_AMOUNT;
+        V_REC.PAYEE_ACC_NUMBER       := matched_draft_rec.PAYEE_ACC_NUMBER;
+        INSERT INTO STORE_DRAFT_REPORT VALUES V_REC;
+    END LOOP;
+    COMMIT;
+END SD_DRAFT_UNMATCHED_QUERY;
+
+PROCEDURE SD_REPORT_QUERY(
+/**********************************************************
+This is the core procedure that gets invoked for loading the data
+
+Created : 12/04/2014 jxc517 CCN Project Team.....
+Modified: 
+**********************************************************/
+    IN_END_DATE IN DATE)
+IS
+    CURSOR LABOR_CUR IS
+              SELECT CD.COST_CENTER_CODE,
+                     C.CUSTOMER_ACCOUNT_NUMBER,
+                     NVL((SELECT CV.CUSTNAME
+                            FROM CUSTOMER_TAXID_VW CV
+                           WHERE CUSTNUM = C.CUSTOMER_ACCOUNT_NUMBER
+                            AND ROWNUM < 2),'***xNOxCUSTOMERxNAMEx***') PURCHASE_ORDER_NUMBER,
+                     CD.TERMINAL_NUMBER, 
+                     CD.TRANSACTION_NUMBER,
+                     CD.TRANSACTION_DATE,
+                     ITEM_QUANTITY * ITEM_PRICE AS LABOR_AMOUNT,
+                     CD.ITEM_QUANTITY
+                FROM CUSTOMER_DETAILS CD,
+                     CUSTOMER C
+               WHERE CD.TRANSACTION_DATE      < IN_END_DATE --'01-DEC-2014'
+                 AND CD.TERMINAL_NUMBER       = C.TERMINAL_NUMBER
+                 AND CD.TRANSACTION_NUMBER    = C.TRANSACTION_NUMBER
+                 AND CD.COST_CENTER_CODE      = C.COST_CENTER_CODE
+                 AND CD.TRANSACTION_DATE      = C.TRANSACTION_DATE
+                 AND C.BOOK_DATE_SEQUENCE IS NULL
+                 AND CD.GL_SUB_ACCOUNT_NUMBER  = '121'
+                 AND CD.TERMINAL_NUMBER       IS NOT NULL
+                 AND CD.TRANSACTION_NUMBER    IS NOT NULL
+                 --AND CD.COST_CENTER_CODE      = '708176' --IN ('703208' ,'701221')
+                 --AND CD.TERMINAL_NUMBER       = '13142'
+                 --AND CD.TRANSACTION_NUMBER    = '23528'
+               ORDER BY CD.COST_CENTER_CODE, CD.TERMINAL_NUMBER, CD.TRANSACTION_NUMBER;
+
+    V_COUNT         NUMBER := 0;
+    V_REC           STORE_DRAFT_REPORT%ROWTYPE;
+    V_PREV_REC      STORE_DRAFT_REPORT%ROWTYPE;
+
+    V_COST_CENTER_NAME   VARCHAR2(100);
+    V_COST_CENTER_MGR    VARCHAR2(100);
+    V_COST_CENTER_PHN    VARCHAR2(100);
+    V_AREA               VARCHAR2(100);
+    V_AREA_NAME          VARCHAR2(100);
+    V_AREA_MGR           VARCHAR2(100);
+    V_DISTRICT           VARCHAR2(100);
+    V_DISTRICT_NAME      VARCHAR2(100);
+    V_DISTRICT_MGR       VARCHAR2(100);
+    V_DIVISION           VARCHAR2(100);
+    V_DIVISION_NAME      VARCHAR2(100);
+    V_DIVISION_MGR       VARCHAR2(100);
+
+BEGIN
+    FOR rec IN LABOR_CUR LOOP
+        BEGIN
+            V_REC.COST_CENTER_CODE        := rec.COST_CENTER_CODE;
+            IF NVL(V_PREV_REC.COST_CENTER_CODE,'XXX') <> rec.COST_CENTER_CODE THEN
+                GET_HIERARCHY_DETAILS(V_REC.COST_CENTER_CODE,
+                                      V_COST_CENTER_NAME,
+                                      V_COST_CENTER_MGR,
+                                      V_COST_CENTER_PHN,
+                                      V_AREA,
+                                      V_AREA_NAME,
+                                      V_AREA_MGR,
+                                      V_DISTRICT,
+                                      V_DISTRICT_NAME,
+                                      V_DISTRICT_MGR,
+                                      V_DIVISION,
+                                      V_DIVISION_NAME,
+                                      V_DIVISION_MGR);
+            END IF;
+            V_REC.COST_CENTER_NAME        := V_COST_CENTER_NAME;
+            V_REC.COST_CENTER_MGR         := V_COST_CENTER_MGR;
+            V_REC.PHONE_NUMBER            := V_COST_CENTER_PHN;
+            V_REC.AREA                    := V_AREA;
+            V_REC.AREA_NAME               := V_AREA_NAME;
+            V_REC.AREA_MGR                := V_AREA_MGR;
+            V_REC.DISTRICT                := V_DISTRICT;
+            V_REC.DISTRICT_NAME           := V_DISTRICT_NAME;
+            V_REC.DISTRICT_MGR            := V_DISTRICT_MGR;
+            V_REC.DIVISION                := V_DIVISION;
+            V_REC.DIVISION_NAME           := V_DIVISION_NAME;
+            V_REC.DIVISION_MGR            := V_DIVISION_MGR;
+            V_REC.CUSTOMER_ACCOUNT_NUMBER := rec.CUSTOMER_ACCOUNT_NUMBER;
+            V_REC.PURCHASE_ORDER_NUMBER   := rec.PURCHASE_ORDER_NUMBER;
+            V_REC.TERMINAL_NUMBER         := rec.TERMINAL_NUMBER;
+            V_REC.TRANSACTION_NUMBER      := rec.TRANSACTION_NUMBER;
+            V_REC.TRANSACTION_DATE        := rec.TRANSACTION_DATE;
+            V_REC.LBR_TERMINAL_NUMBER     := rec.TERMINAL_NUMBER;
+            V_REC.LBR_TRANSACTION_NUMBER  := rec.TRANSACTION_NUMBER;
+            V_REC.LBR_TRANSACTION_DATE    := rec.TRANSACTION_DATE;
+            V_REC.LABOR_AMOUNT            := rec.LABOR_AMOUNT;
+            V_REC.ITEM_QUANTITY           := rec.ITEM_QUANTITY;
+            IF NVL(V_PREV_REC.COST_CENTER_CODE,'XXX') <> rec.COST_CENTER_CODE THEN
+                SD_DRAFT_UNMATCHED_QUERY(IN_END_DATE, V_REC);
+            END IF;
+            IF NVL(V_PREV_REC.COST_CENTER_CODE, V_REC.COST_CENTER_CODE) <> V_REC.COST_CENTER_CODE
+               OR NVL(V_PREV_REC.TERMINAL_NUMBER, V_REC.TERMINAL_NUMBER) <> V_REC.TERMINAL_NUMBER
+               OR NVL(V_PREV_REC.TRANSACTION_NUMBER, V_REC.TRANSACTION_NUMBER) <> V_REC.TRANSACTION_NUMBER THEN
+                SD_DRAFT_MATCHED_QUERY(IN_END_DATE, V_PREV_REC);
+            END IF;
+            IF V_REC.TRANSACTION_DATE < ADD_MONTHS(IN_END_DATE, -1) THEN
+                V_REC.PL_DATE := ADD_MONTHS(IN_END_DATE, -1);
+            END IF;
+            V_PREV_REC := V_REC;
+            INSERT INTO STORE_DRAFT_REPORT VALUES V_REC;
+            V_REC := NULL;
+
+            --Commit Logic here
+            V_COUNT := V_COUNT + 1;
+            IF V_COUNT > 1000 THEN
+                COMMIT;
+                V_COUNT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END LOOP;
+    
+    SD_DRAFT_MATCHED_QUERY(IN_END_DATE, V_PREV_REC);
+
+    COMMIT;
+END SD_REPORT_QUERY;
 
 END SD_REPORT_PKG;
+
