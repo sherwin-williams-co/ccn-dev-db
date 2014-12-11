@@ -59,8 +59,8 @@ CURSOR STOREDRAFT_DETAIL_CUR IS
                        ITEM_PRICE
                   FROM DLY_INSTALLER_LINE_ITEM_DATA) A
          WHERE A.COST_CENTER_CODE    = B.COST_CENTER_CODE(+)
-           AND A.CHECK_SERIAL_NUMBER = B.CHECK_SERIAL_NUMBER(+)
-           and a.check_serial_number = '0189938939';
+           AND A.CHECK_SERIAL_NUMBER = B.CHECK_SERIAL_NUMBER(+);
+           --and a.check_serial_number = '0189938939';
 
     V_COMMIT                INTEGER := 0;
     V_STOREDRAFT_DETAIL_ROW       STORE_DRAFTS_DETAIL%ROWTYPE;
