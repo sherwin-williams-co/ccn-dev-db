@@ -138,16 +138,33 @@ FUNCTION IS_UNATTACHED_STORE_DRAFT(
 
 	This function will return if the passed record is unattached or not based on some ruels.  
 
-created : 07/01/2014
-changed :
+created : 07/01/2014 jxc517 CCN Project Team.....
+changed : 12/10/2014 jxc517 CCN Project Team.....
+          Modified code to handle updates on unattached manual drafts
 *****************************************************************************/
     IN_STORE_DRAFTS_RECORD     IN    STORE_DRAFTS%ROWTYPE) RETURN BOOLEAN
 IS
     V_RETURN_VALUE BOOLEAN := FALSE;
+    V_COUNT        NUMBER := 0;
 BEGIN
-    IF IN_STORE_DRAFTS_RECORD.COST_CENTER_CODE IS NULL
-       OR IN_STORE_DRAFTS_RECORD.CHECK_SERIAL_NUMBER IS NULL
-       OR IN_STORE_DRAFTS_RECORD.TRANSACTION_DATE IS NULL THEN
+    --During updates on unattached manual drafts, we should return TRUE if it's already unattached
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM UNATTACHED_MNL_DRFT_DTL
+         WHERE COST_CENTER_CODE    = IN_STORE_DRAFTS_RECORD.COST_CENTER_CODE
+           AND CHECK_SERIAL_NUMBER = IN_STORE_DRAFTS_RECORD.CHECK_SERIAL_NUMBER;
+        IF V_COUNT > 0 THEN
+            V_RETURN_VALUE := TRUE;
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF NOT V_RETURN_VALUE 
+       AND (IN_STORE_DRAFTS_RECORD.COST_CENTER_CODE IS NULL
+            OR IN_STORE_DRAFTS_RECORD.CHECK_SERIAL_NUMBER IS NULL
+            OR IN_STORE_DRAFTS_RECORD.TRANSACTION_DATE IS NULL) THEN
         V_RETURN_VALUE := TRUE;
     END IF;
     RETURN V_RETURN_VALUE;
@@ -268,14 +285,37 @@ PROCEDURE SD_BANK_FILE_SENT_DETAILS_SP(
 	This procedure will do the bussiness rules validations for SD_BANK_FILE_SENT_DETAILS table
 
 created : 09/29/2014 jxc517 CCN Project . . .
-changed :
+changed : 12/10/2014 jxc517 CCN Project . . .
+          Modified logic to treat manual drafts differently from regular drafts
+          Multiple maintenance on manual draft on the same day is allowed, with warning
+          Multiple maintenance on regular draft on the same day is NOT allowed, and a error will be raised
+          12/12/2014 axk326 CCN Project . . .
+          Modified logic in STORE_DRAFTS_I_SP() to save the change amount in regular drafts though they were
+          maintained more than once on the same day. . . 
 *****************************************************************************/
     IN_COST_CENTER_CODE    IN    SD_BANK_FILE_SENT_DETAILS.COST_CENTER_CODE%TYPE,
     IN_CHECK_SERIAL_NUMBER IN    SD_BANK_FILE_SENT_DETAILS.CHECK_SERIAL_NUMBER%TYPE)
 IS
     mntnc_not_allwd_twice_err EXCEPTION;
     V_COUNT                   NUMBER := 0;
+    V_MNL_DRFT                VARCHAR2(1);
 BEGIN
+    --Check if the passed draft is a manual draft or not
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM UNATTACHED_MNL_DRFT_DTL
+         WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+           AND CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER;
+        IF V_COUNT > 0 THEN
+            V_MNL_DRFT := 'Y';
+        ELSE
+            V_MNL_DRFT := 'N';
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
     BEGIN
         SELECT COUNT(*)
           INTO V_COUNT
@@ -288,12 +328,23 @@ BEGIN
             NULL;
     END;
     IF V_COUNT > 0 THEN
-        RAISE mntnc_not_allwd_twice_err;
+        --If manual draft and maintained twice on the same day as it is created => WARNING
+        --NOTE: the second day the manual draft will be moved into STORE_DRAFTS
+        IF V_MNL_DRFT = 'Y' THEN
+            ERRPKG.STORE_WARNINGS(errnums.en_mntnc_not_allwd_twice_wrn, 
+                                  'Same draft can not be maintained twice on a single day');
+        --If regular draft and maintained twice on the same day as it is created => WARNING
+        ELSE
+            --RAISE mntnc_not_allwd_twice_err;
+            ERRPKG.STORE_WARNINGS(errnums.en_mntnc_not_allwd_twice_wrn, 
+                                  'Same draft can not be maintained twice on a single day');
+            
+        END IF;
     END IF;
 EXCEPTION
-    WHEN mntnc_not_allwd_twice_err THEN
-        errpkg.raise_err(errnums.en_mntnc_not_allwd_twice_err, 
-                         'Same draft can not be maintained twice on a single day');
+--    WHEN mntnc_not_allwd_twice_err THEN
+--        errpkg.raise_err(errnums.en_mntnc_not_allwd_twice_err, 
+--                         'Same draft can not be maintained twice on a single day');
     WHEN OTHERS THEN 
         ERRPKG.RAISE_ERR(SQLCODE, 'SD_BUSINESS_RULES_PKG.SD_BANK_FILE_SENT_DETAILS_SP, ', SUBSTR(SQLERRM,1,200));	
 END SD_BANK_FILE_SENT_DETAILS_SP;
@@ -333,4 +384,3 @@ EXCEPTION
 END SD_GL_ACCOUNT_VALIDATION;
 
 END SD_BUSINESS_RULES_PKG;
-
