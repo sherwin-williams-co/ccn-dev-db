@@ -590,7 +590,7 @@ BEGIN
     V_TEMP_ROW.CHECK_SERIAL_NUMBER := SD_BUSINESS_RULES_PKG.GET_CHECK_SERIAL_NUMBER(V_TEMP_ROW.COST_CENTER_CODE,
                                                                                     V_TEMP_ROW.CHECK_SERIAL_NUMBER);
     V_TEMP_ROW.DRAFT_NUMBER        := SUBSTR(V_TEMP_ROW.CHECK_SERIAL_NUMBER,6,4);
-    --V_TEMP_ROW.NET_AMOUNT          := V_TEMP_ROW.ORIGINAL_NET_AMOUNT;  
+    
 
     --set the flag values for STORE_DRAFTS table
     SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
@@ -1718,7 +1718,9 @@ PROCEDURE STORE_DRAFTS_I_SP (
 	This procedure is intended to insert records into STORE_DRAFTS table
 
 Created : 05/22/2014 nxk927 CCN Project....
-Changed : 
+Changed : 12/12/2014 nxk927 CCN Project....
+          During updates on unattached manual drafts, we should return TRUE if 
+          it's already unattached as of that day
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB)
@@ -1726,14 +1728,33 @@ IS
     V_CODE NUMBER;
     V_ERRM VARCHAR2(500);
 
-    V_TEMP_ROW       STORE_DRAFTS%ROWTYPE;
-  
+    V_TEMP_ROW     STORE_DRAFTS%ROWTYPE;
+    V_COUNT        NUMBER := 0;
+    V_MNL_DRAFT    BOOLEAN := FALSE;
 BEGIN
 
     STORE_DRAFTS_ROWTYPE_SP(IN_TABLE_NAME,
                             IN_ROW_DATA,
                             V_TEMP_ROW);
     IF SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(V_TEMP_ROW) THEN
+        V_MNL_DRAFT := TRUE;
+    ELSE
+        --During updates on unattached manual drafts, we should return TRUE if it's already unattached as og that day
+        BEGIN
+            SELECT COUNT(*)
+              INTO V_COUNT
+              FROM UNATTACHED_MNL_DRFT_DTL
+             WHERE COST_CENTER_CODE    = V_TEMP_ROW.COST_CENTER_CODE
+               AND CHECK_SERIAL_NUMBER = V_TEMP_ROW.CHECK_SERIAL_NUMBER;
+            IF V_COUNT > 0 THEN
+                V_MNL_DRAFT := TRUE;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END IF;
+    IF V_MNL_DRAFT THEN
         --Need to manually set the TABLE_NAME and replace the tag STORE_DRAFTS to UNATTACHED_MNL_DRFT_DTL
         UNATTACHED_MNL_DRFT_DTL_I_SP('UNATTACHED_MNL_DRFT_DTL',
                                      REPLACE(IN_ROW_DATA,'STORE_DRAFTS>','UNATTACHED_MNL_DRFT_DTL>'));
