@@ -6,7 +6,7 @@ CURSOR STOREDRAFT_DETAIL_CUR IS
                (SELECT COST_CENTER_CODE
                  FROM COST_CENTER
                 WHERE A.COST_CENTER_CODE    = SUBSTR(COST_CENTER_CODE,3)
-				and CATEGORY = 'S') CC_CODE,
+                  AND CATEGORY = 'S') CC_CODE,
                A.*
           FROM DLY_ISSUE_CHANGE_DATA B,
                (SELECT TRANSACTION_SOURCE,
@@ -16,10 +16,10 @@ CURSOR STOREDRAFT_DETAIL_CUR IS
                        PROCESS_DATE,
                        TRANSACTION_SEGMENT_TYPE,
                        ITEM_EXT_AMOUNT,
-                       ORGNL_CUSTOMER_ACCOUNT_NUMBER,
-                       ORGNL_JOB_NUMBER,
-                       NULL GL_PRIME_ACCOUNT_NUMBER,
-                       NULL GL_SUB_ACCOUNT_NUMBER,
+                       NULL ORGNL_CUSTOMER_ACCOUNT_NUMBER,
+                       NULL ORGNL_JOB_NUMBER,
+                       GL_PRIME_ACCOUNT_NUMBER,
+                       GL_SUB_ACCOUNT_NUMBER,
                        NULL ORGNL_TERMINAL_NUMBER,
                        NULL ORGNL_TRANSACTION_NUMBER,
                        NULL ITEM_QUANTITY,
@@ -33,10 +33,10 @@ CURSOR STOREDRAFT_DETAIL_CUR IS
                        PROCESS_DATE,
                        TRANSACTION_SEGMENT_TYPE,
                        ITEM_EXT_AMOUNT,
-                       NULL ORGNL_CUSTOMER_ACCOUNT_NUMBER,
-                       NULL ORGNL_JOB_NUMBER,
-                       GL_PRIME_ACCOUNT_NUMBER,
-                       GL_SUB_ACCOUNT_NUMBER,
+                       ORGNL_CUSTOMER_ACCOUNT_NUMBER,
+                       ORGNL_JOB_NUMBER,
+                       NULL GL_PRIME_ACCOUNT_NUMBER,
+                       NULL GL_SUB_ACCOUNT_NUMBER,
                        NULL ORGNL_TERMINAL_NUMBER,
                        NULL ORGNL_TRANSACTION_NUMBER,
                        NULL ITEM_QUANTITY,
