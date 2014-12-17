@@ -398,20 +398,6 @@ changed : 09/12/2012 TAL removed effective_date
 ******************************************************************************/
 ;
 
-
-PROCEDURE TERRITORY_SALES_MGR_S_SP  ( IN_TERR_SLS_MGR_CD        IN  TERRITORY_SALES_MGR.TERRITORY_SLS_MGR_CODE%TYPE                                     
-                                    , OUT_TERR_SLS_MGR_REF_CUR  OUT REF_CURSOR )
-/******************************************************************************
-	TERRITORY_SALES_MGR_S_SP
-
-	This procedure is intended to return a ref cursor with data from 
-	from the TERRITORY_SALES_MGR table.  
-
-created : 03/22/2012 BLR CCN Project....
-*******************************************************************************/
-;
-
-
 PROCEDURE TYPE_S_SP ( IN_COST_CENTER    IN  TYPE.COST_CENTER_CODE%TYPE
                     , IN_TYPE_CODE      IN  TYPE.TYPE_CODE%TYPE
                     , OUT_TYPE_REF_CUR  OUT REF_CURSOR )
@@ -949,25 +935,6 @@ changed: 10/02/2012 TAL - modified to call TERRITORY_ROWTYPE_SP
  in_table_name           in  varchar2 
 ,in_row_data             in  varchar2 --sys.xmltype
 ,out_TERRITORY_row       out TERRITORY%rowtype
-);
-
-PROCEDURE TERRITORY_SALES_MGR_I_SP (
-/*****************************************************************************
-	TERRITORY_SALES_MGR_I_SP
-
-	This procedure is intended to insert new territory_sales_mgr records
-
-	OracleTableName  -  Table name for row -varible
-      xml file     -  the data being inserted
-  Terrotory_Sales_Mgr_ROWTYPE  -  Territory_Sales_Mgr Data Row
-
-created : 04/24/2012 BLR CCN Project....
-changed: 10/02/2012 TAL - modified to call TERRITORY_SALES_MGR_ROWTYPE_SP
-*******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_SALES_MGR_row out TERRITORY_SALES_MGR%rowtype
 );
 
 PROCEDURE TYPE_I_SP (
@@ -1516,27 +1483,6 @@ changed: 10/02/2012 TAL - modified to call TERRITORY_ASSIGNMENT_ROWTYPE_SP
 ,out_TERRITORY_ASSIGNMENT_row  out TERRITORY_ASSIGNMENT%rowtype
 );
 
-PROCEDURE TERRITORY_SALES_MGR_U_SP (
-/*****************************************************************************
-	TERRITORY_SALES_MGR_U_SP
-
-	This procedure is intended to update changed territory_sales_mgr records
-
-	TERRITORY_SALES_MGR - Cost Center that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/11/2012 BLR CCN Project....
-changed: 10/02/2012 TAL - modified to call TERRITORY_SALES_MGR_ROWTYPE_SP
-*******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_SALES_MGR_row  out TERRITORY_SALES_MGR%rowtype
-);
-
 PROCEDURE TERRITORY_U_SP (
 /*****************************************************************************
 	TERRITORY_U_SP
@@ -1998,24 +1944,6 @@ created : 09/26/2012 TAL -- CCN Project....
 ,OUT_TERRITORY_ASSIGNMENT_ROW     OUT TERRITORY_ASSIGNMENT%ROWTYPE
 );
 
-PROCEDURE TERRITORY_SALES_MGR_ROWTYPE_SP (
-/******************************************************************************
-	TERRITORY_SALES_MGR_ROWTYPE_SP
-
-	This procedure Build a TERRITORY_SALES_MGR Rowtype ROW
-
-	OracleTableName  -  Table name for row -varible
-      xml file     -  the data being inserted
-  Territory_Sales_Mgr_ROWTYPE  -  Territory_Sales_Mgr Data Row
-
-created : 09/26/2012 TAL -- CCN Project....
-******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,OUT_TERRITORY_SALES_MGR_ROW     OUT TERRITORY_SALES_MGR%ROWTYPE
-);
-
 PROCEDURE TYPE_ROWTYPE_SP (
 /******************************************************************************
 	TYPE_ROWTYPE_SP
@@ -2101,4 +2029,3 @@ in_table_name          IN  varchar2
 );  
 
 end CCN_TABLE_IU_PKG;
-

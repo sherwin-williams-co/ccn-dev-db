@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CALL_BUSINESS_RULES_PKG AS
+create or replace PACKAGE CALL_BUSINESS_RULES_PKG AS
 /******************************************************************************
 This package SPEC has procedures and functions related to the CALL_BUSINESS_RULES Package
 
@@ -89,21 +89,22 @@ PROCEDURE BUSINESS_RULES_INPUT_3 (
 			TERMINAL%rowtype
 			TERRITORY%rowtype
 			TERRITORY_ASSIGNMENT%rowtype
-			TERRITORY_SALES_MGR%rowtype
+		--	TERRITORY_SALES_MGR%rowtype
 			TYPE%rowtype
 			COST_CENTER%rowtype
 
-created : 02/21/2013 TAL -- CCN Project....
+created : 02/21/2013 TAL    -- CCN Project....
+Modified: 12/15/2014 axk326 -- CCN Project Team....
+          Removed Territory_sls_mgr
 ******************************************************************************/
 -- Below are the fields required for the Business_Rules_Input call: 
 -- Cost_Center_code, Table_Rowtypes 
 
    in_cost_center          in   varchar2
-  ,v_STORE_rowtype  	   out  STORE%rowtype
+  ,v_STORE_rowtype  	     out  STORE%rowtype
   ,v_TERMINAL_rowtype      out  TERMINAL%rowtype
   ,v_TERRITORY_rowtype     out  TERRITORY%rowtype
   ,v_TERR_ASGN_rowtype     out  TERRITORY_ASSIGNMENT%rowtype
-  ,v_TERR_SLS_MGR_rowtype  out  TERRITORY_SALES_MGR%rowtype
   ,v_TYPE_rowtype          out  TYPE%rowtype
   ,v_COST_CENTER_rowtype   out  COST_CENTER%rowtype
   );  
@@ -131,4 +132,3 @@ Updated: 05/21/2013 TAL - added v_note to the parameter list
 
 
 END CALL_BUSINESS_RULES_PKG;
-

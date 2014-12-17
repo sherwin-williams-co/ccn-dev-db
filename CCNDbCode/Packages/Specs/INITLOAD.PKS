@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE initLoad
+create or replace PACKAGE initLoad
 /**************************************************************** 
 This package will load the new CCN Oracle Database
 created : 11/21/2011 mdh CCN coding projecet
@@ -160,18 +160,6 @@ PROCEDURE LOAD_MARKETING_TABLE;
 
 created : 10/21/2011 mdh CCN Project....
 ***************************************************************/
-
-
-PROCEDURE LOAD_SALES_MANAGER_TABLE;
-/***************************************************************
-	LOAD_SALES_MANAGER_TABLE
-
-	This function will load the TERRITORY_SALES_MANAGER table from data  
-	file from legacy idms database.  
-
-created : 11/17/2011 blr CCN Project....
-***************************************************************/
-
 
 PROCEDURE LOAD_TERRITORY_TABLE;
 /***************************************************************
@@ -547,19 +535,6 @@ created : 04/23/2013 BLR CCN Project....
 *******************************************************************************/
     interritory_rowtype IN TERRITORY%rowtype
     );
-    
-PROCEDURE TERRITORY_SLS_MGR_INITLOAD_SP (
-/*******************************************************************************
-	TERRITORY_SLS_MGR_INITLOAD_SP
-
-	CCNA-356 - This procedure is intended to build an AUDIT_LOG entry for 
-  TERRITORY_SALES_MGR Records
-
-created : 04/23/2013 BLR CCN Project....
-*******************************************************************************/
-  inTERRITORY_SALES_MGR_rowtype IN TERRITORY_SALES_MGR%rowtype
-  );
-  
   
 PROCEDURE TYPE_INITLOAD_SP (
 /*******************************************************************************
@@ -725,15 +700,7 @@ Audit Load of the CCN tables
 Created: SH 05/06/2013						
 ******************************************************************/	
 ;
-Procedure TERR_SALES_AUDIT_INITLOAD_SP
-/******************************************************************	
-This Procedure is a wrapper for the TERRITORY_SLS_MGR_INITLOAD_SP 
-Audit Load of the CCN tables 	
-    * Loads the TERRITORY_SALES_MGR Audit table				
-									
-Created: SH 05/06/2013						
-******************************************************************/
-;
+
 Procedure TERRITORY_AUDIT_INITLOAD_SP
 /******************************************************************	
 This Procedure is a wrapper for the TERRITORY_INITLOAD_SP 
@@ -783,4 +750,3 @@ Created: SH 05/06/2013
 ******************************************************************/
 ;
 END initLoad;
-

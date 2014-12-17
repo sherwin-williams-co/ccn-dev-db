@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_BUSINESS_RULES_PKG
+create or replace PACKAGE          CCN_BUSINESS_RULES_PKG
     AS
 /******************************************************************************
 	CCN_BUSINESS_RULES_PKG  SPEC
@@ -88,7 +88,6 @@ created : MDH 9/25//2012
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE  
    ,inTERR_ASGN_ROWTYPE      IN TERRITORY_ASSIGNMENT%ROWTYPE
-   ,inTERR_SLS_MGR_ROWTYPE   IN TERRITORY_SALES_MGR%ROWTYPE
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
  );
 	
@@ -503,29 +502,5 @@ created : MDH 07/31/2012
     inCOST_CENTER_ROWTYPE      IN   COST_CENTER%ROWTYPE
   , inTERRITORY_ROWTYPE        IN   TERRITORY%ROWTYPE )
 ;	
-PROCEDURE TERRITORY_SALES_MGR_BR_SP ( 
-/*****************************************************************************
-	TERRITORY_SALES_MGR_BR_SP
 
-	This procedure is intended enforce the Business Rules
-	for Territory Sales Manger validation editas and verifying all fields (columns) 
-  associated to this table.
-    
-created : BLR 09/24/2012
-******************************************************************************/	
-  inSLSMGR_ROWTYPE      IN   TERRITORY_SALES_MGR%ROWTYPE )
-;	
-
-
-/*******************************************************************************
---PROCEDURE TYPE_BR_SP (
-	 TYPE_BR_SP
-
-	There were no Business Rules necessary for the TYPE Table other than
-  Effective and Expiration Dates. 
-	TRD  Section: 3.3.16 
-
-created : MDH 9/24/2012
-*******************************************************************************/	
- 
 END CCN_BUSINESS_RULES_PKG;
