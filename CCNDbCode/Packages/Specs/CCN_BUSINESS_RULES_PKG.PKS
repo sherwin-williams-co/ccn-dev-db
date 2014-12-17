@@ -9,6 +9,8 @@ create or replace PACKAGE          CCN_BUSINESS_RULES_PKG
 created :kdp 4/26/2012 
 revised :mdh 9/24/2012
          mdh 10/16/2012 - added Business_Rules_SP (rowtype & xml) procedures
+         12/16/2014 AXK326 CCN Project Team....
+          Code changes made after deleting the sales manager link from the Territory Table
 *******************************************************************************/
 
 

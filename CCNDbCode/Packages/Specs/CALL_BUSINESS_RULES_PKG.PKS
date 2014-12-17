@@ -3,7 +3,8 @@ create or replace PACKAGE CALL_BUSINESS_RULES_PKG AS
 This package SPEC has procedures and functions related to the CALL_BUSINESS_RULES Package
 
 created : 03/05/2013 TAL CCN project
-changes :
+changes : 12/16/2014 AXK326 CCN Project Team....
+          Code changes made after deleting the sales manager link from the Territory Table
 
 *******************************************************************************/
 

@@ -2,6 +2,8 @@ create or replace PACKAGE initLoad
 /**************************************************************** 
 This package will load the new CCN Oracle Database
 created : 11/21/2011 mdh CCN coding projecet
+Revised : 12/16/2014 AXK326 CCN Project Team....
+          Code changes made after deleting the sales manager link from the Territory Table
 *****************************************************************/
 IS
 

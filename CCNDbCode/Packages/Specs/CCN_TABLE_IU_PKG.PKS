@@ -5,7 +5,8 @@ create or replace package CCN_TABLE_IU_PKG
 This package is intended to control access to the core CCN table.
 
 created : 09/18/2012 TAL -- CCN coding project
-changed : 
+changed : 12/16/2014 AXK326 CCN Project Team....
+          Code changes made after deleting the sales manager link from the Territory Table
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
