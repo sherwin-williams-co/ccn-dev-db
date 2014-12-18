@@ -47,7 +47,6 @@ created : MDH 10/04//2012
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype 
    ,inTERR_ASGN_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inTERR_SLS_MGR_XMLTYPE   VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
  );
 	
