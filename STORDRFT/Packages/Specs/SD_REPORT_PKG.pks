@@ -1,4 +1,5 @@
-create or replace PACKAGE SD_REPORT_PKG AS 
+create or replace 
+PACKAGE SD_REPORT_PKG AS 
 /*********************************************************** 
 This package contains the core logic to load STORE_DRAFT_REPORTS  table
 
@@ -59,4 +60,3 @@ Modified:
     IN_END_DATE IN DATE);
 
 END SD_REPORT_PKG;
-
