@@ -8,7 +8,7 @@ IS
 
 PROCEDURE CCN_SD_PAID_LOAD_SUNTRUST_SP
 /******************************************************************
-This Procedure is a wrapper for the Paid details update of the store drafts tables
+This Procedure is a wrapper for the SUNTRUST Paid details update of the store drafts tables
 
 created : 12/18/2014 jxc517 CCN Project....
 changed : 
