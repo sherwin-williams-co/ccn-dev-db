@@ -6,44 +6,23 @@ changed :
 *****************************************************************/
 AS
 
-PROCEDURE CCN_SD_PAID_LOAD_SP
+PROCEDURE CCN_SD_PAID_LOAD_SUNTRUST_SP
 /******************************************************************
 This Procedure is a wrapper for the Paid details update of the store drafts tables
 
-created : 07/23/2014 jxc517 CCN Project....
-changed : 12/08/2014 jxc517 CCN Project....
-          Date field in file is coming as MMDDYY for SUNTRUST and YYMMDD for ROYAL
-          Corrected the code to handle this scenario
+created : 12/18/2014 jxc517 CCN Project....
+changed : 
 ******************************************************************/
 AS
-    
     CURSOR TEMP_CUR is
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE_PAID, 'MMDDYY') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(PAID_AMONUT_ITEMS,10,2) AMOUNT,
                PAID_CHECK_SERIAL_NUMBER CHECK_SERIAL_NUMBER
-          FROM TEMP_PAID_DETAILS_SUNTRUST
-        UNION
-        SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
-               CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
-               FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK CHECK_SERIAL_NUMBER
-          FROM TEMP_PAID_DETAILS_ROYAL;
+          FROM TEMP_PAID_DETAILS_SUNTRUST;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
-    V_CONTEXT    VARCHAR2(200);
-    V_START_TIME NUMBER;
-    V_START_DURATION DATE := SYSDATE;
-    V_CLOB       CLOB;
-    
-V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
-V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('SD_DAILY_PAID_LOAD', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    BEGIN
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Update STORE_DRAFTS paid details ';
-
     FOR rec IN TEMP_CUR LOOP
         BEGIN
             BEGIN
@@ -88,7 +67,126 @@ BEGIN
         END;
     END LOOP;
     COMMIT;
-    dbms_output.put_line('STORE_DRAFTS paid details updated in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'CCN_SD_PAID_LOAD_SUNTRUST_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000'); 
+END CCN_SD_PAID_LOAD_SUNTRUST_SP;
+
+PROCEDURE CCN_SD_PAID_LOAD_ROYAL_SP
+/******************************************************************
+This Procedure is a wrapper for the ROYAL Paid details update of the store drafts tables
+
+created : 12/18/2014 jxc517 CCN Project....
+changed : 
+******************************************************************/
+AS
+    CURSOR TEMP_CUR is
+        SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
+               CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
+               FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK CHECK_SERIAL_NUMBER
+          FROM TEMP_PAID_DETAILS_ROYAL;
+
+    V_COMMIT     NUMBER := 0;
+    V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
+BEGIN
+    FOR rec IN TEMP_CUR LOOP
+        BEGIN
+            BEGIN
+                SELECT *
+                  INTO V_TEMP_ROW
+                  FROM STORE_DRAFTS
+                 WHERE CHECK_SERIAL_NUMBER = CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
+
+                V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
+                V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
+                SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    V_TEMP_ROW := NULL;
+            END;
+
+            IF V_TEMP_ROW.CHECK_SERIAL_NUMBER IS NOT NULL AND V_TEMP_ROW.PAID_DATE IS NOT NULL THEN
+                UPDATE STORE_DRAFTS
+                   SET ROW = V_TEMP_ROW
+                 WHERE CHECK_SERIAL_NUMBER = V_TEMP_ROW.CHECK_SERIAL_NUMBER;
+            ELSE
+                ERRPKG.INSERT_ERROR_LOG_SP(200,
+                                           'LOAD_ROYAL_PAID_DETAILS',
+                                           'Check Serial Number (or) Paid Date is null',
+                                           NULL, --cost_center_code
+                                           NVL(rec.CHECK_SERIAL_NUMBER,''));
+            END IF;
+
+            V_TEMP_ROW := NULL ;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;   
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_ROYAL_PAID_DETAILS',
+                                           SQLERRM,
+                                           NULL, --cost_center_code
+                                           NVL(rec.CHECK_SERIAL_NUMBER,''));
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'CCN_SD_PAID_LOAD_ROYAL_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000'); 
+END CCN_SD_PAID_LOAD_ROYAL_SP;
+
+PROCEDURE CCN_SD_PAID_LOAD_SP
+/******************************************************************
+This Procedure is a wrapper for the Paid details update of the store drafts tables
+
+created : 07/23/2014 jxc517 CCN Project....
+changed : 12/08/2014 jxc517 CCN Project....
+          Date field in file is coming as MMDDYY for SUNTRUST and YYMMDD for ROYAL
+          Corrected the code to handle this scenario
+******************************************************************/
+AS
+    
+    CURSOR TEMP_CUR is
+        SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE_PAID, 'MMDDYY') PAID_DATE,
+               CCN_COMMON_TOOLS.RETURN_NUMBER(PAID_AMONUT_ITEMS,10,2) AMOUNT,
+               PAID_CHECK_SERIAL_NUMBER CHECK_SERIAL_NUMBER
+          FROM TEMP_PAID_DETAILS_SUNTRUST
+        UNION
+        SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
+               CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
+               FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK CHECK_SERIAL_NUMBER
+          FROM TEMP_PAID_DETAILS_ROYAL;
+
+    V_COMMIT     NUMBER := 0;
+    V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
+    V_CONTEXT    VARCHAR2(200);
+    V_START_TIME NUMBER;
+    V_START_DURATION DATE := SYSDATE;
+    V_CLOB       CLOB;
+    
+V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('SD_DAILY_PAID_LOAD', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Update STORE_DRAFTS paid details ';
+
+      SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SUNTRUST_SP();
+      SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SUNTRUST_SP();
+      dbms_output.put_line('STORE_DRAFTS paid details updated in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
 
       FOR rec IN (SELECT * FROM ERROR_LOG WHERE ERROR_DATE >= V_START_DURATION) LOOP
           V_CLOB := V_CLOB || rec.COST_CENTER ||','|| rec.ERROR_TEXT || CHR(10);
