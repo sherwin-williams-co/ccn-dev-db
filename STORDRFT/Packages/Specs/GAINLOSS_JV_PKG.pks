@@ -1,4 +1,5 @@
-CREATE OR REPLACE PACKAGE STORDRFT.GAINLOSS_JV_PKG
+create or replace 
+PACKAGE          GAINLOSS_JV_PKG
 /****************************************************************************** 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly GAINLOSS_JV
@@ -38,4 +39,3 @@ Modified Date         Modified By         Description
 ;
 
 END GAINLOSS_JV_PKG;
-/
