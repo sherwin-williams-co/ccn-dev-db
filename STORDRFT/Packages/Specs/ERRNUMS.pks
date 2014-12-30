@@ -54,7 +54,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "mntnc_not_allwd_twice_err" passes a numerical error of -20026.
 This error will be used if there is a maintenance done twice on 
-a draft in a single day
+a regular draft in a single day
 
 created : 09/29/2014 jxc517 CCN Project
 revisions: 
@@ -92,6 +92,34 @@ en_gl_sub_accnt_nbr_err CONSTANT NUMBER := -20028;
 exc_gl_sub_accnt_nbr_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_gl_sub_accnt_nbr_err , -20028);
+
+/*********************************************************** 
+The "mntnc_not_allwd_twice_wrn" passes a numerical error of -20029.
+This warning will be used if there is a maintenance done twice on 
+a manual draft in a single day
+
+created : 12/10/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_mntnc_not_allwd_twice_wrn CONSTANT NUMBER := -20029;
+exc_mntnc_not_allwd_twice_wrn EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_mntnc_not_allwd_twice_wrn , -20029);
+
+/*********************************************************** 
+The "dup_store_draft_err" passes a numerical error of -20030.
+This warning will be used if there is a maintenance done twice on 
+a manual draft in a single day
+
+created : 12/30/2014 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_dup_store_draft_err CONSTANT NUMBER := -20030;
+exc_dup_store_draft_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_dup_store_draft_err , -20030);
 
 END errnums;
 

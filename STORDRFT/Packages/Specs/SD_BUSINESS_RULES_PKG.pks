@@ -135,5 +135,14 @@ changed :
 *****************************************************************************/
     IN_GL_ACCOUNT_NUMBER    IN    VARCHAR2);
 
+PROCEDURE DUPLICATE_STORE_DRAFTS_SP(
+/*****************************************************************************
+	This procedure will determine if a draft is duplciate or not during insert process from UI
+
+created : 12/30/2014 jxc517 CCN Project . . .
+changed :
+*****************************************************************************/
+    IN_CHECK_SERIAL_NUMBER IN    STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE);
+
 END SD_BUSINESS_RULES_PKG;
 
