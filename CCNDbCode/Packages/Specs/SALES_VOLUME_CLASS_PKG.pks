@@ -9,5 +9,16 @@ SALES_VOLUME_CLASS_CODE for all COST_CENTER.
 created : 11/03/2014 SXT410 CCN project
 revisions: 
 *******************************************************************************/
-PROCEDURE SALES_VOL_CLASS_PROC;    
+
+PROCEDURE SALES_VOL_CLASS_PROC
+/*******************************************************************************
+                     SALES_VOL_CLASS_PROC
+                     
+Procedure to update STORE.SALES_VOLUME_CLASS_CODE for matching COST_CENTER_CODE.
+
+created : 11/03/2014 SXT410 CCN project
+revisions: 
+*******************************************************************************/
+;
+ 
 END SALES_VOLUME_CLASS_PKG;
