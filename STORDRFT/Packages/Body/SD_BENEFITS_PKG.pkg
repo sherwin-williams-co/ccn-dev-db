@@ -42,8 +42,6 @@ cursor cost_center_cur  is
    
 begin
 
-       SD_BENEFITS_PKG.LOAD_STOREDRFT_JV_HST();
-       
        EXECUTE IMMEDIATE 'TRUNCATE TABLE STOREDRFT_JV';
 
        CCN_BATCH_PKG.INSERT_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER);      
@@ -66,61 +64,76 @@ begin
          
        end loop; --end cost_center_rec
        COMMIT;
+       LOAD_STOREDRFT_JV_HST();
        CCN_BATCH_PKG.UPDATE_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
        
 EXCEPTION
     WHEN OTHERS THEN
          dbms_output.put_line('CREATE_JV Procedure Failed ' || sqlerrm);
-
 END CREATE_JV;
 
 PROCEDURE LOAD_STOREDRFT_JV_HST
-/*------------------------------------------------------------------------------
-                               LOAD_STOREDRFT_JV_HST                
-Project     : STORE DRAFT
-Author      : SXT410
-Created on  : 12/12/2014
-Purpose     : This Procedure pull data from STOREDRFT_JV and Insert into 
-              STOREDRFT_JV_HST table for historical purpose.
---------------------------------------------------------------------------------
-Modification History
---------------------
-Modified Date         Modified By         Description
---------------------------------------------------------------------------------
-------------------------------------------------------------------------------*/
-IS
-    CURSOR SD_JV_CUR IS SELECT * FROM STOREDRFT_JV;      
-    V_COMMIT NUMBER:=0; 
-BEGIN
-    FOR SD_JV_HST_REC IN SD_JV_CUR LOOP
-        BEGIN   
-    
-        INSERT INTO STOREDRFT_JV_HST VALUES SD_JV_HST_REC;
-    
-        V_COMMIT := V_COMMIT + 1;
-        IF V_COMMIT > 500 THEN
-            COMMIT;
-         V_COMMIT := 0;
-        END IF;
-    
-        EXCEPTION
-        WHEN OTHERS THEN
-          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                     'LOAD_STOREDRFT_JV_HST',
-                                     SQLERRM,
-                                     SD_JV_HST_REC.COST_CENTER_CODE,
-                                     SD_JV_HST_REC.UPDATE_DATE);
+/*****************************************************************************
+    LOAD_STOREDRFT_JV_HST
 
+This procedure will load the history JV entries for Benefits file for that run
+
+created : 12/31/2014 sxt410 CCN Project Team
+revision: 
+
+*****************************************************************************/
+IS
+    CURSOR SD_JV_CUR IS
+        SELECT *
+          FROM STOREDRFT_JV;      
+
+    V_COMMIT      NUMBER:=0; 
+    CALL_IND      NUMBER;
+    V_JV_HST_ROW  STOREDRFT_JV_HST%ROWTYPE;
+BEGIN
+    BEGIN
+        SELECT NVL(MAX(RUN_IND),0)+1
+          INTO CALL_IND
+          FROM STOREDRFT_JV_HST
+         WHERE UPDATE_DATE = (SELECT UPDATE_DATE
+                                FROM STOREDRFT_JV
+                               WHERE ROWNUM < 2);
+    EXCEPTION
+        WHEN OTHERS THEN 
+            RAISE;
+    END;
+    FOR rec IN SD_JV_CUR LOOP
+        BEGIN
+            V_JV_HST_ROW.COST_CENTER_CODE := rec.COST_CENTER_CODE;
+            V_JV_HST_ROW.NET_AMOUNT       := rec.NET_AMOUNT;
+            V_JV_HST_ROW.UPDATE_DATE      := rec.UPDATE_DATE;     
+            V_JV_HST_ROW.JV_TYPE          := rec.JV_TYPE;         
+            V_JV_HST_ROW.RUN_IND          := CALL_IND;         
+
+            INSERT INTO STOREDRFT_JV_HST VALUES V_JV_HST_ROW;
+
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_STOREDRFT_JV_HST',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           rec.UPDATE_DATE);
         END;
     END LOOP;
     COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'LOAD_STOREDRFT_JV_HST',
-                                    SQLERRM,
-                                    '000000',
-                                    '0000000000');
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'LOAD_STOREDRFT_JV_HST',
+                                   SQLERRM,
+                                   '000000',
+                                   '0000000000');
 END LOAD_STOREDRFT_JV_HST;
 
 END SD_BENEFITS_PKG;

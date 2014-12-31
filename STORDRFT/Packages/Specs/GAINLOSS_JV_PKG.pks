@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE          GAINLOSS_JV_PKG
+CREATE OR REPLACE PACKAGE GAINLOSS_JV_PKG
 /****************************************************************************** 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly GAINLOSS_JV
@@ -12,7 +11,7 @@ AS
 
 PROCEDURE CREATE_GAINLOSS_JV(
 /*****************************************************************************
-	CREATE_GAINLOSS_JV
+    CREATE_GAINLOSS_JV
 
 This procedure will create JV entries for GAIN AND LOSS
 
@@ -22,20 +21,16 @@ revision:
 *****************************************************************************/
 IN_DATE    IN DATE);
 
-PROCEDURE LOAD_GAINLOSS_JV_HST
-/*------------------------------------------------------------------------------
-                               LOAD_GAINLOSS_JV_HST                
-Project     : STORE DRAFT
-Author      : SXT410
-Created on  : 12/16/2014
-Purpose     : This Procedure pull data from GAINLOSS_JV and Insert into 
-              GAINLOSS_JV_HST table for historical purpose.
---------------------------------------------------------------------------------
-Modification History
---------------------
-Modified Date         Modified By         Description
---------------------------------------------------------------------------------
-------------------------------------------------------------------------------*/
+PROCEDURE LOAD_SD_GAIN_LOSS_JV_HST
+/*****************************************************************************
+    LOAD_SD_GAIN_LOSS_JV_HST
+
+This procedure will load the history JV gain loss entries for Benefits file for that run
+
+created : 12/31/2014 sxt410 CCN Project Team
+revision: 
+
+*****************************************************************************/
 ;
 
 END GAINLOSS_JV_PKG;

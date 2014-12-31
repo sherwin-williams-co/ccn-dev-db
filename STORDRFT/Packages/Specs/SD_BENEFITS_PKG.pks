@@ -22,21 +22,16 @@ revision:
 *****************************************************************************/
 ;
 
-
 PROCEDURE LOAD_STOREDRFT_JV_HST
-/*------------------------------------------------------------------------------
-                               LOAD_STOREDRFT_JV_HST                
-Project     : STORE DRAFT
-Author      : SXT410
-Created on  : 12/12/2014
-Purpose     : This Procedure pull data from STOREDRFT_JV and Insert into 
-              STOREDRFT_JV_HST table for historical purpose.
---------------------------------------------------------------------------------
-Modification History
---------------------
-Modified Date         Modified By         Description
---------------------------------------------------------------------------------
-------------------------------------------------------------------------------*/
+/*****************************************************************************
+    LOAD_STOREDRFT_JV_HST
+
+This procedure will load the history JV entries for Benefits file for that run
+
+created : 12/31/2014 sxt410 CCN Project Team
+revision: 
+
+*****************************************************************************/
 ;
 
 END SD_BENEFITS_PKG;
