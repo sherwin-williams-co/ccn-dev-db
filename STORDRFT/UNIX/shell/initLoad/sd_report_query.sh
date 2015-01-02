@@ -11,6 +11,7 @@
 . /app/stordrft/host.sh
 
 proc_name="sd_report_query"
+LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
@@ -27,7 +28,7 @@ P=`cat $HOME/Reports/param.lst`
 
 echo "START SD Report Query : Processing Started at $TIME on $DATE for the date $P"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TIME.log <<END
 set heading off;
 set serveroutput on;
 set verify off;

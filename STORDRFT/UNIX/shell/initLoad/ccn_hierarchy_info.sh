@@ -22,7 +22,7 @@ DATE=`date +"%m/%d/%Y"`
 
 echo " START TRUCATING AND LOADING : Process Started at $TIME on $DATE "
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
