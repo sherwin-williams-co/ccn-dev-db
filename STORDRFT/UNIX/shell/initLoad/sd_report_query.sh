@@ -23,16 +23,16 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ./ccn_hierarchy_info.sh
 
 ##setting up the parameters to run
-A=`cat $HOME/Reports/param.lst`
+P=`cat $HOME/Reports/param.lst`
 
-echo "START SD Report Query : Processing Started at $TIME on $DATE for the date $A"
+echo "START SD Report Query : Processing Started at $TIME on $DATE for the date $P"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-exec SD_REPORT_PKG.sd_report_query(to_date('$A','MM/DD/YYYY'));
+exec SD_REPORT_PKG.sd_report_query(to_date('$P','MM/DD/YYYY'));
 
 exit;
 END

@@ -41,6 +41,7 @@ echo "START gain_loss_JV.sh : Processing Started at $TIME on $DATE"
 TIME=`date +"%H:%M:%S"`
 echo "END gain_loss_JV.sh : Processing finished at $TIME on $DATE"
 
+
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################

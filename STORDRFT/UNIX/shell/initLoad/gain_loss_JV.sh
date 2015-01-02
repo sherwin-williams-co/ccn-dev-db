@@ -17,16 +17,16 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 
 
 ##setting up the parameters to run
-A=`date --date -d +01/%m/%Y`
+P=`date --date -d +01/%m/%Y`
 
-echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE for the date $A"
+echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE for the date $P"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$A','MM/DD/YYYY'));
+exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$P','MM/DD/YYYY'));
 
 exit;
 END
