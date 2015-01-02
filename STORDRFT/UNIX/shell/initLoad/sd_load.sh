@@ -12,20 +12,6 @@
 . /app/stordrft/host.sh
 
 proc=sd_load
-
-#############################################################
-# BELOW PROCESS WILL CREATE PARAM.LST
-# FILE FOR FURTHER PROCESSING
-#############################################################
-TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
-
-echo "START get_param : Processing Started at $TIME on $DATE"
-./get_param.sh
-
-TIME=`date +"%H:%M:%S"`
-echo "END get_param : Processing finished at $TIME " 
-
 #############################################################
 # BELOW PROCESS WILL 
 # 1) 	TRUNCATE CCN_HIERARCHY_INFO TABLE AND PULL
@@ -54,9 +40,6 @@ echo "START gain_loss_JV.sh : Processing Started at $TIME on $DATE"
 
 TIME=`date +"%H:%M:%S"`
 echo "END gain_loss_JV.sh : Processing finished at $TIME on $DATE"
-
-#removing the param.lst so that it can re write on next run with new parameter
-rm param.lst
 
 ############################################################################
 #                           ERROR STATUS CHECK 
