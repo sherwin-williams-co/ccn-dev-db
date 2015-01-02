@@ -10,7 +10,7 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="sd_report_query"
+proc_name="gain_loss_JV"
 LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
