@@ -18,7 +18,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 
 
 ##setting up the parameters to run
-P=`date --date -d +01/%m/%Y`
+P=`cat $HOME/Reports/param.lst`
 
 echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE for the date $P"
 
