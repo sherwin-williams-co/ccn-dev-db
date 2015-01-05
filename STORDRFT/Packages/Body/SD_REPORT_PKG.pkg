@@ -1,4 +1,4 @@
-or replace 
+create or replace 
 PACKAGE  BODY SD_REPORT_PKG AS 
 /*********************************************************** 
 This package contains the core logic to load STORE_DRAFT_REPORTS  table
@@ -371,6 +371,35 @@ BEGIN
     COMMIT;
 END SD_UNMATCHED_WITH_BOOKED_LBRS;
 
+PROCEDURE SD_UNBOOK_RCRDS_OUTSIDE_RANGE(
+/**********************************************************
+This is the core procedure that gets invoked for eliminating the
+records with accumulated labor - accumulated draft per line item 
+outside the given range of -500 and 500
+
+Created : 01/05/2015 jxc517 CCN Project Team.....
+Modified: 
+**********************************************************/
+    IN_END_DATE     IN     DATE)
+IS
+BEGIN
+    FOR rec IN (SELECT COST_CENTER_CODE, PURCHASE_ORDER_NUMBER, LBR_TERMINAL_NUMBER, LBR_TRANSACTION_NUMBER,
+                       ABS(SUM(NVL(LABOR_AMOUNT,0)) - SUM(NVL(DRAFT_AMOUNT,0))) AMT
+                  FROM STORE_DRAFT_REPORT
+                 WHERE TRANSACTION_DATE > ADD_MONTHS(IN_END_DATE,-1)
+                 GROUP BY COST_CENTER_CODE, PURCHASE_ORDER_NUMBER, LBR_TERMINAL_NUMBER, LBR_TRANSACTION_NUMBER
+                HAVING ABS(SUM(NVL(LABOR_AMOUNT,0)) - SUM(NVL(DRAFT_AMOUNT,0))) > 500
+                 ORDER BY COST_CENTER_CODE, PURCHASE_ORDER_NUMBER, LBR_TERMINAL_NUMBER, LBR_TRANSACTION_NUMBER) LOOP
+        UPDATE STORE_DRAFT_REPORT SDR
+           SET PL_DATE = NULL
+         WHERE COST_CENTER_CODE       = rec.COST_CENTER_CODE
+           AND LBR_TERMINAL_NUMBER    = rec.LBR_TERMINAL_NUMBER
+           AND LBR_TRANSACTION_NUMBER = rec.LBR_TRANSACTION_NUMBER
+           AND PL_DATE IS NOT NULL;
+    END LOOP;
+    COMMIT;
+END SD_UNBOOK_RCRDS_OUTSIDE_RANGE;
+
 PROCEDURE UPDATE_BOOK_DATE_SEQUENCE(
 /**********************************************************
 This procedure is for updating the BOOK_DATE_SEQUENCE in below tables
@@ -565,6 +594,7 @@ BEGIN
         SD_UNMATCHED_QUERY(IN_END_DATE, V_UNMATCHED_REC);
     END LOOP;
     SD_UNMATCHED_WITH_BOOKED_LBRS(IN_END_DATE);
+    SD_UNBOOK_RCRDS_OUTSIDE_RANGE(IN_END_DATE); --range validation (-500 to 500)
     UPDATE_BOOK_DATE_SEQUENCE(IN_END_DATE); --Uncomment this only after everything looks good
     COMMIT;
     --Below call will take care of start up process for this load

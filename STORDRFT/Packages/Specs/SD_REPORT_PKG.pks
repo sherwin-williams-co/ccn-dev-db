@@ -50,6 +50,17 @@ Modified:
     IN_HRCHY_HDR_NAME  IN     HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
     IN_LEVEL_VALUE     IN     VARCHAR2) RETURN VARCHAR2;
 
+PROCEDURE SD_UNBOOK_RCRDS_OUTSIDE_RANGE(
+/**********************************************************
+This is the core procedure that gets invoked for eliminating the
+records with accumulated labor - accumulated draft per line item 
+outside the given range of -500 and 500
+
+Created : 01/05/2015 jxc517 CCN Project Team.....
+Modified: 
+**********************************************************/
+    IN_END_DATE     IN     DATE);
+
 PROCEDURE SD_REPORT_QUERY(
 /**********************************************************
 This is the core procedure that gets invoked for loading the data
