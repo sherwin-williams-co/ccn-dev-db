@@ -34,14 +34,4 @@ revision:
 *****************************************************************************/
 IN_DATE    IN DATE);
 
-FUNCTION IS_CC_JV_GAIN_LOSS_ELIGIBLE(
-/***********************************************************
-This Procedure determine if a cost center needs to be included in JV or not
-      
-Created : 12/19/2014 jxc517 CCN Project.....
-Modified: 
-************************************************************/
-    IN_COST_CENTER_CODE       IN     VARCHAR2,
-    IN_DATE                   IN     DATE) RETURN VARCHAR2;
-
 END GAINLOSS_JV_PKG;
