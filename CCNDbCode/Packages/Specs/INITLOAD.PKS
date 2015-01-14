@@ -185,17 +185,6 @@ created : 11/21/2011 blr CCN Project....
 ***************************************************************/
 
 
-PROCEDURE LOAD_TERRITORY_ASSIGN_TABLE;
-/***************************************************************
-	LOAD_TERRITORY_ASSIGNMENT_TABLE
-
-	This function will load the TERRITORY_ASSIGNMENT table from data  
-	file from legacy idms database.  
-
-created : 11/21/2011 blr CCN Project....
-***************************************************************/
-
-
 PROCEDURE UPDT_TERRITORY_TABLE;
 /***************************************************************
 	UPDT_TERRITORY_TABLE
@@ -514,18 +503,6 @@ created : 04/23/2013 BLR CCN Project....
   inTERMINAL_rowtype IN TERMINAL%rowtype
   ); 
   
-PROCEDURE TERR_ASSIGNMENT_INITLOAD_SP (
-/*******************************************************************************
-	TERR_ASSIGNMENT_INITLOAD_SP 
-
-	CCNA-356 - This procedure is intended to build an AUDIT_LOG entry for
-  TERRITORY_ASSIGNMENT Records
-
-created : 04/23/2013 BLR CCN Project....
-*******************************************************************************/
-  inTERRITORY_ASSIGNMENT_rowtype IN TERRITORY_ASSIGNMENT%rowtype
-  ); 
-  
 PROCEDURE TERRITORY_INITLOAD_SP (
 /*******************************************************************************
 	TERRITORY_INITLOAD_SP
@@ -712,15 +689,6 @@ Audit Load of the CCN tables
 Created: SH 05/06/2013						
 ******************************************************************/
 ;
-Procedure TERR_ASGN_AUDIT_INITLOAD_SP
-/******************************************************************	
-This Procedure is a wrapper for the TERR_ASSIGNMENT_INITLOAD_SP 
-Audit Load of the CCN tables 	
-    * Loads the TERRITORY_ASSIGNMENT Audit table				
-									
-Created: SH 05/06/2013						
-******************************************************************/
-;
 Procedure MARKETING_AUDIT_INITLOAD_SP
 /******************************************************************	
 This Procedure is a wrapper for the MARKETING_INITLOAD_SP 
@@ -752,3 +720,4 @@ Created: SH 05/06/2013
 ******************************************************************/
 ;
 END initLoad;
+

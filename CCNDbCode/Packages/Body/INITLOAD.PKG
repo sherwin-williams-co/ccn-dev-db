@@ -18,7 +18,6 @@ This package BODY will load:
   LOAD_SALES_MANAGER_TABLE    -  10/17/2011
   LOAD_TERRITORY_TABLE        -  10/17/2011
   LOAD_SALES_REP_TABLE        -  10/17/2011
-  LOAD_TERR_ASSIGNMENT_TABLE  -  10/17/2011
   LOAD_TERRITORY_CCNTR_TABLE  -  11/03/2011  
   LOAD_POLLING_TABLE          -  10/15/2011
   LOAD_TERMINAL_TABLE         -  10/15/2011
@@ -53,7 +52,6 @@ begin
      delete BANK_CARD ;
      delete POLLING_DWLD_RSN_HIST;
      delete POLLING ;
-     delete TERRITORY_ASSIGNMENT ; 
      delete SALES_REP ;
      delete TERRITORY ; 
      delete MARKETING ; 
@@ -1627,7 +1625,6 @@ Begin
 
       v_ccnterr_row.cost_center_code := ccnterr_rec.cost_center_code;
       v_ccnterr_row.home_store := ccnterr_rec.home_store;
-      v_ccnterr_row.territory_sls_mgr_code := ccnterr_rec.territory_sls_mgr_code;
       v_ccnterr_row.category := ccnterr_rec.category_cd;
       v_ccnterr_row.lease_car_indicator := ccnterr_rec.lease_car_indicator;
       v_ccnterr_row.territory_type_busn_code := ccnterr_rec.territory_type_busn_code;
@@ -1779,107 +1776,6 @@ EXCEPTION
 end LOAD_SALES_REP_TABLE;
 
 
-PROCEDURE LOAD_TERRITORY_ASSIGN_TABLE
-/******************************************************************************
-	LOAD_TERRITORY_ASSIGN_TABLE
-
-	This procedure will load the TERRITORY_ASSIGNMENT Table from a data  
-	file from legacy idms database.  
-
-created : 11/21/2011 mdh CCN Project....
-******************************************************************************/
-is 
-
-   cursor CCNASGN_CUR is
-      select TERRITORY_SLS_MGR_CODE,
-             COST_CENTER_CODE,
-      	     CATEGORY_CD,      
-             SOCIAL_SECURITY_NBR,       
-             GEMS_EMPLOYEE_ID,
-	           EFFECTIVE_DATE,	
-	           EXPIRATION_DATE FROM TEMP_TERRITORY_ASSIGNMENT;
-
-   v_count  integer := 0;
-   v_commit integer := 0;
-   v_ccnasgn_row TERRITORY_ASSIGNMENT%rowtype;
-
-Begin
-
-   for ccnasgn_rec in CCNASGN_CUR loop
-
-   Begin
-
-/*
-getting and setting the gems employee id from emp_data table
-*/
-     
-      select slsrep.gems_employee_id
-          into v_ccnasgn_row.gems_employee_id
-             from SALES_REP slsrep
-                where slsrep.social_security_number = ccnasgn_rec.social_security_nbr;
-  
-  
-      v_ccnasgn_row.territory_sls_mgr_code       := ccnasgn_rec.territory_sls_mgr_code;
-      v_ccnasgn_row.cost_center_code             := ccnasgn_rec.cost_center_code;
-      v_ccnasgn_row.category		         := ccnasgn_rec.category_cd;
-  --  v_ccnasgn_row.gems_employee_id             := ccnasgn_rec.gems_employee_id;
-  --  v_ccnasgn_row.social_security_number       := ccnasgn_rec.social_security_nbr;
-      
-      if ccnasgn_rec.effective_date <> '00000000' then
-         v_ccnasgn_row.effective_date := to_date(ccnasgn_rec.effective_date, 'yyyymmdd');
-      end if;
-      
-      if ccnasgn_rec.expiration_date <> '00000000' then
-         v_ccnasgn_row.expiration_date := to_date(ccnasgn_rec.expiration_date, 'yyyymmdd');
-      end if;
-      
-      
-      insert into TERRITORY_ASSIGNMENT values v_ccnasgn_row;
-
-	v_ccnasgn_row := null;
-	 
-      v_count  := v_count  + 1;
-
-      v_commit := v_commit + 1;
-      if v_commit > 500 then
-         commit;
-         v_commit := 0;
-      end if;   
-
-   EXCEPTION
-
-       WHEN no_data_found then
-               dbms_output.put_line('*** Invalid Load Territory Assignment ' 
-                || ccnasgn_rec.cost_center_code 
-                || '-' 
-                || ccnasgn_rec.social_security_nbr
-                || '  no Sales Rep. found  ***') ;
-  
-
-      WHEN others then
-         dbms_output.put_line('Load_Territory_ASGN_Table - Invalid Load Territory Assignment ' 
-            || ccnasgn_rec.cost_center_code 
-            || '-' 
-            || ccnasgn_rec.social_security_nbr
-            || ' '
-            || sqlerrm);
-
-   END;
-
-END LOOP;
-
-   dbms_output.put_line('Load_Territory_ASGN_Table - Total Loaded Assignments '
-      || v_count);
-
-EXCEPTION
-
-   when others then
-      dbms_output.put_line('Load_Territory_ASGN_Table - Table Not Loaded Stopped on Record - ' 
-      || v_count);
-
-end LOAD_TERRITORY_ASSIGN_TABLE;
-
-
 PROCEDURE UPDT_TERRITORY_TABLE
 /******************************************************************************
 	UPDT_TERRITORY_TABLE
@@ -1959,7 +1855,6 @@ BEGIN
           v_ccntemp_row   := null;
           v_count_chg    := v_count_chg  +  1;
       ELSE
-          v_ccntemp_row.territory_sls_mgr_code    := '@@@@@@';
           v_ccntemp_row.cost_center_code          := ccntemp_rec.cost_center_code;
           v_ccntemp_row.category                  := ccntemp_rec.category_code;
           v_ccntemp_row.home_store                := ccntemp_rec.home_store;
@@ -4335,92 +4230,6 @@ BEGIN
 END TERMINAL_INITLOAD_SP;
 
 
-PROCEDURE TERR_ASSIGNMENT_INITLOAD_SP (
-/*******************************************************************************
-	TERR_ASSIGNMENT_INITLOAD_SP 
-
-	CCNA-356 - This procedure is intended to build an AUDIT_LOG entry for
-  TERRITORY_ASSIGNMENT Records
-
-created : 04/23/2013 BLR CCN Project....
-*******************************************************************************/
-  inTERRITORY_ASSIGNMENT_rowtype IN TERRITORY_ASSIGNMENT%rowtype
-  ) 
-  IS
-
-	v_transaction_id varchar2(500);
-    v_rowdata sys.xmltype;
-    v_primaryKey sys.xmltype;
-    v_terr_assignment_row TERRITORY_ASSIGNMENT%ROWTYPE := inTERRITORY_ASSIGNMENT_rowtype ;
-     
-    
-BEGIN
---dbms_output.put_line('Just Entered TERR_ASSIGNMENT_INITLOAD_SP');
-
-	SELECT XMLELEMENT ( "TERRITORY_ASSIGNMENT",               
-		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                  'http://www.oracle.com/Employee.xsd' AS
-                         "xsi:nonamespaceSchemaLocation" ),
-	       XMLForest(					
-		v_terr_assignment_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE  
-                          ,v_terr_assignment_row.COST_CENTER_CODE cOST_CENTER_CODE  
-                          ,v_terr_assignment_row.CATEGORY CATEGORY
-                          ,v_terr_assignment_row.GEMS_EMPLOYEE_ID GEMS_EMPLOYEE_ID
-				,to_char(v_terr_assignment_row.EFFECTIVE_DATE, 'yyyymmdd')   EFFECTIVE_DATE
-				,to_char(v_terr_assignment_row.EXPIRATION_DATE, 'yyyymmdd')  EXPIRATION_DATE 
-			)) AS "result" 
-			,XMLELEMENT ( "PrimaryKey",               
-	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                				  'http://www.oracle.com/Employee.xsd' AS
-                         			"xsi:nonamespaceSchemaLocation" ),
-	       XMLForest(
-				v_terr_assignment_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE
-				,v_terr_assignment_row.COST_CENTER_CODE COST_CENTER_CODE
-				,v_terr_assignment_row.CATEGORY CATEGORY
-				,v_terr_assignment_row.GEMS_EMPLOYEE_ID GEMS_EMPLOYEE_ID
-				,v_terr_assignment_row.EFFECTIVE_DATE EFFECTIVE_DATE
-			)) AS "primaryKey"		,
-      ('|'||V_TERR_ASSIGNMENT_ROW.TERRITORY_SLS_MGR_CODE || 
-       '|' || V_TERR_ASSIGNMENT_ROW.COST_CENTER_CODE || 
-       '|' || v_terr_assignment_row.CATEGORY || 
-       '|' || v_terr_assignment_row.GEMS_EMPLOYEE_ID || '|') tran_id
-       --'|' || v_terr_assignment_row.EFFECTIVE_DATE || '|') tran_id
-	INTO V_ROWDATA
-		,v_primaryKey,v_transaction_id
-	FROM DUAL;	
-      
-     /* -- for   Column -- */
-     --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
-
-          INSERT INTO audit_log
-               (log_id
-               , transaction_id
-               , transaction_date
-               , table_name
-               , table_pk_value
-               , table_row_data
-               , change_by
-               , AUDIT_REC_FLAG)
-          VALUES
-               ((SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),
-                v_transaction_id
-                , SYSDATE
-                , 'TERRITORY_ASSIGNMENT'
-                ,v_primaryKey
-                ,v_rowdata
-                ,'INITLOAD'
-                ,'R');
-     --END IF;   
-  /*              
-  dbms_output.put_line('insert completed ' );
-    dbms_output.put_line( v_terr_assignment_row.TERRITORY_SLS_MGR_CODE || '|' || v_terr_assignment_row.COST_CENTER_CODE || '|' || v_terr_assignment_row.CATEGORY
-    || '|' || v_terr_assignment_row.GEMS_EMPLOYEE_ID || '|' || v_terr_assignment_row.EFFECTIVE_DATE);    
-  */   
-     --END IF;      
-      
-END TERR_ASSIGNMENT_INITLOAD_SP;
-
-
 PROCEDURE TERRITORY_INITLOAD_SP (
 /*******************************************************************************
 	TERRITORY_INITLOAD_SP
@@ -4447,8 +4256,7 @@ BEGIN
                   'http://www.oracle.com/Employee.xsd' AS
                          "xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
-		 v_territory_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE						
-			,v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
+			v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
 			,v_territory_row.CATEGORY CATEGORY
 			,v_territory_row.HOME_STORE HOME_STORE
 			,v_territory_row.LEASE_CAR_INDICATOR LEASE_CAR_INDICATOR
@@ -4459,11 +4267,10 @@ BEGIN
                 				  'http://www.oracle.com/Employee.xsd' AS
                          			"xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
-				v_territory_row.territory_sls_mgr_code territory_sls_mgr_code 
-                                ,v_territory_row.cost_center_code cost_center_code
+                                v_territory_row.cost_center_code cost_center_code
                                 ,V_TERRITORY_ROW.CATEGORY CATEGORY
 			)) AS "primaryKey"		,
-      ('|'||v_territory_row.territory_sls_mgr_code || '|' || v_territory_row.cost_center_code || '|' || V_TERRITORY_ROW.CATEGORY || '|') tran_id
+      ('|'|| v_territory_row.cost_center_code || '|' || V_TERRITORY_ROW.CATEGORY || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
 	FROM DUAL;	
@@ -5207,42 +5014,6 @@ cursor cc_terr is select * from TERRITORY;
           
    end TERRITORY_AUDIT_INITLOAD_SP;
 
-Procedure TERR_ASGN_AUDIT_INITLOAD_SP
-/******************************************************************	
-This Procedure is a wrapper for the TERR_ASSIGNMENT_INITLOAD_SP 
-Audit Load of the CCN tables 	
-    * Loads the TERRITORY_ASSIGNMENT Audit table				
-									
-Created: SH 05/06/2013						
-******************************************************************/	
-as								        
-    	V_CONTEXT VARCHAR2(200);				
-    	V_table_name VARCHAR2(200);				
-        v_rectype TERRITORY_ASSIGNMENT%ROWTYPE;           
-									
- cursor cc_terr_asgn is select * from TERRITORY_ASSIGNMENT;
-
-  begin	
-  
-       open cc_terr_asgn;
-       loop
-         begin
-            fetch cc_terr_asgn into v_rectype;
-            exit when cc_terr_asgn%notfound;
-            
-           v_context := 'Calling TERRITORY_INITLOAD_SP ';
-           initload.TERR_ASSIGNMENT_INITLOAD_SP(v_rectype); 
-         end;
-    end loop;
-    close cc_terr_asgn;   
-      
-  EXCEPTION
-    
-       when others then
-          dbms_output.put_line('Failed at - ' || v_context);
-          
-   end TERR_ASGN_AUDIT_INITLOAD_SP;
-
 Procedure MARKETING_AUDIT_INITLOAD_SP
 /******************************************************************	
 This Procedure is a wrapper for the MARKETING_INITLOAD_SP 
@@ -5398,10 +5169,6 @@ as
       initLoad.LOAD_SALES_REP_TABLE();
       commit;
       
-      V_CONTEXT := 'Load Terr Assign Table ';
-      initLoad.LOAD_TERRITORY_ASSIGN_TABLE();
-      commit;
-      
       V_CONTEXT := 'Load Updt Terr Table ';
       initLoad.UPDT_TERRITORY_TABLE();
       commit;
@@ -5484,10 +5251,6 @@ as
       initLoad.SALES_REP_AUDIT_INITLOAD_SP();
       commit;
       
-      v_context := 'Load Terr Assign Table ';
-      initload.TERR_ASGN_AUDIT_INITLOAD_SP();
-      commit;
-      
       v_context := 'Load Polling Audit Table ';
       initLoad.POLLING_AUDIT_INITLOAD_SP();
       commit;
@@ -5537,3 +5300,4 @@ EXCEPTION
 end CCN_AUDIT_INITLOAD_SP;
 
 END initLoad;
+

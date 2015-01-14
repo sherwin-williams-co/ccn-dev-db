@@ -371,8 +371,7 @@ created : 03/22/2012 BLR CCN Project....
 ********************************************************************************/
 ;
 
-PROCEDURE TERRITORY_S_SP ( in_terr_sls_mgr_cd  TERRITORY.TERRITORY_SLS_MGR_CODE%TYPE
-                                     ,in_terr_cc TERRITORY.COST_CENTER_CODE%TYPE            
+PROCEDURE TERRITORY_S_SP ( in_terr_cc TERRITORY.COST_CENTER_CODE%TYPE            
                                      ,out_TERRITORY_REF_CUR  OUT REF_CURSOR )
 /******************************************************************************
 	TERRITORY_S_SP
@@ -382,21 +381,6 @@ PROCEDURE TERRITORY_S_SP ( in_terr_sls_mgr_cd  TERRITORY.TERRITORY_SLS_MGR_CODE%
 
 created : 03/22/2012 BLR CCN Project....
 *******************************************************************************/
-;
-
-PROCEDURE TERRITORY_ASSIGNMENT_S_SP ( IN_TERR_SLS_MGR_CD      IN  TERRITORY_ASSIGNMENT.TERRITORY_SLS_MGR_CODE%TYPE
-                                    , IN_COST_CENTER          IN  TERRITORY_ASSIGNMENT.COST_CENTER_CODE%TYPE                                     
-                                    , IN_GEMS_EMP_ID          IN  TERRITORY_ASSIGNMENT.GEMS_EMPLOYEE_ID%TYPE
-                                    , OUT_TERR_ASSIGN_REF_CUR OUT REF_CURSOR )
-/******************************************************************************
-	TERRITORY_ASSIGNMENT_S_SP
-
-	This procedure is intended to return a ref cursor with data from 
-	from the TERRITORY_ASSIGNMENT table.  
-
-created : 03/22/2012 BLR CCN Project....
-changed : 09/12/2012 TAL removed effective_date
-******************************************************************************/
 ;
 
 PROCEDURE TYPE_S_SP ( IN_COST_CENTER    IN  TYPE.COST_CENTER_CODE%TYPE
@@ -898,25 +882,6 @@ changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
  in_table_name           in  varchar2 
 ,in_row_data             in  varchar2 --sys.xmltype
 ,out_TERMINAL_row        out TERMINAL%rowtype
-);
-
-PROCEDURE TERRITORY_ASSIGNMENT_I_SP (
-/******************************************************************************
-	TERRITORY_ASSIGNMENT_I_SP
-
-	This procedure is intended to insert new territory_assignment records
-
-	OracleTableName  -  Table name for row -varible
-      xml file     -  the data being inserted
-  Territory_Assignment_ROWTYPE  -  Territory_Assignment Data Row
-
-created : 05/04/2012 BLR CCN Project....
-changed: 10/02/2012 TAL - modified to call TERRITORY_ASSIGNMENT_ROWTYPE_SP
-*******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_ASSIGNMENT_row out TERRITORY_ASSIGNMENT%rowtype
 );
 
 PROCEDURE TERRITORY_I_SP (
@@ -1463,27 +1428,6 @@ changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
 ,out_TERMINAL_row        out TERMINAL%rowtype
 );
 
-PROCEDURE TERRITORY_ASSIGNMENT_U_SP (
-/******************************************************************************
-	TERRITORY_ASSIGNMENT_U_SP
-
-	This procedure is intended to update changed territory_assignment records
-
-	TERRITORY_ASSIGNMENT - Cost Center that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/11/2012 BLR CCN Project....
-changed: 10/02/2012 TAL - modified to call TERRITORY_ASSIGNMENT_ROWTYPE_SP
-*******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_ASSIGNMENT_row  out TERRITORY_ASSIGNMENT%rowtype
-);
-
 PROCEDURE TERRITORY_U_SP (
 /*****************************************************************************
 	TERRITORY_U_SP
@@ -1927,24 +1871,6 @@ changed : 07/17/2014 CCN Project, prod issue : territory vs close date
 ,in_validation_flag      in varchar2 default 'N'
 );
 
-PROCEDURE TERRITORY_ASSIGN_ROWTYPE_SP (
-/******************************************************************************
-	TERRITORY_ASSIGN_ROWTYPE_SP
-
-	This procedure Build a TERRITORY_ASSIGNMENT Rowtype ROW
-
-	OracleTableName  -  Table name for row -varible
-      xml file     -  the data being inserted
-  Territory_Assignment_ROWTYPE  -  Territory_Assignment Data Row
-
-created : 09/26/2012 TAL -- CCN Project....
-******************************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,OUT_TERRITORY_ASSIGNMENT_ROW     OUT TERRITORY_ASSIGNMENT%ROWTYPE
-);
-
 PROCEDURE TYPE_ROWTYPE_SP (
 /******************************************************************************
 	TYPE_ROWTYPE_SP
@@ -2030,3 +1956,4 @@ in_table_name          IN  varchar2
 );  
 
 end CCN_TABLE_IU_PKG;
+

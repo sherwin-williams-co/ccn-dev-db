@@ -62,7 +62,6 @@ PROCEDURE BUSINESS_RULES_INPUT_2 (
 			SALES_REP%rowtype
 			STATUS%rowtype
 			COST_CENTER%rowtype
-			TERRITORY_ASSIGNMENT%rowtype
 
 created : 02/21/2013 BLR -- CCN Project....
 ******************************************************************************/
@@ -77,7 +76,6 @@ created : 02/21/2013 BLR -- CCN Project....
   ,V_SALES_REP_ROWTYPE             out  SALES_REP%rowtype
   ,V_STATUS_ROWTYPE                out  STATUS%rowtype
   ,V_cost_center_rowtype           out  COST_CENTER%rowtype
-  ,V_terr_asgn_rowtype             out  TERRITORY_ASSIGNMENT%rowtype
   );
 
 
@@ -89,14 +87,12 @@ PROCEDURE BUSINESS_RULES_INPUT_3 (
 			STORE%rowtype
 			TERMINAL%rowtype
 			TERRITORY%rowtype
-			TERRITORY_ASSIGNMENT%rowtype
-		--	TERRITORY_SALES_MGR%rowtype
 			TYPE%rowtype
 			COST_CENTER%rowtype
 
 created : 02/21/2013 TAL    -- CCN Project....
 Modified: 12/15/2014 axk326 -- CCN Project Team....
-          Removed Territory_sls_mgr
+          Removed Territory_sls_mgr, territory_assignment
 ******************************************************************************/
 -- Below are the fields required for the Business_Rules_Input call: 
 -- Cost_Center_code, Table_Rowtypes 
@@ -105,7 +101,6 @@ Modified: 12/15/2014 axk326 -- CCN Project Team....
   ,v_STORE_rowtype  	     out  STORE%rowtype
   ,v_TERMINAL_rowtype      out  TERMINAL%rowtype
   ,v_TERRITORY_rowtype     out  TERRITORY%rowtype
-  ,v_TERR_ASGN_rowtype     out  TERRITORY_ASSIGNMENT%rowtype
   ,v_TYPE_rowtype          out  TYPE%rowtype
   ,v_COST_CENTER_rowtype   out  COST_CENTER%rowtype
   );  
@@ -133,3 +128,4 @@ Updated: 05/21/2013 TAL - added v_note to the parameter list
 
 
 END CALL_BUSINESS_RULES_PKG;
+

@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER "COSTCNTR".TR_TERRITORY_UPD
+CREATE OR REPLACE TRIGGER TR_TERRITORY_UPD 
 BEFORE INSERT OR UPDATE ON TERRITORY
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -17,7 +17,6 @@ BEGIN
       INTO v_TRANSACTION_ID
       FROM AUDIT_LOG;             
 */
-	v_territory_row.territory_sls_mgr_code := :NEW.territory_sls_mgr_code;
             v_territory_row.cost_center_code := :NEW.cost_center_code;
             v_territory_row.home_store := :NEW.home_store;      
             v_territory_row.category := :NEW.category;
@@ -30,9 +29,7 @@ BEGIN
 		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
                          "xsi:nonamespaceSchemaLocation" ),
-	       XMLForest(
-		 v_territory_row.TERRITORY_SLS_MGR_CODE TERRITORY_SLS_MGR_CODE						
-			,v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
+	       XMLForest(v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
 			,v_territory_row.CATEGORY CATEGORY
 			,v_territory_row.HOME_STORE HOME_STORE
 			,v_territory_row.LEASE_CAR_INDICATOR LEASE_CAR_INDICATOR
@@ -43,11 +40,10 @@ BEGIN
                 				  'http://www.oracle.com/Employee.xsd' AS
                          			"xsi:nonamespaceSchemaLocation" ),
 	       XMLForest(
-				v_territory_row.territory_sls_mgr_code territory_sls_mgr_code 
-                                ,v_territory_row.cost_center_code cost_center_code
+                                v_territory_row.cost_center_code cost_center_code
                                 ,V_TERRITORY_ROW.CATEGORY CATEGORY
 			)) AS "primaryKey"		,
-      ('|'||v_territory_row.territory_sls_mgr_code || '|' || v_territory_row.cost_center_code || '|' || V_TERRITORY_ROW.CATEGORY || '|') tran_id
+      ('|' || v_territory_row.cost_center_code || '|' || V_TERRITORY_ROW.CATEGORY || '|') tran_id
 	INTO V_ROWDATA
 		,v_primaryKey,v_transaction_id
 	FROM DUAL;	
@@ -74,4 +70,9 @@ BEGIN
      --END IF;      
       
 END TR_TERRITORY_UPD;
+
+/
+
+ALTER TRIGGER TR_TERRITORY_UPD ENABLE;
+
 

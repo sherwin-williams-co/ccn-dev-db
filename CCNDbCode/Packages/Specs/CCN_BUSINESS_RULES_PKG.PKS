@@ -46,7 +46,6 @@ created : MDH 10/04//2012
    ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype 
-   ,inTERR_ASGN_XMLTYPE      VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
  );
 	
@@ -87,8 +86,7 @@ created : MDH 9/25//2012
    ,inSTATUS_ROWTYPE         IN STATUS%ROWTYPE
    ,inSTORE_ROWTYPE          IN STORE%ROWTYPE
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
-   ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE  
-   ,inTERR_ASGN_ROWTYPE      IN TERRITORY_ASSIGNMENT%ROWTYPE
+   ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
  );
 	
@@ -476,20 +474,6 @@ created : TAL 7/27/2012
    in_polling_rowtype     IN   polling%ROWTYPE);
 
 
-PROCEDURE TERR_ASSIGNMENT_BR_SP (
-/*******************************************************************************
-	 TERR_ASSIGNMENT_BR_SP
-
-	This procedure is intended enforce the Business Rules
-	for verifying the TERR_ASSIGNMENT_BR_SP on the TERRITORY_ASSIGNMENT table
-	TRD  Section: 3.3.24
-
-created : BLR 8/7/12
-******************************************************************************/	
-    inTerr_asgn_rowtype            IN  Territory_assignment%ROWTYPE
-     );
-
-
 PROCEDURE TERRITORY_BR_SP ( 
 /*****************************************************************************
 	TERRITORY_BR_SP
@@ -505,3 +489,4 @@ created : MDH 07/31/2012
 ;	
 
 END CCN_BUSINESS_RULES_PKG;
+
