@@ -1,17 +1,30 @@
-
+#!/bin/sh
+#############################################################################
+# Script Name : get_param.sh
+#
+# Description : This shell script will create param.lst file by spooling from 
+#	            storedrft_jv_param table.                  
+# 
+# Created     : 01/14/2015 sxt410 Store Draft Project
+# Modified    :  
+############################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-echo "Begin Get Parmaeters"
+echo -e "\nBegin Get Parameter"
 
-##setting up the parameters to run
-A=`date --date -d +01/%m/%Y`
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 
-#writing the parameters in the param.lst file
-echo "$A" >> $HOME/Reports/param.lst
+set pages 0
+set feedback off
 
+spool $HOME/initLoad/param.lst
 
-echo "End Get Parameters"
+select to_char(closing_date,'mm/dd/yyyy')from storedrft_param;
 
-exit 0
+spool off
+exit;
+
+END
+echo -e "End Get Parameter\n"

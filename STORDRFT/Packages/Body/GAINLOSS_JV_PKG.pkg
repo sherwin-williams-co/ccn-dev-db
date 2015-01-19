@@ -1,23 +1,28 @@
-create or replace 
-PACKAGE body          GAINLOSS_JV_PKG
+CREATE OR REPLACE PACKAGE BODY GAINLOSS_JV_PKG
 /****************************************************************************** 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly GAINLOSS_JV
 
-created : 11/24/2014 NXK927
-revisions: 
+created  : 11/24/2014 NXK927 
+revisions: 12/31/2014 sxt410 Added LOAD_SD_GAIN_LOSS_JV_HST Procedure to capture 
+           Historical data.
 ******************************************************************************/
 AS
 
 PROCEDURE CREATE_GAINLOSS_JV(
 /*****************************************************************************
+    CREATE_GAINLOSS_JV
+    
 This procedure will create JV entries for GAIN AND LOSS
 
 created : 11/24/2014 NXK927 
 revision: 12/09/2014 jxc517 CCN Project.....
           Modified the cursor to pick correct data, added input parameter which should be
           first of the month on which we are running the report
-          Example for november JV run it should be 01-DEC-2014
+          Example for november JV run it should be 01-DEC-2014.
+          
+          12/31/2014 sxt410  Calling LOAD_SD_GAIN_LOSS_JV_HST Procedure to capture
+          Historical data and truncating Gainloss_jv table to keep only one month data.
 *****************************************************************************/
 IN_DATE    IN DATE)
 IS
@@ -40,6 +45,7 @@ CURSOR jv_cursor  IS
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('GAINLOSS_JOB', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    LOAD_SD_GAIN_LOSS_JV_HST(IN_DATE);
     EXECUTE IMMEDIATE 'TRUNCATE TABLE GAINLOSS_JV';
     FOR rec IN jv_cursor LOOP
         BEGIN
@@ -58,7 +64,6 @@ BEGIN
         END;
     END LOOP; --end cost_center_rec
     COMMIT;
-    LOAD_SD_GAIN_LOSS_JV_HST(IN_DATE);
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('GAINLOSS_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
@@ -91,7 +96,9 @@ BEGIN
         SELECT NVL(MAX(RUN_IND),0)+1
           INTO CALL_IND
           FROM GAINLOSS_JV_HST
-         WHERE BOOK_DATE = TO_CHAR(ADD_MONTHS(IN_DATE,-1), 'YYYY/MM');
+         WHERE BOOK_DATE = (SELECT BOOK_DATE
+                              FROM GAINLOSS_JV 
+                             WHERE ROWNUM < 2);
     EXCEPTION
         WHEN OTHERS THEN 
             RAISE;
@@ -102,6 +109,7 @@ BEGIN
             V_JV_HST_ROW.NET_AMOUNT       := rec.NET_AMOUNT;
             V_JV_HST_ROW.BOOK_DATE        := rec.BOOK_DATE;         
             V_JV_HST_ROW.RUN_IND          := CALL_IND;         
+            V_JV_HST_ROW.RUN_DATE         := SYSDATE;
 
             INSERT INTO GAINLOSS_JV_HST VALUES V_JV_HST_ROW;
 

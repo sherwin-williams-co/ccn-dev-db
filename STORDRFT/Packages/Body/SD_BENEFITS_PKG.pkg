@@ -1,87 +1,88 @@
 CREATE OR REPLACE PACKAGE BODY SD_BENEFITS_PKG
-/****************************************************************************** 
+/******************************************************************************* 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly benefits monthly JV with ADP information
 for US and Canada
 
-created : 07/03/2014 sxh487
-
-revisions: 
-******************************************************************************/
+created  : 07/03/2014 sxh487
+revisions: 12/31/2014 sxt410 Added LOAD_STOREDRFT_JV_HST Procedure to capture 
+           Historical data.
+*******************************************************************************/
 AS
-
 PROCEDURE CREATE_JV
-/*****************************************************************************
+/*******************************************************************************
     Create_US_File
 
 This procedure will create JV entries for Benefits file
 
 created : 07/03/2014 sxh487  Storedraft project  
-revision: 
-
-*****************************************************************************/
+revision: 12/31/2014 sxt410  Calling LOAD_STOREDRFT_JV_HST Procedure to capture
+          Historical data and truncating storedrft_jv table to keep only one month data.
+          
+          01/14/2015 sxt410 Added input parameter IN_CLOSING_DATE instead of sysdate
+*******************************************************************************/
+(IN_CLOSING_DATE IN DATE)
 IS
-
-in_closing_date   date:=SYSDATE;
 V_BATCH_NUMBER    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-
-cursor cost_center_cur  is 
-
-            select SD.cost_center_code, sum(net_amount) net_amount
-       from STORE_DRAFTS SD
-             WHERE SD.PAID_DATE >=  (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                       FROM BATCH_JOB
-                                      WHERE BATCH_JOB_NAME = 'BENEFIT_JOB')
-        and SD.PAID_DATE < in_closing_date
-        and paid_date is not null
-              and gross_amount <> 0
-        group by cost_center_code;
+V_COUNT           NUMBER := 0;
+CURSOR COST_CENTER_CUR  IS 
+     SELECT SD.COST_CENTER_CODE, SUM(NET_AMOUNT) NET_AMOUNT
+       FROM STORE_DRAFTS SD
+      WHERE SD.PAID_DATE >= ADD_MONTHS((IN_CLOSING_DATE),-1)
+        AND SD.PAID_DATE < IN_CLOSING_DATE
+        AND PAID_DATE IS NOT NULL
+        AND GROSS_AMOUNT <> 0
+      GROUP BY COST_CENTER_CODE;
         
-   V_COUNT           NUMBER := 0;
-   
-begin
+BEGIN
+    LOAD_STOREDRFT_JV_HST();
+           
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE STOREDRFT_JV';
 
-       EXECUTE IMMEDIATE 'TRUNCATE TABLE STOREDRFT_JV';
-
-       CCN_BATCH_PKG.INSERT_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER);      
-       for cost_center_rec in cost_center_cur loop  
-          
-          BEGIN
-            INSERT INTO STOREDRFT_JV(    COST_CENTER_CODE, net_amount, UPDATE_DATE, JV_TYPE) 
-               values(cost_center_rec.cost_center_code,cost_center_rec.net_amount, trunc(SYSDATE), 'DRAFTS'); 
-         
-               V_COUNT := V_COUNT + 1;
-               IF V_COUNT > 500 THEN
-                  COMMIT;
-                  V_COUNT := 0;
-               END IF; 
-               
-         EXCEPTION
-            WHEN OTHERS THEN
-              dbms_output.put_line('Error INSERTING IN STOREDRFT_JV for ' || cost_center_rec.cost_center_code || sqlerrm);
-         END;
-         
-       end loop; --end cost_center_rec
-       COMMIT;
-       LOAD_STOREDRFT_JV_HST();
-       CCN_BATCH_PKG.UPDATE_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER);      
+    FOR COST_CENTER_REC IN COST_CENTER_CUR LOOP              
+        BEGIN
+            INSERT INTO STOREDRFT_JV (COST_CENTER_CODE, NET_AMOUNT, UPDATE_DATE, JV_TYPE)
+            VALUES (COST_CENTER_REC.COST_CENTER_CODE, COST_CENTER_REC.NET_AMOUNT,IN_CLOSING_DATE, 'DRAFTS');
+             
+            V_COUNT := V_COUNT + 1;
+            IF V_COUNT > 500 THEN
+               COMMIT;
+               V_COUNT := 0;
+            END IF; 
+                   
+        EXCEPTION
+        WHEN OTHERS THEN
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                       'CREATE_JV',
+                                       'Error INSERTING IN STOREDRFT_JV '|| SQLERRM,                                                 
+                                       COST_CENTER_REC.COST_CENTER_CODE,
+                                       NULL);
+        END;             
+    END LOOP;
+    COMMIT;           
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('BENEFIT_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
        
 EXCEPTION
     WHEN OTHERS THEN
-         dbms_output.put_line('CREATE_JV Procedure Failed ' || sqlerrm);
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'CREATE_JV',
+                                   'CREATE_JV Procedure Failed '|| SQLERRM,                                                 
+                                   '000000',
+                                   '0000000000');
 END CREATE_JV;
-
 PROCEDURE LOAD_STOREDRFT_JV_HST
-/*****************************************************************************
+/*******************************************************************************
     LOAD_STOREDRFT_JV_HST
 
-This procedure will load the history JV entries for Benefits file for that run
+This Procedure will captures Historical data from storedrft_jv table
+and indicate how many times JV entries has ran for a month.
 
 created : 12/31/2014 sxt410 CCN Project Team
 revision: 
 
-*****************************************************************************/
+*******************************************************************************/
 IS
     CURSOR SD_JV_CUR IS
         SELECT *
@@ -95,7 +96,9 @@ BEGIN
         SELECT NVL(MAX(RUN_IND),0)+1
           INTO CALL_IND
           FROM STOREDRFT_JV_HST
-         WHERE UPDATE_DATE = TRUNC(SYSDATE);
+         WHERE TO_CHAR(UPDATE_DATE,'MM/YYYY') = (SELECT TO_CHAR(UPDATE_DATE,'MM/YYYY')
+                                                   FROM STOREDRFT_JV 
+                                                  WHERE ROWNUM < 2);
     EXCEPTION
         WHEN OTHERS THEN 
             RAISE;
@@ -106,7 +109,8 @@ BEGIN
             V_JV_HST_ROW.NET_AMOUNT       := rec.NET_AMOUNT;
             V_JV_HST_ROW.UPDATE_DATE      := rec.UPDATE_DATE;     
             V_JV_HST_ROW.JV_TYPE          := rec.JV_TYPE;         
-            V_JV_HST_ROW.RUN_IND          := CALL_IND;         
+            V_JV_HST_ROW.RUN_IND          := CALL_IND;  
+            V_JV_HST_ROW.RUN_DATE         := SYSDATE;        
 
             INSERT INTO STOREDRFT_JV_HST VALUES V_JV_HST_ROW;
 
@@ -133,5 +137,4 @@ EXCEPTION
                                    '000000',
                                    '0000000000');
 END LOAD_STOREDRFT_JV_HST;
-
 END SD_BENEFITS_PKG;

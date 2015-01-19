@@ -1,24 +1,28 @@
-create or replace 
-PACKAGE          GAINLOSS_JV_PKG
+CREATE OR REPLACE PACKAGE GAINLOSS_JV_PKG
 /****************************************************************************** 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly GAINLOSS_JV
 
-created : 11/24/2014 NXK927
-
-revisions: 
+created  : 11/24/2014 NXK927 
+revisions: 12/31/2014 sxt410 Added LOAD_SD_GAIN_LOSS_JV_HST Procedure to capture 
+           Historical data.
 ******************************************************************************/
 AS
 
 PROCEDURE CREATE_GAINLOSS_JV(
 /*****************************************************************************
     CREATE_GAINLOSS_JV
-
+    
 This procedure will create JV entries for GAIN AND LOSS
 
 created : 11/24/2014 NXK927 
-revision: 
-
+revision: 12/09/2014 jxc517 CCN Project.....
+          Modified the cursor to pick correct data, added input parameter which should be
+          first of the month on which we are running the report
+          Example for november JV run it should be 01-DEC-2014.
+          
+          12/31/2014 sxt410  Calling LOAD_SD_GAIN_LOSS_JV_HST Procedure to capture
+          Historical data and truncating Gainloss_jv table to keep only one month data.
 *****************************************************************************/
 IN_DATE    IN DATE);
 
