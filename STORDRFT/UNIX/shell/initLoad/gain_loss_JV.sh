@@ -41,6 +41,22 @@ END
 TIME=`date +"%H:%M:%S"`
 echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
 
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+
+############################################################################
+
 ###############################################################################
 # BELOW PROCESS WILL INVOKE the ftp_draft_trg.sh to ftp DRAFT.TRG file
 # to STDSSAPHQ server.
@@ -71,11 +87,11 @@ DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

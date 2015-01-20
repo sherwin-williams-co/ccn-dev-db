@@ -1,3 +1,4 @@
+#!/bin/sh
 #######################################################################################
 # Description     : Script to FTP DRAFT.TRG file to the STDSSAPHQ server 
 #                   once the execution of GainLossJV script is completed. 
@@ -8,7 +9,7 @@
 
 . /app/stordrft/host.sh
 
-DATE=`date +"%m/%d/%Y"`
+proc_name="ftp_draft_trg"
 
 cd $HOME/Reports
 
@@ -26,4 +27,20 @@ quit
 END_SCRIPT
 
 echo " FTP Process Successful "
+
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+
 exit 0
+############################################################################

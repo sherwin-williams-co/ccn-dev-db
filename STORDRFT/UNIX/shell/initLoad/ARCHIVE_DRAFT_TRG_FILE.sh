@@ -11,7 +11,6 @@
 . /app/stordrft/host.sh
 
 proc_name="ARCHIVE_DRAFT_TRG_FILE"
-CUR_PATH="$HOME/Reports"
 ARCHIVE_PATH="$HOME/Monthly/jv"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m%d%Y"`
@@ -25,7 +24,6 @@ else
   mkdir $ARCHIVE_PATH/"Draft"_"$DATE"
 fi
 
-cd $CUR_PATH
 #Archive file for Draft.TRG file.
 if 
     ls DRAFT.TRG &> /dev/null; then
