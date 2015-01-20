@@ -23,20 +23,20 @@ DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-##setting up the parameters to run
-#P=`cat $HOME/initLoad/param.lst`
-#
-#echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE for the date $P"
-#
-#sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
-#set heading off;
-#set serveroutput on;
-#set verify off;
-#
-#exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$P','MM/DD/YYYY'));
-#
-#exit;
-#END
+#setting up the parameters to run
+P=`cat $HOME/initLoad/param.lst`
+
+echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE for the date $P"
+
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
+set heading off;
+set serveroutput on;
+set verify off;
+
+exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$P','MM/DD/YYYY'));
+
+exit;
+END
 
 TIME=`date +"%H:%M:%S"`
 echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
