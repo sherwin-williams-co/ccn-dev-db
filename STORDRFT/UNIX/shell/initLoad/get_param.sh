@@ -3,7 +3,7 @@
 # Script Name : get_param.sh
 #
 # Description : This shell script will create param.lst file by spooling from 
-#	            storedrft_jv_param table.                  
+#	            storedrft_param table.                  
 # 
 # Created     : 01/14/2015 sxt410 Store Draft Project
 # Modified    :  
