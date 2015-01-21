@@ -16,11 +16,13 @@
 . /$HOME/initLoad/get_param.sh
 
 proc="JV_monthly_load"
+trg_name="ftp_paid_draft_trg"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 P1=`cat $HOME/initLoad/param.lst`
+
 echo "Processing Started for $proc at $TIME on $DATE for the date $P1"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
@@ -35,8 +37,6 @@ END
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
@@ -45,6 +45,41 @@ then
 fi
 
 echo "Processing finished for $proc at ${TIME} on ${DATE} for the date $P1"  
+
+
+###############################################################################
+# BELOW PROCESS WILL INVOKE the ftp_paid_draft_trg.sh to ftp PAID_DRAFT.TRG file
+# to STDSSAPHQ server.
+###############################################################################
+echo -e "\nSTART FTPing PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE "
+
+./ftp_paid_draft_trg.sh
+
+echo -e "END FTPing PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE\n"
+
+
+###############################################################################
+# BELOW PROCESS WILL INVOKE the ARCHIVE_PAID_DRAFT_TRG_FILE.sh to Archive 
+# PAID_DRAFT.TRG file to Monthly Jv folder.
+###############################################################################
+echo -e "\nSTART Archiving PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE"
+
+./archive_paid_draft_trg_file.sh
+
+echo -e "END Archiving PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE \n"
+
+
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+if test $status -ne 0
+then
+     echo -e "Processing FAILED for $trg_name at ${TIME} on $DATE"
+     exit 1;
+fi
+
+echo -e "Processing finished for $trg_name at ${TIME} on $DATE\n"
 
 exit 0
 ############################################################################
