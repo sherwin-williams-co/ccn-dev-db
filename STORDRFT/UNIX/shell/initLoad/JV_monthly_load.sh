@@ -15,7 +15,7 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
 
-#below command will create param.lst file by spooling closing date from storedrft_jv_param table.
+#below command will create param.lst file by spooling closing date from storedrft_param table.
 . /$HOME/initLoad/get_param.sh
 
 proc="JV_monthly_load"
