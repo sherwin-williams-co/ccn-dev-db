@@ -16,6 +16,7 @@ ARCHIVE_PATH="$HOME/Monthly/jv"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m%d%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
+
 echo "Processing Started for $file at $TIME on $DATE"
 
 # Control will output if $DIRECTORY exists.
@@ -37,6 +38,8 @@ fi
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m%d%Y"`
 status=$?
 if test $status -ne 0
 then

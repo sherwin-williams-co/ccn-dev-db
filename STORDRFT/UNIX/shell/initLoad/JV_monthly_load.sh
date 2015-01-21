@@ -16,10 +16,9 @@
 . /app/stordrft/host.sh
 
 #below command will create param.lst file by spooling closing date from storedrft_param table.
-. /$HOME/initLoad/get_param.sh
+./get_param.sh
 
 proc="JV_monthly_load"
-trg_name="ftp_paid_draft_trg"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
@@ -50,39 +49,35 @@ fi
 echo "Processing finished for $proc at ${TIME} on ${DATE} for the date $P1"  
 
 
-###############################################################################
+#################################################################################
 # BELOW PROCESS WILL INVOKE the ftp_paid_draft_trg.sh to ftp PAID_DRAFT.TRG file
 # to STDSSAPHQ server.
-###############################################################################
+#################################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+TRG_FTP="ftp_paid_draft_trg"
+
 echo -e "\nSTART FTPing PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE "
 
-./ftp_paid_draft_trg.sh
+./ftp_paid_draft_trg.sh >> $LOGDIR/$TRG_FTP"_"$TimeStamp.log
 
 echo -e "END FTPing PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE\n"
 
 
-###############################################################################
+#################################################################################
 # BELOW PROCESS WILL INVOKE the ARCHIVE_PAID_DRAFT_TRG_FILE.sh to Archive 
 # PAID_DRAFT.TRG file to Monthly Jv folder.
-###############################################################################
+#################################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+ARCHIVE_TRG="arc_draft_trg_file"
+
 echo -e "\nSTART Archiving PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE"
 
-./archive_paid_draft_trg_file.sh
+./archive_paid_draft_trg_file.sh >> $LOGDIR/$ARCHIVE_TRG"_"$TimeStamp.log
 
 echo -e "END Archiving PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE \n"
 
-
-############################################################################
-#                           ERROR STATUS CHECK 
-############################################################################
-status=$?
-if test $status -ne 0
-then
-     echo -e "Processing FAILED for $trg_name at ${TIME} on $DATE"
-     exit 1;
-fi
-
-echo -e "Processing finished for $trg_name at ${TIME} on $DATE\n"
-
-exit 0
-############################################################################
+exit 0 

@@ -10,14 +10,14 @@
 . /app/stordrft/host.sh
 
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-LOGDIR="$HOME/initLoad/logs"
 File="FTP_PAID_DRAFT.TRG"
-
-cd $HOME/initLoad
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
 
 echo -n "" > PAID_DRAFT.TRG
 
-echo " Starting FTP Process to STDSSAPHQ " >> $LOGDIR/$File"_"$TimeStamp.log 
+echo "Processing Started for $File at ${TIME} on ${DATE}"
+
 ftp -n ${STDSSRVR_host} <<END_SCRIPT
 quote USER ${USER}
 quote PASS ${PASSWD}
@@ -28,4 +28,19 @@ put PAID_DRAFT.TRG
 quit
 END_SCRIPT
 echo " FTP Process Successful "
+
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for $File at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+echo "Processing finished for $File at ${TIME} on ${DATE}"  
+
 exit 0
