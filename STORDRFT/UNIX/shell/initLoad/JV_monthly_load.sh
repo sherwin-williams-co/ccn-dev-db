@@ -10,7 +10,7 @@
 #                                 Added get_param.sh to spool closing date.
 #               sxt410 01/20/2015 Added code to invoke DRAFT_DRAFT.TRG file to be 
 #               placed on the remote server when the JV_monthly_load process is 
-#               completed and Archive DRAFT_DRAFT.TRG file for Historical purpose.
+#               completed and Archive PAID_DRAFT.TRG file for Historical purpose.
 ##############################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
