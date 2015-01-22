@@ -17,6 +17,7 @@
 
 proc_name="gain_loss_JV"
 proc_name1="ftp_draft_trg"
+proc_name2="ARC_DRAFT_TRG_FILE"
 LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
@@ -55,29 +56,35 @@ fi
 
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
-############################################################################
+###############################################################################
 
 ###############################################################################
 # BELOW PROCESS WILL INVOKE the ftp_draft_trg.sh to ftp DRAFT.TRG file
 # to STDSSAPHQ server.
 ###############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-printf "\n START ftp_draft_trg.sh : Processing Started at $TIME on $DATE \n"
+echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
 ./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
-printf "\n END ftp_draft_trg.sh : Processing finished at $TIME \n"
+echo -e "\nEND ftp_draft_trg.sh : Processing finished at $TIME"
 
 ###############################################################################
 # BELOW PROCESS WILL INVOKE the Archive_Draft_Trg.sh to Archive DRAFT.TRG file
 # to Monthly Jv folder.
 ###############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-printf "\n START ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE \n"
-./ARCHIVE_DRAFT_TRG_FILE.sh
+echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE"
+./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
-printf "\n END ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME \n"
+echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 
 ############################################################################
 #                           ERROR STATUS CHECK 

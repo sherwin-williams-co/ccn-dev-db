@@ -5,13 +5,10 @@
 # Created by/Date : AXK326 01/15/2015
 # Modified on/Date: 
 #######################################################################################
-#!/bin/sh
 
 . /app/stordrft/host.sh
 
 proc_name="ftp_draft_trg"
-
-cd $HOME/Reports
 
 echo "" > DRAFT.TRG
 
@@ -40,7 +37,7 @@ then
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+     echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

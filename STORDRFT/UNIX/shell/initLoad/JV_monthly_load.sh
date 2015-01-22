@@ -39,6 +39,8 @@ END
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
+TIME=`date +"%H:%M:%S"`
+DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
@@ -74,7 +76,7 @@ DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 ARCHIVE_TRG="arc_draft_trg_file"
 
-echo -e "\nSTART Archiving PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE"
+echo "START Archiving PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE"
 
 ./archive_paid_draft_trg_file.sh >> $LOGDIR/$ARCHIVE_TRG"_"$TimeStamp.log
 

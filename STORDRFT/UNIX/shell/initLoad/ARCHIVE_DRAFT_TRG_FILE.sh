@@ -15,7 +15,7 @@ ARCHIVE_PATH="$HOME/Monthly/jv"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m%d%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+echo " Processing Started for $proc_name at $TIME on $DATE"
 
 # Control will output if $DIRECTORY exists.
 if [ -d "$ARCHIVE_PATH/"Draft"_"$DATE"" ]; then
@@ -41,11 +41,11 @@ DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo " processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo " Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

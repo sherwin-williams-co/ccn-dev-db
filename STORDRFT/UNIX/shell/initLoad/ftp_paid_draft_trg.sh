@@ -9,7 +9,6 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
 
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 File="FTP_PAID_DRAFT.TRG"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
