@@ -1,3 +1,5 @@
+--Below script is used to remove duplicates from HIERARCH_DETAIL table at any level
+
 BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
 END;
