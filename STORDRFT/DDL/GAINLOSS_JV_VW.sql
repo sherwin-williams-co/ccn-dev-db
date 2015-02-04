@@ -4,8 +4,8 @@ SELECT
 /*******************************************************************************
 This view holds all the required gain and loss data for the cost center.
 
-Created  : NXK927 CCN Project...
-Modified : 02/04/2015 SXT410 Added Comments.
+Created  : 02/04/2015 SXT410 CCN Project...
+Modified : 
 *******************************************************************************/
 *
 FROM GAINLOSS_JV;
