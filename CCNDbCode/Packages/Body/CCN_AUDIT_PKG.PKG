@@ -622,137 +622,121 @@ BEGIN
 --Exceptions handled in calling procedure
 END GET_COST_CENTER_CODE;
 
-PROCEDURE EMP_MGR_TERRITORY_AUDIT_SP
-( 
+PROCEDURE EMP_MGR_TERRITORY_AUDIT_SP( 
 /*******************************************************
-EMP_MGR_TERRITORY_AUDIT_SP
-
 Procedure to create two lines in the Backfeed file for
-   MANAGER_EMPLOYEE and TERRITORY_EMPLOYEE if a Cost Center
-   or Employee Status changes
-   
-   ex:- For a change in cost center or employee status we need to send two 
-        records in the backfeed
-        1)First the Previous value with a 'D'
-        2)Second with the current value with a "A'
-    ELSE
-       it goes normally as a 'C'
-       
+MANAGER_EMPLOYEE and TERRITORY_EMPLOYEE if a Cost Center
+or Employee Status changes
+
+1) If cost center changes send it as delete(D) for old record, add(A) for new record
+2) If status changes to TERM (Terminated) send it as delete(D) alone
+3) If its a new record send it as add(A) alone, except if the new records status is
+TERM(Terminated) in which case exit out of procedure doing/returning nothing
+4) All other scenarios it should go as (C)
+5) Add(A) should go with TERM_DATE as 00000000
+
 Author   : sxh487 CCN Project Team
 created : 09/03/2014
+Modified: 02/05/2015 jxc517 CCN Project...
 *******************************************************/
-
-  IN_COST_CENTER  IN  COST_CENTER.COST_CENTER_CODE%TYPE
- ,in_TABLE_NAME   IN  VARCHAR2
- ,in_LOG_ID_PREV  IN  NUMBER
- ,in_LOG_ID_CURR  IN  NUMBER
- ,IN_DIFF_XML     IN  sys.XMLTYPE   --diff xml
- ,in_ROW_PREV     IN  sys.XMLTYPE   --Previous Row from Audit_Log        
- ,in_ROW_CURR     IN  sys.XMLTYPE   --Current Row from Audit_Log
- ,OUT_CLOB        OUT CLOB
+IN_COST_CENTER  IN  COST_CENTER.COST_CENTER_CODE%TYPE
+,IN_TABLE_NAME   IN  VARCHAR2
+,IN_LOG_ID_PREV  IN  NUMBER
+,IN_LOG_ID_CURR  IN  NUMBER
+,IN_DIFF_XML     IN  SYS.XMLTYPE   --diff xml
+,IN_ROW_PREV     IN  SYS.XMLTYPE   --Previous Row from Audit_Log        
+,IN_ROW_CURR     IN  SYS.XMLTYPE   --Current Row from Audit_Log
+,OUT_CLOB        OUT CLOB
 )
 AS
- V_OUT_CLOB         CLOB;
- v_OUT_CLOB1        CLOB;
- V_OUT_CLOB2        CLOB;
- v_emp_status_prev  MANAGER_EMPLOYEE.EMP_PAYROLL_STATUS%TYPE;
- v_emp_status_curr  MANAGER_EMPLOYEE.EMP_PAYROLL_STATUS%TYPE;
- v_cc_prev          MANAGER_EMPLOYEE.COST_CENTER_CODE%TYPE;
- v_cc_curr          MANAGER_EMPLOYEE.COST_CENTER_CODE%TYPE;
- v_value_prev       VARCHAR2(32000);
- v_value_curr       VARCHAR2(32000);
- v_extrd_val_prev   VARCHAR2(32000);
- v_extrd_val_curr   VARCHAR2(32000);
- 
- V_CHANGE_TYPE      VARCHAR2(1);
- V_CHANGED          VARCHAR2(1):= 'N';
- V_CONTEXT	        VARCHAR2(200);
+V_OUT_CLOB             CLOB;
+V_OUT_CLOB1            CLOB;
+V_OUT_CLOB2            CLOB;
+V_EMP_STATUS_CURR      MANAGER_EMPLOYEE.EMP_PAYROLL_STATUS%TYPE;
+V_CC_PREV              MANAGER_EMPLOYEE.COST_CENTER_CODE%TYPE;
+V_CC_CURR              MANAGER_EMPLOYEE.COST_CENTER_CODE%TYPE;
+V_VALUE_PREV           VARCHAR2(32000);
+V_VALUE_CURR           VARCHAR2(32000);
+V_EXTRD_VAL_PREV       VARCHAR2(32000);
+V_EXTRD_VAL_CURR       VARCHAR2(32000);
 
- CURSOR table_fields_cur IS
-   SELECT COLUMN_NAME,
-          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
-          DATA_TYPE,
-          COLUMN_ID
-     FROM ALL_TAB_COLUMNS
-    WHERE TABLE_NAME = IN_TABLE_NAME
-    ORDER BY COLUMN_ID ASC;
-    
-  BEGIN
-        --if cost_center_code or Employee status changes then send two rows in the backfeed 
-        --First with a D and next with an A (DELETE and ADD)
-        
-        IF in_ROW_PREV IS NOT NULL THEN
-            v_emp_status_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'EMP_PAYROLL_STATUS'), '~');
-            v_cc_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || 'COST_CENTER_CODE'), '~');
+V_CURR_AUD_REC_STATUS  VARCHAR2(1);
+V_CONTEXT              VARCHAR2(200);
+
+CURSOR table_fields_cur IS
+  SELECT COLUMN_NAME,
+         DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+         DATA_TYPE,
+         COLUMN_ID
+    FROM ALL_TAB_COLUMNS
+   WHERE TABLE_NAME = IN_TABLE_NAME
+   ORDER BY COLUMN_ID ASC;
+
+BEGIN
+    V_EMP_STATUS_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'EMP_PAYROLL_STATUS'), '~');
+    V_CC_CURR         := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'COST_CENTER_CODE'), '~');
+
+    IF IN_ROW_PREV IS NULL THEN --First record, which should go as an Add(A)
+        IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'TERM' THEN --new records status is TERM(Terminated), exit out
+            RETURN;
         ELSE
-            v_emp_status_prev := '~';
-            v_cc_prev := '~';
+            V_CURR_AUD_REC_STATUS := 'A';
         END IF;
-        
-        v_emp_status_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || 'EMP_PAYROLL_STATUS'), '~');
-        v_cc_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || 'COST_CENTER_CODE'), '~');
-        
-        IF ((NVL(v_emp_status_prev,'~') <> NVL(V_emp_status_curr,'~'))
-            OR
-           (NVL(v_cc_prev,'~') <> NVL(v_cc_curr,'~'))) 
-           AND in_ROW_PREV IS NOT NULL --This means that it is the first record, so it should be a new insert
-           THEN                           
-
-            V_CHANGED := 'Y';
-            V_OUT_CLOB1 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_PREV,14,'0')) ||  'D';
-            V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'A';
+    ELSE --NOT the first record, which should go as a Delete(D)/Delete(D) and Add(D)/Change(C)
+        IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'TERM' THEN --Status changed to TERM(Terminated), which should go as delete(D)
+            V_CURR_AUD_REC_STATUS := 'D';
         ELSE
-            V_CHANGED := 'N';
-            V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || IN_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID_CURR,14,'0')) ||  'C';
+            V_CC_PREV := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_PREV,'//' || 'COST_CENTER_CODE'), '~');
+            IF NVL(V_CC_PREV,'~') <> NVL(V_CC_CURR,'~') THEN --Cost center changed, which should go as delete(D) and add(A)
+                V_OUT_CLOB1 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+                               || IN_COST_CENTER
+                               || RPAD(IN_TABLE_NAME,25)
+                               || TRIM(LPAD(IN_LOG_ID_PREV,14,'0'))
+                               || 'D';
+                V_CURR_AUD_REC_STATUS := 'A';
+            ELSE --Something else, which should go as change(C)
+                V_CURR_AUD_REC_STATUS := 'C';
+            END IF;
         END IF;
-      
-      FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-          
-         IF V_CHANGED = 'Y' THEN
-                V_CONTEXT := 'Building the Previous Data';
-                            
-                IF in_ROW_PREV IS NOT NULL THEN
-                    v_extrd_val_prev := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_PREV,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
-                ELSE
-                    v_extrd_val_prev := '~';
-                END IF;
-                v_extrd_val_prev := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(v_extrd_val_prev), '~');
-                v_value_prev := UPPER(RPAD(v_extrd_val_prev, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_prev))));
-
-                V_OUT_CLOB1  := V_OUT_CLOB1 || v_value_prev;
-            
-                V_CONTEXT := 'Building the Current Data';
-                   
-                v_extrd_val_curr := NVL(XML_EXTRACT_NO_EXCEPTION(in_ROW_CURR,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');   
-                v_extrd_val_curr := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(v_extrd_val_curr), '~');
-                --If add ('A') for managers /territory sales, we need to send 0's for the TERM_DATE fields
-                IF TABLE_FIELDS_REC.COLUMN_NAME <> 'TERM_DATE' THEN
-                    v_value_curr := UPPER(RPAD(v_extrd_val_curr, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_curr))));
-                ELSE
-                    v_value_curr := UPPER(RPAD('0',TABLE_FIELDS_REC.COLUMN_SIZE,'0'));
-                END IF;
-
-                V_OUT_CLOB2 := V_OUT_CLOB2 || v_value_curr;
-   
-         ELSE --if the cost center or emp status did not change
-                V_CONTEXT := 'Building the Current Data';
-                
-               v_extrd_val_curr := NVL(XML_EXTRACT_NO_EXCEPTION(IN_DIFF_XML,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
-               v_extrd_val_curr := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(v_extrd_val_curr), '~');
-               v_value_curr := UPPER(RPAD(v_extrd_val_curr, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extrd_val_curr))));
-              
-               V_OUT_CLOB2 := V_OUT_CLOB2 || v_value_curr;
-            
-         END IF;
- 
-      END LOOP;   
-    
-    IF V_CHANGED = 'Y' THEN
-      OUT_CLOB := V_OUT_CLOB1 || CHR(10) ||V_OUT_CLOB2;
-    ELSE
-      OUT_CLOB := V_OUT_CLOB2;
     END IF;
-      
+    V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
+                   || IN_COST_CENTER
+                   || RPAD(IN_TABLE_NAME,25)
+                   || TRIM(LPAD(IN_LOG_ID_CURR,14,'0'))
+                   || V_CURR_AUD_REC_STATUS;
+
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        V_CONTEXT        := 'Building V_OUT_CLOB2 with Current Record Data';
+        V_EXTRD_VAL_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');   
+        V_EXTRD_VAL_CURR := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_EXTRD_VAL_CURR), '~');
+        V_VALUE_CURR     := UPPER(RPAD(V_EXTRD_VAL_CURR, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(V_EXTRD_VAL_CURR))));
+        IF V_OUT_CLOB1 IS NOT NULL THEN
+        --Need to build two records, one with previoius record details and the other with current record details
+            V_CONTEXT := 'Building V_OUT_CLOB1 with Previous Record Data';
+            V_EXTRD_VAL_PREV := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_PREV,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
+            V_EXTRD_VAL_PREV := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_EXTRD_VAL_PREV), '~');
+            V_VALUE_PREV     := UPPER(RPAD(V_EXTRD_VAL_PREV, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(V_EXTRD_VAL_PREV))));
+            V_OUT_CLOB1      := V_OUT_CLOB1 || V_VALUE_PREV;
+        ELSE 
+            IF V_CURR_AUD_REC_STATUS = 'C' THEN
+                V_CONTEXT        := 'Building V_OUT_CLOB2 with Difference Record Data along with Primary Key';
+                V_EXTRD_VAL_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(IN_DIFF_XML,'//' || TABLE_FIELDS_REC.COLUMN_NAME),'~');
+                V_EXTRD_VAL_CURR := NVL(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_EXTRD_VAL_CURR), '~');
+                V_VALUE_CURR     := UPPER(RPAD(V_EXTRD_VAL_CURR, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(V_EXTRD_VAL_CURR))));
+            END IF;
+        END IF;
+        IF V_CURR_AUD_REC_STATUS = 'A'
+           AND TABLE_FIELDS_REC.COLUMN_NAME = 'TERM_DATE' THEN --If add(A), send 0's for the TERM_DATE fields
+            V_VALUE_CURR := UPPER(RPAD('0',TABLE_FIELDS_REC.COLUMN_SIZE,'0'));
+        END IF;
+        V_OUT_CLOB2 := V_OUT_CLOB2 || V_VALUE_CURR;
+    END LOOP;
+
+    IF V_OUT_CLOB1 IS NOT NULL THEN
+        OUT_CLOB := V_OUT_CLOB1 || CHR(10) ||V_OUT_CLOB2;
+    ELSE
+        OUT_CLOB := V_OUT_CLOB2;
+    END IF;
 END EMP_MGR_TERRITORY_AUDIT_SP;
 
 PROCEDURE PARSE_DIFFERENCE_XML
