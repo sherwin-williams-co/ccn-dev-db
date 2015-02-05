@@ -3,17 +3,17 @@
 # Description     : Script to FTP PAID_DRAFT.TRG file to the STDSSAPHQ server 
 #                   once the execution of JV_monthly_load.sh scripts is completed. 
 # Created by/Date : SXT410 01/20/2015
-# Modified on/Date: 
+# Modified on/Date: sxt410 02/04/2015 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
 #######################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
 
-File="FTP_PAID_DRAFT.TRG"
+File="FTP_DRAFT.TRG"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo -n "" > PAID_DRAFT.TRG
+echo -n "" > DRAFT.TRG
 
 echo "Processing Started for $File at ${TIME} on ${DATE}"
 
@@ -22,7 +22,7 @@ quote USER ${USER}
 quote PASS ${PASSWD}
 cd /Data/Triggers
 
-put PAID_DRAFT.TRG
+put DRAFT.TRG
 
 quit
 END_SCRIPT

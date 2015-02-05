@@ -6,7 +6,7 @@
 #                 file created when JV_monthly_load.sh process is completed.
 #
 # Created  : 01/20/2015 SXT410 CCN Project Team.....
-# Modified :
+# Modified : 02/04/2015 sxt410 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
 ##############################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -20,19 +20,19 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $file at $TIME on $DATE"
 
 # Control will output if $DIRECTORY exists.
-if [ -d "$ARCHIVE_PATH/"Paid_Draft"_"$DATE"" ]; then
+if [ -d "$ARCHIVE_PATH/"Draft"_"$DATE"" ]; then
    echo " Directory exists "
 else
-  mkdir $ARCHIVE_PATH/"Paid_Draft"_"$DATE"
+  mkdir $ARCHIVE_PATH/"Draft"_"$DATE"
 fi
 
-#Archive file for PAID_DRAFT.TRG file.
+#Archive file for DRAFT.TRG file.
 if 
-    ls PAID_DRAFT.TRG &> /dev/null; then
-    echo " PAID_DRAFT.TRG file exist "
-    find -maxdepth 1 -name PAID_DRAFT.TRG -exec mv {} $ARCHIVE_PATH/"Paid_Draft"_"$DATE"/PAID_DRAFT"_"$TimeStamp.TRG \; > /dev/null 2>&1
+    ls DRAFT.TRG &> /dev/null; then
+    echo " DRAFT.TRG file exist "
+    find -maxdepth 1 -name DRAFT.TRG -exec mv {} $ARCHIVE_PATH/"Draft"_"$DATE"/DRAFT"_"$TimeStamp.TRG \; > /dev/null 2>&1
 else
-    echo " PAID_DRAFT.TRG file does not exists "
+    echo " DRAFT.TRG file does not exists "
 fi
 
 ############################################################################

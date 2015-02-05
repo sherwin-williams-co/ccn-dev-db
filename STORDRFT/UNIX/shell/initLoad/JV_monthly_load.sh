@@ -11,6 +11,7 @@
 #               sxt410 01/20/2015 Added code to invoke DRAFT_DRAFT.TRG file to be 
 #               placed on the remote server when the JV_monthly_load process is 
 #               completed and Archive PAID_DRAFT.TRG file for Historical purpose.
+#			  : sxt410 02/04/2015 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
 ##############################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
@@ -52,34 +53,34 @@ echo "Processing finished for $proc at ${TIME} on ${DATE} for the date $P1"
 
 
 #################################################################################
-# BELOW PROCESS WILL INVOKE the ftp_paid_draft_trg.sh to ftp PAID_DRAFT.TRG file
+# BELOW PROCESS WILL INVOKE the ftp_draft_trg.sh to ftp DRAFT.TRG file
 # to STDSSAPHQ server.
 #################################################################################
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-TRG_FTP="ftp_paid_draft_trg"
+TRG_FTP="ftp_draft_trg"
 
-echo -e "\nSTART FTPing PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE "
+echo -e "\nSTART FTPing DRAFT.TRG file: Processing Started at $TIME on $DATE "
 
 ./ftp_paid_draft_trg.sh >> $LOGDIR/$TRG_FTP"_"$TimeStamp.log
 
-echo -e "END FTPing PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE\n"
+echo -e "END FTPing DRAFT.TRG file: Processing finished at $TIME on $DATE\n"
 
 
 #################################################################################
-# BELOW PROCESS WILL INVOKE the ARCHIVE_PAID_DRAFT_TRG_FILE.sh to Archive 
-# PAID_DRAFT.TRG file to Monthly Jv folder.
+# BELOW PROCESS WILL INVOKE the ARCHIVE_DRAFT_TRG_FILE.sh to Archive 
+# DRAFT.TRG file to Monthly Jv folder.
 #################################################################################
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 ARCHIVE_TRG="arc_draft_trg_file"
 
-echo "START Archiving PAID_DRAFT.TRG file: Processing Started at $TIME on $DATE"
+echo "START Archiving DRAFT.TRG file: Processing Started at $TIME on $DATE"
 
 ./archive_paid_draft_trg_file.sh >> $LOGDIR/$ARCHIVE_TRG"_"$TimeStamp.log
 
-echo -e "END Archiving PAID_DRAFT.TRG file: Processing finished at $TIME on $DATE \n"
+echo -e "END Archiving DRAFT.TRG file: Processing finished at $TIME on $DATE \n"
 
 exit 0 
