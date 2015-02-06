@@ -1,4 +1,5 @@
-create or replace PACKAGE            "COMMON_TOOLS" AS 
+create or replace 
+PACKAGE            "COMMON_TOOLS" AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -321,5 +322,18 @@ IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
 RETURN VARCHAR2;
 
-END COMMON_TOOLS;
+FUNCTION GET_CURR_LEV_VAL(
+/***********************************************************
+      GET_CURR_VAL 
+      This Function will extract the value for
+      current level from the passed HRCHY_HDR_NAME, 
+      Level Name and the Cost Center Code/ HRCHY_DTL_CURR_ROW_VAL
 
+Created : 02/04/2015 NXK927 CCN Project
+************************************************************/
+    IN_HRCHY_HDR_NAME             IN     VARCHAR2,
+    IN_LEVEL_NAME                 IN     VARCHAR2,
+    IN_HRCHY_DTL_CURR_ROW_VAL     IN     VARCHAR2)
+RETURN VARCHAR2;
+
+END COMMON_TOOLS;
