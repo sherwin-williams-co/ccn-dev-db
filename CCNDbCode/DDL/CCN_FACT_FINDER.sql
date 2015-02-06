@@ -57,7 +57,7 @@
          (SELECT UPPER(LAST_NAME)
             FROM EMPLOYEE_DETAILS
            WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
-             AND UPPER(EMP_PAYROLL_STATUS) = UPPER('ACTIVE')
+             AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
              AND UPPER(JOB_TITLE) IN (SELECT JOB_TITLE 
                                         FROM JOB_TITLE_GROUP 
                                        WHERE NONMGR_IND = 'Y')
