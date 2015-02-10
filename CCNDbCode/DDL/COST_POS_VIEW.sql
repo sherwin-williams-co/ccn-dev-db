@@ -7,6 +7,7 @@ polling status and the hierarchy it is associated with it.
 
 Created  : 03/31/2014 NXK927 CCN Project
 Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
+         : 01/29/2015 SXT410 Added Effective_date Column from Polling table.
 *******************************************************************************/  
        CC.COST_CENTER_CODE,
        CC.CATEGORY,
@@ -42,7 +43,8 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
          WHERE COST_CENTER_CODE = CC.COST_CENTER_CODE
            AND EXPIRATION_DATE IS NULL) AS TYPE_CODE,
        CC.OPEN_DATE,
-       CC.CLOSE_DATE 
+       CC.CLOSE_DATE,
+       PO.EFFECTIVE_DATE
        FROM COST_CENTER CC,
         (SELECT ADDRESS_LINE_1, ADDRESS_LINE_2, ADDRESS_LINE_3, CITY, STATE_CODE, ZIP_CODE, COST_CENTER_CODE FROM ADDRESS_USA WHERE ADDRESS_TYPE = 'M' AND EXPIRATION_DATE IS NULL
              UNION ALL
