@@ -14,36 +14,36 @@ BEGIN
            UPDATE POLLING 
               SET EFFECTIVE_DATE = SYSDATE
             WHERE POLLING_STATUS_CODE = 'I'
-              AND COST_CENTER_CODE = REC.COST_CENTER_CODE ;
+              AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
         END IF;
         
         IF CNT = 2  THEN 
-           UPDATE POLLING
-              SET EFFECTIVE_DATE = SYSDATE
-            WHERE POLLING_STATUS_CODE = 'Q'
-              AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
-         
            UPDATE POLLING 
               SET EFFECTIVE_DATE =  SYSDATE - 1, EXPIRATION_DATE = SYSDATE
             WHERE POLLING_STATUS_CODE = 'I'
               AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
+              
+           UPDATE POLLING
+              SET EFFECTIVE_DATE = SYSDATE
+            WHERE POLLING_STATUS_CODE = 'Q'
+              AND COST_CENTER_CODE = REC.COST_CENTER_CODE;        
         END IF;
          
         IF CNT = 3  THEN 
-            UPDATE POLLING
-               SET EFFECTIVE_DATE = SYSDATE
-             WHERE POLLING_STATUS_CODE = 'P'
-               AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
-            
-            UPDATE POLLING
-               SET EFFECTIVE_DATE = SYSDATE - 1, EXPIRATION_DATE = SYSDATE
-             WHERE POLLING_STATUS_CODE = 'Q'
-              AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
-            
-            UPDATE POLLING
-               SET EFFECTIVE_DATE = SYSDATE - 2, EXPIRATION_DATE = SYSDATE -1 
-             WHERE POLLING_STATUS_CODE = 'I'
-               AND COST_CENTER_CODE  = REC.COST_CENTER_CODE;
+           UPDATE POLLING
+              SET EFFECTIVE_DATE = SYSDATE - 2, EXPIRATION_DATE = SYSDATE -1 
+            WHERE POLLING_STATUS_CODE = 'I'
+              AND COST_CENTER_CODE  = REC.COST_CENTER_CODE;
+                          
+           UPDATE POLLING
+              SET EFFECTIVE_DATE = SYSDATE - 1, EXPIRATION_DATE = SYSDATE
+            WHERE POLLING_STATUS_CODE = 'Q'
+             AND COST_CENTER_CODE = REC.COST_CENTER_CODE;
+              
+           UPDATE POLLING
+              SET EFFECTIVE_DATE = SYSDATE
+            WHERE POLLING_STATUS_CODE = 'P'
+              AND COST_CENTER_CODE = REC.COST_CENTER_CODE;               
         END IF;
         
      END LOOP;

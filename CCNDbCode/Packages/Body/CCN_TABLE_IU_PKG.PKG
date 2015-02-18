@@ -2474,8 +2474,8 @@ revised    : 10/02/2012 TAL - modified to call POLLING_ROWTYPE_SP
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
-        : 02/06/2015 sxt410 Added logic to insert sysdate as effective_date for
-          current polling row and update statement to set expiration_date as sysdate.
+        : 02/18/2015 SXT410 Modified code to capture the Previous row data and 
+          whose current polling status code is Expired before inserting new polling status code.
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -2488,10 +2488,12 @@ modified: 02/02/2015 axk326 CCN Project Team...
  v_row_value     varchar2(500);
  v_Row_data      sys.XMLTYPE := XMLTYPE(in_Row_data);
  v_polling_row   polling%ROWTYPE;
+ v_prev_status_row polling%rowtype;-- sxt410
+ 
 
 --
 --
-BEGIN
+BEGIN 
 --
 -- Convert XML to ROWTYPE --
   POLLING_ROWTYPE_SP (
@@ -2499,43 +2501,22 @@ BEGIN
         ,in_Row_Data
         ,out_POLLING_row 
         
-                   );
-                  
+                   );                   
+      SAVEPOINT POLL;
+      
+      POLLING_HST_I_SP ( OUT_POLLING_ROW );               
+       
       out_POLLING_row.current_flag := 'Y';
-            
+      
       out_POLLING_row.EFFECTIVE_DATE := sysdate;
+      
+      EXPIRE_POLLING_DATA_SP ( out_POLLING_row );
           
-      UPDATE polling
-      set expiration_date    = sysdate
-      WHERE current_flag     = out_POLLING_row.current_flag
-        AND cost_center_code = out_POLLING_row.cost_center_code;
-           
-      UPDATE polling 
-      set current_flag = 'N'
-      WHERE UPPER(cost_center_code) = UPPER(out_POLLING_row.cost_center_code)
-        AND polling_status_code     <> out_POLLING_row.polling_status_code ;
-
-     INSERT INTO POLLING_HST
-         SELECT COST_CENTER_CODE,
-                POLLING_STATUS_CODE,
-                SYSDATE,
-                MULTICAST_IND,
-                TIME_ZONE,
-                POLLING_IND,
-                NEXT_DOWNLOAD_BLOCK_COUNT,
-                CURRENT_FLAG,
-                EFFECTIVE_DATE,
-                EXPIRATION_DATE
-           FROM POLLING
-          WHERE UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE)
-            AND CURRENT_FLAG = 'N'
-            AND POLLING_STATUS_CODE <> out_POLLING_row.POLLING_STATUS_CODE ;
-           
-     INSERT INTO POLLING VALUES OUT_POLLING_ROW;      
-                              
+      INSERT INTO POLLING VALUES OUT_POLLING_ROW;               
               
   EXCEPTION
-      WHEN OTHERS THEN 
+      WHEN OTHERS THEN
+      ROLLBACK TO POLL;
       v_code  := SQLCODE;
       v_errm  := substr(SQLERRM,1,200);
       errpkg.raise_err(v_code, 'POLLING_I_SP, ' || ' ' ||
@@ -2543,6 +2524,32 @@ BEGIN
     
 END POLLING_I_SP;
 
+PROCEDURE EXPIRE_POLLING_DATA_SP
+( IN_POLLING_ROW POLLING%ROWTYPE 
+/*******************************************************************************
+    EXPIRE_POLLING_DATA_SP
+    
+    This procedure is intended to expire Previous row of data based on 
+    Cost_center_code and Polling_status_code.
+
+created : 02/18/2015 SXT410 CCN Project....
+revised : 
+    
+*******************************************************************************/
+)
+IS 
+BEGIN
+    UPDATE POLLING
+       SET EXPIRATION_DATE = SYSDATE, 
+           CURRENT_FLAG    = 'N'
+     WHERE CURRENT_FLAG    = 'Y'
+       AND UPPER(COST_CENTER_CODE) = UPPER(IN_POLLING_ROW.COST_CENTER_CODE)
+       AND POLLING_STATUS_CODE     <> IN_POLLING_ROW.POLLING_STATUS_CODE;
+
+EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+END EXPIRE_POLLING_DATA_SP;
 
 PROCEDURE POLLING_DWLD_RSN_HIST_I_SP (
 /*******************************************************************************
@@ -2644,6 +2651,37 @@ BEGIN
         
     
 END POLLING_DWLD_RSN_HIST_I_SP;
+
+PROCEDURE POLLING_HST_I_SP
+( 
+/*******************************************************************************
+    POLLING_HST_I_SP
+
+    This procedure is intended to insert previous POLLING record into Polling_hst 
+    table for Historical purpose.
+
+created : 02/18/2015 SXT410 CCN Project....
+revised : 
+*******************************************************************************/
+IN_POLLING_ROW IN POLLING%ROWTYPE
+) 
+IS
+BEGIN
+    INSERT INTO POLLING_HST
+    SELECT COST_CENTER_CODE,
+           POLLING_STATUS_CODE,
+           SYSDATE,
+           MULTICAST_IND,
+           TIME_ZONE,
+           POLLING_IND,
+           NEXT_DOWNLOAD_BLOCK_COUNT,
+           CURRENT_FLAG,
+           EFFECTIVE_DATE,
+           SYSDATE --EXPIRATION_DATE
+      FROM POLLING
+     WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_POLLING_ROW.COST_CENTER_CODE)
+       AND CURRENT_FLAG = 'Y';  
+END POLLING_HST_I_SP;
 
  
 PROCEDURE REAL_ESTATE_I_SP (
@@ -4320,7 +4358,8 @@ changed : 04/03/2013 BLR error message pointing to wrong procedure
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
-        : 02/06/2015 sxt410 added effective_date as sysdate for current polling row.
+        : 02/18/2015 SXT410 Modified code to to capture Previous updated row
+          and setting Effective_date to sysdate only when Polling_status_code is changed.
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -4332,24 +4371,43 @@ modified: 02/02/2015 axk326 CCN Project Team...
  v_errm varchar2(500);
  v_row_value     varchar2(500);
  V_ROW_DATA      SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+ v_prev_status_row    polling%ROWTYPE;
 -- v_POLLING_hst_row POLLING_HST%rowtype;
 --
 --
 BEGIN
 --
--- Convert XML to ROWTYPE --    
+-- Convert XML to ROWTYPE --  
   POLLING_ROWTYPE_SP (
          in_table_name
         ,in_Row_Data
         ,out_POLLING_row 
-                   );
+                   );              
+                   
+        POLLING_HST_I_SP ( OUT_POLLING_ROW );          
+
+        BEGIN
+            SELECT * 
+              INTO V_PREV_STATUS_ROW
+              FROM POLLING
+             WHERE CURRENT_FLAG = 'Y'
+               AND UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE);        
+            IF V_PREV_STATUS_ROW.POLLING_STATUS_CODE <> OUT_POLLING_ROW.POLLING_STATUS_CODE THEN 
+                OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
+                
+                EXPIRE_POLLING_DATA_SP ( out_POLLING_row );
+            ELSE
+                OUT_POLLING_ROW.EFFECTIVE_DATE := V_PREV_STATUS_ROW.EFFECTIVE_DATE;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
+        END;
             
-      out_POLLING_row.effective_date := sysdate;
-        
+       
       UPDATE polling set ROW             = out_polling_row
        WHERE UPPER(cost_center_code)     = UPPER(out_polling_row.cost_center_code)
-        AND  POLLING_STATUS_CODE         = OUT_POLLING_ROW.POLLING_STATUS_CODE ;
-        
+        AND  POLLING_STATUS_CODE         = OUT_POLLING_ROW.POLLING_STATUS_CODE ;        
              
       
   EXCEPTION
@@ -6005,7 +6063,6 @@ PROCEDURE POLLING_ROWTYPE_SP (
 created  : 09/26/2012 TAL -- CCN Project....
          : 04/03/2013 BLR error message pointing to wrong procedure
          : 06/12/2013 kdp upated code to work with current_flag
-         : 01/29/2015 SXT410 Added EFFECTIVE_DATE and EXPIRATION_DATE to the Fields
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -6059,8 +6116,6 @@ BEGIN
                     WHEN 'POLLING_IND'                THEN  v_polling_row.polling_ind                 := v_row_value;
                     WHEN 'NEXT_DOWNLOAD_BLOCK_COUNT'  THEN  V_POLLING_ROW.NEXT_DOWNLOAD_BLOCK_COUNT   := V_ROW_VALUE;
                     WHEN 'CURRENT_FLAG'                      THEN  V_POLLING_ROW.CURRENT_FLAG                       := V_ROW_VALUE;
-                    WHEN 'EFFECTIVE_DATE'             THEN V_POLLING_ROW.EFFECTIVE_DATE               := V_ROW_VALUE;
-                    WHEN 'EXPIRATION_DATE'            THEN V_POLLING_ROW.EXPIRATION_DATE              := V_ROW_VALUE;
           ELSE
             NULL;        
           END CASE;           

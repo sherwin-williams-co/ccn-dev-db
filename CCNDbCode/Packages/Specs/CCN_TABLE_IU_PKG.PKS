@@ -1,5 +1,5 @@
-create or replace package CCN_TABLE_IU_PKG
-    as
+CREATE OR REPLACE PACKAGE CCN_TABLE_IU_PKG
+    AS
 -- PACKAGE SPEC
 /****************************************************************************** 
 This package is intended to control access to the core CCN table.
@@ -24,7 +24,7 @@ changed : 12/16/2014 AXK326 CCN Project Team....
 created : 04/26/2012 kdp CCN Project....
 *******************************************************************************/
 			in_TABLE_NAME IN ALL_TAB_COLUMNS.TABLE_NAME%TYPE
-			,out_all_tab_ref_cur out ref_cursor	);    
+			,out_all_tab_ref_cur OUT ref_cursor	);    
       
 
 	PROCEDURE ADDRESS_CAN_S_SP  (IN_COST_CENTER   IN ADDRESS_CAN.COST_CENTER_CODE%TYPE
@@ -110,8 +110,8 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
   
-PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     in  batch_job.batch_job_name%type
-                        , in_batch_job_number   in  batch_job.batch_job_number%type
+PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     IN  batch_job.batch_job_name%type
+                        , in_batch_job_number   IN  batch_job.batch_job_number%type
 			, out_BATCH_JOB_REF_CUR OUT REF_CURSOR)
 /******************************************************************************
 	BATCH_JOB_S_SP
@@ -123,7 +123,7 @@ created : 07/18/2012 tal CCN Project....
 *******************************************************************************/
 ;
 
-  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      in code_detail.code_header_name%type
+  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 			  , out_CODE_DETAIL_REF_CUR  OUT REF_CURSOR )
@@ -138,7 +138,7 @@ created : 03/20/2012 tal CCN Project....
 ;
 
 
-  PROCEDURE CODE_HEADER_S_SP ( in_code_header_name      in code_header.code_header_name%type
+  PROCEDURE CODE_HEADER_S_SP ( in_code_header_name      IN code_header.code_header_name%type
 			   , in_CODE_HEADER_TYPE      IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
 			  , out_CODE_HEADER_REF_CUR  OUT REF_CURSOR )
 /*******************************************************************************
@@ -263,8 +263,8 @@ created : 03/20/2012 tal CCN Project....
 ;
 
 
-  PROCEDURE POLLING_S_SP ( in_cost_center          in polling.cost_center_code%type
-					               , in_polling_status_code  in OUT polling.polling_status_code%type
+  PROCEDURE POLLING_S_SP ( in_cost_center          IN polling.cost_center_code%type
+					               , in_polling_status_code  IN OUT polling.polling_status_code%type
 					               , out_POLLING_REF_CUR    OUT REF_CURSOR)
 /*******************************************************************************
 	POLLING_S_SP
@@ -276,9 +276,9 @@ created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
 ;
 
-PROCEDURE POLLING_DWLD_RSN_HIST_S_SP ( in_cost_center          in polling_dwld_rsn_hist.cost_center_code%type
-                                     , in_polling_status_code  in polling_dwld_rsn_hist.polling_status_code%type
-                                     , in_effective_date       in polling_dwld_rsn_hist.effective_date%type
+PROCEDURE POLLING_DWLD_RSN_HIST_S_SP ( in_cost_center          IN polling_dwld_rsn_hist.cost_center_code%type
+                                     , in_polling_status_code  IN polling_dwld_rsn_hist.polling_status_code%type
+                                     , in_effective_date       IN polling_dwld_rsn_hist.effective_date%type
 					                           , out_POLLING_DWLD_RSN_REF_CUR    OUT REF_CURSOR)
 /******************************************************************************
 	POLLING_DWLD_RSN_HIST_S_SP
@@ -290,6 +290,33 @@ created : 07/25/2012 tal CCN Project....
 *******************************************************************************/
 ;
 
+PROCEDURE POLLING_HST_I_SP
+( 
+/*******************************************************************************
+    POLLING_HST_I_SP
+
+    This procedure is intended to insert previous POLLING record into Polling_hst 
+    table for Historical purpose.
+
+created : 02/18/2015 SXT410 CCN Project....
+revised : 
+*******************************************************************************/
+IN_POLLING_ROW IN POLLING%ROWTYPE
+);
+
+PROCEDURE EXPIRE_POLLING_DATA_SP
+( IN_POLLING_ROW POLLING%ROWTYPE 
+/*******************************************************************************
+    EXPIRE_POLLING_DATA_SP
+    
+    This procedure is intended to expire Previous row of data based on 
+    Cost_center_code and Polling_status_code.
+
+created : 02/18/2015 SXT410 CCN Project....
+revised : 
+    
+*******************************************************************************/
+);
 
 	PROCEDURE REAL_ESTATE_S_SP ( in_COST_CENTER     IN REAL_ESTATE.COST_CENTER_CODE%TYPE
 		    , out_REAL_ESTATE_REF_CUR  OUT REF_CURSOR )
@@ -554,7 +581,7 @@ created : 02/21/2012 kdp CCN Project....
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
-,in_row_data   in varchar2--sys.xmltype
+,in_row_data   IN varchar2--sys.xmltype
 );
 
 PROCEDURE BATCH_JOB_I_SP (
@@ -573,12 +600,12 @@ PROCEDURE BATCH_JOB_I_SP (
 created : 07/16/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_batch_job_name    in  batch_job.batch_job_name%type,
-in_batch_job_number  in  batch_job.batch_job_number%type,
+in_batch_job_name    IN  batch_job.batch_job_name%type,
+in_batch_job_number  IN  batch_job.batch_job_number%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE CODE_DETAIL_I_SP (
@@ -598,13 +625,13 @@ PROCEDURE CODE_DETAIL_I_SP (
 created : 07/12/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_CODE_HEADER_name   in  CODE_DETAIL.CODE_HEADER_name%type,
-in_code_header_type   in  code_detail.code_header_type%type,
-in_code_detail_value  in  code_detail.code_detail_value%type, 
+in_CODE_HEADER_name   IN  CODE_DETAIL.CODE_HEADER_name%type,
+in_code_header_type   IN  code_detail.code_header_type%type,
+in_code_detail_value  IN  code_detail.code_detail_value%type, 
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE CODE_HEADER_I_SP (
@@ -623,12 +650,12 @@ PROCEDURE CODE_HEADER_I_SP (
 created : 07/12/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_code_header_name   in  code_header.code_header_name%type,
-in_code_header_type   in  CODE_HEADER.code_header_type%type,
+in_code_header_name   IN  code_header.code_header_name%type,
+in_code_header_type   IN  CODE_HEADER.code_header_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE EMP_DATA_I_SP (
@@ -646,11 +673,11 @@ PROCEDURE EMP_DATA_I_SP (
 created : 07/12/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_employee_number  in  emp_data.employee_number%type,
+in_employee_number  IN  emp_data.employee_number%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE MARKETING_I_SP (
@@ -669,12 +696,12 @@ PROCEDURE MARKETING_I_SP (
 created : 05/03/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          in  marketing.cost_center_code%type,
-in_marketing_type       in  marketing.marketing_type%type,
+in_cost_center          IN  marketing.cost_center_code%type,
+in_marketing_type       IN  marketing.marketing_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE OTHER_I_SP (
@@ -696,7 +723,7 @@ in_COST_CENTER          IN  OTHER.COST_CENTER_CODE%TYPE,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE PHONE_I_SP (
@@ -717,11 +744,11 @@ created : 05/03/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 in_COST_CENTER          IN  PHONE.COST_CENTER_CODE%TYPE,
-in_phone_number_type    in  phone.phone_number_type%type,
+in_phone_number_type    IN  phone.phone_number_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE POLLING_I_SP (
@@ -738,9 +765,9 @@ created : 05/02/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call POLLING_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_POLLING_row         out POLLING%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_POLLING_row         OUT POLLING%ROWTYPE
 );
 
 PROCEDURE POLLING_DWLD_RSN_HIST_I_SP (
@@ -760,13 +787,13 @@ PROCEDURE POLLING_DWLD_RSN_HIST_I_SP (
 created : 07/25/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          in polling_dwld_rsn_hist.cost_center_code%type,
-in_polling_status_code  in polling_dwld_rsn_hist.polling_status_code%type,
-in_effective_date       in polling_dwld_rsn_hist.effective_date%type,
+in_cost_center          IN polling_dwld_rsn_hist.cost_center_code%type,
+in_polling_status_code  IN polling_dwld_rsn_hist.polling_status_code%type,
+in_effective_date       IN polling_dwld_rsn_hist.effective_date%type,
 
-in_table_name in varchar2,
+in_table_name IN varchar2,
 in_ROW_DATE   IN DATE,
-in_row_data   in varchar2 --sys.xmltype
+in_row_data   IN varchar2 --sys.xmltype
 );
 
 PROCEDURE REAL_ESTATE_I_SP (
@@ -783,9 +810,9 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call REAL_ESTATE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_REAL_ESTATE_row     out REAL_ESTATE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_REAL_ESTATE_row     OUT REAL_ESTATE%ROWTYPE
 );
 
 PROCEDURE SALES_REP_I_SP (
@@ -802,9 +829,9 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call SALES_REP_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_SALES_REP_row       out SALES_REP%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_SALES_REP_row       OUT SALES_REP%ROWTYPE
 );
 
 PROCEDURE STATUS_I_SP (
@@ -821,9 +848,9 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STATUS_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_STATUS_row          out STATUS%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_STATUS_row          OUT STATUS%ROWTYPE
 );
 
 PROCEDURE STORE_I_SP (
@@ -840,9 +867,9 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_STORE_row           out STORE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_STORE_row           OUT STORE%ROWTYPE
 );
 
 PROCEDURE TAXWARE_I_SP (
@@ -859,9 +886,9 @@ created : 08/24/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call TAXWARE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TAXWARE_row         out TAXWARE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TAXWARE_row         OUT TAXWARE%ROWTYPE
 );
 
 PROCEDURE TERMINAL_I_SP 
@@ -879,9 +906,9 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERMINAL_row        out TERMINAL%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TERMINAL_row        OUT TERMINAL%ROWTYPE
 );
 
 PROCEDURE TERRITORY_I_SP (
@@ -898,9 +925,9 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERRITORY_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_row       out TERRITORY%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TERRITORY_row       OUT TERRITORY%ROWTYPE
 );
 
 PROCEDURE TYPE_I_SP (
@@ -917,9 +944,9 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TYPE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TYPE_row            out TYPE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TYPE_row            OUT TYPE%ROWTYPE
 );
 
 /*********************************
@@ -1081,12 +1108,12 @@ PROCEDURE BATCH_JOB_U_SP (
 created : 07/16/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_batch_job_name    in  batch_job.batch_job_name%type,
-in_batch_job_number  in  batch_job.batch_job_number%type,
+in_batch_job_name    IN  batch_job.batch_job_name%type,
+in_batch_job_number  IN  batch_job.batch_job_number%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE CODE_DETAIL_U_SP (
@@ -1106,13 +1133,13 @@ PROCEDURE CODE_DETAIL_U_SP (
 created : 07/16/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_CODE_HEADER_name   in  CODE_DETAIL.CODE_HEADER_name%type,
-in_code_header_type   in  code_detail.code_header_type%type,
-in_code_detail_value  in  code_detail.code_detail_value%type, 
+in_CODE_HEADER_name   IN  CODE_DETAIL.CODE_HEADER_name%type,
+in_code_header_type   IN  code_detail.code_header_type%type,
+in_code_detail_value  IN  code_detail.code_detail_value%type, 
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE CODE_HEADER_U_SP (
@@ -1131,12 +1158,12 @@ PROCEDURE CODE_HEADER_U_SP (
 created : 07/12/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_code_header_name   in  code_header.code_header_name%type,
-in_code_header_type   in  CODE_HEADER.code_header_type%type,
+in_code_header_name   IN  code_header.code_header_name%type,
+in_code_header_type   IN  CODE_HEADER.code_header_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE COST_CENTER_U_SP (
@@ -1156,7 +1183,7 @@ created : 02/21/2012 kdp CCN Project....
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
-,in_row_data   in varchar2--sys.xmltype
+,in_row_data   IN varchar2--sys.xmltype
 );
 
 PROCEDURE EMP_DATA_U_SP (
@@ -1174,11 +1201,11 @@ PROCEDURE EMP_DATA_U_SP (
 created : 07/12/2012 tal CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_employee_number  in  emp_data.employee_number%type,
+in_employee_number  IN  emp_data.employee_number%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE MARKETING_U_SP (
@@ -1197,12 +1224,12 @@ PROCEDURE MARKETING_U_SP (
 created : 05/03/2012 tal CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          in  marketing.cost_center_code%type,
-in_marketing_type       in  marketing.marketing_type%type,
+in_cost_center          IN  marketing.cost_center_code%type,
+in_marketing_type       IN  marketing.marketing_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE OTHER_U_SP (
@@ -1224,7 +1251,7 @@ in_COST_CENTER          IN  OTHER.COST_CENTER_CODE%TYPE,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE PHONE_U_SP (
@@ -1243,11 +1270,11 @@ created : 05/03/2012 tal CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 in_COST_CENTER          IN  PHONE.COST_CENTER_CODE%TYPE,
-in_phone_number_type    in  phone.phone_number_type%type,
+in_phone_number_type    IN  phone.phone_number_type%type,
 
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_row_data             in  varchar2--sys.xmltype
+in_row_data             IN  varchar2--sys.xmltype
 );
 
 
@@ -1268,9 +1295,9 @@ created : 05/02/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call POLLING_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_POLLING_row         out POLLING%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_POLLING_row         OUT POLLING%ROWTYPE
 );
 
 
@@ -1291,13 +1318,13 @@ PROCEDURE POLLING_DWLD_RSN_HIST_U_SP (
 created : 07/25/2012 tal CCN Project....
 ******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          in polling_dwld_rsn_hist.cost_center_code%type,
-in_polling_status_code  in polling_dwld_rsn_hist.polling_status_code%type,
-in_effective_date       in polling_dwld_rsn_hist.effective_date%type,
+in_cost_center          IN polling_dwld_rsn_hist.cost_center_code%type,
+in_polling_status_code  IN polling_dwld_rsn_hist.polling_status_code%type,
+in_effective_date       IN polling_dwld_rsn_hist.effective_date%type,
 
-in_table_name in varchar2,
+in_table_name IN varchar2,
 in_ROW_DATE   IN DATE,
-in_row_data   in varchar2 --sys.xmltype
+in_row_data   IN varchar2 --sys.xmltype
 );
 
 
@@ -1317,9 +1344,9 @@ created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call REAL_ESTATE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_REAL_ESTATE_row     out REAL_ESTATE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_REAL_ESTATE_row     OUT REAL_ESTATE%ROWTYPE
 );
 
 PROCEDURE SALES_REP_U_SP (
@@ -1338,9 +1365,9 @@ created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call SALES_REP_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_SALES_REP_row       out SALES_REP%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_SALES_REP_row       OUT SALES_REP%ROWTYPE
 );
 
 PROCEDURE STATUS_U_SP (
@@ -1359,9 +1386,9 @@ created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STATUS_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_STATUS_row          out STATUS%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_STATUS_row          OUT STATUS%ROWTYPE
 );
 
 PROCEDURE STORE_U_SP (
@@ -1380,9 +1407,9 @@ created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_STORE_row           out STORE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_STORE_row           OUT STORE%ROWTYPE
 );
 
 PROCEDURE TAXWARE_U_SP (
@@ -1401,9 +1428,9 @@ created : 08/24/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call TAXWARE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TAXWARE_row         out TAXWARE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TAXWARE_row         OUT TAXWARE%ROWTYPE
 );
 
 PROCEDURE TERMINAL_U_SP 
@@ -1423,9 +1450,9 @@ created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERMINAL_row        out TERMINAL%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TERMINAL_row        OUT TERMINAL%ROWTYPE
 );
 
 PROCEDURE TERRITORY_U_SP (
@@ -1444,9 +1471,9 @@ created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERRITORY_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TERRITORY_row       out TERRITORY%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TERRITORY_row       OUT TERRITORY%ROWTYPE
 );
 
 PROCEDURE TYPE_U_SP (
@@ -1465,15 +1492,15 @@ created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TYPE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_TYPE_row         out TYPE%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_TYPE_row         OUT TYPE%ROWTYPE
 );                                     
 
 --PROCEDURES TO HANDLE INSERTS & UPDATES OF TABLES (ROWTYPES)
 --AS OF 10/04/2012   BLR
 
-procedure ADDRESS_CAN_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_CAN_ROWTYPE_SP ( 
 /*******************************************************************************
 	 ADDRESS_CAN_ROWTYPE_SP
 
@@ -1489,16 +1516,16 @@ procedure ADDRESS_CAN_ROWTYPE_SP (
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
- in_cost_center     in  address_can.cost_center_code%type 
-,in_address_type    in  address_can.address_type%type 
-,in_effective_date  in  address_can.effective_date%type
+ in_cost_center     IN  address_can.cost_center_code%type 
+,in_address_type    IN  address_can.address_type%type 
+,in_effective_date  IN  address_can.effective_date%type
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
-,out_address_type  out address_can%rowtype
+,out_address_type  OUT address_can%ROWTYPE
 );
 
-procedure ADDRESS_MEX_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_MEX_ROWTYPE_SP ( 
  /******************************************************************************
 	ADDRESS_MEX_ROWTYPE_SP
 
@@ -1520,10 +1547,10 @@ in_COST_CENTER    IN ADDRESS_MEX.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
-,out_address_type  out address_mex%rowtype
+,out_address_type  OUT address_mex%ROWTYPE
 );
 
-procedure ADDRESS_OTHER_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_OTHER_ROWTYPE_SP ( 
 /*******************************************************************************
 	ADDRESS_OTHER_ROWTYPE_SP
 
@@ -1545,7 +1572,7 @@ created : 09/21/2012 blr CCN Project....
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
-,out_address_type  out address_other%rowtype
+,out_address_type  OUT address_other%ROWTYPE
 );
 
 PROCEDURE ADDRESS_USA_ROWTYPE_SP (
@@ -1570,10 +1597,10 @@ created : 09/21/2012 blr CCN Project....
 ,in_TABLE_NAME           IN  VARCHAR2 
 ,in_ROW_DATE             IN  DATE 
 ,in_Row_data             IN  varchar2--sys.xmltype
-,out_address_type        out address_usa%rowtype
+,out_address_type        OUT address_usa%ROWTYPE
 );
 
-procedure ADMINISTRATION_ROWTYPE_SP (
+PROCEDURE ADMINISTRATION_ROWTYPE_SP (
 /*******************************************************************************
 	ADMINISTRATION_ROWTYPE_SP
 
@@ -1591,10 +1618,10 @@ created : 09/21/2012 blr CCN Project....
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
-,out_administration_type  out ADMINISTRATION%rowtype
+,out_administration_type  OUT ADMINISTRATION%ROWTYPE
 );
  
-procedure BANK_CARD_ROWTYPE_SP (
+PROCEDURE BANK_CARD_ROWTYPE_SP (
 /*******************************************************************************
 	BANK_CARD_ROWTYPE_SP
 
@@ -1619,7 +1646,7 @@ created : 09/21/2012 blr CCN Project....
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
-,out_bank_card_row  out  bank_card%rowtype
+,out_bank_card_row  OUT  bank_card%ROWTYPE
 );
 
 PROCEDURE COST_CENTER_ROWTYPE_SP (
@@ -1641,7 +1668,7 @@ revised:
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN VARCHAR2--sys.xmltype
-,out_cost_center_type  out cost_center%rowtype
+,out_cost_center_type  OUT cost_center%ROWTYPE
 );
 
 PROCEDURE MARKETING_ROWTYPE_SP (
@@ -1660,13 +1687,13 @@ PROCEDURE MARKETING_ROWTYPE_SP (
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
- in_cost_center          in  marketing.cost_center_code%type 
-,in_marketing_type       in  marketing.marketing_type%type 
+ in_cost_center          IN  marketing.cost_center_code%type 
+,in_marketing_type       IN  marketing.marketing_type%type 
 
 ,in_TABLE_NAME           IN  VARCHAR2 
 ,in_ROW_DATE             IN  DATE 
 ,in_Row_data             IN  varchar2--sys.xmltype
-,out_marketing_type  out marketing%rowtype
+,out_marketing_type  OUT marketing%ROWTYPE
 
 );
 
@@ -1715,7 +1742,7 @@ created : 09/21/2012 blr CCN Project....
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 
  in_COST_CENTER          IN  PHONE.COST_CENTER_CODE%TYPE 
-,in_phone_number_type    in  phone.phone_number_type%type 
+,in_phone_number_type    IN  phone.phone_number_type%type 
 ,out_phone_type              OUT PHONE%ROWTYPE 
 
 ,in_TABLE_NAME           IN  VARCHAR2 
@@ -1736,9 +1763,9 @@ PROCEDURE POLLING_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
-,out_polling_rowtype     out polling%rowtype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
+,out_polling_rowtype     OUT polling%ROWTYPE
 );
 
 PROCEDURE REAL_ESTATE_ROWTYPE_SP (
@@ -1755,7 +1782,7 @@ created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  IN_TABLE_NAME           IN  VARCHAR2 
-,in_row_data             in  varchar2 --sys.xmltype
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_REAL_ESTATE_ROWTYPE     OUT REAL_ESTATE%ROWTYPE
 );
 
@@ -1773,7 +1800,7 @@ created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  IN_TABLE_NAME           IN  VARCHAR2 
-,in_row_data             in  varchar2 --sys.xmltype
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_SALES_REP_ROWTYPE   OUT SALES_REP%ROWTYPE
 );
 
@@ -1790,8 +1817,8 @@ PROCEDURE STATUS_ROWTYPE_SP (
 created: 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_STATUS_ROWTYPE   OUT STATUS%ROWTYPE
 );
 
@@ -1808,8 +1835,8 @@ PROCEDURE STORE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_STORE_ROWTYPE       OUT STORE%ROWTYPE
 );
 
@@ -1827,7 +1854,7 @@ created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  IN_TABLE_NAME           IN  VARCHAR2 
-,in_row_data             in  varchar2 --sys.xmltype
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TAXWARE_ROWTYPE   OUT TAXWARE%ROWTYPE
 );
 
@@ -1866,9 +1893,9 @@ changed : 07/17/2014 CCN Project, prod issue : territory vs close date
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  IN_TABLE_NAME           IN  VARCHAR2 
-,in_row_data             in  varchar2 --sys.xmltype
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TERRITORY_ROWTYPE   OUT TERRITORY%ROWTYPE
-,in_validation_flag      in varchar2 default 'N'
+,in_validation_flag      IN varchar2 DEFAULT 'N'
 );
 
 PROCEDURE TYPE_ROWTYPE_SP (
@@ -1884,8 +1911,8 @@ PROCEDURE TYPE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           in  varchar2 
-,in_row_data             in  varchar2 --sys.xmltype
+ in_table_name           IN  varchar2 
+,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TYPE_ROWTYPE        OUT TYPE%ROWTYPE
 );
    
@@ -1955,5 +1982,4 @@ in_table_name          IN  varchar2
 ,in_row_data            IN  varchar2  --sys.xmltype
 );  
 
-end CCN_TABLE_IU_PKG;
-
+END CCN_TABLE_IU_PKG;
