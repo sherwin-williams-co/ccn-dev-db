@@ -13,7 +13,7 @@ and also Acquisition_code from COST_CENTER table.
 
 created  : 03/18/2014 for CCN project and 
 Modified : 07/18/14 Added ACQUISITION_CODE column.
-Modified : 02/17/2015 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
+Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Manager/Asst Manager/Sales rep Name broken out with first, initial, last.
 ********************************************************************************/ 
 COST_CENTER_CODE,
