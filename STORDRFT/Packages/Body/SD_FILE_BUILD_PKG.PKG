@@ -80,7 +80,7 @@ IS
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50) := '1099_DIFF_';
-    STAMP       		VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
+    STAMP       		VARCHAR2(50) := TO_CHAR(SYSDATE,'DD-MON-RRRR'); -- USED TO CREATE TIMESTAMP FOR DATA FILE
     OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
 
 	  V_OUT_CLOB      CLOB;
@@ -111,8 +111,8 @@ BEGIN
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.JV_NUMBER,' ',6)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.FILLER,' ',1)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.TRANSACTION_CODE,'0',2)
-                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.TAX_ID,' ',9)
-                       ||CHR(10);
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec1.TAX_ID,'0',9)
+                       ||CHR(13);
         IF V_COUNT = 100 THEN
             UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
             V_OUT_CLOB := NULL;
@@ -147,30 +147,37 @@ created : 07/25/2014 jxc517 CCN Project....
 changed : 11/24/2014 jxc517 CCN Project....
           Modified to include date parameter to rnu for previous month
           Modified to include a seperate logic to build diff file along with mid monthly file
+        : 02/13/2015 DXV848 Adding the Condition for NET_AMOUNT  
 *****************************************************************************/
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
 IS
+  
     CURSOR cur IS
         SELECT NULL AS FILE_NUMBER
                ,SUBSTR(COST_CENTER_CODE,3,4) AS STORE_NUMBER
                ,DRAFT_NUMBER AS CHECK_NUMBER
-               ,sd_common_tools.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10', NET_AMOUNT *100) AS CHECK_AMOUNT
+               ,sd_common_tools.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',NVL(DECODE(AMOUNT_CHANGE_DATE, NULL,ORIGINAL_NET_AMOUNT,NET_AMOUNT), 0) *100) AS CHECK_AMOUNT
+               --,sd_common_tools.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10', NET_AMOUNT *100) AS CHECK_AMOUNT
                ,TO_CHAR(TRANSACTION_DATE,'MMDDYY') AS CHECK_DATE
                ,NULL AS JV_NUMBER
                ,NULL AS FILLER
                ,'00' AS TRANSACTION_CODE
                ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
           FROM STORE_DRAFTS
-         WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '19' AND REASON_CODE = '04'))
-           AND TO_CHAR(ISSUE_DATE,'YYYYMM') = TO_CHAR(IN_DATE,'YYYYMM')
+         WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '91' AND REASON_CODE = '04'))
+           AND TO_CHAR((case 
+                        when IN_MID_MNTHLY_IND = 'Y' 
+                             then ISSUE_DATE 
+                             else LOAD_DATE 
+                             end),'YYYYMM') = TO_CHAR(IN_DATE,'YYYYMM')
            AND VOID_DATE IS NULL
            AND STOP_PAY_DATE IS NULL
          ORDER BY COST_CENTER_CODE, CHECK_NUMBER;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50);
-    STAMP       		VARCHAR2(50) := TO_CHAR(REPLACE (TRUNC(SYSDATE),'00:00:00', '')); -- USED TO CREATE TIMESTAMP FOR DATA FILE
+    STAMP       		VARCHAR2(50) := TO_CHAR(SYSDATE,'DD-MON-RRRR'); -- USED TO CREATE TIMESTAMP FOR DATA FILE
     OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
 
 	  V_OUT_CLOB      CLOB;
@@ -208,8 +215,8 @@ BEGIN
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.JV_NUMBER,' ',6)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.FILLER,' ',1)
                        || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TRANSACTION_CODE,'0',2)
-                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TAX_ID,' ',9)
-                       ||CHR(10);
+                       || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TAX_ID,'0',9)
+                       ||CHR(13);
         IF IN_MID_MNTHLY_IND = 'Y' THEN
             INSERT INTO FILE_1099_MID_MONTHLY VALUES rec;
         ELSE
@@ -268,4 +275,3 @@ EXCEPTION
 end STORE_DRAFT_INTALLER_1099;
 
 END SD_FILE_BUILD_PKG;
-
