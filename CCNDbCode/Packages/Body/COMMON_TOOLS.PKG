@@ -741,7 +741,7 @@ BEGIN
 EXCEPTION
    WHEN OTHERS THEN
       --DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
-      COMMON_TOOLS.LOG_ERROR('000000', 'COMMON_TOOLS.COPY_COST_CENTER', SQLERRM, SQLCODE);
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);
       RAISE;
 END COPY_COST_CENTER;
 
@@ -762,14 +762,14 @@ BEGIN
          COPY_COST_CENTER(rec.COST_CENTER_CODE_OLD,rec.COST_CENTER_CODE_NEW);
       EXCEPTION
          WHEN OTHERS THEN
-            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE_OLD, 'COMMON_TOOLS.BULK_COPY_COST_CENTER', SQLERRM, SQLCODE);
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE_OLD, SQLERRM, SQLCODE);
             ROLLBACK TO COST_CENTER_COPY_LOAD;
       END;
     END LOOP;
 
 EXCEPTION
    WHEN OTHERS THEN
-      COMMON_TOOLS.LOG_ERROR('000000', 'COMMON_TOOLS.BULK_COPY_COST_CENTER', SQLERRM, SQLCODE);      
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);      
       ROLLBACK TO COST_CENTER_COPY_LOAD;
       RAISE;
 END BULK_COPY_COST_CENTER;
@@ -876,7 +876,7 @@ BEGIN
 EXCEPTION
    WHEN OTHERS THEN
       --DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
-      COMMON_TOOLS.LOG_ERROR('000000', 'COMMON_TOOLS.DELETE_COST_CENTER', SQLERRM, SQLCODE);
+      COMMON_TOOLS.LOG_ERROR('000000', SQLERRM, SQLCODE);
       RAISE;
 END DELETE_COST_CENTER;
 
@@ -904,14 +904,13 @@ with the execution of rest of the cost centers
 
 ******************************************************************************/
                     IN_CC      IN VARCHAR2,
-                    IN_MODULE  IN VARCHAR2,
                     IN_SQLERRM IN VARCHAR2,
                     IN_SQLCODE IN NUMBER) IS PRAGMA AUTONOMOUS_TRANSACTION;
 BEGIN
       INSERT INTO ERROR_LOG VALUES(ERROR_LOG_SEQ.NEXTVAL,
                                    SUBSTR(IN_CC,1,6),
                                    SYSDATE,
-                                   SUBSTR(IN_MODULE,1,65),
+                                   SUBSTR('COST_CENTER_BULK_UPLOAD',1,20),
                                    SUBSTR(IN_SQLERRM,1,500),
                                    NULL, 
                                    SUBSTR(IN_SQLCODE,1,9));
@@ -1016,114 +1015,6 @@ EXCEPTION
         RETURN NULL;
 END GET_PHONE_NUMBER;
 
-FUNCTION GET_CURR_LEV_VAL(
-/***********************************************************
-      GET_CURR_LEV_VAL 
-      This Function will extract the value for
-      current level from the passed HRCHY_HDR_NAME, 
-      Level Name and the Cost Center Code/ HRCHY_DTL_CURR_ROW_VAL
-
-Created : 02/04/2015 NXK927 CCN Project
-************************************************************/
-    IN_HRCHY_HDR_NAME             IN     VARCHAR2,
-    IN_LEVEL_NAME                 IN     VARCHAR2,
-    IN_HRCHY_DTL_CURR_ROW_VAL     IN     VARCHAR2)
-RETURN VARCHAR2
-IS
-    V_VAL  VARCHAR2(10);
-BEGIN
-
-     SELECT SUBSTR(HD.HRCHY_DTL_CURR_LVL_VAL, 1 + (SELECT NVL(SUM(LVL_VALUE_SIZE), 0)
-                                                      FROM HIERARCHY_DESCRIPTION
-                                                     WHERE HRCHY_HDR_LVL_NBR < HDESC.HRCHY_HDR_LVL_NBR
-                                                       AND HRCHY_HDR_NAME = HD.HRCHY_HDR_NAME), HDESC.LVL_VALUE_SIZE) VAL
-       INTO V_VAL
-       FROM HIERARCHY_DETAIL HD,
-            HIERARCHY_HEADER HH,
-            HIERARCHY_DESCRIPTION HDESC
-      WHERE HD.HRCHY_HDR_NAME = HDESC.HRCHY_HDR_NAME
-        AND HD.HRCHY_HDR_NAME = HH.HRCHY_HDR_NAME
-        AND HD.HRCHY_DTL_LEVEL = HH.HRCHY_HDR_LEVELS
-        AND NVL(HD.HRCHY_DTL_NEXT_LVL_VAL, '~~~') = '~~~'
-        AND HD.HRCHY_HDR_NAME = IN_HRCHY_HDR_NAME
-        AND UPPER(HRCHY_HDR_LVL_DESC) = UPPER(IN_LEVEL_NAME)
-        AND HRCHY_DTL_CURR_ROW_VAL = IN_HRCHY_DTL_CURR_ROW_VAL;
-  
-
-    RETURN V_VAL;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN NULL;
-END GET_CURR_LEV_VAL;
-
-PROCEDURE BULK_TERR_TYP_BUSN_CD_UPD_PRCS(
-/******************************************************************************
-This procedure is the core process for updating the TERRITORY_TYPE_BUSN_CODE
-column of TERRITORY table
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-
-Created by jxc517 02/19/2015
-******************************************************************************/
-IN_BLOB            IN       BLOB)
-IS
-    V_CONTEXT   VARCHAR2(3000);
-  	SQ          INTEGER;
-  	SE          VARCHAR2(1000);
-    V_COUNT     NUMBER;
-    V_EXCEPTION EXCEPTION;
-BEGIN
-    /*CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
-                              'TERRITORY_TYPE_BUSN_CODE_UPD.csv');*/
-    FOR rec IN (SELECT * FROM TERRITORY_TYPE_BUSN_CODE_UPD) LOOP
-        BEGIN
-            SAVEPOINT TERR_TYP_BUSN_CD_UPD_SP;
-            BEGIN
-                SELECT COUNT(*)
-                  INTO V_COUNT
-                  FROM COST_CENTER
-                 WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
-                   AND CATEGORY = 'T';
-            EXCEPTION
-                WHEN OTHERS THEN
-                    V_COUNT := 0;
-            END;
-            IF V_COUNT <> 1 THEN
-                SQ := errnums.en_territory_typ_business_rule;
-                SE := 'Territory Type Of Business is applicable only for territory cost center';
-                RAISE V_EXCEPTION;
-            END IF;
-            IF NOT COMMON_TOOLS.CODE_DETAIL_VALID('TERRITORY_TYPE_BUSN_CODE',
-                                                  rec.TERRITORY_TYPE_BUSN_CODE)  THEN
-                SQ := errnums.en_invalid_code_detail_err;
-                SE := 'Territory Type Of Business "' || rec.TERRITORY_TYPE_BUSN_CODE || '" is not found in Code table';
-                RAISE V_EXCEPTION;
-            END IF;
-            UPDATE TERRITORY
-               SET TERRITORY_TYPE_BUSN_CODE = rec.TERRITORY_TYPE_BUSN_CODE
-             WHERE COST_CENTER_CODE                    = rec.COST_CENTER_CODE
-               AND NVL(TERRITORY_TYPE_BUSN_CODE, 'XX') <> rec.TERRITORY_TYPE_BUSN_CODE;
-            COMMIT;
-        EXCEPTION
-           WHEN V_EXCEPTION THEN
-              COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE,
-                                     'COMMON_TOOLS.BULK_TERR_TYP_BUSN_CD_UPD_PRCS',
-                                     SE,
-                                     SQ);
-              ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
-           WHEN OTHERS THEN
-              COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE,
-                                     'COMMON_TOOLS.BULK_TERR_TYP_BUSN_CD_UPD_PRCS',
-                                     SQLERRM,
-                                     SQLCODE);
-              ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
-        END;
-    END LOOP;
-EXCEPTION
-    WHEN OTHERS THEN
-       V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM; 
-       ERRPKG.RAISE_ERR(-20004,'BULK_TERR_TYP_BUSN_CD_UPD_PRCS ',V_CONTEXT); 
-END BULK_TERR_TYP_BUSN_CD_UPD_PRCS;
-
 END COMMON_TOOLS;
+
+/
