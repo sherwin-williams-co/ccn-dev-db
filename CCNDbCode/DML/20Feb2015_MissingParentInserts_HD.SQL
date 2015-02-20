@@ -1,6 +1,7 @@
 --Below scripts will insert the missing parent records for the final level of any hierarchy
 BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
+    COMMON_TOOLS.ALTER_ALL_TRIGGERS ('DISABLE');
 END;
 /
 
@@ -59,5 +60,6 @@ END;
 
 BEGIN
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP();
+    COMMON_TOOLS.ALTER_ALL_TRIGGERS ('ENABLE');
 END;
 /
