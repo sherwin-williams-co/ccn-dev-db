@@ -25,6 +25,7 @@ echo "\n Concatenating files"
 cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt > $FPATH/glreport.txt 
 echo "\n Done Concatenating files"
 
+DATE=`date +"%m%d%Y"`
 echo "\n Copying file to tmp folder as a backup"
 cp $FPATH/glreport.txt $FPATH/tmp/glreport"_"$DATE.txt
 
