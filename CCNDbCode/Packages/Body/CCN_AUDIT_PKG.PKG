@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY CCN_AUDIT_PKG as 
+create or replace 
+PACKAGE BODY CCN_AUDIT_PKG as 
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 created : 02/29/2012 tal CCN project
@@ -778,8 +779,11 @@ XMLSTRING	          CLOB:='';
 SQ		              INTEGER; 
 SE		              VARCHAR2(1000);
 
-V_ROW_PREV	          AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
-V_ROW_CURR	          AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
+V_ROW_PREV	           AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
+V_ROW_CURR	           AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
+V_PREVIOUS_STATUS_CODE STATUS.STATUS_CODE%TYPE;
+V_CURRENT_STATUS_CODE  STATUS.STATUS_CODE%TYPE;
+
 
 CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
     SELECT COLUMN_NAME, COLUMN_ID FROM ALL_TAB_COLUMNS WHERE TABLE_NAME = IN_TABLE;
@@ -838,7 +842,33 @@ BEGIN
             COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
         END IF; 
         COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
+        
+   --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
+        GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);   
+      
+       IF V_CHANGE_TYPE = 'C' AND IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE' then
+          
+                 SELECT STATUS_CODE
+                   INTO V_CURRENT_STATUS_CODE
+                   FROM STATUS
+                  WHERE COST_CENTER_CODE = V_COSTCENTERCODE
+                    AND EXPIRATION_DATE IS NULL;
 
+
+                 SELECT STATUS_CODE 
+                   INTO V_PREVIOUS_STATUS_CODE
+                   FROM STATUS
+                  WHERE COST_CENTER_CODE = V_COSTCENTERCODE 
+                    AND EXPIRATION_DATE = (SELECT MAX(EXPIRATION_DATE) 
+                                              FROM STATUS 
+                                             WHERE COST_CENTER_CODE = V_COSTCENTERCODE); 
+                                             
+                IF V_PREVIOUS_STATUS_CODE IN ('5','X','8') AND       
+                   V_CURRENT_STATUS_CODE NOT IN ('5','X','8') THEN               
+                   COMP_CURR := '00000000';
+                END IF;
+        END IF;
+        
         --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
         GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
 
@@ -872,6 +902,7 @@ BEGIN
             END IF;
         END IF;
     END LOOP;
+    
 
     UPDATE_AUDIT_REC_FLAG(IN_TABLE_NAME,IN_KEY, V_LOG_ID_PREV, V_LOG_ID_CURR, V_CONTEXT);
 
@@ -1364,4 +1395,3 @@ BEGIN
 END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
-
