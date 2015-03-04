@@ -32,7 +32,7 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 
-execute SD_BENEFITS_PKG.CREATE_JV(to_date('$P1','MM/DD/YYYY'));
+execute SD_PAIDS_JV_PKG.CREATE_JV(to_date('$P1','MM/DD/YYYY'));
 
 exit;
 END

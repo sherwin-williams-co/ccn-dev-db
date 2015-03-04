@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE SD_BENEFITS_PKG
+CREATE OR REPLACE PACKAGE SD_PAIDS_JV_PKG
 /******************************************************************************* 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly benefits monthly JV with ADP information
@@ -34,4 +34,4 @@ revision:
 
 *******************************************************************************/
 ;
-END SD_BENEFITS_PKG;
+END SD_PAIDS_JV_PKG;
