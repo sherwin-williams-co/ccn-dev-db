@@ -152,10 +152,27 @@ PROCEDURE STORE_DRAFTS_FILTER_UI_SP (
   <ISSUE_DATE_END>05-18-2012</ISSUE_DATE_END>
   <TRANSACTION_CODE>13,19,31,82,94,98</TRANSACTION_CODE>
  </STORE_DRAFTS>
-</<STORE_DRAFTS_UI_SP>
+ <STORE_DRAFTS>
+  <STORE_DRAFT_INDICATOR>NONE/PAID/VOID/STOP/OPEN/MNL_DRFT</STORE_DRAFT_INDICATOR>
+  <COST_CENTER_CODE>701030</COST_CENTER_CODE>
+  <CHECK_SERIAL_NUMBER>0103032009</CHECK_SERIAL_NUMBER>
+  <CHECK_RANGE_START>0103032009</CHECK_RANGE_START>
+  <CHECK_RANGE_END>0103032124</CHECK_RANGE_END>
+  <TRANSACTION_DATE>03-30-2012</TRANSACTION_DATE>
+  <TRANSACTION_DATE_START>03-30-2012</TRANSACTION_DATE_START>
+  <TRANSACTION_DATE_END>05-18-2012</TRANSACTION_DATE_END>
+  <PAID_DATE_START>03-30-2012</PAID_DATE_START>
+  <PAID_DATE_END>05-18-2012</PAID_DATE_END>
+  <ISSUE_DATE_START>03-30-2012</ISSUE_DATE_START>
+  <ISSUE_DATE_END>05-18-2012</ISSUE_DATE_END>
+  <TRANSACTION_CODE>13,19,31,82,94,98</TRANSACTION_CODE>
+ </STORE_DRAFTS>
+ </<STORE_DRAFTS_UI_SP>
 
 Created : 10/27/2014 jxc517 CCN Project....
-Changed : 
+Changed : 03/04/2015 jxc517 CCN Project....
+          Modified code to handle multiple filters at the same time and return
+          the concatenated result set along with the total records count
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
@@ -512,18 +529,6 @@ Changed :
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
-
-PROCEDURE VALIDATE_DRAFT_MAINTENANCE(
-/*****************************************************************************
-	VALIDATE_DRAFT_MAINTENANCE
-
-	This procedure will do the bussiness rules validations for SD_BANK_FILE_SENT_DETAILS table
-
-created : 09/29/2014 jxc517 CCN Project . . .
-changed :
-*****************************************************************************/
-    IN_COST_CENTER_CODE    IN    SD_BANK_FILE_SENT_DETAILS.COST_CENTER_CODE%TYPE,
-    IN_CHECK_SERIAL_NUMBER IN    SD_BANK_FILE_SENT_DETAILS.CHECK_SERIAL_NUMBER%TYPE);
 
 FUNCTION IS_AUTHORIZED_USER(
 /**********************************************************
