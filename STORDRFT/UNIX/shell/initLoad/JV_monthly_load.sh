@@ -2,16 +2,17 @@
 #############################################################################
 # Script Name : JV_monthly_load.sh
 #
-# Description : This shell program will initiate the script that 
+# Description : This shell program will initiate the script that
 #    		    loads the Monthly benefits JV with ADP information.
-#                   
+#
 # Created     : sxh487 10/02/2014
 # Modified    : sxt410 01/14/2015 Added P1 parameter to pass into Procedure.
 #                                 Added get_param.sh to spool closing date.
 #               sxt410 01/20/2015 Added code to invoke DRAFT_DRAFT.TRG file to be 
-#               placed on the remote server when the JV_monthly_load process is 
+#               placed on the remote server when the JV_monthly_load process is
 #               completed and Archive PAID_DRAFT.TRG file for Historical purpose.
 #			  : sxt410 02/04/2015 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
+#			  : sxt410 03/04/2015 Changed the calling package SD_BENEFIT_JV to SD_PAIDS_JV_PKG
 ##############################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
@@ -83,4 +84,4 @@ echo "START Archiving DRAFT.TRG file: Processing Started at $TIME on $DATE"
 
 echo -e "END Archiving DRAFT.TRG file: Processing finished at $TIME on $DATE \n"
 
-exit 0 
+exit 0

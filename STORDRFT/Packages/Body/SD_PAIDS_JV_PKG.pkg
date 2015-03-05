@@ -7,6 +7,7 @@ for US and Canada
 created  : 07/03/2014 sxh487
 revisions: 12/31/2014 sxt410 Added LOAD_STOREDRFT_JV_HST Procedure to capture 
            Historical data.
+         : 03/04/2015 sxt410 Renamed package from SD_BENEFIT_JV to SD_PAIDS_JV_PKG
 *******************************************************************************/
 AS
 PROCEDURE CREATE_JV(
