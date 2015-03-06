@@ -1,4 +1,5 @@
-create or replace PACKAGE CCN_AUDIT_PKG AS
+create or replace 
+PACKAGE CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 
@@ -18,7 +19,18 @@ created : 10/20/2013 jxc517 CCN Project Team . . .
 modified : 02/05/2014 jxc517 CCN Project Team . . . 
 **********************************************************/
 ;
-  
+
+FUNCTION XML_EXTRACT_NO_EXCEPTION
+/**********************************************************
+This function returns null if XPATH does not exist within xmltype, 
+oracle throws an exception if not handled this way
+
+**********************************************************/
+( p_xml IN XMLTYPE
+, p_xpath IN VARCHAR2
+) RETURN VARCHAR2 
+;
+
 PROCEDURE SELECT_AUDIT_LOG
 /*******************************************************
 Selects all rows from audit_log that have changed from
@@ -44,4 +56,3 @@ created : 02/05/2014 jxc517 CCN Project....
     IN_UPPER_LVL_VER_VALUE XMLTYPE);
     
 END CCN_AUDIT_PKG;
-
