@@ -795,7 +795,8 @@ V_ROW_CURR	           AUDIT_LOG.TABLE_ROW_DATA%TYPE := NULL;
 V_PREVIOUS_STATUS_CODE STATUS.STATUS_CODE%TYPE;
 V_CURRENT_STATUS_CODE  STATUS.STATUS_CODE%TYPE;
 V_CC_CODE              COST_CENTER.COST_CENTER_CODE%TYPE;
-
+V_PREV_REC             VARCHAR2(1000);
+V_CURR_REC             VARCHAR2(1000); 
 
 CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
     SELECT COLUMN_NAME, COLUMN_ID FROM ALL_TAB_COLUMNS WHERE TABLE_NAME = IN_TABLE;
@@ -854,69 +855,19 @@ BEGIN
             COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
         END IF; 
         COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
-        
-         IF IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE'  THEN
-            V_CC_CODE:= XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || 'COST_CENTER_CODE');
-             
-             --getting the current status code for the cost center to compare with previos status code
-              BEGIN
-               SELECT CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'STATUS_CODE')
-                 INTO V_CURRENT_STATUS_CODE
-                 FROM AUDIT_LOG  
-                WHERE XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'COST_CENTER_CODE') = V_CC_CODE
-                  AND TABLE_NAME = 'STATUS' 
-                  AND AUDIT_REC_FLAG  IS NULL
-                  AND TRANSACTION_DATE = (SELECT MAX(AL1.TRANSACTION_DATE)
-                                            FROM AUDIT_LOG AL1
-                                           WHERE AL1.TABLE_NAME     = 'STATUS'
-                                             AND AL1.AUDIT_REC_FLAG  IS NULL)
-                  AND LOG_ID = (SELECT MAX(LOG_ID)
-                                  FROM AUDIT_LOG AL1
-                                 WHERE AL1.TABLE_NAME     = 'STATUS'
-                                  AND AL1.AUDIT_REC_FLAG  IS NULL)
-                ORDER BY TRANSACTION_DATE;
-                EXCEPTION
-                  WHEN OTHERS THEN
-                    V_CURRENT_STATUS_CODE := NULL;
-                  END;
-                
-
-              --getting the previous status code for the cost center to compare with current status code
-              BEGIN
-               SELECT CCN_AUDIT_PKG.XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'STATUS_CODE')
-                 INTO V_PREVIOUS_STATUS_CODE
-                 FROM AUDIT_LOG AL,
-                      BATCH_JOB BATCH
-                WHERE AL.TABLE_NAME        = 'STATUS'
-                  AND XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'COST_CENTER_CODE') = V_CC_CODE
-                  AND BATCH.BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG'
-                  AND AL.AUDIT_REC_FLAG    = 'R'
-                  AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
-                                               FROM AUDIT_LOG AL1
-                                              WHERE AL1.TABLE_NAME     = 'STATUS'
-                                                AND AL1.AUDIT_REC_FLAG = 'R'
-                                                AND XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'COST_CENTER_CODE') = V_CC_CODE)
-                  AND BATCH.BATCH_JOB_LAST_RUN_DATE IN(SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
-                                                         FROM BATCH_JOB B1
-                                                        WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG'
-                                                          AND XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'COST_CENTER_CODE') = V_CC_CODE)
-                 AND LOG_ID = (SELECT MAX(LOG_ID)
-                                FROM AUDIT_LOG AL1
-                               WHERE AL1.TABLE_NAME     = 'STATUS'
-                                 AND XML_EXTRACT_NO_EXCEPTION(TABLE_ROW_DATA,'//' || 'COST_CENTER_CODE') = V_CC_CODE);               
-                  EXCEPTION
-                  WHEN OTHERS THEN
-                    V_PREVIOUS_STATUS_CODE:= NULL;
-                  END;
-         --if the cost center is re opened then over-writes the COM_CURR value to zero's instead of '~'                                             
-                IF NVL(V_PREVIOUS_STATUS_CODE,'YY') IN ('5','X','8') AND       
-                   NVL(V_CURRENT_STATUS_CODE,'ZZ') NOT IN ('5','X','8') THEN               
-                   COMP_CURR := '00000000';
-                END IF;
-            END IF;
- 
-         
-    
+           
+            
+        IF IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE'  THEN
+           IF V_CHANGE_TYPE = 'C' THEN        
+              V_PREV_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || 'CLOSE_DATE'), 'ZZ');
+           END IF;
+           V_CURR_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || 'CLOSE_DATE'), 'YY');
+           IF V_PREV_REC <> 'ZZ'
+              AND V_CURR_REC = 'YY'  THEN 
+            COMP_CURR := '00000000';
+           END IF;
+        END IF;
+   
         --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
         GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
 
