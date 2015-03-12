@@ -69,3 +69,7 @@ INSERT INTO SECURITY_MATRIX VALUES('drc766','drc766','CCNU');
 INSERT INTO SECURITY_MATRIX VALUES('drc766','drc766','HWU');
 INSERT INTO SECURITY_MATRIX VALUES('drc766','drc766','SDU');
 COMMIT;
+--Below scripts will add Greg Nelson and Cody Ray need access to new CCN to update the Territory type business code
+INSERT INTO SECURITY_MATRIX VALUES('gxn983','gxn983','CCNU1');
+INSERT INTO SECURITY_MATRIX VALUES('ccr88d','ccr88d','CCNU1');
+COMMIT;
