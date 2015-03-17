@@ -1,9 +1,9 @@
 --------------------------------------------------------
-
---insert into JOB_TITLE_GROUP table
-
+--  File created - Tuesday-March-17-2015   
+--------------------------------------------------------
 REM INSERTING into JOB_TITLE_GROUP
 SET DEFINE OFF;
+
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('SUPVR','Non-Management Full-time','N');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('ADMIN','Non-Management Full-time','N');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('ACCT REP','Sales Rep','N');
@@ -269,5 +269,11 @@ Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Rep.
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Rep.Can CX..','Sales Rep','N');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Driver.Can..Delivery','Non-Management Full-time','N');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Zone Mgr.Branch Can.E.Arch P&M','Manager','Y');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Services.Dir...Real Estate','Non-Management Full-time','N');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Branch Mgr.Can.TME.Arch P&M','Manager','Y');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Branch Mgr.Can.TMN.Arch P&M','Manager','Y');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Store Mgr.Can.TME.','Manager','Y');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Store Mgr.Can.TMN.','Manager','Y');
+Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND) values ('Sales.Zone Mgr.Branch Can.TME.Arch P&M','Manager','Y');
 
 Commit;
