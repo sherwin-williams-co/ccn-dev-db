@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE            "COMMON_TOOLS" AS 
+create or replace PACKAGE            "COMMON_TOOLS" AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -259,6 +258,7 @@ with the execution of rest of the cost centers
 
 ******************************************************************************/
                     IN_CC      IN VARCHAR2,
+                    IN_MODULE  IN VARCHAR2,
                     IN_SQLERRM IN VARCHAR2,
                     IN_SQLCODE IN NUMBER);
 
@@ -336,4 +336,16 @@ Created : 02/04/2015 NXK927 CCN Project
     IN_HRCHY_DTL_CURR_ROW_VAL     IN     VARCHAR2)
 RETURN VARCHAR2;
 
+PROCEDURE BULK_TERR_TYP_BUSN_CD_UPD_PRCS(
+/******************************************************************************
+This procedure is the core process for updating the TERRITORY_TYPE_BUSN_CODE
+column of TERRITORY table
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created by jxc517 02/19/2015
+******************************************************************************/
+IN_BLOB            IN       BLOB);
+
 END COMMON_TOOLS;
+

@@ -2224,6 +2224,20 @@ PRAGMA EXCEPTION_INIT
 (exc_actv_dup_terr_exists_err , -20162);
 
 /*********************************************************** 
+The "territory_typ_business_rule" passes a numerical error of -20163.
+This error will state that territory type busienss code is applicable only
+for territory cost centers
+
+created : 02/19/2015 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_territory_typ_business_rule CONSTANT NUMBER := -20163;
+exc_territory_typ_busines_rule EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_territory_typ_busines_rule , -20163);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
@@ -2635,3 +2649,4 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 END errnums;
+

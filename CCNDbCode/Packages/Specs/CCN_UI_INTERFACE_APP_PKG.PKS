@@ -318,4 +318,16 @@ Changed :
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
 
+PROCEDURE BULK_TERR_TYP_BUSN_CD_UPD_PRCS(
+/******************************************************************************
+This procedure is the core process for updating the TERRITORY_TYPE_BUSN_CODE
+column of TERRITORY table
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created by jxc517 02/19/2015
+******************************************************************************/
+IN_BLOB            IN       BLOB);
+
 END CCN_UI_INTERFACE_APP_PKG;
+
