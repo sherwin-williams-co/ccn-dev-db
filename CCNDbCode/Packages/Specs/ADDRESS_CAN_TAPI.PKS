@@ -7,6 +7,9 @@ used to process the ADDRESS_CAN table
 created : 01/25/2012 tal CCN project
 revisions: 
 
+
+fjdla
+
 ************************************************************/
 IS
 type ADDRESS_CAN_tapi_rec
