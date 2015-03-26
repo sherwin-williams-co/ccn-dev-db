@@ -597,22 +597,17 @@ EXCEPTION
                          'COMMON_TOOLS ' || 'Cost Center with first two digit as ''' || SUBSTR(IN_COST_CENTER_CODE,1,2) || ''' is not allowed in Mainframe');
 END CHECK_DUP_COST_CENTER;
 
-PROCEDURE COPY_COST_CENTER(
+PROCEDURE REPLACE_COST_CENTER(
 /**********************************************************
-	COPY_COST_CENTER
+	REPLACE_COST_CENTER
 
-	This procedure will copy the OLD cost center into NEW cost center
+	This procedure will repalce the OLD cost center with NEW cost center
 
 IN_OLD_CC - Input Cost Center to be removed
 IN_NEW_CC - Input Cost Center to be created
 
-created : 09/11/2013 jxc517 CCN Project....
-modified: 02/02/2015 axk326 CCN Project Team...
-          Added Upper() function while selecting from any table 
-          based on COST_CENTER_CODE
-modified: 02/24/2015 jxc517 CCN Project Team...
-          Territory sales manager code has been removes as sales manager columns
-          are no more applicable individually, they went into Hierarchy_Detail table
+created : 03/24/2015 jxc517 CCN Project....
+modified:
 **********************************************************/
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2) IS
@@ -631,7 +626,7 @@ modified: 02/24/2015 jxc517 CCN Project Team...
    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
 
-   CCN_BATCH_PKG.INSERT_BATCH_JOB('COPY_COST_CENTER', V_BATCH_NUMBER);
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('REPLACE_COST_CENTER', V_BATCH_NUMBER);
    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
    --Loop through all the tables which holds cost center details
@@ -718,6 +713,151 @@ BEGIN
    --SQL Statement to delete the OLD cost center records from Audit_Log Table
    SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM AUDIT_LOG '||
                                                            ' WHERE TRANSACTION_ID  LIKE ''%'|| FROM_CC ||'%''';
+
+   --Loop through all the statements and execute one by one in that order
+   FOR i IN 1..SQL_STATEMENTS_TAB.COUNT LOOP
+      --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
+      EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
+   END LOOP;
+   
+   --Commit all the changes in the database
+   COMMIT;
+   
+   CCN_BATCH_PKG.UPDATE_BATCH_JOB('REPLACE_COST_CENTER', V_BATCH_NUMBER, V_TRANS_STATUS);
+   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+
+EXCEPTION
+   WHEN OTHERS THEN
+      --DBMS_OUTPUT.PUT_LINE('Error in COMMON_TOOLS.COPY_COST_CENTER : ' || SQLCODE ||' - ' ||SQLERRM);
+      COMMON_TOOLS.LOG_ERROR('000000', 'COMMON_TOOLS.COPY_COST_CENTER', SQLERRM, SQLCODE);
+      RAISE;
+END REPLACE_COST_CENTER;
+
+FUNCTION IS_PASSED_COL_IN_TAB(
+/**********************************************************
+This function will return true if passed column is field in the table passed
+
+parameters:
+IN  IN_TABLE_NAME
+
+created : 03/24/2015 jxc517 CCN Project
+modified: 
+**********************************************************/
+IN_TABLE_NAME      IN     VARCHAR2,
+IN_COLUMN_NAME     IN     VARCHAR2) RETURN VARCHAR2
+IS
+    V_COUNT NUMBER := 0;
+BEGIN
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM USER_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+           AND COLUMN_NAME = IN_COLUMN_NAME;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_COUNT := 0;
+    END;
+    IF V_COUNT > 0 THEN
+        RETURN 'Y';
+    ELSE
+        RETURN 'N';
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'N';
+END IS_PASSED_COL_IN_TAB;
+
+PROCEDURE COPY_COST_CENTER(
+/**********************************************************
+	COPY_COST_CENTER
+
+	This procedure will copy the OLD cost center into NEW cost center
+
+IN_OLD_CC - Input Cost Center to be copied from
+IN_NEW_CC - Input Cost Center to be created
+
+created : 09/11/2013 jxc517 CCN Project....
+modified: 02/02/2015 axk326 CCN Project Team...
+          Added Upper() function while selecting from any table 
+          based on COST_CENTER_CODE
+modified: 02/24/2015 jxc517 CCN Project Team...
+          Territory sales manager code has been removes as sales manager columns
+          are no more applicable individually, they went into Hierarchy_Detail table
+modified: 03/24/2015 jxc517 CCN Project Team...
+          Removed code for deleting the existing cost center from copy process
+          Removed code for deleting audit for new cost center & inserting  the same from old cost center
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2) IS
+  
+   TYPE TAB_TYPE                IS TABLE OF USER_TAB_COLUMNS%ROWTYPE INDEX BY PLS_INTEGER;
+   TYPE SQL_STATEMENTS_TAB_TYPE IS TABLE OF VARCHAR2(10000)          INDEX BY BINARY_INTEGER;
+   
+   COL_TABLE          TAB_TYPE;
+   VAR                VARCHAR2(30000);
+   V_CC_NAME          VARCHAR2(100);
+   FROM_CC            VARCHAR2(6) := IN_OLD_CC;
+   TO_CC              VARCHAR2(6) := IN_NEW_CC;
+   SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
+   
+   V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+   V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+BEGIN
+
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('COPY_COST_CENTER', V_BATCH_NUMBER);
+   CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+
+   --Loop through all the tables which holds cost center details
+   --Below tabels are not needed as they are not associated with cost_center
+   --'SALES_REP','TERRITORY_SALES_MGR','TERRITORY','TERRITORY_ASSIGNMENT','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL'
+   FOR REC IN (SELECT * FROM INSERTORDER
+                WHERE TABLE_NAME NOT IN ('SALES_REP','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                ORDER BY 2) LOOP
+
+      --Build the column list from the data dictionary and store in variable VAR
+      VAR := NULL;
+      SELECT * BULK COLLECT INTO COL_TABLE
+        FROM USER_TAB_COLUMNS
+       WHERE TABLE_NAME = REC.TABLE_NAME
+       ORDER BY COLUMN_ID;
+      
+      FOR i IN 1..COL_TABLE.LAST LOOP
+         VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
+      END LOOP;
+      
+      --Data in VAR for COST_CENTER_TABLE will be ,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
+      --Take the column names excluding COST_CENTER_CODE whcih will be from 19th character till the end
+      IF IS_PASSED_COL_IN_TAB(REC.TABLE_NAME, 'EXPIRATION_DATE') = 'N' THEN
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                                                 ' SELECT '''|| TO_CC ||''','|| SUBSTR(VAR,19) || 
+                                                                 '   FROM ' || REC.TABLE_NAME || 
+                                                                 '  WHERE UPPER(COST_CENTER_CODE) = '''|| UPPER(FROM_CC) ||'''';
+      ELSE
+         SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
+                                                                 ' SELECT '''|| TO_CC ||''','|| SUBSTR(VAR,19) || 
+                                                                 '   FROM ' || REC.TABLE_NAME || 
+                                                                 '  WHERE UPPER(COST_CENTER_CODE) = '''|| UPPER(FROM_CC) ||''''||
+                                                                 '    AND EXPIRATION_DATE IS NULL';
+      END IF;
+   END LOOP;
+   
+   --SQL Statement to insert NEW cost center records from OLD cost center Hierarchy_Detail records
+   --Pre-final level record
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO HIERARCHY_DETAIL' ||
+                                     ' SELECT HRCHY_HDR_NAME,HRCHY_DTL_LEVEL,HRCHY_DTL_PREV_LVL_VAL,HRCHY_DTL_CURR_LVL_VAL,'||
+                                              'REPLACE(HRCHY_DTL_NEXT_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_NEXT_LVL_VAL,'||
+                                              'HRCHY_DTL_EFF_DATE,HRCHY_DTL_EXP_DATE,HRCHY_DTL_DESC,HRCHY_DTL_CURR_ROW_VAL,UPPER_LVL_VER_VALUE'||
+                                     '  FROM HIERARCHY_DETAIL '||
+                                     ' WHERE HRCHY_DTL_NEXT_LVL_VAL LIKE ''%' || FROM_CC || '%''';
+   --Last level record
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO HIERARCHY_DETAIL' ||
+                                     ' SELECT HRCHY_HDR_NAME,HRCHY_DTL_LEVEL,HRCHY_DTL_PREV_LVL_VAL,' ||
+                                              'REPLACE(HRCHY_DTL_CURR_LVL_VAL,'''||FROM_CC||''','''||TO_CC||''') HRCHY_DTL_CURR_LVL_VAL,'||
+                                              'HRCHY_DTL_NEXT_LVL_VAL,HRCHY_DTL_EFF_DATE,HRCHY_DTL_EXP_DATE,HRCHY_DTL_DESC,'||
+                                              ''''||TO_CC||''' HRCHY_DTL_CURR_ROW_VAL,UPPER_LVL_VER_VALUE'||
+                                     '  FROM HIERARCHY_DETAIL '||
+                                     ' WHERE HRCHY_DTL_CURR_LVL_VAL LIKE ''%' || FROM_CC || '%''';
 
    --Loop through all the statements and execute one by one in that order
    FOR i IN 1..SQL_STATEMENTS_TAB.COUNT LOOP
@@ -838,9 +978,10 @@ BEGIN
    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
    --SQL Statement to delete the cost center records from all cost center related Tables
+   SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'DELETE FROM POLLING_HST WHERE UPPER(COST_CENTER_CODE) = '''|| UPPER(IN_COST_CENTER) ||'''';
    FOR REC IN (SELECT 'DELETE FROM '||TABLE_NAME||' WHERE UPPER(COST_CENTER_CODE) = '''|| UPPER(IN_COST_CENTER) ||'''' AS VALUE 
                  FROM INSERTORDER
-                WHERE TABLE_NAME NOT IN ('SALES_REP','TERRITORY_ASSIGNMENT','TERRITORY_SALES_MGR','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                WHERE TABLE_NAME NOT IN ('SALES_REP','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
                 ORDER BY TABLE_ORDER DESC) LOOP
       SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := REC.VALUE;
    END LOOP;
@@ -1120,4 +1261,3 @@ EXCEPTION
 END BULK_TERR_TYP_BUSN_CD_UPD_PRCS;
 
 END COMMON_TOOLS;
-
