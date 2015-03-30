@@ -23,6 +23,16 @@ created : 11/05/2014 sxh487 CCN Project....
  )
 RETURN VARCHAR2;
 
+FUNCTION GET_COST_CENTER_CATEGORY
+/**********************************************************
+ GET_COST_CENTER_CATEGORY
+
+Returns Category value for given Cost Center Code
+created : 03/30/2015 sxh487 CCN Project....
+**********************************************************/
+(IN_COST_CENTER_CODE IN VARCHAR2) 
+RETURN VARCHAR2;
+
 PROCEDURE EMPLOYEE_DETAILS_S_SP (
 /*******************************************************************************
 	EMPLOYEE_DETAILS_S_SP

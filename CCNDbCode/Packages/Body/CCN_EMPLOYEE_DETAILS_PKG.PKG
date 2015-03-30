@@ -61,6 +61,32 @@ EXCEPTION
         RETURN NULL;
 END GET_JOB_CODE;
 
+FUNCTION GET_COST_CENTER_CATEGORY
+/**********************************************************
+ GET_COST_CENTER_CATEGORY
+
+Returns Category value for given Cost Center Code
+created : 03/27/2015 sxh487 CCN Project....
+**********************************************************/
+(IN_COST_CENTER_CODE IN VARCHAR2) 
+RETURN VARCHAR2
+IS 
+    V_CATEGORY COST_CENTER.CATEGORY%TYPE;
+BEGIN
+    SELECT CATEGORY
+      INTO V_CATEGORY
+      FROM COST_CENTER
+     WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE);
+
+    RETURN V_CATEGORY;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+    WHEN OTHERS THEN
+        RETURN(SQLERRM);
+END GET_COST_CENTER_CATEGORY;
+
 PROCEDURE EMPLOYEE_DETAILS_ROWTYPE_SP (
 /*******************************************************************************
 	EMPLOYEE_DETAILS_ROWTYPE_SP
@@ -332,6 +358,8 @@ PROCEDURE SYNC_HR_EMPLOYEE_DETAILS
 Created : 10/29/2014 jxc517 CCN Project....
 Changed : 02/10/2015 jxc517 CCN Project Team.....
                      Added code to send emails for missing JOB CODE combinations
+          03/30/2015 sxh487 Added code to check if an employee changed from a Territory CC
+                     to a non-Territory CC. If so, delete it from the Territory_Employee table
 *******************************************************************************/
 IS
     V_CODE NUMBER;
@@ -373,10 +401,10 @@ IS
                                           'Part Time','P',
                                           NULL) FULL_PART_CODE
           FROM SWC_HR_GENERIC_V;
-
-    V_COMMIT     NUMBER := 0;
-    V_TEMP_REC   EMPLOYEE_DETAILS%ROWTYPE;
-    V_CLOB       CLOB;
+          
+    V_COMMIT        NUMBER := 0;
+    V_TEMP_REC      EMPLOYEE_DETAILS%ROWTYPE;
+    V_CLOB          CLOB;
 BEGIN
     FOR rec IN employee_details_cur LOOP
         SAVEPOINT SYNC_LOAD;
@@ -398,6 +426,13 @@ BEGIN
                     ROLLBACK TO SYNC_LOAD;
             END;
         ELSE
+            --Delete the employee from Territory_Employee table if it's Category changes to a Non-Territory
+            IF NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE), 'X') = 'T' THEN
+               IF CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE) <> NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(rec.COST_CENTER_CODE), 'T') THEN
+                  DELETE FROM TERRITORY_EMPLOYEE WHERE GEMS_ID_NUMBER = rec.EMPLOYEE_NUMBER;
+               END IF;
+            END IF;
+            
             IF NVL(V_TEMP_REC.EMPLOYEE_NUMBER,'X') <> NVL(rec.EMPLOYEE_NUMBER,'X')
                OR NVL(V_TEMP_REC.COST_CENTER_CODE,'X') <> NVL(rec.COST_CENTER_CODE,'X')
                OR NVL(V_TEMP_REC.EMPLOYEE_NAME,'X') <> NVL(rec.EMPLOYEE_NAME,'X')
@@ -817,4 +852,3 @@ EXCEPTION
 END EMPLOYEE_ADMIN_DETAILS_D_SP;
 
 END CCN_EMPLOYEE_DETAILS_PKG;
-
