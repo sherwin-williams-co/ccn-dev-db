@@ -358,8 +358,11 @@ PROCEDURE SYNC_HR_EMPLOYEE_DETAILS
 Created : 10/29/2014 jxc517 CCN Project....
 Changed : 02/10/2015 jxc517 CCN Project Team.....
                      Added code to send emails for missing JOB CODE combinations
-          03/30/2015 sxh487 Added code to check if an employee changed from a Territory CC
-                     to a non-Territory CC. If so, delete it from the Territory_Employee table
+          03/30/2015 sxh487 Added code to check 
+                     1) if an employee changed from a Territory CC
+                        to a non-Territory CC then, delete it from the Territory_Employee table
+                     2) if an employee changed from a Store to a Non-S CC or if the job_title changed from Manager 
+                        to a non-Manager then, Delete the employee from Manager_Employee table 
 *******************************************************************************/
 IS
     V_CODE NUMBER;
@@ -405,6 +408,7 @@ IS
     V_COMMIT        NUMBER := 0;
     V_TEMP_REC      EMPLOYEE_DETAILS%ROWTYPE;
     V_CLOB          CLOB;
+    V_GEMS_CC_CATEGORY COST_CENTER.CATEGORY%TYPE;
 BEGIN
     FOR rec IN employee_details_cur LOOP
         SAVEPOINT SYNC_LOAD;
@@ -426,24 +430,19 @@ BEGIN
                     ROLLBACK TO SYNC_LOAD;
             END;
         ELSE
+            V_GEMS_CC_CATEGORY := NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(rec.COST_CENTER_CODE), 'X');
             --Delete the employee from Territory_Employee table if it's Category changes From Terr to a Non-Territory
-            IF NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE), 'X') = 'T' THEN
-               IF CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE) <> NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(rec.COST_CENTER_CODE), 'T') THEN
+            IF V_GEMS_CC_CATEGORY <> 'T' THEN
                   DELETE FROM TERRITORY_EMPLOYEE WHERE GEMS_ID_NUMBER = rec.EMPLOYEE_NUMBER;
-               END IF;
-            --Delete the employee from Manager_Employee table if it's Category changes from Store to a Non-S
-             --Delete the employee from Manager_Employee table if it's Category changes from Store to a Non-S
-            --or job title changes from Mgr to a non-Mgr
-            ELSIF (NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE), 'X') = 'S' 
-                  OR NVL(UPPER(V_TEMP_REC.JOB_TITLE), 'XX') LIKE  '%MGR%') THEN
-                  IF (NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(V_TEMP_REC.COST_CENTER_CODE), 'S') <> NVL(CCN_EMPLOYEE_DETAILS_PKG.GET_COST_CENTER_CATEGORY(rec.COST_CENTER_CODE), 'S')) 
-                     OR (NVL(UPPER(V_TEMP_REC.JOB_TITLE), 'XX') NOT LIKE NVL(UPPER(rec.JOB_TITLE), 'XX')) THEN
-                       DELETE FROM MANAGER_EMPLOYEE WHERE GEMS_ID_NUMBER = rec.EMPLOYEE_NUMBER;	
-                  END IF;
             ELSE
-               NULL;
+                --Delete the employee from Manager_Employee table if it's Category changes from Store to a Non-S
+                --or job title changes from Mgr to a non-Mgr
+                IF NVL(UPPER(rec.JOB_TITLE), 'XX') NOT LIKE '%MGR%'
+                   OR V_GEMS_CC_CATEGORY <> 'S' THEN
+                    DELETE FROM MANAGER_EMPLOYEE WHERE GEMS_ID_NUMBER = rec.EMPLOYEE_NUMBER;
+                END IF;
             END IF;
-            
+
             IF NVL(V_TEMP_REC.EMPLOYEE_NUMBER,'X') <> NVL(rec.EMPLOYEE_NUMBER,'X')
                OR NVL(V_TEMP_REC.COST_CENTER_CODE,'X') <> NVL(rec.COST_CENTER_CODE,'X')
                OR NVL(V_TEMP_REC.EMPLOYEE_NAME,'X') <> NVL(rec.EMPLOYEE_NAME,'X')
