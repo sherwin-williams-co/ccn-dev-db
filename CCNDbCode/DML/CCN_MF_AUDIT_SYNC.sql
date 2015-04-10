@@ -96,7 +96,8 @@ BEGIN
 
         --DBMS_OUTPUT.PUT_LINE (V_OUT_CLOB2);
         UTL_FILE.PUT_LINE(output_file, V_OUT_CLOB2, TRUE);
-        UTL_FILE.FCLOSE(output_file);
+        V_OUT_CLOB2 := NULL; 
     END LOOP;
+    UTL_FILE.FCLOSE(output_file);
 END;
 /
