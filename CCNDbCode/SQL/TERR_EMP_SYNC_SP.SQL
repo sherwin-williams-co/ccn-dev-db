@@ -107,3 +107,4 @@ BEGIN
     END LOOP;
     UTL_FILE.FCLOSE(output_file);
 END TERR_EMP_SYNC_SP;
+/
