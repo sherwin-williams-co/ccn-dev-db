@@ -41,15 +41,6 @@ changed : 11/24/2014 jxc517 CCN Project....
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N');
 
-PROCEDURE BUILD_1099_FILE_FOR_FSS(
-/*****************************************************************************
-	This procedure will build the 1099 file from CPR views that will be sent for FSS(Financial Shared Services)
-
-created : 04/07/2015 jxc517 CCN Project....
-changed : 
-*****************************************************************************/
-IN_DATE           IN DATE);
-
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************
 
