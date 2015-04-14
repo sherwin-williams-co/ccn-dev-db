@@ -1,4 +1,4 @@
-create or replace PACKAGE SD_FILE_BUILD_PKG
+CREATE OR REPLACE PACKAGE SD_FILE_BUILD_PKG
 /**************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -22,18 +22,6 @@ IN_LENGTH        IN NUMBER,
 IN_PRECISION     IN NUMBER DEFAULT 0
 ) RETURN VARCHAR2;
 
-FUNCTION IS_VALUE_CHANGED(
-/*****************************************************************************
-	FORMAT_INPUT_FOR_FILE
-
-	This function will return the formatted data as requested  
-
-created : 07/25/2014 jxc517 CCN Project....
-changed :
-*****************************************************************************/
-IN_PREV_VALUE IN VARCHAR2,
-IN_CURR_VALUE IN VARCHAR2) RETURN BOOLEAN;
-
 PROCEDURE BUILD_1099_FILE(
 /*****************************************************************************
 	BUILD_1099_FILE
@@ -53,6 +41,15 @@ changed : 11/24/2014 jxc517 CCN Project....
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N');
 
+PROCEDURE BUILD_1099_FILE_FOR_FSS(
+/*****************************************************************************
+	This procedure will build the 1099 file from CPR views that will be sent for FSS(Financial Shared Services)
+
+created : 04/07/2015 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE           IN DATE);
+
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************
 
@@ -65,4 +62,3 @@ changed :
 ;
 
 END SD_FILE_BUILD_PKG;
-
