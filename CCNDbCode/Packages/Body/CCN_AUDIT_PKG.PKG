@@ -947,6 +947,9 @@ PROCEDURE Build_File_SP (
 
 
 created : 02/21/2012 kdp CCN Project....
+modified: 04/15/2015 jxc517 CCN Project....
+          Territory users cannot deal with global hierarchy 6th level with non-alphabets
+          the code changes here are to send the dummy YY as @@ for 6th level value of global hierarchy
 **********************************************************/
 IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
@@ -984,6 +987,8 @@ CURSOR table_fields_cur IS
   v_cost_center		      VARCHAR2(6)  := '      '; --added for spaces with tables that don't use cost center
   V_CHANGE_TYPE         VARCHAR2(1);
   output_file 		      UTL_FILE.FILE_TYPE;
+  V_HRCHY_HDR_NAME      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+  V_HRCHY_DTL_LEVEL     HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
 -------------
   l_out_file            UTL_FILE.FILE_TYPE;
   l_buffer              RAW(32767);
@@ -1065,12 +1070,10 @@ BEGIN
          ELSE
             v_value := UPPER(RPAD(v_extracted_value,
                                   NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value))));
-            
             --If there is a change and if the changed value is null then it comes here as '~'
             --We need to capture these ~'s and convert into proper formatting
             --like we do for null values for specific fields
             IF TRIM(v_value) = '~' THEN
-            
                --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
                IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
             
@@ -1078,9 +1081,7 @@ BEGIN
                   --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
                   --which have null values so that we can pass it to main frame
                   --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
-            
                ELSE
-            
                   IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
                                                                                'BANK_CARD - QUALITY_CODE',
                                                                                'BANK_CARD - AMEX_SE_ID',
@@ -1090,9 +1091,7 @@ BEGIN
                                                                                'ADDRESS_USA - DESTINATION_POINT',
                                                                                'ADDRESS_USA - CHECK_DIGIT'))) THEN
                      V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
-            
                   ELSE
-
                      --Below two fields should not go as ~ in audit field rather should go as spaces
                      --Should be removed once we start populating these fields on the server
                      IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('TERMINAL - POS_LAST_TRAN_DATE',
@@ -1101,11 +1100,8 @@ BEGIN
                      ELSE
                         V_OUT_CLOB := V_OUT_CLOB || v_value;
                      END IF;
-
                   END IF;
-               
                END IF;
-            
             ELSE
                --For global hierarchy, sales manager records alone, we hard coded <SPACE> with # for data to work
                --We need to replace those to spaces when we send them back to backfeed
@@ -1113,14 +1109,30 @@ BEGIN
                                                                            'HIERARCHY_DETAIL - HRCHY_DTL_PREV_LVL_VAL',
                                                                            'HIERARCHY_DETAIL - HRCHY_DTL_CURR_LVL_VAL',
                                                                            'HIERARCHY_DETAIL - HRCHY_DTL_NEXT_LVL_VAL')) THEN
+                  --the below replacements are applicable only for 6th level of GLOBAL_HIERARCHY
+                  IF NVL(V_HRCHY_HDR_NAME,'XXX') = 'GLOBAL_HIERARCHY' THEN
+                      --if it is 6th level, replace YY with @@
+                      IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL'
+                         AND NVL(V_HRCHY_DTL_LEVEL,'X') = '06' THEN
+                          v_value := REPLACE(v_value,'YY','@@');
+                      END IF;
+                      --if it has 6th level value in its composite key and it is YY replace it with @@
+                      IF LENGTH(v_value) > 10 AND SUBSTR(v_value,11,2) = 'YY' THEN
+                          v_value := SUBSTR(v_value,1,10)||'@@'||SUBSTR(v_value,13);
+                      END IF;
+                  END IF;
                   V_OUT_CLOB := V_OUT_CLOB || REPLACE(v_value,'#',' ');
                ELSE
+                  --below 2 variables are used to replace YY in global hierarchy 6th level with @@
+                  IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_HDR_NAME' THEN
+                      V_HRCHY_HDR_NAME := TRIM(v_value);
+                  ELSIF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_LEVEL' THEN
+                      V_HRCHY_DTL_LEVEL := TRIM(v_value);
+                  END IF;
                   V_OUT_CLOB := V_OUT_CLOB || v_value;
                END IF;
             END IF;   
-            
          END IF;
- 
       ELSE
          V_CONTEXT := 'Building by extracting the Non-Existing Data';
          V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
@@ -1402,3 +1414,4 @@ BEGIN
 END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
+
