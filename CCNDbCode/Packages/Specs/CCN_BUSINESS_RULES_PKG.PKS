@@ -486,7 +486,20 @@ created : MDH 07/31/2012
 ******************************************************************************/	
     inCOST_CENTER_ROWTYPE      IN   COST_CENTER%ROWTYPE
   , inTERRITORY_ROWTYPE        IN   TERRITORY%ROWTYPE )
-;	
+;
+
+PROCEDURE COMPARE_ZIPCODE_SP(
+/*******************************************************************************
+    COMPARE_ZIPCODE_SP
+    
+    This procedure is to compare the Taxwar Zip code with Address Zip code,
+    if taxware zip doesn't match with address zip, need to report mismatch by 
+    sending an email attach with cost center.
+
+created : 04/22/2015 SXT410 CCN Project...
+revised : 
+*******************************************************************************/
+    IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
+); 
 
 END CCN_BUSINESS_RULES_PKG;
-
