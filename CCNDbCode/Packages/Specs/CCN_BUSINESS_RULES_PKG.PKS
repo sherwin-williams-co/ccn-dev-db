@@ -492,12 +492,17 @@ PROCEDURE COMPARE_ZIPCODE_SP(
 /*******************************************************************************
     COMPARE_ZIPCODE_SP
     
-    This procedure is to compare the Taxwar Zip code with Address Zip code,
-    if taxware zip doesn't match with address zip, need to report mismatch by 
-    sending an email attach with cost center.
+    This procedure is to compare the Taxware Zip code with Address Zip code.
+     1.If there is no record in taxware for given cost center then do nothing.   
+     2.If taxware zip code does not match with address zip code then send an email.
+     3.If zip code in taxware with value as null and not matching with address 
+       zip code then send an email.	   
+     4.If zip code in taxware with value as NOT null and not matching with 
+       address zip code then send an email. 
+     5.If zip code in both tables as null then send an email.
 
 created : 04/22/2015 SXT410 CCN Project...
-revised : 
+revised :  
 *******************************************************************************/
     IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
 ); 
