@@ -66,3 +66,12 @@ Changed :
 *******************************************************************************/
 TABLE OF SD_FILTER_OBJECT_TYPE
 /
+
+/*******************************************************************************
+	We no longer need dual filters at the enquiry window level, so dropping the types
+
+Created : 04/16/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+DROP TYPE SD_FILTER_TABLE_TYPE;
+DROP TYPE SD_FILTER_OBJECT_TYPE;

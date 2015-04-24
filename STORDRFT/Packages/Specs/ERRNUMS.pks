@@ -121,5 +121,19 @@ exc_dup_store_draft_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_dup_store_draft_err , -20030);
 
+/*********************************************************** 
+The "wrong_filter_err" passes a numerical error of -20031.
+This error raises if the filtering options selected by user are wrong
+
+created : 04/16/2015 jxc517 CCN Project
+revisions: 
+
+************************************************************/
+en_wrong_filter_err CONSTANT NUMBER := -20031;
+exc_wrong_filter_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_wrong_filter_err , -20031);
+
+
 END errnums;
 

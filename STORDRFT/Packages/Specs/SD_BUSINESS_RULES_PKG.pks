@@ -3,11 +3,16 @@ create or replace PACKAGE SD_BUSINESS_RULES_PKG
 This package BODY will do the business rules validations:
   
 created : 06/30/2014 
-changed :
+changed : 04/16/2015 jxc517 CCN Project
+          Added global variables to store statement types based on their category
 ******************************************************************************/
 AS
 
-G_HISTORY_MONTHS     NUMBER := 18;
+G_HISTORY_MONTHS           NUMBER := 18;
+G_US_AUTO_STMNT_TYPES      VARCHAR2(500) := 'AU';
+G_CAN_NON_AUTO_STMNT_TYPES VARCHAR2(500) := 'CN,DC,QC';
+G_CAN_AUTO_STMNT_TYPES     VARCHAR2(500) := 'AC';
+--Anything apart from above statement types are US NON AUTOMOTIVE
 
 PROCEDURE SET_STORE_DRAFT_FLAGS(
 /*****************************************************************************

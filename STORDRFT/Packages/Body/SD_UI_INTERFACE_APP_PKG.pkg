@@ -190,52 +190,23 @@ PROCEDURE STORE_DRAFTS_FILTER_UI_SP (
   <ISSUE_DATE_END>05-18-2012</ISSUE_DATE_END>
   <TRANSACTION_CODE>13,19,31,82,94,98</TRANSACTION_CODE>
  </STORE_DRAFTS>
- <STORE_DRAFTS>
-  <STORE_DRAFT_INDICATOR>NONE/PAID/VOID/STOP/OPEN/MNL_DRFT</STORE_DRAFT_INDICATOR>
-  <COST_CENTER_CODE>701030</COST_CENTER_CODE>
-  <CHECK_SERIAL_NUMBER>0103032009</CHECK_SERIAL_NUMBER>
-  <CHECK_RANGE_START>0103032009</CHECK_RANGE_START>
-  <CHECK_RANGE_END>0103032124</CHECK_RANGE_END>
-  <TRANSACTION_DATE>03-30-2012</TRANSACTION_DATE>
-  <TRANSACTION_DATE_START>03-30-2012</TRANSACTION_DATE_START>
-  <TRANSACTION_DATE_END>05-18-2012</TRANSACTION_DATE_END>
-  <PAID_DATE_START>03-30-2012</PAID_DATE_START>
-  <PAID_DATE_END>05-18-2012</PAID_DATE_END>
-  <ISSUE_DATE_START>03-30-2012</ISSUE_DATE_START>
-  <ISSUE_DATE_END>05-18-2012</ISSUE_DATE_END>
-  <TRANSACTION_CODE>13,19,31,82,94,98</TRANSACTION_CODE>
- </STORE_DRAFTS>
  </<STORE_DRAFTS_UI_SP>
 
 Created : 10/27/2014 jxc517 CCN Project....
 Changed : 03/04/2015 jxc517 CCN Project....
           Modified code to handle multiple filters at the same time and return
           the concatenated result set along with the total records count
+Changed : 04/16/2015 jxc517 CCN Project....
+          Modified code as we won't need to return multiple result sets
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT REF_CURSOR)
 IS
-    V_XML   XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA).EXTRACT('/' || IN_TABLE_NAME ||'_UI_SP');
-    V_COUNT            NUMBER := 1; --this variable is used for 
-    V_FILTER_TABLE_CNT NUMBER := 0; --this variable is used as the object table items count
-    V_SD_FILTER_TABLE  SD_FILTER_TABLE_TYPE := SD_FILTER_TABLE_TYPE();
 BEGIN
-    --Loop through all the iterations as provided in the input XML
-    WHILE V_XML.EXISTSNODE('//'||IN_TABLE_NAME||'[' || V_COUNT || ']') = 1 LOOP
-        OUT_REF_CUR := NULL;
-        --For each iteration, execute the query and get the result into ref cursor
-        SD_UI_REPORTS_PKG.STORE_DRAFTS_FILTER_S_SP(IN_TABLE_NAME,
-                                                   V_XML.EXTRACT('//'||IN_TABLE_NAME||'[' || V_COUNT || ']').GETCLOBVAL(),
-                                                   OUT_REF_CUR);
-        V_COUNT := V_COUNT + 1;
-        --Populate the same into object table type from ref cursor
-        SD_UI_REPORTS_PKG.LOAD_FILTER_TABLE(OUT_REF_CUR,        --IN
-                                            V_FILTER_TABLE_CNT, --IN/OUT as the count is needed for next iteration
-                                            V_SD_FILTER_TABLE); --IN/OUT as the object keeps on getting extended by ref cursor results
-    END LOOP;
-    --finally return the result of the object as a ref cursor to UI along with the overall records count
-    OPEN OUT_REF_CUR FOR SELECT COUNT(*) OVER () RESULT_COUNT, A.* FROM TABLE(V_SD_FILTER_TABLE) A;
+    SD_UI_REPORTS_PKG.STORE_DRAFTS_FILTER_S_SP(IN_TABLE_NAME,
+                                               EXTRACT_TABLE_CLOB(IN_TABLE_NAME,IN_ROW_DATA),
+                                               OUT_REF_CUR);
 END STORE_DRAFTS_FILTER_UI_SP;
 
 PROCEDURE STORE_DRAFTS_DETAIL_UI_SP (
@@ -623,6 +594,7 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB)
 IS
     V_UPSERT_INDICATOR    VARCHAR2(1);
+    V_SEND_INDICATOR      VARCHAR2(1);
     V_CHECK_SERIAL_NUMBER STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE;
     V_STORE_DRAFTS_REC    STORE_DRAFTS%ROWTYPE;
     V_XML                 XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA).EXTRACT('/' || IN_TABLE_NAME ||'_UI_SP');
@@ -653,11 +625,14 @@ BEGIN
         SD_TABLE_IU_PKG.STORE_DRAFTS_I_SP(IN_TABLE_NAME,
                                           V_XML.EXTRACT('//'||IN_TABLE_NAME||'[' || V_COUNT || ']').GETCLOBVAL());
 
+        IF V_XML.EXISTSNODE('//'||IN_TABLE_NAME||'[' || V_COUNT || ']/SEND_INDICATOR/text()') = 1 THEN
+            V_SEND_INDICATOR   := NVL(UPPER(V_XML.EXTRACT('//'||IN_TABLE_NAME||'[' || V_COUNT || ']/SEND_INDICATOR/text()').GETSTRINGVAL()),'N');
+        END IF;
         SD_BANK_FILE_SENT_DETAILS_PKG.SD_BANK_FILE_SENT_DETAILS_I_SP('SD_BANK_FILE_SENT_DETAILS',
                                                                      '<SD_BANK_FILE_SENT_DETAILS>'||
                                                                      '<COST_CENTER_CODE>'||V_STORE_DRAFTS_REC.COST_CENTER_CODE||'</COST_CENTER_CODE>'||
                                                                      '<CHECK_SERIAL_NUMBER>'||V_CHECK_SERIAL_NUMBER||'</CHECK_SERIAL_NUMBER>'||
-                                                                     '<SEND_INDICATOR>Y</SEND_INDICATOR>'||
+                                                                     '<SEND_INDICATOR>'||NVL(V_SEND_INDICATOR,'N')||'</SEND_INDICATOR>'||
                                                                      '</SD_BANK_FILE_SENT_DETAILS>');
         V_COUNT := V_COUNT + 1;
     END LOOP;
