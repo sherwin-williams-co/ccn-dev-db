@@ -3,12 +3,17 @@
 # Description     : Script to FTP DRAFT.TRG file to the STDSSAPHQ server 
 #                   once the execution of GainLossJV script is completed. 
 # Created by/Date : AXK326 01/15/2015
-# Modified on/Date: 
+# Modified on/Date: AXK326 04/28/2015 
+#                   Added date parameter to pick date from the config file
 #######################################################################################
 
 . /app/stordrft/host.sh
 
+TIME=`date +"%H:%M:%S"`
+P1=${GAINLOSS_MNTLY_RUNDATE}
 proc_name="ftp_draft_trg"
+
+echo "Processing Started for $proc_name at ${TIME} for the date ${P1}"
 
 echo "" > DRAFT.TRG
 
@@ -29,15 +34,15 @@ echo " FTP Process Successful "
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+P1=${GAINLOSS_MNTLY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-     echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+     echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################

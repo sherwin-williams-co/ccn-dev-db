@@ -15,9 +15,10 @@
 proc="daily_paids_load"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc at $TIME on $DATE"
+CURRENT_TIME=`date +"%H%M%S"`
+P1=${DAILY_LOAD_RUNDATE}
+TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+echo "Processing Started for $proc at $TIME for the date $P1"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
@@ -34,15 +35,15 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+P1=${DAILY_LOAD_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################

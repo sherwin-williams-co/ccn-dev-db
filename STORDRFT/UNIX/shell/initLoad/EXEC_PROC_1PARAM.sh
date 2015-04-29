@@ -6,7 +6,7 @@
 #                 accepts proc name and week number as paratmers 1 and 2
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
-# Modified :
+# Modified : 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

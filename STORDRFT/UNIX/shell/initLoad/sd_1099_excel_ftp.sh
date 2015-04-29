@@ -13,10 +13,11 @@
 proc_name="sd_1099_excel_ftp"
 ARCHIVE=$HOME/dailyLoad/archieve/1099_excel
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+CURRENT_TIME=`date +"%H%M%S"`
+P1=${QTLY_1099_RUNDATE}
+TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME 
 
-date=`date +"%Y%m%d%H%M%S"`
+echo "Processing Started for $proc_name at $TIME for the date $P1"
 
 #Move to STORDRFT from where ever you are in
 cd $HOME/initLoad
@@ -34,22 +35,22 @@ cd $HOME/initLoad
 #FTP_MF
 
 #Archieve the bank files
-mv "Installer_1099_QRTLY" $ARCHIVE/Installer_1099_QRTLY"_"$date
+mv "Installer_1099_QRTLY" $ARCHIVE/Installer_1099_QRTLY"_"$TimeStamp
 echo "Installer_1099_QRTLY has been archieved to $ARCHIVE path"
 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+P1=${QTLY_1099_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################

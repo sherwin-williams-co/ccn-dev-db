@@ -3,7 +3,7 @@
 #
 # description   : AXK326 CCN PROJECT TEAM....
 #                 Wrapper for calling SQL load scripts, accepts file name <>.sql
-#
+# Modified      : 
 #################################################################
 # below command will get the path for fpr.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

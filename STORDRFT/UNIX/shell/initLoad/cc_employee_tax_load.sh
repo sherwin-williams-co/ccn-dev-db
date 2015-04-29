@@ -8,6 +8,8 @@
 # Modified : 10/10/2014 jxc517 CCN Project Team.....
 #            Modified to get the tax details from synonym in COSTCNTR schema instead of 
 #            synonym in STCPR_READ schema
+#          : 04/27/2015 axk326 CCN Project Team.....
+#            Substituted hard coded date value to pick the date value from config file
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -16,9 +18,10 @@ proc_name="cc_employee_tax_load"
 LOGDIR=$HOME/dailyLoad/logs
 FILE=cc_employee_tax_load_ddl.sql
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+CURRENT_TIME=`date +"%H%M%S"`
+P1=${DAILY_LOAD_RUNDATE}
+TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+echo "Processing Started for $proc_name at $TIME for the date $P1"
 
 if [ -f $FILE ];
 then
@@ -62,15 +65,15 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+P1=${DAILY_LOAD_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################

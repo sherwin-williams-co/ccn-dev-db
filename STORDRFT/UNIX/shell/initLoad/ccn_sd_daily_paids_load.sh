@@ -8,14 +8,16 @@
 # Created  : 11/05/2014 axk326 CCN Project Team.....
 # Modified : 11/06/2014 jxc517/axk326 CCN Project Team.....
 #            Added concatenation and archiving process before run
+#          : 04/27/2015 axk326 CCN Project Team.....
+#            Substituted hard coded date value to pick the date value from config file
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
 proc="ccn_sd_daily_paids_load"
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
-echo "Processing Started for $proc at $TIME on $DATE"
+P1=${DAILY_LOAD_RUNDATE}
+echo "Processing Started for $proc at $TIME for the date $P1"
 
 ##############################################################################
 # Run the shell script to concatenate the daily files and archiving the individual files
@@ -36,15 +38,15 @@ echo "Processing Started for $proc at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+P1=${DAILY_LOAD_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################

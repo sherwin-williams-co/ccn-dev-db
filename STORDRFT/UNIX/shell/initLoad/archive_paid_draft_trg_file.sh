@@ -14,23 +14,25 @@
 file="ARCHIVE_DRAFT_TRG_FILE"
 ARCHIVE_PATH="$HOME/Monthly/jv"
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m%d%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
+CURRENT_TIME=`date +"%H%M%S"`
+P1=${JV_MNTLY_RUNDATE}
+P2=`date -d $P1 +"%m%d%Y"`
+TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
 
-echo "Processing Started for $file at $TIME on $DATE"
+echo "Processing Started for $file at $TIME for the date $P1"
 
 # Control will output if $DIRECTORY exists.
-if [ -d "$ARCHIVE_PATH/"Draft"_"$DATE"" ]; then
+if [ -d "$ARCHIVE_PATH/"Draft"_"$P2"" ]; then
    echo " Directory exists "
 else
-  mkdir $ARCHIVE_PATH/"Draft"_"$DATE"
+  mkdir $ARCHIVE_PATH/"Draft"_"$P2"
 fi
 
 #Archive file for DRAFT.TRG file.
 if 
     ls DRAFT.TRG &> /dev/null; then
     echo " DRAFT.TRG file exist "
-    find -maxdepth 1 -name DRAFT.TRG -exec mv {} $ARCHIVE_PATH/"Draft"_"$DATE"/DRAFT"_"$TimeStamp.TRG \; > /dev/null 2>&1
+    find -maxdepth 1 -name DRAFT.TRG -exec mv {} $ARCHIVE_PATH/"Draft"_"$P2"/DRAFT"_"$TimeStamp.TRG \; > /dev/null 2>&1
 else
     echo " DRAFT.TRG file does not exists "
 fi
@@ -39,15 +41,15 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m%d%Y"`
+P1=${JV_MNTLY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $file at ${TIME} on ${DATE}"
+     echo "processing FAILED for $file at ${TIME} for the date ${P1}"
      exit 1;
 fi
 
-echo "Processing finished for $file at ${TIME} on ${DATE}"  
+echo "Processing finished for $file at ${TIME} for the date ${P1}"  
 
 exit 0
 ############################################################################
