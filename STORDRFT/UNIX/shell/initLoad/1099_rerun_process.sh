@@ -34,9 +34,9 @@ BEGIN
 	
 	
 	--This is monthly run that was ran on 01-Mar-2015
-	dbms_output.put_line ( 'Start rerun Monthly process for 15-Mar-2015'); 
+	dbms_output.put_line ( 'Start rerun Monthly process for 01-Mar-2015'); 
 		SD_FILE_BUILD_PKG.BUILD_1099_FILE('01-FEB-2015','N');
-	dbms_output.put_line ( 'End of rerun Monthly process for 15-Mar-2015' || CHR(10));
+	dbms_output.put_line ( 'End of rerun Monthly process for 01-Mar-2015' || CHR(10));
 	
 	--This is mid-monthly run that was ran on 15-Mar-2015
 	dbms_output.put_line ( 'Start rerun Mid-Monthly process for 15-Mar-2015'); 
@@ -45,9 +45,9 @@ BEGIN
 	
 	
 	--This is monthly run that was ran on 01-Apr-2015
-	dbms_output.put_line ( 'Start rerun Monthly process for 15-Apr-2015'); 
+	dbms_output.put_line ( 'Start rerun Monthly process for 01-Apr-2015'); 
 		SD_FILE_BUILD_PKG.BUILD_1099_FILE('01-MAR-2015','N');
-	dbms_output.put_line ( 'End of rerun Monthly process for 15-Apr-2015' || CHR(10));
+	dbms_output.put_line ( 'End of rerun Monthly process for 01-Apr-2015' || CHR(10));
 		
 	--This is mid-monthly run that was ran on 15-Apr-2015
 	dbms_output.put_line ( 'Start rerun Mid-Monthly process for 15-Apr-2015'); 
@@ -56,9 +56,9 @@ BEGIN
 	
 	
 	--This is monthly run that was ran on 01-May-2015
-	dbms_output.put_line ( 'Start rerun Monthly process for 15-May-2015'); 
+	dbms_output.put_line ( 'Start rerun Monthly process for 01-May-2015'); 
 		SD_FILE_BUILD_PKG.BUILD_1099_FILE('01-APR-2015','N');
-	dbms_output.put_line ( 'End of rerun Monthly process for 15-May-2015' || CHR(10));
+	dbms_output.put_line ( 'End of rerun Monthly process for 01-May-2015' || CHR(10));
 EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Process failed, please check');
