@@ -14,7 +14,7 @@
 
 proc=sd_ftp_gainloss_param_file
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+DATE=${GAINLOSS_MNTLY_RUNDATE}
 
 echo -e "\n Processing Started for $proc at $TIME on $DATE"
 
@@ -36,7 +36,6 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then
@@ -59,7 +58,6 @@ END_SCRIPT
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then

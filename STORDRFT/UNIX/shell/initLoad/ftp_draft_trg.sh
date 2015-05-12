@@ -10,10 +10,10 @@
 . /app/stordrft/host.sh
 
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
+DATE=${GAINLOSS_MNTLY_RUNDATE} 
 proc_name="ftp_draft_trg"
 
-echo "Processing Started for $proc_name at ${TIME} for the date ${P1}"
+echo "Processing Started for $proc_name at ${TIME} on ${DATE}"
 
 echo "" > DRAFT.TRG
 
@@ -34,15 +34,14 @@ echo " FTP Process Successful "
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-     echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+     echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

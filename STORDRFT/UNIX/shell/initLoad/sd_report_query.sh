@@ -15,11 +15,10 @@
 proc_name="sd_report_query"
 LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-P1=${SD_REPORT_QRY_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+DATE=${SD_REPORT_QRY_RUNDATE}
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo "Processing Started for $proc_name at $TIME for the date $P1"
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #############################################################
 # BELOW PROCESS WILL TRUNCATE CCN_HIERARCHY_INFO TABLE AND PULL
@@ -28,14 +27,14 @@ echo "Processing Started for $proc_name at $TIME for the date $P1"
 #############################################################
 ./ccn_hierarchy_info.sh
 
-echo "START SD Report Query : Processing Started at $TIME for the date $P1"
+echo "START SD Report Query : Processing Started at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-exec SD_REPORT_PKG.sd_report_query(to_date('$P1','MM/DD/YYYY'));
+exec SD_REPORT_PKG.sd_report_query(to_date('$DATE','MM/DD/YYYY'));
 
 exit;
 END
@@ -47,15 +46,14 @@ echo "END SD Report Query : Processing finished at ${TIME}"
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${SD_REPORT_QRY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

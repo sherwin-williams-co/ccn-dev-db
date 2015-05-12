@@ -6,7 +6,7 @@
 #
 # Created  : 12/08/2014 jxc517 CCN Project Team.....
 # Modified : 04/27/2015 axk326 CCN Project Team.....
-#            Substituted hard coded date value to pick the date value from config file
+#            Substituted hard coded date value with the date value from date_param.config file
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -14,10 +14,9 @@
 proc="daily_paids_load_correction"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-P1=${DAILY_LOAD_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
-echo "Processing Started for $proc at $TIME for the date $P1"
+DATE=${DAILY_LOAD_RUNDATE} 
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+echo "Processing Started for $proc at $TIME on $DATE"
 
 find $HOME/dailyLoad/archieve/drafts -name STBD0601_ROYALBNK_PAID2.TXT -print0 | xargs -0 -I file cat file > $HOME/initLoad/STBD0601_ROYALBNK_PAID2.TXT
 
@@ -132,15 +131,14 @@ rm -f $HOME/initLoad/STBD0601_ROYALBNK_PAID2.TXT
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${DAILY_LOAD_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

@@ -23,20 +23,19 @@ proc_name1="ftp_draft_trg"
 proc_name2="ARC_DRAFT_TRG_FILE"
 LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+DATE=${GAINLOSS_MNTLY_RUNDATE}
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo "Processing Started for $proc_name at $TIME for the date $P1"
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
-echo "START GAIN LOSS JV Query : Processing Started at $TIME for the date $P1"
+echo "START GAIN LOSS JV Query : Processing Started at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$P1','MM/DD/YYYY'));
+exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$DATE','MM/DD/YYYY'));
 
 exit;
 END
@@ -48,15 +47,14 @@ echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 ###############################################################################
 
@@ -65,10 +63,9 @@ echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"
 # to STDSSAPHQ server.
 ###############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME for the date $P1"
+echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
 ./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
@@ -79,10 +76,9 @@ echo -e "\nEND ftp_draft_trg.sh : Processing finished at $TIME"
 # to Monthly Jv folder.
 ###############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
+TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME for the date $P1"
+echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE"
 ./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
@@ -92,15 +88,14 @@ echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${GAINLOSS_MNTLY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name1 at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name1 at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

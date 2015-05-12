@@ -14,15 +14,11 @@
 proc_name="ccn_hierarchy_info"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-P1=${SD_REPORT_QRY_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME 
-echo "Processing Started for $proc_name at $TIME for the date $P1"
+DATE=`date -d ${SD_REPORT_QRY_RUNDATE} +"%m%d%Y"`
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
-TIME=`date +"%H:%M:%S"`
-P1=${SD_REPORT_QRY_RUNDATE}
-
-echo " START TRUCATING AND LOADING : Process Started at $TIME for the date $P1 "
+echo " START TRUCATING AND LOADING : Process Started at $TIME on $DATE "
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
@@ -38,15 +34,14 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${SD_REPORT_QRY_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

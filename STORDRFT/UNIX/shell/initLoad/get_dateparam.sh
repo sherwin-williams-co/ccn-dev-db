@@ -28,12 +28,7 @@ undefine newline_char
 column "Newline Character" clear
 set recsep each
 
-spool $HOME/date_param.config
-
-select 'export ORACLE_HOME=/swpkg/oracle/product/stccn/11.2.0.3',
-       'export ORACLE_SID=STCCND1',
-       'export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:/swpkg/oracle/product/stccn/11.2.0.3/bin',
-       'export HOME=/app/stordrft/dev' from dual;
+spool $HOME/date_param_temp.config
 
 SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
        'PL_GAIN_RUNDATE='||To_char(PL_GAIN_RUNDATE, 'mm/dd/yyyy'),
@@ -44,18 +39,21 @@ SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
        'MNTLY_1099_RUNDATE='||To_char(MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
        'MID_MNTLY_1099_RUNDATE='||To_char(MID_MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
 	   'DAILY_PREV_RUNDATE='||TO_char(DAILY_PREV_RUNDATE, 'mm/dd/yyyy')
-  FROM STOREDRFT_PARAM;  
+  FROM STOREDRFT_PARAM;
 
 spool off
 exit;
 
 END
 
+cd $HOME
+
+mv -f date_param_temp.config date_param.config
+
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then

@@ -7,7 +7,7 @@
 #
 # Created  : 11/06/2014 jxc517 CCN Project Team.....
 # Modified : 04/27/2015 axk326 CCN Project Team.....
-#            Substituted hard coded date value to pick the date value from config file
+#            Substituted hard coded date value with the date value from date_param.config file
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -16,15 +16,14 @@ proc_name="Archive_dailyLoad_Paids"
 CUR_PATH="$HOME/initLoad"
 ARCHIVE_PATH="$HOME/dailyLoad/archieve/drafts"
 TIME=`date +"%H:%M:%S"`
-P1=${DAILY_LOAD_RUNDATE}
-P2=`date -d $P1 +"%m%d%Y"`
-echo "Processing Started for $proc_name at $TIME for the date $P1"
+DATE=`date -d ${DAILY_LOAD_RUNDATE} +"%m%d%Y"`
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 # Control will output if $DIRECTORY exists.
-if [ -d "$ARCHIVE_PATH/"dailyLoad"_"$P2"" ]; then
+if [ -d "$ARCHIVE_PATH/"dailyLoad"_"$DATE"" ]; then
    echo " Directory exists "
 else
-  mkdir $ARCHIVE_PATH/"dailyLoad"_"$P2"
+  mkdir $ARCHIVE_PATH/"dailyLoad"_"$DATE"
 fi
 
 cd $CUR_PATH
@@ -32,7 +31,7 @@ cd $CUR_PATH
 if 
     ls STBD0101_PAID_*.TXT &> /dev/null; then
     echo " suntrust paid files exist "
-    find -maxdepth 1 -name STBD0101_PAID_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$P2" \; > /dev/null 2>&1
+    find -maxdepth 1 -name STBD0101_PAID_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " suntrust paid files doesn't exists "
 fi
@@ -41,7 +40,7 @@ fi
 if 
     ls STBD0601_PAID_*.TXT &> /dev/null; then
     echo " royal paid files exist "
-    find -maxdepth 1 -name STBD0601_PAID_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$P2" \; > /dev/null 2>&1
+    find -maxdepth 1 -name STBD0601_PAID_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
 else
     echo " royal paid files doesn't exists "
 fi
@@ -53,15 +52,14 @@ cd $HOME/dailyLoad
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${DAILY_LOAD_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

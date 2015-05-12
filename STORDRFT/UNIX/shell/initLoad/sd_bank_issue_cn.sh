@@ -16,18 +16,17 @@
 proc_name="sd_bank_issue_cn"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-P1=${DAILY_PREV_RUNDATE}
-TimeStamp=`date -d $P1 +"%Y%m%d"`$CURRENT_TIME
-echo "Processing Started for $proc_name at $TIME for the date $P1"
+DATE=${DAILY_PREV_RUNDATE} 
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set serveroutput on;
 set verify off;
 
-exec SD_BANKFILES_PKG.CREATE_CAN_NONAUTO_FILE(to_date('$P1','MM/DD/YYYY'));
-exec SD_BANKFILES_PKG.CREATE_CAN_AUTO_FILE(to_date('$P1','MM/DD/YYYY'));
+exec SD_BANKFILES_PKG.CREATE_CAN_NONAUTO_FILE(to_date('$DATE','MM/DD/YYYY'));
+exec SD_BANKFILES_PKG.CREATE_CAN_AUTO_FILE(to_date('$DATE','MM/DD/YYYY'));
 
 exit;
 END
@@ -36,15 +35,14 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-P1=${DAILY_PREV_RUNDATE}
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} for the date ${P1}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} for the date ${P1}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################
