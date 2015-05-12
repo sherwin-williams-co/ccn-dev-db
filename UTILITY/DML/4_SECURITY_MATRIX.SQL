@@ -73,3 +73,8 @@ COMMIT;
 INSERT INTO SECURITY_MATRIX VALUES('gxn983','gxn983','CCNU1');
 INSERT INTO SECURITY_MATRIX VALUES('ccr88d','ccr88d','CCNU1');
 COMMIT;
+
+--Below script will add axt720, ncj812 users to a new role code CCNUS2 to select, as they need access to ccn employee window 
+
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('axt720','axt720','CCNUS2');
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('ncj812','ncj812','CCNUS2');
