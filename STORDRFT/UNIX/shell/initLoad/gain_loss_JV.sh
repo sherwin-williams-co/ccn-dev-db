@@ -8,15 +8,11 @@
 # Modified : 01/14/2015 sxt410 Added get_param.sh to spool closing date.
 #            01/16/2015 axk326.....
 #            Added code to invoke DRAFT.TRG file to be placed on the remote server when the GainLoass_JV process is completed
-#          : 04/23/2015 axk326 CCN Project Team.....
-#            Added call for date_host.sh file to pick up date_param.config file and to pull out the run date 
-#            Added call for get_dateparam.sh to spool the dates to date_param.config file
+#          : 04/27/2015 axk326 CCN Project Team.....
+#            Substituted hard coded date value with the date value from date_param.config file
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
-
-#below command will create param.lst file by spooling closing date from storedrft_jv_param table.
-#. /$HOME/initLoad/get_dateparam.sh
 
 proc_name="gain_loss_JV"
 proc_name1="ftp_draft_trg"

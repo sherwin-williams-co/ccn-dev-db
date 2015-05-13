@@ -14,7 +14,7 @@
 
 proc=sd_ftp_gainloss_param_file
 TIME=`date +"%H:%M:%S"`
-DATE=${GAINLOSS_MNTLY_RUNDATE}
+DATE=`date +"%m/%d/%Y"`
 
 echo -e "\n Processing Started for $proc at $TIME on $DATE"
 

@@ -16,7 +16,7 @@
 proc_name="sd_bank_issue_cn"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_PREV_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE} 
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 

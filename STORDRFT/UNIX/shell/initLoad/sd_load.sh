@@ -20,7 +20,7 @@ proc=sd_load
 # 2)    lOAD THE STORE_DRAFT_REPORT TABLE
 #############################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+DATE=${SD_REPORT_QRY_RUNDATE}
 
 echo "START sd_report_query.sh : Processing Started at $TIME on $DATE"
 ./sd_report_query.sh
@@ -33,7 +33,7 @@ echo "END sd_report_query.sh : Processing finished at $TIME on $DATE"
 #############################################################
 
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+DATE=${GAINLOSS_MNTLY_RUNDATE}
 
 echo "START gain_loss_JV.sh : Processing Started at $TIME on $DATE"
 ./gain_loss_JV.sh
@@ -46,7 +46,6 @@ echo "END gain_loss_JV.sh : Processing finished at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then

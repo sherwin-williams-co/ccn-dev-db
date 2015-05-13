@@ -15,7 +15,7 @@ TIME=`date +"%H:%M:%S"`
 CURRENT_TIME=`date +"%H%M%S"`
 DATE=`date -d ${MNTLY_1099_RUNDATE} +"%m/%d/%Y"`
 dbfile1099=1099_MONTHLY_*
-appfile1099=`date -d $DATE +"STINSINV01%Y%m%d"$CURRENT_TIME".TXT"`
+appfile1099=`date -d ${MNTLY_1099_RUNDATE} +"STINSINV01%Y%m%d"$CURRENT_TIME".TXT"`
 
 echo "Processing Started for $proc at ${TIME} on ${DATE}"
 
