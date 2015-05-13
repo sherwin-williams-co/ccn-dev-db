@@ -14,7 +14,7 @@
 proc_name="ccn_hierarchy_info"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-DATE=`date -d ${SD_REPORT_QRY_RUNDATE} +"%m%d%Y"`
+DATE=${SD_REPORT_QRY_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 

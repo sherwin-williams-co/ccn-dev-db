@@ -15,7 +15,7 @@
 
 proc_name="DLY_DRAFT_CAN_AM"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
 

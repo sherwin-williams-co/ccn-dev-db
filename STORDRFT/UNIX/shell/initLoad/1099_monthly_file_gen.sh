@@ -16,7 +16,7 @@
 proc="1099_monthly_file_gen"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${MNTLY_1099_RUNDATE} 
+DATE=${MNTLY_1099_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"

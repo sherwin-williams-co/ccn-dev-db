@@ -14,7 +14,7 @@
 proc_name="sd_1099_excel"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${QTLY_1099_RUNDATE} 
+DATE=${QTLY_1099_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 

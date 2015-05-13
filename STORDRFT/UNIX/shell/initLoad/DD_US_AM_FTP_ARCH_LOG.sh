@@ -17,7 +17,7 @@ proc_name="DD_US_AM_FTP_ARCH_LOG"
 proc_name1="DD_US_AM_FTP_ARCH"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 FILE_NAME=DLY_DRAFT_US_AM
 

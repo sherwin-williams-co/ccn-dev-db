@@ -18,8 +18,7 @@ proc_name="cc_employee_tax_load"
 LOGDIR=$HOME/dailyLoad/logs
 FILE=cc_employee_tax_load_ddl.sql
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 

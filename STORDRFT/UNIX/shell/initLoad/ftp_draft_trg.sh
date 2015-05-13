@@ -10,7 +10,7 @@
 . /app/stordrft/host.sh
 
 TIME=`date +"%H:%M:%S"`
-DATE=${GAINLOSS_MNTLY_RUNDATE} 
+DATE=${GAINLOSS_MNTLY_RUNDATE}
 proc_name="ftp_draft_trg"
 
 echo "Processing Started for $proc_name at ${TIME} on ${DATE}"

@@ -1,7 +1,7 @@
 #!/bin/sh
 #######################################################################################
-# Description     : Script to FTP PAID_DRAFT.TRG file to the STDSSAPHQ server 
-#                   once the execution of JV_monthly_load.sh scripts is completed. 
+# Description     : Script to FTP dbfile1099 file to the swerp_host server 
+#                   once the execution of 1099 monthly process is completed. 
 # Created         : 04/22/2015 jxc517 Store Drafts Project....
 # Modified        : 04/27/2015 axk326 CCN Project Team.....
 #                   Substituted hard coded date value with the date value from date_param.config file

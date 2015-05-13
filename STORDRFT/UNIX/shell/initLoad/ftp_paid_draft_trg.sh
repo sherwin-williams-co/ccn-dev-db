@@ -13,7 +13,7 @@
 
 File="FTP_DRAFT.TRG"
 TIME=`date +"%H:%M:%S"`
-DATE=${JV_MNTLY_RUNDATE} 
+DATE=${JV_MNTLY_RUNDATE}
 
 echo -n "" > DRAFT.TRG
 

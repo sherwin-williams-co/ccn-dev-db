@@ -14,7 +14,7 @@
 proc_name="sd_1099_excel_ftp"
 ARCHIVE=$HOME/dailyLoad/archieve/1099_excel
 TIME=`date +"%H:%M:%S"`
-DATE=${QTLY_1099_RUNDATE} 
+DATE=${QTLY_1099_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"

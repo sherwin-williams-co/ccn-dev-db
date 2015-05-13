@@ -13,7 +13,7 @@
 
 proc_name="dailyLoad_CAT_Paids"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 cd $HOME/initLoad

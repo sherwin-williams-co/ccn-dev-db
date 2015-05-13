@@ -39,7 +39,6 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
 if test $status -ne 0
 then

@@ -14,7 +14,7 @@
 proc_name="DMD_US_AM_FTP_ARCH"
 ARCHIVE=$HOME/dailyLoad/archieve/Maintenance
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"

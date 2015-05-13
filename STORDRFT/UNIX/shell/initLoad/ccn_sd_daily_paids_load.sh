@@ -16,7 +16,7 @@
 
 proc="ccn_sd_daily_paids_load"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 echo "Processing Started for $proc at $TIME on $DATE"
 
 ##############################################################################
