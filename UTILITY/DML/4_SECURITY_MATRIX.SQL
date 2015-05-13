@@ -78,3 +78,11 @@ COMMIT;
 
 Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('axt720','axt720','CCNUS2');
 Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('ncj812','ncj812','CCNUS2');
+
+--Removing the role code CCNUS2 for user 'axt720','ncj812'
+SELECT * FROM SECURITY_MATRIX WHERE USER_ID IN ('axt720','ncj812') AND ROLE_CODE = 'CCNUS2';
+--2 Row(s) Selected
+DELETE FROM SECURITY_MATRIX WHERE USER_ID IN ('axt720','ncj812') AND ROLE_CODE = 'CCNUS2';
+--2 Row(s) Deleted
+
+COMMIT;
