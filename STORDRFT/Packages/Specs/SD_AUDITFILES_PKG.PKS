@@ -8,6 +8,9 @@ CREATED : 08/12/2014 AXK326
 
 REVISIONS: 11/13/2014 AXK326 
            Made changes to cursor and also procedures name for automotive and non automotive 
+
+REVISIONS: 05/20/2015 NXK927 
+                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
 ********************************************************************************************/
 AS
 
@@ -17,7 +20,8 @@ TYPE SD_CURSOR_AU_NAU_REC_TYPE IS RECORD(
     CHECK_SERIAL_NUMBER  STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
     BANK_NUMBER          STORE_DRAFTS.BANK_NUMBER%TYPE,
     ISSUE_DATE           STORE_DRAFTS.ISSUE_DATE%TYPE,
-    CHECK_DATE           VARCHAR2(6),
+    check_date           varchar2(6),
+    amount_change_date STORE_DRAFTS.amount_change_date%TYPE,
     BANK_PAID_AMOUNT     NUMBER,
     NET_AMOUNT           NUMBER,
     ITEM_EXT_AMOUNT      NUMBER,
@@ -56,6 +60,8 @@ VOIDS, STOP PAYS AND REMOVE STOP PAYS
 CREATED : 08/12/2014 AXK326 
 REVISIONS: 11/13/2014 AXK326 
            Made changes to cursor and also procedures name for automotive and non automotive 
+REVISIONS: 05/20/2015 NXK927 
+                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
 
 *****************************************************************************/
 (IN_DATE IN DATE)
@@ -71,6 +77,8 @@ VOIDS, STOP PAYS AND REMOVE STOP PAYS
 CREATED : 08/12/2014 AXK326 
 REVISIONS: 11/13/2014 AXK326 
            Made changes to cursor and also procedures name for automotive and non automotive 
+REVISIONS: 05/20/2015 NXK927 
+                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
 
 *****************************************************************************/
 (IN_DATE IN DATE)
