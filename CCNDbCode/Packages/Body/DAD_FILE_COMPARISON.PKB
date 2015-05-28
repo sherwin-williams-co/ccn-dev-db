@@ -1,0 +1,45 @@
+--------------------------------------------------------
+--  File created - Wednesday-May-27-2015   
+--------------------------------------------------------
+--------------------------------------------------------
+--  DDL for Package Body DAD_FILE_COMPARISON
+--------------------------------------------------------
+
+  CREATE OR REPLACE PACKAGE BODY "COSTCNTR"."DAD_FILE_COMPARISON" 
+AS
+
+PROCEDURE DAD_VALIDATION_I_SP
+/******************************************************************
+DAD_VALIDATION_I_SP
+This procedure is used to TRUNCATE and LOAD the DAD_VALIDATION table 
+from the temp table TEMP_DAD_VALIDATION when ever comparison file is 
+placed on the ccn db server by the mainframe
+created : 05/15/2015 AXK326 CCN Project....
+changed :
+******************************************************************/
+
+IS
+  CURSOR DAD_CUR
+  IS
+    SELECT * FROM TEMP_DAD_VALIDATION;
+    V_COMMIT NUMBER := 0;
+BEGIN
+  EXECUTE IMMEDIATE 'TRUNCATE TABLE DAD_VALIDATION';
+  COMMIT;
+  FOR DAD_REC IN DAD_CUR
+  LOOP
+    BEGIN
+      INSERT INTO DAD_VALIDATION VALUES DAD_REC;
+      V_COMMIT   := V_COMMIT + 1;
+      IF V_COMMIT > 500 THEN
+        COMMIT;
+        V_COMMIT := 0;
+      END IF;
+    END;
+  END LOOP;
+  COMMIT;
+END DAD_VALIDATION_I_SP ;
+
+END DAD_FILE_COMPARISON;
+
+/
