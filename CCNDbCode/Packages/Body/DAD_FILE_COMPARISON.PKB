@@ -1,11 +1,4 @@
---------------------------------------------------------
---  File created - Wednesday-May-27-2015   
---------------------------------------------------------
---------------------------------------------------------
---  DDL for Package Body DAD_FILE_COMPARISON
---------------------------------------------------------
-
-  CREATE OR REPLACE PACKAGE BODY "COSTCNTR"."DAD_FILE_COMPARISON" 
+CREATE OR REPLACE PACKAGE BODY "COSTCNTR"."DAD_FILE_COMPARISON" 
 AS
 
 PROCEDURE DAD_VALIDATION_I_SP
@@ -42,4 +35,3 @@ END DAD_VALIDATION_I_SP ;
 
 END DAD_FILE_COMPARISON;
 
-/
