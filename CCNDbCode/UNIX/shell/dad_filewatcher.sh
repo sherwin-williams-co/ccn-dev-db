@@ -25,7 +25,7 @@ do
 	  find -name STFF1002_\*.TXT -exec mv {} "STFF1002.TXT" \; > /dev/null 2>&1
 	  cd $dad_path
       ./ccn_dad_load_process.sh
-	 #./ccn_dad_archive.sh
+	  ./ccn_dad_archive.sh
    fi
 done
 
