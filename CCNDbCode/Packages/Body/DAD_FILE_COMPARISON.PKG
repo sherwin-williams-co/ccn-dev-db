@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY DAD_FILE_COMPARISON
+create or replace PACKAGE BODY DAD_FILE_COMPARISON 
 AS
 
 PROCEDURE DAD_VALIDATION_I_SP
@@ -32,5 +32,106 @@ BEGIN
   END LOOP;
   COMMIT;
 END DAD_VALIDATION_I_SP ;
+
+PROCEDURE DAD_COMPARISON_FILE_SP
+/*****************************************************************************
+	DAD_COMPARISON_FILE_SP
+
+THIS PROCEDURE WILL BUILD THE DAD COMPARISON FILE
+
+CREATED : 06/02/2015 AXK326 CCN Project.... 
+REVISION: 
+
+*****************************************************************************/
+IS
+  V_CLOB     CLOB;    
+  BEGIN
+    FOR REC IN 
+         (SELECT C.COST_CENTER_CODE,
+          '0'||SUBSTR(DV.VALUE,5,1)||'-0'||SUBSTR(DV.VALUE,6,1)||'-'||SUBSTR(DV.VALUE,7,2) DAD_GIVEN,
+          C.DAD_ACTUAL,
+          DECODE('0'||SUBSTR(DV.VALUE,5,1)||'-0'||SUBSTR(DV.VALUE,6,1)||'-'||SUBSTR(DV.VALUE,7,2),
+                 C.DAD_ACTUAL,
+                 'Matched',
+                 'Unmatched') DAD,
+          SUBSTR(DV.VALUE,9,1) POLLING_GIVEN,
+          NVL((SELECT POLLING_STATUS_CODE 
+                 FROM POLLING 
+                WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+                  AND CURRENT_FLAG = 'Y'
+                  AND ROWNUM < 2),'I') POLLING_ACTUAL,
+          DECODE(SUBSTR(DV.VALUE,9,1),
+                 NVL((SELECT POLLING_STATUS_CODE 
+                        FROM POLLING 
+                       WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+                         AND CURRENT_FLAG = 'Y'
+                         AND ROWNUM < 2),'I'),
+                'Matched',
+                'Unmatched') POLLING_STATUS,
+           SUBSTR(DV.VALUE,10,3) CURRENCY_GIVEN,
+           (SELECT CURRENCY_CODE 
+              FROM COST_CENTER
+             WHERE COST_CENTER_CODE = C.COST_CENTER_CODE) CURRENCY_ACTUAL,
+           DECODE(NVL(SUBSTR(DV.VALUE,10,3),'XXX'),
+           (SELECT CURRENCY_CODE 
+              FROM COST_CENTER
+             WHERE COST_CENTER_CODE = C.COST_CENTER_CODE),
+             'Matched',
+             'Unmatched') CURRENCY_CODE,
+            (SELECT DECODE(CLOSE_DATE,NULL,'ACTIVE','INACTIVE')
+               FROM COST_CENTER 
+              WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+                AND ROWNUM < 2)ACTIVE_INACTIVE,
+            (SELECT DECODE(CATEGORY,NULL,'Unknown',CATEGORY)
+               FROM COST_CENTER 
+              WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+                AND ROWNUM < 2) CATEGORY,
+            SUBSTR(DV.VALUE,13,3)LEGACY_DIVISION_GIVEN,
+            C.LEGACY_DIVISION_ACTUAL,
+            DECODE(SUBSTR(DV.VALUE,13,3),
+                   C.LEGACY_DIVISION_ACTUAL,
+                   'Matched',
+                   'Unmatched')LEGACY_DIVISION_STATUS
+      FROM DAD_VALIDATION DV,
+           (SELECT NVL(GH.COST_CENTER_CODE, LD.COST_CENTER_CODE) COST_CENTER_CODE,
+                   NVL(GH.DAD_ACTUAL, LD.DAD_ACTUAL) DAD_ACTUAL,
+                   NVL(GH.LEGACY_DIVISION, LD.LEGACY_DIVISION)LEGACY_DIVISION_ACTUAL
+              FROM (SELECT COST_CENTER_CODE, 
+                           DIVISION||'-'||AREA||'-'||DISTRICT DAD_ACTUAL,
+                           LEGACY_DIVISION
+                      FROM HIERARCHY_DETAIL_VIEW HDV
+                     WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY')GH
+           FULL OUTER JOIN
+           (SELECT COST_CENTER_CODE, 
+                   DIVISION||'-'||AREA||'-'||DISTRICT DAD_ACTUAL,
+                   LEGACY_DIVISION
+              FROM HIERARCHY_DETAIL_VIEW HDV1
+             WHERE HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION')LD
+         ON GH.COST_CENTER_CODE = LD.COST_CENTER_CODE)C
+      WHERE SUBSTR(DV.VALUE,1,4) = SUBSTR(C.COST_CENTER_CODE,3))
+        LOOP        
+            V_CLOB := V_CLOB 
+                      ||''''||REC.COST_CENTER_CODE ||''''||','
+                      ||''''||REC.DAD_GIVEN||''''||','
+                      ||''''||REC.DAD_ACTUAL||''''||','
+                      ||REC.DAD||','
+                      ||REC.POLLING_GIVEN||','
+                      ||REC.POLLING_ACTUAL||','
+                      ||REC.POLLING_STATUS||','
+                      ||REC.CURRENCY_GIVEN||','
+                      ||REC.CURRENCY_ACTUAL||','
+                      ||REC.CURRENCY_CODE||','
+                      ||REC.ACTIVE_INACTIVE||','
+                      ||REC.CATEGORY||','
+                      ||REC.LEGACY_DIVISION_GIVEN||','
+                      ||REC.LEGACY_DIVISION_ACTUAL||','
+                      ||REC.LEGACY_DIVISION_STATUS|| CHR(10);
+        END LOOP;
+   
+    IF V_CLOB <> EMPTY_CLOB() THEN
+       MAIL_PKG.SEND_MAIL('DAD_COMPARISON_FILE', null, null, V_CLOB);
+    END IF;	
+    
+END DAD_COMPARISON_FILE_SP;
 
 END DAD_FILE_COMPARISON;

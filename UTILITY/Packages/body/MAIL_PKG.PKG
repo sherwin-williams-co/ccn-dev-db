@@ -1,5 +1,49 @@
 create or replace PACKAGE BODY mail_pkg AS
 
+PROCEDURE WRITE_CLOB(
+/******************************************************************************
+This procedure will create file on server and dump the passed BLOB data Into the file created
+
+IN_CONNECTION - The connection string to write/attach the email to
+IN_CLOB       - The attachment data
+
+created : 06/03/2015 jxc517 CCN Project....
+Modified: 
+******************************************************************************/
+IN_OUT_CONNECTION  IN OUT   UTL_SMTP.connection,
+IN_CLOB            IN       CLOB)
+IS
+    -- Define output file directory
+    V_LENGTH          NUMBER := DBMS_LOB.GETLENGTH(IN_CLOB);
+    V_START           NUMBER := 1;
+    V_BYTE_LENGTH     NUMBER := 32000;
+    V_TEMP_LENGTH     NUMBER;
+    V_TEMP_CLOB       CLOB;
+BEGIN
+    -- Save blob length in temporary variable
+    V_TEMP_LENGTH := V_LENGTH;
+    
+    IF V_LENGTH < 32760 THEN
+        UTL_SMTP.write_data(IN_OUT_CONNECTION, IN_CLOB);
+    ELSE -- write in pieces
+        V_START := 1;
+        WHILE V_START < V_LENGTH AND V_BYTE_LENGTH > 0 LOOP
+            DBMS_LOB.READ(IN_CLOB,
+                          V_BYTE_LENGTH,
+                          V_START,
+                          V_TEMP_CLOB);
+            UTL_SMTP.write_data(IN_OUT_CONNECTION, V_TEMP_CLOB);
+            -- Set the start position for the next cut
+            V_START       := V_START + V_BYTE_LENGTH;
+            -- Set the end position if less than 32000 bytes
+            V_TEMP_LENGTH := V_TEMP_LENGTH - V_BYTE_LENGTH;
+            IF V_TEMP_LENGTH < 32000 THEN
+                V_BYTE_LENGTH := V_TEMP_LENGTH;
+            END IF;
+        END LOOP;
+    END IF;   
+END WRITE_CLOB;
+
 PROCEDURE SEND_MAIL( 
 /**********************************************************
 SEND_MAIL
@@ -54,71 +98,6 @@ IS
    V_WRONG_CAT_COUNT NUMBER := 0;
    V_message     VARCHAR2(4000);
    V_ENVIRONMENT VARCHAR2(100);
-  
-   CURSOR DAD_CUR
-   IS
-   SELECT C.COST_CENTER_CODE,
-                             '0'||SUBSTR(DV.VALUE,5,1)||'-0'||SUBSTR(DV.VALUE,6,1)||'-'||SUBSTR(DV.VALUE,7,2) DAD_GIVEN,
-                             C.DAD_ACTUAL,
-                             DECODE('0'||SUBSTR(DV.VALUE,5,1)||'-0'||SUBSTR(DV.VALUE,6,1)||'-'||SUBSTR(DV.VALUE,7,2),
-                                    C.DAD_ACTUAL,
-                                    'Matched',
-                                    'Unmatched') DAD,
-                             SUBSTR(DV.VALUE,9,1) POLLING_GIVEN,
-                             NVL((SELECT POLLING_STATUS_CODE 
-                                    FROM POLLING 
-                                   WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
-                                     AND CURRENT_FLAG = 'Y'
-                                     AND ROWNUM < 2),'I') POLLING_ACTUAL,
-                             DECODE(SUBSTR(DV.VALUE,9,1),
-                                    NVL((SELECT POLLING_STATUS_CODE 
-                                           FROM POLLING 
-                                          WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
-                                            AND CURRENT_FLAG = 'Y'
-                                            AND ROWNUM < 2),'I'),
-                                    'Matched',
-                                    'Unmatched') POLLING_STATUS,
-                             SUBSTR(DV.VALUE,10,3) CURRENCY_GIVEN,
-                             (SELECT CURRENCY_CODE 
-                                FROM COST_CENTER
-                               WHERE COST_CENTER_CODE = C.COST_CENTER_CODE) CURRENCY_ACTUAL,
-                             DECODE(NVL(SUBSTR(DV.VALUE,10,3),'XXX'),
-                                   (SELECT CURRENCY_CODE 
-                                      FROM COST_CENTER
-                                     WHERE COST_CENTER_CODE = C.COST_CENTER_CODE),
-                                   'Matched',
-                                   'Unmatched') CURRENCY_CODE,
-                             (SELECT DECODE(CLOSE_DATE,NULL,'ACTIVE','INACTIVE')
-                                FROM COST_CENTER 
-                               WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
-                                 AND ROWNUM < 2)ACTIVE_INACTIVE,
-                             (SELECT DECODE(CATEGORY,NULL,'Unknown',CATEGORY)
-                                FROM COST_CENTER 
-                               WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
-                                 AND ROWNUM < 2) CATEGORY,
-                             SUBSTR(DV.VALUE,13,3)LEGACY_DIVISION_GIVEN,
-                             C.LEGACY_DIVISION_ACTUAL,
-                             DECODE(SUBSTR(DV.VALUE,13,3),
-                                    C.LEGACY_DIVISION_ACTUAL,
-                                    'Matched',
-                                    'Unmatched')LEGACY_DIVISION_STATUS
-                        FROM DAD_VALIDATION DV,
-                             (SELECT NVL(GH.COST_CENTER_CODE, LD.COST_CENTER_CODE) COST_CENTER_CODE,
-                                     NVL(GH.DAD_ACTUAL, LD.DAD_ACTUAL) DAD_ACTUAL,
-                                     NVL(GH.LEGACY_DIVISION, LD.LEGACY_DIVISION)LEGACY_DIVISION_ACTUAL
-                                FROM (SELECT COST_CENTER_CODE, 
-                                             DIVISION||'-'||AREA||'-'||DISTRICT DAD_ACTUAL,
-                                             LEGACY_DIVISION
-                                        FROM HIERARCHY_DETAIL_VIEW HDV
-                                       WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY')GH
-                             FULL OUTER JOIN
-                                     (SELECT COST_CENTER_CODE, 
-                                             DIVISION||'-'||AREA||'-'||DISTRICT DAD_ACTUAL,
-                                             LEGACY_DIVISION
-                                        FROM HIERARCHY_DETAIL_VIEW HDV1
-                                       WHERE HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION')LD
-                                  ON GH.COST_CENTER_CODE = LD.COST_CENTER_CODE)C
-                      WHERE SUBSTR(DV.VALUE,1,4) = SUBSTR(C.COST_CENTER_CODE,3);
 
 BEGIN
 
@@ -308,7 +287,7 @@ BEGIN
          UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'DLY_DRAFT_CAN_AM'|| TO_CHAR(TRUNC(SYSDATE),'MMDDRRRR') || '"' || UTL_TCP.crlf);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, IN_CLOB || UTL_TCP.CRLF);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
-      ELSIF IN_MAIL_CATEGORY = 'DAD_COMPARISON_FILE' THEN
+      ELSIF IN_MAIL_CATEGORY IN ('DAD_COMPARISON_FILE') THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
          UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
@@ -316,22 +295,20 @@ BEGIN
          
          UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
          --Header fot the excel that is being sent
-         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE,DAD_GIVEN,DAD_ACTUAL,DAD,POLLING_GIVEN,POLLING_ACTUAL,POLLING_STATUS,CURRENCY_GIVEN,CURRENCY_ACTUAL,CURRENCY_CODE,ACTIVE_INACTIVE,CATEGORY,LEGACY_DIVISION_GIVEN,LEGACY_DIVISION_ACTUAL,LEGACY_DIVISION_STATUS' ||  UTL_TCP.crlf);
-         --Content for the excel that is being sent 
-          FOR rec IN DAD_CUR LOOP
-            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.DAD_GIVEN || ',' || rec.DAD_ACTUAL || ',' || rec.DAD || ',' || rec.POLLING_GIVEN || ',' || rec.POLLING_ACTUAL || ',' || rec.POLLING_STATUS || ',' || rec.CURRENCY_GIVEN || ',' || rec.CURRENCY_ACTUAL || ',' || rec.CURRENCY_CODE || ',' || rec.ACTIVE_INACTIVE || ',' || rec.CATEGORY || ',' || rec.LEGACY_DIVISION_GIVEN || ',' || rec.LEGACY_DIVISION_ACTUAL || ',' || rec.LEGACY_DIVISION_STATUS || UTL_TCP.crlf);
-         END LOOP;
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, DAD_GIVEN, DAD_ACTUAL, DAD, POLLING_GIVEN, POLLING_ACTUAL, POLLING_STATUS, CURRENCY_GIVEN, CURRENCY_ACTUAL, CURRENCY_CODE, ACTIVE_INACTIVE, CATEGORY, LEGACY_DIVISION_GIVEN, LEGACY_DIVISION_ACTUAL, LEGACY_DIVISION_STATUS' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
-      END IF;
+      END IF ;
       
       UTL_SMTP.close_data(v_mail_conn);  
       UTL_SMTP.quit (v_mail_conn);
    END LOOP;
 
-EXCEPTION
+/*EXCEPTION
    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
    THEN
-      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);*/
 END SEND_MAIL;
 
 

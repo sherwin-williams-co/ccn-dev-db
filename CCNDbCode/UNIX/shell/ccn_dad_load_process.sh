@@ -24,7 +24,7 @@ set heading off;
 set verify off;
 
 execute DAD_FILE_COMPARISON.DAD_VALIDATION_I_SP();
-execute MAIL_PKG.send_mail('DAD_COMPARISON_FILE');
+execute DAD_FILE_COMPARISON.DAD_COMPARISON_FILE_SP();
 
 exit;
 END
