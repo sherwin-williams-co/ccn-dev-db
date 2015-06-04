@@ -34,9 +34,6 @@ else
     echo " DAD Comparison file doesn't exist "
 fi
 
-#Moving back to invoking folder as the process has to continue
-cd $HOME/batchJobs
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
