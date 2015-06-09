@@ -3,7 +3,7 @@
 select * from terminal where cost_center_code = '705256' and terminal_number = '13536';
 
 UPDATE terminal
-   SET polling_status_code = 'P'
+   SET polling_status_code = 'P', effective_date = '15-JUL-2014'
  WHERE cost_center_code ='705256'
    AND terminal_number = '13536';
 
