@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW STORE_INFO_V AS 
+CREATE OR REPLACE VIEW COSTCNTR_ECOMM_V AS 
 SELECT
 /*******************************************************************************
 This view will provide details required for the e-commerce related to cost center tables
