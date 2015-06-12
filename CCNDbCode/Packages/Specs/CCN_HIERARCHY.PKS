@@ -735,5 +735,15 @@ Created : 30/14/2014 jxc517 CCN Project
     IN_ATTRIBUTE_NAME       IN     VARCHAR2,
     OUT_ATTRIBUTE_VALUE        OUT VARCHAR2);
 
+FUNCTION GET_RQSTD_ATTRIBUTE_VALUE(
+/***********************************************************
+      This function will return the requested attribute value for 
+      the passed UPPER_LVL_VER_DESC XML
+      
+Created : 04/23/2015 jxc517 CCN Project
+************************************************************/
+    IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
+
 END CCN_HIERARCHY;
 
