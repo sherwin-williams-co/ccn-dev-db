@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE body SD_FILE_BUILD_PKG
+create or replace PACKAGE body          SD_FILE_BUILD_PKG
 /****************************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -133,6 +133,11 @@ changed : 11/24/2014 jxc517 CCN Project....
         : 03/23/2015 jxc517 CCN Project....
                      Added logic to pick records only for previous month's run based on input parameter
                      Added new column FNCL_SRVCS_SENT_DATE to track the runs and geenrate report as needed
+        : 06/10/2015 jxc517 CCN Project....
+                     Added logic to generate correct file name for that run
+                     Modified logic to consider drafts loaded on 01st of next month under current monthly file
+                     Modified logic to update records only if financial sequence number is null, to improve performance
+                     Indexes HST_STORE_DRAFTS_IX, UNATTACHED_MNL_DRFT_DTL_HST_IX were also added to improve performance
 *****************************************************************************/
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
@@ -149,19 +154,20 @@ IS
                ,'00' AS TRANSACTION_CODE
                ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
                ,CHECK_SERIAL_NUMBER
+               ,FNCL_SRVCS_SENT_DATE
           FROM STORE_DRAFTS
          WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '91' AND REASON_CODE = '04'))
           AND TO_CHAR(ISSUE_DATE,'YYYYMM') = TO_CHAR(IN_DATE,'YYYYMM')
-          --For Monthly take all transactions processed by end of previous month
+          --For Monthly take all transactions processed by (1day + end of previous month)
           --For Mid monthly take all transactions processed by (15days + end of previous month => mid of current month)
-          AND LOAD_DATE <= DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE), LAST_DAY(IN_DATE) + 15)
-          AND (VOID_DATE IS NULL OR VOID_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE), LAST_DAY(IN_DATE) + 15))
-          AND (STOP_PAY_DATE IS NULL OR STOP_PAY_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE), LAST_DAY(IN_DATE) + 15))
+          AND LOAD_DATE <= DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15)
+          AND (VOID_DATE IS NULL OR VOID_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15))
+          AND (STOP_PAY_DATE IS NULL OR STOP_PAY_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15))
         ORDER BY COST_CENTER_CODE, CHECK_NUMBER;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50);
-    STAMP       		VARCHAR2(50) := TO_CHAR(IN_DATE,'DD-MON-RRRR')||'_'||TO_CHAR(SYSDATE,'HH24MISS');
+    STAMP       		VARCHAR2(50) := TO_CHAR(TRUNC(IN_DATE,'month'),'DD-MON-RRRR')||'_'||TO_CHAR(SYSDATE,'HH24MISS');
     OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
 
 	  V_OUT_CLOB      CLOB;
@@ -170,7 +176,6 @@ IS
     V_TRANS_STATUS  BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-
     BEGIN
         IF IN_MID_MNTHLY_IND = 'Y' THEN
             CCN_BATCH_PKG.INSERT_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER);
@@ -184,7 +189,6 @@ BEGIN
                                        ,FILENAME || STAMP
                                        ,'W' --BINARY
                                        ,32767); 
-
         FOR rec IN cur LOOP
             V_COUNT := V_COUNT + 1;
             V_OUT_CLOB := V_OUT_CLOB 
@@ -205,42 +209,44 @@ BEGIN
         Don't update if an update is already done as the value of this column won't change for each run
             Also above process helps us identify the records that are present in mid monthly which are not present in monthly
         */        
-            BEGIN
-                UPDATE STORE_DRAFTS
-                   SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)               
-                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                   AND FNCL_SRVCS_SENT_DATE IS NULL;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            BEGIN
-                UPDATE HST_STORE_DRAFTS
-                   SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                   AND FNCL_SRVCS_SENT_DATE IS NULL;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            BEGIN
-                UPDATE UNATTACHED_MNL_DRFT_DTL
-                   SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                   AND FNCL_SRVCS_SENT_DATE IS NULL;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            BEGIN
-                UPDATE UNATTACHED_MNL_DRFT_DTL_HST
-                   SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                   AND FNCL_SRVCS_SENT_DATE IS NULL;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
+            IF rec.FNCL_SRVCS_SENT_DATE IS NULL THEN --No need to perform update if that value is already updated
+                BEGIN
+                    UPDATE STORE_DRAFTS
+                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)               
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                       AND FNCL_SRVCS_SENT_DATE IS NULL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                BEGIN
+                    UPDATE HST_STORE_DRAFTS
+                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                       AND FNCL_SRVCS_SENT_DATE IS NULL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                BEGIN
+                    UPDATE UNATTACHED_MNL_DRFT_DTL
+                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                       AND FNCL_SRVCS_SENT_DATE IS NULL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                BEGIN
+                    UPDATE UNATTACHED_MNL_DRFT_DTL_HST
+                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                       AND FNCL_SRVCS_SENT_DATE IS NULL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+            END IF;
             IF V_COUNT = 100 THEN
                 UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
                 V_OUT_CLOB := NULL;
@@ -248,7 +254,6 @@ BEGIN
                 COMMIT;
             END IF;
         END LOOP;
-
 	      IF V_OUT_CLOB IS NOT NULL THEN
             UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
             V_OUT_CLOB := NULL;
@@ -256,19 +261,16 @@ BEGIN
             COMMIT;
         END IF;
         UTL_FILE.FCLOSE(OUTPUT_FILE);
-
     EXCEPTION
         WHEN OTHERS THEN
             V_TRANS_STATUS := 'ERROR';
     END;
-
     IF IN_MID_MNTHLY_IND = 'Y' THEN
         BUILD_1099_DIFF_FILE(IN_DATE);
         CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
     ELSE
         CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
     END IF;
-
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
     WHEN OTHERS THEN
@@ -294,3 +296,4 @@ EXCEPTION
 end STORE_DRAFT_INTALLER_1099;
 
 END SD_FILE_BUILD_PKG;
+
