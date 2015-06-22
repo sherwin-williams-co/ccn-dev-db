@@ -15,7 +15,7 @@
 proc_name="Outstanding_draft_monthly"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=`date -d "-$(date +%d)days" +%m/%d/%Y`
+DATE=$PL_GAIN_RUNDATE
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
