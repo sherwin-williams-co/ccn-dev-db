@@ -16,6 +16,7 @@ proc_name="Outstanding_draft_monthly"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=$PL_GAIN_RUNDATE
+P=`cat $HOME/initLoad/param.lst`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
@@ -24,8 +25,8 @@ set heading off;
 set serveroutput on;
 set verify off;
 
-exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C101');
-exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C400');
+exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$P','MM/DD/YYYY'), 'C101');
+exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$P','MM/DD/YYYY'), 'C400');
 exit;
 END
 
