@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE SD_FILE_BUILD_PKG
+create or replace PACKAGE SD_FILE_BUILD_PKG
 /**************************************************************** 
 This package will have all the procedures to build the files on server
 
@@ -51,5 +51,17 @@ changed :
 **********************************************************/
 (in_date in date) 
 ;
+
+PROCEDURE OUTSTANDING_DRAFT_EXC
+/**********************************************************
+
+	This procedure will generate the Outstanding draft excel sheet
+  and mailed to the department depending on the division code
+
+created : nxk927 6/18/2015
+changed :
+**********************************************************/
+(IN_DATE IN DATE,
+IN_DIV  IN VARCHAR2);
 
 END SD_FILE_BUILD_PKG;
