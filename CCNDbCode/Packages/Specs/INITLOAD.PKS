@@ -719,5 +719,14 @@ This Procedure is a wrapper for the Initial Load of the CCN tables
 Created: SH 05/06/2013
 ******************************************************************/
 ;
+Procedure LOAD_CC_COLOR_CONSULTANT
+/******************************************************************
+This Procedure is a wrapper for the Initial Load to update columns 
+in cost_center table
+    * COLOR_CONSULTANT_TYPE 
+    * PCC_PCL_STORE
+    
+Created: AXK326 06/25/2015 CCN Project Team....
+******************************************************************/
+;
 END initLoad;
-

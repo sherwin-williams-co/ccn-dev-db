@@ -430,16 +430,47 @@ created : 11/15/2011 kdp CCN Project....
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
+        : 06/24/2015 axk326 CCN Project Team....
+          Modified select query to pass XMLTYPE column values to ref cursor.
 *******************************************************************************/
         IS                  
 
     BEGIN
 
           OPEN out_COST_CENTER_REF_CUR FOR
-              SELECT * 
-              FROM cost_center 
-              WHERE UPPER(cost_center_code) = UPPER(in_COST_CENTER);
-      
+                SELECT COST_CENTER_CODE,
+                       COST_CENTER_NAME,
+                       CATEGORY,
+                       ENTITY_TYPE,
+                       STATEMENT_TYPE,
+                       COUNTRY_CODE,
+                       TRANSPORT_TYPE,
+                       BEGIN_DATE,
+                       OPEN_DATE,
+                       MOVE_DATE,
+                       CLOSE_DATE,
+                       FINANCIAL_CLOSE_DATE,
+                       POS_PROG_VER_EFF_DATE,
+                       UPS_ZONE_CODE,
+                       RPS_ZONE_CODE,
+                       CURRENCY_CODE,
+                       POS_PROG_VER_NBR,
+                       LEASE_OWN_CODE,
+                       MISSION_TYPE_CODE,
+                       DUNS_NUMBER,
+                       PRI_LOGO_GROUP_IND,
+                       SCD_LOGO_GROUP_IND,
+                       BANKING_TYPE,
+                       DEPOSIT_BAG_REORDER,
+                       DEPOSIT_TICKET_REORDER,
+                       POP_KIT_CODE,
+                       GLOBAL_HIERARCHY_IND,
+                       ACQUISITION_CODE,
+                       POS_NON_STORE_IND,
+                       extract(COLOR_CONSULTANT_TYPE,'/PROGRAM_TYPE').getStringVal() COLOR_CONSULTANT_TYPE,
+                       extract(PCC_PCL_STORE,'/PCC_PCL_STR').getStringVal() PCC_PCL_STORE
+                  FROM COST_CENTER
+                 WHERE UPPER(COST_CENTER_CODE) = UPPER(in_COST_CENTER);
     END COST_CENTER_S_SP;
 
 
@@ -3966,6 +3997,8 @@ updated : 08/24/2012 tal CCN Project....
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
+        : 06/25/2015 axk326 CCN Project Team...
+          Added COLOR_CONSULTANT_TYPE, PCC_PCL_STORE columns to the update DML 
 *****************************************************************************/
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
@@ -3990,10 +4023,9 @@ BEGIN
     ,in_Row_data    
     ,v_cost_center_row   
     );
-        
 
       --UPDATE cost_center set row = v_cost_center_row where cost_center_code = in_cost_center; 
-      UPDATE cost_center set
+        UPDATE cost_center set
         COST_CENTER_NAME = v_cost_center_row.COST_CENTER_NAME,
         CATEGORY = v_cost_center_row.CATEGORY,
         ENTITY_TYPE = v_cost_center_row.ENTITY_TYPE,
@@ -4019,7 +4051,9 @@ BEGIN
         DEPOSIT_BAG_REORDER = v_cost_center_row.DEPOSIT_BAG_REORDER,
         DEPOSIT_TICKET_REORDER = v_cost_center_row.DEPOSIT_TICKET_REORDER,
         POP_KIT_CODE = v_cost_center_row.POP_KIT_CODE,
-    POS_NON_STORE_IND = v_cost_center_row.POS_NON_STORE_IND
+        POS_NON_STORE_IND = v_cost_center_row.POS_NON_STORE_IND,
+        COLOR_CONSULTANT_TYPE = v_cost_center_row.COLOR_CONSULTANT_TYPE,
+        PCC_PCL_STORE = v_cost_center_row.PCC_PCL_STORE
      WHERE UPPER(cost_center_code) = UPPER(v_cost_center_row.cost_center_code);
 
       
@@ -5645,7 +5679,8 @@ PROCEDURE COST_CENTER_ROWTYPE_SP (
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
-revised:
+revised : 06/24/2015 JXC517 / AXK326 CCN Project Team....
+          Added validation for XML parsing for two new columns in cost_center table
 *******************************************************************************/
  in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
@@ -5665,9 +5700,9 @@ CURSOR table_fields_cur IS
           ;
 --;
 v_cost_center_row cost_center%ROWTYPE;
-v_row_value     varchar2(500);
+v_row_value       varchar2(500);
 v_Row_data        sys.XMLTYPE := XMLTYPE(in_Row_data);
-V_COUNT       NUMBER := 0;
+V_COUNT           NUMBER := 0;
 --
 /*
 
@@ -5683,20 +5718,26 @@ BEGIN
 
          
 
-      IF (v_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) THEN
-
---        v_row_value := rpad(in_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
---                    ,table_fields_rec.column_size); 
-
-           IF (table_fields_rec.data_type <> 'DATE') THEN
+      IF (v_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) OR table_fields_rec.data_type = 'XMLTYPE' THEN
+           
+           IF table_fields_rec.data_type = 'XMLTYPE' THEN
+            BEGIN
+                v_row_value := V_ROW_DATA.EXTRACT('/'|| in_table_name|| '/' || table_fields_rec.column_name).GETCLOBVAL();
+                v_row_value := REPLACE(REPLACE(v_row_value,'<'||table_fields_rec.column_name ||'>'),'</'||table_fields_rec.column_name||'>');
+            EXCEPTION
+                WHEN OTHERS THEN
+                    v_row_value := NULL;
+            END;
+           
+           ELSIF (table_fields_rec.data_type <> 'DATE') THEN
 
             v_row_value := v_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
                             ; 
-        ELSE          
+        ELSE           
             v_row_value := v_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal()
                            ; 
-        END IF;
-         
+          END IF;
+
          v_row_value := common_tools.ELIMINATE_SPECIAL_CHRCTRS(v_row_value);
 
           CASE table_fields_rec.column_name
@@ -5724,7 +5765,15 @@ BEGIN
             WHEN 'PRI_LOGO_GROUP_IND' THEN  v_cost_center_row.PRI_LOGO_GROUP_IND := v_row_value;
             WHEN 'SCD_LOGO_GROUP_IND' THEN  v_cost_center_row.SCD_LOGO_GROUP_IND := v_row_value;
             WHEN 'POP_KIT_CODE' THEN  v_cost_center_row.POP_KIT_CODE := v_row_value;
-      WHEN 'POS_NON_STORE_IND' THEN  v_cost_center_row.POS_NON_STORE_IND := v_row_value;
+            WHEN 'POS_NON_STORE_IND' THEN  v_cost_center_row.POS_NON_STORE_IND := v_row_value;
+            WHEN 'COLOR_CONSULTANT_TYPE' THEN  
+                  IF v_row_value IS NOT NULL THEN
+                     v_cost_center_row.COLOR_CONSULTANT_TYPE := sys.xmltype(v_row_value);
+                  END IF;
+            WHEN 'PCC_PCL_STORE' THEN  
+                  IF v_row_value IS NOT NULL THEN
+                     v_cost_center_row.PCC_PCL_STORE := sys.xmltype(v_row_value);
+                  END IF;
       
         ELSE
             NULL;        
@@ -5736,7 +5785,6 @@ BEGIN
       END IF;
 
       END LOOP ;
-
       out_cost_center_type :=  v_cost_center_row;
 
 END COST_CENTER_ROWTYPE_SP;
