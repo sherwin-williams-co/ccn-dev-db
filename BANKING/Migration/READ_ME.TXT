@@ -1,0 +1,1 @@
+This folder contains consolidated migration scripts for Banking Project

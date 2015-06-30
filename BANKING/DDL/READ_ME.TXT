@@ -1,0 +1,1 @@
+This folder contains DDL files for Banking Project

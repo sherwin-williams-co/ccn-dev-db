@@ -1,0 +1,1 @@
+This folder contains DDL files [temporary tables] for Banking Project
