@@ -1,0 +1,9 @@
+--CHANGING THE USER mxs363 to ama317 to have the same role  code
+SELECT * from SECURITY_MATRIX WHERE USER_ID    = 'mxs363';
+
+UPDATE SECURITY_MATRIX
+  SET USER_ID    = 'ama317'
+WHERE USER_ID    = 'mxs363'
+  AND ROLE_CODE  = 'SDU1';
+  
+COMMIT;
