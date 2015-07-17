@@ -1,0 +1,365 @@
+CREATE OR REPLACE PACKAGE BODY CONCENTRATION_TRANSFER_PKG
+AS
+/**********************************************************
+  This Package is intended to be the wrapper for all banking
+  related packages that are invoked from UI
+
+created : 06/05/2015 nxk927 CCN Project....
+changed :
+**********************************************************/
+PROCEDURE LEAD_BANK_FROM_SP(
+/*******************************************************************************
+This procedure is intended to select records from Lead bank table including the 
+members from the member bank table that we will be tranferred from.
+
+Created : 06/05/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN     VARCHAR2,
+OUT_REF_CUR            OUT REF_CURSOR,
+OUT_REF_CUR1           OUT REF_CURSOR)
+IS
+BEGIN
+    IF NVL(BANKING_COMMON_TOOLS.GET_BANK_TYPE_CODE(IN_COST_CENTER_CODE), 'X') <> 'L' THEN
+        --Even for independent we should through error as transfer is not applicable for independent leads
+        ERRPKG.RAISE_ERR(errnums.en_cc_not_lead_ever,
+                         'LEAD_BANK_FROM_SP',
+                         'Cost Center entered is not a Lead ');
+    END IF;
+    OPEN OUT_REF_CUR FOR
+        SELECT LBCC.* ,
+               (SELECT COST_CENTER_NAME
+               FROM COST_CENTER
+               WHERE COST_CENTER_CODE = LBCC.COST_CENTER_CODE) LEAD_CC_NAME,
+               BA.BANK_NAME
+          FROM LEAD_BANK_CC LBCC,
+               BANK_ACCOUNT BA
+         WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+           AND LBCC.BANK_TYPE_CODE = 'L'
+           AND BA.BANK_ACCOUNT_NBR = LBCC.BANK_ACCOUNT_NBR;
+    OPEN OUT_REF_CUR1 FOR
+        SELECT MEMBER_STORE_NBR,
+               (SELECT COST_CENTER_NAME
+                  FROM COST_CENTER
+                 WHERE COST_CENTER_CODE = MEMBER_STORE_NBR) COST_CENTER_NAME
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_STORE_NBR  = IN_COST_CENTER_CODE;
+END LEAD_BANK_FROM_SP;
+
+PROCEDURE LEAD_BANK_TO_SP(
+/*******************************************************************************
+This procedure is intended to select records from Lead bank table and the
+member bank table that we will tranfer the records to.
+
+Created : 06/05/2015 nxk927 CCN Project....
+Changed : 07/08/2015 jxc517 CCN Project....
+          Added condition to throw error if the "To Cost Center" entered is not a "I"/"L"
+*******************************************************************************/
+IN_COST_CENTER_CODE IN     VARCHAR2,
+OUT_REF_CUR            OUT REF_CURSOR)
+IS
+BEGIN
+    IF NVL(BANKING_COMMON_TOOLS.GET_BANK_TYPE_CODE(IN_COST_CENTER_CODE), 'X') NOT IN ('L', 'I') THEN
+        ERRPKG.RAISE_ERR(errnums.en_cc_not_lead_ever,
+                         'LEAD_BANK_TO_SP',
+                         'Cost Center entered is not a Lead or an Independent');
+    END IF;
+    OPEN OUT_REF_CUR FOR
+        SELECT MC.BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NUMBER,
+               MC.COST_CENTER_CODE,
+               BA.BANK_NAME,
+               MC.EFFECTIVE_DATE,
+               MC.EXPIRATION_DATE,
+               MC.BANK_BRANCH_NBR,
+               BANK_TYPE_CODE,
+               (SELECT COST_CENTER_NAME
+                  FROM COST_CENTER
+                 WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE) AS COST_CENTER_NAME
+          FROM LEAD_BANK_CC MC,
+               BANK_ACCOUNT BA
+         WHERE MC.COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BA.BANK_ACCOUNT_NBR = MC.BANK_ACCOUNT_NBR;
+END LEAD_BANK_TO_SP;
+
+PROCEDURE LEAD_TRANSFER_PROCESS(
+/***********************************************************
+This procedure is used to transfer member from one lead to another
+
+This Procdedure does the following
+1) Makes the new lead selected in the UI as the LEAD
+2) Deletes all the members from the Old Lead and pushes to history
+3) Deletes the current lead from the Lead table and pushes to history
+4) Inserts the new cost center as the New Lead
+5) Inserts all the members from the old Lead under the New lead
+
+EXAMPLE INPUT:
+<?XML VERSION="1.0" ENCODING="UTF-8"?>
+<MEMBER_TRANSFER_UI>
+    <USER_ID>XXXXXX</USER_ID>
+    <FROM_LEAD_CC>701234</FROM_LEAD_CC>
+    <TO_LEAD_CC>705678</TO_LEAD_CC>
+    <MEMBER_STORES>
+      <MEMBER>701451</MEMBER>
+      <MEMBER>702000</MEMBER>
+    </MEMBER_STORES>
+</MEMBER_TRANSFER_UI>
+
+Created : 06/09/2015 nxk927 CCN Project....
+Changed : 
+************************************************************/
+IN_XML           CLOB)
+IS
+    TYPE V_NEW_MBR_TAB_TYPE
+          IS TABLE OF MEMBER_BANK_CC%ROWTYPE INDEX BY BINARY_INTEGER;
+    V_ROW_DATA              XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_USER_ID               VARCHAR2(6);
+    V_FROM_LEAD_CC          VARCHAR2(6); 
+    V_TO_LEAD_CC            VARCHAR2(6);
+    V_NEW_MBR_TAB           V_NEW_MBR_TAB_TYPE;
+    V_COUNT                 NUMBER := 0;
+    V_TO_LEAD_BANK_CC_REC   LEAD_BANK_CC%ROWTYPE;
+    V_FROM_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
+BEGIN
+    /*
+    Business Rules - TBD
+    1. what if the from lead has futures? [does expiration date of new lead = expiration date of old lead here?]
+    2. what if the to lead has futures? [do we need to update the to leads future effective date to match with new expiration date?]
+    3. what happens to the members of to lead if its already a lead in future?
+    4. what if the to lead is a member in future?
+    */
+    --current assumption, there are no futures for both these cost centers
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/USER_ID/text()') = 1) THEN
+        V_USER_ID := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/USER_ID/text()').GETSTRINGVAL();  
+    END IF;
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()') = 1) THEN
+        V_FROM_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()').GETSTRINGVAL();  
+    END IF;
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
+        V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
+    END IF;
+    BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC,
+                                              V_TO_LEAD_BANK_CC_REC);
+    BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC,
+                                              V_FROM_LEAD_BANK_CC_REC);
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM MEMBER_BANK_CC
+     WHERE LEAD_STORE_NBR = V_FROM_LEAD_CC;
+    FOR rec IN (SELECT *
+                  FROM MEMBER_BANK_CC
+                 WHERE LEAD_STORE_NBR = V_FROM_LEAD_CC
+                   AND MEMBER_STORE_NBR IN (SELECT *
+                                              FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/*'
+                                                   PASSING V_ROW_DATA
+                                                   COLUMNS Value VARCHAR2(6) PATH 'text()'))) LOOP
+        TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(rec, V_USER_ID); --member needs to be removed from old lead
+        rec.LEAD_STORE_NBR := V_TO_LEAD_CC;
+        rec.EFFECTIVE_DATE := TRUNC(SYSDATE);
+        V_NEW_MBR_TAB(NVL(V_NEW_MBR_TAB.LAST, 0) + 1) := rec;
+    END LOOP;
+    IF V_NEW_MBR_TAB.COUNT > 0 THEN --some members needs to be moved to new lead
+        IF V_COUNT - V_NEW_MBR_TAB.COUNT = 0 THEN --no members with old lead [insert old lead record into history and delete]
+            V_FROM_LEAD_BANK_CC_REC.EXPIRATION_DATE := TRUNC(SYSDATE) - 1;
+            TABLE_IU_PKG.LEAD_BANK_CC_D_SP(V_FROM_LEAD_BANK_CC_REC, V_USER_ID);
+        END IF;
+        IF NVL(V_TO_LEAD_BANK_CC_REC.BANK_TYPE_CODE, 'X')  = 'I' THEN --new lead is currently "I"
+            --lead details with "I" into history and bank type changed from "I" to "L" effective as of today
+            V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE := TRUNC(SYSDATE) - 1;
+            TABLE_IU_PKG.LEAD_BANK_CC_HIST_I_SP(V_TO_LEAD_BANK_CC_REC, V_USER_ID);
+            V_TO_LEAD_BANK_CC_REC.EFFECTIVE_DATE  := TRUNC(SYSDATE);
+            V_TO_LEAD_BANK_CC_REC.BANK_TYPE_CODE  := 'L';
+            V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE := NULL;
+            TABLE_IU_PKG.LEAD_BANK_CC_U_SP(V_TO_LEAD_BANK_CC_REC);
+        END IF;
+        FORALL i in V_NEW_MBR_TAB.FIRST..V_NEW_MBR_TAB.LAST
+            INSERT INTO MEMBER_BANK_CC VALUES V_NEW_MBR_TAB(i); --new member details insertion
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END LEAD_TRANSFER_PROCESS;
+
+FUNCTION GET_FUTURE_ID(
+/***********************************************************
+	This procedure will be called from to get the future id 
+
+Created : 06/08/2015 nxk927 CCN Project Team....
+Changed : 
+************************************************************/
+IN_BANK_ACCOUNT_NBR IN VARCHAR2)
+RETURN VARCHAR2 
+IS
+V_FUTURE_ID NUMBER :=1;
+BEGIN
+    SELECT NVL(MAX(FUTURE_ID), 0) + 1
+      INTO V_FUTURE_ID
+      FROM BANK_ACCOUNT_FUTURE
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+RETURN V_FUTURE_ID;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
+END GET_FUTURE_ID;
+
+PROCEDURE CREATE_BANK_ACCOUNT_RECORD(
+/***********************************************************
+This procedure is used to update and insert bank account information
+
+Created : 07/15/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+IN_FUTURE_ID       IN     NUMBER,
+IN_BANK_ACC_NBR    IN     VARCHAR2,
+IN_EFFECTIVE_DATE  IN     DATE)
+IS
+    V_REC                BANK_ACCOUNT_FUTURE%ROWTYPE;
+BEGIN
+    IF IN_FUTURE_ID = 1 THEN
+        SELECT B.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          INTO V_REC
+          FROM BANK_ACCOUNT B
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACC_NBR;
+    ELSE
+        SELECT B.*
+          INTO V_REC
+          FROM BANK_ACCOUNT_FUTURE B
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACC_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID- 1;
+    END IF;
+    V_REC.FUTURE_ID   := IN_FUTURE_ID;
+    V_REC.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
+    TABLE_IU_PKG.EXPIRE_PREV_BANK_ACCOUNT(V_REC);
+    TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(V_REC);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_BANK_ACCOUNT_RECORD, ' || ' ' || 'FAILED TO CREATE BANK ACCOUNT - ' || SQLERRM);
+END CREATE_BANK_ACCOUNT_RECORD;
+
+PROCEDURE CREATE_LEAD_BANK_CC_RECORD(
+/***********************************************************
+This procedure is used to update and insert lead information
+
+Created : 07/15/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+IN_FUTURE_ID           IN     NUMBER,
+IN_TO_LEAD_CC          IN     VARCHAR2,
+IN_LEAD_BANK_CC_REC    IN     LEAD_BANK_CC%ROWTYPE,
+IN_EFFECTIVE_DATE      IN     DATE,
+IN_USER_ID             IN     VARCHAR2)
+IS
+    V_REC      LEAD_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+    V_REC.BANK_ACCOUNT_NBR := IN_LEAD_BANK_CC_REC.BANK_ACCOUNT_NBR;
+    V_REC.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
+    TABLE_IU_PKG.EXPIRE_PREV_LEAD_BANK_CC(V_REC);
+
+    V_REC.COST_CENTER_CODE := IN_TO_LEAD_CC;
+    V_REC.EXPIRATION_DATE  := NULL;
+    V_REC.BANK_BRANCH_NBR  := IN_LEAD_BANK_CC_REC.BANK_BRANCH_NBR;
+    V_REC.BANK_TYPE_CODE   := 'L';
+    V_REC.FUTURE_ID        := IN_FUTURE_ID;
+    V_REC.UPDATE_DATE      := TRUNC(SYSDATE);
+    V_REC.LAST_UPD_USER_ID := IN_USER_ID;
+    TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(V_REC);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_LEAD_BANK_CC_RECORD, ' || ' ' || 'FAILED TO CREATE LEAD - ' || SQLERRM);
+END CREATE_LEAD_BANK_CC_RECORD;
+
+PROCEDURE CREATE_MBR_BANK_CC_RECORDS(
+/***********************************************************
+This procedure is used to update and insert member information
+
+Created : 07/15/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+IN_FUTURE_ID           IN     NUMBER,
+IN_TO_LEAD_CC          IN     VARCHAR2,
+IN_LEAD_BANK_CC_REC    IN     LEAD_BANK_CC%ROWTYPE,
+IN_EFFECTIVE_DATE      IN     DATE,
+IN_USER_ID             IN     VARCHAR2)
+IS
+BEGIN
+    FOR rec IN (SELECT BANK_ACCOUNT_NUMBER,
+                       LEAD_STORE_NBR,
+                       MEMBER_STORE_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_BRANCH_NBR,
+                       TRUNC(SYSDATE) AS UPDATE_DATE,
+                       IN_USER_ID AS LAST_UPD_USER_ID,
+                       IN_FUTURE_ID AS FUTURE_ID
+                  FROM MEMBER_BANK_CC
+                 WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.COST_CENTER_CODE) LOOP
+        rec.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
+        TABLE_IU_PKG.EXPIRE_PREV_MEMBER_BANK_CC(rec);
+
+        rec.LEAD_STORE_NBR  := IN_TO_LEAD_CC;
+        rec.EXPIRATION_DATE := NULL;
+        IF rec.MEMBER_STORE_NBR <> IN_TO_LEAD_CC THEN 
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+        END IF; 
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_MBR_BANK_CC_RECORDS, ' || ' ' || 'FAILED TO CREATE MEMBERS - ' || SQLERRM);
+END CREATE_MBR_BANK_CC_RECORDS;
+
+PROCEDURE MAKE_LEAD_PROCESS(
+/***********************************************************
+This procedure is used to make a member with in a lead as "Lead" for
+all the members under that lead for future
+
+This Procdedure does the following
+1) Makes the Member selected in the UI as the LEAD for future date
+2) Updates the expiration date to expire the current lead and member on the date passed (effective -1)
+3) Inserts the Member as the New Lead in the future table
+4) Inserts all the members from the current Lead under the New lead in the future table
+
+Created : 06/09/2015 nxk927 CCN Project....
+Changed : 
+************************************************************/
+IN_NEW_LEAD_CC    IN     VARCHAR2,
+IN_USER_ID        IN     VARCHAR2,
+IN_EFFECTIVE_DATE IN     DATE)
+IS
+    V_FROM_LEAD_BANK_REC LEAD_BANK_CC%ROWTYPE;
+    V_FROM_LEAD_CC       VARCHAR2(6); 
+    V_TO_LEAD_CC         VARCHAR2(6) := IN_NEW_LEAD_CC;
+    V_COUNT              NUMBER := 0;
+    V_FUTURE_ID          MEMBER_BANK_CC_FUTURE.FUTURE_ID%TYPE; 
+    V_REC                BANK_ACCOUNT_FUTURE%ROWTYPE;
+	  V_LEAD_BANK_FUT_REC  LEAD_BANK_CC_FUTURE%ROWTYPE; 
+BEGIN
+    /*
+    There are lot of other future scenario's that needs to be addressed same like in transfer
+    */
+    V_FROM_LEAD_CC := BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR(V_TO_LEAD_CC);
+    BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC,
+                                              V_FROM_LEAD_BANK_REC);                                         
+    BUSINESS_RULES_PKG.MAKE_LEAD_BR_SP(IN_NEW_LEAD_CC,
+                                       IN_EFFECTIVE_DATE,
+                                       V_FROM_LEAD_CC,
+                                       V_FROM_LEAD_BANK_REC.BANK_ACCOUNT_NBR);
+    V_FUTURE_ID := GET_FUTURE_ID(V_FROM_LEAD_BANK_REC.BANK_ACCOUNT_NBR);
+    CREATE_BANK_ACCOUNT_RECORD(V_FUTURE_ID,
+                               V_FROM_LEAD_BANK_REC.BANK_ACCOUNT_NBR,
+                               IN_EFFECTIVE_DATE);
+    CREATE_LEAD_BANK_CC_RECORD(V_FUTURE_ID,
+                               V_TO_LEAD_CC,
+                               V_FROM_LEAD_BANK_REC,
+                               IN_EFFECTIVE_DATE,
+                               IN_USER_ID);
+    CREATE_MBR_BANK_CC_RECORDS(V_FUTURE_ID,
+                               V_TO_LEAD_CC,
+                               V_FROM_LEAD_BANK_REC,
+                               IN_EFFECTIVE_DATE,
+                               IN_USER_ID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'MAKE_LEAD_PROCESS, ' || ' ' || 'FAILED TO MAKE LEAD - ' || SQLERRM);
+END MAKE_LEAD_PROCESS;
+
+END CONCENTRATION_TRANSFER_PKG;
+

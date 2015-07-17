@@ -1,0 +1,227 @@
+CREATE OR REPLACE PACKAGE BODY MEMBER_MAINTENANCE_PKG
+AS
+/**********************************************************
+This Package contains all the procedures used in
+member cost center maintenance window
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed :
+**********************************************************/
+PROCEDURE MEMBER_CC_MAINTENACE_UI_SP (
+/*******************************************************************************
+	This procedure is intended to RETURN a ref cursor with data from member
+  cost center maintenance related tables
+
+Inputs:
+    IN_COST_CENTER_CODE
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE          IN      VARCHAR2,
+OUT_BANK_MBR_CC_REF_CUR         OUT REF_CURSOR,
+OUT_BANK_MBR_CC_FTR_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+    IF BUSINESS_RULES_PKG.IS_CC_LEAD_EVER(IN_COST_CENTER_CODE) = 'N' THEN
+        ERRPKG.RAISE_ERR(errnums.en_cc_not_lead_ever,
+                         'MEMBER_CC_MAINTENACE_UI_SP',
+                         'Cost Center entered is not a Lead ever(current/future)');
+    END IF;
+    OPEN OUT_BANK_MBR_CC_REF_CUR FOR
+        SELECT DISTINCT
+               LB.BANK_ACCOUNT_NBR,
+               BA.BANK_NAME,
+               LB.BANK_TYPE_CODE,
+               LB.EFFECTIVE_DATE,
+               LB.EXPIRATION_DATE,
+               LB.BANK_BRANCH_NBR,
+               MB.MEMBER_STORE_NBR,
+               (SELECT COST_CENTER_NAME
+                  FROM COST_CENTER
+                 WHERE COST_CENTER_CODE = MB.MEMBER_STORE_NBR) COST_CENTER_NAME,
+               MB.EFFECTIVE_DATE MBR_EFFECTIVE_DATE,
+               MB.EXPIRATION_DATE MBR_EXPIRATION_DATE,
+               MB.BANK_BRANCH_NBR MBR_BANK_BRANCH_NBR,
+               MB.BANK_ACCOUNT_NUMBER MBR_BANK_ACCOUNT_NUMBER,
+               NULL UPDATE_DATE,
+               NULL LAST_UPD_USER_ID
+          FROM LEAD_BANK_CC LB,
+               MEMBER_BANK_CC MB,
+               BANK_ACCOUNT BA
+         WHERE LB.COST_CENTER_CODE = IN_COST_CENTER_CODE --'701369'
+           AND LB.BANK_TYPE_CODE   = 'L'
+           AND LB.COST_CENTER_CODE = MB.LEAD_STORE_NBR(+)
+           AND LB.BANK_ACCOUNT_NBR = BA.BANK_ACCOUNT_NBR(+)
+         ORDER BY MB.MEMBER_STORE_NBR;
+    OPEN OUT_BANK_MBR_CC_FTR_REF_CUR FOR
+        SELECT DISTINCT
+               LBF.BANK_ACCOUNT_NBR,
+               BAF.BANK_NAME,
+               LBF.BANK_TYPE_CODE,
+               LBF.EFFECTIVE_DATE,
+               LBF.EXPIRATION_DATE,
+               LBF.BANK_BRANCH_NBR,
+               MBF.MEMBER_STORE_NBR,
+               (SELECT COST_CENTER_NAME
+                  FROM COST_CENTER
+                 WHERE COST_CENTER_CODE = MBF.MEMBER_STORE_NBR) COST_CENTER_NAME,
+               MBF.EFFECTIVE_DATE MBR_EFFECTIVE_DATE,
+               MBF.EXPIRATION_DATE MBR_EXPIRATION_DATE,
+               MBF.BANK_BRANCH_NBR MBR_BANK_BRANCH_NBR,
+               MBF.BANK_ACCOUNT_NUMBER MBR_BANK_ACCOUNT_NUMBER,
+               MBF.UPDATE_DATE,
+               MBF.LAST_UPD_USER_ID,
+               LBF.FUTURE_ID
+          FROM LEAD_BANK_CC_FUTURE LBF,
+               MEMBER_BANK_CC_FUTURE MBF,
+               BANK_ACCOUNT_FUTURE BAF
+         WHERE LBF.COST_CENTER_CODE = IN_COST_CENTER_CODE --'701369', '707010'
+           AND LBF.BANK_TYPE_CODE   = 'L'
+           AND LBF.COST_CENTER_CODE = MBF.LEAD_STORE_NBR(+)
+           AND LBF.FUTURE_ID        = MBF.FUTURE_ID(+)
+           AND LBF.BANK_ACCOUNT_NBR = BAF.BANK_ACCOUNT_NBR(+)
+           AND LBF.FUTURE_ID        = BAF.FUTURE_ID(+)
+         ORDER BY LBF.EFFECTIVE_DATE, MBF.MEMBER_STORE_NBR;
+END MEMBER_CC_MAINTENACE_UI_SP;
+
+PROCEDURE BUILD_TABLE_TYPES(
+/******************************************************************************
+    This procedure is intended to build all the table types from input xml
+    for this process
+
+created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_XML                     IN     CLOB,
+    O_MBR_BANK_CC_TAB             OUT TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE,
+    O_MBR_BANK_CC_FUTURE_TAB      OUT TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE)
+IS
+    V_COUNT                         INTEGER;
+    V_XML_MEMBER_BANK_CC_FRAG       CLOB;
+    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_MEMBER_BANK_CC_REC            MEMBER_BANK_CC%ROWTYPE;
+    V_MEMBER_BANK_CC_FUTURE_REC     MEMBER_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+    IF IN_XML IS NOT NULL THEN
+        V_COUNT := 1;
+        WHILE V_ROW_DATA.EXISTSNODE('/MEMBER_CC_MAINTENANCE_UI/MEMBER_BANK_CC_TABLE/MEMBER_BANK_CC' || '[' || V_COUNT || ']') = 1 LOOP
+            V_XML_MEMBER_BANK_CC_FRAG := V_ROW_DATA.EXTRACT('/MEMBER_CC_MAINTENANCE_UI/MEMBER_BANK_CC_TABLE/MEMBER_BANK_CC' || '[' || V_COUNT || ']').GETCLOBVAL();
+            IF V_XML_MEMBER_BANK_CC_FRAG IS NOT NULL THEN
+                IF SYS.XMLTYPE(V_XML_MEMBER_BANK_CC_FRAG).EXISTSNODE('/MEMBER_BANK_CC/FUTURE_ID/text()') = 1 THEN --Future Record
+                    TABLE_IU_PKG.MEMBER_BNK_FTRE_ROWTYPE_SP('MEMBER_BANK_CC_FUTURE'
+                                                            ,REPLACE(V_XML_MEMBER_BANK_CC_FRAG,'MEMBER_BANK_CC>','MEMBER_BANK_CC_FUTURE>')
+                                                            ,V_MEMBER_BANK_CC_FUTURE_REC);
+                    O_MBR_BANK_CC_FUTURE_TAB(NVL(O_MBR_BANK_CC_FUTURE_TAB.LAST, 0) +1) := V_MEMBER_BANK_CC_FUTURE_REC;
+                ELSE --Current Record
+                    TABLE_IU_PKG.MEMBER_BANK_CC_ROWTYPE_SP('MEMBER_BANK_CC'
+                                                           ,V_XML_MEMBER_BANK_CC_FRAG
+                                                           ,V_MEMBER_BANK_CC_REC);
+                    O_MBR_BANK_CC_TAB(NVL(O_MBR_BANK_CC_TAB.LAST, 0) +1) := V_MEMBER_BANK_CC_REC;
+                END IF;
+            END IF;
+            V_COUNT := V_COUNT + 1;
+        END LOOP; 
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN                        
+        ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_TABLE_TYPES ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BUILD_TABLE_TYPES;
+
+PROCEDURE MEMBER_MNTNC_CURRENT_UPSERT_SP ( 
+/******************************************************************************
+This procedure is intended to update following table used in the
+Member CC Maintenance Window that are current records
+    Tables: 
+       MEMBER_BANK_CC
+
+Created : 07/10/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_MBR_BANK_CC_TAB IN TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE)
+IS
+    V_INDEX        NUMBER := 0;
+    V_LEAD_BANK_CC LEAD_BANK_CC%ROWTYPE;
+BEGIN
+    --************************************************
+    -- MEMBER_BANK_CC insert/update process with loop 
+    --************************************************
+    V_INDEX := IN_MBR_BANK_CC_TAB.FIRST;
+    WHILE V_INDEX IS NOT NULL LOOP
+        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(IN_MBR_BANK_CC_TAB(V_INDEX));
+        V_INDEX := IN_MBR_BANK_CC_TAB.NEXT(V_INDEX);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_CURRENT_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END MEMBER_MNTNC_CURRENT_UPSERT_SP;
+
+PROCEDURE MEMBER_MNTNC_FUTURE_UPSERT_SP ( 
+/******************************************************************************
+This procedure is intended to update following table used in the
+Member CC Maintenance Window that are future records
+    Tables: 
+       MEMBER_BANK_CC_FUTURE
+Expire following tables used in the Member CC Maintenance Window that are current records
+    Tables: 
+       MEMBER_BANK_CC
+
+Created : 07/10/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_MBR_BANK_CC_FUTURE_TAB         IN TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE)
+IS
+    V_INDEX    NUMBER := 0;
+BEGIN
+    --*******************************************************
+    -- MEMBER_BANK_CC_FUTURE insert/update process with loop 
+    --*******************************************************
+    V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.FIRST;
+    WHILE V_INDEX IS NOT NULL LOOP
+        TABLE_IU_PKG.EXPIRE_PREV_MEMBER_BANK_CC(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+        TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+        V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.NEXT(V_INDEX);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_FUTURE_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END MEMBER_MNTNC_FUTURE_UPSERT_SP;
+
+PROCEDURE MEMBER_MNTNC_UI_UPSERT_SP(
+/******************************************************************************
+This procedure is intended to update following tables used in the Mamber Maintenance Window
+    Tables: 
+       MEMBER_BANK_CC
+       MEMBER_BANK_CC_FUTURE
+
+Created : 07/10/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_ROW_DATA  IN  CLOB)
+IS
+    V_MBR_BANK_CC_TAB                TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE;
+    V_MBR_BANK_CC_FUTURE_TAB         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE;
+BEGIN
+    /*
+    We should never update status of a lead in any process, as that has to be done prior to coming here from
+    Account Maintenance Screen which creates a new future
+    */
+    --Below code runs once per tab, which means we run either current or future tab at a time but not both at the same time
+    BUILD_TABLE_TYPES(IN_ROW_DATA,
+                      V_MBR_BANK_CC_TAB,
+                      V_MBR_BANK_CC_FUTURE_TAB);
+    BUSINESS_RULES_PKG.MEMBER_MAINTENANCE_BR_SP(V_MBR_BANK_CC_TAB,
+                                                V_MBR_BANK_CC_FUTURE_TAB);
+    IF V_MBR_BANK_CC_TAB.COUNT > 0 THEN --Current Details
+        MEMBER_MNTNC_CURRENT_UPSERT_SP(V_MBR_BANK_CC_TAB);
+    END IF;
+    IF V_MBR_BANK_CC_FUTURE_TAB.COUNT > 0 THEN --Future Details
+        MEMBER_MNTNC_FUTURE_UPSERT_SP(V_MBR_BANK_CC_FUTURE_TAB);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500));
+END MEMBER_MNTNC_UI_UPSERT_SP;
+
+END MEMBER_MAINTENANCE_PKG;
+

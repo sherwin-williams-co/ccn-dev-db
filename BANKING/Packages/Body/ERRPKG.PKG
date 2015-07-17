@@ -1,0 +1,187 @@
+CREATE OR REPLACE PACKAGE body errpkg
+/*********************************************************** 
+This package will hold all procedures/functions used to process business
+and system errors throughout the entire Banking application
+
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+
+************************************************************/
+IS
+
+PROCEDURE raise_err (
+/*********************************************************** 
+This procedure will raise errors to the calling procedure/application
+depending on the error number input data. 
+
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+
+************************************************************/
+err_in IN INTEGER, 
+err_proc_in IN VARCHAR2
+,err_text_in IN VARCHAR2 := NULL) 
+IS
+BEGIN
+
+  --this is just an example of how procedure can be used
+  IF err_in BETWEEN -20998 AND -20000 THEN
+    RAISE_APPLICATION_ERROR (err_in, errtext(err_in, err_proc_in, err_text_in));
+   
+  ELSIF err_in IN (100, -1403) THEN
+    RAISE NO_DATA_FOUND;
+  ELSIF err_in = -20999 THEN
+    RAISE_APPLICATION_ERROR (err_in, errtext(err_in, err_proc_in, err_text_in));
+  ELSE
+  /*********************************************************** 
+  This is an example of how to raise an unknown error...doesn't need to be used.....
+  
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+  ***********************************************************/ 
+    EXECUTE IMMEDIATE(
+    'DECLARE myexc EXCEPTION; ' ||
+    ' PRAGMA EXCEPTION_INIT (myexc, ' ||
+    TO_CHAR (err_in) || ');' ||
+    'BEGIN RAISE myexc; END;'
+    );
+    
+    
+  END IF;
+END;
+
+FUNCTION errtext 
+/*********************************************************** 
+This function will determine correct message to be returned
+depending on the error number input data. 
+
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+
+************************************************************/
+(err_in IN INTEGER
+,err_proc_in IN VARCHAR2
+,err_text_in IN VARCHAR2 := NULL) 
+  RETURN VARCHAR2 is
+v_return_str varchar2(32000) := 'no message';
+BEGIN
+
+  	v_return_str := err_proc_in || ' ' ||err_text_in; 
+	
+  if err_in = -20000 then
+    v_return_str := ' IN PROCEDURE ' || err_proc_in || ' ' || err_text_in ||
+     				' This error is not in the scope of defined numeric error';
+  end if; 
+  
+  if err_in = -20999 then
+    v_return_str := ' IN PROCEDURE ' || err_proc_in || ' ' || err_text_in ||
+    				' Error has occured which is undefined in error handling package';
+  end if;   
+  
+  return(v_return_str);
+ END errtext;
+
+PROCEDURE insert_error_log_sp  (
+/*******************************************************************************
+  This Procedure logs Processing Errors to the ERROR_LOG Table
+  
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+*******************************************************************************/
+    in_code                IN   VARCHAR2
+   ,in_proc                IN   VARCHAR2
+   ,in_errm                IN   VARCHAR2  
+   ,in_bank_account_nbr    IN   VARCHAR2
+   ,in_cost_center_code    IN   VARCHAR2  
+   ,in_table_name          IN   VARCHAR2   
+   )
+
+IS
+   pragma autonomous_transaction;
+   
+BEGIN
+
+   insert into error_log (
+          error_id
+        , bank_account_nbr
+        , error_date
+        , module
+        , error_text
+        , notes
+        , error_code
+        , cost_center_code
+        , table_name
+        )
+        
+        values (
+                error_log_seq.nextval
+              , substr(in_bank_account_nbr, 1, 16)
+              , sysdate
+              , substr(in_proc, 1, 200)
+              , substr(in_errm, 1, 4000)
+              , null
+              , in_code
+              , substr(in_cost_center_code, 1, 6)
+              , substr(in_table_name, 1, 30)
+              );
+
+   commit;
+   
+   exception
+   
+      when others then
+        dbms_output.put_line(' INSERT_ERROR_LOG_SP Failed '|| substr(sqlerrm, 1, 200));
+      
+      
+END insert_error_log_sp;
+
+PROCEDURE STORE_WARNINGS(
+/*******************************************************************************
+  This Procedure logs Processing Warnings into the Memory Table
+  
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+*******************************************************************************/
+   err_Code IN VARCHAR2,
+   err_Msg  IN VARCHAR2)
+IS
+   V_INDEX NUMBER;
+BEGIN
+   --Below two statements will store the passed inputs into the memory ERROR_WARNINGS_TABLE
+   --this should be stored on top of the 
+   V_INDEX := NVL(ERROR_WARNINGS_TABLE.LAST,0)+1;
+   ERRPKG.ERROR_WARNINGS_TABLE(V_INDEX).ERR_CODE := err_Code;
+   ERRPKG.ERROR_WARNINGS_TABLE(V_INDEX).ERR_MSG := err_Msg;
+EXCEPTION
+   WHEN OTHERS THEN
+      dbms_output.put_line(' STORE_WARNINGS Failed '|| substr(sqlerrm, 1, 200));
+END STORE_WARNINGS;
+
+PROCEDURE RAISE_WARNINGS
+/*******************************************************************************
+  This Procedure raises first of the stored Warnings from the Memory Table
+  
+created : 03/10/2015 jxc517 CCN Project....
+changed :
+*******************************************************************************/
+IS
+   v_err_Code VARCHAR2(100);
+   v_err_Msg  VARCHAR2(500);
+BEGIN
+   FOR i IN 1..ERROR_WARNINGS_TABLE.COUNT LOOP
+      v_err_Code := ERROR_WARNINGS_TABLE(i).ERR_CODE;
+      v_err_Msg  := ERROR_WARNINGS_TABLE(i).ERR_MSG;
+      --clear off all the warnings for the next process to use it
+      ERROR_WARNINGS_TABLE.DELETE;
+      --This explicit commit is to make sure all the DML's done so far gets committed to the database
+      COMMIT;
+      --raise the first of the stored warning message
+      errpkg.raise_err(v_err_Code, v_err_Msg);
+      EXIT;
+   END LOOP;
+--Please NOTE that exception is not needed as we need to throw it to the calling procedure as it is
+END RAISE_WARNINGS;
+
+
+END errpkg;
+
