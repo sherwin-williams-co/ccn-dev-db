@@ -250,6 +250,17 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT_FUTURE%ROWTYPE);
 
+PROCEDURE BANK_MICR_FRMT_HST_ROWTYPE_SP (
+/*******************************************************************************
+	This procedure is intended to build the BANK_MICR_FORMAT_HIST record type
+
+Created : 07/20/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT_HIST%ROWTYPE);
+
 ---------------------------SELECT PROCEDURES----------------------------
 
 ---------------------------INSERT PROCEDURES----------------------------
@@ -260,8 +271,7 @@ PROCEDURE BANK_ACCOUNT_HIST_I_SP (
 Created : 06/08/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_ACCOUNT%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     BANK_ACCOUNT%ROWTYPE);
 
 PROCEDURE BANK_ACCOUNT_I_SP (
 /*******************************************************************************
@@ -288,8 +298,7 @@ PROCEDURE BANK_DEP_TICK_HIST_I_SP (
 Created : 03/24/2015 SXT410 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_DEP_TICK%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     BANK_DEP_TICK%ROWTYPE);
 
 PROCEDURE BANK_MICR_FORMAT_I_SP (
 /*******************************************************************************
@@ -316,8 +325,7 @@ PROCEDURE LEAD_BANK_CC_HIST_I_SP (
 Created : 03/13/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     LEAD_BANK_CC%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     LEAD_BANK_CC%ROWTYPE);
 
 PROCEDURE LEAD_BANK_CC_I_SP (
 /*******************************************************************************
@@ -344,8 +352,7 @@ PROCEDURE MEMBER_BANK_CC_HIST_I_SP (
 Created : 03/13/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     MEMBER_BANK_CC%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     MEMBER_BANK_CC%ROWTYPE);
 
 PROCEDURE MEMBER_BANK_CC_I_SP (
 /*******************************************************************************
@@ -372,8 +379,7 @@ PROCEDURE BANK_DEP_BAG_TICK_HIST_I_SP (
 Created : 04/08/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_DEP_BAG_TICK%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     BANK_DEP_BAG_TICK%ROWTYPE);
 
 PROCEDURE BANK_ACCOUNT_FUTURE_I_SP (
 /*******************************************************************************
@@ -400,8 +406,7 @@ PROCEDURE BANK_MICR_FORMAT_HIST_I_SP (
 Created : 07/13/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_MICR_FORMAT%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     BANK_MICR_FORMAT%ROWTYPE);
 
 ---------------------------UPDATE PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_U_SP (
@@ -542,8 +547,7 @@ PROCEDURE BANK_ACCOUNT_D_SP (
 Created : 03/12/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW IN     BANK_ACCOUNT%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW IN     BANK_ACCOUNT%ROWTYPE);
 
 PROCEDURE BANK_DEP_TICKORD_D_SP (
 /*******************************************************************************
@@ -562,8 +566,7 @@ PROCEDURE BANK_MICR_FORMAT_D_SP (
 Created : 03/19/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_MICR_FORMAT%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     BANK_MICR_FORMAT%ROWTYPE);
 
 PROCEDURE LEAD_BANK_CC_D_SP (
 /*******************************************************************************
@@ -572,8 +575,7 @@ PROCEDURE LEAD_BANK_CC_D_SP (
 Created : 03/12/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     LEAD_BANK_CC%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     LEAD_BANK_CC%ROWTYPE);
 
 PROCEDURE LEAD_BANK_CC_FUTURE_D_SP (
 /*******************************************************************************
@@ -591,8 +593,7 @@ PROCEDURE MEMBER_BANK_CC_D_SP (
 Created : 03/12/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     MEMBER_BANK_CC%ROWTYPE,
-IN_USER_ID IN     VARCHAR2);
+IN_ROW     IN     MEMBER_BANK_CC%ROWTYPE);
 
 PROCEDURE MEMBER_BANK_CC_FUTURE_D_SP (
 /*******************************************************************************

@@ -49,6 +49,33 @@ BEGIN
     END IF;
 END DEPOSIT_TICKET_MNTNC_UI_SP;
 
+PROCEDURE BUILD_TABLE_TYPES(
+/******************************************************************************
+This procedure is intended to build all the table types from input xml
+for this process
+
+created : 07/17/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_XML                         IN     CLOB,
+    O_BANK_DEP_TICK_REC               OUT BANK_DEP_TICK%ROWTYPE)
+IS
+    V_XML_BANK_DEP_TICK_FRAG        CLOB;
+    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_XML);
+BEGIN
+    IF (V_ROW_DATA.EXISTSNODE('/BANK_DEP_TICK_UI/BANK_DEP_TICK') = 1) THEN --Single Record
+        V_XML_BANK_DEP_TICK_FRAG := V_ROW_DATA.EXTRACT('/BANK_DEP_TICK_UI/BANK_DEP_TICK').GETCLOBVAL();
+    END IF; 
+    IF V_XML_BANK_DEP_TICK_FRAG IS NOT NULL  THEN
+        TABLE_IU_PKG.BANK_DEP_TICK_ROWTYPE_SP('BANK_DEP_TICK',
+                                              V_XML_BANK_DEP_TICK_FRAG,
+                                              O_BANK_DEP_TICK_REC);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN                        
+        ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_TABLE_TYPES ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BUILD_TABLE_TYPES;
+
 PROCEDURE DEPOSIT_TKT_MNTNC_UI_UPSERT_SP( 
 /******************************************************************************
 	This procedure performs the core process for Deposit Ticket Maintenance Window
@@ -58,33 +85,28 @@ Changed :
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB)
 IS
-    V_XML_BANK_DEP_TICK_FRAG        CLOB;
-    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
-    V_TEMP_ROW                      BANK_DEP_TICK%ROWTYPE;
+    V_BANK_DEP_TICK_REC             BANK_DEP_TICK%ROWTYPE;
     V_HIST_ROW                      BANK_DEP_TICK%ROWTYPE;
 BEGIN
-    IF (V_ROW_DATA.EXISTSNODE('/BANK_DEP_TICK_UI/BANK_DEP_TICK') = 1) THEN --Single Record
-        V_XML_BANK_DEP_TICK_FRAG := V_ROW_DATA.EXTRACT('/BANK_DEP_TICK_UI/BANK_DEP_TICK').GETCLOBVAL();
-    END IF;
+    BUILD_TABLE_TYPES(IN_ROW_DATA,
+                      V_BANK_DEP_TICK_REC);
     --********************************************************************************
     -- BANK_DEP_TICK insert/update process
     --*********************************************************************************
-    IF V_XML_BANK_DEP_TICK_FRAG IS NOT NULL  THEN
-        TABLE_IU_PKG.BANK_DEP_TICK_ROWTYPE_SP('BANK_DEP_TICK',
-                                              V_XML_BANK_DEP_TICK_FRAG,
-                                              V_TEMP_ROW);
-        V_TEMP_ROW.EFFECTIVE_DATE  := TRUNC(SYSDATE);
-        V_TEMP_ROW.EXPIRATION_DATE := NULL;
-        BUSINESS_RULES_PKG.DEPOSIT_TICKET_MNTNC_BR_SP(V_TEMP_ROW);
-        BEGIN
-            SELECT *
-              INTO V_HIST_ROW
-              FROM BANK_DEP_TICK
-             WHERE COST_CENTER_CODE = V_TEMP_ROW.COST_CENTER_CODE;
-        END;
-        TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_HIST_ROW, USER);
-        TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_TEMP_ROW);
-    END IF;
+    V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := TRUNC(SYSDATE);
+    V_BANK_DEP_TICK_REC.EXPIRATION_DATE := NULL;
+    BUSINESS_RULES_PKG.DEPOSIT_TICKET_MNTNC_BR_SP(V_BANK_DEP_TICK_REC);
+    BEGIN
+        SELECT *
+          INTO V_HIST_ROW
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
+        TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_HIST_ROW);
+    EXCEPTION
+        WHEN OTHERS THEN
+                NULL;
+    END;
+    TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );

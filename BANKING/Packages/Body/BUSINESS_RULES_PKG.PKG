@@ -1,4 +1,5 @@
-CREATE OR REPLACE PACKAGE BODY BUSINESS_RULES_PKG
+CREATE OR REPLACE 
+PACKAGE BODY BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -9,7 +10,7 @@ Changed :
 **********************************************************/
 PROCEDURE VALIDATE_DATE_RULES(
 /******************************************************************************
-    This procedure is validates basic rules for effective date and expiration date 
+    This procedure validates basic rules for effective date and expiration date 
 
 Created : 07/09/2015 jxc517 CCN Project....
 Changed : 
@@ -39,6 +40,34 @@ BEGIN
         END IF;
     END IF;
 END VALIDATE_DATE_RULES;
+
+PROCEDURE VALIDATE_PARENT_CHILD_DATES(
+/******************************************************************************
+    This procedure validates parent and childs effective date and expiration dates
+
+Created : 07/17/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_PRNT_EFFECTIVE_DATE    IN     DATE,
+IN_PRNT_EXPIRATION_DATE   IN     DATE,
+IN_CHLD_EFFECTIVE_DATE    IN     DATE,
+IN_CHLD_EXPIRATION_DATE   IN     DATE,
+IN_PROCEDURE_NAME         IN     VARCHAR2,
+IN_COMMENT_STRING         IN     VARCHAR2)
+IS
+BEGIN
+    IF (IN_CHLD_EFFECTIVE_DATE NOT BETWEEN IN_PRNT_EFFECTIVE_DATE AND NVL(IN_PRNT_EXPIRATION_DATE, IN_CHLD_EFFECTIVE_DATE))
+--child effective date not between parent effective and expiration date
+       OR
+       (IN_CHLD_EXPIRATION_DATE IS NULL AND IN_PRNT_EXPIRATION_DATE IS NOT NULL)
+--child not expired but parent expired
+       OR
+       (IN_CHLD_EXPIRATION_DATE IS NOT NULL AND 
+        IN_CHLD_EXPIRATION_DATE NOT BETWEEN IN_PRNT_EFFECTIVE_DATE AND NVL(IN_PRNT_EXPIRATION_DATE, IN_CHLD_EXPIRATION_DATE)) THEN
+--child expiration date not between parent effective and expiration date
+            ERRPKG.RAISE_ERR(errnums.en_parent_child_dates_err, IN_PROCEDURE_NAME, IN_COMMENT_STRING);
+    END IF;
+END VALIDATE_PARENT_CHILD_DATES;
 
 PROCEDURE VALIDATE_CURRENT_EFFCTV_DT(
 /*******************************************************************************
@@ -72,7 +101,7 @@ BEGIN
             SELECT COUNT(*)
               INTO V_COUNT 
               FROM LEAD_BANK_CC
-             WHERE BANK_ACCOUNT_NBR   = IN_BANK_ACCOUNT_NBR;
+             WHERE LEAD_BANK_ACCOUNT_NBR   = IN_BANK_ACCOUNT_NBR;
         WHEN IN_TABLE_NAME = 'MEMBER_BANK_CC' THEN
             SELECT COUNT(*)
               INTO V_COUNT 
@@ -116,12 +145,12 @@ BEGIN
       INTO V_RETURN_VAL
       FROM (SELECT 1
               FROM LEAD_BANK_CC
-             WHERE COST_CENTER_CODE = IN_COST_CENTER
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER
                AND BANK_TYPE_CODE   = 'L'
              UNION
             SELECT 1
               FROM LEAD_BANK_CC_FUTURE
-             WHERE COST_CENTER_CODE = IN_COST_CENTER
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER
              AND BANK_TYPE_CODE     = 'L'
            );
     RETURN V_RETURN_VAL;
@@ -138,7 +167,6 @@ Created : 07/15/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
-IN_COST_CENTER_CODE   IN     VARCHAR2,
 IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2
 IS
     V_RETURN_VALUE VARCHAR2(1) := 'N';
@@ -146,8 +174,8 @@ BEGIN
     SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
       INTO V_RETURN_VALUE
       FROM LEAD_BANK_CC_FUTURE
-     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-       AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE >= IN_EFFECTIVE_DATE);
+     WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+       AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE);
     RETURN V_RETURN_VALUE;
 EXCEPTION
     WHEN OTHERS THEN
@@ -163,7 +191,7 @@ Created : 07/10/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE   IN     VARCHAR2,
-IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+--IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
 IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2
 IS
     V_RETURN_VALUE VARCHAR2(1) := 'N';
@@ -172,14 +200,14 @@ BEGIN
       INTO V_RETURN_VALUE
       FROM (SELECT 1
               FROM LEAD_BANK_CC
-             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-               AND BANK_ACCOUNT_NBR <> NVL(IN_BANK_ACCOUNT_NBR, 'X')
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+               --AND LEAD_BANK_ACCOUNT_NBR <> NVL(IN_BANK_ACCOUNT_NBR, 'X')
                AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM LEAD_BANK_CC_FUTURE
-             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-               AND BANK_ACCOUNT_NBR <> NVL(IN_BANK_ACCOUNT_NBR, 'X')
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+               --AND LEAD_BANK_ACCOUNT_NBR <> NVL(IN_BANK_ACCOUNT_NBR, 'X')
                AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
            );
 
@@ -210,18 +238,18 @@ BEGIN
           FROM (SELECT 1
                   FROM MEMBER_BANK_CC MB,
                        LEAD_BANK_CC LB
-                 WHERE MB.LEAD_STORE_NBR   = IN_COST_CENTER_CODE
-                   AND MB.LEAD_STORE_NBR   = LB.COST_CENTER_CODE
-                   AND LB.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                 WHERE MB.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
+                   AND LB.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND MB.LEAD_STORE_NBR        = LB.LEAD_STORE_NBR
                    AND (MB.EXPIRATION_DATE IS NULL OR MB.EXPIRATION_DATE > IN_EXPIRATION_DATE)
                  UNION
                 SELECT 1
                   FROM MEMBER_BANK_CC_FUTURE MBF,
                        LEAD_BANK_CC_FUTURE LBF
-                 WHERE MBF.LEAD_STORE_NBR   = IN_COST_CENTER_CODE
-                   AND MBF.LEAD_STORE_NBR   = LBF.COST_CENTER_CODE
-                   AND LBF.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-                   AND MBF.FUTURE_ID        = NVL(IN_FUTURE_ID, 'X')
+                 WHERE MBF.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
+                   AND LBF.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND MBF.FUTURE_ID             = NVL(IN_FUTURE_ID, 'X')
+                   AND MBF.LEAD_STORE_NBR        = LBF.LEAD_STORE_NBR
                    AND (MBF.EXPIRATION_DATE IS NULL OR MBF.EXPIRATION_DATE > IN_EXPIRATION_DATE)
                );
     END IF;
@@ -276,7 +304,7 @@ BEGIN
                             V_PROC_NAME,
                             'Bank Account');
     END IF;
-    IF IN_LEAD_BANK_CC_REC.COST_CENTER_CODE IS NOT NULL THEN
+    IF IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR IS NOT NULL THEN
     --********************************************************************************
     --LEAD_BANK_CC Validations
     --********************************************************************************
@@ -285,19 +313,25 @@ BEGIN
                             NULL,
                             V_PROC_NAME,
                             'Lead');
+        VALIDATE_PARENT_CHILD_DATES(IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE,
+                                    IN_BANK_ACCOUNT_REC.EXPIRATION_DATE,
+                                    IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE,
+                                    IN_LEAD_BANK_CC_REC.EXPIRATION_DATE,
+                                    V_PROC_NAME,
+                                    'Lead Bank CC dates can not be outside Bank Account dates');
         VALIDATE_CURRENT_EFFCTV_DT('LEAD_BANK_CC',
-                                   IN_LEAD_BANK_CC_REC.BANK_ACCOUNT_NBR,
-                                   IN_LEAD_BANK_CC_REC.COST_CENTER_CODE,
+                                   IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
+                                   IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
                                    IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE,
                                    V_PROC_NAME,
                                    'Lead');
-        IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_LEAD_BANK_CC_REC.COST_CENTER_CODE,
-                                      IN_LEAD_BANK_CC_REC.BANK_ACCOUNT_NBR,
+        IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                      --IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE) = 'Y' THEN
             RAISE lead_exists_for_effctv_dt;
         END IF;
-        IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_REC.COST_CENTER_CODE,
-                                      IN_LEAD_BANK_CC_REC.BANK_ACCOUNT_NBR,
+        IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                      IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_REC.EXPIRATION_DATE,
                                       NULL) = 'Y' THEN
             RAISE lead_exprd_with_actv_mbr;
@@ -311,13 +345,19 @@ BEGIN
                             IN_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID,
                             V_PROC_NAME,
                             'Lead');
-        IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_LEAD_BANK_CC_FUTURE_REC.COST_CENTER_CODE,
-                                      IN_LEAD_BANK_CC_FUTURE_REC.BANK_ACCOUNT_NBR,
+        VALIDATE_PARENT_CHILD_DATES(IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE,
+                                    IN_BANK_ACCOUNT_FUTURE_REC.EXPIRATION_DATE,
+                                    IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,
+                                    IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE,
+                                    V_PROC_NAME,
+                                    'Lead Bank CC dates can not be outside Bank Account dates');
+        IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,
+                                      --IN_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE) = 'Y' THEN
             RAISE lead_exists_for_effctv_dt;
         END IF;
-        IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_FUTURE_REC.COST_CENTER_CODE,
-                                      IN_LEAD_BANK_CC_FUTURE_REC.BANK_ACCOUNT_NBR,
+        IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,
+                                      IN_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE,
                                       IN_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID) = 'Y' THEN
             RAISE lead_exprd_with_actv_mbr;
@@ -424,9 +464,10 @@ FUNCTION IS_MBR_ACTV_FOR_EFFCTV_DT(
 Created : 07/10/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_LEAD_STORE_NBR   IN     VARCHAR2,
-IN_MBR_STORE_NBR    IN     VARCHAR2,
-IN_EFFECTIVE_DATE   IN     DATE) RETURN VARCHAR2
+--IN_LEAD_BANK_ACCOUNT_NBR IN     VARCHAR2,
+--IN_LEAD_STORE_NBR        IN     VARCHAR2,
+IN_MBR_STORE_NBR         IN     VARCHAR2,
+IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2
 IS
     V_RETURN_VALUE VARCHAR2(1) := 'N';
 BEGIN
@@ -434,14 +475,18 @@ BEGIN
       INTO V_RETURN_VALUE
       FROM (SELECT 1
               FROM MEMBER_BANK_CC
-             WHERE MEMBER_STORE_NBR = IN_MBR_STORE_NBR
-               AND LEAD_STORE_NBR <> NVL(IN_LEAD_STORE_NBR, 'X')
+             WHERE /*(LEAD_BANK_ACCOUNT_NBR <> NVL(IN_LEAD_BANK_ACCOUNT_NBR, 'X')
+                     OR
+                     LEAD_STORE_NBR <> NVL(IN_LEAD_STORE_NBR, 'X'))
+               AND */MEMBER_STORE_NBR = IN_MBR_STORE_NBR
                AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM MEMBER_BANK_CC_FUTURE
-             WHERE MEMBER_STORE_NBR = IN_MBR_STORE_NBR
-               AND LEAD_STORE_NBR <> NVL(IN_LEAD_STORE_NBR, 'X')
+             WHERE /*(LEAD_BANK_ACCOUNT_NBR <> NVL(IN_LEAD_BANK_ACCOUNT_NBR, 'X')
+                     OR
+                     LEAD_STORE_NBR <> NVL(IN_LEAD_STORE_NBR, 'X'))
+               AND */MEMBER_STORE_NBR = IN_MBR_STORE_NBR
                AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
            );
     RETURN V_RETURN_VALUE;
@@ -463,6 +508,8 @@ IS
     V_INDEX                   NUMBER := 0;
     V_MBR_BANK_CC_FUTURE_TAB  TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE;
     V_MBR_BANK_CC_TAB         TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE;
+    V_LEAD_BANK_CC_FUTURE_REC LEAD_BANK_CC_FUTURE%ROWTYPE;
+    V_LEAD_BANK_CC_REC        LEAD_BANK_CC%ROWTYPE;
     V_PROC_NAME               VARCHAR2(30) := 'MEMBER_MAINTENANCE_BR_SP';
     member_added_twice        EXCEPTION;
     lead_assigned_as_mem      EXCEPTION;
@@ -480,6 +527,15 @@ BEGIN
                                 NULL,
                                 V_PROC_NAME,
                                 'Member');
+            IF V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
+                V_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_STORE_NBR);
+            END IF;
+            VALIDATE_PARENT_CHILD_DATES(IN_MBR_BANK_CC_TAB(V_INDEX).EFFECTIVE_DATE,
+                                        IN_MBR_BANK_CC_TAB(V_INDEX).EXPIRATION_DATE,
+                                        V_LEAD_BANK_CC_REC.EFFECTIVE_DATE,
+                                        V_LEAD_BANK_CC_REC.EXPIRATION_DATE,
+                                        V_PROC_NAME,
+                                        'Member Bank CC dates can not be outside Lead Bank CC dates');
             VALIDATE_CURRENT_EFFCTV_DT('MEMBER_BANK_CC',
                                        NULL, --Bank Account Number
                                        IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_STORE_NBR,
@@ -494,12 +550,13 @@ BEGIN
             END IF;
             --can't enter a member who is currently a lead any where
             IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_MBR_BANK_CC_TAB(V_INDEX).MEMBER_STORE_NBR,
-                                          NULL,
+                                          --NULL,
                                           IN_MBR_BANK_CC_TAB(V_INDEX).EFFECTIVE_DATE) = 'Y' THEN
                 RAISE lead_assigned_as_mem;
             END IF;
             --can't enter a member who is a member for some other lead as of that date
-            IF IS_MBR_ACTV_FOR_EFFCTV_DT(IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_STORE_NBR,
+            IF IS_MBR_ACTV_FOR_EFFCTV_DT(--IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
+                                         --IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_STORE_NBR,
                                          IN_MBR_BANK_CC_TAB(V_INDEX).MEMBER_STORE_NBR,
                                          IN_MBR_BANK_CC_TAB(V_INDEX).EFFECTIVE_DATE) = 'Y' THEN
                 RAISE mbr_exists_for_effctv_dt;
@@ -512,11 +569,23 @@ BEGIN
     --********************************************************************************
         V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.FIRST;
         WHILE V_INDEX IS NOT NULL LOOP
+            IF V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
+                V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_STORE_NBR,
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID);
+            END IF;
             VALIDATE_DATE_RULES(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE,
                                 IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EXPIRATION_DATE,
                                 IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID,
                                 V_PROC_NAME,
                                 'Member');
+            VALIDATE_PARENT_CHILD_DATES(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE,
+                                        IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EXPIRATION_DATE,
+                                        V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,
+                                        V_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE,
+                                        V_PROC_NAME,
+                                        'Member Bank CC dates can not be outside Lead Bank CC dates');
             --can't enter same member more than once
             IF IS_MEMBER_ADDED_TWICE(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).MEMBER_STORE_NBR,
                                      V_MBR_BANK_CC_TAB, --never touch NULL V_MBR_BANK_CC_TAB here
@@ -525,18 +594,19 @@ BEGIN
             END IF;
             --can't enter a member who is currently a lead any where
             IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).MEMBER_STORE_NBR,
-                                          NULL,
+                                          --NULL,
                                           IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE) = 'Y' THEN
                 RAISE lead_assigned_as_mem;
             END IF;
             --can't enter a member who is a member for some other lead as of that date
-            IF IS_MBR_ACTV_FOR_EFFCTV_DT(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_STORE_NBR,
+            IF IS_MBR_ACTV_FOR_EFFCTV_DT(--IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
+                                         --IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_STORE_NBR,
                                          IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).MEMBER_STORE_NBR,
                                          IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE) = 'Y' THEN
                 RAISE mbr_exists_for_effctv_dt;
             END IF;
             V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.NEXT(V_INDEX);
-        END LOOP;  
+        END LOOP;
     END IF;
 EXCEPTION
     WHEN member_added_twice THEN
@@ -558,66 +628,6 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' ); 
 END MEMBER_MAINTENANCE_BR_SP;
-
-PROCEDURE MAKE_LEAD_BR_SP(
-/******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent 
-
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_NEW_LEAD_CC    IN     VARCHAR2,
-IN_EFFECTIVE_DATE IN     DATE,
-IN_FROM_LEAD_CC   IN     VARCHAR2,
-IN_BANK_ACC_NBR   IN     VARCHAR2)
-IS
-    V_PROC_NAME               VARCHAR2(30) := 'MAKE_LEAD_BR_SP';
-    lead_exists_for_effctv_dt EXCEPTION;
-    mbr_exists_for_effctv_dt  EXCEPTION;
-    bank_exists_for_effctv_dt EXCEPTION;
-BEGIN
-    VALIDATE_DATE_RULES(IN_EFFECTIVE_DATE,
-                        NULL,
-                        1, --Hard Coded => to make sure that future effective date validation fires
-                        --[future effective date can not be less than or equal to sysdate]
-                        V_PROC_NAME,
-                        'To Lead');
-    IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_NEW_LEAD_CC, --even for this bank account he shouldn't be a lead in future
-                                  NULL,
-                                  IN_EFFECTIVE_DATE) = 'Y' THEN
-        RAISE lead_exists_for_effctv_dt;
-    END IF;
-    FOR REC IN (SELECT *
-                  FROM MEMBER_BANK_CC
-                 WHERE LEAD_STORE_NBR = IN_FROM_LEAD_CC) LOOP
-        IF IS_MBR_ACTV_FOR_EFFCTV_DT(--NULL, --even for this lead he shouldn't be a member in future
-                                     rec.LEAD_STORE_NBR,
-                                     rec.MEMBER_STORE_NBR,
-                                     IN_EFFECTIVE_DATE) = 'Y' THEN
-            RAISE mbr_exists_for_effctv_dt;
-        END IF;
-    END LOOP;
-    IF IS_BANK_ACTV_FOR_EFFCTV_DT(IN_BANK_ACC_NBR,
-                                  IN_NEW_LEAD_CC, --even for this lead he shouldn't be a member in future
-                                  IN_EFFECTIVE_DATE) = 'Y' THEN
-       RAISE bank_exists_for_effctv_dt;
-    END IF; 
-EXCEPTION
-    WHEN lead_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_lead_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'Lead is already active for another bank account as of the effective date');
-    WHEN mbr_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_mbr_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'One of the current leads member is already active for another Lead as of the effective date');                       
-    WHEN bank_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_bank_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'Bank account is already active for another or same lead as of the effective date'); 
-    WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
-END MAKE_LEAD_BR_SP;
 
 PROCEDURE DEPOSIT_TICKET_MNTNC_BR_SP(
 /******************************************************************************

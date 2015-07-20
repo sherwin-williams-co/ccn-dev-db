@@ -34,28 +34,21 @@ revised :
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
 IS
-V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
+    V_LEAD_BANK_CC_REC      LEAD_BANK_CC%ROWTYPE;
+    V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
 BEGIN
     --Check in Lead/Independent cost centers for bank account number
-    BEGIN
-        SELECT BANK_ACCOUNT_NBR
-          INTO V_BANK_ACCOUNT_NBR
-          FROM LEAD_BANK_CC
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND ROWNUM < 2;
-    EXCEPTION
-        WHEN OTHERS THEN
-            NULL;
-    END;
+    V_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(IN_COST_CENTER_CODE);
+    V_BANK_ACCOUNT_NBR := V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
     IF V_BANK_ACCOUNT_NBR IS NULL THEN
         --Check in Member cost centers for bank account number as not found in Lead/Independent
         BEGIN
-            SELECT BANK_ACCOUNT_NBR
+            SELECT LEAD_BANK_ACCOUNT_NBR
               INTO V_BANK_ACCOUNT_NBR
               FROM LEAD_BANK_CC
-             WHERE COST_CENTER_CODE = (SELECT LEAD_STORE_NBR
-                                         FROM MEMBER_BANK_CC
-                                        WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE)
+             WHERE LEAD_STORE_NBR = (SELECT LEAD_STORE_NBR
+                                       FROM MEMBER_BANK_CC
+                                      WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE)
                AND ROWNUM < 2;
         EXCEPTION
             WHEN OTHERS THEN
@@ -84,15 +77,13 @@ BEGIN
       INTO V_LEAD_STORE_NBR
       FROM MEMBER_BANK_CC
      WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR;
-      -- AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE >= TRUNC(SYSDATE));
-
     RETURN V_LEAD_STORE_NBR;
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_LEAD_STORE_NBR;
 END GET_LEAD_STORE_NBR;
 
-PROCEDURE GET_LEAD_BANK_CC_REC(
+FUNCTION GET_LEAD_BANK_CC_REC(
 /***********************************************************
 	This procedure will be called in lead_transfer_process to 
   get the lead bank rec 
@@ -100,19 +91,45 @@ PROCEDURE GET_LEAD_BANK_CC_REC(
 created : 06/08/2015 nxk927
 update  : 
 ************************************************************/
-    IN_LEAD_CC           IN     VARCHAR2,
-    OUT_LEAD_BANK_CC_REC    OUT LEAD_BANK_CC%ROWTYPE)
+    IN_LEAD_STORE_NBR           IN     VARCHAR2) RETURN LEAD_BANK_CC%ROWTYPE
 IS
+    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
 BEGIN
     SELECT *
-      INTO OUT_LEAD_BANK_CC_REC
+      INTO V_LEAD_BANK_CC_REC
       FROM LEAD_BANK_CC
-     WHERE COST_CENTER_CODE = IN_LEAD_CC;
-       --AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE >= TRUNC(SYSDATE));
+     WHERE LEAD_STORE_NBR = IN_LEAD_STORE_NBR;
+    RETURN V_LEAD_BANK_CC_REC;
 EXCEPTION
     WHEN OTHERS THEN
-        NULL;
+        RETURN NULL;
 END GET_LEAD_BANK_CC_REC;
+
+FUNCTION GET_LEAD_BANK_CC_FUTURE_REC(
+/***********************************************************
+	This procedure will return the lead_bank_cc_future record
+  based on bank account number, lead store number and future id
+  
+Created : 07/20/2015 jxc517 CCN Project....
+Changed  : 
+************************************************************/
+    IN_LEAD_BANK_ACCOUNT_NBR IN     VARCHAR2,
+    IN_LEAD_STORE_NBR        IN     VARCHAR2,
+    IN_FUTURE_ID             IN     NUMBER) RETURN LEAD_BANK_CC_FUTURE%ROWTYPE
+IS
+    V_LEAD_BANK_CC_FUTURE_REC LEAD_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_LEAD_BANK_CC_FUTURE_REC
+      FROM LEAD_BANK_CC_FUTURE
+     WHERE LEAD_BANK_ACCOUNT_NBR = IN_LEAD_BANK_ACCOUNT_NBR
+       AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+       AND FUTURE_ID             = IN_FUTURE_ID;
+    RETURN V_LEAD_BANK_CC_FUTURE_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_LEAD_BANK_CC_FUTURE_REC;
 
 FUNCTION GET_BANK_TYPE_CODE(
 /*******************************************************************************
@@ -121,7 +138,7 @@ FUNCTION GET_BANK_TYPE_CODE(
 Created : 06/09/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER    IN     LEAD_BANK_CC.COST_CENTER_CODE%TYPE)
+IN_COST_CENTER    IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE)
 RETURN VARCHAR2
 IS
     V_BANK_TYPE_CODE VARCHAR2(1);
@@ -130,7 +147,7 @@ BEGIN
       INTO V_BANK_TYPE_CODE
       FROM (SELECT BANK_TYPE_CODE
               FROM LEAD_BANK_CC
-             WHERE COST_CENTER_CODE = IN_COST_CENTER
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER
              UNION
             SELECT 'M'
               FROM MEMBER_BANK_CC

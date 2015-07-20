@@ -177,6 +177,18 @@ exc_bank_exists_for_effctv_dt EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_bank_exists_for_effctv_dt , -20012);
 
+/*********************************************************** 
+The "en_parent_child_dates_err" passes a numerical error of -20013
+This error will be used when the bank account is effective for another lead
+for the passed effective date
+
+created : 07/17/2015 jxc517 CCN Project
+revisions: 
+************************************************************/
+en_parent_child_dates_err CONSTANT NUMBER := -20013;  
+exc_parent_child_dates_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_parent_child_dates_err , -20013);
 
 END errnums;
 

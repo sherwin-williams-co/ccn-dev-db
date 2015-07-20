@@ -30,12 +30,33 @@ IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
 
 PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
 /******************************************************************************
-	This procedure performs the core process for Account Maintenance Window
+	This procedure performs the core insert/update process for Account Maintenance Window
 
 created : 07/09/2015 jxc517 CCN Project....
 revised : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
+
+PROCEDURE ACCNT_MNTNC_FUTURE_UPSERT_SP ( 
+/******************************************************************************
+This procedure is intended to update following tables used in the
+Account Maintenance Window that are future records
+    Tables: 
+       BANK_ACCOUNT_FUTURE
+       LEAD_BANK_CC_FUTURE
+       BANK_MICR_FORMAT_FUTURE
+Expire following tables used in the Account Maintenance Window that are current records
+    Tables: 
+       BANK_ACCOUNT
+       LEAD_BANK_CC
+       BANK_MICR_FORMAT
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_FUTURE_REC         IN BANK_ACCOUNT_FUTURE%ROWTYPE,
+    IN_LEAD_BANK_CC_FUTURE_REC         IN LEAD_BANK_CC_FUTURE%ROWTYPE,
+    IN_BANK_MICR_FORMAT_FUTURE_TAB     IN TABLE_IU_PKG.BANK_MICR_FORMAT_FTR_TAB_TYPE);
 
 PROCEDURE ACCNT_MNTNC_CURRENT_DELETE_SP ( 
 /******************************************************************************
@@ -45,8 +66,7 @@ PROCEDURE ACCNT_MNTNC_CURRENT_DELETE_SP (
 Created : 07/13/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
-    IN_USER_ID              IN  VARCHAR2);
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2);
 
 PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP ( 
 /******************************************************************************
