@@ -235,8 +235,8 @@ This procedure is intended to update following tables used in the Mamber Mainten
     </MEMBER_BANK_CC_TABLE>
 </MEMBER_CC_MAINTENANCE_UI>
 
-created : 06/04/2015 sxh487 CCN Project....
-revised : 
+Created : 07/10/2015 jxc517 CCN Project....
+Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
     
@@ -318,7 +318,7 @@ PROCEDURE LEAD_BANK_FROM_SP
     This procedure is intended to select records from Lead bank table including the 
     members from the member bank table that we will be tranferred from.  
 
-Created : 06/05/2015 nxk927 CCN Project....
+Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_COST_CENTER_CODE IN     VARCHAR2
@@ -331,7 +331,7 @@ PROCEDURE LEAD_BANK_TO_SP
     This procedure is intended to select records from Lead bank table and the
     member bank table that we will tranfer the records to.
 
-Created : 06/05/2015 nxk927 CCN Project....
+Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_COST_CENTER_CODE IN     VARCHAR2
@@ -343,7 +343,7 @@ PROCEDURE MAKE_LEAD_PROCESS
     This procedure is the shortcut proc to make the member bank as the lead 
     and transfer all the other member to the new lead.
 
-Created : 06/09/2015 nxk927 CCN Project....
+Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_NEW_LEAD_CC IN     VARCHAR2
@@ -367,8 +367,8 @@ EXAMPLE INPUT:
     </MEMBER_STORE>
 </MEMBER_TRANSFER_UI>
 
-CREATED : 06/08/2015 NXK927
-UPDATE  : 
+Created : 07/08/2015 nxk927/jxc517 CCN Project....
+Changed : 
 ************************************************************/
 IN_XML           CLOB);
 

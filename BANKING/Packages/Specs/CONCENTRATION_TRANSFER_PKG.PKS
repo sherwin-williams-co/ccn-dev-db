@@ -34,7 +34,6 @@ Changed :
 (IN_COST_CENTER_CODE IN     VARCHAR2
 ,OUT_REF_CUR   OUT  REF_CURSOR);
 
-
 PROCEDURE MAKE_LEAD_PROCESS
 /*******************************************************************************
     This procedure is the shortcut proc to make the member bank as the lead 

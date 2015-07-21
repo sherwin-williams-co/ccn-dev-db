@@ -1,31 +1,28 @@
 #!/bin/sh
 #################################################################
-# Script name   : banking_fut_to_current.sh
+# Script name   : initLoad.sh
 #
-# Description   : This script will invoke FUTR_TO_CURR_BATCH_PKG.PROCESS
+# Description   : This script will invoke INITLOAD.INITLOAD_SP()
 #
-# Created  : 07/10/2015 nxk927 CCN Project Team.....
+# Created  : 07/21/2015 jxc517 CCN Project Team.....
 # Modified :
 #################################################################
-# below command will get the path for stordrft.config respective to the environment from which it is run from
-. /app/stordrft/host.sh
+# below command will get the path for banking.config respective to the environment from which it is run from
+. /app/banking/dev/banking.config
 
-proc_name="FUTR_TO_CURR_BATCH_PKG"
-LOGDIR=$HOME/dailyLoad/logs
+proc_name="INITLOAD"
+LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-echo " BATCH PROCESS CURRENT TO HIST LOADING : Process Started at $TIME on $DATE "
-
-sqlplus -s -l $banking_sqlplus_user/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
+sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
-
-EXECUTE FUTR_TO_CURR_BATCH_PKG.PROCESS();
-
+TRUNCATE TABLE ERROR_LOG;
+EXECUTE INITLOAD.INITLOAD_SP();
 exit
 END
 
@@ -39,8 +36,6 @@ then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
-
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
-
 exit 0
 ############################################################################

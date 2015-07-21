@@ -3,7 +3,7 @@ CREATE OR REPLACE PACKAGE DEPOSIT_BAG_MAINTENANCE_PKG AS
 This Package contains all the procedures used in
 deposit bag update maintenance window
 
-Created : 07/15/2015 axk326 CCN Project....
+Created : 07/15/2015 axk326/jxc517 CCN Project....
 Changed :
 **********************************************************/
 
@@ -15,7 +15,7 @@ PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 Inputs:
     IN_COST_CENTER_CODE
 
-Created : 07/15/2015 axk326 CCN Project....
+Created : 07/15/2015 axk326/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2
@@ -27,7 +27,7 @@ This procedure is intended to update following tables used in the Deposit Bag Up
     Tables: 
        BANK_DEP_BAG_TICK
 
-Created : 07/15/2015 axk326 CCN Project....
+Created : 07/15/2015 axk326/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
