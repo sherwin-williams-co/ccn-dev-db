@@ -381,8 +381,7 @@ Created : 07/13/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
-    IN_FUTURE_ID            IN  NUMBER,
-    IN_USER_ID              IN  VARCHAR2);
+    IN_FUTURE_ID            IN  NUMBER);
 
 END BANKING_UI_INTERFACE_APP_PKG;
 

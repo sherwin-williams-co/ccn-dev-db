@@ -1,1 +1,0 @@
-This folder contains files for object bodies of Banking Project

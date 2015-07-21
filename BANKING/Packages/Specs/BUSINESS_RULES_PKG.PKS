@@ -42,6 +42,18 @@ Changed :
     IN_MBR_BANK_CC_TAB                IN TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE,
     IN_MBR_BANK_CC_FUTURE_TAB         IN TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE);
 
+PROCEDURE MAKE_LEAD_BR_SP(
+/******************************************************************************
+    This procedure is intended to validate the business rules based on the XML sent 
+
+Created : 07/10/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_NEW_LEAD_CC    IN     VARCHAR2,
+IN_EFFECTIVE_DATE IN     DATE,
+IN_FROM_LEAD_CC   IN     VARCHAR2,
+IN_BANK_ACC_NBR   IN     VARCHAR2);
+
 PROCEDURE DEPOSIT_TICKET_MNTNC_BR_SP(
 /******************************************************************************
     This procedure is intended to validate the business rules based on the XML sent

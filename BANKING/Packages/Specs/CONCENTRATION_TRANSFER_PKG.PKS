@@ -4,7 +4,7 @@ AS
   This Package is intended to be the wrapper for all banking
   related packages that are invoked from UI
 
-created : 06/05/2015 nxk927 CCN Project....
+created : 06/05/2015 nxk927/jxc517 CCN Project....
 changed :
 **********************************************************/
 
@@ -15,7 +15,7 @@ PROCEDURE LEAD_BANK_FROM_SP
     This procedure is intended to select records from Lead bank table including the 
     members from the member bank table that we will be tranferred from.  
 
-Created : 06/05/2015 nxk927 CCN Project....
+Created : 06/05/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_COST_CENTER_CODE IN     VARCHAR2
@@ -28,7 +28,7 @@ PROCEDURE LEAD_BANK_TO_SP
     This procedure is intended to select records from Lead bank table and the
     member bank table that we will tranfer the records to.
 
-Created : 06/05/2015 nxk927 CCN Project....
+Created : 06/05/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_COST_CENTER_CODE IN     VARCHAR2
@@ -40,7 +40,7 @@ PROCEDURE MAKE_LEAD_PROCESS
     This procedure is the shortcut proc to make the member bank as the lead 
     and transfer all the other member to the new lead.
 
-Created : 06/09/2015 nxk927 CCN Project....
+Created : 06/09/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 (IN_NEW_LEAD_CC IN     VARCHAR2
@@ -64,7 +64,7 @@ EXAMPLE INPUT:
     </MEMBER_STORES>
 </MEMBER_TRANSFER_UI>
 
-CREATED : 06/08/2015 NXK927
+CREATED : 06/08/2015 nxk927/jxc517
 UPDATE  : 
 ************************************************************/
 IN_XML           CLOB);
