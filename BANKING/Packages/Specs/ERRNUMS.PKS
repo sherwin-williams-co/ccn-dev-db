@@ -23,7 +23,7 @@ PRAGMA EXCEPTION_INIT
 (exc_accnt_nbr_not_avlbl_for_cc , -20000);
 
 /*********************************************************** 
-The "en_cc_not_lead_ever" passes a numerical error of -20001
+The "cc_not_lead_ever" passes a numerical error of -20001
 This error will be used when the Cost center entered in the 
 Member Cost Center Maintenance screen is not a Lead 
 
@@ -36,7 +36,7 @@ PRAGMA EXCEPTION_INIT
 (exc_cc_not_lead_ever , -20001);
 
 /*********************************************************** 
-The "een_member_added_twice" passes a numerical error of -20002
+The "member_added_twice" passes a numerical error of -20002
 This error will be used when the member Cost center and the lead cc combination entered in the 
 Member Cost Center Maintenance screen is already present
 
@@ -49,7 +49,7 @@ PRAGMA EXCEPTION_INIT
 (exc_member_added_twice , -20002);
 
 /*********************************************************** 
-The "en_lead_assigned_as_mem" passes a numerical error of -20003
+The "lead_assigned_as_mem" passes a numerical error of -20003
 This error will be used when the member Cost center passed is 
 present as a lead
 
@@ -62,7 +62,7 @@ PRAGMA EXCEPTION_INIT
 (exc_lead_assigned_as_mem , -20003);
 
 /*********************************************************** 
-The "en_exp_eff_date_mismatch" passes a numerical error of -20004
+The "exp_eff_date_mismatch" passes a numerical error of -20004
 This error will be used when the member Cost center passed is 
 present as a lead
 
@@ -75,7 +75,7 @@ PRAGMA EXCEPTION_INIT
 (exc_exp_eff_date_mismatch , -20004);
 
 /*********************************************************** 
-The "en_lead_exists_for_effctv_dt" passes a numerical error of -20005
+The "lead_exists_for_effctv_dt" passes a numerical error of -20005
 This error will be used when the lead is effective for another bank
 account number for the passed effective date
 
@@ -88,7 +88,7 @@ PRAGMA EXCEPTION_INIT
 (exc_lead_exists_for_effctv_dt , -20005);
 
 /*********************************************************** 
-The "en_effective_date_null" passes a numerical error of -20006
+The "effective_date_null" passes a numerical error of -20006
 This error will be used when the effective date is not passed
 
 created : 07/09/2015 jxc517 CCN Project
@@ -100,7 +100,7 @@ PRAGMA EXCEPTION_INIT
 (exc_effective_date_null , -20006);
 
 /*********************************************************** 
-The "en_effctv_dt_lt_exprtn_dt" passes a numerical error of -20007
+The "effctv_dt_lt_exprtn_dt" passes a numerical error of -20007
 This error will be used when the expiration date is passed
 that is less than effective date
 
@@ -113,7 +113,7 @@ PRAGMA EXCEPTION_INIT
 (exc_effctv_dt_lt_exprtn_dt , -20007);
 
 /*********************************************************** 
-The "en_mbr_exists_for_effctv_dt" passes a numerical error of -20008
+The "mbr_exists_for_effctv_dt" passes a numerical error of -20008
 This error will be used when the member is effective for another lead
 for the passed effective date
 
@@ -126,7 +126,7 @@ PRAGMA EXCEPTION_INIT
 (exc_mbr_exists_for_effctv_dt , -20008);
 
 /*********************************************************** 
-The "en_lead_exprd_with_actv_mbr" passes a numerical error of -20009
+The "lead_exprd_with_actv_mbr" passes a numerical error of -20009
 This error will be used when a lead-bank accoun combination is expired
 with atleast one member active under it
 
@@ -139,7 +139,7 @@ PRAGMA EXCEPTION_INIT
 (exc_lead_exprd_with_actv_mbr , -20009);
 
 /*********************************************************** 
-The "en_effctv_dt_lt_current_dt" passes a numerical error of -20010
+The "effctv_dt_lt_current_dt" passes a numerical error of -20010
 This error will be used when the expiration date is passed
 that is less than current date
 
@@ -152,7 +152,7 @@ PRAGMA EXCEPTION_INIT
 (exc_effctv_dt_lt_current_dt , -20010);
 
 /*********************************************************** 
-The "en_effctv_dt_lte_current_dt" passes a numerical error of -20011
+The "effctv_dt_lte_current_dt" passes a numerical error of -20011
 This error will be used when the expiration date is passed
 that is less than current date
 
@@ -165,7 +165,7 @@ PRAGMA EXCEPTION_INIT
 (exc_effctv_dt_lte_current_dt , -20011);
 
 /*********************************************************** 
-The "en_bank_exists_for_effctv_dt" passes a numerical error of -20012
+The "bank_exists_for_effctv_dt" passes a numerical error of -20012
 This error will be used when the bank account is effective for another lead
 for the passed effective date
 
@@ -178,7 +178,7 @@ PRAGMA EXCEPTION_INIT
 (exc_bank_exists_for_effctv_dt , -20012);
 
 /*********************************************************** 
-The "en_parent_child_dates_err" passes a numerical error of -20013
+The "parent_child_dates_err" passes a numerical error of -20013
 This error will be used when the bank account is effective for another lead
 for the passed effective date
 
@@ -189,6 +189,19 @@ en_parent_child_dates_err CONSTANT NUMBER := -20013;
 exc_parent_child_dates_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_parent_child_dates_err , -20013);
+
+/*********************************************************** 
+The "bnk_accnt_expr_wt_actv_chld" passes a numerical error of -20014
+This error will be used when a bank account is expired
+with atleast one MICR format or Lead active under it
+
+created : 07/22/2015 jxc517 CCN Project
+revisions: 
+************************************************************/
+en_bnk_accnt_expr_wt_actv_chld CONSTANT NUMBER := -20014;  
+exc_bnk_accn_expr_wt_actv_chld EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_bnk_accn_expr_wt_actv_chld , -20014);
 
 END errnums;
 

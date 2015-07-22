@@ -258,6 +258,59 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_LEAD_EXPIRATION_INVALID;
 
+FUNCTION IS_BNK_ACCNT_EXPRTN_INVALID(
+/******************************************************************************
+  This function will return "Y" if the passed bank account contains active
+  MICR Format or Lead as of the date it is being expired
+
+Created : 07/22/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_REC                IN BANK_ACCOUNT%ROWTYPE,
+    IN_BANK_ACCOUNT_FUTURE_REC         IN BANK_ACCOUNT_FUTURE%ROWTYPE,
+    IN_LEAD_BANK_CC_REC                IN LEAD_BANK_CC%ROWTYPE,
+    IN_LEAD_BANK_CC_FUTURE_REC         IN LEAD_BANK_CC_FUTURE%ROWTYPE,
+    IN_BANK_MICR_FORMAT_TAB            IN TABLE_IU_PKG.BANK_MICR_FORMAT_TAB_TYPE,
+    IN_BANK_MICR_FORMAT_FUTURE_TAB     IN TABLE_IU_PKG.BANK_MICR_FORMAT_FTR_TAB_TYPE) RETURN VARCHAR2
+IS
+    V_INDEX        NUMBER := 0;
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    IF IN_BANK_ACCOUNT_REC.EXPIRATION_DATE IS NOT NULL THEN
+        IF IN_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL
+           OR IN_LEAD_BANK_CC_REC.EXPIRATION_DATE > IN_BANK_ACCOUNT_REC.EXPIRATION_DATE THEN
+            V_RETURN_VALUE := 'Y';
+        ELSE
+            V_INDEX := IN_BANK_MICR_FORMAT_TAB.FIRST;
+            WHILE V_INDEX IS NOT NULL LOOP
+                V_INDEX := IN_BANK_MICR_FORMAT_TAB.NEXT(V_INDEX);
+                IF IN_BANK_MICR_FORMAT_TAB(V_INDEX).EXPIRATION_DATE IS NULL
+                   OR IN_BANK_MICR_FORMAT_TAB(V_INDEX).EXPIRATION_DATE > IN_BANK_ACCOUNT_REC.EXPIRATION_DATE THEN
+                    V_RETURN_VALUE := 'Y';
+                END IF;
+            END LOOP;
+        END IF;
+    ELSIF IN_BANK_ACCOUNT_FUTURE_REC.EXPIRATION_DATE IS NOT NULL THEN
+        IF IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE IS NULL
+           OR IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE > IN_BANK_ACCOUNT_FUTURE_REC.EXPIRATION_DATE THEN
+            V_RETURN_VALUE := 'Y';
+        ELSE
+            V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.FIRST;
+            WHILE V_INDEX IS NOT NULL LOOP
+                V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.NEXT(V_INDEX);
+                IF IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EXPIRATION_DATE IS NULL
+                   OR IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EXPIRATION_DATE > IN_BANK_ACCOUNT_FUTURE_REC.EXPIRATION_DATE THEN
+                    V_RETURN_VALUE := 'Y';
+                END IF;
+            END LOOP;
+        END IF;
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_BNK_ACCNT_EXPRTN_INVALID;
+
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
     This procedure is intended to validate the business rules based on the XML sent 
@@ -272,11 +325,12 @@ Changed :
     IN_BANK_MICR_FORMAT_TAB            IN TABLE_IU_PKG.BANK_MICR_FORMAT_TAB_TYPE,
     IN_BANK_MICR_FORMAT_FUTURE_TAB     IN TABLE_IU_PKG.BANK_MICR_FORMAT_FTR_TAB_TYPE)
 IS
-    V_INDEX                   NUMBER := 0;
-    V_PROC_NAME               VARCHAR2(30) := 'ACCOUNT_MAINTENANCE_BR_SP';
-    lead_exists_for_effctv_dt EXCEPTION;
-    lead_exprd_with_actv_mbr  EXCEPTION;
-    effctv_dt_lt_current_dt   EXCEPTION;
+    V_INDEX                      NUMBER := 0;
+    V_PROC_NAME                  VARCHAR2(30) := 'ACCOUNT_MAINTENANCE_BR_SP';
+    lead_exists_for_effctv_dt    EXCEPTION;
+    lead_exprd_with_actv_mbr     EXCEPTION;
+    effctv_dt_lt_current_dt      EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld EXCEPTION;
 BEGIN
     IF IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN
     --********************************************************************************
@@ -293,6 +347,14 @@ BEGIN
                                    IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE,
                                    V_PROC_NAME,
                                    'Bank Account');
+        IF IS_BNK_ACCNT_EXPRTN_INVALID(IN_BANK_ACCOUNT_REC,
+                                       IN_BANK_ACCOUNT_FUTURE_REC,
+                                       IN_LEAD_BANK_CC_REC,
+                                       IN_LEAD_BANK_CC_FUTURE_REC,
+                                       IN_BANK_MICR_FORMAT_TAB,
+                                       IN_BANK_MICR_FORMAT_FUTURE_TAB) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
     ELSE
     --********************************************************************************
     --BANK_ACCOUNT_FUTURE Validations
@@ -302,6 +364,14 @@ BEGIN
                             IN_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID,
                             V_PROC_NAME,
                             'Bank Account');
+        IF IS_BNK_ACCNT_EXPRTN_INVALID(IN_BANK_ACCOUNT_REC,
+                                       IN_BANK_ACCOUNT_FUTURE_REC,
+                                       IN_LEAD_BANK_CC_REC,
+                                       IN_LEAD_BANK_CC_FUTURE_REC,
+                                       IN_BANK_MICR_FORMAT_TAB,
+                                       IN_BANK_MICR_FORMAT_FUTURE_TAB) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
     END IF;
     IF IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR IS NOT NULL THEN
     --********************************************************************************
@@ -404,6 +474,10 @@ EXCEPTION
         ERRPKG.RAISE_ERR(errnums.en_lead_exprd_with_actv_mbr,
                          V_PROC_NAME,
                          'Lead can not be expired with active members. Expire members under this lead-bank account number combination first');
+    WHEN bnk_accnt_exprd_wt_actv_chld THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
+                         V_PROC_NAME,
+                         'Bank Account can not be expired with active MICR Formats/Leads. Expire MICR Formats and Leads under this bank account number first');
     WHEN OTHERS THEN                        
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCOUNT_MAINTENANCE_BR_SP;

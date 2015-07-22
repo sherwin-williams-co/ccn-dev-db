@@ -59,6 +59,17 @@ Changed  :
     IN_LEAD_STORE_NBR        IN     VARCHAR2,
     IN_FUTURE_ID             IN     NUMBER) RETURN LEAD_BANK_CC_FUTURE%ROWTYPE;
 
+FUNCTION GET_BANK_ACCOUNT_REC(
+/***********************************************************
+	This procedure will be called in INITLOAD to 
+  get the bank account rec 
+  
+created : 07/21/2015 nxk927
+update  : 
+************************************************************/
+    IN_BANK_ACCOUNT_NBR           IN     VARCHAR2,
+    IN_EFFECTIVE_DATE             IN     BANK_ACCOUNT.EFFECTIVE_DATE%TYPE) RETURN BANK_ACCOUNT%ROWTYPE;
+    
 FUNCTION GET_BANK_TYPE_CODE(
 /*******************************************************************************
   This procedure will check if the Cost Center is a LEAD or NOT
@@ -69,5 +80,26 @@ Changed :
 IN_COST_CENTER    IN LEAD_BANK_CC.LEAD_STORE_NBR%TYPE)
 RETURN VARCHAR2;
 
+FUNCTION GET_FUTURE_ID(
+/***********************************************************
+	This procedure will be called from to get the future id 
+
+Created : 06/08/2015 nxk927/jxc517 CCN Project Team....
+Changed : 
+************************************************************/
+IN_BANK_ACCOUNT_NBR IN VARCHAR2) RETURN NUMBER;
+
+FUNCTION GET_LEAD_BANK_CC_HIST_REC(
+/***********************************************************
+	This procedure will be called in lead_transfer_process to 
+  get the lead bank rec 
+  
+created : 06/08/2015 nxk927
+update  : 
+************************************************************/
+    IN_LEAD_STORE_NBR           IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR         IN LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE,
+    IN_EFFECTIVE_DATE           IN     LEAD_BANK_CC.EFFECTIVE_DATE%TYPE) RETURN LEAD_BANK_CC%ROWTYPE;
+    
 END BANKING_COMMON_TOOLS;
 
