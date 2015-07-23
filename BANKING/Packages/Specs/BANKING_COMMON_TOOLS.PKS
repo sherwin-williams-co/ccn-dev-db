@@ -70,6 +70,16 @@ Changed  :
     IN_LEAD_STORE_NBR        IN     VARCHAR2,
     IN_FUTURE_ID             IN     NUMBER) RETURN LEAD_BANK_CC_FUTURE%ROWTYPE;
 
+FUNCTION GET_BANK_ACCOUNT_REC(
+/***********************************************************
+	This function will get the bank account record for passed
+  bank account number
+  
+Created : 07/23/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_BANK_ACCOUNT_NBR IN     VARCHAR2) RETURN BANK_ACCOUNT%ROWTYPE;
+
 FUNCTION GET_BANK_ACCOUNT_HIST_REC(
 /***********************************************************
 	This function will get the bank account record from current tables
