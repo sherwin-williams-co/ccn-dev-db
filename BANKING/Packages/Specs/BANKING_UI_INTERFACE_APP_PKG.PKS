@@ -4,11 +4,20 @@ AS
   This Package is intended to be the wrapper for all banking
   related packages that are invoked from UI
 
-created : 03/30/2015 jxc517 CCN Project....
-changed :
+Created : 03/30/2015 jxc517 CCN Project....
+Changed :
 **********************************************************/
 
 TYPE REF_CURSOR IS REF CURSOR;
+
+FUNCTION GET_FUTURE_ID(
+/***********************************************************
+	This procedure will be called from UI to get the future id 
+
+Created : 07/23/2015 jxc517 CCN Project Team....
+Changed : 
+************************************************************/
+IN_BANK_ACCOUNT_NBR IN VARCHAR2) RETURN NUMBER;
 
 PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 /*******************************************************************************
@@ -181,8 +190,8 @@ This procedure is intended to update following tables used in the Account Mainte
     </BANK_MICR_FORMAT_TABLE>
 </ACCOUNT_MAINTENANCE_UI>
 
-created : 05/18/2015 jxc517 CCN Project....
-revised : 
+Created : 05/18/2015 jxc517 CCN Project....
+Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
 
@@ -308,8 +317,8 @@ This procedure is intended to update following tables used in the Deposit Bag Up
     </BANK_DEP_BAG_TICK>
 </BANK_DEP_BAG_TICK_UI>
 
-created : 05/21/2015 jxc517 CCN Project....
-revised : 
+Created : 05/21/2015 jxc517 CCN Project....
+Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
 
@@ -352,7 +361,7 @@ Changed :
 
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
-	this procedure will be called from ui to transfer particular cost center
+	This procedure will be called from ui to transfer particular cost center
     from one lead to another
         
 EXAMPLE INPUT:

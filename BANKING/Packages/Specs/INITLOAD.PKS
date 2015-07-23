@@ -1,11 +1,10 @@
-CREATE OR REPLACE PACKAGE         INITLOAD
+CREATE OR REPLACE PACKAGE INITLOAD
+AS
 /**************************************************************** 
 This package will load the new CCN BANKING Oracle Database
 Created : 03/10/2015 nxk927 CCN Project....
 Changed :
 *****************************************************************/
-IS 
-
 PROCEDURE INITLOAD_SP
 /******************************************************************
 This Procedure is a wrapper for the Initial Load of the BANK tables

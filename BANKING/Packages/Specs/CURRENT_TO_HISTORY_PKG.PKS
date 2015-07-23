@@ -4,8 +4,8 @@ AS
   This Package contains procedured to move the current table records into
   history tables
 
-created : 05/26/2015 jxc517 CCN Project....
-changed :
+Created : 05/26/2015 jxc517 CCN Project....
+Changed :
 **********************************************************/
 PROCEDURE PROCESS
 /******************************************************************************
@@ -16,8 +16,8 @@ PROCEDURE PROCESS
       BANK_MICR_FORMAT_HIST
       BANK_ACCOUNT_HIST
 
-created : 05/26/2015 jxc517 CCN Project....
-revised : 07/22/2015 jxc517 CCN Project....
+Created : 05/26/2015 jxc517 CCN Project....
+Changed : 07/22/2015 jxc517 CCN Project....
           Modified to move childs along with parents into history even if parent is active
 *******************************************************************************/
 ;

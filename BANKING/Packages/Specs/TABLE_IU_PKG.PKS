@@ -1,11 +1,11 @@
-CREATE OR REPLACE PACKAGE         TABLE_IU_PKG 
+CREATE OR REPLACE PACKAGE TABLE_IU_PKG 
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
   tables related to stare draft
 
-created : 03/13/2015 nxk927 CCN BANKING PROJECT
-changed :
+Created : 03/13/2015 nxk927 CCN BANKING PROJECT
+Changed :
 **********************************************************/
 TYPE BANK_MICR_FORMAT_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT%ROWTYPE INDEX BY BINARY_INTEGER;
 TYPE BANK_MICR_FORMAT_FTR_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT_FUTURE%ROWTYPE INDEX BY BINARY_INTEGER;

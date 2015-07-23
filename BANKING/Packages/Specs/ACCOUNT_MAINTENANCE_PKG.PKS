@@ -7,7 +7,6 @@ account maintenance window
 Created : 07/09/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
-
 TYPE REF_CURSOR IS REF CURSOR;
 
 PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
@@ -32,8 +31,8 @@ PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP (
 /******************************************************************************
 	This procedure performs the core insert/update process for Account Maintenance Window
 
-created : 07/09/2015 jxc517 CCN Project....
-revised : 
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
 

@@ -20,7 +20,7 @@ IN_COST_CENTER    IN  VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent 
+    This procedure validates the business rules for Account Maintenance Window 
 
 created : 07/09/2015 jxc517 CCN Project....
 Changed : 
@@ -34,7 +34,7 @@ Changed :
 
 PROCEDURE MEMBER_MAINTENANCE_BR_SP(
 /******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent 
+    This procedure validates the business rules for Member Maintenance Window 
 
 Created : 07/10/2015 jxc517 CCN Project....
 Changed : 
@@ -44,7 +44,7 @@ Changed :
 
 PROCEDURE MAKE_LEAD_BR_SP(
 /******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent 
+    This procedure validates the business rules for Make Lead process of Concentration Window 
 
 Created : 07/10/2015 jxc517 CCN Project....
 Changed : 
@@ -56,7 +56,7 @@ IN_BANK_ACC_NBR   IN     VARCHAR2);
 
 PROCEDURE DEPOSIT_TICKET_MNTNC_BR_SP(
 /******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent
+    This procedure validates the business rules for Deposit TIcket Window
 
 Created : 07/15/2015 jxc517 CCN Project Team....
 Changed : 
@@ -65,7 +65,7 @@ Changed :
 
 PROCEDURE DEPOSIT_BAG_TICKET_MNTNC_BR_SP(
 /******************************************************************************
-    This procedure is intended to validate the business rules based on the XML sent
+    This procedure validates the business rules for Deposit Bag TIcket Window
 
 Created : 07/15/2015 axk326 CCN Project Team....
 Changed : 
