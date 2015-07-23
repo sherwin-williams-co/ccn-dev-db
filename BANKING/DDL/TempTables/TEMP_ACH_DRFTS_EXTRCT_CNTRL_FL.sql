@@ -18,9 +18,9 @@ CREATE TABLE TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL
         discardfile BANKING_LOAD_FILES:'TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL.dsc'
         FIELDS( COST_CENTER_CODE  CHAR(4),
                 CENTURY           CHAR(1),
-                YEAR            CHAR(2),
-                MONTH           CHAR(2),
-                DAY             CHAR(2),
+                "YEAR"            CHAR(2),
+                "MONTH"           CHAR(2),
+                "DAY"             CHAR(2),
                 BANK_DEP_AMT      CHAR(10),
                 BANK_ACCOUNT_NBR  CHAR(17),
                 BANK_AUTO_REC_IND CHAR(1))

@@ -18,9 +18,9 @@ CREATE TABLE TEMP_SUMMARY_EXTRCT_CNTRL_FL
         discardfile BANKING_LOAD_FILES:'TEMP_SUMMARY_EXTRCT_CNTRL_FL.dsc'
         FIELDS( COST_CENTER_CODE CHAR(4),
                 CENTURY          CHAR(1),
-                YEAR             CHAR(2),
-                MONTH            CHAR(2),
-                DAY              CHAR(2),
+                "YEAR"             CHAR(2),
+                "MONTH"            CHAR(2),
+                "DAY"              CHAR(2),
                 BANK_DEP_AMT     CHAR(9),
                 FILLER           CHAR(1),
                 BANK_ACCOUNT_NBR CHAR(17) )
