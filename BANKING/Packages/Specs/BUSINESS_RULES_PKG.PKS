@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
+create or replace PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -41,6 +41,15 @@ Changed :
 *******************************************************************************/
     IN_MBR_BANK_CC_TAB                IN TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE,
     IN_MBR_BANK_CC_FUTURE_TAB         IN TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_TAB_TYPE);
+
+PROCEDURE LEAD_TRANSFER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for Lead Transfer process of Concentration Window 
+
+Created : 07/28/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_XML           CLOB);
 
 PROCEDURE MAKE_LEAD_BR_SP(
 /******************************************************************************
