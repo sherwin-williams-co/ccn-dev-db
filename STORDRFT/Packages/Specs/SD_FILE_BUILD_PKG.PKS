@@ -41,6 +41,24 @@ changed : 11/24/2014 jxc517 CCN Project....
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N');
 
+PROCEDURE LOAD_VENDOR_INFORMATION
+/*****************************************************************************
+	This procedure will load the VENDOR_INFO table used in FSS fiel generation process
+
+created : 04/07/2015 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+;
+
+PROCEDURE BUILD_1099_FILE_FOR_FSS(
+/*****************************************************************************
+	This procedure will build the 1099 file from CPR views that will be sent for FSS(Financial Shared Services)
+
+created : 04/07/2015 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE           IN DATE);
+
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************
 
@@ -63,5 +81,45 @@ changed :
 **********************************************************/
 (IN_DATE IN DATE,
 IN_DIV  IN VARCHAR2);
+
+PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT(
+/**********************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
+  
+created : nxk927 7/29/2015 CCN Project....
+changed :
+**********************************************************/
+IN_DATE      IN     DATE);
+
+PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT(
+/**********************************************************
+	This procedure is intended to select records from 
+  MATCHED PROCESSING REPORT #1 BY STORE NO. & DRAFT NO.
+  
+created : nxk927 7/29/2015 CCN Project....
+changed :
+**********************************************************/
+IN_DATE      IN     DATE);
+
+PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
+
+Created : nxk927 7/29/2015 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE);
+
+PROCEDURE SD_1099_TXPYR_ID_AP_TRNS_CRT(
+/**********************************************************
+	This procedure is intended to select records from 
+  TAXPAYER ID AP TRANS CREATE
+
+Created : nxk927 7/29/2015 CCN Project....
+Changed : :
+**********************************************************/
+IN_DATE      IN     DATE);
 
 END SD_FILE_BUILD_PKG;

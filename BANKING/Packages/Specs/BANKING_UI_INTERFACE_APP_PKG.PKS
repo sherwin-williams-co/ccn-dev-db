@@ -26,13 +26,11 @@ PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 
 Inputs:
     IN_BANK_ACCOUNT_NBR
-    IN_COST_CENTER_CODE
 
 Created : 03/30/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
-,IN_COST_CENTER_CODE          IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_REF_CUR        OUT REF_CURSOR

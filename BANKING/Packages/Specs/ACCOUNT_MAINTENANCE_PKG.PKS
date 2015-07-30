@@ -13,13 +13,11 @@ PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 /*******************************************************************************
 This procedure is intended to RETURN a ref cursor with data from banking
 account maintenance related tables based on passed input bank account number
-or cost center code
 
 Created : 07/09/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
-,IN_COST_CENTER_CODE          IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_REF_CUR        OUT REF_CURSOR

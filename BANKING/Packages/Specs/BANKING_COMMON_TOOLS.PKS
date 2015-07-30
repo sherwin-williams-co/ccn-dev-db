@@ -17,15 +17,6 @@ Changed :
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB) RETURN CLOB;
 
-FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
-/******************************************************************************
-This function will return the bank account number for the passed cost center code
-
-Created : 06/19/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
-
 FUNCTION GET_LEAD_STORE_NBR_FOR_MBR_STR(
 /*******************************************************************************
   This function will get the current lead store for the passed member store

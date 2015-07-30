@@ -316,135 +316,6 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE);
 
----------------------------HISTORY UPDATE PROCEDURES----------------------------
-PROCEDURE BANK_ACCOUNT_HIST_U_SP(
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_ACCOUNT_HIST table
-
-Created : 07/21/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_ACCOUNT_HIST%ROWTYPE);
-
-PROCEDURE BANK_MICR_FORMAT_HIST_U_SP(
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_MICR_FORMAT_HIST table
-
-Created : 07/21/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_MICR_FORMAT_HIST%ROWTYPE);
-
-PROCEDURE LEAD_BANK_CC_HIST_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in LEAD_BANK_CC_HIST table
-
-Created : 07/21/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     LEAD_BANK_CC_HIST%ROWTYPE);
-
-PROCEDURE MEMBER_BANK_CC_HIST_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in MEMBER_BANK_CC table
-
-Created : 07/21/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     MEMBER_BANK_CC_HIST%ROWTYPE);
-
----------------------------CURRENT UPDATE PROCEDURES----------------------------
-PROCEDURE BANK_ACCOUNT_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_ACCOUNT table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_ACCOUNT%ROWTYPE);
-
-PROCEDURE BANK_MICR_FORMAT_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_MICR_FORMAT table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_MICR_FORMAT%ROWTYPE);
-
-PROCEDURE LEAD_BANK_CC_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in LEAD_BANK_CC table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     LEAD_BANK_CC%ROWTYPE);
-
-PROCEDURE MEMBER_BANK_CC_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in MEMBER_BANK_CC table
-
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     MEMBER_BANK_CC%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICK_U_SP (
-/*******************************************************************************
-	This procedure is intended to updates records in BANK_DEP_BAG_TICK table
-
-Created : 04/08/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW  IN   BANK_DEP_BAG_TICK%ROWTYPE);
-
-PROCEDURE BANK_DEP_TICK_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_TICK table
-
-Created : 03/12/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_TICK%ROWTYPE);
-
----------------------------FUTURE UPDATE PROCEDURES----------------------------
-PROCEDURE BANK_ACCOUNT_FUTURE_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_ACCOUNT_FUTURE table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_ACCOUNT_FUTURE%ROWTYPE);
-
-PROCEDURE BANK_MICR_FORMAT_FUTURE_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_MICR_FORMAT_FUTURE table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_MICR_FORMAT_FUTURE%ROWTYPE);
-
-PROCEDURE LEAD_BANK_CC_FUTURE_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in LEAD_BANK_CC_FUTURE table
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     LEAD_BANK_CC_FUTURE%ROWTYPE);
-
-PROCEDURE MEMBER_BANK_CC_FUTURE_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in MEMBER_BANK_CC_FUTURE table
-
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE);
-
 ---------------------------CURRRENT DELETE PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_D_SP (
 /*******************************************************************************
@@ -530,16 +401,6 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     BANK_ACCOUNT_FUTURE%ROWTYPE);
 
-PROCEDURE EXPIRE_PREV_LEAD_BANK_CC(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     LEAD_BANK_CC_FUTURE%ROWTYPE);
-
 PROCEDURE EXPIRE_PREV_BANK_MICR_FORMAT(
 /*******************************************************************************
     This procedure is intended to check and expire previous records
@@ -549,6 +410,16 @@ Created : 07/09/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW IN     BANK_MICR_FORMAT_FUTURE%ROWTYPE);
+
+PROCEDURE EXPIRE_PREV_LEAD_BANK_CC(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     LEAD_BANK_CC_FUTURE%ROWTYPE);
 
 PROCEDURE EXPIRE_PREV_MEMBER_BANK_CC(
 /*******************************************************************************

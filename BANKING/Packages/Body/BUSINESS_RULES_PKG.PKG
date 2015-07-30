@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY BUSINESS_RULES_PKG
+CREATE OR REPLACE 
+PACKAGE BODY BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -127,36 +128,6 @@ EXCEPTION
     WHEN OTHERS THEN
         NULL;
 END VALIDATE_CURRENT_EFFCTV_DT;
-
-FUNCTION IS_CC_LEAD_EVER(
-/*******************************************************************************
-  This procedure will check if the Cost Center is a LEAD or NOT
-  at any point of time (current or future)
-
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER    IN  VARCHAR2) RETURN VARCHAR2
-IS
-    V_RETURN_VAL VARCHAR2(1) := 'N';
-BEGIN
-    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
-      INTO V_RETURN_VAL
-      FROM (SELECT 1
-              FROM LEAD_BANK_CC
-             WHERE LEAD_STORE_NBR = IN_COST_CENTER
-               AND BANK_TYPE_CODE   = 'L'
-             UNION
-            SELECT 1
-              FROM LEAD_BANK_CC_FUTURE
-             WHERE LEAD_STORE_NBR = IN_COST_CENTER
-             AND BANK_TYPE_CODE     = 'L'
-           );
-    RETURN V_RETURN_VAL;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_VAL;
-END IS_CC_LEAD_EVER;
 
 FUNCTION IS_BANK_ACTV_FOR_EFFCTV_DT(
 /*******************************************************************************
@@ -310,6 +281,36 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_BNK_ACCNT_EXPRTN_INVALID;
 
+FUNCTION IS_BNK_ACCNT_FTR_EFFCTV_INVALD(
+/******************************************************************************
+  This function will return "Y" if the passed bank account effective date is
+  less than or equal to previous records effective date
+
+Created : 07/28/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_FUTURE_REC         IN BANK_ACCOUNT_FUTURE%ROWTYPE) RETURN VARCHAR2
+IS
+    V_INDEX        NUMBER := 0;
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+      INTO V_RETURN_VALUE
+      FROM (SELECT BANK_ACCOUNT_NBR, EFFECTIVE_DATE, EXPIRATION_DATE
+              FROM BANK_ACCOUNT
+             WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR
+             UNION
+            SELECT BANK_ACCOUNT_NBR, EFFECTIVE_DATE, EXPIRATION_DATE
+              FROM BANK_ACCOUNT_FUTURE
+             WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR
+               AND FUTURE_ID        < IN_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID)
+     WHERE EFFECTIVE_DATE >= IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_BNK_ACCNT_FTR_EFFCTV_INVALD;
+
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Account Maintenance Window 
@@ -330,6 +331,7 @@ IS
     lead_exprd_with_actv_mbr     EXCEPTION;
     effctv_dt_lt_current_dt      EXCEPTION;
     bnk_accnt_exprd_wt_actv_chld EXCEPTION;
+    bnk_accnt_ftr_effctv_err     EXCEPTION;
 BEGIN
     IF IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN
     --********************************************************************************
@@ -370,6 +372,9 @@ BEGIN
                                        IN_BANK_MICR_FORMAT_TAB,
                                        IN_BANK_MICR_FORMAT_FUTURE_TAB) = 'Y' THEN
             RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
+        IF IS_BNK_ACCNT_FTR_EFFCTV_INVALD(IN_BANK_ACCOUNT_FUTURE_REC) = 'Y' THEN
+            RAISE bnk_accnt_ftr_effctv_err;
         END IF;
     END IF;
     IF IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR IS NOT NULL THEN
@@ -477,7 +482,11 @@ EXCEPTION
         ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
                          V_PROC_NAME,
                          'Bank Account can not be expired with active MICR Formats/Leads. Expire MICR Formats and Leads under this bank account number first');
-    WHEN OTHERS THEN                        
+    WHEN bnk_accnt_ftr_effctv_err THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_ftr_effctv_err,
+                         V_PROC_NAME,
+                         'Future Bank Account effective date can not be less than or equal to previous Bank Account effective date');
+    WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCOUNT_MAINTENANCE_BR_SP;
 
@@ -602,6 +611,11 @@ BEGIN
                                 'Member "'|| V_MEMBER_STORE_NBR ||'"');
             IF V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
                 V_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(IN_MBR_BANK_CC_TAB(V_INDEX).LEAD_STORE_NBR);
+                IF V_LEAD_BANK_CC_REC.BANK_TYPE_CODE <> 'L' THEN
+                    ERRPKG.RAISE_ERR(errnums.en_cc_not_lead_ever,
+                                     V_PROC_NAME,
+                                     'Cost Center entered is not a Lead');
+                END IF;
             END IF;
             VALIDATE_PARENT_CHILD_DATES(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE,
                                         V_LEAD_BANK_CC_REC.EXPIRATION_DATE,
@@ -643,17 +657,22 @@ BEGIN
         V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.FIRST;
         WHILE V_INDEX IS NOT NULL LOOP
             V_MEMBER_STORE_NBR := IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).MEMBER_STORE_NBR;
-            IF V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
-                V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(
-                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
-                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_STORE_NBR,
-                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID);
-            END IF;
             VALIDATE_DATE_RULES(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE,
                                 IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EXPIRATION_DATE,
                                 IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID,
                                 V_PROC_NAME,
                                 'Member "'|| V_MEMBER_STORE_NBR ||'"');
+            IF V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
+                V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_STORE_NBR,
+                                                IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID);
+                IF V_LEAD_BANK_CC_FUTURE_REC.BANK_TYPE_CODE <> 'L' THEN
+                    ERRPKG.RAISE_ERR(errnums.en_cc_not_lead_ever,
+                                     V_PROC_NAME,
+                                     'Cost Center entered is not a Lead');
+                END IF;
+            END IF;
             VALIDATE_PARENT_CHILD_DATES(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,
                                         V_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE,
                                         IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE,
@@ -719,6 +738,11 @@ BEGIN
     END IF;
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
         V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
+    END IF;
+    IF V_FROM_LEAD_CC = V_TO_LEAD_CC THEN
+        ERRPKG.RAISE_ERR(errnums.en_from_to_leads_are_same_err,
+                         V_PROC_NAME,
+                         'Transfer to the same lead is not possible');
     END IF;
     V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
     FOR rec IN (SELECT *

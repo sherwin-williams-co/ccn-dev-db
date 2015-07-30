@@ -1,4 +1,4 @@
-create or replace PACKAGE BUSINESS_RULES_PKG
+CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -7,16 +7,6 @@ AS
 created : 05/26/2015 jxc517 CCN Project....
 changed :
 **********************************************************/
-
-FUNCTION IS_CC_LEAD_EVER(
-/*******************************************************************************
-  This procedure will check if the Cost Center is a LEAD or NOT
-  at any point of time (current or future)
-
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER    IN  VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
