@@ -1,7 +1,8 @@
 ######################################################################################
+# Script Name     :  SWC_HR_GEMS_ftp.sh
 # Description     : Script to create CCN_GEMS_LOAD.TRG file and FTP to FLDPRRPT App server to run the reports
 #
-# Created by/Date : DXV848 05/07/2015
+# Created    Date : DXV848 05/07/2015
 #######################################################################################
 # below command will get the path for respective to the environment from which it runs from.
 . /app/ccn/host.sh
@@ -22,6 +23,19 @@ cd ${fpr_file_path}
 put CCN_GEMS_LOAD.TRG
 quit
 END_SCRIPT
+
+##############################################
+#    ERROR STATUS CHECK FTP the CCN_GEMS_LOAD.TRG file
+##############################################
+ TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+   then
+     echo "processing FAILED for FTPing CCN_GEMS_LOAD.TRG at ${TIME} on ${DATE}"
+     exit 1;
+else
+    echo "Processing Finished for FTPing CCN_GEMS_LOAD.TRG at ${TIME} on ${DATE}"
+fi
 
 echo -e "\n End FTPing CCN_GEMS_LOAD.TRG file: Process Successful : Process finished at $TIME on $DATE"
 

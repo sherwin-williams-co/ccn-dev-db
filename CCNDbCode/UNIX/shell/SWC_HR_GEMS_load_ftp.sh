@@ -6,7 +6,7 @@
 #                SWC_HR_GEMS_load.csh -->  Executing procedure SWC_HR_GENERIC_VIEW 
 #                SWC_HR_GEMS_ftp.sh   -->  FTP CCN_GEMS_LOAD.TRG file to Field Pay Roll DB Server.
 #
-# Created     :  DXV 07/20/2015
+# Created     :  DXV848 07/20/2015
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -51,6 +51,8 @@ else
 fi
 
 echo -e "\nProcessing Finished for SWC_HR_GEMS_load_ftp.csh at ${TIME} on ${DATE}"
+
+exit 0
 
 ############################################################################
 #                     END  of  PROGRAM  
