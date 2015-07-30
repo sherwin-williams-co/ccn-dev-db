@@ -39,6 +39,7 @@ IN_ROW_DATA               IN     CLOB
 ,OUT_COUNTRY_TYPE             OUT VARCHAR2
 ,OUT_SUMMARY_DETAIL_TYPE      OUT VARCHAR2
 ,OUT_STATEMENT_TYPES          OUT VARCHAR2
+--,OUT_USER_ID                  OUT VARCHAR2
 --,OUT_ISSUE_DATE_START         OUT DATE
 --,OUT_ISSUE_DATE_END           OUT DATE
 --,OUT_ALL_DATE_START           OUT DATE
@@ -118,7 +119,12 @@ BEGIN
     IF (XMLTYPE(IN_ROW_DATA).EXISTSNODE('/STORE_DRAFTS/OUTSTANDING_DATE_END/text()') = 1) THEN
         OUT_OUTSTANDING_DATE_END   := TO_DATE(XMLTYPE(IN_ROW_DATA).EXTRACT('/STORE_DRAFTS/OUTSTANDING_DATE_END/text()').GETSTRINGVAL(),'MM-DD-YYYY');
     END IF;
-    
+
+/*
+    IF (XMLTYPE(IN_ROW_DATA).EXISTSNODE('/STORE_DRAFTS/USER_ID/text()') = 1) THEN
+        OUT_USER_ID   := XMLTYPE(IN_ROW_DATA).EXTRACT('/STORE_DRAFTS/USER_ID/text()').GETSTRINGVAL();
+    END IF;
+*/
     --outstanding end date should be present to make sure Draft status of OUTSTANDING works even if
     --Date filter is selected anything other than OUTSTANDING range
     IF OUT_OUTSTANDING_DATE_END IS NULL THEN
@@ -205,6 +211,7 @@ IS
     V_GL_ACCOUNT_NUMBER      VARCHAR(8);
     V_COUNTRY_TYPE           VARCHAR2(100);
     V_STATEMENT_TYPES        VARCHAR2(500);
+   -- V_USER_ID                VARCHAR2(6);
 
     V_STORE_DRAFT_INDICATOR  VARCHAR2(100);
     V_OUTSTANDING_IND        VARCHAR2(1);
@@ -223,7 +230,7 @@ IS
     V_OUTSTANDING_DATE_START DATE;
     V_OUTSTANDING_DATE_END   DATE;
     V_CHANGE_DATE_START      DATE;
-    V_CHANGE_DATE_END        DATE;
+    V_CHANGE_DATE_END        DATE;    
     --V_ISSUE_DATE_START       STORE_DRAFTS.ISSUE_DATE%TYPE;
     --V_ISSUE_DATE_END         STORE_DRAFTS.ISSUE_DATE%TYPE;
     --V_ALL_DATE_START         DATE;
@@ -253,6 +260,7 @@ BEGIN
                 V_COUNTRY_TYPE,
                 V_SUMMARY_DETAIL_TYPE,
                 V_STATEMENT_TYPES
+               -- V_USER_ID
                 --V_ISSUE_DATE_START,
                 --V_ISSUE_DATE_END,
                 --V_ALL_DATE_START,
@@ -350,6 +358,17 @@ BEGIN
                              (SD.STOP_PAY_DATE > V_OUTSTANDING_DATE_END OR SD.STOP_PAY_DATE IS NULL) AND
                              (SD.VOID_DATE > V_OUTSTANDING_DATE_END OR SD.VOID_DATE IS NULL))
                    )
+             /*  AND EXISTS (SELECT 1 
+                             FROM HIERARCHY_DETAIL_VIEW 
+                            WHERE COST_CENTER_CODE = SD.COST_CENTER_CODE 
+                            AND DIVISION IN NVL((SELECT X.VALUE
+                                                   FROM ROLE_DETAILS RD,
+                                                        SECURITY_MATRIX SM,
+                                                        XMLTABLE ('/USER_RULES_DESCRIPTION/STORE_DRAFTS_WINDOW/OUTSTANDING_DRFT_DIVISIONS/*'
+                                                        PASSING RD.USER_RULES_DESCRIPTION
+                                                        COLUMNS VALUE VARCHAR2(30) PATH 'text()') X
+                                        WHERE SM.USER_ID   = NVL(V_USER_ID,'XXXXXX')
+                                          AND SM.ROLE_CODE = RD.ROLE_CODE), DIVISION))*/
             UNION
             SELECT SD.*
               FROM UNATTACHED_MNL_DRFT_DTL SD
@@ -383,6 +402,18 @@ BEGIN
                     NVL(V_MANUAL_IND,'N') = 'Y'
                    )
                ) A;
+               /*
+              WHERE EXISTS (SELECT 1 
+                              FROM HIERARCHY_DETAIL_VIEW 
+                             WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
+                               AND DIVISION IN NVL((SELECT X.VALUE
+                                                      FROM ROLE_DETAILS RD,
+                                                           SECURITY_MATRIX SM,
+                                                           XMLTABLE ('/USER_RULES_DESCRIPTION/STORE_DRAFTS_WINDOW/OUTSTANDING_DRFT_DIVISIONS/*'
+                                                           PASSING RD.USER_RULES_DESCRIPTION
+                                                           COLUMNS VALUE VARCHAR2(30) PATH 'text()') X
+                                                     WHERE SM.USER_ID   = NVL(V_USER_ID,'XXXXXX')
+                                                       AND SM.ROLE_CODE = RD.ROLE_CODE), DIVISION));*/
     ELSIF UPPER(V_SUMMARY_DETAIL_TYPE) = 'DETAIL' THEN
         OPEN OUT_REF_CUR FOR
             SELECT COUNT(*) OVER () RESULT_COUNT,
@@ -492,6 +523,18 @@ BEGIN
                     NVL(V_MANUAL_IND,'N') = 'Y'
                    )
                ) A;
+               /*
+              WHERE EXISTS (SELECT 1 
+                              FROM HIERARCHY_DETAIL_VIEW 
+                             WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
+                               AND DIVISION IN NVL((SELECT X.VALUE
+                                                      FROM ROLE_DETAILS RD,
+                                                           SECURITY_MATRIX SM,
+                                                           XMLTABLE ('/USER_RULES_DESCRIPTION/STORE_DRAFTS_WINDOW/OUTSTANDING_DRFT_DIVISIONS/*'
+                                                           PASSING RD.USER_RULES_DESCRIPTION
+                                                           COLUMNS VALUE VARCHAR2(30) PATH 'text()') X
+                                                     WHERE SM.USER_ID   = NVL(V_USER_ID,'XXXXXX')
+                                                       AND SM.ROLE_CODE = RD.ROLE_CODE),DIVISION));*/
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -588,5 +631,126 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'STORE_DRAFTS_DTL_FILTER_S_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SUBSTR(SQLERRM,1,200));
 END STORE_DRAFTS_DTL_FILTER_S_SP;
 
-END SD_UI_REPORTS_PKG;
+PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  MATCHED PROCESSING REPORT #1 BY STORE NO. & DRAFT NO.
 
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR)
+IS
+BEGIN
+
+    OPEN OUT_REF_CUR FOR
+        SELECT SUBSTR(SD.COST_CENTER_CODE, 3) STORE_NUMBER,
+               SD.DRAFT_NUMBER,
+               SD.TRANSACTION_DATE,
+               NVL(DECODE(SD.AMOUNT_CHANGE_DATE, NULL,SD.ORIGINAL_NET_AMOUNT,SD.NET_AMOUNT), 0) AMOUNT,
+               (SELECT VENDOR_NO FROM VENDOR_INFO WHERE TAX_ID = SD.TAX_ID AND ROWNUM < 2) VENDOR_NO,
+               (SELECT VENDOR_NAME FROM VENDOR_INFO WHERE TAX_ID = SD.TAX_ID AND ROWNUM < 2) VENDOR_NAME,
+               SD.TAX_ID
+          FROM (SELECT COST_CENTER_CODE,
+                       DRAFT_NUMBER,
+                       TRANSACTION_DATE,
+                       AMOUNT_CHANGE_DATE,
+                       ORIGINAL_NET_AMOUNT,
+                       NET_AMOUNT,
+                       ccn_common_tools.DecryptSQL((SELECT TAXID
+                                                      FROM CUSTOMER_TAXID_VW
+                                                     WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) TAX_ID
+                  FROM STORE_DRAFTS
+                 WHERE TO_CHAR(FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY')) SD
+          WHERE EXISTS (SELECT 1
+                         FROM VENDOR_INFO
+                        WHERE TAX_ID = SD.TAX_ID
+                          AND SITE_LAST_UPDATE_DATE < IN_DATE)
+          ORDER BY 1,2;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'SD_1099_MTCHD_PRCSNG_RPRT', SUBSTR(SQLERRM,1,200));
+END SD_1099_MTCHD_PRCSNG_RPRT;
+
+PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON VENDOR FILE BY STORE NO. & DRAFT NO.
+
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR)
+IS
+BEGIN
+
+    OPEN OUT_REF_CUR FOR
+        SELECT SUBSTR(SD.COST_CENTER_CODE, 3) STORE_NUMBER,
+               SD.DRAFT_NUMBER,
+               SD.TRANSACTION_DATE,
+               NVL(DECODE(SD.AMOUNT_CHANGE_DATE, NULL,SD.ORIGINAL_NET_AMOUNT,SD.NET_AMOUNT), 0) AMOUNT,
+               SD.TAX_ID
+          FROM (SELECT COST_CENTER_CODE,
+                       DRAFT_NUMBER,
+                       TRANSACTION_DATE,
+                       AMOUNT_CHANGE_DATE,
+                       ORIGINAL_NET_AMOUNT,
+                       NET_AMOUNT,
+                       ccn_common_tools.DecryptSQL((SELECT TAXID
+                                                      FROM CUSTOMER_TAXID_VW
+                                                     WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) TAX_ID
+                  FROM STORE_DRAFTS                 
+                 WHERE TO_CHAR(FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY')) SD
+          WHERE NOT EXISTS (SELECT 1
+                              FROM VENDOR_INFO
+                             WHERE TAX_ID = SD.TAX_ID
+                               AND SITE_LAST_UPDATE_DATE < IN_DATE)
+          ORDER BY 1,2;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'SD_1099_NO_MTCHD_VENDOR_RPRT', SUBSTR(SQLERRM,1,200));
+END SD_1099_NO_MTCHD_VENDOR_RPRT;
+
+PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
+
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR)
+IS
+BEGIN
+
+    OPEN OUT_REF_CUR FOR
+        SELECT SUBSTR(SD.COST_CENTER_CODE, 3) STORE_NUMBER,
+               SD.DRAFT_NUMBER,
+               SD.TRANSACTION_DATE,
+               NVL(DECODE(SD.AMOUNT_CHANGE_DATE, NULL,SD.ORIGINAL_NET_AMOUNT,SD.NET_AMOUNT), 0) AMOUNT,
+               SD.TAX_ID
+          FROM (SELECT COST_CENTER_CODE,
+                       DRAFT_NUMBER,
+                       TRANSACTION_DATE,
+                       AMOUNT_CHANGE_DATE,
+                       ORIGINAL_NET_AMOUNT,
+                       NET_AMOUNT,
+                       ccn_common_tools.DecryptSQL((SELECT TAXID
+                                                      FROM CUSTOMER_TAXID_VW
+                                                     WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) TAX_ID
+                  FROM STORE_DRAFTS                 
+                 WHERE TO_CHAR(FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY')) SD
+          WHERE SD.TAX_ID IS NULL
+          ORDER BY 1,2;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'SD_1099_NO_VNDR_ON_BNK_TP_RPRT', SUBSTR(SQLERRM,1,200));
+END SD_1099_NO_VNDR_ON_BNK_TP_RPRT;
+
+END SD_UI_REPORTS_PKG;

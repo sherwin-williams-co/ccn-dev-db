@@ -58,5 +58,37 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
-END SD_UI_REPORTS_PKG;
+PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  MATCHED PROCESSING REPORT #1 BY STORE NO. & DRAFT NO.
 
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+
+PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON VENDOR FILE BY STORE NO. & DRAFT NO.
+
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+
+PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
+/*******************************************************************************
+	This procedure is intended to select records from 
+  NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
+
+Created : 06/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE      IN     DATE
+,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+
+END SD_UI_REPORTS_PKG;
