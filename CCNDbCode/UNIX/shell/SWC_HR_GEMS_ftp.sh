@@ -18,7 +18,7 @@ echo " Starting FTP Process to FLDPRRPT DB Server at $TIME on $DATE"
 ftp -n ${dbfldserver_host} <<END_SCRIPT
 quote USER ${dbfldserver_user}
 quote PASS ${dbfldserver_pw}
-cd ${fpr_dev_file_path}
+cd ${fpr_file_path}
 put CCN_GEMS_LOAD.TRG
 quit
 END_SCRIPT
