@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE TABLE_IU_PKG 
+create or replace PACKAGE TABLE_IU_PKG 
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
@@ -390,16 +390,4 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE);
 
----------------------------EXPIRE PROCEDURES----------------------------
-PROCEDURE EXPIRE_PREV_MEMBER_BANK_CC(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE);
-
 END TABLE_IU_PKG;
-

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY MEMBER_MAINTENANCE_PKG
+create or replace PACKAGE BODY MEMBER_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -154,6 +154,42 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_CURRENT_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END MEMBER_MNTNC_CURRENT_UPSERT_SP;
 
+PROCEDURE EXPIRE_PREV_MEMBER_BANK_CC(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE)
+IS
+    CURSOR member_bank_cc_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE MEMBER_STORE_NBR = IN_ROW.MEMBER_STORE_NBR
+           AND EFFECTIVE_DATE  < IN_ROW.EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR member_bank_cc_future_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE MEMBER_STORE_NBR = IN_ROW.MEMBER_STORE_NBR
+           AND EFFECTIVE_DATE  < IN_ROW.EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+BEGIN
+    FOR rec IN member_bank_cc_cur LOOP
+        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, IN_ROW.EFFECTIVE_DATE - 1);
+        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
+    END LOOP;
+    FOR rec IN member_bank_cc_future_cur LOOP
+        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, IN_ROW.EFFECTIVE_DATE - 1);
+        TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_MEMBER_BANK_CC', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_MEMBER_BANK_CC;
+
 PROCEDURE MEMBER_MNTNC_FUTURE_UPSERT_SP ( 
 /******************************************************************************
 This procedure is intended to update following table used in the
@@ -173,7 +209,7 @@ IS
 BEGIN
     V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.FIRST;
     WHILE V_INDEX IS NOT NULL LOOP
-        TABLE_IU_PKG.EXPIRE_PREV_MEMBER_BANK_CC(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+        EXPIRE_PREV_MEMBER_BANK_CC(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
         V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.NEXT(V_INDEX);
     END LOOP;
@@ -219,4 +255,3 @@ EXCEPTION
 END MEMBER_MNTNC_UI_UPSERT_SP;
 
 END MEMBER_MAINTENANCE_PKG;
-
