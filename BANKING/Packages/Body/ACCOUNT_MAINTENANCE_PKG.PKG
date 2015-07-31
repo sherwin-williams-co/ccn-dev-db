@@ -199,17 +199,8 @@ Changed :
 IS
     V_INDEX    NUMBER := 0;
 BEGIN
-    --********************************************************************************
-    -- BANK_ACCOUNT insert/update process with loop - must be processed before other tables
-    --********************************************************************************
     TABLE_IU_PKG.BANK_ACCOUNT_I_SP(IN_BANK_ACCOUNT_REC);
-    --******************************************************************************
-    -- LEAD_BANK_CC insert/update process with loop - This is processed second
-    --******************************************************************************
     TABLE_IU_PKG.LEAD_BANK_CC_I_SP(IN_LEAD_BANK_CC_REC);
-    --******************************************************************************
-    -- BANK_MICR_FORMAT insert/update process with loop - This is processed third
-    --******************************************************************************
     V_INDEX := IN_BANK_MICR_FORMAT_TAB.FIRST;
     WHILE V_INDEX IS NOT NULL LOOP
         TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(IN_BANK_MICR_FORMAT_TAB(V_INDEX));
@@ -219,6 +210,180 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_CURRENT_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCNT_MNTNC_CURRENT_UPSERT_SP;
+
+PROCEDURE EXPIRE_PREV_CURR_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous current records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE)
+IS
+    CURSOR bank_account_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EFFECTIVE_DATE   < IN_NEW_EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR bank_micr_format_cur IS
+        SELECT *
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR lead_bank_cc_cur IS
+        SELECT *
+          FROM LEAD_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR member_bank_cc_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+
+    lead_exprd_with_actv_mbr     EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld EXCEPTION;
+BEGIN
+    FOR ba_rec IN bank_account_cur LOOP
+        FOR bmf_rec IN bank_micr_format_cur LOOP
+            bmf_rec.EXPIRATION_DATE := GREATEST(bmf_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(bmf_rec);
+        END LOOP;
+        FOR mb_rec IN member_bank_cc_cur LOOP
+            mb_rec.EXPIRATION_DATE := GREATEST(mb_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mb_rec);
+        END LOOP;
+        FOR lb_rec IN lead_bank_cc_cur LOOP
+            lb_rec.EXPIRATION_DATE := GREATEST(lb_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lb_rec.LEAD_STORE_NBR,
+                                                             lb_rec.LEAD_BANK_ACCOUNT_NBR,
+                                                             lb_rec.EXPIRATION_DATE,
+                                                             NULL) = 'Y' THEN
+                RAISE lead_exprd_with_actv_mbr;
+            END IF;
+            TABLE_IU_PKG.LEAD_BANK_CC_I_SP(lb_rec);
+        END LOOP;
+        ba_rec.EXPIRATION_DATE := GREATEST(ba_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+        IF BUSINESS_RULES_PKG.IS_BNK_ACCNT_EXPRTN_INVALID(ba_rec.BANK_ACCOUNT_NBR,
+                                                          ba_rec.EXPIRATION_DATE,
+                                                          NULL) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
+        TABLE_IU_PKG.BANK_ACCOUNT_I_SP(ba_rec);
+    END LOOP;
+EXCEPTION
+    WHEN lead_exprd_with_actv_mbr THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_exprd_with_actv_mbr,
+                         'EXPIRE_PREV_CURR_BANK_ACCOUNT',
+                         'Effective date of this future lead is less than some of it''s previous members. Please correct the previous future concentration first');
+    WHEN bnk_accnt_exprd_wt_actv_chld THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
+                         'EXPIRE_PREV_CURR_BANK_ACCOUNT',
+                         'Effectiver date of this futurue bank account is less than it''s previous lead/MICR formats. Please check the details in previous tab');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_CURR_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_CURR_BANK_ACCOUNT;
+
+PROCEDURE EXPIRE_PREV_FTR_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous future records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE)
+IS
+    CURSOR bank_account_future_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EFFECTIVE_DATE   < IN_NEW_EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR bank_micr_format_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR lead_bank_cc_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM LEAD_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR member_bank_cc_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+
+    lead_exprd_with_actv_mbr     EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld EXCEPTION;
+BEGIN
+    FOR baf_rec IN bank_account_future_cur LOOP
+        FOR bmff_rec IN bank_micr_format_future_cur(baf_rec.FUTURE_ID) LOOP
+            bmff_rec.EXPIRATION_DATE := GREATEST(bmff_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_I_SP(bmff_rec);
+        END LOOP;
+        FOR mbf_rec IN member_bank_cc_future_cur(baf_rec.FUTURE_ID) LOOP
+            mbf_rec.EXPIRATION_DATE := GREATEST(mbf_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(mbf_rec);
+        END LOOP;
+        FOR lbf_rec IN lead_bank_cc_future_cur(baf_rec.FUTURE_ID) LOOP
+            lbf_rec.EXPIRATION_DATE := GREATEST(lbf_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+            IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lbf_rec.LEAD_STORE_NBR,
+                                                             lbf_rec.LEAD_BANK_ACCOUNT_NBR,
+                                                             lbf_rec.EXPIRATION_DATE,
+                                                             lbf_rec.FUTURE_ID) = 'Y' THEN
+                RAISE lead_exprd_with_actv_mbr;
+            END IF;
+            TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(lbf_rec);
+        END LOOP;
+        baf_rec.EXPIRATION_DATE := GREATEST(baf_rec.EFFECTIVE_DATE, IN_NEW_EFFECTIVE_DATE - 1);
+        IF BUSINESS_RULES_PKG.IS_BNK_ACCNT_EXPRTN_INVALID(baf_rec.BANK_ACCOUNT_NBR,
+                                                          baf_rec.EXPIRATION_DATE,
+                                                          baf_rec.FUTURE_ID) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
+        TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(baf_rec);
+    END LOOP;
+EXCEPTION
+    WHEN lead_exprd_with_actv_mbr THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_exprd_with_actv_mbr,
+                         'EXPIRE_PREV_FTR_BANK_ACCOUNT',
+                         'Effective date of this future lead is less than some of it''s previous members. Please correct the previous future concentration first');
+    WHEN bnk_accnt_exprd_wt_actv_chld THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
+                         'EXPIRE_PREV_FTR_BANK_ACCOUNT',
+                         'Effectiver date of this futurue bank account is less than it''s previous lead/MICR formats. Please check the details in previous tab');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_FTR_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_FTR_BANK_ACCOUNT;
+
+PROCEDURE EXPIRE_PREVIOUS_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE IN     DATE)
+IS
+BEGIN
+    EXPIRE_PREV_CURR_BANK_ACCOUNT(IN_BANK_ACCOUNT_NBR, IN_NEW_EFFECTIVE_DATE);
+    EXPIRE_PREV_FTR_BANK_ACCOUNT(IN_BANK_ACCOUNT_NBR, IN_NEW_EFFECTIVE_DATE);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREVIOUS_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREVIOUS_BANK_ACCOUNT;
 
 PROCEDURE ACCNT_MNTNC_FUTURE_UPSERT_SP ( 
 /******************************************************************************
@@ -243,24 +408,12 @@ Changed :
 IS
     V_INDEX    NUMBER := 0;
 BEGIN
-    --********************************************************************************
-    -- BANK_ACCOUNT_FUTURE insert/update process with loop - must be processed before other tables
-    --********************************************************************************
-    TABLE_IU_PKG.EXPIRE_PREV_BANK_ACCOUNT(IN_BANK_ACCOUNT_FUTURE_REC);
+    EXPIRE_PREVIOUS_BANK_ACCOUNT(IN_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR, IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE);
+
     TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(IN_BANK_ACCOUNT_FUTURE_REC);
-    --******************************************************************************
-    -- LEAD_BANK_CC_FUTURE insert/update process with loop - This is processed second
-    --******************************************************************************
-    TABLE_IU_PKG.EXPIRE_PREV_LEAD_BANK_CC(IN_LEAD_BANK_CC_FUTURE_REC);
     TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(IN_LEAD_BANK_CC_FUTURE_REC);
-    --******************************************************************************
-    -- BANK_MICR_FORMAT_FUTURE insert/update process with loop - This is processed third
-    --******************************************************************************
     V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.FIRST;
     WHILE V_INDEX IS NOT NULL LOOP
-        IF V_INDEX = 1 THEN --do expiring logic only once
-            TABLE_IU_PKG.EXPIRE_PREV_BANK_MICR_FORMAT(IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX));
-        END IF;
         TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_I_SP(IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX));
         V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.NEXT(V_INDEX);
     END LOOP;

@@ -8,6 +8,31 @@ created : 05/26/2015 jxc517 CCN Project....
 changed :
 **********************************************************/
 
+FUNCTION IS_BNK_ACCNT_EXPRTN_INVALID(
+/******************************************************************************
+  This function will return "Y" if the passed bank account contains active
+  MICR Format or Lead as of the date it is being expired
+
+Created : 07/30/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_EXPIRATION_DATE    IN     DATE,
+IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
+
+FUNCTION IS_LEAD_EXPIRATION_INVALID(
+/*******************************************************************************
+  This function will return "Y" if the passed lead-bank account combination
+  contains active members as of the date it is being expired
+
+Created : 07/14/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE   IN     VARCHAR2,
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_EXPIRATION_DATE    IN     DATE,
+IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
+
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Account Maintenance Window 
@@ -45,13 +70,11 @@ PROCEDURE MAKE_LEAD_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Make Lead process of Concentration Window 
 
-Created : 07/10/2015 jxc517 CCN Project....
-Changed : 
+Created : 07/31/2015 nxk927/jxc517 CCN Project....
+Changed :
 *******************************************************************************/
-IN_NEW_LEAD_CC    IN     VARCHAR2,
-IN_EFFECTIVE_DATE IN     DATE,
 IN_FROM_LEAD_CC   IN     VARCHAR2,
-IN_BANK_ACC_NBR   IN     VARCHAR2);
+IN_EFFECTIVE_DATE IN     DATE);
 
 PROCEDURE DEPOSIT_TICKET_MNTNC_BR_SP(
 /******************************************************************************

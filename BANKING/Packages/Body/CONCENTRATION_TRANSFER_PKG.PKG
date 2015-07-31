@@ -27,7 +27,7 @@ BEGIN
     IF V_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NOT NULL THEN
         ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
                          'LEAD_BANK_FROM_SP',
-                         'Transfer not possible from an expired Lead store - '||V_LEAD_BANK_CC_REC.lead_store_nbr);
+                         'Transfer/Make Lead process not possible from an expired Lead store - '||V_LEAD_BANK_CC_REC.lead_store_nbr);
     END IF;
     OPEN OUT_REF_CUR FOR
         SELECT LB.*,
@@ -117,11 +117,6 @@ IS
     V_TO_LEAD_BANK_CC_REC       LEAD_BANK_CC%ROWTYPE;
 BEGIN
     BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
-    /*
-    1. If from lead/to lead/any member involved in transfer is expired = > throw error stating transfer not possible
-    2. Even if all the members under current lead moves to a new lead, the bank type of from lead will still be "L"
-    3. From and To lead should be "L" for the transfer to be processed (we shouldn't change status from "I" to "L")
-    */
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/USER_ID/text()') = 1) THEN
         V_USER_ID := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/USER_ID/text()').GETSTRINGVAL();  
     END IF;
@@ -184,11 +179,11 @@ BEGIN
           INTO V_REC
           FROM BANK_ACCOUNT_FUTURE B
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACC_NBR
-           AND FUTURE_ID        = IN_FUTURE_ID- 1;
+           AND FUTURE_ID        = IN_FUTURE_ID - 1;
     END IF;
-    V_REC.FUTURE_ID   := IN_FUTURE_ID;
     V_REC.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
-    TABLE_IU_PKG.EXPIRE_PREV_BANK_ACCOUNT(V_REC);
+    V_REC.EXPIRATION_DATE:= NULL;
+    V_REC.FUTURE_ID      := IN_FUTURE_ID;
     TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(V_REC);
 EXCEPTION
     WHEN OTHERS THEN
@@ -211,16 +206,14 @@ IS
     V_REC      LEAD_BANK_CC_FUTURE%ROWTYPE;
 BEGIN
     V_REC.LEAD_BANK_ACCOUNT_NBR := IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    V_REC.LEAD_STORE_NBR        := IN_TO_LEAD_CC;
     V_REC.EFFECTIVE_DATE        := IN_EFFECTIVE_DATE;
-    TABLE_IU_PKG.EXPIRE_PREV_LEAD_BANK_CC(V_REC);
-
-    V_REC.LEAD_STORE_NBR   := IN_TO_LEAD_CC;
-    V_REC.EXPIRATION_DATE  := NULL;
-    V_REC.BANK_BRANCH_NBR  := IN_LEAD_BANK_CC_REC.BANK_BRANCH_NBR;
-    V_REC.BANK_TYPE_CODE   := 'L';
-    V_REC.FUTURE_ID        := IN_FUTURE_ID;
-    V_REC.UPDATE_DATE      := TRUNC(SYSDATE);
-    V_REC.LAST_UPD_USER_ID := IN_USER_ID;
+    V_REC.EXPIRATION_DATE       := NULL;
+    V_REC.BANK_BRANCH_NBR       := IN_LEAD_BANK_CC_REC.BANK_BRANCH_NBR;
+    V_REC.BANK_TYPE_CODE        := 'L';
+    V_REC.UPDATE_DATE           := TRUNC(SYSDATE);
+    V_REC.LAST_UPD_USER_ID      := IN_USER_ID;
+    V_REC.FUTURE_ID             := IN_FUTURE_ID;
     TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(V_REC);
 EXCEPTION
     WHEN OTHERS THEN
@@ -241,23 +234,16 @@ IN_EFFECTIVE_DATE      IN     DATE,
 IN_USER_ID             IN     VARCHAR2)
 IS
 BEGIN
-    FOR rec IN (SELECT LEAD_BANK_ACCOUNT_NBR,
-                       LEAD_STORE_NBR,
-                       MEMBER_STORE_NBR,
-                       EFFECTIVE_DATE,
-                       EXPIRATION_DATE,
-                       MEMBER_BANK_ACCOUNT_NBR,
-                       BANK_BRANCH_NBR,
-                       TRUNC(SYSDATE) AS UPDATE_DATE,
-                       IN_USER_ID AS LAST_UPD_USER_ID,
-                       IN_FUTURE_ID AS FUTURE_ID
-                  FROM MEMBER_BANK_CC
+    FOR rec IN (SELECT MB.*,
+                       0 FUTURE_ID
+                  FROM MEMBER_BANK_CC MB
                  WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR) LOOP
-        rec.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
-        TABLE_IU_PKG.EXPIRE_PREV_MEMBER_BANK_CC(rec);
-
-        rec.LEAD_STORE_NBR  := IN_TO_LEAD_CC;
-        rec.EXPIRATION_DATE := NULL;
+        rec.LEAD_STORE_NBR   := IN_TO_LEAD_CC;
+        rec.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
+        rec.EXPIRATION_DATE  := NULL;
+        rec.UPDATE_DATE      := TRUNC(SYSDATE);
+        rec.LAST_UPD_USER_ID := IN_USER_ID;
+        rec.FUTURE_ID        := IN_FUTURE_ID;
         IF rec.MEMBER_STORE_NBR <> IN_TO_LEAD_CC THEN 
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
         END IF; 
@@ -293,16 +279,13 @@ IS
     V_REC                BANK_ACCOUNT_FUTURE%ROWTYPE;
 	  V_LEAD_BANK_FUT_REC  LEAD_BANK_CC_FUTURE%ROWTYPE; 
 BEGIN
-    /*
-    There are lot of other future scenario's that needs to be addressed same like in transfer
-    */
     V_FROM_LEAD_CC := BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(V_TO_LEAD_CC);
     V_FROM_LEAD_BANK_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
-    BUSINESS_RULES_PKG.MAKE_LEAD_BR_SP(IN_NEW_LEAD_CC,
-                                       IN_EFFECTIVE_DATE,
-                                       V_FROM_LEAD_CC,
-                                       V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+    BUSINESS_RULES_PKG.MAKE_LEAD_BR_SP(V_FROM_LEAD_CC,
+                                       IN_EFFECTIVE_DATE);
     V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+    ACCOUNT_MAINTENANCE_PKG.EXPIRE_PREVIOUS_BANK_ACCOUNT(V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                         IN_EFFECTIVE_DATE);
     CREATE_BANK_ACCOUNT_RECORD(V_FUTURE_ID,
                                V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
                                IN_EFFECTIVE_DATE);

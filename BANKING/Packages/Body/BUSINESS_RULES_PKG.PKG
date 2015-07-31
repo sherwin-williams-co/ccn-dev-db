@@ -129,29 +129,6 @@ EXCEPTION
         NULL;
 END VALIDATE_CURRENT_EFFCTV_DT;
 
-FUNCTION IS_BANK_ACTV_FOR_EFFCTV_DT(
-/*******************************************************************************
-  This function will return "Y" if the passed bank account number is active with another lead
-
-Created : 07/15/2015 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
-IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2
-IS
-    V_RETURN_VALUE VARCHAR2(1) := 'N';
-BEGIN
-    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
-      INTO V_RETURN_VALUE
-      FROM LEAD_BANK_CC_FUTURE
-     WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-       AND IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE);
-    RETURN V_RETURN_VALUE;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_VALUE;
-END IS_BANK_ACTV_FOR_EFFCTV_DT;
-
 FUNCTION IS_LEAD_ACTV_FOR_EFFCTV_DT(
 /*******************************************************************************
   This function will return "Y" if the passed lead is active for a bank account number
@@ -205,20 +182,16 @@ BEGIN
         SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
           INTO V_RETURN_VALUE
           FROM (SELECT 1
-                  FROM MEMBER_BANK_CC MB,
-                       LEAD_BANK_CC LB
-                 WHERE MB.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
-                   AND LB.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-                   AND MB.LEAD_STORE_NBR        = LB.LEAD_STORE_NBR
+                  FROM MEMBER_BANK_CC MB
+                 WHERE MB.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND MB.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
                    AND (MB.EXPIRATION_DATE IS NULL OR MB.EXPIRATION_DATE > IN_EXPIRATION_DATE)
                  UNION
                 SELECT 1
-                  FROM MEMBER_BANK_CC_FUTURE MBF,
-                       LEAD_BANK_CC_FUTURE LBF
-                 WHERE MBF.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
-                   AND LBF.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-                   AND MBF.FUTURE_ID             = NVL(IN_FUTURE_ID, 'X')
-                   AND MBF.LEAD_STORE_NBR        = LBF.LEAD_STORE_NBR
+                  FROM MEMBER_BANK_CC_FUTURE MBF
+                 WHERE MBF.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND MBF.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
+                   AND MBF.FUTURE_ID             = NVL(IN_FUTURE_ID, 0)
                    AND (MBF.EXPIRATION_DATE IS NULL OR MBF.EXPIRATION_DATE > IN_EXPIRATION_DATE)
                );
     END IF;
@@ -227,6 +200,56 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VALUE;
 END IS_LEAD_EXPIRATION_INVALID;
+
+FUNCTION IS_BNK_ACCNT_EXPRTN_INVALID(
+/******************************************************************************
+  This function will return "Y" if the passed bank account contains active
+  MICR Format or Lead as of the date it is being expired
+
+Created : 07/30/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_EXPIRATION_DATE    IN     DATE,
+IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    IF IN_EXPIRATION_DATE IS NOT NULL THEN
+        SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+          INTO V_RETURN_VALUE
+          FROM (SELECT 1
+                  FROM LEAD_BANK_CC LB
+                 WHERE LB.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND (LB.EXPIRATION_DATE IS NULL OR LB.EXPIRATION_DATE > IN_EXPIRATION_DATE)
+                 UNION
+                SELECT 1
+                  FROM LEAD_BANK_CC_FUTURE LBF
+                 WHERE LBF.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   AND LBF.FUTURE_ID             = NVL(IN_FUTURE_ID, 0)
+                   AND (LBF.EXPIRATION_DATE IS NULL OR LBF.EXPIRATION_DATE > IN_EXPIRATION_DATE)
+               );
+        IF V_RETURN_VALUE = 'N' THEN
+            SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+              INTO V_RETURN_VALUE
+              FROM (SELECT 1
+                      FROM BANK_MICR_FORMAT BMF
+                     WHERE BMF.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                       AND (BMF.EXPIRATION_DATE IS NULL OR BMF.EXPIRATION_DATE > IN_EXPIRATION_DATE)
+                     UNION
+                    SELECT 1
+                      FROM BANK_MICR_FORMAT_FUTURE BMFF
+                     WHERE BMFF.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                       AND BMFF.FUTURE_ID        = NVL(IN_FUTURE_ID, 0)
+                       AND (BMFF.EXPIRATION_DATE IS NULL OR BMFF.EXPIRATION_DATE > IN_EXPIRATION_DATE)
+               );
+        END IF;
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_BNK_ACCNT_EXPRTN_INVALID;
 
 FUNCTION IS_BNK_ACCNT_EXPRTN_INVALID(
 /******************************************************************************
@@ -752,12 +775,11 @@ BEGIN
                    AND MEMBER_STORE_NBR IN (SELECT *
                                               FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/*'
                                                    PASSING V_ROW_DATA
-                                                   COLUMNS Value VARCHAR2(6) PATH 'text()'))) LOOP
-        IF rec.EXPIRATION_DATE IS NOT NULL THEN
-            ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
-                             V_PROC_NAME,
-                             'Transfer not possible on an expired Member store - '||rec.MEMBER_STORE_NBR);
-        END IF;
+                                                   COLUMNS Value VARCHAR2(6) PATH 'text()'))
+                  AND EXPIRATION_DATE IS NOT NULL) LOOP
+        ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
+                         V_PROC_NAME,
+                         'Transfer not possible on an expired Member store - '||rec.MEMBER_STORE_NBR);
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -768,18 +790,13 @@ PROCEDURE MAKE_LEAD_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Make Lead process of Concentration Window 
 
-Created : 07/10/2015 nxk927/jxc517 CCN Project....
+Created : 07/31/2015 nxk927/jxc517 CCN Project....
 Changed :
 *******************************************************************************/
-IN_NEW_LEAD_CC    IN     VARCHAR2,
-IN_EFFECTIVE_DATE IN     DATE,
 IN_FROM_LEAD_CC   IN     VARCHAR2,
-IN_BANK_ACC_NBR   IN     VARCHAR2)
+IN_EFFECTIVE_DATE IN     DATE)
 IS
     V_PROC_NAME               VARCHAR2(30) := 'MAKE_LEAD_BR_SP';
-    lead_exists_for_effctv_dt EXCEPTION;
-    mbr_exists_for_effctv_dt  EXCEPTION;
-    bank_exists_for_effctv_dt EXCEPTION;
 BEGIN
     VALIDATE_DATE_RULES(IN_EFFECTIVE_DATE,
                         NULL,
@@ -787,38 +804,17 @@ BEGIN
                         --[future effective date can not be less than or equal to sysdate]
                         V_PROC_NAME,
                         'To Lead');
-    IF IS_LEAD_ACTV_FOR_EFFCTV_DT(IN_NEW_LEAD_CC, --even for this bank account he shouldn't be a lead in future
-                                  NULL,
-                                  IN_EFFECTIVE_DATE) = 'Y' THEN
-        RAISE lead_exists_for_effctv_dt;
-    END IF;
-    FOR REC IN (SELECT *
+    FOR rec IN (SELECT *
                   FROM MEMBER_BANK_CC
-                 WHERE LEAD_STORE_NBR = IN_FROM_LEAD_CC) LOOP
-        IF IS_MBR_ACTV_FOR_EFFCTV_DT(rec.LEAD_BANK_ACCOUNT_NBR, --even for this lead he shouldn't be a member in future
-                                     rec.LEAD_STORE_NBR,
-                                     rec.MEMBER_STORE_NBR,
-                                     IN_EFFECTIVE_DATE) = 'Y' THEN
-            RAISE mbr_exists_for_effctv_dt;
+                 WHERE LEAD_STORE_NBR        = IN_FROM_LEAD_CC
+                   AND EXPIRATION_DATE IS NOT NULL) LOOP
+        IF rec.EXPIRATION_DATE IS NOT NULL THEN
+            ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
+                             V_PROC_NAME,
+                             'Make Lead not possible with an expired Member store - '||rec.MEMBER_STORE_NBR);
         END IF;
     END LOOP;
-    IF IS_BANK_ACTV_FOR_EFFCTV_DT(IN_BANK_ACC_NBR, --even for this lead he shouldn't be a member in future
-                                  IN_EFFECTIVE_DATE) = 'Y' THEN
-       RAISE bank_exists_for_effctv_dt;
-    END IF; 
 EXCEPTION
-    WHEN lead_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_lead_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'Lead is already active for another bank account as of the effective date');
-    WHEN mbr_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_mbr_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'One of the current leads member is already active for another Lead as of the effective date');                       
-    WHEN bank_exists_for_effctv_dt THEN
-        ERRPKG.RAISE_ERR(errnums.en_bank_exists_for_effctv_dt,
-                         V_PROC_NAME,
-                         'Bank account is already active for another or same lead as of the effective date'); 
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END MAKE_LEAD_BR_SP;

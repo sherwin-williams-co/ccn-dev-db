@@ -2,7 +2,7 @@ CREATE OR REPLACE PACKAGE TABLE_IU_PKG
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
-  tables related to stare draft
+  tables related to BANKING
 
 Created : 03/13/2015 nxk927 CCN BANKING PROJECT
 Changed :
@@ -391,36 +391,6 @@ Changed :
 IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE);
 
 ---------------------------EXPIRE PROCEDURES----------------------------
-PROCEDURE EXPIRE_PREV_BANK_ACCOUNT(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_ACCOUNT_FUTURE%ROWTYPE);
-
-PROCEDURE EXPIRE_PREV_BANK_MICR_FORMAT(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_MICR_FORMAT_FUTURE%ROWTYPE);
-
-PROCEDURE EXPIRE_PREV_LEAD_BANK_CC(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     LEAD_BANK_CC_FUTURE%ROWTYPE);
-
 PROCEDURE EXPIRE_PREV_MEMBER_BANK_CC(
 /*******************************************************************************
     This procedure is intended to check and expire previous records

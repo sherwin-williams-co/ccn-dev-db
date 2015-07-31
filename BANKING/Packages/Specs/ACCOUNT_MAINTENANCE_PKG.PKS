@@ -25,6 +25,17 @@ IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
 ,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR);
 
+PROCEDURE EXPIRE_PREVIOUS_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE IN     DATE);
+
 PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
 /******************************************************************************
 	This procedure performs the core insert/update process for Account Maintenance Window
