@@ -390,6 +390,29 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END GET_MANAGER_NAME;
 
+FUNCTION GET_JOB_TITLE(
+/**********************************************************
+GET_JOB_TITLE
+
+This function will return the Job Title for the passed gems id as required by backfeed
+
+created : 07/23/2015 CCN Project Team....
+modified: 
+**********************************************************/
+IN_GEMS_ID        EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(20);
+BEGIN
+    SELECT UPPER(JOB_TITLE)
+      INTO V_RETURN_VALUE
+      FROM EMPLOYEE_DETAILS
+     WHERE EMPLOYEE_NUMBER = IN_GEMS_ID;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_JOB_TITLE;
+
 FUNCTION IS_GLBL_SIX_LVL_SPCL_ATTRBTS(
 /**********************************************************
 IS_GLBL_SIX_LVL_SPCL_ATTRBTS
@@ -642,7 +665,7 @@ TERM(Terminated) in which case exit out of procedure doing/returning nothing
 4) All other scenarios it should go as (C)
 5) Add(A) should go with TERM_DATE as 00000000
 
-Author   : sxh487 CCN Project Team
+Author  : sxh487 CCN Project Team
 created : 09/03/2014
 Modified: 02/05/2015 jxc517 CCN Project...
         : 03/03/2015 dxv848 Sending the job_type whenever the employee information changes.
@@ -652,6 +675,9 @@ Modified: 02/05/2015 jxc517 CCN Project...
             2)For Manager_Employee - If category changes from S to anything else or If job title changes from %Mgr% to anything else
               send it as delete(D) for Manager_Employee
         : 07/13/2015 dxv848 added the rule. If Term_date is updated then send is as delete(D) for the Territory_employee.
+        : 08/03/2015 axk326 added the following rules to not to send in the audit backfeed file:
+                   1)Do not send an employee for territories with a status of LOA - (leave of absent) 
+                   2)Do not send If the 'rep' is terminated previously - and the only cange we get is a change in "TERMINATION date" 
 *******************************************************/
 IN_COST_CENTER  IN  COST_CENTER.COST_CENTER_CODE%TYPE
 ,IN_TABLE_NAME   IN  VARCHAR2
@@ -674,9 +700,12 @@ V_VALUE_CURR           VARCHAR2(32000);
 V_EXTRD_VAL_PREV       VARCHAR2(32000);
 V_EXTRD_VAL_CURR       VARCHAR2(32000);
 V_TDATE_CURR           VARCHAR2(8); 
+V_TDATE_PREV           VARCHAR2(8); 
+V_GEMS_ID_CURR         VARCHAR2(8);
 
 V_CURR_AUD_REC_STATUS  VARCHAR2(1);
 V_CONTEXT              VARCHAR2(200);
+V_CURR_GEMS_ID         TERRITORY_EMPLOYEE.GEMS_ID_NUMBER%TYPE;
 
 CURSOR table_fields_cur IS
   SELECT COLUMN_NAME,
@@ -691,14 +720,26 @@ BEGIN
     V_EMP_STATUS_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'EMP_PAYROLL_STATUS'), '~');
     V_CC_CURR         := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'COST_CENTER_CODE'), '~');
     V_TDATE_CURR      := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'TERM_DATE'), '~');
-    
+    V_GEMS_ID_CURR    := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || 'GEMS_ID_NUMBER'), '~');
+
     IF IN_ROW_PREV IS NULL THEN --First record, which should go as an Add(A)
         IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'TERM' THEN --new records status is TERM(Terminated), exit out
             RETURN;
         ELSE
             V_CURR_AUD_REC_STATUS := 'A';
         END IF;
+        IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'LEAVE' THEN --new records status is Leave(Leave of Absent), exit out
+            RETURN;
+        END IF;
     ELSE --NOT the first record, which should go as a Delete(D)/Delete(D) and Add(D)/Change(C)
+        IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'LEAVE' THEN --new records status is Leave(Leave of Absent), exit out
+            RETURN;
+        END IF;  
+        --  If the rep is terminated previously - and the only cange we get is a change in TERMINATION date, exit out
+        V_TDATE_PREV := NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_PREV,'//' || 'TERM_DATE'), '~');
+        IF(GET_JOB_TITLE(V_GEMS_ID_CURR) = 'REP' AND V_TDATE_CURR IS NOT NULL AND NVL(V_TDATE_PREV,'~') <> NVL(V_TDATE_CURR,'~')) THEN
+           RETURN;
+        END IF;
         IF UPPER(NVL(V_EMP_STATUS_CURR,'~')) = 'TERM' OR --Status changed to TERM(Terminated), which should go as delete(D)
            ( IN_TABLE_NAME = 'TERRITORY_EMPLOYEE' AND NVL(V_TDATE_CURR,'~') <> '~') OR 
            XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'/'|| IN_TABLE_NAME ||'/UPD_TYPE') IS NOT NULL  THEN --checking if the upd_type tag is present for Delete
@@ -716,8 +757,9 @@ BEGIN
                  V_CURR_AUD_REC_STATUS := 'C';
              END IF;   
          END IF;
+
      END IF;
-    
+
         V_OUT_CLOB2 := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS')
                       || IN_COST_CENTER
                       || RPAD(IN_TABLE_NAME,25)
@@ -753,6 +795,7 @@ BEGIN
             V_VALUE_CURR := UPPER(RPAD('0',TABLE_FIELDS_REC.COLUMN_SIZE,'0'));
         END IF;
         V_OUT_CLOB2 := V_OUT_CLOB2 || V_VALUE_CURR;
+        
     END LOOP;
 
     IF V_OUT_CLOB1 IS NOT NULL THEN
@@ -983,8 +1026,6 @@ CURSOR table_fields_cur IS
      FROM CCN_ADDITIONAL_AUDIT_FIELDS
     WHERE TABLE_NAME = IN_TABLE_NAME
     ORDER BY COLUMN_ID ASC;
---;
---
 
   PATH        	        VARCHAR2(50) := 'CCN_DATAFILES'; -- directory created in Oracle database UNTIL NEW ONE CREATED
   filename  	          VARCHAR2(50) := in_TABLE_NAME || '_backfeed' ;
