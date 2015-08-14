@@ -1,6 +1,5 @@
-CREATE OR REPLACE VIEW COST_POS_VIEW
-AS 
-SELECT
+ CREATE OR REPLACE VIEW COST_POS_VIEW AS
+ SELECT
 /*******************************************************************************
 This View holds all the required data for a cost center, its address, 
 polling status and the hierarchy it is associated with it.
@@ -8,6 +7,7 @@ polling status and the hierarchy it is associated with it.
 Created  : 03/31/2014 NXK927 CCN Project
 Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
          : 01/29/2015 SXT410 Added Effective_date Column from Polling table.
+         : 08/14/2015 NXK927 Only including current polling status
 *******************************************************************************/ 
        CC.COST_CENTER_CODE,
        CC.CATEGORY,
@@ -20,6 +20,7 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
        STATE_CODE, 
        ZIP_CODE,
        PO.POLLING_STATUS_CODE,
+       PO.EFFECTIVE_DATE,
        (SELECT HRCHY_DTL_CURR_LVL_VAL
           FROM HIERARCHY_DETAIL
          WHERE HRCHY_DTL_CURR_ROW_VAL = CC.COST_CENTER_CODE
@@ -31,8 +32,7 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
        CC.STATEMENT_TYPE,        
        CCN_HIERARCHY.GET_TYPE_FNC ( CC.COST_CENTER_CODE ) TYPE_CODE,
        CC.OPEN_DATE,
-       CC.CLOSE_DATE,
-       PO.EFFECTIVE_DATE
+       CC.CLOSE_DATE
        FROM COST_CENTER CC,
         (SELECT ADDRESS_LINE_1, ADDRESS_LINE_2, ADDRESS_LINE_3, CITY, STATE_CODE, ZIP_CODE, COST_CENTER_CODE FROM ADDRESS_USA WHERE ADDRESS_TYPE = 'M' AND EXPIRATION_DATE IS NULL
              UNION ALL
@@ -44,4 +44,5 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
            ) ADDRESS,
             POLLING PO                     
        WHERE CC.COST_CENTER_CODE = ADDRESS.COST_CENTER_CODE(+)
-       AND CC.COST_CENTER_CODE = PO.COST_CENTER_CODE(+);
+       AND CC.COST_CENTER_CODE = PO.COST_CENTER_CODE(+)
+       and PO.EXPIRATION_DATE IS NULL;
