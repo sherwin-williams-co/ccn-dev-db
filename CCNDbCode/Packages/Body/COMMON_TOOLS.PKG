@@ -253,9 +253,6 @@ revised : 05/23/2014 MDH Add Address_Type Parm for Address Records only.
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
-modified: 08/18/2015 nxk927 CCN Project Team...
-          If country_code changes in address table then passing the previous address country table
-          to expire the old record
 *******************************************************************************/
 --
   in_ROW_TABLE            IN  varchar2
@@ -272,7 +269,6 @@ IS
  v_count           integer := 0;
  sql_stmt          varchar2(400);
  v_break           varchar(100);
- V_ROW_TABLE       varchar2(30);
 --
  parameter_null_exp	      EXCEPTION;
  multiple_expire_exp	    EXCEPTION;
@@ -281,20 +277,11 @@ IS
 --
 --
 BEGIN
-  IF in_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') THEN
-     SELECT DECODE(COUNTRY_CODE,'USA', 'ADDRESS_USA', 'CAN', 'ADDRESS_CAN', 'MEX', 'ADDRESS_MEX', 'ADDRESS_OTHER')
-       INTO V_ROW_TABLE
-       FROM ADDRESS_VW
-      WHERE COST_CENTER_CODE = in_COST_CENTER
-        AND EXPIRATION_DATE IS NULL;
-   ELSE 
-      V_ROW_TABLE := in_ROW_TABLE;
-  END IF;
 -- verify that the input parameters are not null
 v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP ' ); 
-  IF V_ROW_TABLE IS NULL   OR
+  IF in_ROW_TABLE IS NULL   OR
      in_COST_CENTER IS NULL  OR
-     (V_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA')
+     (in_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA')
         AND  in_ADDRESS_TYPE  IS NULL)  OR
      in_EFFECTIVE_DATE IS NULL      THEN
         RAISE parameter_null_exp;
@@ -309,16 +296,16 @@ v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP ' );
 --     
        v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Count unexpire recs)' ); 
 --
-    IF V_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') THEN
+    IF in_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') THEN
       sql_stmt := ('select COUNT(1) from ' ||
-                    V_ROW_TABLE || 
+                    in_ROW_TABLE || 
                     ' where UPPER(COST_CENTER_CODE)  =  UPPER(:in_COST_CENTER) ' || 
                     ' and ADDRESS_TYPE  =  :in_ADDRESS_TYPE ' ||
                     ' and  EXPIRATION_DATE is null');
       EXECUTE IMMEDIATE sql_stmt INTO v_count USING in_COST_CENTER, in_ADDRESS_TYPE;              
     ELSE
        sql_stmt := ('select COUNT(1) from ' ||
-                    V_ROW_TABLE || 
+                    in_ROW_TABLE || 
                     ' where UPPER(COST_CENTER_CODE)  =  UPPER(:in_COST_CENTER) ' || 
                     ' and  EXPIRATION_DATE is null');
        EXECUTE IMMEDIATE sql_stmt INTO v_count USING in_COST_CENTER;               
@@ -341,16 +328,16 @@ IF v_count  >  0  THEN
   BEGIN
     v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Found unexpire recd)' ); 
 --
-    IF V_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') THEN
+    IF in_ROW_TABLE IN ('ADDRESS_CAN','ADDRESS_MEX','ADDRESS_OTHER','ADDRESS_USA') THEN
         sql_stmt := ('select EXPIRATION_DATE, ROWID from ' ||
-                  V_ROW_TABLE || 
+                  in_ROW_TABLE || 
                   ' where UPPER(COST_CENTER_CODE) =  UPPER(:in_COST_CENTER) ' ||
                   ' and ADDRESS_TYPE  =  :in_ADDRESS_TYPE ' || 
                   ' and EXPIRATION_DATE is null');
          EXECUTE IMMEDIATE sql_stmt INTO v_expiration_date, v_row_id USING in_COST_CENTER, in_ADDRESS_TYPE;          
     ELSE
         sql_stmt := ('select EXPIRATION_DATE, ROWID from ' ||
-                  V_ROW_TABLE || 
+                  in_ROW_TABLE || 
                   ' where UPPER(COST_CENTER_CODE) =  UPPER(:in_COST_CENTER) ' || 
                   ' and EXPIRATION_DATE is null');
         EXECUTE IMMEDIATE sql_stmt INTO v_expiration_date, v_row_id USING in_COST_CENTER;          
@@ -382,7 +369,7 @@ IF v_count  >  0  THEN
   BEGIN
          v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Update expire date)' ); 
        v_expiration_date := v_date;
-       sql_stmt := ('UPDATE ' || V_ROW_TABLE ||
+       sql_stmt := ('UPDATE ' || in_ROW_TABLE ||
                     ' SET EXPIRATION_DATE =  :v_expiration_date ' ||
                     ' WHERE  rowid = :v_row_id ');
  
@@ -408,21 +395,21 @@ EXCEPTION
 		   		v_code := errnums.en_multipl_expire_err;
 			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.multipl_expire_exp ' 
              		,'More than 1 unexpired rows found for table: ' ||
-                    V_ROW_TABLE ||   ' ccntr: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
                   in_COST_CENTER );     
                
    WHEN no_unexpire_exp THEN  
 		   		v_code := errnums.en_no_unexpire_err;
 			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.no_unexpire_exp ' 
              		,'No unexpired rows found for table: ' ||
-                    V_ROW_TABLE ||   ' ccntr: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
                   in_COST_CENTER );     
               
    WHEN record_update_exp THEN  
  		   		v_code := errnums.en_record_update_err;
 			      errpkg.raise_err(v_code, 'COMMON_TOOLS.EXPIRE_DATA_SP.record_update_exp ' 
             		,'Record Update Error for table: ' ||
-                    V_ROW_TABLE ||   ' ccntr: ' ||
+                    in_ROW_TABLE ||   ' ccntr: ' ||
                   in_COST_CENTER  ||
                   ' ROW ID: ' || V_ROW_ID);
                    
@@ -506,9 +493,33 @@ BEGIN
  EXCEPTION
   WHEN OTHERS THEN
      v_COST_CENTER_CODE := in_COST_CENTER;
-     
-    
+
 END country_look_up_fnc;
+
+FUNCTION ADDRESS_LOOK_UP_FNC( 
+/**********************************************************
+This function will return ADDRESS TABLE name where the cost center is located
+
+created : 08/18/2015 nxk927 CCN Project...
+modified: 
+**********************************************************/
+IN_COST_CENTER IN VARCHAR2
+)
+RETURN VARCHAR2
+IS
+  V_TABLE_NAME   VARCHAR2(20);
+BEGIN
+    SELECT DECODE(COUNTRY_CODE,'USA', 'ADDRESS_USA', 'CAN', 'ADDRESS_CAN', 'MEX', 'ADDRESS_MEX', 'ADDRESS_OTHER')
+      INTO V_TABLE_NAME
+      FROM COST_CENTER
+     WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER);
+  
+     RETURN V_TABLE_NAME;
+EXCEPTION
+  WHEN OTHERS THEN
+      RETURN NULL;
+      
+END ADDRESS_LOOK_UP_FNC;
 
 FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
 /**********************************************************

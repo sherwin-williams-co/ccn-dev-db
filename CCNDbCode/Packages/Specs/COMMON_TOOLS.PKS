@@ -144,6 +144,17 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 )
 RETURN varchar2;
 
+FUNCTION ADDRESS_LOOK_UP_FNC( 
+/**********************************************************
+This function will return ADDRESS TABLE NAME WHERE THE COST CENTER RESIDES
+
+created : 08/18/2015 nxk927 CCN Project...
+modified: 
+**********************************************************/
+IN_COST_CENTER IN VARCHAR2
+)
+RETURN VARCHAR2;
+
 FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
 /**********************************************************
 This function will replace special characters from input text
@@ -348,4 +359,3 @@ Created by jxc517 02/19/2015
 IN_BLOB            IN       BLOB);
 
 END COMMON_TOOLS;
-
