@@ -1,0 +1,31 @@
+--70C340   	changed from FL to TR   per instructions of the Division in March  2015
+--779054    	old address was blank.  Added address March 20, 2015
+--779062		old address was blank.  Added address March 20, 2015	
+--702488		changed the address to a Caribbean address but then changed back to FL.
+
+UPDATE ADDRESS_USA
+   SET EXPIRATION_DATE = '30-MAR-2015'
+ WHERE COST_CENTER_CODE = '70C340'
+   AND COUNTRY_CODE = 'USA'
+   AND EXPIRATION_DATE IS NULL;   
+   
+UPDATE ADDRESS_USA
+   SET EXPIRATION_DATE = '19-MAR-2015'
+ WHERE COST_CENTER_CODE = '779054'
+   AND COUNTRY_CODE = 'USA'
+   AND EXPIRATION_DATE IS NULL; 
+   
+UPDATE ADDRESS_USA
+   SET EXPIRATION_DATE = '19-MAR-2015'
+ WHERE COST_CENTER_CODE = '779062'
+   AND COUNTRY_CODE = 'USA'
+   AND EXPIRATION_DATE IS NULL;
+   
+UPDATE ADDRESS_OTHER
+   SET EXPIRATION_DATE = '03-AUG-2015'
+ WHERE COST_CENTER_CODE = '702488'
+   AND COUNTRY_CODE = 'JAM'
+   AND EXPIRATION_DATE IS NULL;
+   
+COMMIT;   
+   
