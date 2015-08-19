@@ -7,6 +7,24 @@ changed :
 *****************************************************************/
 IS
 
+FUNCTION GET_CUSTOMER_TAX_ID(
+/*****************************************************************************
+	This function will return the tax id for the customer id passed in
+
+created : 08/19/2015 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION GET_CUSTOMER_VENDOR_NO(
+/*****************************************************************************
+	This function will return the vendor number for the customer id passed in
+
+created : 08/19/2015 jxc517 CCN Project....
+changed :
+*****************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2;
+
 FUNCTION FORMAT_INPUT_FOR_FILE(
 /*****************************************************************************
 	FORMAT_INPUT_FOR_FILE
@@ -48,7 +66,8 @@ PROCEDURE BUILD_1099_FILE_FOR_FSS(
 created : 04/07/2015 jxc517 CCN Project....
 changed : 
 *****************************************************************************/
-IN_DATE           IN DATE);
+IN_DATE           IN DATE,
+IN_MID_MNTHLY_IND IN VARCHAR2);
 
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************
@@ -114,3 +133,4 @@ Changed : :
 IN_DATE      IN     DATE);
 
 END SD_FILE_BUILD_PKG;
+
