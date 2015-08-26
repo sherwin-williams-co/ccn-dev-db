@@ -24,7 +24,7 @@ changed :
           WHERE VENDOR_NO IS NOT NULL
           ORDER BY SUBSTR(COST_CENTER_CODE, 3), VENDOR_NO, DRAFT_NUMBER;
 
-    PATH        	  VARCHAR2(50) := 'STORDRAFT_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    PATH        	  VARCHAR2(50) := 'STORDRFT_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50) := 'ST'       --ORIGIN = Stores
                                     ||'INS'    --SOURCE_SYS_ID = Installers
                                     ||'INV01'; --DSNAME
