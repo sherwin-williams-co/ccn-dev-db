@@ -148,7 +148,7 @@ created :
 Revised : 08/27/2015 AXK326 CCN Project Team....
           Updated the parameter from XML to CLOB type
 **********************************************************/
-    in_CLOB                CLOB);
+    in_XML                CLOB);
 	
 PROCEDURE CODE_DETAIL_DELETE(
 /**********************************************************
@@ -175,7 +175,7 @@ created :
 Revised : 08/27/2015 AXK326 CCN Project Team....
           Updated the parameter from XML to CLOB type
 **********************************************************/
-    IN_CLOB                CLOB);
+    IN_XML                CLOB);
   
 PROCEDURE CODE_HEADER_INSERT(
 /**********************************************************
