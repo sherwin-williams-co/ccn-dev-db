@@ -143,8 +143,12 @@ CODE_DETAIL_INSERT
 	    <CODE_DETAIL_EFF_DATE>DATE</CODE_DETAIL_EFF_DATE>
   </row_data>
 </CODE_DETAIL>
+
+created : 
+Revised : 08/27/2015 AXK326 CCN Project Team....
+          Updated the parameter from XML to CLOB type
 **********************************************************/
-    in_XML                VARCHAR2);
+    in_CLOB                CLOB);
 	
 PROCEDURE CODE_DETAIL_DELETE(
 /**********************************************************
@@ -166,8 +170,12 @@ CODE_DETAIL_DELETE
 	    <CODE_DETAIL_EFF_DATE>DATE</CODE_DETAIL_EFF_DATE>
   </row_data>
 </CODE_DETAIL>
+
+created : 
+Revised : 08/27/2015 AXK326 CCN Project Team....
+          Updated the parameter from XML to CLOB type
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_CLOB                CLOB);
   
 PROCEDURE CODE_HEADER_INSERT(
 /**********************************************************
@@ -267,4 +275,3 @@ in_TABLE_NAME           IN      VARCHAR2
 ,out_CODE_DETAIL_type        out CODE_DETAIL%rowtype);
 
 END CCN_PICK_LIST_PKG;
-
