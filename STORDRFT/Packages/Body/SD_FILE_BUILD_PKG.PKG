@@ -43,7 +43,7 @@ BEGIN
     SELECT VENDOR_NO
       INTO V_VENDOR_NO
       FROM VENDOR_INFO
-     WHERE TAX_ID = SD_FILE_BUILD_PKG.GET_CUSTOMER_TAX_ID (IN_CUSTOMER_ACCOUNT_NUMBER)
+     WHERE TAX_ID = SD_FILE_BUILD_PKG.GET_CUSTOMER_TAX_ID(IN_CUSTOMER_ACCOUNT_NUMBER)
        AND SITE_LAST_UPDATE_DATE = (SELECT MAX(SITE_LAST_UPDATE_DATE)
                                       FROM VENDOR_INFO
                                      WHERE TAX_ID = GET_CUSTOMER_TAX_ID (IN_CUSTOMER_ACCOUNT_NUMBER))
@@ -90,7 +90,7 @@ END FORMAT_INPUT_FOR_FILE;
 
 PROCEDURE LOAD_VENDOR_INFORMATION
 /*****************************************************************************
-	This procedure will load the VENDOR_INFO table used in FSS fiel generation process
+	This procedure will load the VENDOR_INFO table used in FSS file generation process
 
 created : 04/07/2015 jxc517 CCN Project....
 changed : 
@@ -124,6 +124,8 @@ PROCEDURE BUILD_1099_DIFF_FILE(
 created : 11/24/2014 jxc517 CCN Project....
 changed : 03/23/2015 jxc517 CCN Project....
           Modified signature to eliminate intermediate tables completely
+changed : 08/28/2015 jxc517 CCN Project....
+          Changed FNCL_SRVCS_SENT_DATE to PICKED_BY_1099_ON_DATE
 *****************************************************************************/
 IN_DATE           IN DATE)
 IS
@@ -136,10 +138,10 @@ IS
                ,NULL AS JV_NUMBER
                ,NULL AS FILLER
                ,'00' AS TRANSACTION_CODE
-               ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
+               ,SD_FILE_BUILD_PKG.GET_CUSTOMER_TAX_ID(CUSTOMER_ACCOUNT_NUMBER) AS TAX_ID
                ,CHECK_SERIAL_NUMBER
           FROM STORE_DRAFTS
-         WHERE FNCL_SRVCS_SENT_DATE = TRUNC(IN_DATE,'month') + 14
+         WHERE PICKED_BY_1099_ON_DATE = TRUNC(IN_DATE,'month') + 14
          ORDER BY SUBSTR(COST_CENTER_CODE,3,4), CHECK_NUMBER;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
@@ -189,6 +191,58 @@ EXCEPTION
         RAISE;
 END BUILD_1099_DIFF_FILE;
 
+PROCEDURE UPDATE_PICKED_BY_1099_ON_DATE(
+/*****************************************************************************
+This procedure will update PICKED_BY_1099_ON_DATE in all tables  
+
+created : 08/28/2015 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+IN_CHECK_SERIAL_NUMBER  IN     VARCHAR2,
+IN_DATE                 IN     DATE)
+IS
+BEGIN
+    BEGIN
+        UPDATE STORE_DRAFTS
+           SET PICKED_BY_1099_ON_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND PICKED_BY_1099_ON_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE HST_STORE_DRAFTS
+           SET PICKED_BY_1099_ON_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND PICKED_BY_1099_ON_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE UNATTACHED_MNL_DRFT_DTL
+           SET PICKED_BY_1099_ON_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND PICKED_BY_1099_ON_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE UNATTACHED_MNL_DRFT_DTL_HST
+           SET PICKED_BY_1099_ON_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND PICKED_BY_1099_ON_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END UPDATE_PICKED_BY_1099_ON_DATE;
+
 PROCEDURE BUILD_1099_FILE(
 /*****************************************************************************
 	BUILD_1099_FILE
@@ -207,12 +261,14 @@ changed : 11/24/2014 jxc517 CCN Project....
         : 02/13/2015 DXV848 Added condition - if amount_change_date is null then use original_net_amount else use net_amount  
         : 03/23/2015 jxc517 CCN Project....
                      Added logic to pick records only for previous month's run based on input parameter
-                     Added new column FNCL_SRVCS_SENT_DATE to track the runs and geenrate report as needed
+                     Added new column PICKED_BY_1099_ON_DATE to track the runs and geenrate report as needed
         : 06/10/2015 jxc517 CCN Project....
                      Added logic to generate correct file name for that run
                      Modified logic to consider drafts loaded on 01st of next month under current monthly file
                      Modified logic to update records only if financial sequence number is null, to improve performance
                      Indexes HST_STORE_DRAFTS_IX, UNATTACHED_MNL_DRFT_DTL_HST_IX were also added to improve performance
+        : 08/28/2015 jxc517 CCN Project....
+          Changed FNCL_SRVCS_SENT_DATE to PICKED_BY_1099_ON_DATE
 *****************************************************************************/
 IN_DATE           IN DATE,
 IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
@@ -229,7 +285,7 @@ IS
                ,'00' AS TRANSACTION_CODE
                ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
                ,CHECK_SERIAL_NUMBER
-               ,FNCL_SRVCS_SENT_DATE
+               ,PICKED_BY_1099_ON_DATE
           FROM STORE_DRAFTS
          WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '91' AND REASON_CODE = '04'))
           AND TO_CHAR(ISSUE_DATE,'YYYYMM') = TO_CHAR(IN_DATE,'YYYYMM')
@@ -247,6 +303,7 @@ IS
 
 	  V_OUT_CLOB      CLOB;
     V_COUNT         NUMBER := 0;
+    V_DATE          DATE;
     V_BATCH_NUMBER  BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS  BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
@@ -255,9 +312,11 @@ BEGIN
         IF IN_MID_MNTHLY_IND = 'Y' THEN
             CCN_BATCH_PKG.INSERT_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER);
             FILENAME := '1099_MID_MONTHLY_';
+            V_DATE := TRUNC(IN_DATE,'month') + 14;
         ELSE
             CCN_BATCH_PKG.INSERT_BATCH_JOB('1099_MONTHLY', V_BATCH_NUMBER);
             FILENAME := '1099_MONTHLY_';
+            V_DATE := TRUNC(IN_DATE,'month');
         END IF;
 
         OUTPUT_FILE := UTL_FILE.FOPEN (PATH
@@ -278,49 +337,14 @@ BEGIN
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TAX_ID,'0',9)
                            ||CHR(13);
         /*
-        Update the newly added column FNCL_SRVCS_SENT_DATE with
+        Update the newly added column PICKED_BY_1099_ON_DATE with
             first day of the month for which the monthly file is getting generated
             15+first day of the month for which the mid mointhly file is getting generated
         Don't update if an update is already done as the value of this column won't change for each run
             Also above process helps us identify the records that are present in mid monthly which are not present in monthly
         */        
-            IF rec.FNCL_SRVCS_SENT_DATE IS NULL THEN --No need to perform update if that value is already updated
-                BEGIN
-                    UPDATE STORE_DRAFTS
-                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)               
-                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                       AND FNCL_SRVCS_SENT_DATE IS NULL;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        NULL;
-                END;
-                BEGIN
-                    UPDATE HST_STORE_DRAFTS
-                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                       AND FNCL_SRVCS_SENT_DATE IS NULL;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        NULL;
-                END;
-                BEGIN
-                    UPDATE UNATTACHED_MNL_DRFT_DTL
-                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                       AND FNCL_SRVCS_SENT_DATE IS NULL;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        NULL;
-                END;
-                BEGIN
-                    UPDATE UNATTACHED_MNL_DRFT_DTL_HST
-                       SET FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
-                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                       AND FNCL_SRVCS_SENT_DATE IS NULL;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        NULL;
-                END;
+            IF rec.PICKED_BY_1099_ON_DATE IS NULL THEN --No need to perform update if that value is already updated
+                UPDATE_PICKED_BY_1099_ON_DATE(rec.CHECK_SERIAL_NUMBER, V_DATE);
             END IF;
             IF V_COUNT = 100 THEN
                 UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
@@ -354,26 +378,79 @@ EXCEPTION
         RAISE;
 END BUILD_1099_FILE;
 
+PROCEDURE UPDATE_FNCL_SRVCS_SENT_DATE(
+/*****************************************************************************
+This procedure will update FNCL_SRVCS_SENT_DATE in all tables  
+
+created : 08/28/2015 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+IN_CHECK_SERIAL_NUMBER  IN     VARCHAR2,
+IN_DATE                 IN     DATE)
+IS
+BEGIN
+    BEGIN
+        UPDATE STORE_DRAFTS
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND FNCL_SRVCS_SENT_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE HST_STORE_DRAFTS
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND FNCL_SRVCS_SENT_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE UNATTACHED_MNL_DRFT_DTL
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND FNCL_SRVCS_SENT_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    BEGIN
+        UPDATE UNATTACHED_MNL_DRFT_DTL_HST
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+         WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND FNCL_SRVCS_SENT_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END UPDATE_FNCL_SRVCS_SENT_DATE;
+
 PROCEDURE BUILD_1099_FILE_FOR_FSS(
 /*****************************************************************************
 	This procedure will build the 1099 file from CPR views that will be sent for FSS(Financial Shared Services)
 
 created : 04/07/2015 jxc517 CCN Project....
-changed : 08/19/2015 jxc517 CCN Project....
-          Modified to handle monthly and mid monthly runs, get the latest updated vendor info
+changed : 08/28/2015 jxc517 CCN Project....
+          Changed FNCL_SRVCS_SENT_DATE to PICKED_BY_1099_ON_DATE
 *****************************************************************************/
-IN_DATE           IN DATE,
-IN_MID_MNTHLY_IND IN VARCHAR2)
+IN_DATE           IN DATE)
 IS
     CURSOR cur IS
         SELECT *
           FROM (SELECT COST_CENTER_CODE,
+                       CHECK_SERIAL_NUMBER,
                        NET_AMOUNT,
                        ISSUE_DATE,
                        DRAFT_NUMBER,
                        SD_FILE_BUILD_PKG.GET_CUSTOMER_VENDOR_NO(CUSTOMER_ACCOUNT_NUMBER) VENDOR_NO
                   FROM STORE_DRAFTS
-                 WHERE FNCL_SRVCS_SENT_DATE = DECODE(IN_MID_MNTHLY_IND, 'N', TRUNC(IN_DATE,'month'), TRUNC(IN_DATE,'month') + 14)
+                 WHERE FNCL_SRVCS_SENT_DATE IS NULL
+                   AND PICKED_BY_1099_ON_DATE IS NOT NULL
                    --AND (COST_CENTER_CODE LIKE '%1015%' OR COST_CENTER_CODE LIKE '%1021%' OR COST_CENTER_CODE LIKE '%1030%') --Testing
                 )
           WHERE VENDOR_NO IS NOT NULL
@@ -414,7 +491,8 @@ BEGIN
           FROM (SELECT NET_AMOUNT,
                        SD_FILE_BUILD_PKG.GET_CUSTOMER_VENDOR_NO(CUSTOMER_ACCOUNT_NUMBER) VENDOR_NO
                   FROM STORE_DRAFTS
-                 WHERE FNCL_SRVCS_SENT_DATE = DECODE('N', 'N', TRUNC(TO_DATE('01-JUL-2015'),'month'), TRUNC(TO_DATE('01-JUL-2015'),'month') + 14)
+                 WHERE FNCL_SRVCS_SENT_DATE IS NULL
+                 AND PICKED_BY_1099_ON_DATE IS NOT NULL
                    --AND (COST_CENTER_CODE LIKE '%1015%' OR COST_CENTER_CODE LIKE '%1021%' OR COST_CENTER_CODE LIKE '%1030%') --Testing
                 )
           WHERE VENDOR_NO IS NOT NULL;
@@ -453,6 +531,7 @@ BEGIN
             ELSE
                 V_SEQ_COUNT := V_SEQ_COUNT + 1;
             END IF;
+            UPDATE_FNCL_SRVCS_SENT_DATE(rec.CHECK_SERIAL_NUMBER, TRUNC(SYSDATE));
             V_OUT_CLOB := V_OUT_CLOB 
                            --RECORD-TYPE (1) -> 1 = Invoice Header Record
                            || '1'
@@ -936,7 +1015,6 @@ BEGIN
                            || CHR(13);
             UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
             V_OUT_CLOB := NULL;
-            COMMIT;
             V_OLD_STORE_NUMBER := rec.COST_CENTER_CODE;
         END LOOP;
 
@@ -944,10 +1022,11 @@ BEGIN
 
     EXCEPTION
         WHEN OTHERS THEN
+            ROLLBACK;
             V_TRANS_STATUS := 'ERROR';
             RAISE;
     END;
-
+    COMMIT;
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_FILE_FOR_FSS', V_BATCH_NUMBER, V_TRANS_STATUS);
 
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
@@ -1243,7 +1322,7 @@ BEGIN
       INTO V_COUNT,
            V_AMOUNT
       FROM STORE_DRAFTS SD
-     WHERE TO_CHAR(FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY');
+     WHERE TO_CHAR(PICKED_BY_1099_ON_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY');
     V_CLOB := V_CLOB ||
              'RECORDS READ,'||V_COUNT||CHR(13)||
              '496419 BYPASSED, 0'||CHR(13)||

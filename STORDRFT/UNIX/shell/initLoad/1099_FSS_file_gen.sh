@@ -1,10 +1,10 @@
 #!/bin/sh
 ##############################################################################################################
-# Script name   : 1099_FSS_mid_monthly_file_gen.sh
+# Script name   : 1099_FSS_file_gen.sh
 #
-# Description   : This shell program will initiate the mid monthly 1099 FSS process
+# Description   : This shell program will initiate the 1099 FSS process as and when needed
 #
-# Created  : 07/29/2015 jxc517 CCN Project Team.....
+# Created  : 08/28/2015 jxc517 CCN Project Team.....
 # Modified : 
 #
 ##############################################################################################################
@@ -22,7 +22,7 @@ echo "Processing Started for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
-execute SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','MM/DD/YYYY'), 'Y');
+execute SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','MM/DD/YYYY'));
 exit;
 END
 

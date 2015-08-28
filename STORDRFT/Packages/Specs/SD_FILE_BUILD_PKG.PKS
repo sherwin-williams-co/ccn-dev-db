@@ -66,8 +66,7 @@ PROCEDURE BUILD_1099_FILE_FOR_FSS(
 created : 04/07/2015 jxc517 CCN Project....
 changed : 
 *****************************************************************************/
-IN_DATE           IN DATE,
-IN_MID_MNTHLY_IND IN VARCHAR2);
+IN_DATE           IN DATE);
 
 PROCEDURE STORE_DRAFT_INTALLER_1099 
 /**********************************************************
