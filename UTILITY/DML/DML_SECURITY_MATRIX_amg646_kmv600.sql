@@ -1,0 +1,17 @@
+/*
+created: 08/28/2015 dxv848  adding the user(amg626) and removing the user(kmv600) in SECURITY_MATRIX table.
+*/
+
+INSERT INTO SECURITY_MATRIX(USER_ID,PASSWORD,ROLE_CODE) VALUES ('amg626','amg626','CCNUS1');
+
+INSERT INTO SECURITY_MATRIX(USER_ID,PASSWORD,ROLE_CODE) VALUES ('amg626','amg626','SDU1');
+
+COMMIT;
+
+DELETE SECURITY_MATRIX
+ WHERE USER_ID='kmv600';
+
+COMMIT;
+
+select * from SECURITY_MATRIX where USER_ID in ('kmv600','amg626');
+
