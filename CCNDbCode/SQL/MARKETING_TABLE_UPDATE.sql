@@ -8,9 +8,9 @@ e_invalid_store EXCEPTION;
 cursor marketing_cur is 
     select * from marketing_temp; 
   
-v_count     integer := 0;
+v_count      integer := 0;
 v_count1     integer := 0;
-v_ins_count integer :=0;
+v_ins_count  integer := 0;
 
 
 begin
@@ -27,8 +27,8 @@ begin
  
           
          if v_count > 100 then
-             commit; 
-             v_count := 0;
+            commit; 
+            v_count := 0;
          end if;
 
           
@@ -41,8 +41,10 @@ begin
     
       EXCEPTION
          WHEN e_invalid_store  THEN
-            COMMON_TOOLS.LOG_ERROR(marketing_rec.STORE_NUMBER, 'MARKETING TABLE UPDATE', 'UPDATE MARKETING TABLE FAILED for:'||marketing_rec.STORE_NUMBER, SQLCODE);
+            COMMON_TOOLS.LOG_ERROR(marketing_rec.STORE_NUMBER, 'MARKETING TABLE UPD ONETIMERUN','Cost_center :'||marketing_rec.STORE_NUMBER||' not present in Marketing Table ', SQLCODE);
             v_count1 := v_count1 + 1;
+         WHEN OTHERS THEN 
+            COMMON_TOOLS.LOG_ERROR(marketing_rec.STORE_NUMBER, 'MARKETING TABLE UPD ONETIMERUN', substr(SQLERRM,1,500)||marketing_rec.STORE_NUMBER, SQLCODE);
       END;
    END LOOP;
 V_INS_COUNT := V_INS_COUNT- v_count1;
