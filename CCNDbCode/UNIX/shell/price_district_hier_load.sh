@@ -13,7 +13,7 @@
 # Created :  nxk927 09/03/2015
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
+. /app/ccn/host.sh
 
  proc="price_distrinct_hier_load"
  LOGDIR="$HOME/hier"

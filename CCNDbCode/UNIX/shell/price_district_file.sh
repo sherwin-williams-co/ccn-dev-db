@@ -8,7 +8,7 @@
 
 # Get the credentials for all applications from below file
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. /app/ccn/host.csh
+. /app/ccn/host.sh
 
 date=`date +"%Y%m%d%H%M%S"`
 
