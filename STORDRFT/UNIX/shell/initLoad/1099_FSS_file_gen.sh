@@ -14,8 +14,7 @@
 proc="1099_FSS_monthly_file_gen"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-#DATE=${MNTLY_1099_RUNDATE} 
-DATE=`date -d "-1 month -$(($(date +%d)-1)) days" "+%d-%b-%Y"`
+DATE=${MNTLY_1099_RUNDATE} 
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"
@@ -23,7 +22,7 @@ echo "Processing Started for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
-execute SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','DD-Mon-YYYY'));
+execute SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','MM/DD/YYYY'));
 exit;
 END
 
