@@ -1,0 +1,396 @@
+create or replace PACKAGE BODY PRICE_DIST_HRCHY_LOAD
+/*******************************************************************************
+This package is intended to load price district files from mainframe into the 
+HIERARCHY tables
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+*******************************************************************************/
+AS
+PROCEDURE PRICING_DISTRICT_HRCHY
+/*******************************************************************************
+This Procedure Loads HIERARCHY_HEADER and HIERARCHY_DESCRIPTION for pricing district
+before loading the files from Mainframe into hierarchy_detail table
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+*******************************************************************************/
+IS
+ V_CODE NUMBER;
+ V_ERRM VARCHAR2(500);
+BEGIN
+---INSERT FOR PRICING DISTRICT INTO HIERARCHY_HEADER
+INSERT INTO HIERARCHY_HEADER(HRCHY_HDR_NAME, HRCHY_HDR_LEVELS, HRCHY_HDR_DESC)
+                             VALUES('PRICE_DISTRICT', '2', 'PRICE DISTRICT HIERARCHY STRUCTURE');
+
+---INSERT FOR PRICING DISTRICT INTO HIERARCHY_DESCRIPTION
+INSERT INTO HIERARCHY_DESCRIPTION(HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC, UPPER_LVL_VER_VALUE,LVL_VALUE_SIZE) 
+    VALUES ('PRICE_DISTRICT','1','District','<attributes>
+                                     <upper_lvl_ver_desc> 
+                                          <Name>Statement Type</Name>
+                                          <Description>pkListValue</Description>
+                                     </upper_lvl_ver_desc>
+                                      <upper_lvl_ver_desc> 
+                                          <Name>ManagerName</Name>
+                                          <Description>CC Mgr Name</Description>
+                                     </upper_lvl_ver_desc>
+                                </attributes>', '5');
+INSERT INTO HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE, LVL_VALUE_SIZE) 
+    VALUES ('PRICE_DISTRICT','2','Cost Center', '<attributes>
+                                     <upper_lvl_ver_desc> 
+                                          <Name>Statement Type</Name>
+                                          <Description>pkListValue</Description>
+                                     </upper_lvl_ver_desc>
+                                     <upper_lvl_ver_desc> 
+                                          <Name>ManagerName</Name>
+                                          <Description>CC Mgr Name</Description>
+                                     </upper_lvl_ver_desc>
+                                </attributes>', '6');
+EXCEPTION
+  WHEN OTHERS THEN
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,500);
+       DBMS_OUTPUT.PUT_LINE('PRICING_DISTRICT_HRCHY FAILED AT '||SQLERRM || ' : ' ||SQLCODE ); 
+END PRICING_DISTRICT_HRCHY;
+
+PROCEDURE LOAD_INTERMEDIATE_TABLES
+/*******************************************************************************
+This Procedure Loads the intermediate tables PRICE_CENTER_T and PRICE_DISTRICT_T
+for pricing district before loading the files from Mainframe into hierarchy_detail table
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+*******************************************************************************/
+ IS
+ V_CODE NUMBER;
+ V_ERRM VARCHAR2(500);
+BEGIN
+      EXECUTE IMMEDIATE 'TRUNCATE TABLE PRICE_CENTER_T';
+      EXECUTE IMMEDIATE 'TRUNCATE TABLE PRICE_DISTRICT_T';
+      
+      INSERT INTO PRICE_CENTER_T
+         SELECT /*+ NO_PARALLEL (PRCCNTR_EXT_DETAIL)*/ * FROM PRCCNTR_EXT_DETAIL;
+      INSERT INTO PRICE_DISTRICT_T
+         SELECT /*+ NO_PARALLEL (PRCDIST_EXT_DETAIL)*/ * FROM PRCDIST_EXT_DETAIL;
+
+EXCEPTION
+  WHEN OTHERS THEN
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,200);
+       DBMS_OUTPUT.PUT_LINE('LOAD_INTERMEDIATE_TABLES FAILED AT '||SQLERRM || ' : ' ||SQLCODE ); 
+END LOAD_INTERMEDIATE_TABLES;
+
+
+PROCEDURE PRICING_DISTRICT_HIER_LOAD
+/******************************************************************************
+This Procedure Loads the hierarchy_detail table with the 2 level pricing hierarchy
+This procedure will build the necesarry  levels and will be loaded in the main table
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+*******************************************************************************/
+IS
+    V_CODE NUMBER;
+    V_ERRM VARCHAR2(500);
+    v_count integer := 0;
+    
+    cursor CUR is
+        SELECT DECODE(PC.COST_CENTER_CODE, NULL, 1, 2) LEV,--level 1 if no Cost center associated
+               'PRICE_DISTRICT' HRCHY_HDR_NAME,
+               PD.PRICE_DIST_NBR,
+               PC.COST_CENTER_CODE, 
+               TRIM(PD.PRICE_DIST_NAME) PRICE_DIST_NAME, 
+               TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PD.EFFECTIVE_DATE), 'RRRRMMDD') PD_EFFECTIVE_DATE,
+               TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PD.EXPIRATION_DATE), 'RRRRMMDD') PD_EXPIRATION_DATE,
+               TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PC.EFFECTIVE_DATE), 'RRRRMMDD') PC_EFFECTIVE_DATE,
+               TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PC.EXPIRATION_DATE), 'RRRRMMDD') PC_EXPIRATION_DATE
+          FROM PRICE_DISTRICT_T PD
+          FULL JOIN PRICE_CENTER_T PC
+            ON PC.PRICE_DIST_NBR = PD.PRICE_DIST_NBR;
+
+time_before   PLS_INTEGER;
+begin 
+   time_before := DBMS_UTILITY.get_time;
+      --creating the two levels as they is only 1 level in the file
+   FOR REC IN CUR LOOP
+       IF REC.LEV = 1 THEN---inserting all the 1st level first with no cost center associated with the district
+          IF REC.PD_EXPIRATION_DATE IS NULL THEN 
+             INSERT INTO HIERARCHY_DETAIL (HRCHY_HDR_NAME,
+                                           HRCHY_DTL_LEVEL,
+                                           HRCHY_DTL_PREV_LVL_VAL,
+                                           HRCHY_DTL_CURR_LVL_VAL,
+                                           HRCHY_DTL_NEXT_LVL_VAL,
+                                           HRCHY_DTL_EFF_DATE,
+                                           HRCHY_DTL_EXP_DATE,
+                                           HRCHY_DTL_DESC,
+                                           HRCHY_DTL_CURR_ROW_VAL,
+                                           UPPER_LVL_VER_VALUE
+                                           )
+                                    VALUES (REC.HRCHY_HDR_NAME,
+                                            REC.LEV,
+                                            '~~~',
+                                            REC.PRICE_DIST_NBR,
+                                            '~~~',
+                                            REC.PD_EFFECTIVE_DATE,
+                                            REC.PD_EXPIRATION_DATE,
+                                            REC.PRICE_DIST_NAME,
+                                            REC.PRICE_DIST_NBR,
+                                            '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                             ); 
+             v_count := v_count + 1;
+             IF v_count > 1000 then 
+                commit;
+             END IF;  
+             v_count := 0;                                             
+          ELSE  
+             INSERT INTO HIERARCHY_DETAIL_HST (HRCHY_HDR_NAME,
+                                               HRCHY_DTL_LEVEL,
+                                               HRCHY_DTL_PREV_LVL_VAL,
+                                               HRCHY_DTL_CURR_LVL_VAL,
+                                               HRCHY_DTL_NEXT_LVL_VAL,
+                                               HRCHY_DTL_EFF_DATE,
+                                               HRCHY_DTL_EXP_DATE,
+                                               HRCHY_DTL_DESC,
+                                               HRCHY_DTL_CURR_ROW_VAL,
+                                               UPPER_LVL_VER_VALUE
+                                               )
+                                        VALUES (REC.HRCHY_HDR_NAME,
+                                               REC.LEV,
+                                               '~~~',
+                                               REC.PRICE_DIST_NBR,
+                                               '~~~',
+                                               REC.PD_EFFECTIVE_DATE,
+                                               REC.PD_EXPIRATION_DATE,
+                                               REC.PRICE_DIST_NAME,
+                                               REC.PRICE_DIST_NBR,
+                                               '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                               );   
+          END IF;                                               
+             v_count := v_count + 1;
+             IF v_count > 1000 then 
+                commit;
+             END IF; 
+             v_count := 0;
+       ELSE 
+           IF REC.PC_EXPIRATION_DATE IS NULL THEN
+           --inserting the first level first 
+              INSERT INTO HIERARCHY_DETAIL (HRCHY_HDR_NAME,
+                                            HRCHY_DTL_LEVEL,
+                                            HRCHY_DTL_PREV_LVL_VAL,
+                                            HRCHY_DTL_CURR_LVL_VAL,
+                                            HRCHY_DTL_NEXT_LVL_VAL,
+                                            HRCHY_DTL_EFF_DATE,
+                                            HRCHY_DTL_EXP_DATE,
+                                            HRCHY_DTL_DESC,
+                                            HRCHY_DTL_CURR_ROW_VAL,
+                                            UPPER_LVL_VER_VALUE
+                                            )
+                                     VALUES (REC.HRCHY_HDR_NAME,
+                                            '1',
+                                            '~~~',
+                                            REC.PRICE_DIST_NBR,
+                                            REC.PRICE_DIST_NBR||REC.COST_CENTER_CODE,
+                                            REC.PC_EFFECTIVE_DATE,
+                                            REC.PC_EXPIRATION_DATE,
+                                            REC.PRICE_DIST_NAME,
+                                            REC.PRICE_DIST_NBR,
+                                            '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                             ); 
+             v_count := v_count + 1;
+             IF v_count > 1000 then 
+                commit;
+             END IF;  
+             v_count := 0;                               
+              --inserting the first level first                                              
+             INSERT INTO HIERARCHY_DETAIL (HRCHY_HDR_NAME,
+                                           HRCHY_DTL_LEVEL,
+                                           HRCHY_DTL_PREV_LVL_VAL,
+                                           HRCHY_DTL_CURR_LVL_VAL,
+                                           HRCHY_DTL_NEXT_LVL_VAL,
+                                           HRCHY_DTL_EFF_DATE,
+                                           HRCHY_DTL_EXP_DATE,
+                                           HRCHY_DTL_DESC,
+                                           HRCHY_DTL_CURR_ROW_VAL,
+                                           UPPER_LVL_VER_VALUE
+                                           )
+                                    VALUES (REC.HRCHY_HDR_NAME,
+                                            rec.lev,
+                                            REC.PRICE_DIST_NBR,
+                                            REC.PRICE_DIST_NBR||REC.COST_CENTER_CODE,
+                                            '~~~',
+                                            REC.PC_EFFECTIVE_DATE,
+                                            REC.PC_EXPIRATION_DATE,
+                                            REC.PRICE_DIST_NAME,
+                                            REC.COST_CENTER_CODE,
+                                            '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                             );   
+             v_count := v_count + 1;
+             IF v_count > 1000 then 
+                commit;
+             END IF;  
+             v_count := 0; 
+           ELSE
+             --inserting the first level first into history
+              INSERT INTO HIERARCHY_DETAIL_HST (HRCHY_HDR_NAME,
+                                               HRCHY_DTL_LEVEL,
+                                               HRCHY_DTL_PREV_LVL_VAL,
+                                               HRCHY_DTL_CURR_LVL_VAL,
+                                               HRCHY_DTL_NEXT_LVL_VAL,
+                                               HRCHY_DTL_EFF_DATE,
+                                               HRCHY_DTL_EXP_DATE,
+                                               HRCHY_DTL_DESC,
+                                               HRCHY_DTL_CURR_ROW_VAL,
+                                               UPPER_LVL_VER_VALUE
+                                               )
+                                        VALUES (REC.HRCHY_HDR_NAME,
+                                               '1',
+                                               '~~~',
+                                               REC.PRICE_DIST_NBR,
+                                               REC.PRICE_DIST_NBR||REC.COST_CENTER_CODE,
+                                               REC.PC_EFFECTIVE_DATE,
+                                               REC.PC_EXPIRATION_DATE,
+                                               REC.PRICE_DIST_NAME,
+                                               REC.PRICE_DIST_NBR,
+                                               '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                                ); 
+             --inserting the second level first in history                                                
+              INSERT INTO HIERARCHY_DETAIL_HST (HRCHY_HDR_NAME,
+                                               HRCHY_DTL_LEVEL,
+                                               HRCHY_DTL_PREV_LVL_VAL,
+                                               HRCHY_DTL_CURR_LVL_VAL,
+                                               HRCHY_DTL_NEXT_LVL_VAL,
+                                               HRCHY_DTL_EFF_DATE,
+                                               HRCHY_DTL_EXP_DATE,
+                                               HRCHY_DTL_DESC,
+                                               HRCHY_DTL_CURR_ROW_VAL,
+                                               UPPER_LVL_VER_VALUE
+                                               )
+                                        VALUES (REC.HRCHY_HDR_NAME,
+                                               rec.lev,
+                                               REC.PRICE_DIST_NBR,
+                                               REC.PRICE_DIST_NBR||REC.COST_CENTER_CODE,
+                                               '~~~',
+                                               REC.PC_EFFECTIVE_DATE,
+                                               REC.PC_EXPIRATION_DATE,
+                                               REC.PRICE_DIST_NAME,
+                                               REC.COST_CENTER_CODE,
+                                               '<attributes><upper_lvl_ver_desc><Name>Statement Type</Name><Description>Picklist Value</Description><Value>**</Value></upper_lvl_ver_desc></attributes>'
+                                                );                                                     
+                                                           
+             v_count := v_count + 1;
+             IF v_count > 1000 then 
+                commit;
+             END IF;  
+             v_count := 0;
+             END IF;
+          END IF;
+   END LOOP;
+COMMIT;
+DBMS_OUTPUT.put_line (DBMS_UTILITY.get_time - time_before);
+DBMS_OUTPUT.PUT_LINE('PRICE_DISTRICT_HIER_LOAD completed. ');
+EXCEPTION
+  when OTHERS then
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,200);
+       DBMS_OUTPUT.PUT_LINE('PRICE_DISTRICT_HIER_LOAD FAILED AT '||SQLERRM || ' : ' ||SQLCODE); 
+END PRICING_DISTRICT_HIER_LOAD; 
+
+PROCEDURE PRICE_DSTRCT_HIER_LOAD_MAIN_SP
+/******************************************************************
+This Procedure is a wrapper for the Pricing district Hierarchy Load.
+This Procedure
+    * Disables all the Triggers for HIERARCHY_DETAIL Table
+    * Loads the HIERARCHY_HEADER,HIERARCHY_DESCRIPTION, INTERMEDIATE  tables
+    * Loads the HIERARCHY_DETAIL table with the price district data
+    * Re-Enables the Triggers
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+******************************************************************/
+AS
+  V_CONTEXT VARCHAR2(200);
+  time_before   PLS_INTEGER := DBMS_UTILITY.get_time;
+  BEGIN
+      CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+      V_CONTEXT := 'Alter triggers - DISABLE ';
+      HIERARCHY_LOADING_PKG.ALTER_HIER_TRIGGERS ( 'DISABLE' );
+      
+      V_CONTEXT := 'Loading price district header and description ';
+      PRICING_DISTRICT_HRCHY();
+
+      V_CONTEXT := 'Loading Temp Tables from External Tables  ';
+      LOAD_INTERMEDIATE_TABLES();
+
+      V_CONTEXT := 'Loading price district into hierarchy_detail table';
+      PRICING_DISTRICT_HIER_LOAD;
+
+      --After inserting, if the cost center is part of global, update GLOBAL_HIERARCHY_IND to 'Y' from 'N'
+      UPDATE COST_CENTER CC
+         SET GLOBAL_HIERARCHY_IND = 'Y'
+       WHERE EXISTS (SELECT 1
+                       FROM HIERARCHY_DETAIL HD,
+                            HIERARCHY_HEADER HH
+                      WHERE HD.HRCHY_HDR_NAME         IN ('GLOBAL_HIERARCHY','FACTS_DIVISION','LEGACY_GL_DIVISION')
+                        AND HH.HRCHY_HDR_NAME         = HD.HRCHY_HDR_NAME 
+                        AND HH.HRCHY_HDR_LEVELS       = HD.HRCHY_DTL_LEVEL
+                        AND HD.HRCHY_DTL_CURR_ROW_VAL = CC.COST_CENTER_CODE);
+      
+      V_CONTEXT := 'Alter triggers - ENABLE ';
+      HIERARCHY_LOADING_PKG.ALTER_HIER_TRIGGERS ( 'ENABLE' );
+
+      --comment
+      DBMS_OUTPUT.put_line (DBMS_UTILITY.get_time - time_before);
+      COMMIT;
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+EXCEPTION
+   WHEN OTHERS THEN
+      dbms_output.put_line('PRICE_DSTRCT_HIER_LOAD_MAIN_SP failed at ' ||  V_CONTEXT);
+END PRICE_DSTRCT_HIER_LOAD_MAIN_SP;
+
+PROCEDURE CREATE_PRICE_DISTRICT_FILE
+/******************************************************************************
+This Procedure create file on the server for the price district hierarchy only for 
+second level
+
+created : 08/29/2015 nxk927 CCN project
+modified:
+*******************************************************************************/
+AS
+  V_OUT_CLOB   CLOB;
+  V_COUNT      INTEGER := 0 ;
+  V_CODE       NUMBER;
+  V_ERRM       VARCHAR2(500);
+
+  PATH         VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+  FILENAME     VARCHAR2(50) := 'PRICE_DISTRICT_FILE' ;--SMIS1.ORACLE.PRC06260(+1)
+  STAMP        VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- USED TO CREATE TIMESTAMP FOR DATA FILE 
+  OUTPUT_FILE  UTL_FILE.FILE_TYPE;
+  
+ CURSOR CUR IS 
+     SELECT  * FROM HIERARCHY_DETAIL WHERE HRCHY_DTL_LEVEL ='2';
+
+ BEGIN
+   OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME --|| STAMP
+                                   , 'W' --BINARY
+                                   , 32767); 
+
+FOR REC IN CUR LOOP
+V_OUT_CLOB:= RPAD(REC.HRCHY_DTL_CURR_ROW_VAL, 6, ' ') ||
+             REC.HRCHY_HDR_NAME                       ||
+             RPAD(REC.HRCHY_DTL_PREV_LVL_VAL, 5,' ')  ||
+             RPAD(TO_CHAR(REC.HRCHY_DTL_EFF_DATE,'YYYYMMDD'),8, ' ') ||
+             RPAD(TRIM(REC.HRCHY_DTL_DESC), 35, ' ')  ||
+             '                                '  ---FILLER 32 BYTES
+             ;
+           UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+ END LOOP;
+UTL_FILE.FCLOSE(OUTPUT_FILE);
+EXCEPTION  
+  when OTHERS then
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,500);
+       DBMS_OUTPUT.PUT_LINE('CREATE_PRICE_DISTRICT_FILE FAILED AT '||SQLERRM || ' : ' ||SQLCODE); 
+       
+END CREATE_PRICE_DISTRICT_FILE;
+END PRICE_DIST_HRCHY_LOAD;

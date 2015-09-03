@@ -1,5 +1,68 @@
 create or replace PACKAGE BODY mail_pkg AS
 
+PROCEDURE ATTACH_FILE(
+/******************************************************************************
+This procedure will get the  file on server and send it as attachment
+
+IN_CONNECTION - The connection string to write/attach the email to
+IN_CLOB       - The attachment data
+
+created : 09/02/2015 nxk927 CCN Project....
+Modified: 
+******************************************************************************/
+IN_OUT_CONNECTION  IN OUT UTL_SMTP.connection,
+IN_DIRECTORY_NAME  IN     VARCHAR2,
+IN_FILENAME        IN     VARCHAR2)
+IS
+   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
+   v_mail_conn    UTL_SMTP.connection := IN_OUT_CONNECTION;
+   v_src_loc      BFILE := BFILENAME(IN_DIRECTORY_NAME, IN_FILENAME);
+
+   V_LENGTH       NUMBER;
+   V_BLOCKSIZE    NUMBER;
+   V_FILE_EXISTS  BOOLEAN;
+   FILE_NOT_FOUND EXCEPTION;
+
+   l_buffer           RAW(54);
+   l_amount           BINARY_INTEGER := 54;
+   l_pos              INTEGER := 1;
+   l_blob             BLOB := EMPTY_BLOB;
+   l_blob_len         INTEGER;
+   v_amount           INTEGER;
+BEGIN
+    utl_file.fgetattr(IN_DIRECTORY_NAME, IN_FILENAME, V_FILE_EXISTS, V_LENGTH, V_BLOCKSIZE);
+    --If file doesn't exist throw an error
+    IF NOT V_FILE_EXISTS THEN
+        RAISE FILE_NOT_FOUND;
+    ELSE
+        --Setting the SMTP connection details
+        UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+        UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: application/octet-stream' || UTL_TCP.crlf);
+        UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_FILENAME || '"' || UTL_TCP.crlf);
+        UTL_SMTP.WRITE_DATA(v_mail_conn, 'Content-Transfer-Encoding: base64' || UTL_TCP.CRLF);
+        UTL_SMTP.WRITE_DATA(V_MAIL_CONN, UTL_TCP.crlf);
+        --Reading the file into a temporary lob
+        DBMS_LOB.CREATETEMPORARY(l_blob, TRUE); --Create temporary LOB to store the file.
+        DBMS_LOB.OPEN(v_src_loc, DBMS_LOB.LOB_READONLY); --Read the file
+        v_amount := DBMS_LOB.GETLENGTH(v_src_loc); --Amount to store.
+        DBMS_LOB.LOADFROMFILE(l_blob, v_src_loc, v_amount); -- Loading from file into temporary LOB
+        l_blob_len := DBMS_LOB.getlength(l_blob);
+        WHILE l_pos < l_blob_len LOOP
+            DBMS_LOB.READ(l_blob, l_amount, l_pos, l_buffer);
+            UTL_SMTP.write_raw_data(v_mail_conn, UTL_ENCODE.BASE64_ENCODE(l_buffer));
+            UTL_SMTP.WRITE_DATA(v_mail_conn, UTL_TCP.CRLF);
+            l_buffer := NULL;
+            l_pos := l_pos + l_amount;
+        END LOOP;
+        DBMS_LOB.FILECLOSE(v_src_loc);
+    END IF;            
+EXCEPTION
+        WHEN FILE_NOT_FOUND THEN
+             DBMS_OUTPUT.PUT_LINE ('FILE_NOT_FOUND ');
+        WHEN UTL_SMTP.TRANSIENT_ERROR OR UTL_SMTP.PERMANENT_ERROR THEN
+             RAISE_APPLICATION_ERROR (-20000, 'Unable to send mail: ' || SQLERRM);
+END ATTACH_FILE;
+
 PROCEDURE WRITE_CLOB(
 /******************************************************************************
 This procedure will create file on server and dump the passed BLOB data Into the file created
@@ -74,6 +137,12 @@ Updated : 09/18/2014 nxk
         : 04/22/2015 sxt410 CCN Project Team.....
                      Added mail category TAXWARE_WARNING_MESSAGE to send an email 
                      when Taxware Zip code doesn't match with Address Zip code.
+        : 09/02/2015 nxk927 CCN Project Team....
+                    added mail categories for the SD 1099 report
+                    1) SD_1099_NO_VNDR_ON_BNK_TP_RPRT
+                    2) SD_1099_MTCHD_PRCSNG_RPRT
+                    3) SD_1099_NO_MTCHD_VENDOR_RPRT
+                    4) SD_1099_TXPYR_ID_AP_TRNS_CRT
 **********************************************************/
 IN_MAIL_CATEGORY VARCHAR2,
 IN_TERMINL_NUMBER IN NUMBER DEFAULT NULL,
@@ -97,21 +166,20 @@ IS
    V_INCOMPLETE_CC_COUNT NUMBER := 0;
    V_WRONG_CAT_COUNT NUMBER := 0;
    V_message     VARCHAR2(4000);
-   V_ENVIRONMENT VARCHAR2(100);
-
+   IN_ENVIRONMENT VARCHAR2(100);
 BEGIN
 
-    SELECT sys_context('USERENV','DB_NAME') INTO V_ENVIRONMENT FROM dual;
-    IF V_ENVIRONMENT = 'STCCND' THEN
-        V_ENVIRONMENT := 'Development : ';
-    ELSIF V_ENVIRONMENT = 'STCCNT' THEN
-        V_ENVIRONMENT := 'Test : ';
-    ELSIF V_ENVIRONMENT = 'STCCNQ' THEN
-        V_ENVIRONMENT := 'QA : ';
-    ELSIF V_ENVIRONMENT = 'STCCNP' THEN
-        V_ENVIRONMENT := 'Production : ';
+    SELECT sys_context('USERENV','DB_NAME') INTO IN_ENVIRONMENT FROM dual;
+    IF IN_ENVIRONMENT = 'STCCND' THEN
+        IN_ENVIRONMENT := 'Development : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNT' THEN
+        IN_ENVIRONMENT := 'Test : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNQ' THEN
+        IN_ENVIRONMENT := 'QA : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNP' THEN
+        IN_ENVIRONMENT := 'Production : ';
     ELSE
-        V_ENVIRONMENT := 'Unknown : ';
+        IN_ENVIRONMENT := 'Unknown : ';
     END IF;
     
     --Loop through all the emails for this passed category code
@@ -179,7 +247,7 @@ BEGIN
       UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || UTL_TCP.crlf);
       UTL_SMTP.write_data(v_mail_conn, 'To: ' || vTolist || UTL_TCP.crlf);
       UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || UTL_TCP.crlf);
-      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || V_ENVIRONMENT || rec.SUBJECT || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || IN_ENVIRONMENT || rec.SUBJECT || UTL_TCP.crlf);
       UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
       UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
       UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
@@ -224,7 +292,7 @@ BEGIN
                         AND c.CATEGORY <> 'T') LOOP
             UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.CATEGORY || ',' || rec.USERNAME || ',' || UTL_TCP.crlf);
          END LOOP;
-        UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
       ELSIF IN_MAIL_CATEGORY IN ('HIER_TRNSFR_TERRITORY', 'HIER_TRNSFR_DAD_CHNG_TERRITORY') THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
@@ -311,8 +379,16 @@ BEGIN
          --Content for the excel that is being sent
          WRITE_CLOB(v_mail_conn, IN_CLOB);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_1099_NO_VNDR_ON_BNK_TP_RPRT', 'SD_1099_MTCHD_PRCSNG_RPRT','SD_1099_NO_MTCHD_VENDOR_RPRT', 'SD_1099_TXPYR_ID_AP_TRNS_CRT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY  || '.csv' || '"' || UTL_TCP.crlf);
+         
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
       END IF ;
-      
       UTL_SMTP.close_data(v_mail_conn);  
       UTL_SMTP.quit (v_mail_conn);
    END LOOP;
