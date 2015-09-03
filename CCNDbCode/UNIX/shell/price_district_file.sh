@@ -29,7 +29,7 @@ FTP_MF
 
 
 ##############################################
-#    ERROR STATUS CHECK FTP the CCN_GEMS_LOAD.TRG file
+#    ERROR STATUS CHECK FTP 
 ##############################################
  TIME=`date +"%H:%M:%S"`
 status=$?
