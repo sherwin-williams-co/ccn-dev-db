@@ -2,26 +2,27 @@
 #################################################################
 # Script name   : future_to_current.sh
 #
-# Description   : This script will invoke FUTR_TO_CURR_BATCH_PKG.PROCESS
+# Description   : This script will invoke BANKING_FILE_BUILD_PKG.CREATE_DEPOSIT_TICKET_IP_FILE
 #
-# Created  : 07/10/2015 nxk927 CCN Project Team.....
+# Created  : 08/19/2015 nxk927 CCN Project Team.....
 # Modified :
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
-proc_name="FUTURE_TO_CURRENT_PROCESS"
+proc_name="deposit_ticket_ip_file"
 LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
+P1=`date +"%d-%b/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
-EXECUTE BANKING_BATCH_PKG.FUTURE_TO_CURRENT_PROCESS();
+EXECUTE BNKNG_DEPST_TKT_INPUT_PKG.CREATE_DEPOSIT_TKT_INPUT_FILE('$P1');
 exit
 END
 
