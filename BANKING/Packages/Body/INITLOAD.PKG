@@ -6,6 +6,7 @@ This package will load the new BANKING Oracle Database
 Created : 03/10/2015 nxk927 CCN Project....
 Changed :
 ******************************************************************************/
+
 PROCEDURE TRUNCATE_TABLE(
 /*****************************************************************************
     This procedure will truncate all loaded data for the table passed in.
@@ -39,7 +40,8 @@ PROCEDURE TRUNCATE_BANKING_TBS
     This procedure will truncate all loaded data before reloading data 
 
 Created : 03/10/2015 nxk927 CCN Project....
-Changed : 
+Changed : 08/18/2015 axk326 CCN Project....
+          Removed code for truncatinig STORE_MICR_FORMAT_DTLS_FUTURE table
 *****************************************************************************/
 IS
 BEGIN
@@ -59,6 +61,8 @@ BEGIN
     TRUNCATE_TABLE('LEAD_BANK_CC');
     TRUNCATE_TABLE('LEAD_BANK_CC_HIST');
     TRUNCATE_TABLE('LEAD_BANK_CC_FUTURE');
+    TRUNCATE_TABLE('STORE_MICR_FORMAT_DTLS');
+    TRUNCATE_TABLE('STORE_MICR_FORMAT_DTLS_HIST');
     TRUNCATE_TABLE('BANK_MICR_FORMAT');
     TRUNCATE_TABLE('BANK_MICR_FORMAT_HIST');
 	  TRUNCATE_TABLE('BANK_MICR_FORMAT_FUTURE');
@@ -122,7 +126,7 @@ BEGIN
                  DEP_BAG_REORDER_POINT,
                  DEPBAG_REORDER_QTY,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  LAST_MAINTENANCE_DATE,
                  LAST_MAINT_USER_ID
           FROM TEMP_DEP_TICK;
@@ -135,7 +139,7 @@ BEGIN
                  COST_CENTER,
                  DEPOSIT_ORDER_SEQ_NBR,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  LAST_MAINTENANCE_DATE,
                  LAST_MAINT_USER_ID,
                  EXTRACT_DATE,
@@ -146,7 +150,7 @@ BEGIN
           SELECT PRICE_DIST_NBR,
                  COST_CENTER_CODE,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  LAST_MAINT_AUTH_ID 
             FROM TEMP_BANK_PRCCNTR;
       COMMIT;
@@ -154,7 +158,7 @@ BEGIN
           SELECT PRICE_DIST_NBR,
                  PRICE_DIST_NAME,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  LAST_MAINT_AUTH_ID 
             FROM TEMP_BANK_PRCDIST;
       COMMIT;
@@ -166,7 +170,7 @@ BEGIN
                  LEAD_STORE_NBR,
                  MEMBER_STORE_NBR,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  BANK_BRANCH_NBR
             FROM TEMP_MEMBER_BANK_CC M,
                  TEMP_BANK_SUB_ACCOUNT SB
@@ -185,18 +189,64 @@ BEGIN
                  DEP_BAG_REORDER_POINT,
                  DEPBAG_REORDER_QTY,
                  EFFECTIVE_DATE,
-                 EXPIRATION_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
                  LAST_MAINTENANCE_DATE,
                  LAST_MAINT_USER_ID 
             FROM TEMP_DEP_TICKOAK;
       COMMIT;
       INSERT INTO BANK_MICR_FORMAT_T
-          SELECT * FROM TEMP_MICR_FORMAT;
+          SELECT BANK_ACCOUNT_NBR,
+                 FORMAT_NAME,
+                 DJDE_FORM_PARM,
+                 DJDE_FEED_PARM,
+                 MICR_COST_CNTR,
+                 MICR_ROUTING_NBR,
+                 MICR_FORMAT_ACTNBR,
+                 REORDER_POINT,
+                 REORDER_NUMBER_BKS,
+                 IMAGES_PER_PAGE,
+                 NBR_FORMS_PER_BK,
+                 PART_PAPER_PER_FORM,
+                 NBR_DEP_TICKETS_PER_BK,
+                 SHEETS_OF_PAPER_PER_BK,
+                 EFFECTIVE_DATE,
+                 DECODE(EXPIRATION_DATE, '00000000', '00000000', GREATEST(EXPIRATION_DATE, EFFECTIVE_DATE)) EXPIRATION_DATE,
+                 LAST_MAINTENANCE_DATE,
+                 LAST_MAINT_USER_ID
+            FROM TEMP_MICR_FORMAT;
       COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_TEMP_TABLES', SQLERRM, '0000000000', '000000', '0000000000');
 END LOAD_TEMP_TABLES;
+
+FUNCTION GET_EXPIRATION_DATE(
+/******************************************************************
+   This Procedure gets the expiration date based on passed effective, expiration
+   and previous records effective dates
+
+Created : 08/12/2015 jxc517 CCN Project....
+Changed :
+******************************************************************/
+IN_EFFECTIVE_DATE      IN    VARCHAR2,
+IN_EXPIRATION_DATE     IN    VARCHAR2,
+IN_PREV_EFFECTIVE_DATE IN    DATE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(8);
+BEGIN
+    SELECT GREATEST(LEAST(DECODE(IN_EXPIRATION_DATE,
+                                 '00000000',
+                                 TO_CHAR(IN_PREV_EFFECTIVE_DATE - 1, 'RRRRMMDD'),
+                                 IN_EXPIRATION_DATE),
+                          TO_CHAR(IN_PREV_EFFECTIVE_DATE - 1, 'RRRRMMDD')),
+                    IN_EFFECTIVE_DATE)
+      INTO V_RETURN_VALUE
+      FROM DUAL;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_EXPIRATION_DATE;
 
 PROCEDURE LOAD_BANK_ACCOUNT
 /*******************************************************************************
@@ -206,21 +256,53 @@ Created : 03/10/2015 sxt410 CCN Project...
 Changed :
 *******************************************************************************/
 IS
-    CURSOR BANK_ACCT_TEMP_CUR IS
+    CURSOR bank_account_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT_T
+         WHERE BANK_ACCOUNT_NBR IN (SELECT BANK_ACCOUNT_NBR
+                                      FROM BANK_ACCOUNT_T
+                                     GROUP BY BANK_ACCOUNT_NBR
+                                    HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR bank_account_temp_cur IS
         SELECT *
           FROM BANK_ACCOUNT_T
          ORDER BY BANK_ACCOUNT_NBR, EFFECTIVE_DATE;
-    V_ROW    BANK_ACCOUNT%ROWTYPE;
-    V_COMMIT NUMBER:= 0;
+    V_PREV_BANK_ACCOUNT_NBR BANK_ACCOUNT_T.BANK_ACCOUNT_NBR%TYPE := 'ZZZZZZ';
+    V_PREV_EFFECTIVE_DATE   DATE;
+    V_ROW                   BANK_ACCOUNT%ROWTYPE;
+    V_COMMIT                NUMBER:= 0;
 BEGIN
-    FOR REC IN BANK_ACCT_TEMP_CUR LOOP
+    FOR rec IN bank_account_cur LOOP
+        BEGIN
+            IF V_PREV_BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR THEN
+                UPDATE BANK_ACCOUNT_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_BANK_ACCOUNT_NBR   := rec.BANK_ACCOUNT_NBR;
+            V_PREV_EFFECTIVE_DATE     := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_ACCOUNT', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), '000000', 'BANK_ACCOUNT_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR REC IN bank_account_temp_cur LOOP
         BEGIN
             V_ROW.BANK_ACCOUNT_NBR       := REC.BANK_ACCOUNT_NBR;
             V_ROW.EFFECTIVE_DATE         := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EFFECTIVE_DATE), 'RRRRMMDD');
             V_ROW.EXPIRATION_DATE        := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EXPIRATION_DATE), 'RRRRMMDD');
             V_ROW.BANK_NAME              := REC.BANK_NAME;
             V_ROW.BOOK_KEEPER_NBR        := REC.BOOK_KEEPER_NBR;
-            V_ROW.STATEMENT_TYPE         := REC.STATEMENT_TYPE;
             V_ROW.BANK_AUTO_RECON_IND    := REC.BANK_AUTO_RECON_IND;
             V_ROW.RECON_START_DATE       := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.RECON_START_DATE), 'RRRRMMDD');
             V_ROW.RECON_BANK_ACCOUNT_NBR := REC.RECON_BANK_ACCOUNT_NBR;
@@ -246,7 +328,6 @@ BEGIN
                                  V_ROW.EXPIRATION_DATE,
                                  V_ROW.BANK_NAME,
                                  V_ROW.BOOK_KEEPER_NBR,
-                                 V_ROW.STATEMENT_TYPE,
                                  V_ROW.BANK_AUTO_RECON_IND,
                                  V_ROW.RECON_START_DATE,
                                  V_ROW.RECON_BANK_ACCOUNT_NBR,
@@ -289,15 +370,53 @@ Changed : 07/20/205  sxh487/nxk927 added condition for hist to insert bank-accou
            if micr moved to hist
 ******************************************************************************/
 IS
-    CURSOR BANK_MICR_FMT_CUR IS   
+    CURSOR bank_micr_format_cur IS
         SELECT *
-          FROM BANK_MICR_FORMAT_T;
+          FROM BANK_MICR_FORMAT_T
+         WHERE (BANK_ACCOUNT_NBR, FORMAT_NAME) IN (SELECT BANK_ACCOUNT_NBR, FORMAT_NAME
+                                                     FROM BANK_MICR_FORMAT_T
+                                                    GROUP BY BANK_ACCOUNT_NBR, FORMAT_NAME
+                                                   HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, FORMAT_NAME, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR bank_micr_fmt_cur IS   
+        SELECT ROW_NUMBER( ) OVER (PARTITION BY BANK_ACCOUNT_NBR ORDER BY EFFECTIVE_DATE) MICR_FORMAT_ID,
+               A.*
+          FROM BANK_MICR_FORMAT_T A
+         ORDER BY BANK_ACCOUNT_NBR, FORMAT_NAME, EFFECTIVE_DATE;
+    V_PREV_BANK_ACCOUNT_NBR BANK_MICR_FORMAT_T.BANK_ACCOUNT_NBR%TYPE := 'ZZZZZZ';
+    V_PREV_FORMAT_NAME      BANK_MICR_FORMAT_T.FORMAT_NAME%TYPE := 'YYYYY';
+    V_PREV_EFFECTIVE_DATE   DATE;
     V_COMMIT                INTEGER := 0;
     V_ROW                   BANK_MICR_FORMAT%ROWTYPE;
     V_BANK_ACCOUNT_HIST_ROW BANK_ACCOUNT%ROWTYPE;
     V_BANK_ACCOUNT_CURR_ROW BANK_ACCOUNT%ROWTYPE;
 BEGIN
-    FOR rec IN BANK_MICR_FMT_CUR LOOP
+    FOR rec IN bank_micr_format_cur LOOP
+        BEGIN
+            IF V_PREV_BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR AND V_PREV_FORMAT_NAME = rec.FORMAT_NAME THEN
+                UPDATE BANK_MICR_FORMAT_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR
+                   AND FORMAT_NAME      = rec.FORMAT_NAME
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_BANK_ACCOUNT_NBR   := rec.BANK_ACCOUNT_NBR;
+            V_PREV_FORMAT_NAME        := rec.FORMAT_NAME;
+            V_PREV_EFFECTIVE_DATE     := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_MICR_FMT', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.FORMAT_NAME, 'BANK_MICR_FORMAT_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR rec IN bank_micr_fmt_cur LOOP
         BEGIN
             V_ROW.BANK_ACCOUNT_NBR          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.BANK_ACCOUNT_NBR);
             V_ROW.FORMAT_NAME               := rec.FORMAT_NAME;
@@ -306,19 +425,13 @@ BEGIN
             V_ROW.MICR_COST_CNTR            := rec.MICR_COST_CNTR;
             V_ROW.MICR_ROUTING_NBR          := rec.MICR_ROUTING_NBR;
             V_ROW.MICR_FORMAT_ACTNBR        := rec.MICR_FORMAT_ACTNBR;
-            V_ROW.REORDER_POINT             := rec.REORDER_POINT;
-            V_ROW.REORDER_NUMBER_BKS        := rec.REORDER_NUMBER_BKS;
-            V_ROW.IMAGES_PER_PAGE           := rec.IMAGES_PER_PAGE;
-            V_ROW.NBR_FORMS_PER_BK          := rec.NBR_FORMS_PER_BK;
-            V_ROW.PART_PAPER_PER_FORM       := rec.PART_PAPER_PER_FORM;
-            V_ROW.NBR_DEP_TICKETS_PER_BK    := rec.NBR_DEP_TICKETS_PER_BK;
-            V_ROW.SHEETS_OF_PAPER_PER_BK    := rec.SHEETS_OF_PAPER_PER_BK;            
             V_ROW.EFFECTIVE_DATE            := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EFFECTIVE_DATE), 'RRRRMMDD');
             V_ROW.EXPIRATION_DATE           := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EXPIRATION_DATE), 'RRRRMMDD');
             V_ROW.LAST_MAINTENANCE_DATE     := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.LAST_MAINTENANCE_DATE), 'RRRRMMDD');
             V_ROW.LAST_MAINT_USER_ID        := rec.LAST_MAINT_USER_ID;
             V_ROW.UPDATE_DATE               := TRUNC(SYSDATE);
             V_ROW.LAST_UPD_USER_ID          := 'INITLOAD';
+            V_ROW.MICR_FORMAT_ID            := rec.MICR_FORMAT_ID;
             IF V_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_MICR_FMT', 'Invalid Bank Account Number', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.FORMAT_NAME, 'BANK_MICR_FORMAT');
             ELSIF NVL(V_ROW.EXPIRATION_DATE, TRUNC(SYSDATE) + 1) <= TRUNC(SYSDATE) THEN --history
@@ -338,19 +451,13 @@ BEGIN
                           V_ROW.MICR_COST_CNTR,
                           V_ROW.MICR_ROUTING_NBR,
                           V_ROW.MICR_FORMAT_ACTNBR,
-                          V_ROW.REORDER_POINT,
-                          V_ROW.REORDER_NUMBER_BKS,
-                          V_ROW.IMAGES_PER_PAGE,
-                          V_ROW.NBR_FORMS_PER_BK,
-                          V_ROW.PART_PAPER_PER_FORM,
-                          V_ROW.NBR_DEP_TICKETS_PER_BK,
-                          V_ROW.SHEETS_OF_PAPER_PER_BK,
                           V_ROW.EFFECTIVE_DATE,
                           V_ROW.EXPIRATION_DATE,
                           V_ROW.LAST_MAINTENANCE_DATE,
                           V_ROW.LAST_MAINT_USER_ID,
                           V_ROW.UPDATE_DATE,
                           V_ROW.LAST_UPD_USER_ID,
+                          V_ROW.MICR_FORMAT_ID,
                           (SELECT FUTURE_ID
                              FROM BANK_ACCOUNT_FUTURE
                             WHERE BANK_ACCOUNT_NBR = V_ROW.BANK_ACCOUNT_NBR
@@ -369,8 +476,7 @@ BEGIN
                     WHEN OTHERS THEN
                         V_BANK_ACCOUNT_HIST_ROW := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_ROW.BANK_ACCOUNT_NBR, V_ROW.EFFECTIVE_DATE);
                         IF V_BANK_ACCOUNT_HIST_ROW.BANK_ACCOUNT_NBR IS NOT NULL THEN
-                            V_ROW.EXPIRATION_DATE := NVL(V_ROW.EXPIRATION_DATE,
-                                                         V_BANK_ACCOUNT_HIST_ROW.EXPIRATION_DATE);
+                            V_ROW.EXPIRATION_DATE := NVL(V_ROW.EXPIRATION_DATE, V_BANK_ACCOUNT_HIST_ROW.EXPIRATION_DATE);
                             TABLE_IU_PKG.BANK_MICR_FORMAT_HIST_I_SP(V_ROW);
                         ELSE
                             ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_MICR_FMT', 'Bank Account Number not found for effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.FORMAT_NAME, 'BANK_MICR_FORMAT - 3');
@@ -404,16 +510,52 @@ Changed : 07/20/205  sxh487/nxk927 added condition for hist to insert bank-accou
            if lead moved to hist
 ******************************************************************************/
 IS
-    CURSOR LEAD_BANK_CC_TEMP_CUR is
+    CURSOR lead_bank_cc_cur IS
         SELECT *
-        FROM LEAD_BANK_CC_T;
+          FROM LEAD_BANK_CC_T
+         WHERE (BANK_ACCOUNT_NBR, COST_CENTER_CODE) IN (SELECT BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                          FROM LEAD_BANK_CC_T
+                                                         GROUP BY BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                        HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, COST_CENTER_CODE, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR lead_bank_cc_temp_cur is
+        SELECT *
+        FROM LEAD_BANK_CC_T
+       ORDER BY BANK_ACCOUNT_NBR, COST_CENTER_CODE, EFFECTIVE_DATE;
     V_COMMIT                    NUMBER := 0;
     V_ROW                       LEAD_BANK_CC%ROWTYPE;
     V_BANK_ACCOUNT_HIST_ROW     BANK_ACCOUNT%ROWTYPE;
     V_BANK_ACCOUNT_CURR_ROW     BANK_ACCOUNT%ROWTYPE;
+    V_PREV_BANK_ACCOUNT_NBR     BANK_ACCOUNT_T.BANK_ACCOUNT_NBR%TYPE := 'ZZZZZZ';
+    V_PREV_LEAD_STORE_NBR       MEMBER_BANK_CC_T.LEAD_STORE_NBR%TYPE := 'YYYYYY';
+    V_PREV_EFFECTIVE_DATE       DATE;
 BEGIN
-
-    FOR rec IN LEAD_BANK_CC_TEMP_CUR LOOP
+    FOR rec IN lead_bank_cc_cur LOOP
+        BEGIN
+            IF V_PREV_BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR AND V_PREV_LEAD_STORE_NBR = rec.COST_CENTER_CODE THEN
+                UPDATE LEAD_BANK_CC_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR
+                   AND COST_CENTER_CODE = rec.COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_BANK_ACCOUNT_NBR   := rec.BANK_ACCOUNT_NBR;
+            V_PREV_LEAD_STORE_NBR     := rec.COST_CENTER_CODE;
+            V_PREV_EFFECTIVE_DATE     := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_LEAD_BANK_CC', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'LEAD_BANK_CC_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR rec IN lead_bank_cc_temp_cur LOOP
         BEGIN
             V_ROW.LEAD_BANK_ACCOUNT_NBR   := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.BANK_ACCOUNT_NBR);
             V_ROW.LEAD_STORE_NBR          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
@@ -455,7 +597,7 @@ BEGIN
                     V_BANK_ACCOUNT_CURR_ROW := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(V_ROW.LEAD_BANK_ACCOUNT_NBR);
                     IF V_BANK_ACCOUNT_CURR_ROW.BANK_ACCOUNT_NBR IS NOT NULL
                        AND V_ROW.EFFECTIVE_DATE < V_BANK_ACCOUNT_CURR_ROW.EFFECTIVE_DATE THEN
-                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_LEAD_BANK_CC', 'Lead effective before Bank Account', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_MICR_FORMAT - 3');
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_LEAD_BANK_CC', 'Lead effective before Bank Account', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'LEAD_BANK_CC - 3');
                     ELSE
                         INSERT INTO LEAD_BANK_CC VALUES V_ROW;
                     END IF;
@@ -463,8 +605,7 @@ BEGIN
                     WHEN OTHERS THEN
                         V_BANK_ACCOUNT_HIST_ROW := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_ROW.LEAD_BANK_ACCOUNT_NBR, V_ROW.EFFECTIVE_DATE);
                         IF V_BANK_ACCOUNT_HIST_ROW.BANK_ACCOUNT_NBR IS NOT NULL THEN
-                            V_ROW.EXPIRATION_DATE := NVL(V_ROW.EXPIRATION_DATE,
-                                                         V_BANK_ACCOUNT_HIST_ROW.EXPIRATION_DATE);
+                            V_ROW.EXPIRATION_DATE := NVL(V_ROW.EXPIRATION_DATE, V_BANK_ACCOUNT_HIST_ROW.EXPIRATION_DATE);
                             TABLE_IU_PKG.LEAD_BANK_CC_HIST_I_SP(V_ROW);
                         ELSE
                             ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_LEAD_BANK_CC', 'Bank Account Number not found for effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'LEAD_BANK_CC - 4');
@@ -498,17 +639,53 @@ Changed : 07/20/205  sxh487/nxk927 added condition for hist to insert lead bank 
           into history if lead moved to hist  
 ******************************************************************************/
 IS
-    CURSOR MEMBER_BANK_CC_CUR IS   
+    CURSOR member_bank_cc_cur IS
         SELECT *
           FROM MEMBER_BANK_CC_T
-         ORDER BY LEAD_STORE_NBR, EFFECTIVE_DATE;
+         WHERE (LEAD_STORE_NBR, MEMBER_STORE_NBR) IN (SELECT LEAD_STORE_NBR, MEMBER_STORE_NBR
+                                                        FROM MEMBER_BANK_CC_T
+                                                       GROUP BY LEAD_STORE_NBR, MEMBER_STORE_NBR
+                                                      HAVING COUNT(*) > 1)
+         ORDER BY LEAD_STORE_NBR, MEMBER_STORE_NBR, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR member_bank_cc_temp_cur IS   
+        SELECT *
+          FROM MEMBER_BANK_CC_T
+         ORDER BY LEAD_STORE_NBR, MEMBER_STORE_NBR, EFFECTIVE_DATE;
     V_COMMIT                INTEGER := 0;
     V_ROW                   MEMBER_BANK_CC%ROWTYPE;
     V_BANK_ACCOUNT_HIST_ROW BANK_ACCOUNT%ROWTYPE; 
     V_LEAD_BANK_CC_REC      LEAD_BANK_CC%ROWTYPE;
     V_LEAD_BANK_CC_HIST_REC LEAD_BANK_CC%ROWTYPE;
+    V_PREV_LEAD_STORE_NBR   MEMBER_BANK_CC_T.LEAD_STORE_NBR%TYPE := 'YYYYYY';
+    V_PREV_MEMBER_STORE_NBR MEMBER_BANK_CC_T.MEMBER_STORE_NBR%TYPE := 'XXXXXX';
+    V_PREV_EFFECTIVE_DATE   DATE;
 BEGIN
-    FOR rec IN MEMBER_BANK_CC_CUR LOOP
+    FOR rec IN member_bank_cc_cur LOOP
+        BEGIN
+            IF V_PREV_LEAD_STORE_NBR = rec.LEAD_STORE_NBR AND V_PREV_MEMBER_STORE_NBR = rec.MEMBER_STORE_NBR THEN
+                UPDATE MEMBER_BANK_CC_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE LEAD_STORE_NBR   = rec.LEAD_STORE_NBR
+                   AND MEMBER_STORE_NBR = rec.MEMBER_STORE_NBR
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_LEAD_STORE_NBR   := rec.LEAD_STORE_NBR;
+            V_PREV_MEMBER_STORE_NBR := rec.MEMBER_STORE_NBR;
+            V_PREV_EFFECTIVE_DATE   := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_MEMBER_BANK_CC', SQLERRM, NVL(rec.BANK_ACCOUNT_NUMBER,'000000000'), rec.MEMBER_STORE_NBR, 'MEMBER_BANK_CC_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR rec IN member_bank_cc_temp_cur LOOP
         BEGIN
             V_LEAD_BANK_CC_REC := NULL;
             V_ROW.LEAD_STORE_NBR          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.LEAD_STORE_NBR);
@@ -589,13 +766,13 @@ Created : 03/19/2015 nxk927 CCN Project....
 Changed : 
 ******************************************************************************/
 IS
-    CURSOR BANK_DEP_TICKOAK_CUR IS   
+    CURSOR bank_dep_tickoak_cur IS   
         SELECT *
           FROM BANK_DEP_TICKOAK_T;
     V_COMMIT                INTEGER := 0;
     V_BANK_DEP_TICKOAK_ROW  BANK_DEP_TICKOAK%ROWTYPE;
 BEGIN
-    FOR rec IN BANK_DEP_TICKOAK_CUR LOOP
+    FOR rec IN bank_dep_tickoak_cur LOOP
         BEGIN
             V_BANK_DEP_TICKOAK_ROW.DEPOSIT_TICKET_OOAK       := rec.DEPOSIT_TICKET_OOAK;
             V_BANK_DEP_TICKOAK_ROW.REORDER_POINT             := rec.REORDER_POINT;
@@ -634,18 +811,90 @@ PROCEDURE LOAD_BANK_DEP_TICK
 /*******************************************************************************
     This procedure will load data into BANK_DEP_TICK from BANK_DEP_TICK_T table.
 
-Created : 03/11/2015 sxt410 CCN Project...
-Changed : 04/08/2015 jxc517 CCN Project...
-          Added code to split BANK_DEP_TICK into BANK_DEP_TICK and BANK_DEP_BAG_TICK
+Created : 04/08/2015 jxc517 CCN Project...
+Changed : 08/18/2015 axk326 CCN Project...
+          Removed Columns DJDE_FORM_PARM, DJDE_FEED_PARM, MICR_COST_CNTR, 
+                          MICR_ROUTING_NBR, MICR_FORMAT_ACCT_NBR, FORMAT_NAME
+                     From BANK_DEP_TICK 
 *******************************************************************************/
 IS
-    CURSOR BANK_DEP_TEMP_CUR IS
+    CURSOR bank_dep_tick_cur IS
         SELECT *
-          FROM BANK_DEP_TICK_T;
-    V_TEMP_ROW        BANK_DEP_TICK%ROWTYPE;
-    V_COMMIT          NUMBER:= 0;
+          FROM BANK_DEP_TICK_T
+         WHERE (BANK_ACCOUNT_NBR, COST_CENTER_CODE) IN (SELECT BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                          FROM BANK_DEP_TICK_T
+                                                         GROUP BY BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                        HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, COST_CENTER_CODE, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR bank_dep_tick_temp_cur IS
+        SELECT A.*,
+               B.BANK_ACCOUNT_NBR ACTL_BANK_ACCOUNT_NBR,
+               B.EFFECTIVE_DATE   ACTL_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE  ACTL_EXPIRATION_DATE,
+               B.BANK_TYPE_CODE
+          FROM BANK_DEP_TICK_T A,
+               (SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC_HIST
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC_HIST) B
+         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
+         ORDER BY A.COST_CENTER_CODE, B.EFFECTIVE_DATE;
+    V_TEMP_ROW                  BANK_DEP_TICK%ROWTYPE;
+    V_BANK_ACCOUNT_NBR          LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_COMMIT                    NUMBER := 0;
+    V_PREV_BANK_ACCOUNT_NBR     BANK_ACCOUNT_T.BANK_ACCOUNT_NBR%TYPE := 'ZZZZZZ';
+    V_PREV_LEAD_STORE_NBR       MEMBER_BANK_CC_T.LEAD_STORE_NBR%TYPE := 'YYYYYY';
+    V_PREV_EFFECTIVE_DATE       DATE;
 BEGIN
-    FOR REC IN BANK_DEP_TEMP_CUR LOOP
+    FOR rec IN bank_dep_tick_cur LOOP
+        BEGIN
+            IF V_PREV_BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR AND V_PREV_LEAD_STORE_NBR = rec.COST_CENTER_CODE THEN
+                UPDATE BANK_DEP_TICK_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR
+                   AND COST_CENTER_CODE = rec.COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_BANK_ACCOUNT_NBR   := rec.BANK_ACCOUNT_NBR;
+            V_PREV_LEAD_STORE_NBR     := rec.COST_CENTER_CODE;
+            V_PREV_EFFECTIVE_DATE     := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICK_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR REC IN bank_dep_tick_temp_cur LOOP
         BEGIN
             V_TEMP_ROW.BANK_ACCOUNT_NBR         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.BANK_ACCOUNT_NBR);
             V_TEMP_ROW.COST_CENTER_CODE         := REC.COST_CENTER_CODE;
@@ -653,11 +902,6 @@ BEGIN
             V_TEMP_ROW.DAILY_USE_OVERRIDE       := REC.DAILY_USE_OVERRIDE;
             V_TEMP_ROW.DEP_TKTS_ONHAND_QTY      := REC.DEP_TKTS_ONHAND_QTY;
             V_TEMP_ROW.YTD_DEP_TKTS_ORDERED_QTY := REC.YTD_DEP_TKTS_ORDERED_QTY;
-            V_TEMP_ROW.DJDE_FORM_PARM           := REC.DJDE_FORM_PARM;
-            V_TEMP_ROW.DJDE_FEED_PARM           := REC.DJDE_FEED_PARM;
-            V_TEMP_ROW.MICR_COST_CNTR           := REC.MICR_COST_CNTR;
-            V_TEMP_ROW.MICR_ROUTING_NBR         := REC.MICR_ROUTING_NBR;
-            V_TEMP_ROW.MICR_FORMAT_ACCT_NBR     := REC.MICR_FORMAT_ACCT_NBR;
             V_TEMP_ROW.REORDER_POINT            := REC.REORDER_POINT;  
             V_TEMP_ROW.REORDER_NUMBER_BKS       := REC.REORDER_NUMBER_BKS;
             V_TEMP_ROW.IMAGES_PER_PAGE          := REC.IMAGES_PER_PAGE;
@@ -665,36 +909,44 @@ BEGIN
             V_TEMP_ROW.PART_PAPER_PER_FORM      := REC.PART_PAPER_PER_FORM;
             V_TEMP_ROW.NBR_DEP_TICKETS_PER_BK   := REC.NBR_DEP_TICKETS_PER_BK;
             V_TEMP_ROW.SHEETS_OF_PAPER_PER_BK   := REC.SHEETS_OF_PAPER_PER_BK;
-            V_TEMP_ROW.FORMAT_NAME              := REC.FORMAT_NAME;
             V_TEMP_ROW.EFFECTIVE_DATE           := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EFFECTIVE_DATE), 'RRRRMMDD');
             V_TEMP_ROW.EXPIRATION_DATE          := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EXPIRATION_DATE), 'RRRRMMDD');
-            V_TEMP_ROW.LAST_MAINTENANCE_DATE    := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.LAST_MAINTENANCE_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.LAST_MAINTENANCE_DATE    := NVL(TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.LAST_MAINTENANCE_DATE), 'RRRRMMDD'),
+                                                       V_TEMP_ROW.EFFECTIVE_DATE);
             V_TEMP_ROW.LAST_MAINT_USER_ID       := REC.LAST_MAINT_USER_ID;
-            
+
             IF V_TEMP_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
                  ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', 'Invalid Bank Account Number', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_TICK');
-            ELSIF V_TEMP_ROW.EXPIRATION_DATE IS NULL THEN 
+            ELSE
                 BEGIN
-                    INSERT INTO BANK_DEP_TICK VALUES V_TEMP_ROW;
+                    IF REC.ACTL_BANK_ACCOUNT_NBR IS NULL THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', 'Cost Center not a Lead/Member as of effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICK - 0');
+                    ELSE
+                        IF V_TEMP_ROW.EFFECTIVE_DATE BETWEEN REC.ACTL_EFFECTIVE_DATE AND NVL(REC.ACTL_EXPIRATION_DATE, V_TEMP_ROW.EFFECTIVE_DATE) 
+                           OR REC.ACTL_EFFECTIVE_DATE > V_TEMP_ROW.EFFECTIVE_DATE THEN
+                            V_TEMP_ROW.EFFECTIVE_DATE   := GREATEST(V_TEMP_ROW.EFFECTIVE_DATE, REC.ACTL_EFFECTIVE_DATE);
+                            V_TEMP_ROW.BANK_ACCOUNT_NBR := REC.ACTL_BANK_ACCOUNT_NBR;
+                            IF rec.ACTL_EXPIRATION_DATE IS NULL THEN
+                                BEGIN
+                                    INSERT INTO BANK_DEP_TICK VALUES V_TEMP_ROW;
+                                EXCEPTION
+                                    WHEN OTHERS THEN
+                                        IF V_TEMP_ROW.EXPIRATION_DATE IS NOT NULL THEN
+                                            INSERT INTO BANK_DEP_TICK_HIST VALUES V_TEMP_ROW;
+                                        END IF;
+                                END;
+                            ELSE
+                                V_TEMP_ROW.EXPIRATION_DATE  := LEAST(NVL(V_TEMP_ROW.EXPIRATION_DATE, REC.ACTL_EXPIRATION_DATE), REC.ACTL_EXPIRATION_DATE);
+                                INSERT INTO BANK_DEP_TICK_HIST VALUES V_TEMP_ROW;
+                            END IF;
+                        END IF;
+                    END IF;
                 EXCEPTION
                     WHEN OTHERS THEN
-                        --Data might be in histiory, so move the current records into history with expiration date 
-                        --taken from bank account history record if not present in the input file
-                        BEGIN
-                            SELECT EXPIRATION_DATE
-                              INTO V_TEMP_ROW.EXPIRATION_DATE
-                              FROM BANK_ACCOUNT_HIST
-                             WHERE BANK_ACCOUNT_NBR = V_TEMP_ROW.BANK_ACCOUNT_NBR;
-                            INSERT INTO BANK_DEP_TICK_HIST VALUES V_TEMP_ROW;
-                        EXCEPTION
-                            WHEN OTHERS THEN
-                                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_TICK - 1');
-                        END;
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_TICK - 1');
                 END;
-            ELSE
-                INSERT INTO BANK_DEP_TICK_HIST VALUES V_TEMP_ROW;
             END IF;
-            V_TEMP_ROW := NULL ;
+            V_TEMP_ROW := NULL;
             V_COMMIT := V_COMMIT + 1;
             IF V_COMMIT > 500 THEN
                 COMMIT;
@@ -711,21 +963,238 @@ EXCEPTION
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICK', SQLERRM, '0000000000', '000000', '0000000000');
 END LOAD_BANK_DEP_TICK;
 
-PROCEDURE LOAD_BANK_DEP_BAG_TICK
+PROCEDURE LOAD_STORE_MICR_FORMAT_DTLS
 /*******************************************************************************
     This procedure will load data into BANK_DEP_TICK from BANK_DEP_TICK_T table.
 
-Created : 03/11/2015 sxt410 CCN Project...
-Changed : 04/08/2015 jxc517 CCN Project...
-          Added code to split BANK_DEP_TICK into BANK_DEP_TICK and BANK_DEP_BAG_TICK
+Created : 04/08/2015 jxc517 CCN Project...
+Changed : 
 *******************************************************************************/
 IS
-    CURSOR BANK_DEP_TEMP_CUR IS
-        SELECT * FROM BANK_DEP_TICK_T;
-    V_TEMP_ROW        BANK_DEP_BAG_TICK%ROWTYPE;
-    V_COMMIT          NUMBER:= 0;
+    CURSOR bank_dep_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_TICK_T
+         WHERE (BANK_ACCOUNT_NBR, COST_CENTER_CODE) IN (SELECT BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                          FROM BANK_DEP_TICK_T
+                                                         GROUP BY BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                        HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, COST_CENTER_CODE, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR bank_dep_tick_temp_cur IS
+        SELECT A.*,
+               B.BANK_ACCOUNT_NBR ACTL_BANK_ACCOUNT_NBR,
+               B.EFFECTIVE_DATE   ACTL_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE  ACTL_EXPIRATION_DATE,
+               B.BANK_TYPE_CODE
+          FROM BANK_DEP_TICK_T A,
+               (SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC_HIST
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC_HIST) B
+         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
+         ORDER BY A.COST_CENTER_CODE, B.EFFECTIVE_DATE;
+    V_TEMP_ROW                  STORE_MICR_FORMAT_DTLS%ROWTYPE;
+    V_COMMIT                    NUMBER := 0;
+
+    PROCEDURE INSERT_MISSING_MICR(
+    /***********************************************************
+	    This procedure will insert the missing MICR format record combination
+
+    Created : 08/17/2015 jxc517 CCN Project Team....
+    Changed : 
+    ************************************************************/
+    IN_ROW              IN     bank_dep_tick_temp_cur%ROWTYPE,
+    IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
+    IN_EFFECTIVE_DATE   IN     DATE,
+    IN_EXPIRATION_DATE  IN     DATE,
+    OUT_MICR_FORMAT_ID     OUT NUMBER)
+    IS
+        V_MICR_FORMAT_ID        NUMBER := NULL;
+        REC                     bank_dep_tick_temp_cur%ROWTYPE := IN_ROW;
+        V_MICR_REC              BANK_MICR_FORMAT%ROWTYPE;
+        V_BANK_ACCOUNT_HIST_ROW BANK_ACCOUNT%ROWTYPE;
+        V_BANK_ACCOUNT_CURR_ROW BANK_ACCOUNT%ROWTYPE;
+    BEGIN
+        V_MICR_REC.MICR_FORMAT_ID        := BANKING_COMMON_TOOLS.GET_NEXT_MICR_FORMAT_ID(IN_BANK_ACCOUNT_NBR, NULL);
+        V_MICR_REC.BANK_ACCOUNT_NBR      := IN_BANK_ACCOUNT_NBR;
+        V_MICR_REC.FORMAT_NAME           := REC.FORMAT_NAME;
+        V_MICR_REC.DJDE_FORM_PARM        := REC.DJDE_FORM_PARM;
+        V_MICR_REC.DJDE_FEED_PARM        := REC.DJDE_FEED_PARM;
+        V_MICR_REC.MICR_COST_CNTR        := REC.MICR_COST_CNTR;
+        V_MICR_REC.MICR_ROUTING_NBR      := REC.MICR_ROUTING_NBR;
+        V_MICR_REC.MICR_FORMAT_ACTNBR    := REC.MICR_FORMAT_ACCT_NBR;
+        V_MICR_REC.EFFECTIVE_DATE        := IN_EFFECTIVE_DATE;
+        V_MICR_REC.EXPIRATION_DATE       := IN_EXPIRATION_DATE;
+        V_MICR_REC.LAST_MAINTENANCE_DATE := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.LAST_MAINTENANCE_DATE), 'RRRRMMDD');
+        V_MICR_REC.LAST_MAINT_USER_ID    := REC.LAST_MAINT_USER_ID;
+        V_MICR_REC.LAST_UPD_USER_ID      := 'INITLOAD';
+        V_MICR_REC.UPDATE_DATE           := TRUNC(SYSDATE);
+        BEGIN
+            V_BANK_ACCOUNT_CURR_ROW := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(V_MICR_REC.BANK_ACCOUNT_NBR);
+            IF V_BANK_ACCOUNT_CURR_ROW.BANK_ACCOUNT_NBR IS NOT NULL
+               AND V_MICR_REC.EFFECTIVE_DATE < V_BANK_ACCOUNT_CURR_ROW.EFFECTIVE_DATE THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', 'MICR Format effective before Bank Account', NVL(IN_BANK_ACCOUNT_NBR,'000000000'), rec.FORMAT_NAME, 'BANK_MICR_FORMAT');
+            ELSE
+                INSERT INTO BANK_MICR_FORMAT VALUES V_MICR_REC;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_BANK_ACCOUNT_HIST_ROW := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_MICR_REC.BANK_ACCOUNT_NBR, V_MICR_REC.EFFECTIVE_DATE);
+                IF V_BANK_ACCOUNT_HIST_ROW.BANK_ACCOUNT_NBR IS NOT NULL THEN
+                    V_MICR_REC.EXPIRATION_DATE := NVL(V_MICR_REC.EXPIRATION_DATE, V_BANK_ACCOUNT_HIST_ROW.EXPIRATION_DATE);
+                    TABLE_IU_PKG.BANK_MICR_FORMAT_HIST_I_SP(V_MICR_REC);
+                ELSE
+                    ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', 'Bank Account Number not found for effective date', NVL(IN_BANK_ACCOUNT_NBR,'000000000'), rec.FORMAT_NAME, 'BANK_MICR_FORMAT - 1');
+                END IF;
+        END;
+        OUT_MICR_FORMAT_ID := V_MICR_REC.MICR_FORMAT_ID;
+    END INSERT_MISSING_MICR;
+
 BEGIN
-    FOR REC IN BANK_DEP_TEMP_CUR LOOP
+    FOR REC IN bank_dep_tick_temp_cur LOOP
+        BEGIN
+            V_TEMP_ROW.BANK_ACCOUNT_NBR         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.BANK_ACCOUNT_NBR);
+            V_TEMP_ROW.COST_CENTER_CODE         := REC.COST_CENTER_CODE;
+            V_TEMP_ROW.MICR_COST_CNTR           := REC.MICR_COST_CNTR;
+            V_TEMP_ROW.MICR_ROUTING_NBR         := REC.MICR_ROUTING_NBR;
+            V_TEMP_ROW.MICR_FORMAT_ACCT_NBR     := REC.MICR_FORMAT_ACCT_NBR;
+            V_TEMP_ROW.EFFECTIVE_DATE           := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EFFECTIVE_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.EXPIRATION_DATE          := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.EXPIRATION_DATE), 'RRRRMMDD');
+            IF V_TEMP_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
+                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', 'Invalid Bank Account Number', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'STORE_MICR_FORMAT_DTLS');
+            ELSE
+                BEGIN
+                    IF REC.ACTL_BANK_ACCOUNT_NBR IS NULL THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', 'Cost Center not a Lead/Member as of effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'STORE_MICR_FORMAT_DTLS - 0');
+                    ELSE
+                        IF V_TEMP_ROW.EFFECTIVE_DATE BETWEEN REC.ACTL_EFFECTIVE_DATE AND NVL(REC.ACTL_EXPIRATION_DATE, V_TEMP_ROW.EFFECTIVE_DATE) 
+                           OR REC.ACTL_EFFECTIVE_DATE > V_TEMP_ROW.EFFECTIVE_DATE THEN
+                            V_TEMP_ROW.EFFECTIVE_DATE   := GREATEST(V_TEMP_ROW.EFFECTIVE_DATE, REC.ACTL_EFFECTIVE_DATE);
+                            V_TEMP_ROW.BANK_ACCOUNT_NBR := REC.ACTL_BANK_ACCOUNT_NBR;
+                            IF REC.ACTL_EXPIRATION_DATE IS NULL THEN
+                                V_TEMP_ROW.MICR_FORMAT_ID := BANKING_COMMON_TOOLS.GET_MICR_FRMT_ID_FR_BA_FRMT_NM(V_TEMP_ROW.BANK_ACCOUNT_NBR, REC.FORMAT_NAME, NULL);
+                                IF V_TEMP_ROW.MICR_FORMAT_ID IS NULL THEN
+                                    INSERT_MISSING_MICR(REC,
+                                                        V_TEMP_ROW.BANK_ACCOUNT_NBR,
+                                                        V_TEMP_ROW.EFFECTIVE_DATE,
+                                                        V_TEMP_ROW.EXPIRATION_DATE,
+                                                        V_TEMP_ROW.MICR_FORMAT_ID);
+                                END IF;
+                                BEGIN
+                                    INSERT INTO STORE_MICR_FORMAT_DTLS VALUES V_TEMP_ROW;
+                                EXCEPTION
+                                    WHEN OTHERS THEN
+                                        IF V_TEMP_ROW.EXPIRATION_DATE IS NOT NULL THEN
+                                            INSERT INTO STORE_MICR_FORMAT_DTLS_HIST VALUES V_TEMP_ROW;
+                                        END IF;
+                                END;
+                            ELSE
+                                V_TEMP_ROW.EXPIRATION_DATE  := LEAST(NVL(V_TEMP_ROW.EXPIRATION_DATE, REC.ACTL_EXPIRATION_DATE), REC.ACTL_EXPIRATION_DATE);
+                                V_TEMP_ROW.MICR_FORMAT_ID := BANKING_COMMON_TOOLS.GET_MICR_FRMT_ID_FR_BA_FRMT_NM(V_TEMP_ROW.BANK_ACCOUNT_NBR, REC.FORMAT_NAME, NULL);
+                                IF V_TEMP_ROW.MICR_FORMAT_ID IS NULL THEN
+                                    INSERT_MISSING_MICR(REC,
+                                                        V_TEMP_ROW.BANK_ACCOUNT_NBR,
+                                                        V_TEMP_ROW.EFFECTIVE_DATE,
+                                                        V_TEMP_ROW.EXPIRATION_DATE,
+                                                        V_TEMP_ROW.MICR_FORMAT_ID);
+                                END IF;
+                                INSERT INTO STORE_MICR_FORMAT_DTLS_HIST VALUES V_TEMP_ROW;
+                            END IF;
+                        END IF;
+                    END IF;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'STORE_MICR_FORMAT_DTLS - 1');
+                END;
+            END IF;
+            V_TEMP_ROW := NULL;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+            V_COMMIT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'STORE_MICR_FORMAT_DTLS - 2');
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_STORE_MICR_FORMAT_DTLS', SQLERRM, '0000000000', '000000', '0000000000');
+END LOAD_STORE_MICR_FORMAT_DTLS;
+
+PROCEDURE LOAD_BANK_DEP_BAG_TICK
+/*******************************************************************************
+    This procedure will load data into BANK_DEP_BAG_TICK from BANK_DEP_TICK_T table.
+
+Created : 04/08/2015 jxc517 CCN Project...
+Changed : 
+*******************************************************************************/
+IS
+    CURSOR bank_dep_bag_tick_temp_cur IS
+        SELECT A.*,
+               B.BANK_ACCOUNT_NBR ACTL_BANK_ACCOUNT_NBR,
+               B.EFFECTIVE_DATE   ACTL_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE  ACTL_EXPIRATION_DATE,
+               B.BANK_TYPE_CODE
+          FROM BANK_DEP_TICK_T A,
+               (SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC_HIST
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC_HIST) B
+         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
+         ORDER BY A.COST_CENTER_CODE, B.EFFECTIVE_DATE;
+    V_TEMP_ROW         BANK_DEP_BAG_TICK%ROWTYPE;
+    V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_COMMIT           NUMBER := 0;
+BEGIN
+    FOR REC IN bank_dep_bag_tick_temp_cur LOOP
         BEGIN
             V_TEMP_ROW.BANK_ACCOUNT_NBR         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.BANK_ACCOUNT_NBR);
             V_TEMP_ROW.COST_CENTER_CODE         := REC.COST_CENTER_CODE;
@@ -744,26 +1213,34 @@ BEGIN
             
             IF V_TEMP_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
                  ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', 'Invalid Bank Account Number', REC.BANK_ACCOUNT_NBR, REC.COST_CENTER_CODE, 'BANK_DEP_BAG_TICK');
-            ELSIF V_TEMP_ROW.EXPIRATION_DATE IS NULL  THEN 
+            ELSE
                 BEGIN
-                    INSERT INTO BANK_DEP_BAG_TICK VALUES V_TEMP_ROW;
+                    IF REC.ACTL_BANK_ACCOUNT_NBR IS NULL THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', 'Cost Center not a Lead/Member as of effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_BAG_TICK - 0');
+                    ELSE
+                        IF V_TEMP_ROW.EFFECTIVE_DATE BETWEEN REC.ACTL_EFFECTIVE_DATE AND NVL(REC.ACTL_EXPIRATION_DATE, V_TEMP_ROW.EFFECTIVE_DATE) 
+                           OR REC.ACTL_EFFECTIVE_DATE > V_TEMP_ROW.EFFECTIVE_DATE THEN
+                            V_TEMP_ROW.EFFECTIVE_DATE   := GREATEST(V_TEMP_ROW.EFFECTIVE_DATE, REC.ACTL_EFFECTIVE_DATE);
+                            V_TEMP_ROW.BANK_ACCOUNT_NBR := REC.ACTL_BANK_ACCOUNT_NBR;
+                            IF rec.ACTL_EXPIRATION_DATE IS NULL THEN
+                                BEGIN
+                                    INSERT INTO BANK_DEP_BAG_TICK VALUES V_TEMP_ROW;
+                                EXCEPTION
+                                    WHEN OTHERS THEN
+                                        IF V_TEMP_ROW.EXPIRATION_DATE IS NOT NULL THEN
+                                            INSERT INTO BANK_DEP_BAG_TICK_HIST VALUES V_TEMP_ROW;
+                                        END IF;
+                                END;
+                            ELSE
+                                V_TEMP_ROW.EXPIRATION_DATE  := LEAST(NVL(V_TEMP_ROW.EXPIRATION_DATE, REC.ACTL_EXPIRATION_DATE), REC.ACTL_EXPIRATION_DATE);
+                                INSERT INTO BANK_DEP_BAG_TICK_HIST VALUES V_TEMP_ROW;
+                            END IF;
+                        END IF;
+                    END IF;
                 EXCEPTION
                     WHEN OTHERS THEN
-                        --Data might be in histiory, so move the current records into history with expiration date 
-                        --taken from bank account history record if not present in the input file
-                        BEGIN
-                            SELECT EXPIRATION_DATE
-                              INTO V_TEMP_ROW.EXPIRATION_DATE
-                              FROM BANK_ACCOUNT_HIST
-                             WHERE BANK_ACCOUNT_NBR = V_TEMP_ROW.BANK_ACCOUNT_NBR;
-                            INSERT INTO BANK_DEP_BAG_TICK_HIST VALUES V_TEMP_ROW;
-                        EXCEPTION
-                            WHEN OTHERS THEN
-                                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_BAG_TICK - 1');
-                        END;
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_BAG_TICK - 1');
                 END;
-            ELSE
-                INSERT INTO BANK_DEP_BAG_TICK_HIST VALUES V_TEMP_ROW;
             END IF;
             V_TEMP_ROW := NULL ;
             V_COMMIT := V_COMMIT + 1;
@@ -776,7 +1253,6 @@ BEGIN
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), REC.COST_CENTER_CODE, 'BANK_DEP_BAG_TICK - 2');
         END;
     END LOOP;
-    COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_BAG_TICK', SQLERRM, '0000000000', '000000', '0000000000');
@@ -791,50 +1267,126 @@ Created : 03/11/2015 sxt410 CCN Project....
 Changed :
 ******************************************************************************/
 IS
-    CURSOR BANK_DEP_TICKORD_CUR IS   
+    CURSOR dep_tick_ord_cur IS
         SELECT *
-          FROM BANK_DEP_TICKORD_T ;
-    V_COMMIT                INTEGER := 0;
-    V_BANK_DEP_TICKORD_ROW  BANK_DEP_TICKORD%ROWTYPE;
+          FROM BANK_DEP_TICKORD_T
+         WHERE (BANK_ACCOUNT_NBR, COST_CENTER_CODE) IN (SELECT BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                          FROM BANK_DEP_TICKORD_T
+                                                         GROUP BY BANK_ACCOUNT_NBR, COST_CENTER_CODE
+                                                        HAVING COUNT(*) > 1)
+         ORDER BY BANK_ACCOUNT_NBR, COST_CENTER_CODE, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR dep_tick_ord_temp_cur IS
+        SELECT A.*,
+               B.BANK_ACCOUNT_NBR ACTL_BANK_ACCOUNT_NBR,
+               B.EFFECTIVE_DATE   ACTL_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE  ACTL_EXPIRATION_DATE,
+               B.BANK_TYPE_CODE
+          FROM BANK_DEP_TICKORD_T A,
+               (SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       LEAD_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE
+                  FROM LEAD_BANK_CC_HIST
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR,
+                       MEMBER_STORE_NBR COST_CENTER_CODE,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE
+                  FROM MEMBER_BANK_CC_HIST) B
+         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
+         ORDER BY A.COST_CENTER_CODE, B.EFFECTIVE_DATE;
+    V_COMMIT                    INTEGER := 0;
+    V_TEMP_ROW                  BANK_DEP_TICKORD%ROWTYPE;
+    V_PREV_BANK_ACCOUNT_NBR     BANK_ACCOUNT_T.BANK_ACCOUNT_NBR%TYPE := 'ZZZZZZ';
+    V_PREV_LEAD_STORE_NBR       MEMBER_BANK_CC_T.LEAD_STORE_NBR%TYPE := 'YYYYYY';
+    V_PREV_EFFECTIVE_DATE       DATE;
 BEGIN
-    FOR rec IN BANK_DEP_TICKORD_CUR LOOP
+    FOR rec IN dep_tick_ord_cur LOOP
         BEGIN
-            V_BANK_DEP_TICKORD_ROW.BANK_ACCOUNT_NBR       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.BANK_ACCOUNT_NBR);
-            V_BANK_DEP_TICKORD_ROW.COST_CENTER_CODE       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
-            V_BANK_DEP_TICKORD_ROW.DEPOSIT_ORDER_PRIORITY := rec.DEPOSIT_ORDER_PRIORITY;
-            V_BANK_DEP_TICKORD_ROW.DEPOSIT_ORDER_STATUS   := rec.DEPOSIT_ORDER_STATUS;
-            V_BANK_DEP_TICKORD_ROW.COST_CENTER            := rec.COST_CENTER;
-            V_BANK_DEP_TICKORD_ROW.DEPOSIT_ORDER_SEQ_NBR  := rec.DEPOSIT_ORDER_SEQ_NBR;
-            V_BANK_DEP_TICKORD_ROW.EFFECTIVE_DATE         := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EFFECTIVE_DATE), 'RRRRMMDD');
-            V_BANK_DEP_TICKORD_ROW.EXPIRATION_DATE        := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EXPIRATION_DATE), 'RRRRMMDD');
-            V_BANK_DEP_TICKORD_ROW.LAST_MAINTENANCE_DATE  := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.LAST_MAINTENANCE_DATE), 'RRRRMMDD');
-            V_BANK_DEP_TICKORD_ROW.LAST_MAINT_USER_ID     := rec.LAST_MAINT_USER_ID;
-            V_BANK_DEP_TICKORD_ROW.EXTRACT_DATE           := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EXTRACT_DATE), 'RRRRMMDD');
-            V_BANK_DEP_TICKORD_ROW.EXTRACTED_USER_ID      := rec.EXTRACTED_USER_ID;
-            IF V_BANK_DEP_TICKORD_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
+            IF V_PREV_BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR AND V_PREV_LEAD_STORE_NBR = rec.COST_CENTER_CODE THEN
+                UPDATE BANK_DEP_TICKORD_T
+                   SET EXPIRATION_DATE  = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE BANK_ACCOUNT_NBR = rec.BANK_ACCOUNT_NBR
+                   AND COST_CENTER_CODE = rec.COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_BANK_ACCOUNT_NBR   := rec.BANK_ACCOUNT_NBR;
+            V_PREV_LEAD_STORE_NBR     := rec.COST_CENTER_CODE;
+            V_PREV_EFFECTIVE_DATE     := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    V_COMMIT := 0;
+    FOR rec IN dep_tick_ord_temp_cur LOOP
+        BEGIN
+            V_TEMP_ROW.BANK_ACCOUNT_NBR       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.BANK_ACCOUNT_NBR);
+            V_TEMP_ROW.COST_CENTER_CODE       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
+            V_TEMP_ROW.DEPOSIT_ORDER_PRIORITY := rec.DEPOSIT_ORDER_PRIORITY;
+            V_TEMP_ROW.DEPOSIT_ORDER_STATUS   := rec.DEPOSIT_ORDER_STATUS;
+            V_TEMP_ROW.DEPOSIT_ORDER_SEQ_NBR  := rec.DEPOSIT_ORDER_SEQ_NBR;
+            V_TEMP_ROW.EFFECTIVE_DATE         := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EFFECTIVE_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.EXPIRATION_DATE        := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EXPIRATION_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.LAST_MAINTENANCE_DATE  := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.LAST_MAINTENANCE_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.LAST_MAINT_USER_ID     := rec.LAST_MAINT_USER_ID;
+            V_TEMP_ROW.EXTRACT_DATE           := TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.EXTRACT_DATE), 'RRRRMMDD');
+            V_TEMP_ROW.EXTRACTED_USER_ID      := rec.EXTRACTED_USER_ID;
+            IF V_TEMP_ROW.BANK_ACCOUNT_NBR LIKE '%@%' THEN 
                  ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', 'Invalid Bank Account Number', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD');
-            ELSIF V_BANK_DEP_TICKORD_ROW.EXPIRATION_DATE IS NULL THEN
+            ELSE
                 BEGIN
-                    INSERT INTO BANK_DEP_TICKORD VALUES V_BANK_DEP_TICKORD_ROW;
+                    IF REC.ACTL_BANK_ACCOUNT_NBR IS NULL THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', 'Cost Center not a Lead/Member as of effective date', NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD - 0');
+                    ELSE
+                        IF V_TEMP_ROW.EFFECTIVE_DATE BETWEEN REC.ACTL_EFFECTIVE_DATE AND NVL(REC.ACTL_EXPIRATION_DATE, V_TEMP_ROW.EFFECTIVE_DATE) 
+                           OR REC.ACTL_EFFECTIVE_DATE > V_TEMP_ROW.EFFECTIVE_DATE THEN
+                            V_TEMP_ROW.EFFECTIVE_DATE   := GREATEST(V_TEMP_ROW.EFFECTIVE_DATE, REC.ACTL_EFFECTIVE_DATE);
+                            V_TEMP_ROW.BANK_ACCOUNT_NBR := REC.ACTL_BANK_ACCOUNT_NBR;
+                            IF rec.ACTL_EXPIRATION_DATE IS NULL THEN
+                                BEGIN
+                                    INSERT INTO BANK_DEP_TICKORD VALUES V_TEMP_ROW;
+                                EXCEPTION
+                                    WHEN OTHERS THEN
+                                        IF V_TEMP_ROW.EXPIRATION_DATE IS NOT NULL THEN
+                                            INSERT INTO BANK_DEP_TICKORD_HIST VALUES V_TEMP_ROW;
+                                        END IF;
+                                END;
+                            ELSE
+                                V_TEMP_ROW.EXPIRATION_DATE  := LEAST(NVL(V_TEMP_ROW.EXPIRATION_DATE, REC.ACTL_EXPIRATION_DATE), REC.ACTL_EXPIRATION_DATE);
+                                INSERT INTO BANK_DEP_TICKORD_HIST VALUES V_TEMP_ROW;
+                            END IF;
+                        END IF;
+                    END IF;
                 EXCEPTION
                     WHEN OTHERS THEN
-                        --Data might be in histiory, so move the current records into history with expiration date 
-                        --taken from bank account history record if not present in the input file
-                        BEGIN
-                            SELECT EXPIRATION_DATE
-                              INTO V_BANK_DEP_TICKORD_ROW.EXPIRATION_DATE
-                              FROM BANK_ACCOUNT_HIST
-                             WHERE BANK_ACCOUNT_NBR = V_BANK_DEP_TICKORD_ROW.BANK_ACCOUNT_NBR;
-                            INSERT INTO BANK_DEP_TICKORD_HIST VALUES V_BANK_DEP_TICKORD_ROW;
-                        EXCEPTION
-                            WHEN OTHERS THEN
-                                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD - 1');
-                        END;
+                        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD - 1');
                 END;
-            ELSE
-                INSERT INTO BANK_DEP_TICKORD_HIST VALUES V_BANK_DEP_TICKORD_ROW;
             END IF;
-            V_BANK_DEP_TICKORD_ROW := NULL ;
+            V_TEMP_ROW := NULL ;
             V_COMMIT := V_COMMIT + 1;
             IF V_COMMIT > 500 THEN
                 COMMIT;
@@ -844,7 +1396,7 @@ BEGIN
             WHEN OTHERS THEN
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_DEP_TICKORD', SQLERRM, NVL(rec.BANK_ACCOUNT_NBR,'000000000'), rec.COST_CENTER_CODE, 'BANK_DEP_TICKORD - 2');
         END;
-    END LOOP;  
+    END LOOP;
     COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
@@ -900,13 +1452,48 @@ Created : 03/10/2015 nxk927 CCN Project....
 Changed :     
 ******************************************************************************/
 IS
-    CURSOR BANK_PRCCNTR_CUR IS   
+    CURSOR bank_prccntr_cur IS
+        SELECT *
+          FROM BANK_PRCCNTR_T
+         WHERE (COST_CENTER_CODE, PRICE_DIST_NBR) IN (SELECT COST_CENTER_CODE, PRICE_DIST_NBR
+                                                        FROM BANK_PRCCNTR_T
+                                                       GROUP BY COST_CENTER_CODE, PRICE_DIST_NBR
+                                                      HAVING COUNT(*) > 1)
+        ORDER BY COST_CENTER_CODE, PRICE_DIST_NBR, EFFECTIVE_DATE DESC, EXPIRATION_DATE;
+    CURSOR bank_prccntr_temp_cur IS   
         SELECT *
           FROM BANK_PRCCNTR_T ;
     V_COMMIT                INTEGER := 0;
     V_BANK_PRCCNTR_ROW      BANK_PRCCNTR%ROWTYPE;
+    V_PREV_CC               BANK_PRCCNTR_T.COST_CENTER_CODE%TYPE := 'XXXXXX';
+    V_PRICE_DIST_NBR        BANK_PRCCNTR_T.PRICE_DIST_NBR%TYPE := 'XXXX';
+    V_PREV_EFFECTIVE_DATE   DATE;
 BEGIN
-    FOR rec IN BANK_PRCCNTR_CUR LOOP
+    FOR rec IN bank_prccntr_cur LOOP
+        BEGIN
+            IF V_PRICE_DIST_NBR = rec.PRICE_DIST_NBR AND V_PREV_CC = rec.COST_CENTER_CODE THEN
+                UPDATE BANK_PRCCNTR_T
+                   SET EXPIRATION_DATE = INITLOAD.GET_EXPIRATION_DATE(EFFECTIVE_DATE, EXPIRATION_DATE, V_PREV_EFFECTIVE_DATE)
+                 WHERE PRICE_DIST_NBR   = rec.PRICE_DIST_NBR
+                   AND COST_CENTER_CODE = rec.COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
+                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+            V_PREV_CC               := rec.COST_CENTER_CODE;
+            V_PRICE_DIST_NBR        := rec.PRICE_DIST_NBR;
+            V_PREV_EFFECTIVE_DATE   := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_PRCCNTR', SQLERRM, '0000000000', rec.COST_CENTER_CODE , 'BANK_PRCCNTR_T');
+        END;
+    END LOOP;  
+    COMMIT;
+    FOR rec IN bank_prccntr_temp_cur LOOP
         BEGIN
             V_BANK_PRCCNTR_ROW.PRICE_DIST_NBR     := rec.PRICE_DIST_NBR;
             V_BANK_PRCCNTR_ROW.COST_CENTER_CODE   := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
@@ -934,111 +1521,6 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_BANK_PRCCNTR', SQLERRM, '0000000000', '000000', '0000000000');
 END LOAD_BANK_PRCCNTR;
-
-PROCEDURE UPDATE_MEMBER_BANK_CC_T
-/*****************************************************************************
-    This Procedure will UPDATE the MEMBER_BANK_CC_T table
-
-Created : 03/16/2015 nxk927/jxc517 CCN Project....
-Changed :
-******************************************************************************/
-IS
-    CURSOR MEMBER_BANK_CC_CUR IS   
-        SELECT *
-          FROM MEMBER_BANK_CC_T
-         WHERE EXPIRATION_DATE = '00000000'
-           AND (LEAD_STORE_NBR, MEMBER_STORE_NBR) IN (SELECT LEAD_STORE_NBR, MEMBER_STORE_NBR
-                                                        FROM MEMBER_BANK_CC_T
-                                                       WHERE EXPIRATION_DATE = '00000000'
-                                                       GROUP BY LEAD_STORE_NBR, MEMBER_STORE_NBR
-                                                      HAVING COUNT(*) > 1)
-        ORDER BY LEAD_STORE_NBR, MEMBER_STORE_NBR, EFFECTIVE_DATE DESC;
-    V_COMMIT                INTEGER := 0;
-    V_PREV_LEAD_STORE_NBR   MEMBER_BANK_CC_T.LEAD_STORE_NBR%TYPE := 'YYYYYY';
-    V_PREV_MEMBER_STORE_NBR MEMBER_BANK_CC_T.MEMBER_STORE_NBR%TYPE := 'XXXXXX';
-    V_PREV_EFFECTIVE_DATE   DATE;
-BEGIN
-    FOR rec IN MEMBER_BANK_CC_CUR LOOP
-        BEGIN
-            IF V_PREV_LEAD_STORE_NBR = rec.LEAD_STORE_NBR AND V_PREV_MEMBER_STORE_NBR = rec.MEMBER_STORE_NBR THEN
-                UPDATE MEMBER_BANK_CC_T
-                   SET EXPIRATION_DATE  = TO_CHAR(V_PREV_EFFECTIVE_DATE - 1, 'RRRRMMDD')
-                 WHERE LEAD_STORE_NBR   = rec.LEAD_STORE_NBR
-                   AND MEMBER_STORE_NBR = rec.MEMBER_STORE_NBR
-                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
-                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
-            END IF;
-            V_COMMIT := V_COMMIT + 1;
-            IF V_COMMIT > 500 THEN
-                COMMIT;
-                V_COMMIT := 0;
-            END IF;
-            V_PREV_LEAD_STORE_NBR   := rec.LEAD_STORE_NBR;
-            V_PREV_MEMBER_STORE_NBR := rec.MEMBER_STORE_NBR;
-            V_PREV_EFFECTIVE_DATE   := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
-        EXCEPTION
-            WHEN OTHERS THEN
-                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'UPDATE_MEMBER_BANK_CC_T', SQLERRM, '0000000000', rec.LEAD_STORE_NBR , 'MEMBER_BANK_CC_T');
-        END;
-    END LOOP;  
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'UPDATE_MEMBER_BANK_CC_T', SQLERRM, '0000000000', '000000', 'MEMBER_BANK_CC_T');
-END UPDATE_MEMBER_BANK_CC_T;
-
-PROCEDURE UPDATE_BANK_PRCCNTR_T
-/*****************************************************************************
-    This Procedure will UPDATE the BANK_PRCCNTR_T table from data  
-
-Created : 03/10/2015 nxk927 CCN Project....
-Changed : 
-******************************************************************************/
-IS
-    CURSOR BANK_PRCCNTR_CUR IS
-        SELECT *
-          FROM BANK_PRCCNTR_T
-         WHERE EXPIRATION_DATE = '00000000'
-           AND (COST_CENTER_CODE, PRICE_DIST_NBR) IN (SELECT COST_CENTER_CODE, PRICE_DIST_NBR
-                                                        FROM BANK_PRCCNTR_T
-                                                       WHERE EXPIRATION_DATE = '00000000'
-                                                       GROUP BY COST_CENTER_CODE, PRICE_DIST_NBR
-                                                      HAVING COUNT(*) > 1)
-        ORDER BY COST_CENTER_CODE, PRICE_DIST_NBR, EFFECTIVE_DATE DESC;
-    V_COMMIT                INTEGER := 0;
-    V_BANK_PRCCNTR_ROW      BANK_PRCCNTR%ROWTYPE;
-    V_PREV_CC               BANK_PRCCNTR_T.COST_CENTER_CODE%TYPE := 'XXXXXX';
-    V_PRICE_DIST_NBR        BANK_PRCCNTR_T.PRICE_DIST_NBR%TYPE := 'XXXX';
-    V_PREV_EFFECTIVE_DATE   DATE;
-BEGIN
-    FOR rec IN BANK_PRCCNTR_CUR LOOP
-        BEGIN
-            IF V_PRICE_DIST_NBR = rec.PRICE_DIST_NBR AND V_PREV_CC = rec.COST_CENTER_CODE THEN
-                UPDATE BANK_PRCCNTR_T
-                   SET EXPIRATION_DATE = TO_CHAR(V_PREV_EFFECTIVE_DATE - 1, 'RRRRMMDD')
-                 WHERE PRICE_DIST_NBR   = rec.PRICE_DIST_NBR
-                   AND COST_CENTER_CODE = rec.COST_CENTER_CODE
-                   AND EFFECTIVE_DATE   = rec.EFFECTIVE_DATE
-                   AND EXPIRATION_DATE  = rec.EXPIRATION_DATE;
-            END IF;
-            V_COMMIT := V_COMMIT + 1;
-            IF V_COMMIT > 500 THEN
-                COMMIT;
-                V_COMMIT := 0;
-            END IF;
-            V_PREV_CC               := rec.COST_CENTER_CODE;
-            V_PRICE_DIST_NBR        := rec.PRICE_DIST_NBR;
-            V_PREV_EFFECTIVE_DATE   := TO_DATE(rec.EFFECTIVE_DATE,'RRRRMMDD');
-        EXCEPTION
-            WHEN OTHERS THEN
-                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'UPDATE_BANK_PRCCNTR_T', SQLERRM, '0000000000', rec.COST_CENTER_CODE , 'BANK_PRCCNTR_T');
-        END;
-    END LOOP;  
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'UPDATE_BANK_PRCCNTR_T', SQLERRM, '0000000000', '000000', 'BANK_PRCCNTR_T');
-END UPDATE_BANK_PRCCNTR_T;
 
 PROCEDURE CHECK_LEAD_CC
 /*****************************************************************************
@@ -1102,16 +1584,6 @@ BEGIN
       DBMS_OUTPUT.PUT_LINE('Temporary Tables loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
       
       V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Update Intermediate MEMBER_BANK_CC_T Table';
-      UPDATE_MEMBER_BANK_CC_T();
-      DBMS_OUTPUT.PUT_LINE('MEMBER_BANK_CC_T Table UPDATED in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Update Intermediate BANK_PRCCNTR_T Table';
-      UPDATE_BANK_PRCCNTR_T();
-      DBMS_OUTPUT.PUT_LINE('BANK_PRCCNTR_T Table UPDATED in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load BANK_ACCOUNT Table';
       LOAD_BANK_ACCOUNT();
       DBMS_OUTPUT.PUT_LINE('BANK_ACCOUNT loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
@@ -1140,6 +1612,11 @@ BEGIN
       V_CONTEXT := 'Load BANK_DEP_TICK Table ';
       LOAD_BANK_DEP_TICK();
       DBMS_OUTPUT.PUT_LINE('BANK_DEP_TICK loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load STORE_MICR_FORMAT_DTLS Table ';
+      LOAD_STORE_MICR_FORMAT_DTLS();
+      DBMS_OUTPUT.PUT_LINE('STORE_MICR_FORMAT_DTLS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load BANK_DEP_BAG_TICK Table ';

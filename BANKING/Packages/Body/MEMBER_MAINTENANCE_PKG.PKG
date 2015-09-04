@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY MEMBER_MAINTENANCE_PKG
+CREATE OR REPLACE PACKAGE BODY MEMBER_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -146,6 +146,12 @@ IS
 BEGIN
     V_INDEX := IN_MBR_BANK_CC_TAB.FIRST;
     WHILE V_INDEX IS NOT NULL LOOP
+        IF IN_MBR_BANK_CC_TAB(V_INDEX).EXPIRATION_DATE IS NOT NULL THEN
+            DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(IN_MBR_BANK_CC_TAB(V_INDEX).MEMBER_STORE_NBR,
+                                                                         NULL, --bank account number
+                                                                         NULL, --micr format id
+                                                                         IN_MBR_BANK_CC_TAB(V_INDEX).EXPIRATION_DATE);
+        END IF;
         TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(IN_MBR_BANK_CC_TAB(V_INDEX));
         V_INDEX := IN_MBR_BANK_CC_TAB.NEXT(V_INDEX);
     END LOOP;
@@ -154,9 +160,9 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_CURRENT_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END MEMBER_MNTNC_CURRENT_UPSERT_SP;
 
-PROCEDURE EXPIRE_PREV_MEMBER_BANK_CC(
+PROCEDURE EXPIRE_PREV_CUR_MEMBER_BANK_CC(
 /*******************************************************************************
-    This procedure is intended to check and expire previous records
+    This procedure is intended to check and expire previous current records
     before inserting new record
 
 Created : 07/09/2015 jxc517 CCN Project....
@@ -170,25 +176,75 @@ IS
          WHERE MEMBER_STORE_NBR = IN_ROW.MEMBER_STORE_NBR
            AND EFFECTIVE_DATE  < IN_ROW.EFFECTIVE_DATE
            AND EXPIRATION_DATE IS NULL;
+    V_PROC_NAME                VARCHAR2(30) := 'EXPIRE_PREV_CUR_MEMBER_BANK_CC';
+BEGIN
+    FOR rec IN member_bank_cc_cur LOOP
+        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, IN_ROW.EFFECTIVE_DATE - 1);
+        IF rec.EXPIRATION_DATE IS NOT NULL THEN
+            DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR,
+                                                                         NULL, --bank account number
+                                                                         NULL, --micr format id
+                                                                         rec.EXPIRATION_DATE);
+        END IF;
+        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME, SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_CUR_MEMBER_BANK_CC;
+
+PROCEDURE EXPIRE_PREV_FTR_MEMBER_BANK_CC(
+/*******************************************************************************
+    This procedure is intended to check and expire previous future records
+    before inserting new record
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE)
+IS
     CURSOR member_bank_cc_future_cur IS
         SELECT *
           FROM MEMBER_BANK_CC_FUTURE
          WHERE MEMBER_STORE_NBR = IN_ROW.MEMBER_STORE_NBR
            AND EFFECTIVE_DATE  < IN_ROW.EFFECTIVE_DATE
            AND EXPIRATION_DATE IS NULL;
+    V_PROC_NAME                VARCHAR2(30) := 'EXPIRE_PREV_FTR_MEMBER_BANK_CC';
 BEGIN
-    FOR rec IN member_bank_cc_cur LOOP
-        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, IN_ROW.EFFECTIVE_DATE - 1);
-        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
-    END LOOP;
     FOR rec IN member_bank_cc_future_cur LOOP
         rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, IN_ROW.EFFECTIVE_DATE - 1);
+        IF rec.EXPIRATION_DATE IS NOT NULL THEN
+            DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(rec.MEMBER_STORE_NBR,
+                                                                       NULL, --bank account number
+                                                                       NULL, --micr format id
+                                                                       rec.FUTURE_ID,
+                                                                       rec.EXPIRATION_DATE);
+        END IF;
         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_MEMBER_BANK_CC', SUBSTR(SQLERRM,1,500));
-END EXPIRE_PREV_MEMBER_BANK_CC;
+        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME, SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_FTR_MEMBER_BANK_CC;
+
+PROCEDURE EXPIRE_PREVIOUS_MEMBER_BANK_CC(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/09/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE)
+IS
+    V_PROC_NAME                VARCHAR2(30) := 'EXPIRE_PREVIOUS_MEMBER_BANK_CC';
+BEGIN
+    EXPIRE_PREV_CUR_MEMBER_BANK_CC(IN_ROW);
+    EXPIRE_PREV_FTR_MEMBER_BANK_CC(IN_ROW);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME, SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREVIOUS_MEMBER_BANK_CC;
 
 PROCEDURE MEMBER_MNTNC_FUTURE_UPSERT_SP ( 
 /******************************************************************************
@@ -209,8 +265,15 @@ IS
 BEGIN
     V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.FIRST;
     WHILE V_INDEX IS NOT NULL LOOP
-        EXPIRE_PREV_MEMBER_BANK_CC(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+        EXPIRE_PREVIOUS_MEMBER_BANK_CC(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+
         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX));
+        DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).MEMBER_STORE_NBR,
+                                                                    IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).LEAD_BANK_ACCOUNT_NBR,
+                                                                    IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).FUTURE_ID,
+                                                                    IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE,
+                                                                    IN_MBR_BANK_CC_FUTURE_TAB(V_INDEX).EXPIRATION_DATE,
+                                                                    'M');
         V_INDEX := IN_MBR_BANK_CC_FUTURE_TAB.NEXT(V_INDEX);
     END LOOP;
 EXCEPTION
@@ -255,3 +318,4 @@ EXCEPTION
 END MEMBER_MNTNC_UI_UPSERT_SP;
 
 END MEMBER_MAINTENANCE_PKG;
+

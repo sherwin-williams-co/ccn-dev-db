@@ -91,16 +91,16 @@ exc_mbr_exists_for_effctv_dt EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_mbr_exists_for_effctv_dt , -20006);
 
 /*********************************************************** 
-The "lead_exprd_with_actv_mbr" passes a numerical error of -20007
+The "lead_exprd_with_actv_chlds" passes a numerical error of -20007
 This error will be used when a lead-bank account combination is expired
 with atleast one member active under it
 
 Created : 07/14/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_lead_exprd_with_actv_mbr CONSTANT NUMBER := -20007;  
-exc_lead_exprd_with_actv_mbr EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_lead_exprd_with_actv_mbr , -20007);
+en_lead_exprd_with_actv_chlds CONSTANT NUMBER := -20007;  
+exc_lead_exprd_with_actv_chlds EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_lead_exprd_with_actv_chlds , -20007);
 
 /*********************************************************** 
 The "effctv_dt_lt_current_dt" passes a numerical error of -20008
@@ -195,6 +195,75 @@ Changed :
 en_from_to_leads_are_same_err CONSTANT NUMBER := -20015;
 exc_from_to_leads_are_same_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_from_to_leads_are_same_err , -20015);
+
+/*********************************************************** 
+The "micr_added_twice" passes a numerical error of -20016
+This error will be used when the MICR and Account Number combination entered is already present
+
+Created : 08/17/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_micr_added_twice CONSTANT NUMBER := -20016;
+exc_micr_added_twice EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_micr_added_twice , -20016);
+
+/*********************************************************** 
+The "micr_exprd_with_actv_dptks" passes a numerical error of -20017
+This error will be used when a MICR-bank account combination is expired
+with atleast one deposit ticket active under it
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_micr_exprd_with_actv_dptks CONSTANT NUMBER := -20017;
+exc_micr_exprd_with_actv_dptks EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_micr_exprd_with_actv_dptks , -20017);
+
+/*********************************************************** 
+The "lead_indpdt_with_actv_mbr" passes a numerical error of -20018
+This error will be used when a lead is made independent with active members
+
+Created : 08/21/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_lead_indpdt_with_actv_mbr CONSTANT NUMBER := -20018;
+exc_lead_indpdt_with_actv_mbr EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_lead_indpdt_with_actv_mbr , -20018);
+
+/*********************************************************** 
+The "micr_format_conversion" passes a numerical error of -20019
+This error will be used when format selected is not supported for actual values
+
+Created : 08/21/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_micr_format_conversion CONSTANT NUMBER := -20018;
+exc_micr_format_conversion EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_micr_format_conversion , -20018);
+
+/*********************************************************** 
+The "mbr_exprd_with_actv_dptks" passes a numerical error of -20019
+This error will be used when a member is expired with atleast 
+one deposit ticket active under it
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_mbr_exprd_with_actv_dptks CONSTANT NUMBER := -20019;
+exc_mbr_exprd_with_actv_dptks EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_mbr_exprd_with_actv_dptks , -20019);
+
+/*********************************************************** 
+The "accnt_nbr_not_avlbl_for_cc" passes a numerical error of -20020
+This error will be used when there is no bank account number found for the
+store entered
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_accnt_nbr_not_avlbl_for_cc CONSTANT NUMBER := -20020;
+exc_accnt_nbr_not_avlbl_for_cc EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_accnt_nbr_not_avlbl_for_cc , -20020);
 
 END ERRNUMS;
 

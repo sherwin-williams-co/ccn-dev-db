@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY CONCENTRATION_TRANSFER_PKG
+CREATE OR REPLACE PACKAGE BODY CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -141,6 +141,10 @@ BEGIN
                                               FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/*'
                                                    PASSING V_ROW_DATA
                                                    COLUMNS Value VARCHAR2(6) PATH 'text()'))) LOOP
+        DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR,
+                                                                     NULL, --bank account number
+                                                                     NULL, --micr format id
+                                                                     SYSDATE); --store MICR formats needs to be expired for these members
         TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(rec); --member needs to be removed from old lead
         rec.LEAD_BANK_ACCOUNT_NBR := V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
         rec.LEAD_STORE_NBR        := V_TO_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
@@ -149,6 +153,7 @@ BEGIN
         rec.UPDATE_DATE           := TRUNC(SYSDATE);
         rec.LAST_UPD_USER_ID      := V_USER_ID;
         TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
+        DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS(rec.MEMBER_STORE_NBR, rec.LEAD_BANK_ACCOUNT_NBR, 'M'); --store MICR formats needs to be updated for these members
     END LOOP;
 EXCEPTION
    WHEN OTHERS THEN
@@ -215,6 +220,12 @@ BEGIN
     V_REC.LAST_UPD_USER_ID      := IN_USER_ID;
     V_REC.FUTURE_ID             := IN_FUTURE_ID;
     TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(V_REC);
+    DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(V_REC.LEAD_STORE_NBR,
+                                                                V_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                                V_REC.FUTURE_ID,
+                                                                V_REC.EFFECTIVE_DATE,
+                                                                V_REC.EXPIRATION_DATE,
+                                                                V_REC.BANK_TYPE_CODE);
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_LEAD_BANK_CC_RECORD, ' || ' ' || 'FAILED TO CREATE LEAD - ' || SQLERRM);
@@ -244,8 +255,14 @@ BEGIN
         rec.UPDATE_DATE      := TRUNC(SYSDATE);
         rec.LAST_UPD_USER_ID := IN_USER_ID;
         rec.FUTURE_ID        := IN_FUTURE_ID;
-        IF rec.MEMBER_STORE_NBR <> IN_TO_LEAD_CC THEN 
+        IF rec.MEMBER_STORE_NBR <> IN_TO_LEAD_CC THEN
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+            DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(rec.MEMBER_STORE_NBR,
+                                                                        rec.LEAD_BANK_ACCOUNT_NBR,
+                                                                        rec.FUTURE_ID,
+                                                                        rec.EFFECTIVE_DATE,
+                                                                        rec.EXPIRATION_DATE,
+                                                                        'M');
         END IF; 
     END LOOP;
 EXCEPTION
@@ -285,7 +302,8 @@ BEGIN
                                        IN_EFFECTIVE_DATE);
     V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
     ACCOUNT_MAINTENANCE_PKG.EXPIRE_PREVIOUS_BANK_ACCOUNT(V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
-                                                         IN_EFFECTIVE_DATE);
+                                                         IN_EFFECTIVE_DATE,
+                                                         'MAKE_LEAD');
     CREATE_BANK_ACCOUNT_RECORD(V_FUTURE_ID,
                                V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
                                IN_EFFECTIVE_DATE);
@@ -305,3 +323,4 @@ EXCEPTION
 END MAKE_LEAD_PROCESS;
 
 END CONCENTRATION_TRANSFER_PKG;
+

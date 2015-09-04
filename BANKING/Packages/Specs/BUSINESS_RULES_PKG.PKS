@@ -20,6 +20,19 @@ IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
 IN_EXPIRATION_DATE    IN     DATE,
 IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
 
+FUNCTION IS_MICR_EXPIRATION_INVALID(
+/*******************************************************************************
+  This function will return "Y" if the passed MICR-bank account combination
+  contains active stores using it as of the date it is being expired
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_MICR_FORMAT_ID     IN     NUMBER,
+IN_EXPIRATION_DATE    IN     DATE,
+IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
+
 FUNCTION IS_LEAD_EXPIRATION_INVALID(
 /*******************************************************************************
   This function will return "Y" if the passed lead-bank account combination
@@ -30,6 +43,18 @@ Changed :
 *******************************************************************************/
 IN_COST_CENTER_CODE   IN     VARCHAR2,
 IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_EXPIRATION_DATE    IN     DATE,
+IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
+
+FUNCTION IS_MEMBER_EXPIRATION_INVALID(
+/*******************************************************************************
+  This function will return "Y" if the passed member-bank account combination
+  contains active members as of the date it is being expired
+
+Created : 08/24/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE   IN     VARCHAR2,
 IN_EXPIRATION_DATE    IN     DATE,
 IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
 
@@ -78,12 +103,13 @@ IN_EFFECTIVE_DATE IN     DATE);
 
 PROCEDURE DEPOSIT_TICKET_MNTNC_BR_SP(
 /******************************************************************************
-    This procedure validates the business rules for Deposit TIcket Window
+    This procedure validates the business rules for Deposit Ticket Window
 
 Created : 07/15/2015 jxc517 CCN Project Team....
 Changed : 
 *******************************************************************************/
-    IN_BANK_DEP_TICK_CC_REC IN BANK_DEP_TICK%ROWTYPE);
+    IN_BANK_DEP_TICK_REC        IN BANK_DEP_TICK%ROWTYPE,
+    IN_BANK_DEP_TICK_FUTURE_REC IN BANK_DEP_TICK_FUTURE%ROWTYPE);
 
 PROCEDURE DEPOSIT_BAG_TICKET_MNTNC_BR_SP(
 /******************************************************************************

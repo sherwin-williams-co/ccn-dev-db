@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BANKING_UI_INTERFACE_APP_PKG
+CREATE OR REPLACE PACKAGE         BANKING_UI_INTERFACE_APP_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -26,11 +26,13 @@ PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 
 Inputs:
     IN_BANK_ACCOUNT_NBR
+    IN_COST_CENTER_CODE
 
 Created : 03/30/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
+,IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_REF_CUR        OUT REF_CURSOR
@@ -46,12 +48,16 @@ Inputs:
     IN_COST_CENTER_CODE
 
 Created : 05/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 08/21/2015 jxc517 CCN Project....
+          Modified signature to pass future details also to allow future maintenance
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
-,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR);
+,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
+,OUT_BANK_DEP_TICK_FTR_REF_CUR   OUT REF_CURSOR
+,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR);
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 /*******************************************************************************
@@ -94,6 +100,15 @@ Changed :
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2
 ,OUT_REF_CUR           OUT REF_CURSOR);
+
+PROCEDURE BANK_DEP_TICK_OAK_UI_SP (
+/*******************************************************************************
+    This procedure is intended to RETURN a ref cursor with data from BANK_DEP_TICKOAK table
+
+Created : 07/31/2015 sxt410 CCN Project....
+Changed : 
+*******************************************************************************/
+OUT_BANK_DEP_TICKOAK_REF_CUR    OUT REF_CURSOR);
 
 PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -262,11 +277,6 @@ This procedure is intended to update following tables used in the Deposit Ticket
         <DAILY_USE_OVERRIDE>XXX</DAILY_USE_OVERRIDE>
         <DEP_TKTS_ONHAND_QTY>XXXXX</DEP_TKTS_ONHAND_QTY>
         <YTD_DEP_TKTS_ORDERED_QTY>XXXXX</YTD_DEP_TKTS_ORDERED_QTY>
-        <DJDE_FORM_PARM>XXXXXX</DJDE_FORM_PARM>
-        <DJDE_FEED_PARM>XXXXX</DJDE_FEED_PARM>
-        <MICR_COST_CNTR>XXXXXXXX</MICR_COST_CNTR>
-        <MICR_ROUTING_NBR>XXXXXXXXXXX</MICR_ROUTING_NBR>
-        <MICR_FORMAT_ACCT_NBR>XXXXXXXXXXXXXXXXX</MICR_FORMAT_ACCT_NBR>
         <REORDER_POINT>XXXXX</REORDER_POINT>
         <REORDER_NUMBER_BKS>XXXXX</REORDER_NUMBER_BKS>
         <IMAGES_PER_PAGE>X</IMAGES_PER_PAGE>
@@ -274,13 +284,14 @@ This procedure is intended to update following tables used in the Deposit Ticket
         <PART_PAPER_PER_FORM>X</PART_PAPER_PER_FORM>
         <NBR_DEP_TICKETS_PER_BK>XXXXX</NBR_DEP_TICKETS_PER_BK>
         <SHEETS_OF_PAPER_PER_BK>XXXXX</SHEETS_OF_PAPER_PER_BK>
-        <FORMAT_NAME>XXXXXX</FORMAT_NAME>
         <EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
         <EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
         <LAST_MAINTENANCE_DATE>MM-DD-RRRR</LAST_MAINTENANCE_DATE>
         <LAST_MAINT_USER_ID>XXXXXX</LAST_MAINT_USER_ID>
         <REORDER_SWITCH>X</REORDER_SWITCH>
         <LAST_VW_ORDER_DATE>MM-DD-RRRR</LAST_VW_ORDER_DATE>
+        <MICR_FORMAT_ID>XX</MICR_FORMAT_ID>
+        <FUTURE_ID>X</FUTURE_ID>
     </BANK_DEP_TICK>
 </BANK_DEP_TICK_UI>
 
@@ -288,6 +299,18 @@ created : 05/21/2015 jxc517 CCN Project....
 revised : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
+
+PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
+/*******************************************************************************
+This procedure is intended to place a deposit ticket order for the store passed in
+
+Created : 08/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_ORDERED_DATE         IN     DATE,
+IN_FUTURE_ID            IN     NUMBER,
+IN_USER_ID              IN     VARCHAR2);
 
 PROCEDURE DEPOSIT_BAG_UPDT_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -316,6 +339,18 @@ This procedure is intended to update following tables used in the Deposit Bag Up
 </BANK_DEP_BAG_TICK_UI>
 
 Created : 05/21/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA  IN  CLOB);
+    
+PROCEDURE BANK_DEP_TICK_OAK_UI_UPSERT_SP ( 
+/******************************************************************************
+This procedure is intended to insert into following tables used in the 
+Bank Deposit Ticket Oak Window.
+    Tables: 
+       BANK_DEP_TICKOAK
+
+Created : 07/31/2015 sxt410 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);

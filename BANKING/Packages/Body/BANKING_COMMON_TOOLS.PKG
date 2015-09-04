@@ -24,6 +24,116 @@ EXCEPTION
         RETURN NULL;
 END EXTRACT_TABLE_CLOB;
 
+PROCEDURE GET_ADDRESS_RECORD(
+/******************************************************************************
+  This procedure gets the address details for the cost center passed in
+
+Created : 06/22/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_ADDRESS_RECORD           OUT ADDRESS_VW%ROWTYPE)
+IS
+BEGIN
+    SELECT *
+      INTO OUT_ADDRESS_RECORD
+      FROM ADDRESS_VW
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ADDRESS_TYPE = 'M'
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM < 2;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END GET_ADDRESS_RECORD;
+
+PROCEDURE GET_PHONE_RECORD(
+/******************************************************************************
+  This procedure gets the phone details for the cost center passed in
+
+Created : 06/22/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_PHONE_RECORD             OUT CCN_PHONE_INFO_VW%ROWTYPE)
+IS
+BEGIN
+    SELECT *
+      INTO OUT_PHONE_RECORD
+      FROM CCN_PHONE_INFO_VW
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ROWNUM < 2;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END GET_PHONE_RECORD;
+
+PROCEDURE GET_EMPLOYEE_RECORD(
+/******************************************************************************
+  This procedure gets the employee details for the cost center and job title passed in
+
+Created : 06/22/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+IN_JOB_TITLE              IN     VARCHAR2,
+OUT_EMPLOYEE_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE)
+IS
+BEGIN
+    SELECT *
+      INTO OUT_EMPLOYEE_RECORD
+      FROM SWC_HR_GEMS_TB
+     WHERE COST_CENTER = IN_COST_CENTER_CODE
+       AND JOB_TITLE   = IN_JOB_TITLE
+       AND ROWNUM < 2;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END GET_EMPLOYEE_RECORD;
+
+FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
+/******************************************************************************
+This procedure performs all the business rules that are applicable Account Maintenance Window
+
+created : 06/19/2015 jxc517 CCN Project....
+revised : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
+BEGIN
+    --Check in Lead/Independent cost centers for bank account number
+    BEGIN
+        SELECT LEAD_BANK_ACCOUNT_NBR
+          INTO V_BANK_ACCOUNT_NBR
+          FROM LEAD_BANK_CC
+         WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+           AND ROWNUM < 2;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF V_BANK_ACCOUNT_NBR IS NULL THEN
+        --Check in Member cost centers for bank account number as not found in Lead/Independent
+        BEGIN
+            SELECT LEAD_BANK_ACCOUNT_NBR
+              INTO V_BANK_ACCOUNT_NBR
+              FROM LEAD_BANK_CC
+             WHERE LEAD_STORE_NBR = (SELECT LEAD_STORE_NBR
+                                       FROM MEMBER_BANK_CC
+                                      WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE)
+               AND ROWNUM < 2;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END IF;
+    RETURN V_BANK_ACCOUNT_NBR;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_BNK_ACCNT_NBR_FOR_CC;
+
 FUNCTION GET_LEAD_STORE_NBR_FOR_MBR_STR(
 /*******************************************************************************
   This function will get the current lead store for the passed member store
@@ -44,6 +154,29 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN V_LEAD_STORE_NBR;
 END GET_LEAD_STORE_NBR_FOR_MBR_STR;
+
+FUNCTION GET_FTR_LD_STR_NBR_FOR_MBR_STR(
+/*******************************************************************************
+  This function will get the future lead store for the passed future member store
+
+Created : 08/25/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+  IN_MEMBER_STORE_NBR   IN MEMBER_BANK_CC_FUTURE.MEMBER_STORE_NBR%TYPE,
+  IN_FUTURE_ID          IN NUMBER) RETURN VARCHAR2
+IS
+    V_LEAD_STORE_NBR  MEMBER_BANK_CC_FUTURE.LEAD_STORE_NBR%TYPE;
+BEGIN
+    SELECT LEAD_STORE_NBR 
+      INTO V_LEAD_STORE_NBR
+      FROM MEMBER_BANK_CC_FUTURE
+     WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR
+       AND FUTURE_ID        = NVL(IN_FUTURE_ID, FUTURE_ID);
+    RETURN V_LEAD_STORE_NBR;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_LEAD_STORE_NBR;
+END GET_FTR_LD_STR_NBR_FOR_MBR_STR;
 
 FUNCTION GET_LEAD_BANK_CC_REC(
 /***********************************************************
@@ -153,6 +286,30 @@ EXCEPTION
         RETURN NULL;
 END GET_BANK_ACCOUNT_REC;
 
+FUNCTION GET_BANK_ACCOUNT_FUTURE_REC(
+/***********************************************************
+	This function will get the bank account future record for passed
+  bank account number
+  
+Created : 07/23/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
+    IN_FUTURE_ID        IN     NUMBER) RETURN BANK_ACCOUNT_FUTURE%ROWTYPE
+IS
+    V_BANK_ACCOUNT_FUTURE_REC BANK_ACCOUNT_FUTURE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_BANK_ACCOUNT_FUTURE_REC
+      FROM BANK_ACCOUNT_FUTURE
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+       AND FUTURE_ID        = IN_FUTURE_ID;
+    RETURN V_BANK_ACCOUNT_FUTURE_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_BANK_ACCOUNT_FUTURE_REC;
+
 FUNCTION GET_BANK_ACCOUNT_HIST_REC(
 /***********************************************************
 	This function will get the bank account record from current tables
@@ -220,7 +377,7 @@ END GET_BANK_TYPE_CODE;
 
 FUNCTION GET_FUTURE_ID(
 /***********************************************************
-	This fucntion will get next future id for the 
+	This function will get next future id for the 
   passed bank account number
 
 Created : 07/08/2015 nxk927/jxc517 CCN Project Team....
@@ -239,6 +396,186 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN NULL;
 END GET_FUTURE_ID;
+
+FUNCTION GET_NEXT_MICR_FORMAT_ID(
+/***********************************************************
+	This function will get next future id for the 
+  passed bank account number
+
+Created : 07/08/2015 nxk927/jxc517 CCN Project Team....
+Changed : 
+************************************************************/
+IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
+IN_FUTURE_ID        IN     VARCHAR2) RETURN NUMBER
+IS
+    V_MICR_FORMAT_ID NUMBER := 1;
+BEGIN
+    IF IN_FUTURE_ID IS NOT NULL THEN
+        SELECT NVL(MAX(MICR_FORMAT_ID),0) + 1
+          INTO V_MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+    ELSE
+        SELECT NVL(MAX(MICR_FORMAT_ID),0) + 1
+          INTO V_MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    END IF;
+    RETURN V_MICR_FORMAT_ID;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_NEXT_MICR_FORMAT_ID;
+
+FUNCTION GET_STORE_MICR_FORMAT_DTLS_REC(
+/***********************************************************
+	This function will get the store MICR format detail record for passed
+  cost center code
+  
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_COST_CENTER_CODE IN     VARCHAR2) RETURN STORE_MICR_FORMAT_DTLS%ROWTYPE
+IS
+    V_STORE_MICR_FORMAT_DTLS_REC STORE_MICR_FORMAT_DTLS%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_STORE_MICR_FORMAT_DTLS_REC
+      FROM STORE_MICR_FORMAT_DTLS
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    RETURN V_STORE_MICR_FORMAT_DTLS_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        BEGIN
+            SELECT *
+              INTO V_STORE_MICR_FORMAT_DTLS_REC
+              FROM STORE_MICR_FORMAT_DTLS
+             WHERE COST_CENTER_CODE = BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER_CODE);
+            RETURN V_STORE_MICR_FORMAT_DTLS_REC;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RETURN NULL;
+        END;
+END GET_STORE_MICR_FORMAT_DTLS_REC;
+
+FUNCTION GET_STR_MICR_FRMT_DTLS_FTR_REC(
+/***********************************************************
+	This function will get the store MICR format detail future record for passed
+  cost center code and future id
+  
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_COST_CENTER_CODE IN     VARCHAR2,
+    IN_FUTURE_ID        IN     NUMBER) RETURN STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE
+IS
+    V_STR_MICR_FORMAT_DTLS_FTR_REC STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_STR_MICR_FORMAT_DTLS_FTR_REC
+      FROM STORE_MICR_FORMAT_DTLS_FUTURE
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND FUTURE_ID        = IN_FUTURE_ID;
+    RETURN V_STR_MICR_FORMAT_DTLS_FTR_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        BEGIN
+            SELECT *
+              INTO V_STR_MICR_FORMAT_DTLS_FTR_REC
+              FROM STORE_MICR_FORMAT_DTLS_FUTURE
+             WHERE COST_CENTER_CODE = BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER_CODE, IN_FUTURE_ID)
+               AND FUTURE_ID        = IN_FUTURE_ID;
+            RETURN V_STR_MICR_FORMAT_DTLS_FTR_REC;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RETURN NULL;
+        END;
+END GET_STR_MICR_FRMT_DTLS_FTR_REC;
+
+FUNCTION GET_STORE_BANK_MICR_FORMAT_REC(
+/***********************************************************
+	This function will get the bank MICR format record for passed
+  cost center code
+  
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_BANK_ACCONUT_NBR  IN     VARCHAR2,
+    IN_MICR_FORMAT_ID    IN     NUMBER) RETURN BANK_MICR_FORMAT%ROWTYPE
+IS
+    V_BANK_MICR_FORMAT_REC       BANK_MICR_FORMAT%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_BANK_MICR_FORMAT_REC
+      FROM BANK_MICR_FORMAT
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCONUT_NBR
+       AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID;
+    RETURN V_BANK_MICR_FORMAT_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_STORE_BANK_MICR_FORMAT_REC;
+
+FUNCTION GET_STR_BANK_MICR_FRMT_FTR_REC(
+/***********************************************************
+	This function will get the bank MICR format record for passed
+  cost center code and future id
+  
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 
+************************************************************/
+    IN_BANK_ACCONUT_NBR  IN     VARCHAR2,
+    IN_MICR_FORMAT_ID    IN     NUMBER,
+    IN_FUTURE_ID         IN     NUMBER) RETURN BANK_MICR_FORMAT_FUTURE%ROWTYPE
+IS
+    V_BANK_MICR_FORMAT_FUTURE_REC       BANK_MICR_FORMAT_FUTURE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_BANK_MICR_FORMAT_FUTURE_REC
+      FROM BANK_MICR_FORMAT_FUTURE
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCONUT_NBR
+       AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID
+       AND FUTURE_ID        = IN_FUTURE_ID;
+    RETURN V_BANK_MICR_FORMAT_FUTURE_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_STR_BANK_MICR_FRMT_FTR_REC;
+
+FUNCTION GET_MICR_FRMT_ID_FR_BA_FRMT_NM(
+/***********************************************************
+	This function will get next MICR format id for the passed bank account number,
+  format name
+
+Created : 08/17/2015 jxc517 CCN Project Team....
+Changed : 
+************************************************************/
+IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
+IN_FORMAT_NAME      IN     VARCHAR2,
+IN_FUTURE_ID        IN     NUMBER) RETURN NUMBER
+IS
+    V_MICR_FORMAT_ID NUMBER := NULL;
+BEGIN
+    IF IN_FUTURE_ID IS NULL THEN
+        SELECT MAX(MICR_FORMAT_ID)
+          INTO V_MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FORMAT_NAME      = IN_FORMAT_NAME;
+    ELSE
+        SELECT MAX(MICR_FORMAT_ID)
+          INTO V_MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID
+           AND FORMAT_NAME      = IN_FORMAT_NAME;
+    END IF;
+    RETURN V_MICR_FORMAT_ID;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_MICR_FRMT_ID_FR_BA_FRMT_NM;
 
 END BANKING_COMMON_TOOLS;
 

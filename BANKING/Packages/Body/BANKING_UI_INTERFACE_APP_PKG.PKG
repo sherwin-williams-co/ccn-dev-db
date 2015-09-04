@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY BANKING_UI_INTERFACE_APP_PKG
+CREATE OR REPLACE PACKAGE BODY         BANKING_UI_INTERFACE_APP_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -27,11 +27,13 @@ PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 
 Inputs:
     IN_BANK_ACCOUNT_NBR
+    IN_COST_CENTER_CODE
 
 Created : 03/30/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
+,IN_COST_CENTER_CODE          IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_REF_CUR        OUT REF_CURSOR
@@ -39,8 +41,18 @@ IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
 ,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR)
 IS
+    V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE := IN_BANK_ACCOUNT_NBR;
 BEGIN
-    ACCOUNT_MAINTENANCE_PKG.ACCOUNT_MAINTENACE_UI_SP(IN_BANK_ACCOUNT_NBR,
+    IF V_BANK_ACCOUNT_NBR IS NULL THEN
+        V_BANK_ACCOUNT_NBR := BANKING_COMMON_TOOLS.GET_BNK_ACCNT_NBR_FOR_CC(IN_COST_CENTER_CODE);
+        --Raise error as no where found
+        IF V_BANK_ACCOUNT_NBR IS NULL THEN
+            ERRPKG.RAISE_ERR(errnums.en_accnt_nbr_not_avlbl_for_cc,
+                             'ACCOUNT_MAINTENACE_UI_SP',
+                             'Bank Account Number not found for the cost center provided');
+        END IF;
+    END IF;
+    ACCOUNT_MAINTENANCE_PKG.ACCOUNT_MAINTENACE_UI_SP(V_BANK_ACCOUNT_NBR,
                                                      OUT_BANK_ACCOUNT_REF_CUR,
                                                      OUT_BANK_ACCOUNT_FTR_REF_CUR,
                                                      OUT_BANK_LEAD_CC_REF_CUR,
@@ -57,18 +69,25 @@ Inputs:
     IN_COST_CENTER_CODE
 
 Created : 05/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 08/21/2015 jxc517 CCN Project....
+          Modified signature to pass future details also to allow future maintenance
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
-,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR)
+,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
+,OUT_BANK_DEP_TICK_FTR_REF_CUR   OUT REF_CURSOR
+,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR)
 IS
 BEGIN
     DEPOSIT_TICKET_MAINTENANCE_PKG.DEPOSIT_TICKET_MNTNC_UI_SP(IN_COST_CENTER_CODE,
                                                               OUT_BANK_DEP_TICK_REF_CUR,
                                                               OUT_BANK_ACCOUNT_REF_CUR,
-                                                              OUT_BANK_MICR_FORMAT_REF_CUR);
+                                                              OUT_BANK_MICR_FORMAT_REF_CUR,
+                                                              OUT_BANK_DEP_TICK_FTR_REF_CUR,
+                                                              OUT_BANK_ACCOUNT_FTR_REF_CUR,
+                                                              OUT_BANK_MICR_FRMT_FTR_REF_CUR);
 END BANK_DEP_TICK_UI_SP;
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
@@ -234,6 +253,23 @@ BEGIN
            AND B.FUTURE_ID             = T.FUTURE_ID
          ORDER BY EFFECTIVE_DATE;
 END BANK_HISTORY_UI_SP;
+
+PROCEDURE BANK_DEP_TICK_OAK_UI_SP (
+/*******************************************************************************
+    This procedure is intended to RETURN a ref cursor with data from BANK_DEP_TICKOAK table
+
+Created : 07/31/2015 sxt410 CCN Project....
+Changed : 
+*******************************************************************************/
+OUT_BANK_DEP_TICKOAK_REF_CUR    OUT REF_CURSOR)
+IS
+BEGIN
+    BANK_DEP_TICKOAK_PKG.BANK_DEP_TICKOAK_UI_SP ( OUT_BANK_DEP_TICKOAK_REF_CUR );
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BANK_DEP_TICK_OAK_UI_SP ' || SUBSTR(SQLERRM,1,500));
+                                                                  
+END BANK_DEP_TICK_OAK_UI_SP;
 
 PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -420,11 +456,6 @@ This procedure is intended to update following tables used in the Deposit Ticket
         <DAILY_USE_OVERRIDE>XXX</DAILY_USE_OVERRIDE>
         <DEP_TKTS_ONHAND_QTY>XXXXX</DEP_TKTS_ONHAND_QTY>
         <YTD_DEP_TKTS_ORDERED_QTY>XXXXX</YTD_DEP_TKTS_ORDERED_QTY>
-        <DJDE_FORM_PARM>XXXXXX</DJDE_FORM_PARM>
-        <DJDE_FEED_PARM>XXXXX</DJDE_FEED_PARM>
-        <MICR_COST_CNTR>XXXXXXXX</MICR_COST_CNTR>
-        <MICR_ROUTING_NBR>XXXXXXXXXXX</MICR_ROUTING_NBR>
-        <MICR_FORMAT_ACCT_NBR>XXXXXXXXXXXXXXXXX</MICR_FORMAT_ACCT_NBR>
         <REORDER_POINT>XXXXX</REORDER_POINT>
         <REORDER_NUMBER_BKS>XXXXX</REORDER_NUMBER_BKS>
         <IMAGES_PER_PAGE>X</IMAGES_PER_PAGE>
@@ -432,13 +463,14 @@ This procedure is intended to update following tables used in the Deposit Ticket
         <PART_PAPER_PER_FORM>X</PART_PAPER_PER_FORM>
         <NBR_DEP_TICKETS_PER_BK>XXXXX</NBR_DEP_TICKETS_PER_BK>
         <SHEETS_OF_PAPER_PER_BK>XXXXX</SHEETS_OF_PAPER_PER_BK>
-        <FORMAT_NAME>XXXXXX</FORMAT_NAME>
         <EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
         <EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
         <LAST_MAINTENANCE_DATE>MM-DD-RRRR</LAST_MAINTENANCE_DATE>
         <LAST_MAINT_USER_ID>XXXXXX</LAST_MAINT_USER_ID>
         <REORDER_SWITCH>X</REORDER_SWITCH>
         <LAST_VW_ORDER_DATE>MM-DD-RRRR</LAST_VW_ORDER_DATE>
+        <MICR_FORMAT_ID>XX</MICR_FORMAT_ID>
+        <FUTURE_ID>X</FUTURE_ID>
     </BANK_DEP_TICK>
 </BANK_DEP_TICK_UI>
 
@@ -453,6 +485,28 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'DEPOSIT_TICKET_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END DEPOSIT_TICKET_UI_UPSERT_SP;
+
+PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
+/*******************************************************************************
+This procedure is intended to place a deposit ticket order for the store passed in
+
+Created : 08/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_ORDERED_DATE         IN     DATE,
+IN_FUTURE_ID            IN     NUMBER,
+IN_USER_ID              IN     VARCHAR2)
+IS
+BEGIN
+    DEPOSIT_TICKET_MAINTENANCE_PKG.PLACE_DEPOSIT_TICKET_ORDER(IN_COST_CENTER_CODE,
+                                                              IN_ORDERED_DATE,
+                                                              IN_FUTURE_ID,
+                                                              IN_USER_ID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PLACE_DEPOSIT_TICKET_ORDER;
 
 PROCEDURE DEPOSIT_BAG_UPDT_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -491,6 +545,25 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'DEPOSIT_BAG_UPDT_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END DEPOSIT_BAG_UPDT_UI_UPSERT_SP;
+
+PROCEDURE BANK_DEP_TICK_OAK_UI_UPSERT_SP ( 
+/******************************************************************************
+This procedure is intended to insert into following tables used in the 
+Bank Deposit Ticket Oak Window.
+    Tables: 
+       BANK_DEP_TICKOAK
+
+Created : 07/31/2015 sxt410 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA  IN  CLOB)
+IS
+BEGIN
+    BANK_DEP_TICKOAK_PKG.BANK_DEP_TICKOAK_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BANK_DEP_TICK_OAK_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BANK_DEP_TICK_OAK_UI_UPSERT_SP;
 
 PROCEDURE LEAD_BANK_FROM_SP(
 /*******************************************************************************
