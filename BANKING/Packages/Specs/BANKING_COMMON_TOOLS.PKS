@@ -206,7 +206,7 @@ FUNCTION GET_STORE_BANK_MICR_FORMAT_REC(
 Created : 08/18/2015 jxc517 CCN Project....
 Changed : 
 ************************************************************/
-    IN_BANK_ACCONUT_NBR  IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR  IN     VARCHAR2,
     IN_MICR_FORMAT_ID    IN     NUMBER) RETURN BANK_MICR_FORMAT%ROWTYPE;
 
 FUNCTION GET_STR_BANK_MICR_FRMT_FTR_REC(
@@ -217,7 +217,7 @@ FUNCTION GET_STR_BANK_MICR_FRMT_FTR_REC(
 Created : 08/18/2015 jxc517 CCN Project....
 Changed : 
 ************************************************************/
-    IN_BANK_ACCONUT_NBR  IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR  IN     VARCHAR2,
     IN_MICR_FORMAT_ID    IN     NUMBER,
     IN_FUTURE_ID         IN     NUMBER) RETURN BANK_MICR_FORMAT_FUTURE%ROWTYPE;
 

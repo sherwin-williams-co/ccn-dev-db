@@ -265,5 +265,41 @@ en_accnt_nbr_not_avlbl_for_cc CONSTANT NUMBER := -20020;
 exc_accnt_nbr_not_avlbl_for_cc EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_accnt_nbr_not_avlbl_for_cc , -20020);
 
+/*********************************************************** 
+The "bank_dep_tickord_seq_err" passes a numerical error of -20021
+This error will be used when current order is placed with a future order 
+already in place
+
+Created : 09/09/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_bank_dep_tickord_seq_err CONSTANT NUMBER := -20021;
+exc_bank_dep_tickord_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_bank_dep_tickord_seq_err , -20021);
+
+/*********************************************************** 
+The "to_lead_not_provided_err" passes a numerical error of -20022
+This error will be used when user tries to transfer members without specifying
+the new "To" lead
+
+Created : 09/09/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_to_lead_not_provided_err CONSTANT NUMBER := -20022;
+exc_to_lead_not_provided_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_to_lead_not_provided_err , -20022);
+
+/*********************************************************** 
+The "to_member_not_selected_err" passes a numerical error of -20023
+This error will be used when user tries to transfer members without selecting
+any member
+
+Created : 09/09/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_member_not_selected_err CONSTANT NUMBER := -20023;
+exc_member_not_selected_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_member_not_selected_err , -20023);
+
 END ERRNUMS;
 

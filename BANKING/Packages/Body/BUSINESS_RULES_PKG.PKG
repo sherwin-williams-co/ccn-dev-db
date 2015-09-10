@@ -1040,6 +1040,7 @@ IS
     V_FROM_LEAD_CC              VARCHAR2(6); 
     V_TO_LEAD_CC                VARCHAR2(6);
     V_FROM_LEAD_BANK_CC_REC     LEAD_BANK_CC%ROWTYPE;
+    V_COUNT                     NUMBER := 0;
 BEGIN
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()') = 1) THEN
         V_FROM_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()').GETSTRINGVAL();  
@@ -1047,12 +1048,31 @@ BEGIN
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
         V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
     END IF;
+    IF V_TO_LEAD_CC IS NULL THEN
+        ERRPKG.RAISE_ERR(errnums.en_to_lead_not_provided_err,
+                         V_PROC_NAME,
+                         'To Lead is not specified. Please enter a lead to which these member stores needs to be transfered');
+    END IF;
     IF V_FROM_LEAD_CC = V_TO_LEAD_CC THEN
         ERRPKG.RAISE_ERR(errnums.en_from_to_leads_are_same_err,
                          V_PROC_NAME,
                          'Transfer to the same lead is not possible');
     END IF;
     V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM MEMBER_BANK_CC
+     WHERE LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
+       AND LEAD_STORE_NBR        = V_FROM_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+       AND MEMBER_STORE_NBR IN (SELECT *
+                                  FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/*'
+                                                   PASSING V_ROW_DATA
+                                                   COLUMNS Value VARCHAR2(6) PATH 'text()'));
+    IF V_COUNT = 0 THEN
+        ERRPKG.RAISE_ERR(errnums.en_member_not_selected_err,
+                         V_PROC_NAME,
+                         'Please select at least one member to transfer');
+    END IF;
     FOR rec IN (SELECT *
                   FROM MEMBER_BANK_CC
                  WHERE LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
