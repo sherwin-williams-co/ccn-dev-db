@@ -13,9 +13,10 @@
 #
 # Created           :  MDH 11/19/2012
 # Revised           :  SH  06/20/2013
+#                   :  sxh487 09/16/2015 Added the concatenation for CCN and Banking backfeed 
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
+. /app/ccn/host.sh
 
  TIME=`date +"%H:%M:%S"`
  DATE=`date +"%m/%d/%Y"`
@@ -62,42 +63,60 @@ if test $status -ne 0
      exit 1;
 fi
 
-############################################################################
-#   execute audit_ftp.sh shell to send CCN Backfeed File to Mainframe
-############################################################################
-echo "Processing Started for audit_ftp at ${TIME} on ${DATE}"
-#./audit_ftp.sh
+##############################################################################
+#  Execute Main_CAT.sh to Concatenate the CCN and Banking files in order to send to MF
+##############################################################################
+echo "Concatenating for CCN and Banking files Started at ${TIME} on ${DATE}"
+./Main_CAT.sh
+
+echo "Processing Finished for Main_CAT at ${TIME} on ${DATE}"
 
 ##############################################
-#    ERROR STATUS CHECK audit_ftp shell
-##############################################
-status=$?
-if test $status -ne 0
-   then
-     echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
-     exit 1;
-fi
-
-echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
-
-############################################################################
-#   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
-############################################################################
-echo "Processing Started for incomplete_cc at ${TIME} on ${DATE}"
-./incomplete_cc.sh
-
-##############################################
-#    ERROR STATUS CHECK incomplete_cc shell
+#    ERROR STATUS CHECK Backfeed_CAT.sh 
 ##############################################
 status=$?
 if test $status -ne 0
    then
-     echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
+     echo "processing FAILED for Main_CAT at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
+# ############################################################################
+# #   execute audit_ftp.sh shell to send CCN Backfeed File to Mainframe
+# ############################################################################
+# echo "Processing Started for audit_ftp at ${TIME} on ${DATE}"
+# ./audit_ftp.sh
+
+# ##############################################
+# #    ERROR STATUS CHECK audit_ftp shell
+# ##############################################
+# status=$?
+# if test $status -ne 0
+   # then
+     # echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
+     # exit 1;
+# fi
+
+# echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
+# echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
+
+# ############################################################################
+# #   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
+# ############################################################################
+# echo "Processing Started for incomplete_cc at ${TIME} on ${DATE}"
+# ./incomplete_cc.sh
+
+# ##############################################
+# #    ERROR STATUS CHECK incomplete_cc shell
+# ##############################################
+# status=$?
+# if test $status -ne 0
+   # then
+     # echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
+     # exit 1;
+# fi
+
+#echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
 echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
 
 exit 0
@@ -105,4 +124,3 @@ exit 0
 ############################################################################
 #                     END  of  PROGRAM  
 ############################################################################
-
