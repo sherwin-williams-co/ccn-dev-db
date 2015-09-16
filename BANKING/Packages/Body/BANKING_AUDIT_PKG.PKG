@@ -1,0 +1,386 @@
+create or replace PACKAGE BODY BANKING_AUDIT_PKG as 
+/*********************************************************** 
+This package has procedures and functions related to the audit_log table
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+************************************************************/
+
+FUNCTION XML_EXTRACT_NO_EXCEPTION(
+/**********************************************************
+This function returns null if XPATH does not exist within xmltype, 
+oracle throws an exception if not handled this way
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+p_xml   IN     XMLTYPE,
+p_xpath IN     VARCHAR2) RETURN VARCHAR2 
+IS
+BEGIN
+    RETURN CASE WHEN P_XML.EXTRACT(P_XPATH) IS NOT NULL THEN
+                    p_xml.extract(p_xpath || '/text()').getstringval()
+                ELSE 
+                    NULL
+            END;
+END XML_EXTRACT_NO_EXCEPTION;
+
+FUNCTION IS_COLUMN_PART_OF_KEY(
+/**********************************************************
+This function returns true if the passed input column part of key specified(as input)
+  in the passed input table
+
+in_TABLE_NAME - specifies the table name that needs to be verified for
+in_COLUMN_NAME - specifies the column name that needs to be verified for
+in_KEY_TYPE - specifies the key that needs to be verified for - 'P' => Primary Key
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+IN_TABLE_NAME  IN VARCHAR2,
+IN_COLUMN_NAME IN VARCHAR2,
+IN_KEY_TYPE    IN VARCHAR2) RETURN BOOLEAN IS
+    V_COUNT NUMBER := 0;
+BEGIN
+    SELECT COUNT(*) INTO V_COUNT
+      FROM ALL_CONSTRAINTS CONS,
+           ALL_CONS_COLUMNS COLS
+     WHERE CONS.CONSTRAINT_TYPE = UPPER(IN_KEY_TYPE)
+       AND COLS.TABLE_NAME      = UPPER(IN_TABLE_NAME)
+       AND COLS.COLUMN_NAME     = UPPER(IN_COLUMN_NAME)
+       AND CONS.CONSTRAINT_NAME = COLS.CONSTRAINT_NAME
+       AND CONS.OWNER           = COLS.OWNER
+       AND COLS.OWNER           = 'BANKING';
+    IF V_COUNT = 1 THEN
+       RETURN TRUE;
+    ELSE
+       RETURN FALSE;
+    END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN FALSE;
+END IS_COLUMN_PART_OF_KEY;
+
+PROCEDURE UPDATE_AUDIT_REC_FLAG(
+/*******************************************************
+Procedure to update AUDIT_REC_FLAG column of AUDIT_LOG tablw
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+*******************************************************/
+    IN_TABLE_NAME     IN     VARCHAR2,
+    IN_KEY            IN     VARCHAR2,
+    IN_LOG_ID_PREV    IN     AUDIT_LOG.LOG_ID%TYPE,
+    IN_LOG_ID_CURR    IN     AUDIT_LOG.LOG_ID%TYPE,
+    OUT_CONTEXT          OUT VARCHAR2)
+IS
+BEGIN
+    OUT_CONTEXT := 'Updating the PREV AUDIT_REC_FLAG to C';
+    UPDATE AUDIT_LOG
+       SET AUDIT_REC_FLAG     = 'C',
+           AUDIT_REC_EFF_DATE = SYSDATE
+     WHERE TABLE_NAME     = IN_TABLE_NAME
+       AND LOG_ID         = IN_LOG_ID_PREV
+       AND TRANSACTION_ID = IN_KEY
+       AND AUDIT_REC_FLAG = 'R';
+    OUT_CONTEXT := 'Updating the CURR AUDIT_REC_FLAG to R';
+    UPDATE AUDIT_LOG
+       SET AUDIT_REC_FLAG = 'R'
+     WHERE TABLE_NAME     = IN_TABLE_NAME
+       AND LOG_ID         = IN_LOG_ID_CURR
+       AND TRANSACTION_ID = IN_KEY
+       AND AUDIT_REC_FLAG IS NULL;
+--Exceptions handled in calling procedure
+END UPDATE_AUDIT_REC_FLAG;
+
+PROCEDURE PARSE_DIFFERENCE_XML(
+/*******************************************************
+Procedure to Parse xmls from the audit_log table and 
+create an output xml with the differences
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+*******************************************************/
+    IN_TABLE_NAME     IN     VARCHAR2,
+    IN_KEY            IN     VARCHAR2,
+    OUT_CC_CODE          OUT VARCHAR2,
+    OUT_BNK_ACCNT_NBR    OUT VARCHAR2,
+    OUT_CHANGE_TYPE      OUT VARCHAR2,
+    OUT_PREV_ROW         OUT XMLTYPE,
+    OUT_CURR_ROW         OUT XMLTYPE,
+    OUT_DIFF             OUT XMLTYPE,
+    OUT_LOG_ID_PREV      OUT NUMBER,
+    OUT_LOG_ID           OUT NUMBER)
+IS
+    CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
+        SELECT COLUMN_NAME, COLUMN_ID
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE;
+    ROW_PREV           AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+    V_LOG_ID_PREV      AUDIT_LOG.LOG_ID%TYPE;
+    ROW_CURR           AUDIT_LOG.TABLE_ROW_DATA%TYPE;
+    V_LOG_ID_CURR      AUDIT_LOG.LOG_ID%TYPE;
+    PK_CURR            AUDIT_LOG.TABLE_PK_VALUE%TYPE;
+    V_CONTEXT          VARCHAR2(200);
+    V_CHANGE_TYPE      VARCHAR2(1);
+    COMP_CURR          VARCHAR2(1000);
+    COMP_PREV          VARCHAR2(1000);
+    XMLSTRING          CLOB:='';
+BEGIN
+    V_CONTEXT := 'Selecting Previous Row from Audit_Log';
+    BEGIN
+        SELECT TABLE_ROW_DATA, LOG_ID INTO ROW_PREV, V_LOG_ID_PREV
+          FROM AUDIT_LOG AL,
+               BATCH_JOB BATCH
+         WHERE AL.TABLE_NAME        = IN_TABLE_NAME
+           AND BATCH.BATCH_JOB_NAME = 'BANKING_AUDIT_LOG'
+           AND AL.AUDIT_REC_FLAG    = 'R'
+           AND AL.TRANSACTION_ID    = IN_KEY
+           AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                         FROM AUDIT_LOG AL1
+                                        WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                          AND AL1.TRANSACTION_ID = IN_KEY
+                                          AND AL1.AUDIT_REC_FLAG = 'R')
+           AND BATCH.BATCH_JOB_LAST_RUN_DATE IN(SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
+                                                  FROM BATCH_JOB B1
+                                                 WHERE B1.BATCH_JOB_NAME= 'BANKING_AUDIT_LOG')
+           AND ROWNUM < 2
+         ORDER BY AL.LOG_ID DESC;
+        V_CHANGE_TYPE := 'C';
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            V_CHANGE_TYPE := 'A';
+    END;
+    V_CONTEXT := 'Selecting Current Row from Audit_Log';
+    SELECT TABLE_ROW_DATA, LOG_ID, TABLE_PK_VALUE INTO ROW_CURR, V_LOG_ID_CURR, PK_CURR -- Added to accomodate population of primary key columns in backFeed files generated
+      FROM AUDIT_LOG AL
+     WHERE TABLE_NAME        = IN_TABLE_NAME
+       AND AL.TRANSACTION_ID = IN_KEY
+       AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
+                                     FROM AUDIT_LOG AL1
+                                    WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
+                                      AND AL1.TRANSACTION_ID = IN_KEY)
+       AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
+                          FROM AUDIT_LOG AL2
+                         WHERE AL2.TABLE_NAME = AL.TABLE_NAME
+                           AND AL2.TRANSACTION_ID = IN_KEY)
+       AND ROWNUM < 2;
+    V_CONTEXT := 'Parsing the XMLType';
+    --Start building the XML string
+    XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
+    FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
+        IF V_CHANGE_TYPE = 'C' THEN
+            COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+        END IF; 
+        COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
+        --If the elements have changed OR new row, append them to the XML string
+        IF V_CHANGE_TYPE = 'A' THEN
+            XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+        ELSE
+            --Populate the XML String only if the value is changed or if particular column is part of primary key
+            IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
+               OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL THEN  
+                XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+            END IF;
+        END IF;
+        IF GET_COLS_REC.COLUMN_NAME IN ('BANK_ACCOUNT_NBR', 'LEAD_BANK_ACCOUNT_NBR') THEN
+            OUT_BNK_ACCNT_NBR := COMP_CURR;
+        ELSIF GET_COLS_REC.COLUMN_NAME IN ('COST_CENTER_CODE', 'LEAD_STORE_NBR', 'MEMBER_STORE_NBR') THEN
+            OUT_BNK_ACCNT_NBR := COMP_CURR;
+        END IF;
+    END LOOP;
+    UPDATE_AUDIT_REC_FLAG(IN_TABLE_NAME,IN_KEY, V_LOG_ID_PREV, V_LOG_ID_CURR, V_CONTEXT);
+    V_CONTEXT := 'Final value being set';
+    XMLSTRING        := XMLSTRING || '</' || IN_Table_name || '>';
+    V_CONTEXT := 'Converting to XMLType';
+    OUT_DIFF          := XMLType(XMLSTRING);
+    OUT_PREV_ROW      := ROW_PREV;
+    OUT_CURR_ROW      := ROW_CURR;
+    OUT_CHANGE_TYPE   := V_CHANGE_TYPE;
+    OUT_LOG_ID        := V_LOG_ID_CURR;
+    OUT_LOG_ID_PREV   := V_LOG_ID_PREV;
+END PARSE_DIFFERENCE_XML; 
+
+PROCEDURE BUILD_FILE_SP (
+/**********************************************************
+This procedure is intended to build a file based on the table layout
+in order to be consumed by the Mainframe to backfill Legacy MainFrame
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATE    IN     DATE,
+    IN_PREV_ROW    IN     SYS.XMLTYPE,
+    IN_CURR_ROW    IN     SYS.XMLTYPE,
+    IN_ROW_DATA    IN     SYS.XMLTYPE,
+    IN_CHANGE_TYPE IN     VARCHAR2,
+    IN_LOG_ID_PREV IN     NUMBER,
+    IN_LOG_ID      IN     NUMBER,
+    IN_CC_CODE     IN     VARCHAR2)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME,
+               DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
+               DATA_TYPE,
+               COLUMN_ID
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+    PATH                VARCHAR2(50) := 'BANKING_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE UNTIL NEW ONE CREATED
+    FILENAME            VARCHAR2(50) := IN_TABLE_NAME || '_backfeed' ;
+    STAMP               VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- USED TO CREATE TIMESTAMP FOR DATA FILE 
+    V_COST_CENTER       VARCHAR2(6)  := '      '; --ADDED FOR SPACES WITH TABLES THAT DON'T USE COST CENTER
+    V_CHANGE_TYPE       VARCHAR2(1);
+    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
+    V_OUT_CLOB          CLOB;
+    V_VALUE             VARCHAR2(32000);
+    V_EXTRACTED_VALUE   VARCHAR2(32000);
+    V_CONTEXT           VARCHAR2(200);
+BEGIN
+    V_CONTEXT := 'Creating the file on server';
+    OUTPUT_FILE := UTL_FILE.FOPEN(PATH,
+                                  FILENAME || STAMP,
+                                  'w', --binary
+                                  32767);
+   IF IN_CC_CODE IS NOT NULL THEN
+      V_COST_CENTER := IN_CC_CODE; 
+   END IF;
+    V_CONTEXT := 'Generating the CLOB Output';
+    IF IN_CHANGE_TYPE = 'C' AND IS_COLUMN_PART_OF_KEY(IN_TABLE_NAME,'EFFECTIVE_DATE','P') 
+       --We should change the indicator from "C" to "D" only if the expiration date is present
+       AND NVL(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/EXPIRATION_DATE/text()').GETSTRINGVAL(),'~') <> '~' THEN
+        V_CHANGE_TYPE := 'D';
+    ELSE
+        V_CHANGE_TYPE := 'C';
+    END IF;
+    V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') ||
+                  V_COST_CENTER ||
+                  RPAD(IN_TABLE_NAME,25) ||
+                  TRIM(LPAD(IN_LOG_ID,14,'0')) ||
+                  V_CHANGE_TYPE;
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_CONTEXT := 'Building by extracting the Existing Data';
+            V_EXTRACTED_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
+            V_VALUE := UPPER(RPAD(V_EXTRACTED_VALUE, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(V_EXTRACTED_VALUE))));
+            V_OUT_CLOB := V_OUT_CLOB || V_VALUE;
+        ELSE
+            V_CONTEXT := 'Building by extracting the Non-Existing Data';
+            V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
+        END IF;
+    END LOOP;
+    IF V_OUT_CLOB <> EMPTY_CLOB() THEN   
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+        UTL_FILE.FCLOSE(OUTPUT_FILE);
+    END IF;
+END BUILD_FILE_SP;
+
+PROCEDURE PROCESS_AUDIT_LOG(
+/**********************************************************
+This procedure is the core process that performs the required operations
+for the audit log processing
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+    IN_TRANSACTION_ID     IN     VARCHAR2,
+    IN_TABLE_NAME         IN     VARCHAR2,
+    OUT_BANK_ACCOUNT_NBR     OUT VARCHAR2,
+    OUT_CC_CODE              OUT VARCHAR2,
+    OUT_CONTEXT              OUT VARCHAR2)
+IS
+    V_CONTEXT	          VARCHAR2(200);
+    DIFF_XML            XMLTYPE;
+    OUT_PREV_ROW        XMLTYPE;
+    OUT_CURR_ROW        XMLTYPE;
+    V_LOG_ID            NUMBER; --current log id
+    V_LOG_ID_PREV       NUMBER; --Previous log id
+    V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
+    V_BANK_ACCOUNT_NBR  BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
+    V_CHANGE_TYPE       VARCHAR2(1) := 'A';
+BEGIN
+    V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
+    PARSE_DIFFERENCE_XML(IN_TABLE_NAME,
+                         IN_TRANSACTION_ID,
+                         V_CC_CODE,
+                         V_BANK_ACCOUNT_NBR,
+                         V_CHANGE_TYPE,
+                         OUT_PREV_ROW,
+                         OUT_CURR_ROW,
+                         DIFF_XML,
+                         V_LOG_ID_PREV,
+                         V_LOG_ID);
+    V_CONTEXT:='Call procedure Build_File_SP';
+    BUILD_FILE_SP(IN_TABLE_NAME, --in_TABLE_NAME IN VARCHAR2
+                  SYSDATE, --in_ROW_DATE   IN DATE
+                  OUT_PREV_ROW,
+                  OUT_CURR_ROW,
+                  DIFF_XML, --in_Row_data   IN sys.xmltype
+                  V_CHANGE_TYPE,
+                  V_LOG_ID_PREV,
+                  V_LOG_ID,
+                  V_CC_CODE);
+    OUT_BANK_ACCOUNT_NBR := V_BANK_ACCOUNT_NBR;
+    OUT_CC_CODE          := V_CC_CODE;
+    OUT_CONTEXT          := V_CONTEXT;
+END PROCESS_AUDIT_LOG;
+
+PROCEDURE SELECT_AUDIT_LOG
+/**********************************************************
+Selects all rows from audit_log that have changed from
+the last run of the backfeed process
+
+Created : 09/15/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+IS
+    CURSOR SEL_AUDIT_LOG IS
+        SELECT DISTINCT TABLE_NAME,
+               TRANSACTION_ID
+          FROM AUDIT_LOG
+         WHERE AUDIT_REC_FLAG IS NULL
+           AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                       FROM BATCH_JOB
+                                      WHERE BATCH_JOB_NAME = 'BANKING_AUDIT_LOG');
+    V_CONTEXT	VARCHAR2(200);
+    V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
+    V_BANK_ACCOUNT_NBR  BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
+    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+BEGIN
+    V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('BANKING_AUDIT_LOG', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+        BEGIN
+            SAVEPOINT NEXT_AUDIT_REC;
+            PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID,
+                              SEL_AUDIT_REC.TABLE_NAME,
+                              V_BANK_ACCOUNT_NBR,
+                              V_CC_CODE,
+                              V_CONTEXT);
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO NEXT_AUDIT_REC;
+                V_TRANS_STATUS := 'ERROR';
+                errpkg.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'SELECT_AUDIT_LOG', --proc name
+                                           SUBSTR(SQLERRM,1,500),
+                                           NVL(V_BANK_ACCOUNT_NBR, 'BANK_ACCOUNT_NBR'),
+                                           NVL(V_CC_CODE, 'AUDIT'),
+                                           'BANKING_AUDIT_LOG');
+        END;
+    END LOOP;  
+    V_CONTEXT:='Updating the Status in batch_job table';
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('BANKING_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+EXCEPTION
+    WHEN OTHERS THEN
+        V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM;
+        ERRPKG.RAISE_ERR(-20003,'SELECT_AUDIT_LOG',V_CONTEXT);
+END SELECT_AUDIT_LOG;
+
+END BANKING_AUDIT_PKG;
+
