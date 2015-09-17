@@ -19,14 +19,15 @@ cdate=`date +'%Y%m%d%H%M%S'`
 AUDIT_PATH="$HOME/batchJobs/backFeed/current/"
 LOG_PATH="$HOME/batchJobs/backFeed/logs"
 ARC_PATH="$HOME/batchJobs/backFeed/Archive"
-file_name="Banking_backfeed.txt"
+src_file_name="Banking_backfeed.txt"
+dest_file_name="Banking_audit.txt"
 
 cd $AUDIT_PATH
 echo "Execute FTP to Mainframe" 
 ftpResult=`ftp -n $ccndbserver_host <<FTP_MF
 quote USER $ccndbserver_user
 quote PASS $ccndbserver_pw
-put $file_name /app/ccn/dev/batchJobs/backFeed/current/$file_name
+put $src_file_name /app/ccn/dev/batchJobs/backFeed/current/$dest_file_name
 bye
 FTP_MF`
 echo "FTP to Mainframe COMPLETED"
