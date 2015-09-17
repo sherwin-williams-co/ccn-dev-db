@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER TR_BANK_DEP_TICKORD_FTR_UPD
+create or replace TRIGGER TR_BANK_DEP_TICKORD_FTR_UPD
 BEFORE INSERT OR UPDATE ON BANK_DEP_TICKORD_FUTURE
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -38,6 +38,7 @@ begin
                                 ,v_bank_dep_tickord_ftr_row.LAST_MAINT_USER_ID LAST_MAINT_USER_ID
                                 ,to_char(v_bank_dep_tickord_ftr_row.EXTRACT_DATE, 'yyyymmdd') EXTRACT_DATE
                                 ,v_bank_dep_tickord_ftr_row.EXTRACTED_USER_ID EXTRACTED_USER_ID
+                                ,v_bank_dep_tickord_ftr_row.FUTURE_ID FUTURE_ID
                                 )) AS "result", 
                     XMLELEMENT ( "PrimaryKey",               
                                   XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -72,4 +73,3 @@ begin
                 ,'TR_BANK_DEP_TICKORD_FTR_UPD');
      
 END TR_BANK_DEP_TICKORD_FTR_UPD;
-

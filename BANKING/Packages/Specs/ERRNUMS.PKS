@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE ERRNUMS
+create or replace PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -301,5 +301,27 @@ en_member_not_selected_err CONSTANT NUMBER := -20023;
 exc_member_not_selected_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_member_not_selected_err , -20023);
 
-END ERRNUMS;
+/*********************************************************** 
+The "to_effective_date" passes a numerical error of -20024
+This error will be used when user tries to transfer members without selecting
+any effective date
 
+Created : 09/14/2015 axk326 CCN Project....
+Changed :
+************************************************************/
+en_to_effect_date_err CONSTANT NUMBER := -20024;
+exc_to_effect_date_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_to_effect_date_err , -20024);
+
+/*********************************************************** 
+The "childs_effctv_before_parent" passes a numerical error of -20025
+This error will be used when childs are effective before parents
+
+Created : 09/15/2015 axk326 CCN Project....
+Changed :
+************************************************************/
+en_childs_effctv_before_parent CONSTANT NUMBER := -20025;
+exc_childs_effctv_bfr_parent EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_childs_effctv_bfr_parent , -20025);
+
+END ERRNUMS;

@@ -93,75 +93,6 @@ BEGIN
            AND BA.BANK_ACCOUNT_NBR = LB.LEAD_BANK_ACCOUNT_NBR;
 END LEAD_BANK_TO_SP;
 
-PROCEDURE LEAD_TRANSFER_PROCESS(
-/***********************************************************
-This procedure is used to transfer member from one lead to another
-
-This Procdedure does the following
-1) Makes the new lead selected in the UI as the LEAD
-2) Deletes all the members from the Old Lead and pushes to history
-3) Deletes the current lead from the Lead table and pushes to history
-4) Inserts the new cost center as the New Lead
-5) Inserts all the members from the old Lead under the New lead
-
-Created : 06/09/2015 nxk927/jxc517 CCN Project....
-Changed : 08/13/2015 nxk927 removed trunc from trunc(sysdate) to accept the time stamp
-************************************************************/
-IN_XML           CLOB)
-IS
-    V_ROW_DATA                  XMLTYPE := SYS.XMLTYPE(IN_XML);
-    V_USER_ID                   VARCHAR2(6);
-    V_FROM_LEAD_CC              VARCHAR2(6); 
-    V_TO_LEAD_CC                VARCHAR2(6);
-    V_FROM_LEAD_BANK_CC_REC     LEAD_BANK_CC%ROWTYPE;
-    V_FROM_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
-    V_TO_LEAD_BANK_CC_REC       LEAD_BANK_CC%ROWTYPE;
-    V_EXPIRE_DATE               DATE := SYSDATE;
-BEGIN
-    BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
-    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/USER_ID/text()') = 1) THEN
-        V_USER_ID := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/USER_ID/text()').GETSTRINGVAL();  
-    END IF;
-    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()') = 1) THEN
-        V_FROM_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()').GETSTRINGVAL();  
-    END IF;
-    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
-        V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
-    END IF;
-    V_TO_LEAD_BANK_CC_REC   := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
-    V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
-    V_FROM_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
-                                                                              V_FROM_LEAD_BANK_CC_REC.EFFECTIVE_DATE);
-    --insert Bank Account and Lead into history as we are going to insert members into history
-    TABLE_IU_PKG.BANK_ACCOUNT_HIST_I_SP(V_FROM_BANK_ACCOUNT_REC);
-    TABLE_IU_PKG.LEAD_BANK_CC_HIST_I_SP(V_FROM_LEAD_BANK_CC_REC);
-    FOR rec IN (SELECT *
-                  FROM MEMBER_BANK_CC
-                 WHERE LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
-                   AND LEAD_STORE_NBR        = V_FROM_LEAD_BANK_CC_REC.LEAD_STORE_NBR
-                   AND MEMBER_STORE_NBR IN (SELECT *
-                                              FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/*'
-                                                   PASSING V_ROW_DATA
-                                                   COLUMNS Value VARCHAR2(6) PATH 'text()'))) LOOP
-        DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR,
-                                                                     NULL, --bank account number
-                                                                     NULL, --micr format id
-                                                                     V_EXPIRE_DATE); --store MICR formats needs to be expired for these members
-        TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(rec); --member needs to be removed from old lead
-        rec.LEAD_BANK_ACCOUNT_NBR := V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
-        rec.LEAD_STORE_NBR        := V_TO_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
-        rec.EFFECTIVE_DATE        := V_EXPIRE_DATE;
-        rec.EXPIRATION_DATE       := NULL; --this anyways will be null, but just for understanding, else transfer will fail
-        rec.UPDATE_DATE           := SYSDATE;
-        rec.LAST_UPD_USER_ID      := V_USER_ID;
-        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
-        DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS(rec.MEMBER_STORE_NBR, rec.LEAD_BANK_ACCOUNT_NBR, 'M'); --store MICR formats needs to be updated for these members
-    END LOOP;
-EXCEPTION
-   WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
-END LEAD_TRANSFER_PROCESS;
-
 PROCEDURE CREATE_BANK_ACCOUNT_RECORD(
 /***********************************************************
 This procedure is used to update and insert bank account information
@@ -193,8 +124,8 @@ BEGIN
     V_REC.FUTURE_ID      := IN_FUTURE_ID;
     TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(V_REC);
 EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_BANK_ACCOUNT_RECORD, ' || ' ' || 'FAILED TO CREATE BANK ACCOUNT - ' || SQLERRM);
+   WHEN OTHERS THEN
+       ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_BANK_ACCOUNT_RECORD, ' || ' ' || 'FAILED TO CREATE BANK ACCOUNT - ' || SQLERRM);
 END CREATE_BANK_ACCOUNT_RECORD;
 
 PROCEDURE CREATE_BANK_MICR_FORMAT_RECORD(
@@ -269,7 +200,7 @@ BEGIN
     V_REC.EXPIRATION_DATE       := NULL;
     V_REC.BANK_BRANCH_NBR       := IN_LEAD_BANK_CC_REC.BANK_BRANCH_NBR;
     V_REC.BANK_TYPE_CODE        := 'L';
-    V_REC.UPDATE_DATE           := TRUNC(SYSDATE);
+    V_REC.UPDATE_DATE           := SYSDATE;
     V_REC.LAST_UPD_USER_ID      := IN_USER_ID;
     V_REC.FUTURE_ID             := IN_FUTURE_ID;
     TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(V_REC);
@@ -304,7 +235,7 @@ BEGIN
                  WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR) LOOP
         rec.LEAD_STORE_NBR   := IN_TO_LEAD_CC;
         rec.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
-        rec.EXPIRATION_DATE  := NULL;
+        rec.EXPIRATION_DATE  := NULL; -- Assignment for understanding - it will always be null for make lead and transfer processes
         rec.UPDATE_DATE      := SYSDATE;
         rec.LAST_UPD_USER_ID := IN_USER_ID;
         rec.FUTURE_ID        := IN_FUTURE_ID;
@@ -316,7 +247,7 @@ BEGIN
                                                                         rec.EFFECTIVE_DATE,
                                                                         rec.EXPIRATION_DATE,
                                                                         'M');
-        END IF; 
+        END IF;
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -378,5 +309,250 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'MAKE_LEAD_PROCESS, ' || ' ' || 'FAILED TO MAKE LEAD - ' || SQLERRM);
 END MAKE_LEAD_PROCESS;
 
-END CONCENTRATION_TRANSFER_PKG;
+PROCEDURE CREATE_TRNSFR_MBR_BANK_CC_RECS(
+/***********************************************************
+This procedure is used to update and insert member information for transfer process
 
+Created : 09/17/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+IN_FUTURE_ID           IN     NUMBER,
+IN_LEAD_BANK_CC_REC    IN     LEAD_BANK_CC%ROWTYPE,
+IN_EFFECTIVE_DATE      IN     DATE,
+IN_USER_ID             IN     VARCHAR2)
+IS
+BEGIN
+    IF IN_FUTURE_ID = 1 THEN
+        FOR rec IN (SELECT MB.*,
+                           0 FUTURE_ID
+                      FROM MEMBER_BANK_CC MB
+                     WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR) LOOP
+            rec.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
+            rec.EXPIRATION_DATE  := NULL;
+            rec.UPDATE_DATE      := SYSDATE;
+            rec.LAST_UPD_USER_ID := IN_USER_ID;
+            rec.FUTURE_ID        := IN_FUTURE_ID;
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+            DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(rec.MEMBER_STORE_NBR,
+                                                                        rec.LEAD_BANK_ACCOUNT_NBR,
+                                                                        rec.FUTURE_ID,
+                                                                        rec.EFFECTIVE_DATE,
+                                                                        rec.EXPIRATION_DATE,
+                                                                        'M');
+        END LOOP;
+    ELSE
+        FOR rec IN (SELECT MBF.*
+                      FROM MEMBER_BANK_CC_FUTURE MBF
+                     WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+                       AND FUTURE_ID      = IN_FUTURE_ID - 1) LOOP
+            rec.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
+            rec.EXPIRATION_DATE  := NULL;
+            rec.UPDATE_DATE      := SYSDATE;
+            rec.LAST_UPD_USER_ID := IN_USER_ID;
+            rec.FUTURE_ID        := IN_FUTURE_ID;
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+            DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(rec.MEMBER_STORE_NBR,
+                                                                        rec.LEAD_BANK_ACCOUNT_NBR,
+                                                                        rec.FUTURE_ID,
+                                                                        rec.EFFECTIVE_DATE,
+                                                                        rec.EXPIRATION_DATE,
+                                                                        'M');
+        END LOOP;
+
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_TRNSFR_MBR_BANK_CC_RECS, ' || ' ' || 'FAILED TO CREATE MEMBERS - ' || SQLERRM);
+END CREATE_TRNSFR_MBR_BANK_CC_RECS;
+
+PROCEDURE CREATE_TRANSFER_FUTURE_PROCESS(
+/***********************************************************
+This procedure will be called to transfer process to create all future tables data
+
+Created : 09/16/2015 axk326 CCN Project Team....
+Changed : 
+************************************************************/
+IN_MEMBER_BANK_CC_REC   IN     MEMBER_BANK_CC%ROWTYPE,
+IN_TO_LEAD_BANK_REC     IN     LEAD_BANK_CC%ROWTYPE,
+OUT_FUTURE_ID              OUT NUMBER)
+IS
+    V_FUTURE_ID               MEMBER_BANK_CC_FUTURE.FUTURE_ID%TYPE;
+    V_TO_LEAD_BANK_REC        LEAD_BANK_CC%ROWTYPE := IN_TO_LEAD_BANK_REC;
+BEGIN
+    V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_TO_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+    ACCOUNT_MAINTENANCE_PKG.EXPIRE_PREVIOUS_BANK_ACCOUNT(V_TO_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                         TRUNC(IN_MEMBER_BANK_CC_REC.EFFECTIVE_DATE),
+                                                         'TRANSFER');
+    CREATE_BANK_ACCOUNT_RECORD(V_FUTURE_ID,
+                               V_TO_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
+                               TRUNC(IN_MEMBER_BANK_CC_REC.EFFECTIVE_DATE));
+    CREATE_BANK_MICR_FORMAT_RECORD(V_FUTURE_ID,
+                                   V_TO_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR,
+                                   TRUNC(IN_MEMBER_BANK_CC_REC.EFFECTIVE_DATE));
+    CREATE_LEAD_BANK_CC_RECORD(V_FUTURE_ID,
+                               V_TO_LEAD_BANK_REC.LEAD_STORE_NBR,
+                               V_TO_LEAD_BANK_REC,
+                               TRUNC(IN_MEMBER_BANK_CC_REC.EFFECTIVE_DATE),
+                               IN_MEMBER_BANK_CC_REC.LAST_UPD_USER_ID);
+    CREATE_TRNSFR_MBR_BANK_CC_RECS(V_FUTURE_ID,
+                                   V_TO_LEAD_BANK_REC,
+                                   TRUNC(IN_MEMBER_BANK_CC_REC.EFFECTIVE_DATE),
+                                   IN_MEMBER_BANK_CC_REC.LAST_UPD_USER_ID);                                                      
+    OUT_FUTURE_ID := V_FUTURE_ID;
+EXCEPTION
+    WHEN OTHERS THEN
+       ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_TRANSFER_FUTURE_PROCESS, ' || ' ' || 'FAILED - ' || SQLERRM);
+END CREATE_TRANSFER_FUTURE_PROCESS;
+
+FUNCTION GET_EFFECTIVE_DATE_FOR_MBR(
+/*******************************************************************************
+This function will return the effective date provided in the XML for the passed member store
+
+Created : 09/16/2015 axk326 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_XML              IN     XMLTYPE,
+    IN_MEMBER_STORE_NBR IN     VARCHAR2) RETURN DATE
+IS
+    V_RETURN_VAL DATE;
+BEGIN
+    SELECT TO_DATE(EFFECTIVE_DATE,'MM-DD-YYYY HH12:MI:SS AM')
+      INTO V_RETURN_VAL
+      FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                     PASSING IN_XML
+                     COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()',
+                             EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')
+     WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_EFFECTIVE_DATE_FOR_MBR;
+
+PROCEDURE CREATE_TRNSFR_MBR_BANK_CC_REC(
+/***********************************************************
+This procedure is used to update and insert member information for transfer process
+
+Created : 09/17/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+IN_FUTURE_ID           IN     NUMBER,
+IN_MBR_BANK_CC_REC     IN     MEMBER_BANK_CC%ROWTYPE)
+IS
+    V_REC        MEMBER_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+    V_REC.LEAD_BANK_ACCOUNT_NBR    := IN_MBR_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    V_REC.LEAD_STORE_NBR           := IN_MBR_BANK_CC_REC.LEAD_STORE_NBR;
+    V_REC.MEMBER_STORE_NBR         := IN_MBR_BANK_CC_REC.MEMBER_STORE_NBR;
+    V_REC.EFFECTIVE_DATE           := IN_MBR_BANK_CC_REC.EFFECTIVE_DATE;
+    V_REC.EXPIRATION_DATE          := IN_MBR_BANK_CC_REC.EXPIRATION_DATE;
+    V_REC.MEMBER_BANK_ACCOUNT_NBR  := IN_MBR_BANK_CC_REC.MEMBER_BANK_ACCOUNT_NBR;
+    V_REC.BANK_BRANCH_NBR          := IN_MBR_BANK_CC_REC.BANK_BRANCH_NBR;
+    V_REC.UPDATE_DATE              := IN_MBR_BANK_CC_REC.UPDATE_DATE;
+    V_REC.LAST_UPD_USER_ID         := IN_MBR_BANK_CC_REC.LAST_UPD_USER_ID;
+    V_REC.FUTURE_ID                := IN_FUTURE_ID;
+    TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_REC);
+    DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS_FTR(V_REC.MEMBER_STORE_NBR,
+                                                                V_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                                V_REC.FUTURE_ID,
+                                                                V_REC.EFFECTIVE_DATE,
+                                                                V_REC.EXPIRATION_DATE,
+                                                                'M');
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_TRNSFR_MBR_BANK_CC_REC, ' || ' ' || 'FAILED TO CREATE MEMBERS - ' || SQLERRM);
+END CREATE_TRNSFR_MBR_BANK_CC_REC;
+
+PROCEDURE LEAD_TRANSFER_PROCESS(
+/***********************************************************
+This procedure is used to transfer member from one lead to another
+
+This Procdedure does the following
+1) Makes the new lead selected in the UI as the LEAD
+2) Deletes all the members from the Old Lead and pushes to history
+3) Deletes the current lead from the Lead table and pushes to history
+4) Inserts the new cost center as the New Lead
+5) Inserts all the members from the old Lead under the New lead
+
+Created : 06/09/2015 nxk927/jxc517 CCN Project....
+Changed : 08/13/2015 nxk927 removed trunc from trunc(sysdate) to accept the time stamp
+        : 09/16/2015 axk326 CCN Project....
+          Added Effective_Date for Member cost center transfer process
+************************************************************/
+IN_XML           CLOB)
+IS
+    V_ROW_DATA                  XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_USER_ID                   VARCHAR2(6);
+    V_FROM_LEAD_CC              VARCHAR2(6); 
+    V_TO_LEAD_CC                VARCHAR2(6);
+    V_FROM_LEAD_BANK_CC_REC     LEAD_BANK_CC%ROWTYPE;
+    V_FROM_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
+    V_TO_LEAD_BANK_CC_REC       LEAD_BANK_CC%ROWTYPE;
+    V_EXPIRE_DATE               DATE := SYSDATE;
+    V_TEMP_EFFECTIVE_DATE       DATE;
+    V_CREATE_FUTURE_FLAG        BOOLEAN;
+    V_FUTURE_ID                 NUMBER;
+BEGIN
+    BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/USER_ID/text()') = 1) THEN
+        V_USER_ID := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/USER_ID/text()').GETSTRINGVAL();  
+    END IF;
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()') = 1) THEN
+        V_FROM_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()').GETSTRINGVAL();  
+    END IF;
+    IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
+        V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
+    END IF;
+    V_TO_LEAD_BANK_CC_REC   := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
+    V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
+    V_FROM_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                                              V_FROM_LEAD_BANK_CC_REC.EFFECTIVE_DATE);                                                                          
+    --insert Bank Account and Lead into history as we are going to insert members into history
+    TABLE_IU_PKG.BANK_ACCOUNT_HIST_I_SP(V_FROM_BANK_ACCOUNT_REC);
+    TABLE_IU_PKG.LEAD_BANK_CC_HIST_I_SP(V_FROM_LEAD_BANK_CC_REC);
+    FOR rec IN (SELECT A.*
+                  FROM MEMBER_BANK_CC A,
+                       (SELECT *
+                          FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                               PASSING V_ROW_DATA
+                               COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()',
+                                       EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')) B
+                 WHERE A.LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
+                   AND A.LEAD_STORE_NBR        = V_FROM_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+                   AND A.MEMBER_STORE_NBR      =  B.MEMBER_STORE_NBR
+                 ORDER BY B.EFFECTIVE_DATE) LOOP
+        DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR,
+                                                                     NULL, --bank account number
+                                                                     NULL, --micr format id
+                                                                     V_EXPIRE_DATE); --store MICR formats needs to be expired for these members
+        TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(rec); --member needs to be removed from old lead
+        rec.EFFECTIVE_DATE        := GET_EFFECTIVE_DATE_FOR_MBR(V_ROW_DATA, rec.MEMBER_STORE_NBR);
+        IF TRUNC(NVL(V_TEMP_EFFECTIVE_DATE, TRUNC(SYSDATE))) <> TRUNC(rec.EFFECTIVE_DATE) THEN
+            V_TEMP_EFFECTIVE_DATE := rec.EFFECTIVE_DATE;
+            V_CREATE_FUTURE_FLAG := TRUE;
+        ELSE
+            V_CREATE_FUTURE_FLAG := FALSE;        
+        END IF;
+        rec.LEAD_BANK_ACCOUNT_NBR := V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+        rec.LEAD_STORE_NBR        := V_TO_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
+        rec.EXPIRATION_DATE       := NULL; --this anyways will be null, but just for understanding, else transfer will fail
+        rec.UPDATE_DATE           := TRUNC(SYSDATE);
+        rec.LAST_UPD_USER_ID      := V_USER_ID;
+        IF V_CREATE_FUTURE_FLAG THEN --future needed, create bank accuunt, MICR, lead, member, dep tick, store MICR
+            CREATE_TRANSFER_FUTURE_PROCESS(rec, V_TO_LEAD_BANK_CC_REC, V_FUTURE_ID);
+        ELSE --no need of future recreation of tables but member needs to be inserted into that future
+            IF TRUNC(rec.EFFECTIVE_DATE) = TRUNC(SYSDATE)THEN
+                TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
+                DEPOSIT_TICKET_MAINTENANCE_PKG.INSERT_BANK_DEPOSIT_DTLS(rec.MEMBER_STORE_NBR, rec.LEAD_BANK_ACCOUNT_NBR, 'M'); --store MICR formats needs to be updated for these members
+            END IF;
+        END IF;
+        IF TRUNC(rec.EFFECTIVE_DATE) > TRUNC(SYSDATE)THEN
+            CREATE_TRNSFR_MBR_BANK_CC_REC(V_FUTURE_ID, rec);
+        END IF;
+    END LOOP;
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END LEAD_TRANSFER_PROCESS;
+
+END CONCENTRATION_TRANSFER_PKG;

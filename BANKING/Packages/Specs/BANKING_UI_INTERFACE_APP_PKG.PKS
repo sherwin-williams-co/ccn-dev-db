@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         BANKING_UI_INTERFACE_APP_PKG
+create or replace PACKAGE         BANKING_UI_INTERFACE_APP_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -404,13 +404,14 @@ EXAMPLE INPUT:
     <FROM_LEAD_CC>701234</FROM_LEAD_CC>
     <TO_LEAD_CC>705678</TO_LEAD_CC>
     <MEMBER_STORES>
-      <MEMBER>701451</MEMBER>
-      <MEMBER>702000</MEMBER>
+      <MEMBER><MEMBER_STORE_NBR>701451</MEMBER_STORE_NBR><EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE></MEMBER>
+      <MEMBER><MEMBER_STORE_NBR>702000</MEMBER_STORE_NBR><EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE></MEMBER>
     </MEMBER_STORE>
 </MEMBER_TRANSFER_UI>
 
 Created : 07/08/2015 nxk927/jxc517 CCN Project....
-Changed : 
+Changed : 09/14/2015 axk326 CCN Project....
+          Added EFFECTIVE_DATE node to the XML
 ************************************************************/
 IN_XML           CLOB);
 
@@ -426,4 +427,3 @@ Changed :
     IN_FUTURE_ID            IN  NUMBER);
 
 END BANKING_UI_INTERFACE_APP_PKG;
-

@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER TR_BANK_DEP_TICK_FTR_DEL
+create or replace TRIGGER TR_BANK_DEP_TICK_FTR_DEL
 BEFORE DELETE ON BANK_DEP_TICK_FUTURE
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -54,7 +54,7 @@ begin
                                 ,v_bank_dep_tick_ftr_row.LAST_MAINT_USER_ID LAST_MAINT_USER_ID
                                 ,v_bank_dep_tick_ftr_row.REORDER_SWITCH REORDER_SWITCH
                                 ,to_char(v_bank_dep_tick_ftr_row.LAST_VW_ORDER_DATE, 'yyyymmdd') LAST_VW_ORDER_DATE
-                                ,v_bank_dep_tick_ftr_row.FUTURE_ID
+                                ,v_bank_dep_tick_ftr_row.FUTURE_ID FUTURE_ID
                                 )) AS "result", 
                     XMLELEMENT ( "PrimaryKey",               
                                   XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -89,4 +89,3 @@ begin
                 ,'TR_BANK_DEP_TICK_FTR_DEL');
      
 END TR_BANK_DEP_TICK_FTR_DEL;
-
