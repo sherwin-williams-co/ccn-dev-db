@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
+create or replace PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -121,4 +121,3 @@ Changed :
     IN_BANK_DEP_BAG_TICK_CC_REC IN BANK_DEP_BAG_TICK%ROWTYPE);
 
 END BUSINESS_RULES_PKG;
-
