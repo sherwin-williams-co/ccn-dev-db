@@ -9,11 +9,11 @@
 # Oracle Audit file and FTP'd to the mainframe using the following modules:
 #    
 #                audit_load.sh  -->  Create the Audit Back Feed File
-#                audit_ftp.sh   -->  Move and FTP the BackFeed File to the Mainframe
 #
-# Created           :  MDH 11/19/2012
+## Created          :  MDH 11/19/2012
 # Revised           :  SH  06/20/2013
 #                   :  sxh487 09/16/2015 Added the concatenation for CCN and Banking backfeed 
+#                   :  sxh487 09/17/2015 Moved the audit_ftp.sh outside this script
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -29,8 +29,6 @@ echo "Processing Started for backfeed process at ${TIME} on ${DATE}"
 ############################################################################
 echo "Processing Started for audit_load at ${TIME} on ${DATE}"
 ./audit_load.sh
-
-
 #############################################
 #   ERROR STATUS CHECK  audit_load shell
 #############################################
@@ -40,7 +38,6 @@ if test $status -ne 0
      echo "processing FAILED for audit_load at ${TIME} on ${DATE}"
      exit 1;
 fi
-
 TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
 
@@ -49,10 +46,6 @@ echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
 ##############################################################################
 echo "Concatenating Started at ${TIME} on ${DATE}"
 ./Backfeed_CAT.sh
-
-echo "Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
-
-
 ##############################################
 #    ERROR STATUS CHECK Backfeed_CAT.sh 
 ##############################################
@@ -62,65 +55,29 @@ if test $status -ne 0
      echo "processing FAILED for Backfeed_CAT at ${TIME} on ${DATE}"
      exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
+echo "Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
 
-##############################################################################
-#  Execute Main_CAT.sh to Concatenate the CCN and Banking files in order to send to MF
-##############################################################################
-echo "Concatenating for CCN and Banking files Started at ${TIME} on ${DATE}"
-./Main_CAT.sh
-
-echo "Processing Finished for Main_CAT at ${TIME} on ${DATE}"
+############################################################################
+#   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
+############################################################################
+echo "Processing Started for incomplete_cc at ${TIME} on ${DATE}"
+./incomplete_cc.sh
 
 ##############################################
-#    ERROR STATUS CHECK Backfeed_CAT.sh 
+#    ERROR STATUS CHECK incomplete_cc shell
 ##############################################
 status=$?
 if test $status -ne 0
    then
-     echo "processing FAILED for Main_CAT at ${TIME} on ${DATE}"
+     echo "processing FAILED for incomplete_cc at ${TIME} on ${DATE}"
      exit 1;
 fi
-
-# ############################################################################
-# #   execute audit_ftp.sh shell to send CCN Backfeed File to Mainframe
-# ############################################################################
-# echo "Processing Started for audit_ftp at ${TIME} on ${DATE}"
-# ./audit_ftp.sh
-
-# ##############################################
-# #    ERROR STATUS CHECK audit_ftp shell
-# ##############################################
-# status=$?
-# if test $status -ne 0
-   # then
-     # echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
-     # exit 1;
-# fi
-
-# echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-# echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
-
-# ############################################################################
-# #   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
-# ############################################################################
-# echo "Processing Started for incomplete_cc at ${TIME} on ${DATE}"
-# ./incomplete_cc.sh
-
-# ##############################################
-# #    ERROR STATUS CHECK incomplete_cc shell
-# ##############################################
-# status=$?
-# if test $status -ne 0
-   # then
-     # echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
-     # exit 1;
-# fi
-
-#echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
+TIME=`date +"%H:%M:%S"`
+echo "Processing Finished for incomplete_cc at ${TIME} on ${DATE}"
+echo "Processing finished for backfeed process at ${TIME} on ${DATE}" 
 
 exit 0
-
 ############################################################################
 #                     END  of  PROGRAM  
 ############################################################################

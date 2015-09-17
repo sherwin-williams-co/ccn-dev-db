@@ -17,6 +17,10 @@
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
+echo "Start script Main_CAT.sh" 
+./Main_CAT.sh
+echo "End script Main_CAT.sh" 
+
 echo "Start script for FTP of Audit.txt" 
 
 #$HOME/batchJobs/backFeed/logs; directory used for move
