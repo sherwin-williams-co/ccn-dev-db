@@ -21,7 +21,6 @@ sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> 
 set heading off;
 set verify off;
 set serveroutput on;
-TRUNCATE TABLE ERROR_LOG;
 EXECUTE INITLOAD.INITLOAD_SP();
 exit
 END
