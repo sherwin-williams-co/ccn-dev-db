@@ -4,7 +4,7 @@
 #
 # Description    :  This shell program will ftp the POS file to mainframe
 #                   
-# Created        :  AXK326 09/04/2015
+# Created        :  AXK326/DXV848 09/04/2015
 ###########################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 
@@ -37,6 +37,7 @@ bye
 FTP_MF
 echo "FTP to Mainframe COMPLETED"
 
+TIME=`date +"%H:%M:%S"`
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
@@ -45,10 +46,12 @@ status=$?
 if test $status -ne 0
 then
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
-TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
+exit 0
+############################################################################
+#                     END  of  PROGRAM  
 ############################################################################

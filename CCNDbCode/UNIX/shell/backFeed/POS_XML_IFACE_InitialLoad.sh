@@ -2,7 +2,7 @@
 
 ##########################################################################################
 # Script Name  : POS_XML_IFACE_IntialLoad.sh
-# Date Created : 08/31/2015 dxv848 run the  POS_XML_IFACE_IntialLoad.sql one time run.
+# Date Created : 09/18/2015 AXK326/DXV848 run the  POS_XML_IFACE_IntialLoad.sql one time run.
 #
 ##########################################################################################
 
@@ -12,7 +12,7 @@ echo "Starting  POS_XML_IFACE_LOCAL.sh script"
 . /app/ccn/host.sh
 
 # establish parameter names for this script
-PROC="POS_XML_IFACE_IntialLoad.sql"
+PROC="POS_XML_IFACE_InitialLoad.sql"
 
 # establish the date and time
 DATE=`date +"%Y-%m-%d"`
@@ -32,22 +32,25 @@ END
 
 echo "return from $PROC"
 
+TIME=`date +"%H:%M:%S"`
 ##############################################
 #  ERROR STATUS CHECK
 ##############################################
 status=$?
 if test $status -ne 0
    then
-     TIME=`date +"%H:%M:%S"`
+     
      echo "processing of $PROC failed at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 else
-   TIME=`date +"%H:%M:%S"`
    echo "processing of $PROC Successful at ${TIME} on ${DATE} "
 fi
-TIME=`date +"%H:%M:%S"`
+
 echo "ending for $PROC at $TIME on $DATE"
 
-##############################
-#  end of script             #
-##############################
+exit 0
+
+############################################################################
+#                     END  of  PROGRAM  
+############################################################################
+

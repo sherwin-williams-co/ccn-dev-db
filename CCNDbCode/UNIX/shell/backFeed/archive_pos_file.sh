@@ -4,7 +4,7 @@
 #
 # Description   : This shell program will Archive the POS file
 #
-# Created  : 09/04/2015 axk326 CCN Project Team.....
+# Created  : 09/04/2015 axk326/dxv848 CCN Project Team.....
 # Modified : 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -35,18 +35,20 @@ else
     echo " POS file does not exist "
 fi
 
+TIME=`date +"%H:%M:%S"`
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
+############################################################################
+#                     END  of  PROGRAM  
 ############################################################################

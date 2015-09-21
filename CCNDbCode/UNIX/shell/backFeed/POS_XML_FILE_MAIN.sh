@@ -13,7 +13,7 @@
 #                ftp_mq_convert_file.sh --> Ftp to main frame
 #                archive_pos_file.sh -> archive the pos file
 #
-# Created           :  dxv 09/21/2015
+# Created           :  AXK326/DXV848 09/21/2015
 #
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
@@ -31,19 +31,17 @@ echo "Processing Started for POS_XML_FILE_MAIN.sh process at ${TIME} on ${DATE}"
 echo "Processing Started for pos_xml_iface_local.sh  at ${TIME} on ${DATE}"
 ./pos_xml_iface_local.sh
 
-
+TIME=`date +"%H:%M:%S"`
 #############################################
 #   ERROR STATUS CHECK  POS_XML_IFACE_LOCAL shell
 #############################################
 status=$?
 if test $status -ne 0 
-   then
-     TIME=`date +"%H:%M:%S"`
+   then    
      echo "processing FAILED for pos_xml_iface_local.sh at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
-TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for pos_xml_iface_local.sh at ${TIME} on ${DATE}"
 
 #############################################################################
@@ -52,6 +50,7 @@ echo "Processing Finished for pos_xml_iface_local.sh at ${TIME} on ${DATE}"
 echo "pos_file_gen.sh  Started at ${TIME} on ${DATE}"
 ./pos_file_gen.sh
 
+TIME=`date +"%H:%M:%S"`
 ##############################################
 #    ERROR STATUS CHECK pos_file_gen.sh 
 ##############################################
@@ -59,10 +58,9 @@ status=$?
 if test $status -ne 0
    then
      echo "processing FAILED for pos_file_gen.sh at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
-TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for pos_file_gen.sh at ${TIME} on ${DATE}"
 
 ############################################################################
@@ -71,6 +69,7 @@ echo "Processing Finished for pos_file_gen.sh at ${TIME} on ${DATE}"
 echo "Processing Started for ftp_mq_convert_file.sh  at ${TIME} on ${DATE}"
 ./ftp_mq_convert_file.sh
 
+TIME=`date +"%H:%M:%S"`
 ##############################################
 #    ERROR STATUS CHECK ftp_mq_convert_file shell
 ##############################################
@@ -78,10 +77,10 @@ status=$?
 if test $status -ne 0
    then
      echo "processing FAILED for ftp_mq_convert_file.sh at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
-TIME=`date +"%H:%M:%S"`
+
 echo "Processing Finished for ftp_mq_convert_file.sh at ${TIME} on ${DATE}"
 
 ##############################################################################
@@ -90,6 +89,7 @@ echo "Processing Finished for ftp_mq_convert_file.sh at ${TIME} on ${DATE}"
 echo "archive_pos_file.sh  Started at ${TIME} on ${DATE}"
 ./archive_pos_file.sh
 
+TIME=`date +"%H:%M:%S"`
 ##############################################
 #    ERROR STATUS CHECK archive_pos_file.sh 
 ##############################################
@@ -97,10 +97,9 @@ status=$?
 if test $status -ne 0
    then
      echo "processing FAILED for archive_pos_file.sh at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
-TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for archive_pos_file.sh at ${TIME} on ${DATE}"
 echo "Processing finished for POS_XML_FILE_MAIN.sh process at ${TIME} on ${DATE}"  
 

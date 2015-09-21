@@ -5,7 +5,7 @@
 # Description    :  This shell program will invoke the procedure from the backend to 
 #                   generate the POS file
 #
-# Created        :  axk326 09/04/2015
+# Created        :  axk326/dxv848 09/04/2015
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -27,19 +27,21 @@ execute POS_XML_IFACE_FILE.LOAD_POS_XML_IFACE_LOCAL();
 exit;
 END
 
+TIME=`date +"%H:%M:%S"`
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 if test $status -ne 0
 then 
-     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
-
-TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
+exit 0
+
+############################################################################
+#                     END  of  PROGRAM  
 ############################################################################
 
