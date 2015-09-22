@@ -2,7 +2,7 @@ create or replace PACKAGE  POS_XML_IFACE_FILE AS
 
 /*********************************************************** 
 This package will hold all procedures/functions used to process 
-POS_XML_DATA into Local table and PSO_XML_FILE generation
+POS_XML_DATA into Local table and POS_XML_FILE generation
 
 created : 09/21/2015 AXK326/DXV848 CCN project
 revisions: 
