@@ -22,7 +22,7 @@ TIME=`date +"%H:%M:%S"`
 cd $HOME/batchJobs/sql
 pwd
 echo "Processing Started for $PROC at $TIME on $DATE"
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<EOF
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<EOF > TERR_CCN_NAMES_CHG.log
 set heading off;
 set serveroutput on;
 set verify off;
