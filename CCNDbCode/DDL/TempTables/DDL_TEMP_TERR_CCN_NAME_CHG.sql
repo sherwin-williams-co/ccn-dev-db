@@ -1,0 +1,9 @@
+/*
+Created :dxv848 09/25/2015 DDL for TEMP_TERR_CCN_NAME_CHG table.
+*/
+
+  CREATE TABLE TEMP_TERR_CCN_NAME_CHG
+      ( COST_CENTER_CODE VARCHAR2(6), 
+        COST_CENTER_NAME VARCHAR2(35), 
+                CATEGORY VARCHAR2(1) 
+      ); 
