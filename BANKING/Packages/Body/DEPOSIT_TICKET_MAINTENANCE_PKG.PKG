@@ -523,9 +523,9 @@ BEGIN
             V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE := V_EXPIRATION_DATE;
             TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
         ELSE
-            DELETE
-              FROM STORE_MICR_FORMAT_DTLS
-             WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
+            IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
+                TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_D_SP(V_STORE_MICR_FORMAT_DTLS_REC);
+            END IF;
         END IF;
     END IF;
 EXCEPTION
@@ -708,10 +708,19 @@ BEGIN
             V_STR_MICR_FORMAT_DTLS_FTR_REC.FUTURE_ID        := V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
             TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
         ELSE
-            DELETE
-              FROM STORE_MICR_FORMAT_DTLS_FUTURE
-             WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
-               AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
+            BEGIN
+                SELECT *
+                  INTO V_STR_MICR_FORMAT_DTLS_FTR_REC
+                  FROM STORE_MICR_FORMAT_DTLS_FUTURE
+                 WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
+                   AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+            IF V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE IS NOT NULL THEN
+                TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
+            END IF;
         END IF;
     END IF;
 EXCEPTION
@@ -1051,6 +1060,91 @@ EXCEPTION
         RETURN NULL;
 END GET_DEPOSIT_ORDER_SEQ_NBR;
 
+PROCEDURE CREATE_DEPOSIT_TKT_INPUT_FILE(
+/******************************************************************************
+This procedure is intended to create the input deposit ticket file.
+Corporate Treasury will then send the bank deposit ticket information to Linda. 
+Depending on the request, either of the following will be done:
+    1) Add a brand new bank account/routing number and attach store(s) to it
+    2) Add a new store to an existing bank account/routing number
+    3) Update existing bank account/routing number.  For example, a bank gets bought out and accounts are renumbered and/or routing number changes. 
+      (Note, all of these events trigger printing of deposit tickets).
+
+Created : 08/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER IN VARCHAR2)
+IS
+    CURSOR main_cur IS
+        SELECT BDTO.BANK_ACCOUNT_NBR,
+               BDTO.COST_CENTER_CODE,
+               'BDCVSW' FORM_COVER, --hard coded?
+               'SHERWIN-WILLIAMS' COMPANY, --hard coded?
+               ADDRESS_LINE_1 ADDRESS,
+               CITY,
+               STATE_CODE,
+               ZIP_CODE||'-'||A.ZIP_CODE_4 ZIP,
+               B.MICR_ROUTING_NBR ROUTING_NUMBER,
+               B.MICR_FORMAT_ACCT_NBR ACCOUNT_NUMBER,
+               B.DJDE_FORM_PARM FORM_TICKET,
+               B.DJDE_FEED_PARM FEED_TICKET,
+               'DEPOSIT_TICKET_'||BDTO.COST_CENTER_CODE HTML_NAME
+          FROM BANK_DEP_TICKORD BDTO,
+               ADDRESS_VW A,
+               (SELECT SMFD.MICR_ROUTING_NBR,
+                       SMFD.MICR_FORMAT_ACCT_NBR,
+                       SMFD.COST_CENTER_CODE,
+                       --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
+                       BMF.DJDE_FORM_PARM ,
+                       BMF.DJDE_FEED_PARM 
+                  FROM STORE_MICR_FORMAT_DTLS SMFD,
+                       BANK_MICR_FORMAT BMF
+                 WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
+                   AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID) B
+         WHERE BDTO.COST_CENTER_CODE         = A.COST_CENTER_CODE(+)
+           AND BDTO.COST_CENTER_CODE         = NVL(B.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(B.COST_CENTER_CODE))
+           AND BDTO.COST_CENTER_CODE         = IN_COST_CENTER
+           AND A.EXPIRATION_DATE IS NULL;
+       
+    PATH        	           VARCHAR2(50) := 'BANKING_LOAD_FILES';
+    BANK_DEPOSIT_IP_FILE_NM  VARCHAR2(50) := 'DEPOSIT_TICKET_';
+                                             --||TO_CHAR(IN_DATE,'DDMONRRRR');--|| '_' ||TO_CHAR(SYSDATE,'HH24MISS');
+    BANK_DEPOSIT_INPUT_FILE  UTL_FILE.FILE_TYPE;
+
+	  V_OUT_CLOB         CLOB;
+    V_COUNT            NUMBER := 0;
+BEGIN
+
+    FOR rec IN main_cur LOOP
+       IF rec.COST_CENTER_CODE is not null then
+        BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
+                                            ,BANK_DEPOSIT_IP_FILE_NM ||rec.COST_CENTER_CODE||'.txt'
+                                            ,'W' --BINARY
+                                            ,32767);
+        V_OUT_CLOB := V_OUT_CLOB ||
+                    RPAD(NVL(SUBSTR(rec.COST_CENTER_CODE, 3), ' '), 4, ' ') || --STORE-NBR (4)
+                    RPAD(NVL(rec.FORM_COVER, ' '), 6, ' ') ||                  --FORM_COVER (6)
+                    RPAD(NVL(rec.FORM_TICKET, ' '), 6, ' ') ||                 --FORM_TICKET (6)
+                    RPAD(NVL(rec.FEED_TICKET, ' '), 5, ' ') ||                 --FEED_TICKET (5)
+                    RPAD(NVL(rec.COMPANY, ' '), 26, ' ') ||                    --COMPANY (26)
+                    RPAD(NVL(rec.ADDRESS, ' '), 30, ' ') ||                    --ADDRESS (30)
+                    RPAD(NVL(rec.CITY, ' '), 30, ' ') ||                       --CITY (30)
+                    RPAD(NVL(rec.STATE_CODE, ' '), 2, ' ') ||                  --STATE_CODE (2)
+                    RPAD(NVL(rec.ZIP, ' '), 10, ' ') ||                        --ZIP (10)
+                    RPAD(NVL(rec.ROUTING_NUMBER, ' '), 11, ' ') ||             --ROUTING_NUMBER (11)
+                    RPAD(NVL(rec.ACCOUNT_NUMBER, ' '), 15, ' ') ||             --ACCOUNT_NUMBER (15)
+                    RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ') ||                  --HTML_NAME (50)
+                    CHR(13);
+       UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
+       UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
+       V_OUT_CLOB := NULL;
+       END IF;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_DEPOSIT_TKT_INPUT_FILE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END CREATE_DEPOSIT_TKT_INPUT_FILE;
+
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
 This procedure is intended to place a deposit ticket order for the store passed in
@@ -1101,6 +1195,7 @@ BEGIN
             V_BANK_DEP_TICKORD.EXTRACT_DATE            := IN_ORDERED_DATE;
             V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
             TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
+            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE);
         END IF;
     ELSE
         BEGIN
