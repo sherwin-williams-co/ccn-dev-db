@@ -5,6 +5,7 @@
 # description   : Wrapper for executing procedure SWC_HR_GENERIC_VIEW
 #
 # created 	  : SXH487
+# modified    : nxk927  09/25/2015       added the condition to exit out completely if there is any issues 
 #################################################################
 
 ##accepts date parameter
@@ -20,12 +21,23 @@ sqlplus -s  $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set verify off;
 set serveroutput on;
-
-EXECUTE CCN_SWC_HR_GEMS_PKG.SWC_HR_GENERIC_VIEW_INFO_SP();
-
-exit
-
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+CCN_SWC_HR_GEMS_PKG.SWC_HR_GENERIC_VIEW_INFO_SP();
+ Exception 
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 END
+if [ 0 -ne "$?" ]; then
+    echo "SWC_HR_GENERIC_VIEW_INFO_SP proc blew up." 
+    exit 1;
+fi
 
 TIME=`date +"%H:%M:%S"`
 echo " END TRUCATING AND LOADING : Processing finished at ${TIME} "  
