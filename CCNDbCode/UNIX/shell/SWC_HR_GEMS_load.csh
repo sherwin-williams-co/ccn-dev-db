@@ -36,7 +36,13 @@ exit :exitCode
 END
 if [ 0 -ne "$?" ]; then
     echo "SWC_HR_GENERIC_VIEW_INFO_SP proc blew up." 
-    exit 1;
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+set heading off;
+set verify off;
+execute MAIL_PKG.send_mail('SWC_HR_GEMS_LOAD');
+exit;
+END
+exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
