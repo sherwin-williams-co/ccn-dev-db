@@ -13,9 +13,9 @@ This procedure is intended to select records from Lead bank table including the
 members from the member bank table that we will be tranferred from.
 
 Created : 06/05/2015 nxk927/jxc517 CCN Project....
-Changed : 
+Changed :
 *******************************************************************************/
-IN_COST_CENTER_CODE IN     VARCHAR2,
+IN_COST_CENTER_CODE    IN     VARCHAR2,
 OUT_REF_CUR            OUT REF_CURSOR,
 OUT_REF_CUR1           OUT REF_CURSOR)
 IS
@@ -76,6 +76,7 @@ BEGIN
                              'Transfer not possible to an expired Lead store - '||IN_COST_CENTER_CODE);
         END IF;
     END IF;
+   
     OPEN OUT_REF_CUR FOR
         SELECT LB.LEAD_BANK_ACCOUNT_NBR,
                LB.LEAD_STORE_NBR,
@@ -388,21 +389,40 @@ This Procdedure does the following
 4) Inserts all the members from the current Lead under the New lead in the future table
 
 Created : 06/09/2015 nxk927/jxc517 CCN Project....
-Changed : 
+Changed : 09/28/2015 sxh487 Added logic to delete the future 
+          and Un-Expires the current records that have a future
+          if an expired member with future is transferred again
 ************************************************************/
-IN_NEW_LEAD_CC    IN     VARCHAR2,
-IN_USER_ID        IN     VARCHAR2,
-IN_EFFECTIVE_DATE IN     DATE)
+IN_MAKE_LEAD_FLAG            IN     VARCHAR2,
+IN_NEW_LEAD_CC               IN     VARCHAR2,
+IN_USER_ID                   IN     VARCHAR2,
+IN_EFFECTIVE_DATE            IN     DATE)
 IS
-    V_TO_LEAD_CC                VARCHAR2(6) := IN_NEW_LEAD_CC;
-    V_FROM_LEAD_CC              VARCHAR2(6);
-    V_FROM_LEAD_BANK_REC        LEAD_BANK_CC%ROWTYPE;
-    V_FROM_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
+    V_TO_LEAD_CC                 VARCHAR2(6) := IN_NEW_LEAD_CC;
+    V_FROM_LEAD_CC               VARCHAR2(6);
+    V_FROM_LEAD_BANK_REC         LEAD_BANK_CC%ROWTYPE;
+    V_TEMP_LEAD_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
 BEGIN
     V_FROM_LEAD_CC := BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(V_TO_LEAD_CC);
     V_FROM_LEAD_BANK_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
-    BUSINESS_RULES_PKG.MAKE_LEAD_BR_SP(V_FROM_LEAD_CC,
-                                       IN_EFFECTIVE_DATE);
+    IF NVL(IN_MAKE_LEAD_FLAG, 'N')  = 'N' THEN
+       BUSINESS_RULES_PKG.MAKE_LEAD_BR_SP(V_FROM_LEAD_CC,
+                                          IN_EFFECTIVE_DATE);
+    END IF;
+    FOR each_mbr IN (SELECT *
+                       FROM MEMBER_BANK_CC_FUTURE
+                      WHERE MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                                   FROM MEMBER_BANK_CC
+                                                  WHERE LEAD_STORE_NBR = V_FROM_LEAD_CC)
+                      ORDER BY LEAD_BANK_ACCOUNT_NBR, FUTURE_ID) LOOP
+         IF NVL(V_TEMP_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> each_mbr.LEAD_BANK_ACCOUNT_NBR THEN
+             V_TEMP_LEAD_BANK_ACCOUNT_NBR := each_mbr.LEAD_BANK_ACCOUNT_NBR;
+             --Delete all the futures for this Bank Account
+             ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR, each_mbr.FUTURE_ID);
+             --Re-Activate the expired records
+             ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UNEXPIRE_SP(V_FROM_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+        END IF;
+    END LOOP;
     IF TRUNC(IN_EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
         CREATE_MAKE_LEAD_FTR_PROCESS(V_FROM_LEAD_BANK_REC, V_TO_LEAD_CC, IN_EFFECTIVE_DATE, IN_USER_ID);
     ELSE
@@ -582,22 +602,29 @@ Created : 06/09/2015 nxk927/jxc517 CCN Project....
 Changed : 08/13/2015 nxk927 removed trunc from trunc(sysdate) to accept the time stamp
         : 09/16/2015 axk326 CCN Project....
           Added Effective_Date for Member cost center transfer process
+        : 09/28/2015 sxh487 Added logic to delete the future 
+          and Un-Expires the current records that have a future
+          if an expired member with future is transferred again
 ************************************************************/
-IN_XML           CLOB)
+IN_TRANSFER_FLAG          IN VARCHAR2,
+IN_XML                    CLOB)
 IS
-    V_ROW_DATA                  XMLTYPE := SYS.XMLTYPE(IN_XML);
-    V_USER_ID                   VARCHAR2(6);
-    V_FROM_LEAD_CC              VARCHAR2(6); 
-    V_TO_LEAD_CC                VARCHAR2(6);
-    V_FROM_LEAD_BANK_CC_REC     LEAD_BANK_CC%ROWTYPE;
-    V_FROM_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
-    V_TO_LEAD_BANK_CC_REC       LEAD_BANK_CC%ROWTYPE;
-    V_MEMBER_BANK_CC_REC        MEMBER_BANK_CC%ROWTYPE;
-    V_EXPIRE_DATE               DATE;
-    V_TEMP_EFFECTIVE_DATE       DATE;
-    V_FUTURE_ID                 NUMBER;
+    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_USER_ID                       VARCHAR2(6);
+    V_FROM_LEAD_CC                  VARCHAR2(6); 
+    V_TO_LEAD_CC                    VARCHAR2(6);
+    V_FROM_LEAD_BANK_CC_REC         LEAD_BANK_CC%ROWTYPE;
+    V_FROM_BANK_ACCOUNT_REC         BANK_ACCOUNT%ROWTYPE;
+    V_TO_LEAD_BANK_CC_REC           LEAD_BANK_CC%ROWTYPE;
+    V_MEMBER_BANK_CC_REC            MEMBER_BANK_CC%ROWTYPE;
+    V_EXPIRE_DATE                   DATE;
+    V_TEMP_EFFECTIVE_DATE           DATE;
+    V_FUTURE_ID                     NUMBER;
+    V_TEMP_LEAD_BANK_ACCOUNT_NBR    LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
 BEGIN
-    BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
+    IF NVL(IN_TRANSFER_FLAG, 'N') = 'N' THEN
+       BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
+    END IF;
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/USER_ID/text()') = 1) THEN
         V_USER_ID := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/USER_ID/text()').GETSTRINGVAL();  
     END IF;
@@ -613,6 +640,44 @@ BEGIN
                                                                               V_FROM_LEAD_BANK_CC_REC.EFFECTIVE_DATE);
     TABLE_IU_PKG.BANK_ACCOUNT_HIST_I_SP(V_FROM_BANK_ACCOUNT_REC);
     TABLE_IU_PKG.LEAD_BANK_CC_HIST_I_SP(V_FROM_LEAD_BANK_CC_REC);
+    --Delete and Un-Expire the LEAD for another Transfer
+    FOR each_lead IN (SELECT *
+                       FROM LEAD_BANK_CC_FUTURE
+                      WHERE LEAD_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                                 FROM MEMBER_BANK_CC
+                                                WHERE LEAD_STORE_NBR = V_FROM_LEAD_CC
+                                                  AND EXPIRATION_DATE IS NOT NULL
+                                                  AND MEMBER_STORE_NBR IN
+                                                              (SELECT MEMBER_STORE_NBR
+                                                                 FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                                                                      PASSING V_ROW_DATA
+                                                                      COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()')))) LOOP
+        IF NVL(V_TEMP_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> each_lead.LEAD_BANK_ACCOUNT_NBR THEN
+           V_TEMP_LEAD_BANK_ACCOUNT_NBR := each_lead.LEAD_BANK_ACCOUNT_NBR;
+           --Delete all the futures for this Bank Account
+           ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR, each_lead.FUTURE_ID);
+           --Re-Activate all the expired records
+           ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UNEXPIRE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR);
+        END IF;
+    END LOOP;
+    
+    FOR each_mbr IN (SELECT *
+                       FROM MEMBER_BANK_CC_FUTURE
+                      WHERE MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                                   FROM MEMBER_BANK_CC
+                                                  WHERE LEAD_STORE_NBR = V_FROM_LEAD_CC
+                                                    AND EXPIRATION_DATE IS NOT NULL
+                                                    AND MEMBER_STORE_NBR IN
+                                                                   (SELECT MEMBER_STORE_NBR
+                                                                      FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                                                                           PASSING V_ROW_DATA
+                                                                           COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()')))) LOOP
+        --Delete all the futures for this member store
+        ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
+        --Re-Activate the expired records that are non CC related
+        ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_FROM_LEAD_CC, each_mbr.MEMBER_STORE_NBR);
+    END LOOP;
+    
     FOR rec IN (SELECT A.*
                   FROM MEMBER_BANK_CC A,
                        (SELECT *

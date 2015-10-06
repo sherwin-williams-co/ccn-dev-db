@@ -324,4 +324,16 @@ en_childs_effctv_before_parent CONSTANT NUMBER := -20025;
 exc_childs_effctv_bfr_parent EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_childs_effctv_bfr_parent , -20025);
 
+/*********************************************************** 
+The "future_del_wrn" passes a numerical error of -20026
+This warning will be used if an expired member with future 
+is transferred again. 
+Created : 09/30/2015 sxh487 CCN Project....
+Changed :
+************************************************************/
+en_future_del_wrn CONSTANT NUMBER := -20026;
+exc_future_del_wrn EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_future_del_wrn , -20026);
+
+
 END ERRNUMS;

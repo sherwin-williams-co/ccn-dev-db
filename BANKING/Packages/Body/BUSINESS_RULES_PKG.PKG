@@ -345,6 +345,7 @@ BEGIN
              WHERE MB.LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
                AND MB.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
                AND MB.EFFECTIVE_DATE        < IN_EFFECTIVE_DATE
+               AND (MB.EXPIRATION_DATE IS NULL OR MB.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM MEMBER_BANK_CC_FUTURE MBF
@@ -352,28 +353,33 @@ BEGIN
                AND MBF.LEAD_STORE_NBR        = IN_COST_CENTER_CODE
                AND MBF.FUTURE_ID             = NVL(IN_FUTURE_ID, 0)
                AND MBF.EFFECTIVE_DATE        < IN_EFFECTIVE_DATE
+               AND (MBF.EXPIRATION_DATE IS NULL OR MBF.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
               UNION
              SELECT 1
               FROM STORE_MICR_FORMAT_DTLS SMFD
              WHERE SMFD.COST_CENTER_CODE    = IN_COST_CENTER_CODE
                AND SMFD.EFFECTIVE_DATE      < IN_EFFECTIVE_DATE
+               AND (SMFD.EXPIRATION_DATE IS NULL OR SMFD.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM STORE_MICR_FORMAT_DTLS_FUTURE SMFDF
              WHERE SMFDF.COST_CENTER_CODE    = IN_COST_CENTER_CODE
                AND SMFDF.EFFECTIVE_DATE      < IN_EFFECTIVE_DATE
                AND SMFDF.FUTURE_ID           = NVL(IN_FUTURE_ID, 0)
+               AND (SMFDF.EXPIRATION_DATE IS NULL OR SMFDF.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM BANK_DEP_TICK BDT
              WHERE BDT.COST_CENTER_CODE    = IN_COST_CENTER_CODE
                AND BDT.EFFECTIVE_DATE      < IN_EFFECTIVE_DATE
+               AND (BDT.EXPIRATION_DATE IS NULL OR BDT.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
              UNION
             SELECT 1
               FROM BANK_DEP_TICK_FUTURE BDTF
              WHERE BDTF.COST_CENTER_CODE    = IN_COST_CENTER_CODE
                AND BDTF.EFFECTIVE_DATE      < IN_EFFECTIVE_DATE
                AND BDTF.FUTURE_ID           = NVL(IN_FUTURE_ID, 0)
+               AND (BDTF.EXPIRATION_DATE IS NULL OR BDTF.EXPIRATION_DATE >= IN_EFFECTIVE_DATE)
            );
     RETURN V_RETURN_VALUE;
 EXCEPTION
@@ -453,24 +459,28 @@ IS
     V_RETURN_VALUE VARCHAR2(1) := 'N';
 BEGIN
     IF IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE IS NOT NULL THEN
-        IF IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE < IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE THEN
+        IF IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE < IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE
+           AND (IN_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL OR IN_LEAD_BANK_CC_REC.EXPIRATION_DATE >= IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE) THEN
             V_RETURN_VALUE := 'Y';
         ELSE
             V_INDEX := IN_BANK_MICR_FORMAT_TAB.FIRST;
             WHILE V_INDEX IS NOT NULL LOOP
-                IF IN_BANK_MICR_FORMAT_TAB(V_INDEX).EFFECTIVE_DATE < IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE THEN
+                IF IN_BANK_MICR_FORMAT_TAB(V_INDEX).EFFECTIVE_DATE < IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE 
+                   AND (IN_BANK_MICR_FORMAT_TAB(V_INDEX).EXPIRATION_DATE IS NULL OR IN_BANK_MICR_FORMAT_TAB(V_INDEX).EXPIRATION_DATE >= IN_BANK_ACCOUNT_REC.EFFECTIVE_DATE) THEN
                     V_RETURN_VALUE := 'Y';
                 END IF; 
                 V_INDEX := IN_BANK_MICR_FORMAT_TAB.NEXT(V_INDEX);
             END LOOP; 
         END IF;
     ELSIF IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE IS NOT NULL THEN
-        IF IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE < IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE THEN
+        IF IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE < IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE 
+           AND (IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE IS NULL OR IN_LEAD_BANK_CC_FUTURE_REC.EXPIRATION_DATE >= IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE) THEN
             V_RETURN_VALUE := 'Y';
         ELSE
             V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.FIRST;
             WHILE V_INDEX IS NOT NULL LOOP
-                IF IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE < IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE THEN
+                IF IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EFFECTIVE_DATE < IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE
+                   AND (IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EXPIRATION_DATE IS NULL OR IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX).EXPIRATION_DATE >= IN_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE) THEN
                     V_RETURN_VALUE := 'Y';
                 END IF;
                 V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.NEXT(V_INDEX);
@@ -1231,6 +1241,8 @@ PROCEDURE LEAD_TRANSFER_BR_SP(
 Created : 07/28/2015 jxc517 CCN Project....
 Changed : 09/16/2015 axk326 CCN Project....
           Added BR to check if there is any NULL Effective Date while doing the transfer process 
+          09/28/2015 sxh487 Added a warning that if an expired member with future 
+          is transferred again all the futures will be deleted 
 *******************************************************************************/
 IN_XML           CLOB)
 IS
@@ -1297,13 +1309,14 @@ BEGIN
                                                    PASSING V_ROW_DATA
                                                    COLUMNS Value VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()'))
                   AND EXPIRATION_DATE IS NOT NULL) LOOP
-        ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
-                         V_PROC_NAME,
-                         'Transfer not possible on an expired Member store - '||rec.MEMBER_STORE_NBR);
+                  ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
+                                        'This Transfer will delete all futures for Member store - '||rec.MEMBER_STORE_NBR);
     END LOOP;
 
+   --Below call will check if there are any warnings and raise those from here
+   ERRPKG.RAISE_WARNINGS();
 EXCEPTION
-    WHEN OTHERS THEN
+  WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END LEAD_TRANSFER_BR_SP;
 
@@ -1312,7 +1325,8 @@ PROCEDURE MAKE_LEAD_BR_SP(
     This procedure validates the business rules for Make Lead process of Concentration Window 
 
 Created : 07/31/2015 nxk927/jxc517 CCN Project....
-Changed :
+Changed : 09/28/2015 sxh487 Added a warning that if an expired member with future 
+          is transferred again all the futures will be deleted 
 *******************************************************************************/
 IN_FROM_LEAD_CC   IN     VARCHAR2,
 IN_EFFECTIVE_DATE IN     DATE)
@@ -1332,10 +1346,12 @@ BEGIN
                   FROM MEMBER_BANK_CC
                  WHERE LEAD_STORE_NBR        = IN_FROM_LEAD_CC
                    AND EXPIRATION_DATE IS NOT NULL) LOOP
-        ERRPKG.RAISE_ERR(errnums.en_str_exprd_trnsfr_err,
-                         V_PROC_NAME,
-                         'Make Lead not possible with an expired Member store - '||rec.MEMBER_STORE_NBR);
+                    ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
+                                         'This Process will delete all the Futures for Member store - '||rec.MEMBER_STORE_NBR);
     END LOOP;
+    
+    --Below call will check if there are any warnings and raise those from here
+    ERRPKG.RAISE_WARNINGS();
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );

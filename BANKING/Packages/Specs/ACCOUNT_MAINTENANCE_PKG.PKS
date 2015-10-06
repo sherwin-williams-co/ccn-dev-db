@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE ACCOUNT_MAINTENANCE_PKG
+create or replace PACKAGE ACCOUNT_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -78,5 +78,39 @@ Changed :
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
     IN_FUTURE_ID            IN  NUMBER);
 
-END ACCOUNT_MAINTENANCE_PKG;
+PROCEDURE ACCNT_MNTNC_EXP_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the delete process for the MAKE_LEAD/TRANSFER,
+  delete process for expired member future records
 
+Created : 10/02/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
+    IN_LEAD_STORE_NBR           IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR         IN  VARCHAR2,
+    IN_FUTURE_ID                IN  NUMBER);
+    
+PROCEDURE ACCNT_MNTNC_UNEXPIRE_SP ( 
+/******************************************************************************
+	This procedure Un-Expires the current records that have a future
+  expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2);
+
+PROCEDURE ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ( 
+/******************************************************************************
+	This procedure Un-Expires the current records that are cost center related and
+  have a future expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
+    IN_LEAD_STORE_NBR       IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR     IN  VARCHAR2);
+    
+END ACCOUNT_MAINTENANCE_PKG;

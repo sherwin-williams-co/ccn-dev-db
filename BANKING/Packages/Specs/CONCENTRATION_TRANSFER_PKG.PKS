@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CONCENTRATION_TRANSFER_PKG
+create or replace PACKAGE CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -38,11 +38,12 @@ PROCEDURE MAKE_LEAD_PROCESS(
     and transfer all the other member to the new lead.
 
 Created : 06/09/2015 nxk927/jxc517 CCN Project....
-Changed : 
+Changed : 09/29/2015 sxh487 Added a flag for the Expired member warning
 *******************************************************************************/
-IN_NEW_LEAD_CC    IN     VARCHAR2,
-IN_USER_ID        IN     VARCHAR2,
-IN_EFFECTIVE_DATE IN     DATE);
+IN_MAKE_LEAD_FLAG           IN     VARCHAR2,
+IN_NEW_LEAD_CC              IN     VARCHAR2,
+IN_USER_ID                  IN     VARCHAR2,
+IN_EFFECTIVE_DATE           IN     DATE);
 
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
@@ -50,9 +51,9 @@ PROCEDURE LEAD_TRANSFER_PROCESS(
     from one lead to another
 
 Created : 06/08/2015 nxk927/jxc517
-Changed : 
+Changed : 09/29/2015 sxh487 Added a flag for the Expired member warning
 ************************************************************/
-IN_XML           CLOB);
+IN_TRANSFER_FLAG          IN VARCHAR2,
+IN_XML                    CLOB);
 
 END CONCENTRATION_TRANSFER_PKG;
-

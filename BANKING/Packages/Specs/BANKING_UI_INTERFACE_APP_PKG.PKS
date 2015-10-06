@@ -386,11 +386,15 @@ PROCEDURE MAKE_LEAD_PROCESS
     and transfer all the other member to the new lead.
 
 Created : 07/08/2015 nxk927/jxc517 CCN Project....
-Changed : 
+Changed : 09/29/2015 sxh487 Added an IN_MAKE_LEAD_FLAG to bypass the
+          Warning message which states that "this process will delete 
+          all Futures". This Needs to be a 'Y' if the user hits the 'OK' button
+          to proceed with the process 
 *******************************************************************************/
-(IN_NEW_LEAD_CC IN     VARCHAR2
-,IN_USER_ID      IN     VARCHAR2
-,IN_EFFECTIVE_DATE IN     DATE);
+(IN_MAKE_LEAD_FLAG           IN     VARCHAR2
+,IN_NEW_LEAD_CC              IN     VARCHAR2
+,IN_USER_ID                  IN     VARCHAR2
+,IN_EFFECTIVE_DATE           IN     DATE);
 
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
@@ -412,8 +416,13 @@ EXAMPLE INPUT:
 Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 09/14/2015 axk326 CCN Project....
           Added EFFECTIVE_DATE node to the XML
+Changed : 09/29/2015 sxh487 Added an IN_TRANSFER_FLAG to bypass the
+          Warning message which states that "this process will delete 
+          all Futures". This Needs to be a 'Y' if the user hits the 'OK' button
+          to proceed with the process 
 ************************************************************/
-IN_XML           CLOB);
+IN_TRANSFER_FLAG          IN VARCHAR2,
+IN_XML                    CLOB);
 
 PROCEDURE ACCNT_MNTNC_UI_DELETE_SP(
 /***********************************************************

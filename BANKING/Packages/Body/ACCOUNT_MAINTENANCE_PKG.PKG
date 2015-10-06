@@ -885,4 +885,187 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UI_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCNT_MNTNC_UI_DELETE_SP;
 
+PROCEDURE ACCNT_MNTNC_EXP_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the delete process for expired member future records
+  and its related tables
+
+Created : 10/02/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
+    IN_LEAD_STORE_NBR           IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR         IN  VARCHAR2,
+    IN_FUTURE_ID                IN  NUMBER)
+IS
+    CURSOR mbr_bank_cc_cur IS 
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID;
+    CURSOR store_micr_format_dtls_cur IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+BEGIN
+     --expire CC related child tables
+     FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
+         TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP (str_micr_format_rec);
+     END LOOP;
+     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
+     END LOOP;
+     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
+         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_rec);
+     END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_EXP_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_EXP_DELETE_SP;
+
+PROCEDURE ACCNT_MNTNC_UNEXPIRE_SP ( 
+/******************************************************************************
+	This procedure Un-Expires the current records that have a future
+  expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2)
+IS
+    CURSOR bank_account_cur IS 
+        SELECT *
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR lead_bank_cc_cur IS 
+        SELECT *
+          FROM LEAD_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR mbr_bank_cc_cur(IN_LEAD_STORE_NBR IN VARCHAR2) IS 
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR;
+    CURSOR bank_micr_format_cur IS 
+        SELECT *
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR store_micr_format_dtls_cur(IN_MICR_FORMAT_ID NUMBER) IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID;
+    CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+BEGIN
+     FOR bank_account_rec IN bank_account_cur LOOP
+         FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
+             FOR str_micr_format_rec IN store_micr_format_dtls_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
+                 str_micr_format_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
+             END LOOP;
+             bank_micr_format_rec.EXPIRATION_DATE := NULL;
+             TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(bank_micr_format_rec);
+         END LOOP;
+         FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+             FOR mbr_bank_cc_rec IN mbr_bank_cc_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+                 END LOOP;
+                 FOR bank_dep_tickord_rec IN bank_dep_tickord_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+                 END LOOP;
+                 mbr_bank_cc_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
+             END LOOP;
+             FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+             END LOOP;
+             FOR bank_dep_tickord_rec IN bank_dep_tickord_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+             END LOOP;
+             lead_bank_cc_rec.EXPIRATION_DATE := NULL;
+             TABLE_IU_PKG.LEAD_BANK_CC_I_SP(lead_bank_cc_rec);
+         END LOOP;
+         bank_account_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_ACCOUNT_I_SP(bank_account_rec);
+     END LOOP;
+       
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_UNEXPIRE_SP;
+
+PROCEDURE ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ( 
+/******************************************************************************
+	This procedure Un-Expires the current records that are cost center related and
+  have a future expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
+    IN_LEAD_STORE_NBR       IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR     IN  VARCHAR2)
+IS
+    CURSOR mbr_bank_cc_cur IS 
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR;
+    CURSOR store_micr_format_dtls_cur IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tickord_cur IS
+        SELECT *
+          FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+BEGIN
+     --expire CC related child tables
+     FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
+         str_micr_format_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
+     END LOOP;
+     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+         bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+     END LOOP;
+     FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
+         bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+     END LOOP;
+     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
+         mbr_bank_cc_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
+     END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
+
 END ACCOUNT_MAINTENANCE_PKG;
