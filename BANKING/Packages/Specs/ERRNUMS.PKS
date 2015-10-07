@@ -127,18 +127,6 @@ exc_effctv_dt_lte_current_dt EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_effctv_dt_lte_current_dt , -20009);
 
 /*********************************************************** 
-The "bank_exists_for_effctv_dt" passes a numerical error of -20010
-This error will be used when the bank account is effective for another lead
-for the passed effective date
-
-Created : 07/09/2015 nxk927 CCN Project....
-Changed :
-************************************************************/
-en_bank_exists_for_effctv_dt CONSTANT NUMBER := -20010;  
-exc_bank_exists_for_effctv_dt EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_bank_exists_for_effctv_dt , -20010);
-
-/*********************************************************** 
 The "parent_child_dates_err" passes a numerical error of -20011
 This error will be used child dates falls outside parents dates
 
@@ -335,5 +323,14 @@ en_future_del_wrn CONSTANT NUMBER := -20026;
 exc_future_del_wrn EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_future_del_wrn , -20026);
 
-
+/*********************************************************** 
+The "future_del_wrn" passes a numerical error of -20027
+This warning will be used if there is a change in effective_date without
+changing the concerned bank_type code
+Created : 10/06/2015 axk326 CCN Project....
+Changed :
+************************************************************/
+en_lead_bank_type_not_chg CONSTANT NUMBER := -20027;
+exc_lead_bank_type_not_chg EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_lead_bank_type_not_chg , -20027);
 END ERRNUMS;

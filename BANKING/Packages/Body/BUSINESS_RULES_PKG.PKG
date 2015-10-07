@@ -609,6 +609,35 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_LEAD_BANK_TYPE_INVALID;
 
+FUNCTION IS_LEAD_BANK_TYPE_CHNG(
+/*******************************************************************************
+  This function will return "Y" if the passed lead type is changed from existing
+
+Created : 
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE   IN     VARCHAR2,
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_LEAD_BANK_TYPE     IN     VARCHAR2,
+IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+        SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+          INTO V_RETURN_VALUE
+          FROM LEAD_BANK_CC 
+         WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+           AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND (BANK_TYPE_CODE = IN_LEAD_BANK_TYPE AND EFFECTIVE_DATE <> IN_EFFECTIVE_DATE)
+           OR (BANK_TYPE_CODE <> IN_LEAD_BANK_TYPE AND EFFECTIVE_DATE = IN_EFFECTIVE_DATE)
+           ;
+              
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_LEAD_BANK_TYPE_CHNG;
+
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Account Maintenance Window 
@@ -636,6 +665,7 @@ IS
     micr_added_twice              EXCEPTION;
     micr_exprd_with_actv_dptks    EXCEPTION;
     lead_indpdt_with_actv_mbr     EXCEPTION;
+    lead_bank_type_not_chg        EXCEPTION;
     childs_effctv_before_parent   EXCEPTION;
 BEGIN
     IF IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN
@@ -743,6 +773,12 @@ BEGIN
                                      NULL) = 'Y' THEN
             RAISE lead_indpdt_with_actv_mbr;
         END IF;
+        IF IS_LEAD_BANK_TYPE_CHNG(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                     IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
+                                     IN_LEAD_BANK_CC_REC.BANK_TYPE_CODE,
+                                     IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE) = 'Y' THEN
+            RAISE lead_bank_type_not_chg;
+        END IF;
     ELSE
     --********************************************************************************
     --LEAD_BANK_CC_FUTURE Validations
@@ -781,6 +817,12 @@ BEGIN
                                      IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,
                                      IN_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID) = 'Y' THEN
             RAISE lead_indpdt_with_actv_mbr;
+        END IF;
+        IF IS_LEAD_BANK_TYPE_CHNG(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                     IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
+                                     IN_LEAD_BANK_CC_REC.BANK_TYPE_CODE,
+                                     IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE) = 'Y' THEN
+            RAISE lead_bank_type_not_chg;
         END IF;
     END IF;
     IF IN_BANK_MICR_FORMAT_TAB.COUNT > 0 THEN
@@ -875,6 +917,10 @@ EXCEPTION
         ERRPKG.RAISE_ERR(errnums.en_childs_effctv_before_parent,
                          V_PROC_NAME,
                          'child data becomes effective before parent data, with this update');
+    WHEN lead_bank_type_not_chg THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_bank_type_not_chg,
+                         V_PROC_NAME,
+                         'Bank type and effective date has to be changed correspondingly');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCOUNT_MAINTENANCE_BR_SP;
