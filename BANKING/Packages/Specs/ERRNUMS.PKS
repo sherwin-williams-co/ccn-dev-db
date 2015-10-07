@@ -324,13 +324,13 @@ exc_future_del_wrn EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_future_del_wrn , -20026);
 
 /*********************************************************** 
-The "future_del_wrn" passes a numerical error of -20027
-This warning will be used if there is a change in effective_date without
-changing the concerned bank_type code
+The "lead_bank_type_not_chg" passes a numerical error of -20027
+This error will be thrown if there is a change to Bank type and 
+effective date correspondingly
 Created : 10/06/2015 axk326 CCN Project....
 Changed :
 ************************************************************/
-en_lead_bank_type_not_chg CONSTANT NUMBER := -20027;
-exc_lead_bank_type_not_chg EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_lead_bank_type_not_chg , -20027);
+en_lead_bnk_typ_not_chg_err CONSTANT NUMBER := -20027;
+exc_lead_bnk_typ_not_chg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_lead_bnk_typ_not_chg_err , -20027);
 END ERRNUMS;
