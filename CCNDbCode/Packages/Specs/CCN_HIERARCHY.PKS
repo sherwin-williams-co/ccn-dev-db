@@ -722,6 +722,19 @@ Created : 01/17/2014 JXC517
 
 **********************************************************/
     IN_XML                CLOB);
+    
+PROCEDURE HRCHY_DELETE_EXPIRED_REC
+/******************************************************************************
+      HRCHY_DELETE_EXPIRED_REC
+      
+      This procedure runs every day as part of batch job to 
+      1)insert the expired record into HIERARCHY_DETAIL_HST table.
+      2)delete the expired record from HIERARCHY_DETAIL table.
+
+Created : 10/02/2015 SXT410 CCN Project...
+Revised :
+*******************************************************************************/
+;
 
 PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************
@@ -746,4 +759,3 @@ Created : 04/23/2015 jxc517 CCN Project
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
 END CCN_HIERARCHY;
-
