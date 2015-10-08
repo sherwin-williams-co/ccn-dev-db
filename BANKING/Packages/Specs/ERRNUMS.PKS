@@ -208,15 +208,15 @@ exc_micr_exprd_with_actv_dptks EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_micr_exprd_with_actv_dptks , -20017);
 
 /*********************************************************** 
-The "lead_indpdt_with_actv_mbr" passes a numerical error of -20018
+The "lead_indpdt_with_actv_mbr" passes a numerical error of -20010
 This error will be used when a lead is made independent with active members
 
 Created : 08/21/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_lead_indpdt_with_actv_mbr CONSTANT NUMBER := -20018;
+en_lead_indpdt_with_actv_mbr CONSTANT NUMBER := -20010;
 exc_lead_indpdt_with_actv_mbr EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_lead_indpdt_with_actv_mbr , -20018);
+PRAGMA EXCEPTION_INIT(exc_lead_indpdt_with_actv_mbr , -20010);
 
 /*********************************************************** 
 The "micr_format_conversion" passes a numerical error of -20019
