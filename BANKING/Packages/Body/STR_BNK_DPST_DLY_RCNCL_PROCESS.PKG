@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE BODY STR_BNK_DPST_DLY_RCNCL_PROCESS
+create or replace PACKAGE BODY STR_BNK_DPST_DLY_RCNCL_PROCESS
 AS
 /**********************************************************
   This Package contains procedured to perform the "Store Bank
@@ -245,7 +244,7 @@ BEGIN
                     RPAD(NVL(V_ADDRESS_REC.ZIP_CODE_4, ' '), 4, ' ') ||                          --ADDR-ZIP-6-9 (4)
                     FORMAT_INPUT_FOR_FILE(NVL(V_PHONE_REC.PRIMARY_PHONE_NUMBER,
                                               NVL(V_PHONE_REC.SECONDARY_PHONE_NUMBER, ' ')),
-                                          '9', 9) ||                                             --AREA-CODE || PHONE-NBR (9)
+                                          '9', 10) ||                                            --AREA-CODE || PHONE-NBR (9)
                     FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                        --FILLER (4 spaces)
                     FORMAT_INPUT_FOR_FILE(1, 0, 12) ||                                           --S1-DEPO-AMT = 0.01 (12)
                     FORMAT_INPUT_FOR_FILE(1, 0, 12) ||                                           --S2-DEPO-AMT = 0.01 (12)
@@ -266,38 +265,96 @@ BEGIN
     UTL_FILE.FCLOSE(UAR_SERIAL_OTPT_FL);
 END GENERATE_UAR_SERIAL_FILE;
 
+FUNCTION GET_ACH_EXTRCT_CNTRL_FL_DT(
+/******************************************************************************
+  This function will return the previous run date for the 4 digit store passed in
+
+Created : 09/30/2015 jxc517 CCN Project....
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter as well
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_DATE                 IN         DATE) RETURN DATE
+IS
+    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
+BEGIN
+    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
+      INTO V_RETURN_DATE_VAL
+      FROM ACH_DRFTS_EXTRCT_CNTRL_FL
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND LOAD_DATE < IN_DATE;
+    RETURN V_RETURN_DATE_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_DATE_VAL;
+END GET_ACH_EXTRCT_CNTRL_FL_DT;
+
+FUNCTION GET_PREV_JV_EXTRCT_CNTRL_FL_DT(
+/******************************************************************************
+  This function will return the previous run date for the 4 digit store passed in
+
+Created : 09/30/2015 jxc517 CCN Project....
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter as well
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_DATE                 IN         DATE) RETURN DATE
+IS
+    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
+BEGIN
+    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
+      INTO V_RETURN_DATE_VAL
+      FROM JV_EXTRCT_CNTRL_FL
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND LOAD_DATE < IN_DATE;
+    RETURN V_RETURN_DATE_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_DATE_VAL;
+END GET_PREV_JV_EXTRCT_CNTRL_FL_DT;
+
+FUNCTION GET_PREV_SUM_EXTRCT_CTRL_FL_DT(
+/******************************************************************************
+  This function will return the previous run date for the 4 digit store passed in
+
+Created : 09/30/2015 jxc517 CCN Project....
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter as well
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_DATE                 IN         DATE) RETURN DATE
+IS
+    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
+BEGIN
+    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
+      INTO V_RETURN_DATE_VAL
+      FROM SUMMARY_EXTRCT_CNTRL_FL
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND LOAD_DATE < IN_DATE;
+    RETURN V_RETURN_DATE_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_DATE_VAL;
+END GET_PREV_SUM_EXTRCT_CTRL_FL_DT;
+
 PROCEDURE GENERATE_POS_BNK_DPST_DTL_FILE(
 /******************************************************************************
   This procedure generates POS BANK DEPOSIT DETAILS [SRA10520] file
   as part of SRA10500 process
 
 Created : 06/25/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR main_cur IS
         SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
-               NVL(A.YEAR || A.MONTH || A.DAY, ' ') TRNSCTN_DATE,
+               NVL(A.TRANSACTION_DATE, ' ') TRANSACTION_DATE,
                NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
-               NVL(C.DIVISION, ' ') DIVISION,
-               NVL(C.AREA, ' ') AREA,
-               NVL(C.DISTRICT, ' ') DISTRICT,
                NVL(A.BANK_ACCOUNT_NBR, '0') BANK_ACCOUNT_NBR
-          FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
-                       COST_CENTER_CODE
-                  FROM SUMMARY_EXTRCT_CNTRL_FL_PREV
-                 GROUP BY COST_CENTER_CODE) B,
-               (SELECT SUBSTR(COST_CENTER_CODE, 3) COST_CENTER_CODE,
-                       DIVISION,
-                       AREA,
-                       DISTRICT
-                  FROM HIERARCHY_DETAIL_VIEW
-                 WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY') C
-         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND A.COST_CENTER_CODE = C.COST_CENTER_CODE(+)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'));
+          FROM SUMMARY_EXTRCT_CNTRL_FL A
+         WHERE A.LOAD_DATE = TRUNC(SYSDATE);
 
     PATH        	            VARCHAR2(50) := 'BANKING_LOAD_FILES';
     POS_BNK_DPST_DTLS_FL_NM   VARCHAR2(50) := 'SMIS1.TMP.SRA10520_' ||
@@ -305,6 +362,9 @@ IS
                                          TO_CHAR(SYSDATE,'HH24MISS');
     POS_BNK_DPST_DTLS_OTPT_FL UTL_FILE.FILE_TYPE;
 
+	  V_DIVISION      VARCHAR2(10);
+    V_AREA          VARCHAR2(10);
+    V_DISTRICT      VARCHAR2(10);
 	  V_OUT_CLOB      CLOB;
     V_COUNT         NUMBER := 0;
 BEGIN
@@ -313,28 +373,31 @@ BEGIN
                                                  ,'W' --BINARY
                                                  ,32767);
     FOR rec IN main_cur LOOP
-        --Push the data into SMIS1.TMP.SRA10520 file
-        V_COUNT := V_COUNT + 1;
-        V_OUT_CLOB := V_OUT_CLOB ||
-                      '1' ||                                                     --FLAG (1)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                     --FIELD-4 (17 spaces)
-                      '0' ||                                                     --SERIAL-NO-PFX (1)
-                      RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                     --SERIAL-NO (4 + 12 spaces)
-                      FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||        --AMOUNT (12)
-                      FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_DATE, '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
-                      '0020' ||                                                  --TRAN-CODE (4)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                      --FIELD (4 spaces)
-                      RPAD(rec.DIVISION, 17, ' ') ||                             --FIELD-5 (Division 2 + 15 spaces)
-                      RPAD(rec.AREA, 17, ' ') ||                                 --FIELD-6 (Area 2 + 15 spaces)
-                      RPAD(rec.DISTRICT, 40, ' ') ||                             --FIELD-7 (District 2 + 38 spaces)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                    --FIELD-8 + FILLER (40 + 60 spaces)
-                      CHR(13) ||                                                 --CR-LF
-                      FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
-                      CHR(13);
-        IF V_COUNT = 50 THEN
-            UTL_FILE.PUT_LINE(POS_BNK_DPST_DTLS_OTPT_FL, V_OUT_CLOB, TRUE);
-            V_OUT_CLOB := NULL;
-            V_COUNT := 0;
+        IF rec.TRANSACTION_DATE > GET_PREV_SUM_EXTRCT_CTRL_FL_DT(rec.COST_CENTER_CODE, IN_DATE) THEN
+            --Push the data into SMIS1.TMP.SRA10520 file
+            BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+            V_COUNT := V_COUNT + 1;
+            V_OUT_CLOB := V_OUT_CLOB ||
+                          '1' ||                                                     --FLAG (1)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                     --FIELD-4 (17 spaces)
+                          '0' ||                                                     --SERIAL-NO-PFX (1)
+                          RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                     --SERIAL-NO (4 + 12 spaces)
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||        --AMOUNT (12)
+                          FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'RRMMDD'), '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
+                          '0020' ||                                                  --TRAN-CODE (4)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                      --FIELD (4 spaces)
+                          RPAD(V_DIVISION, 17, ' ') ||                               --FIELD-5 (Division 2 + 15 spaces)
+                          RPAD(V_AREA, 17, ' ') ||                                   --FIELD-6 (Area 2 + 15 spaces)
+                          RPAD(V_DISTRICT, 40, ' ') ||                               --FIELD-7 (District 2 + 38 spaces)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                    --FIELD-8 + FILLER (40 + 60 spaces)
+                          CHR(13) ||                                                 --CR-LF
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
+                          CHR(13);
+            IF V_COUNT = 50 THEN
+                UTL_FILE.PUT_LINE(POS_BNK_DPST_DTLS_OTPT_FL, V_OUT_CLOB, TRUE);
+                V_OUT_CLOB := NULL;
+                V_COUNT := 0;
+            END IF;
         END IF;
     END LOOP;
 	  IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -351,33 +414,19 @@ PROCEDURE GENERATE_ACH_DRFT_DTL_FILE(
   as part of SRA11000 process
 
 Created : 06/26/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR main_cur IS
         SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
-               NVL(A.YEAR || A.MONTH || A.DAY, ' ') TRNSCTN_DATE,
+               A.TRANSACTION_DATE TRANSACTION_DATE,
                NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
-               NVL(C.DIVISION, ' ') DIVISION,
-               NVL(C.AREA, ' ') AREA,
-               NVL(C.DISTRICT, ' ') DISTRICT,
                NVL(A.BANK_ACCOUNT_NBR, '0') BANK_ACCOUNT_NBR,
                A.BANK_AUTO_REC_IND
-          FROM TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
-                       COST_CENTER_CODE
-                  FROM ACH_DRFTS_EXTRCT_CNTRL_FL_PREV
-                 GROUP BY COST_CENTER_CODE) B,
-               (SELECT SUBSTR(COST_CENTER_CODE, 3) COST_CENTER_CODE,
-                       DIVISION,
-                       AREA,
-                       DISTRICT
-                  FROM HIERARCHY_DETAIL_VIEW
-                 WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY') C
-         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND A.COST_CENTER_CODE = C.COST_CENTER_CODE(+)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'));
+          FROM ACH_DRFTS_EXTRCT_CNTRL_FL A
+         WHERE A.LOAD_DATE = IN_DATE;
 
     PATH        	            VARCHAR2(50) := 'BANKING_LOAD_FILES';
     ACH_DRFT_DTLS_FL_NM       VARCHAR2(50) := 'SMIS1.TMP.SRA11063_' ||
@@ -385,6 +434,9 @@ IS
                                          TO_CHAR(SYSDATE,'HH24MISS');
     ACH_DRFT_DTLS_OTPT_FL     UTL_FILE.FILE_TYPE;
 
+	  V_DIVISION      VARCHAR2(10);
+    V_AREA          VARCHAR2(10);
+    V_DISTRICT      VARCHAR2(10);
 	  V_OUT_CLOB      CLOB;
     V_COUNT         NUMBER := 0;
 BEGIN
@@ -393,28 +445,31 @@ BEGIN
                                              ,'W' --BINARY
                                              ,32767);
     FOR rec IN main_cur LOOP
-        --Push the data into SMIS1.TMP.SRA11063 file
-        V_COUNT := V_COUNT + 1;
-        V_OUT_CLOB := V_OUT_CLOB ||
-                      '1' ||                                                     --FLAG (1)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                     --FIELD-4 (17 spaces)
-                      '0' ||                                                     --SERIAL-NO-PFX (1)
-                      RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                     --SERIAL-NO (4 + 12 spaces)
-                      FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||        --AMOUNT (12)
-                      FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_DATE, '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
-                      '0020' ||                                                  --TRAN-CODE (4)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                      --FIELD (4 spaces)
-                      RPAD(rec.DIVISION, 17, ' ') ||                             --FIELD-5 (Division 2 + 15 spaces)
-                      RPAD(rec.AREA, 17, ' ') ||                                 --FIELD-6 (Area 2 + 15 spaces)
-                      RPAD(rec.DISTRICT, 40, ' ') ||                             --FIELD-7 (District 2 + 38 spaces)
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                    --FIELD-8 + FILLER (40 + 60 spaces)
-                      CHR(13) ||                                                 --CR-LF
-                      FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
-                      CHR(13);
-        IF V_COUNT = 50 THEN
-            UTL_FILE.PUT_LINE(ACH_DRFT_DTLS_OTPT_FL, V_OUT_CLOB, TRUE);
-            V_OUT_CLOB := NULL;
-            V_COUNT := 0;
+        IF rec.TRANSACTION_DATE > GET_ACH_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE, IN_DATE) THEN
+            BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+            --Push the data into SMIS1.TMP.SRA11063 file
+            V_COUNT := V_COUNT + 1;
+            V_OUT_CLOB := V_OUT_CLOB ||
+                          '1' ||                                                     --FLAG (1)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                     --FIELD-4 (17 spaces)
+                          '0' ||                                                     --SERIAL-NO-PFX (1)
+                          RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                     --SERIAL-NO (4 + 12 spaces)
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||        --AMOUNT (12)
+                          FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'RRMMDD'), '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
+                          '0020' ||                                                  --TRAN-CODE (4)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                      --FIELD (4 spaces)
+                          RPAD(V_DIVISION, 17, ' ') ||                               --FIELD-5 (Division 2 + 15 spaces)
+                          RPAD(V_AREA, 17, ' ') ||                                   --FIELD-6 (Area 2 + 15 spaces)
+                          RPAD(V_DISTRICT, 40, ' ') ||                               --FIELD-7 (District 2 + 38 spaces)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                    --FIELD-8 + FILLER (40 + 60 spaces)
+                          CHR(13) ||                                                 --CR-LF
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
+                          CHR(13);
+            IF V_COUNT = 50 THEN
+                UTL_FILE.PUT_LINE(ACH_DRFT_DTLS_OTPT_FL, V_OUT_CLOB, TRUE);
+                V_OUT_CLOB := NULL;
+                V_COUNT := 0;
+            END IF;
         END IF;
     END LOOP;
 	  IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -431,21 +486,17 @@ PROCEDURE GENERATE_UAR_REFEED_FILE(
   as part of SRA13003 process
 
 Created : 06/30/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added load date and passing the date parameter  
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR main_cur IS
         SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
-               NVL(A.YEAR || A.MONTH || A.DAY, ' ') TRNSCTN_DATE,
+               A.TRANSACTION_DATE TRANSACTION_DATE,
                NVL(A.BANK_ACCOUNT_NBR, '0') BANK_ACCOUNT_NBR
-          FROM TEMP_JV_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
-                       COST_CENTER_CODE
-                  FROM JV_EXTRCT_CNTRL_FL_PREV
-                 GROUP BY COST_CENTER_CODE) B
-         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'));
+          FROM JV_EXTRCT_CNTRL_FL A
+         WHERE A.LOAD_DATE = IN_DATE;
 
     PATH        	            VARCHAR2(50) := 'BANKING_LOAD_FILES';
     UAR_REFEED_FL_NM          VARCHAR2(50) := 'SMIS1.TMP.SRA13514_' ||
@@ -461,9 +512,10 @@ BEGIN
                                           ,'W' --BINARY
                                           ,32767);
     FOR rec IN main_cur LOOP
-        --Push the data into SMIS1.TMP.SRA11063 file
-        V_COUNT := V_COUNT + 1;
-        V_OUT_CLOB := V_OUT_CLOB ||
+        IF rec.TRANSACTION_DATE > GET_PREV_JV_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE,IN_DATE) THEN
+            --Push the data into SMIS1.TMP.SRA11063 file
+            V_COUNT := V_COUNT + 1;
+            V_OUT_CLOB := V_OUT_CLOB ||
 /*
                       '1' ||                                                     --FLAG (1)
                       FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                     --FIELD-4 (17 spaces)
@@ -471,9 +523,9 @@ BEGIN
                       RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                     --SERIAL-NO (4 + 12 spaces)
                       FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||        --AMOUNT (12)
 */
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 47) ||                     --FILLER (47 spaces)
-                      FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_DATE, '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
-                      '0020' ||                                                  --TRAN-CODE (4)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 47) ||                     --FILLER (47 spaces)
+                          FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'RRMMDD'), '0', 6) ||         --TRAN-YYMMDD (2 + 2 + 2)
+                          '0020' ||                                                  --TRAN-CODE (4)
 /*
                       FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                      --FIELD (4 spaces)
                       RPAD(rec.DIVISION, 17, ' ') ||                             --FIELD-5 (Division 2 + 15 spaces)
@@ -481,14 +533,15 @@ BEGIN
                       RPAD(rec.DISTRICT, 40, ' ') ||                             --FIELD-7 (District 2 + 38 spaces)
                       FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                    --FIELD-8 + FILLER (40 + 60 spaces)
 */
-                      FORMAT_INPUT_FOR_FILE(' ', ' ', 178) ||                    --FILLER (178 spaces)
-                      CHR(13) ||                                                 --CR-LF
-                      FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
-                      CHR(13);
-        IF V_COUNT = 50 THEN
-            UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
-            V_OUT_CLOB := NULL;
-            V_COUNT := 0;
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 178) ||                    --FILLER (178 spaces)
+                          CHR(13) ||                                                 --CR-LF
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_ACCOUNT_NBR, '0', 17) ||    --BANK-ACCOUNT-NBR (17)
+                          CHR(13);
+            IF V_COUNT = 50 THEN
+                UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
+                V_OUT_CLOB := NULL;
+                V_COUNT := 0;
+            END IF;
         END IF;
     END LOOP;
 	  IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -505,72 +558,45 @@ PROCEDURE GENERATE_UAR_POS_FILE(
   that needs to be ftp'd as part of SRA12000 process
 
 Created : 06/29/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          Comparing today's data with yesterday's data from same table 
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR ach_cur IS
         SELECT DISTINCT BANK_ACCOUNT_NBR
-          FROM TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
+          FROM ACH_DRFTS_EXTRCT_CNTRL_FL A,
+               (SELECT MAX(TRANSACTION_DATE) DATE_VALUE,
                        COST_CENTER_CODE
-                  FROM ACH_DRFTS_EXTRCT_CNTRL_FL_PREV
+                  FROM ACH_DRFTS_EXTRCT_CNTRL_FL
+                 WHERE LOAD_DATE < IN_DATE
                  GROUP BY COST_CENTER_CODE) B
          WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'))
+           AND A.TRANSACTION_DATE >= NVL(DATE_VALUE, TO_DATE('01-JAN-1900'))
+           AND A.LOAD_DATE = IN_DATE
          ORDER BY BANK_ACCOUNT_NBR;
 
     CURSOR refeed_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
-               NVL(A.YEAR || A.MONTH || A.DAY, ' ') TRNSCTN_DATE,
+               A.TRANSACTION_DATE,
                NVL(A.AMOUNT, '0') AMOUNT,
-               NVL(C.DIVISION, ' ') DIVISION,
-               NVL(C.AREA, ' ') AREA,
-               NVL(C.DISTRICT, ' ') DISTRICT,
                NVL(A.TRAN_SEQNUM, '0') TRNSCTN_SEQ_NBR,
                'OD' CODE,
                'SNZ' CODE1,
                NVL(A.REFEED_TCODE, '0') TCODE
-          FROM TEMP_JV_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
-                       COST_CENTER_CODE
-                  FROM JV_EXTRCT_CNTRL_FL_PREV
-                 GROUP BY COST_CENTER_CODE) B,
-               (SELECT COST_CENTER_CODE,
-                       DIVISION,
-                       AREA,
-                       DISTRICT
-                  FROM HIERARCHY_DETAIL_VIEW
-                 WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY') C
-         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND A.COST_CENTER_CODE = SUBSTR(C.COST_CENTER_CODE(+), 3)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'))
-           AND A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+          FROM JV_EXTRCT_CNTRL_FL A
+         WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND A.LOAD_DATE = IN_DATE
          ORDER BY COST_CENTER_CODE;
 
     CURSOR pos_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
-               NVL(A.YEAR || A.MONTH || A.DAY, ' ') TRNSCTN_DATE,
+               A.TRANSACTION_DATE,
                NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
-               NVL(C.DIVISION, ' ') DIVISION,
-               NVL(C.AREA, ' ') AREA,
-               NVL(C.DISTRICT, ' ') DISTRICT,
                '0020' TCODE               
-          FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL A,
-               (SELECT MAX(TO_DATE(YEAR||MONTH||DAY,'RRMMDD')) DATE_VALUE,
-                                COST_CENTER_CODE
-                           FROM SUMMARY_EXTRCT_CNTRL_FL_PREV
-                 GROUP BY COST_CENTER_CODE) B,
-               (SELECT COST_CENTER_CODE,
-                       DIVISION,
-                       AREA,
-                       DISTRICT
-                  FROM HIERARCHY_DETAIL_VIEW
-                 WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY') C
-         WHERE A.COST_CENTER_CODE = B.COST_CENTER_CODE(+)
-           AND A.COST_CENTER_CODE = SUBSTR(C.COST_CENTER_CODE(+), 3)
-           AND TO_DATE(A.YEAR||A.MONTH||A.DAY,'RRMMDD') > NVL(DATE_VALUE, TO_DATE('01-JAN-1900'))
-           AND A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+          FROM SUMMARY_EXTRCT_CNTRL_FL A
+         WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND A.LOAD_DATE = IN_DATE
          ORDER BY COST_CENTER_CODE;
 
     PATH        	       VARCHAR2(50) := 'BANKING_LOAD_FILES';
@@ -579,7 +605,10 @@ IS
                                          TO_CHAR(SYSDATE,'HH24MISS');
     UAR_POSITION_OTPT_FL  UTL_FILE.FILE_TYPE;
 
-	  V_OUT_CLOB            CLOB;
+	  V_DIVISION            VARCHAR2(10);
+    V_AREA                VARCHAR2(10);
+    V_DISTRICT            VARCHAR2(10);
+    V_OUT_CLOB            CLOB;
 BEGIN
     UAR_POSITION_OTPT_FL := UTL_FILE.FOPEN (PATH
                                            ,UAR_POSITION_FL_NM
@@ -602,49 +631,55 @@ BEGIN
         END IF;
         --Body [REFEED details first and then POS details]
         FOR rec IN refeed_cur(ach_rec.BANK_ACCOUNT_NBR) LOOP
-            V_OUT_CLOB := V_OUT_CLOB ||
-                        '1' ||                                                 --SER-FLAG (1)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                 --FIELD-4 (17)
-                        '0' ||                                                 --STORE-NBR-PFX (1)
-                        RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                 --STORE-NBR(4 + 12 spaces)
-                        FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||          --AMOUNT (12)
-                        FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_DATE, '0', 6) ||     --TRAN-DATE YYMMDD (2 + 2 + 2)
-                        RPAD(rec.TCODE, 4, ' ') ||                             --TRAN-CODE (4)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                  --FILLER (4 spaces)
-                        RPAD(rec.DIVISION, 17, ' ') ||                         --DIVISION-NBR (2 + 15 spaces)
-                        RPAD(rec.AREA, 17, ' ') ||                             --AREA-NBR (2 + 15 spaces)
-                        RPAD(rec.DISTRICT, 40, ' ') ||                         --DISTRICT-NBR (2 + 38 spaces)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                 --FILLER (40 spaces)
-                        --60 characters below
-                        FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||  --TRAN_SEQNUM (9)
-                        FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||             --CODE (2)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                 --FILLER (21 spaces)
-                        FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||            --CODE1 (3)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                 --FILLER (25 spaces)
-                        CHR(13);
-            IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                UTL_FILE.PUT_LINE(UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
-                V_OUT_CLOB := NULL;
+             IF rec.TRANSACTION_DATE > GET_PREV_JV_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE, IN_DATE) THEN
+                BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+                V_OUT_CLOB := V_OUT_CLOB ||
+                            '1' ||                                                 --SER-FLAG (1)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                 --FIELD-4 (17)
+                            '0' ||                                                 --STORE-NBR-PFX (1)
+                            RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                 --STORE-NBR(4 + 12 spaces)
+                            FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||          --AMOUNT (12)
+                            FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) ||     --TRAN-DATE YYMMDD (2 + 2 + 2)
+                            RPAD(rec.TCODE, 4, ' ') ||                             --TRAN-CODE (4)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                  --FILLER (4 spaces)
+                            RPAD(V_DIVISION, 17, ' ') ||                           --DIVISION-NBR (2 + 15 spaces)
+                            RPAD(V_AREA, 17, ' ') ||                               --AREA-NBR (2 + 15 spaces)
+                            RPAD(V_DISTRICT, 40, ' ') ||                           --DISTRICT-NBR (2 + 38 spaces)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                 --FILLER (40 spaces)
+                            --60 characters below
+                            FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||  --TRAN_SEQNUM (9)
+                            FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||             --CODE (2)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                 --FILLER (21 spaces)
+                            FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||            --CODE1 (3)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                 --FILLER (25 spaces)
+                            CHR(13);
+                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+                    UTL_FILE.PUT_LINE(UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
+                    V_OUT_CLOB := NULL;
+                END IF;
             END IF;
         END LOOP;
         FOR rec IN pos_cur(ach_rec.BANK_ACCOUNT_NBR) LOOP
-            V_OUT_CLOB := V_OUT_CLOB ||
-                        '1' ||                                                 --SER-FLAG (1)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                 --FIELD-4 (17)
-                        '0' ||                                                 --STORE-NBR-PFX (1)
-                        RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                 --STORE-NBR(4 + 12 spaces)
-                        FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||    --AMOUNT (12)
-                        FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_DATE, '0', 6) ||     --TRAN-DATE YYMMDD (2 + 2 + 2)
-                        RPAD(rec.TCODE, 4, ' ') ||                             --TRAN-CODE (4)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                  --FILLER (4 spaces)
-                        RPAD(rec.DIVISION, 17, ' ') ||                         --DIVISION-NBR (2 + 15 spaces)
-                        RPAD(rec.AREA, 17, ' ') ||                             --AREA-NBR (2 + 15 spaces)
-                        RPAD(rec.DISTRICT, 40, ' ') ||                         --DISTRICT-NBR (2 + 38 spaces)
-                        FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                --FILLER (40 + 60 spaces)
-                        CHR(13);
-            IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                UTL_FILE.PUT_LINE(UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
-                V_OUT_CLOB := NULL;
+            IF rec.TRANSACTION_DATE > GET_PREV_SUM_EXTRCT_CTRL_FL_DT(rec.COST_CENTER_CODE, IN_DATE) THEN
+                BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+                V_OUT_CLOB := V_OUT_CLOB ||
+                            '1' ||                                                 --SER-FLAG (1)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                 --FIELD-4 (17)
+                            '0' ||                                                 --STORE-NBR-PFX (1)
+                            RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                 --STORE-NBR(4 + 12 spaces)
+                            FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||    --AMOUNT (12)
+                            FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) ||     --TRAN-DATE YYMMDD (2 + 2 + 2)
+                            RPAD(rec.TCODE, 4, ' ') ||                             --TRAN-CODE (4)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                  --FILLER (4 spaces)
+                            RPAD(V_DIVISION, 17, ' ') ||                           --DIVISION-NBR (2 + 15 spaces)
+                            RPAD(V_AREA, 17, ' ') ||                               --AREA-NBR (2 + 15 spaces)
+                            RPAD(V_DISTRICT, 40, ' ') ||                           --DISTRICT-NBR (2 + 38 spaces)
+                            FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                --FILLER (40 + 60 spaces)
+                            CHR(13);
+                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+                    UTL_FILE.PUT_LINE(UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
+                    V_OUT_CLOB := NULL;
+                END IF;
             END IF;
         END LOOP;
         --Trailer
@@ -670,13 +705,20 @@ PROCEDURE LOAD_SUMMARY_EXTRCT_CNTRL_FL
   TEMP_SUMMARY_EXTRCT_CNTRL_FL [using SRA10510 file ] for next day's use
 
 Created : 06/25/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added column Load_date and combined MONTH, DAY AND YEAR to get date column 
 *****************************************************************************/
 IS
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE SUMMARY_EXTRCT_CNTRL_FL_PREV';
-    INSERT INTO SUMMARY_EXTRCT_CNTRL_FL_PREV
-        SELECT * FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL;
+    INSERT INTO SUMMARY_EXTRCT_CNTRL_FL
+        SELECT COST_CENTER_CODE,
+               CENTURY,
+               BANK_DEP_AMT,
+               FILLER,
+               BANK_ACCOUNT_NBR,
+               TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR') TRANSACTION_DATE,
+               TRUNC(SYSDATE) LOAD_DATE
+          FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL;
     COMMIT;
 END LOAD_SUMMARY_EXTRCT_CNTRL_FL;
 
@@ -686,13 +728,20 @@ PROCEDURE LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL
   TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL [using SRA11060 file] for next day's use
 
 Created : 06/26/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added column Load_date and combined MONTH, DAY AND YEAR to get date column
 *****************************************************************************/
 IS
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE ACH_DRFTS_EXTRCT_CNTRL_FL_PREV';
-    INSERT INTO ACH_DRFTS_EXTRCT_CNTRL_FL_PREV
-        SELECT * FROM TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL;
+    INSERT INTO ACH_DRFTS_EXTRCT_CNTRL_FL
+        SELECT COST_CENTER_CODE,
+               CENTURY,
+               BANK_DEP_AMT, 
+               BANK_ACCOUNT_NBR,
+               BANK_AUTO_REC_IND,
+               TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR') TRANSACTION_DATE,
+               TRUNC(SYSDATE) LOAD_DATE
+        FROM TEMP_ACH_DRFTS_EXTRCT_CNTRL_FL AD;
     COMMIT;
 END LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL;
 
@@ -702,13 +751,37 @@ PROCEDURE LOAD_JV_EXTRCT_CNTRL_FL
   TEMP_JV_EXTRCT_CNTRL_FL [using SRA13510 file] for next day's use
 
 Created : 06/30/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          added column Load_date and combined MONTH, DAY AND YEAR to get date column
 *****************************************************************************/
 IS
 BEGIN
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE JV_EXTRCT_CNTRL_FL_PREV';
-    INSERT INTO JV_EXTRCT_CNTRL_FL_PREV
-        SELECT * FROM TEMP_JV_EXTRCT_CNTRL_FL;
+    INSERT INTO JV_EXTRCT_CNTRL_FL
+        SELECT BANK_ACCOUNT_NBR,
+               COST_CENTER_CODE,
+               CENTURY,
+               TRAN_SEQNUM,
+               TCODE,
+               AMOUNT,
+               JV_TYPE,
+               CFA_SIGN,
+               REFEED_TCODE,
+               DR_DIV,
+               DR_PRIME,
+               DR_SUB,
+               DR_CC,
+               DR_PROJ,
+               DR_OFFSET_CDE,
+               CR_DIV,
+               CR_PRIME,
+               CR_SUB,
+               CR_CC,
+               CR_PROJ,
+               CR_OFFSET_CDE,
+               FILLER,
+               TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR') TRANSACTION_DATE,
+               TRUNC(SYSDATE) LOAD_DATE  
+          FROM TEMP_JV_EXTRCT_CNTRL_FL JV;
     COMMIT;
 END LOAD_JV_EXTRCT_CNTRL_FL;
 
@@ -718,7 +791,8 @@ PROCEDURE EXECUTE_PROCESS(
   Deposit Daily Reconciliation" process for the date passed in
 
 Created : 06/19/2015 jxc517 CCN Project....
-Changed :
+Changed : 10/07/2015 nxk927 CCN Project....
+          changed the order to load first and run the rest of the process.
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -730,6 +804,21 @@ BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BDP_DLY_RCNCL_PRCSS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
     BEGIN
+        V_START_TIME := DBMS_UTILITY.GET_TIME;
+        --load the current SUMMARY CONTROL SRA10510 file for use in next run
+        LOAD_SUMMARY_EXTRCT_CNTRL_FL();
+        DBMS_OUTPUT.PUT_LINE('LOAD_SUMMARY_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+        V_START_TIME := DBMS_UTILITY.GET_TIME;
+        --load the current ACH DRAFTS SRA11060 file for use in next run
+        LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL();
+        DBMS_OUTPUT.PUT_LINE('LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+        V_START_TIME := DBMS_UTILITY.GET_TIME;
+        --load the current JV CONTROL SRA13510 file for use in next run
+        LOAD_JV_EXTRCT_CNTRL_FL();
+        DBMS_OUTPUT.PUT_LINE('LOAD_JV_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --Load STR_BNK_DPST_DLY_RCNCL_TBL [Mark IV SRA10001 table]
         LOAD_STR_BNK_DPST_DLY_RCNCL_TB(IN_DATE);
@@ -756,25 +845,11 @@ BEGIN
         GENERATE_UAR_REFEED_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_REFEED_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 */
+
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
         GENERATE_UAR_POS_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_POS_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
-        V_START_TIME := DBMS_UTILITY.GET_TIME;
-        --load the current SUMMARY CONTROL SRA10510 file for use in next run
-        LOAD_SUMMARY_EXTRCT_CNTRL_FL();
-        DBMS_OUTPUT.PUT_LINE('LOAD_SUMMARY_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
-        V_START_TIME := DBMS_UTILITY.GET_TIME;
-        --load the current ACH DRAFTS SRA11060 file for use in next run
-        LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL();
-        DBMS_OUTPUT.PUT_LINE('LOAD_ACH_DRFTS_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
-        V_START_TIME := DBMS_UTILITY.GET_TIME;
-        --load the current JV CONTROL SRA13510 file for use in next run
-        LOAD_JV_EXTRCT_CNTRL_FL();
-        DBMS_OUTPUT.PUT_LINE('LOAD_JV_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
     EXCEPTION
         WHEN OTHERS THEN
             V_TRANS_STATUS := 'ERROR';
@@ -792,4 +867,3 @@ EXCEPTION
 END EXECUTE_PROCESS;
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
-
