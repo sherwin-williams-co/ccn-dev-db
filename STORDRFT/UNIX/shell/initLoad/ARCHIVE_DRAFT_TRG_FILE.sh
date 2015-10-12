@@ -2,11 +2,12 @@
 #######################################################################################
 # Script name   : ARCHIVE_DRAFT_TRG_FILE
 #
-# Description   : This shell program will Archive the draft.trg 
+# Description   : This shell program will Archive the INSPAYMENT.trg 
 #                 file created when the gainloss_jv process is completed
 # Created  : 01/20/2015 AXK326 CCN Project Team.....
 # Modified : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
+#          : AXK326 10/12/2015 changed name to INSPAYMENT.TRG 
 #######################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -19,19 +20,19 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo " Processing Started for $proc_name at $TIME on $DATE"
 
 # Control will output if $DIRECTORY exists.
-if [ -d "$ARCHIVE_PATH/"Draft"_"$DATE"" ]; then
+if [ -d "$ARCHIVE_PATH/"INSPAYMENT"_"$DATE"" ]; then
    echo " Directory exists "
 else
-  mkdir $ARCHIVE_PATH/"Draft"_"$DATE"
+  mkdir $ARCHIVE_PATH/"INSPAYMENT"_"$DATE"
 fi
 
-#Archive file for Draft.TRG file.
+#Archive file for INSPAYMENT.TRG file.
 if 
-    ls DRAFT.TRG &> /dev/null; then
-    echo " DRAFT.TRG file exist "
-    find -maxdepth 1 -name DRAFT.TRG -exec mv {} $ARCHIVE_PATH/"Draft"_"$DATE"/DRAFT"_"$TimeStamp.TRG \; > /dev/null 2>&1
+    ls INSPAYMENT.TRG &> /dev/null; then
+    echo " INSPAYMENT.TRG file exist "
+    find -maxdepth 1 -name INSPAYMENT.TRG -exec mv {} $ARCHIVE_PATH/"INSPAYMENT"_"$DATE"/INSPAYMENT"_"$TimeStamp.TRG \; > /dev/null 2>&1
 else
-    echo " Draft.TRG file does not exists "
+    echo " INSPAYMENT.TRG file does not exists "
 fi
 
 ############################################################################
