@@ -8,7 +8,8 @@
 # IDMS Mainframe file is 'STST.MDH01R.CCN00600.DEV.INPUT(+1)'
 #
 # Created : 09/16/2015 jxc517 CCN Project....
-# Revised :
+# Revised : 10/12/2015 nxk927 CCN Project....
+#            fixed the declared file_name to be archieved
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -33,17 +34,17 @@ FTP_MF`
 echo "FTP to Mainframe COMPLETED"
 
 if [ "$ftpResult" -ne 0 ] ; then
-  echo "ERROR: ftp of $file_name failed"
+  echo "ERROR: ftp of $src_file_name failed"
   exit 1
 else
-  echo "SUCCESS: ftp of $file_name completed successfully"
+  echo "SUCCESS: ftp of $src_file_name completed successfully"
   #Archive the concatenated file
   echo "Move of Audit File to log"
-  mv $file_name $LOG_PATH/$file_name"_"$cdate
+  mv $src_file_name $LOG_PATH/$src_file_name"_"$cdate
 
   echo "Move of Data Files from current to Archive" 
   mv `find *_backfeed* -type f` $ARC_PATH
 
-  echo "$file_name has been archived to $LOG_PATH path"
+  echo "$src_file_name has been archived to $LOG_PATH path"
   exit 0
 fi
