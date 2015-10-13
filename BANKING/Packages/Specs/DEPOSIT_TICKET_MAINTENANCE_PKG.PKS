@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -99,18 +99,6 @@ IN_EFFECTIVE_DATE       IN    DATE,
 IN_EXPIRATION_DATE      IN    DATE,
 IN_BANK_TYPE_CODE       IN    VARCHAR2);
 
-PROCEDURE INSERT_BANK_DEPOSIT_DTLS(
-/*******************************************************************************
-This procedure is intended to build the STORE_MICR_FORMAT_DTLS, 
-BANK_DEP_TICK records and insert the same
-
-Created : 08/26/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE     IN    VARCHAR2,
-IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
-IN_BANK_TYPE_CODE       IN    VARCHAR2);
-
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
 This procedure is intended to place a deposit ticket order for the store passed in
@@ -124,4 +112,3 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-

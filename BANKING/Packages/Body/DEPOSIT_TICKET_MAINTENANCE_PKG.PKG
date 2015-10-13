@@ -308,7 +308,7 @@ BEGIN
          ORDER BY A.FUTURE_ID;
     OPEN OUT_BANK_ACCOUNT_FTR_REF_CUR FOR
         SELECT BAF.*,
-               V_BANK_TYPE_CODE
+               BANK_TYPE_CODE
           FROM BANK_ACCOUNT_FUTURE BAF,
                (SELECT LEAD_BANK_ACCOUNT_NBR,
                        BANK_TYPE_CODE,
@@ -959,77 +959,6 @@ EXCEPTION
         RAISE;
 END GET_BANK_MICR_FORMAT_REC;
 
-PROCEDURE INSERT_BANK_DEPOSIT_DTLS(
-/*******************************************************************************
-This procedure is intended to build the STORE_MICR_FORMAT_DTLS, 
-BANK_DEP_TICK records and insert the same
-
-Created : 08/26/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE     IN    VARCHAR2,
-IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
-IN_BANK_TYPE_CODE       IN    VARCHAR2)
-IS
-    V_BANK_DEP_TICK_PREV_REC       BANK_DEP_TICK%ROWTYPE;
-    V_BANK_MICR_FORMAT_REC         BANK_MICR_FORMAT%ROWTYPE;
-    V_BANK_DEP_TICK_REC            BANK_DEP_TICK%ROWTYPE;
-    V_STORE_MICR_FORMAT_DTLS_REC   STORE_MICR_FORMAT_DTLS%ROWTYPE;
-    V_BANK_ACCOUNT_REC             BANK_ACCOUNT%ROWTYPE;
-BEGIN
-    BEGIN
-        SELECT *
-          INTO V_BANK_DEP_TICK_PREV_REC
-          FROM BANK_DEP_TICK A
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-        TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK_PREV_REC);
-        V_BANK_DEP_TICK_REC := V_BANK_DEP_TICK_PREV_REC;
-        V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR      := IN_BANK_ACCOUNT_NBR;
-        V_BANK_DEP_TICK_REC.EFFECTIVE_DATE        := SYSDATE;
-        V_BANK_DEP_TICK_REC.EXPIRATION_DATE       := NULL;
-        TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
-    EXCEPTION
-        WHEN OTHERS THEN
-            NULL;
-    END;
-    IF NVL(IN_BANK_TYPE_CODE, 'X') <> 'M' THEN --Currently no code will make this condition true
-        GET_BANK_MICR_FORMAT_REC(IN_COST_CENTER_CODE,
-                                 IN_BANK_ACCOUNT_NBR,
-                                 V_BANK_MICR_FORMAT_REC);
-        IF V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ID IS NOT NULL THEN
-            BEGIN
-                SELECT *
-                  INTO V_STORE_MICR_FORMAT_DTLS_REC
-                  FROM STORE_MICR_FORMAT_DTLS
-                 WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-               TABLE_IU_PKG.STR_MICR_FRMT_DTLS_HIST_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            V_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(IN_BANK_ACCOUNT_NBR);
-            V_STORE_MICR_FORMAT_DTLS_REC.BANK_ACCOUNT_NBR := IN_BANK_ACCOUNT_NBR;
-            V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID   := V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ID;
-            V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE := IN_COST_CENTER_CODE;
-            V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE   := SYSDATE;
-            V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE  := NULL;
-            VALIDATE_AND_GET_FORMAT_VALUES(IN_BANK_ACCOUNT_NBR,
-                                           V_BANK_ACCOUNT_REC.ROUTING_NBR,
-                                           IN_COST_CENTER_CODE,
-                                           V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR,
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR); --out
-            TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
-        END IF;
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE;
-END INSERT_BANK_DEPOSIT_DTLS;
-
 FUNCTION GET_DEPOSIT_ORDER_SEQ_NBR(
 /*******************************************************************************
 This fucntion is intended to return the deposit ticket sequence for the cost center passed in
@@ -1106,7 +1035,7 @@ IS
            AND BDTO.COST_CENTER_CODE         = IN_COST_CENTER
            AND A.EXPIRATION_DATE IS NULL;
        
-    PATH        	           VARCHAR2(50) := 'BANKING_LOAD_FILES';
+    PATH        	           VARCHAR2(50) := 'BANKING_DATA_FILES';
     BANK_DEPOSIT_IP_FILE_NM  VARCHAR2(50) := 'DEPOSIT_TICKET_';
                                              --||TO_CHAR(IN_DATE,'DDMONRRRR');--|| '_' ||TO_CHAR(SYSDATE,'HH24MISS');
     BANK_DEPOSIT_INPUT_FILE  UTL_FILE.FILE_TYPE;
@@ -1196,6 +1125,7 @@ BEGIN
             V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
             TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
             CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE);
+            RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
         END IF;
     ELSE
         BEGIN
@@ -1233,4 +1163,3 @@ EXCEPTION
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-
