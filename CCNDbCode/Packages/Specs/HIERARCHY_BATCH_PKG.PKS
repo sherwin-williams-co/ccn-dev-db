@@ -8,7 +8,8 @@ Changed :
 **********************************************************/
 PROCEDURE HIERARCHY_BATCH_PROCESS
 /******************************************************************************
-  This procedure is a wrapper to call HRCHY_DELETE_EXPIRED_REC
+  This procedure is a wrapper to call HIERARCHY_HIST_INSERT to insert history 
+  records accordingly Also deletes the expired record
 
 Created : 10/02/2015 SX410 CCN Project....
 Changed :

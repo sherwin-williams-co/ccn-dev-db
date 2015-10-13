@@ -680,6 +680,19 @@ Created by jxc 03/11/2014
 IN_BLOB            IN       BLOB
 );
 
+PROCEDURE HIERARCHY_HIST_INSERT(
+/**********************************************************
+This procedure will check and insert the history records accordingly
+Also deletes the expired record
+
+Inputs:
+IN_HIERARCHY_DETAIL_REC     -      HIERARCHY_DETAIL%ROWTYPE
+
+Created : 10/12/2015 jxc517
+Revised : 
+**********************************************************/
+IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE);
+
 PROCEDURE HIERARCHY_DETAIL_UPDATE(
 /**********************************************************
 	HIERARCHY_DETAIL_UPDATE
@@ -723,19 +736,6 @@ Created : 01/17/2014 JXC517
 **********************************************************/
     IN_XML                CLOB);
     
-PROCEDURE HRCHY_DELETE_EXPIRED_REC
-/******************************************************************************
-      HRCHY_DELETE_EXPIRED_REC
-      
-      This procedure runs every day as part of batch job to 
-      1)insert the expired record into HIERARCHY_DETAIL_HST table.
-      2)delete the expired record from HIERARCHY_DETAIL table.
-
-Created : 10/02/2015 SXT410 CCN Project...
-Revised :
-*******************************************************************************/
-;
-
 PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************
       GET_RQSTD_ATTRIBUTE_VALUE 

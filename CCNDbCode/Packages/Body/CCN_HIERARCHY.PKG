@@ -120,7 +120,7 @@ BEGIN
     
     IF in_ind = 'H' THEN
        V_CONTEXT := 'Inserting into hierarchy_detail_hst ';
-       V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE     := TRUNC(SYSDATE);
+       V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE     := NVL(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE,TRUNC(SYSDATE));
        INSERT INTO hierarchy_detail_hst VALUES v_hierarchy_detail_row;
     ELSE
        V_CONTEXT := 'Inserting into hierarchy_detail ';
@@ -2592,7 +2592,8 @@ BEGIN
    --Get the previous level record, if one exists
    GET_PREVIOUS_LVL('H',
                     IN_HIERARCHY_DETAIL_ROW,
-                    V_HIERARCHY_DETAIL_ROW_PREV);
+                    V_HIERARCHY_DETAIL_ROW_PREV);                    
+
 
    IF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_CURR_LVL_VAL IS NOT NULL THEN
       IF NVL(V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL,'~~~') = '~~~' THEN
@@ -2604,7 +2605,7 @@ BEGIN
          V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
          V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_EFF_DATE     := NVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE, SYSDATE);
          CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW_PREV);
-      END IF;
+      END IF; 
    ELSE
        --Previous Level Doesn't exists, recursively insert all previous levels
        --Also iteration should not lead to infinite loop, so add below condition to iterate back only till 1st level
@@ -3338,6 +3339,51 @@ EXCEPTION
        ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_DELETE ',V_CONTEXT);
 END HIERARCHY_DETAIL_DELETE;
 
+PROCEDURE HIERARCHY_HIST_INSERT(
+/**********************************************************
+This procedure will check and insert the history records accordingly
+Also deletes the expired record
+
+Inputs:
+IN_HIERARCHY_DETAIL_REC     -      HIERARCHY_DETAIL%ROWTYPE
+
+Created : 10/12/2015 jxc517
+Revised : 
+**********************************************************/
+IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
+IS
+    CURSOR cur IS
+        SELECT HD.*
+          FROM HIERARCHY_DETAIL HD,
+               (SELECT HRCHY_HDR_NAME,
+                       HRCHY_HDR_LVL_NBR,
+                       SUBSTR(IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_LVL_VAL, 1, SUM_VAL - LVL_VALUE_SIZE) PREV_VAL, --702770
+                       SUBSTR(IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_LVL_VAL, 1, SUM_VAL) CURR_VAL
+                  FROM (SELECT HRCHY_HDR_NAME,
+                               HRCHY_HDR_LVL_NBR,
+                               LVL_VALUE_SIZE,
+                               SUM(LVL_VALUE_SIZE) OVER (PARTITION BY HRCHY_HDR_NAME ORDER BY HRCHY_HDR_LVL_NBR) SUM_VAL
+                          FROM HIERARCHY_DESCRIPTION
+                         WHERE HRCHY_HDR_NAME    = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+                           AND HRCHY_HDR_LVL_NBR <= IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL)) A
+         WHERE HRCHY_DTL_CURR_LVL_VAL = PREV_VAL
+           AND HRCHY_DTL_NEXT_LVL_VAL = CURR_VAL
+           AND HD.HRCHY_HDR_NAME      = A.HRCHY_HDR_NAME
+           AND HD.HRCHY_DTL_LEVEL+1   = A.HRCHY_HDR_LVL_NBR;
+    V_HIERARCHY_DETAIL_ROW HIERARCHY_DETAIL%ROWTYPE := IN_HIERARCHY_DETAIL_REC;
+BEGIN
+    FOR rec IN cur LOOP
+        IF CURRENT_LVL_EXISTS('H', rec) = 'N' THEN
+            CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', rec);
+        END IF;
+    END LOOP;
+    CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', V_HIERARCHY_DETAIL_ROW);
+    DELETE_DETAIL_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW);
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END HIERARCHY_HIST_INSERT;
+
 PROCEDURE HIERARCHY_DETAIL_UPDATE(
 /**********************************************************
 	HIERARCHY_DETAIL_UPDATE
@@ -3387,13 +3433,10 @@ Revised : 10/02/2015 SXT410 CCN Project Team...
     IN_XML                CLOB)
 IS
   V_HIERARCHY_DETAIL_ROW           HIERARCHY_DETAIL%ROWTYPE;
-  V_PREV_LVL_EXISTS                BOOLEAN := FALSE;
   V_CONTEXT   VARCHAR2(3000);
   SQ          INTEGER;
   SE          VARCHAR2(1000);
-
 BEGIN
-
    V_CONTEXT := 'Calling BUILD_INSERT_COMPOSITE_KEYS';
    BUILD_INSERT_COMPOSITE_KEYS(IN_XML,
                                V_HIERARCHY_DETAIL_ROW);
@@ -3416,13 +3459,8 @@ BEGIN
           WHERE HRCHY_HDR_NAME         = V_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
             AND HRCHY_DTL_LEVEL        = V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
             AND HRCHY_DTL_CURR_LVL_VAL = V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
-
          IF V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE <= TRUNC(SYSDATE) THEN
-            --insert the expired record before deleting.
-            INSERT_DETAIL_HIST_PROCESS(V_HIERARCHY_DETAIL_ROW,
-                                       V_PREV_LVL_EXISTS);
-            --Delete the expired record.
-            DELETE_DETAIL_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW);
+            HIERARCHY_HIST_INSERT(V_HIERARCHY_DETAIL_ROW);
          END IF;
       END IF;
    ELSE
@@ -3449,48 +3487,6 @@ EXCEPTION
        ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_UPDATE ',V_CONTEXT);
 
 END HIERARCHY_DETAIL_UPDATE;
-
-PROCEDURE HRCHY_DELETE_EXPIRED_REC
-/******************************************************************************
-      HRCHY_DELETE_EXPIRED_REC
-      
-      This procedure runs every day as part of batch job to 
-      1)insert the expired record into HIERARCHY_DETAIL_HST table.
-      2)delete the expired record from HIERARCHY_DETAIL table.
-
-Created : 10/02/2015 SXT410 CCN Project...
-Revised :
-*******************************************************************************/
-IS
-  V_HIERARCHY_DETAIL_ROW    HIERARCHY_DETAIL%ROWTYPE;
-  V_PREV_LVL_EXISTS         BOOLEAN := FALSE;
-  V_BATCH_NUMBER            BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
-  V_TRANS_STATUS            BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-  V_CONTEXT                 VARCHAR2(3000);
-BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_BATCH_JOB', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-
-    FOR REC IN (SELECT *
-                  FROM HIERARCHY_DETAIL
-                 WHERE HRCHY_DTL_EXP_DATE <= TRUNC(SYSDATE)) LOOP
-        BEGIN
-            INSERT_DETAIL_HIST_PROCESS(REC,
-                                       V_PREV_LVL_EXISTS);
-            DELETE_DETAIL_PROCESS(NULL,
-                                  REC);
-        EXCEPTION
-            WHEN OTHERS THEN
-                COMMON_TOOLS.LOG_ERROR(REC.HRCHY_DTL_CURR_ROW_VAL, 'HIERARCHY INSERT/DELETE ERROR', SQLERRM, SQLCODE);      
-        END;
-    END LOOP;
-
-   CCN_BATCH_PKG.UPDATE_BATCH_JOB('HRCHY_BATCH_JOB', V_BATCH_NUMBER, V_TRANS_STATUS);
-   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-EXCEPTION
-    WHEN OTHERS THEN
-        COMMON_TOOLS.LOG_ERROR('000000', 'HRCHY_DELETE_EXPIRED_REC', SQLERRM, SQLCODE);      
-END HRCHY_DELETE_EXPIRED_REC;
 
 PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************

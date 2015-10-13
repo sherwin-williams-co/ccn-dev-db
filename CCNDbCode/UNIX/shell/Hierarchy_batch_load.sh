@@ -2,7 +2,7 @@
 
 ##########################################################################################
 # Script Name : Hierarchy_batch_load.sh
-# Description : Purpose of this script is to invoke HIERARCHY_BATCH.HRCHY_DELETE_EXPIRED_REC
+# Description : Purpose of this script is to invoke HIERARCHY_BATCH_PKG.HIERARCHY_BATCH_PROCESS
 #               at Daily base.
 #
 # Date Created: 10/02/2015 SXT410
@@ -16,7 +16,7 @@ exec &> Hierarchy_batch_load_$(date '+%Y%m%d%H%M%S').log
 
 echo "Begin Hierarchy_batch_load.sh script"
 
-proc="HIERARCHY_BATCH.HRCHY_DELETE_EXPIRED_REC"
+proc="HIERARCHY_BATCH_PKG.HIERARCHY_BATCH_PROCESS"
 
 echo "Processing Started for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')"
 
