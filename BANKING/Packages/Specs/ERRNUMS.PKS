@@ -333,4 +333,17 @@ Changed :
 en_lead_bnk_typ_not_chg_err CONSTANT NUMBER := -20027;
 exc_lead_bnk_typ_not_chg_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_lead_bnk_typ_not_chg_err , -20027);
+
+/*********************************************************** 
+The "book_keeper_null_err" passes a numerical error of -20028
+This error will be thrown if the bank account book keeper number
+is not provided
+
+Created : 10/14/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_book_keeper_null_err CONSTANT NUMBER := -20028;
+exc_book_keeper_null_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_book_keeper_null_err , -20028);
+
 END ERRNUMS;
