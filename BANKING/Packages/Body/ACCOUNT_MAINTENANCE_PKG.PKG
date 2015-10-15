@@ -259,6 +259,92 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_FUTURE_FROM_CURRENT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END BUILD_FUTURE_FROM_CURRENT;
 
+FUNCTION IS_VIRTUAL_FTR_LD_STR(
+/******************************************************************************
+    This function will determine if this is a virtual future store lead or 
+    a real future store lead
+
+Created : 10/14/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_LEAD_BANK_CC_REC        IN     LEAD_BANK_CC%ROWTYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1);
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+      INTO V_RETURN_VAL
+      FROM LEAD_BANK_CC_FUTURE
+     WHERE LEAD_STORE_NBR        = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+       AND LEAD_BANK_ACCOUNT_NBR = IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_VIRTUAL_FTR_LD_STR;
+
+PROCEDURE UPDT_VIRTUAL_FTR_LD_STR_DTLS(
+/******************************************************************************
+    This procedure will update the virtual future lead details with the current records
+    updated details
+
+Created : 10/14/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_LEAD_BANK_CC_REC        IN     LEAD_BANK_CC%ROWTYPE)
+IS
+    CURSOR lead_bank_cc_cur(IN_FUTURE_ID   IN      NUMBER) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM LEAD_BANK_CC A
+         WHERE LEAD_STORE_NBR = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
+    CURSOR bank_dep_tick_cur(IN_FUTURE_ID   IN      NUMBER) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM BANK_DEP_TICK A
+         WHERE COST_CENTER_CODE = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
+    CURSOR store_micr_format_dtls_cur(IN_FUTURE_ID   IN      NUMBER) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM STORE_MICR_FORMAT_DTLS A
+         WHERE COST_CENTER_CODE = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
+    CURSOR mbr_bank_cc_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_STORE_NBR        <> IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+           AND LEAD_BANK_ACCOUNT_NBR <> IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
+           AND MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                      FROM MEMBER_BANK_CC_FUTURE
+                                     WHERE LEAD_STORE_NBR        = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+                                       AND LEAD_BANK_ACCOUNT_NBR = IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
+    V_FUTURE_ID              NUMBER;
+BEGIN
+    SELECT MAX(FUTURE_ID)
+      INTO V_FUTURE_ID
+      FROM LEAD_BANK_CC_FUTURE
+     WHERE LEAD_STORE_NBR        = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
+       AND LEAD_BANK_ACCOUNT_NBR = IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    IF IN_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NOT NULL THEN
+        FOR rec IN mbr_bank_cc_cur LOOP
+            rec.EXPIRATION_DATE := NULL;
+            TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
+        END LOOP;
+        ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_FUTURE_ID);
+    ELSE
+        FOR rec IN lead_bank_cc_cur(V_FUTURE_ID) LOOP
+            TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(rec);
+        END LOOP;
+        FOR rec IN bank_dep_tick_cur(V_FUTURE_ID) LOOP
+            TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(rec);
+        END LOOP;
+        FOR rec IN store_micr_format_dtls_cur(V_FUTURE_ID) LOOP
+            TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(rec);
+        END LOOP;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'UPDT_VIRTUAL_FTR_LD_STR_DTLS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END UPDT_VIRTUAL_FTR_LD_STR_DTLS;
+
 PROCEDURE ACCNT_MNTNC_CURRENT_UPSERT_SP( 
 /******************************************************************************
 This procedure is intended to update following tables used in the
@@ -269,7 +355,8 @@ Account Maintenance Window that are current records
        BANK_MICR_FORMAT
 
 Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/14/2015 jxc517 CCN Project....
+          Code has been changed to deal with virtual futures
 *******************************************************************************/
     IN_BANK_ACCOUNT_REC                IN BANK_ACCOUNT%ROWTYPE,
     IN_LEAD_BANK_CC_REC                IN LEAD_BANK_CC%ROWTYPE,
@@ -290,6 +377,9 @@ BEGIN
                                                                      IN_LEAD_BANK_CC_REC.EXPIRATION_DATE);
     END IF;
     TABLE_IU_PKG.LEAD_BANK_CC_I_SP(IN_LEAD_BANK_CC_REC);
+    IF IS_VIRTUAL_FTR_LD_STR(IN_LEAD_BANK_CC_REC) = 'Y' THEN
+        UPDT_VIRTUAL_FTR_LD_STR_DTLS(IN_LEAD_BANK_CC_REC);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_CURRENT_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
@@ -823,7 +913,8 @@ Changed :
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE)
 IS
-    CURSOR bank_account_cur IS 
+    --cursor to get all the bank account records for the bank account, future id passed
+    CURSOR bank_account_ftr_cur IS 
         SELECT BANK_ACCOUNT_NBR,
                EFFECTIVE_DATE,
                EXPIRATION_DATE,
@@ -842,7 +933,9 @@ IS
           FROM BANK_ACCOUNT_FUTURE
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-    CURSOR lead_bank_cc_cur IS 
+
+    --cursor to get all the lead details for the bank account, future id passed
+    CURSOR lead_bank_cc_ftr_cur IS 
         SELECT LEAD_BANK_ACCOUNT_NBR,
                LEAD_STORE_NBR,
                EFFECTIVE_DATE,
@@ -854,7 +947,9 @@ IS
           FROM LEAD_BANK_CC_FUTURE
          WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-    CURSOR mbr_bank_cc_cur(IN_LEAD_BANK_CC_REC IN LEAD_BANK_CC%ROWTYPE) IS 
+
+    --cursor to get all the member details for the bank account, lead store, future id passed
+    CURSOR mbr_bank_cc_ftr_cur(IN_LEAD_BANK_CC_REC IN LEAD_BANK_CC%ROWTYPE) IS 
         SELECT LEAD_BANK_ACCOUNT_NBR,
                LEAD_STORE_NBR,
                MEMBER_STORE_NBR,
@@ -868,7 +963,9 @@ IS
          WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND LEAD_STORE_NBR        = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
            AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-    CURSOR bank_micr_format_cur IS 
+
+    --cursor to get all the bank micr details for the bank account, future id passed
+    CURSOR bank_micr_format_ftr_cur IS 
         SELECT BANK_ACCOUNT_NBR,
                FORMAT_NAME,
                DJDE_FORM_PARM,
@@ -886,7 +983,9 @@ IS
           FROM BANK_MICR_FORMAT_FUTURE
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-    CURSOR store_micr_format_dtls_cur(IN_MICR_FORMAT_ID NUMBER) IS 
+
+    --cursor to get all the store micr details for the bank account, micr format id, future id passed
+    CURSOR store_micr_format_dtls_ftr_cur(IN_MICR_FORMAT_ID NUMBER) IS 
         SELECT BANK_ACCOUNT_NBR,
                MICR_FORMAT_ID,
                COST_CENTER_CODE,
@@ -899,7 +998,9 @@ IS
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-    CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
+
+    --cursor to get all the bank deposit ticket details for the store, future id passed
+    CURSOR bank_dep_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
         SELECT BANK_ACCOUNT_NBR,
                COST_CENTER_CODE,
                DAILY_USE_ACTUAL,
@@ -923,31 +1024,70 @@ IS
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 BEGIN
-    FOR bank_account_rec IN bank_account_cur LOOP --loops only once for that future id
+    --loop through the future bank account records and build the current bank account record
+    FOR bank_account_rec IN bank_account_ftr_cur LOOP --loops only once for that future id
         TABLE_IU_PKG.BANK_ACCOUNT_I_SP(bank_account_rec);
-        FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
+
+        --loop through the future bank micr records and build the current bank micr records
+        FOR bank_micr_format_rec IN bank_micr_format_ftr_cur LOOP
             TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(bank_micr_format_rec);
-            FOR str_micr_format_rec IN store_micr_format_dtls_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
+
+            --loop through the future stor micr records and build the current store micr records
+            FOR str_micr_format_rec IN store_micr_format_dtls_ftr_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
                 TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
-            END LOOP;
-        END LOOP;
-        FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+            END LOOP; --store_micr_format_dtls_ftr_cur
+        END LOOP; --bank_micr_format_ftr_cur
+
+        --loop through the future lead records and build the current lead records
+        FOR lead_bank_cc_rec IN lead_bank_cc_ftr_cur LOOP
             TABLE_IU_PKG.LEAD_BANK_CC_I_SP(lead_bank_cc_rec);
-            FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+
+            --loop through the future bank deposit tickets for that lead and build the current bank deposit tickets
+            FOR bank_dep_tick_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
-            END LOOP;
-            FOR mbr_bank_cc_rec IN mbr_bank_cc_cur(lead_bank_cc_rec) LOOP
+            END LOOP; --bank_dep_tick_ftr_cur
+
+            --loop through the future member details for that lead and build the current member details
+            FOR mbr_bank_cc_rec IN mbr_bank_cc_ftr_cur(lead_bank_cc_rec) LOOP
                 TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
-                FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+
+                --loop through the future bank deposit tickets for that member and build the current bank deposit tickets
+                FOR bank_dep_tick_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
                     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
-                END LOOP;
-            END LOOP;
-        END LOOP;
-    END LOOP;
+                END LOOP; --bank_dep_tick_ftr_cur
+            END LOOP; --mbr_bank_cc_ftr_cur
+        END LOOP; --lead_bank_cc_ftr_cur
+    END LOOP; --bank_account_ftr_cur
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_CURRENT_FROM_FUTURE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END CREATE_CURRENT_FROM_FUTURE;
+
+FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
+/******************************************************************************
+	This procedure checks if the passed future is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+
+Created : 10/15/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+    --if the bank account exists in current tables with expiration date as null => it's not real future
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'N' ELSE 'Y' END
+      INTO V_RETURN_VAL
+      FROM BANK_ACCOUNT
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+       AND EXPIRATION_DATE IS NULL;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_REAL_FUTURE_BANK_ACCOUNT;
 
 PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP ( 
 /******************************************************************************
@@ -960,55 +1100,99 @@ Changed :
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE,
     IN_FTR_TO_CURR_FLAG         IN     VARCHAR2 DEFAULT 'N')
 IS
+    --cursor to get all the lead records for the bank account, future id passed
     CURSOR lead_bank_cc_cur IS 
         SELECT *
           FROM LEAD_BANK_CC_FUTURE
          WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the member records for the bank account, lead store, future id passed
     CURSOR mbr_bank_cc_cur(IN_LEAD_BANK_CC_FTR_REC IN LEAD_BANK_CC_FUTURE%ROWTYPE) IS 
         SELECT *
           FROM MEMBER_BANK_CC_FUTURE
          WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND LEAD_STORE_NBR        = IN_LEAD_BANK_CC_FTR_REC.LEAD_STORE_NBR
            AND FUTURE_ID             = IN_LEAD_BANK_CC_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the bank micr records for the bank account, future id passed
     CURSOR bank_micr_format_cur IS 
         SELECT *
           FROM BANK_MICR_FORMAT_FUTURE
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the store micr records for the bank account, micr format id, future id passed
     CURSOR store_micr_format_dtls_cur(IN_MICR_FORMAT_ID NUMBER) IS 
         SELECT *
           FROM STORE_MICR_FORMAT_DTLS_FUTURE
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the deposit ticket records for the store, future id passed
     CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 BEGIN
+    --exit out the process without doing anything, if the future record came for deletion is a virtual future
+    IF IS_REAL_FUTURE_BANK_ACCOUNT(IN_BANK_ACCOUNT_FTR_REC) = 'N' THEN
+        RETURN;
+    END IF;
+
+    --check the input flag to make sure, weather we need to create current records from future or not
     IF IN_FTR_TO_CURR_FLAG = 'Y' THEN
+        --below call will create the current records from future records
         CREATE_CURRENT_FROM_FUTURE(IN_BANK_ACCOUNT_FTR_REC);
     END IF;
+
+    --get all the bank micr details for this future and loop through
     FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
+
+        --for each bank micr, check if there is a child store micr attched to it
+        --if so, get that store micr details and delete those child future records first
         FOR str_micr_format_rec IN store_micr_format_dtls_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
+            --now delete the store micr format details from the future
             TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_rec);
-        END LOOP;
+        END LOOP; --store_micr_format_dtls_cur
+
+        --now delete the bank micr details from the future
         TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_rec);
-    END LOOP;
+    END LOOP; --bank_micr_format_cur
+
+    --get all the lead bank cc details for this future and loop through
     FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+
+        --for each lead bakn, check if there is a child member banks attched to it
+        --if so, get that child member bank details and delete those child future records first
         FOR mbr_bank_cc_rec IN mbr_bank_cc_cur(lead_bank_cc_rec) LOOP
+
+            --for this member store, get the bank deposit ticket details
+            --if found, delete those child records first
             FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
-            END LOOP;
+            END LOOP; --bank_dep_tick_cur
+
+            --now delete the member bank details from the future
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_rec);
-        END LOOP;
+        END LOOP; --mbr_bank_cc_cur
+
+        --for this lead store, get the bank deposit ticket details
+        --if found, delete those child records first
         FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+
+            --now delete the bank deposit ticket details from the future
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
-        END LOOP;
+        END LOOP; --bank_dep_tick_cur
+
+        --now delete the lead bank details from the future
         TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_D_SP(lead_bank_cc_rec);
-    END LOOP;
+    END LOOP; --lead_bank_cc_cur
+
+    --now delete the bank account details from the future
     TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_D_SP(IN_BANK_ACCOUNT_FTR_REC);
 EXCEPTION
     WHEN OTHERS THEN
