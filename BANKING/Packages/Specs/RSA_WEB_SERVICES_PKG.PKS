@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE RSA_WEB_SERVICES_PKG AS 
+create or replace PACKAGE RSA_WEB_SERVICES_PKG AS 
 /**********************************************************
 This Package contains all the procedures used to
 communicate with RSA Web Services
@@ -9,32 +9,22 @@ Changed :
 
 TYPE REF_CURSOR IS REF CURSOR;
 
-PROCEDURE CREATE_ORDER( 
+PROCEDURE CREATE_DEPOSIT_TICKET_ORDER( 
 /******************************************************************************
 This procedure is intended to create an order via RSA Web Service
 
 Created : 08/03/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
+    IN_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE);
 
-PROCEDURE UPDATE_ORDER( 
+PROCEDURE CREATE_DEPOSIT_BAG_ORDER( 
 /******************************************************************************
-This procedure is intended to update an order via RSA Web Service
+This procedure is intended to create an bag order via RSA Web Service
 
-Created : 08/03/2015 jxc517 CCN Project....
+Created : 09/28/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
-
-PROCEDURE SEARCH_ORDER( 
-/******************************************************************************
-This procedure is intended to search orders via RSA Web Service
-
-Created : 08/03/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
+    IN_DEP_BAG_TICK_REC  IN     BANK_DEP_BAG_TICK%ROWTYPE);
 
 END RSA_WEB_SERVICES_PKG;
-
