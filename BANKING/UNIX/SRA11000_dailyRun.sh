@@ -98,6 +98,22 @@ else
     echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
 fi
 
+#################################################################
+#         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
+#################################################################
+./SRA11000_dailyRun_ftp.sh
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
+     exit 1;
+fi
+echo "Processing finished for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
+
+#################################################################
+#         Archieve files SMIS1.SRA12060_*, SMIS1.SRA10060_*
+#################################################################
 if ls $DATA_FILES_PATH/SMIS1.SRA12060_* &> /dev/null; then
     echo "$DATA_FILES_PATH/SMIS1.SRA12060_* files exist "
     mv $DATA_FILES_PATH/SMIS1.SRA12060_* $ARCHIVE_PATH/$FOLDER

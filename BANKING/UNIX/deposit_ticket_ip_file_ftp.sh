@@ -16,27 +16,55 @@ DATE=`date +"%m/%d/%Y"`
 #File_Date=`date +"%d%h%Y" | tr [:lower:] [:upper:]`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
-# Move to initLoad folder from where ever you are in
-cd /app/banking/dev/initLoad
+# Move to datafiles folder from where ever you are in
+cd /app/banking/dev/datafiles
 
-if 
- ls BANK_DEPOSIT_INPUT_* &> /dev/null; then
-    echo " Bank deposit ticket file exist "
-	cat BANK_DEPOSIT_INPUT_* >> BANK_DEPOSIT_INPUT_FILE.txt
- else
-    echo " Bank deposit ticket file doesn't exists "
-fi
-
+export filename=DEPOSIT_TICKET_*.txt
+var=`echo $filename`
+cd /app/banking/dev/datafiles/issue_file
+# get the file from the Server
+ftp -inv ${mainframe_host} <<FTP_MF
+quote user ${mainframe_user}
+quote pass ${mainframe_pw}
+cd hpex/Apps/Bank_Deposit_Tickets/Input
+get $var
+bye
+END_SCRIPT
+echo "bye the transfer is complete"
+FTP_MF
+if [ ! -f $var ] ; then
+    cd /app/banking/dev/datafiles
 # ftp to ServerName 
 ftp -inv ${mainframe_host} <<FTP_MF
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
 cd hpex/Apps/Bank_Deposit_Tickets/Input
-put BANK_DEPOSIT_INPUT_FILE.txt bank_deposit_input_file.txt
+mput $var 
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
+else
+. /app/banking/dev/banking.config
+sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw << END
+set heading off;
+set verify off;
+execute MAIL_PKG.send_mail('DEPOSIT_TICKET_FILE',null,'$var'); 
+exit;
+END
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+    echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
+    exit 1;
+fi
+echo $var "file already exists. Check the file for processing first"
+echo $var "file has been placed in recovered_file folder"
+cp /app/banking/dev/datafiles/$var /app/banking/dev/datafiles/recovered_file/
+rm -rf /app/banking/dev/datafiles/issue_file/DEPOSIT_TICKET_*.txt
+echo $var "file is removed"
+fi 
 
 ############################################################################
 #                           ERROR STATUS CHECK 
