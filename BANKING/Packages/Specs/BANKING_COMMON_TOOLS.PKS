@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BANKING_COMMON_TOOLS
+create or replace PACKAGE BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have store drafts specific tools
@@ -67,6 +67,15 @@ FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
 This procedure performs all the business rules that are applicable Account Maintenance Window
 
 created : 06/19/2015 jxc517 CCN Project....
+revised : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION GET_FTR_BNK_ACCNT_NBR_FOR_CC(
+/******************************************************************************
+This procedure performs all the business rules that are applicable Account Maintenance Window
+
+created : 10/19/2015 jxc517 CCN Project....
 revised : 
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
