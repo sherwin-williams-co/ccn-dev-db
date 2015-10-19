@@ -1,3 +1,13 @@
+#################################################################
+# Script name   : host_unix_command.sh
+#
+# Description   : Checks for the file  audit_start
+#                 If it find audit_start file,it kicks off the below scripts 
+#                 1)Main_Audit.sh     
+#                 
+# Created  : 10/12/2015 nxk927 CCN Project Team.....
+# Modified : 
+#################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/host_unix_command.sh > $HOME/logs/host_unix_command.log 2>&1 &
 

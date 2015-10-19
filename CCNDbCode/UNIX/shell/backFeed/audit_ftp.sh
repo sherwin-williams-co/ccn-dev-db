@@ -12,19 +12,21 @@
 #2) mv AuditBackfeed.txt   current_datetime.log 
 # Created Date =11/27/2012  by B.Ramsey
 # Revised Date =06/18/2013  SH 
-
+#               09/16/2015  sxh487 Added the Archive for Banking_backfeed file
+#               10/13/2015  nxk927 Removed Main_Cat from here        
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
+. /app/ccn/host.sh
 
 echo "Start script for FTP of Audit.txt" 
 
 #$HOME/batchJobs/backFeed/logs; directory used for move
 cdate=`date +'%Y%m%d%H%M%S'`
-
+echo $HOME
 AUDIT_PATH="$HOME/batchJobs/backFeed/current/"
 LOG_PATH="$HOME/batchJobs/backFeed/logs"
 ARC_PATH="$HOME/batchJobs/backFeed/Archive"
 file_name="Audit_backfeed.txt"
+bank_fname="Banking_audit.txt"
 
 cd $AUDIT_PATH
 echo "Execute FTP to Mainframe" 
@@ -43,13 +45,20 @@ if [ "$ftpResult" -ne 0 ] ; then
   exit 1
 else
   echo "SUCCESS: ftp of $file_name completed successfully"
+
+  #Archive Banking_backfeed.txt 
+  if [ -s Banking_audit.txt ]; then
+  echo "Moving Banking_audit.txt to Archive"
+  mv $bank_fname $LOG_PATH/$bank_fname"_"$cdate
+  fi
+  
   #Archive the concatenated file
   echo "Move of Audit File to log"
   mv $file_name $LOG_PATH/$file_name"_"$cdate
 
   echo "Move of Data Files from current to Archive" 
   mv `find *_backfeed* -type f` $ARC_PATH
-
+  
   echo "$file_name has been archived to $LOG_PATH path"
   exit 0
 fi
