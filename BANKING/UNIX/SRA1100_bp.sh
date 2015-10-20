@@ -1,3 +1,13 @@
+#################################################################
+# Script name   : SRA1100_bp.sh
+#
+# Description   : Checks for the file  SRA10510_*.TXT, SRA13510_*.TXT and SRA11060_*.TXT
+#                 If it find all the three files,it kicks off the below script 
+#                 1)SRA11000_dailyRun.sh     
+#                 It will be running in the background and is for SRA1100 process.
+# Created  : 10/12/2015 nxk927 CCN Project Team.....
+# Modified : 
+#################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/SRA1100_bp.sh > $HOME/SRA1100_bp.log 2>&1 &
 
@@ -18,5 +28,3 @@ while true; do
 done
 
 echo "process completed - but should not come to this point"
-
-
