@@ -39,11 +39,11 @@ if [ 0 -ne "$?" ]; then
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set verify off;
+var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail('SWC_HR_GEMS_LOAD');
 MAIL_PKG.send_mail('SWC_HR_GEMS_LOAD');
  Exception 
  when others then
