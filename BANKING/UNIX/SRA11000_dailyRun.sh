@@ -8,7 +8,8 @@
 #                 3. archieve the files in it's corresponding folder
 #
 # Created  : 08/04/2015 jxc517 CCN Project Team.....
-# Modified : 
+# Modified : 10/16/2015 jxc517 CCN Project Team.....
+#            added the FTP call before archiving
 #
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
