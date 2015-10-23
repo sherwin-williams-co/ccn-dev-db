@@ -1,0 +1,15 @@
+/*********************************************************************
+10/23/2015 sxt410  Renaming column name Extract_date to Order_date.
+*********************************************************************/
+
+ALTER TABLE BANK_DEP_TICKORD
+RENAME COLUMN EXTRACT_DATE TO ORDER_DATE;
+
+ALTER TABLE BANK_DEP_TICKORD_FUTURE
+RENAME COLUMN EXTRACT_DATE TO ORDER_DATE;
+
+ALTER TABLE BANK_DEP_TICKORD_HIST
+RENAME COLUMN EXTRACT_DATE TO ORDER_DATE;
+
+ALTER TABLE BANK_DEP_TICKORD_T
+RENAME COLUMN EXTRACT_DATE TO ORDER_DATE;
