@@ -1,0 +1,219 @@
+create or replace PACKAGE BODY VIRTUAL_FUTURE_MAINTENANCE_PKG
+AS
+/**********************************************************
+This Package contains all the procedures used to
+maintain a virtual future
+
+Created : 10/21/2015 jxc517 CCN Project....
+Changed :
+**********************************************************/
+PROCEDURE UNEXPR_TRNSFRD_FRM_LEAD_MBRS(
+/******************************************************************************
+	This procedure unexpire the transferred from leads members as that transfer is
+  obsolete as part of this current data updates for the virtual future
+
+Created : 10/21/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR         IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE)
+IS
+    CURSOR lead_bank_cc_cur IS
+        SELECT *
+          FROM LEAD_BANK_CC A
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    CURSOR mbr_bank_cc_othr_cur(IN_LEAD_STORE_NBR   IN     MEMBER_BANK_CC.LEAD_STORE_NBR%TYPE) IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_STORE_NBR        <> IN_LEAD_STORE_NBR
+           AND LEAD_BANK_ACCOUNT_NBR <> IN_BANK_ACCOUNT_NBR
+           AND MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                      FROM MEMBER_BANK_CC_FUTURE
+                                     WHERE LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+                                       AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR);
+BEGIN
+    FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+        FOR mbr_bank_cc_othr_rec IN mbr_bank_cc_othr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+            mbr_bank_cc_othr_rec.EXPIRATION_DATE := NULL;
+            TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_othr_rec);
+        END LOOP;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'UNEXPR_TRNSFRD_FRM_LEAD_MBRS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END UNEXPR_TRNSFRD_FRM_LEAD_MBRS;
+
+PROCEDURE VRTL_FTR_BANK_MICR_FRMT_UPDT(
+/******************************************************************************
+	This procedure performs the update process for virtual bank micr future
+
+Created : 10/21/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR         IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+    IN_FUTURE_ID                IN     NUMBER)
+IS
+    CURSOR bank_micr_format_ftr_cur IS
+        SELECT BANK_ACCOUNT_NBR,
+               FORMAT_NAME,
+               DJDE_FORM_PARM,
+               DJDE_FEED_PARM,
+               MICR_COST_CNTR,
+               MICR_ROUTING_NBR,
+               MICR_FORMAT_ACTNBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINT_USER_ID,
+               UPDATE_DATE,
+               LAST_UPD_USER_ID,
+               IN_FUTURE_ID AS FUTURE_ID,
+               MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT A
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+BEGIN
+    FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
+        TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_I_SP(bank_micr_format_ftr_rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'VRTL_FTR_BANK_MICR_FRMT_UPDT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END VRTL_FTR_BANK_MICR_FRMT_UPDT;
+
+PROCEDURE VRTL_FTR_LEAD_BANK_CC_UPDT(
+/******************************************************************************
+    This procedure will update the virtual future lead details with the current records
+    updated details
+
+Created : 10/21/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR         IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+    IN_FUTURE_ID                IN     NUMBER)
+IS
+    CURSOR lead_bank_cc_ftr_cur IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM LEAD_BANK_CC A
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    CURSOR bank_dep_tick_ftr_cur(IN_LEAD_STORE_NBR   IN    VARCHAR2) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM BANK_DEP_TICK A
+         WHERE COST_CENTER_CODE = IN_LEAD_STORE_NBR;
+    CURSOR bank_dep_bag_tick_ftr_cur(IN_LEAD_STORE_NBR   IN    VARCHAR2) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM BANK_DEP_BAG_TICK A
+         WHERE COST_CENTER_CODE = IN_LEAD_STORE_NBR;
+    CURSOR store_micr_format_dtls_ftr_cur(IN_LEAD_STORE_NBR   IN    VARCHAR2) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM STORE_MICR_FORMAT_DTLS A
+         WHERE COST_CENTER_CODE = IN_LEAD_STORE_NBR;
+    CURSOR mbr_bank_cc_cur(IN_LEAD_STORE_NBR   IN    VARCHAR2) IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_STORE_NBR        <> IN_LEAD_STORE_NBR
+           AND LEAD_BANK_ACCOUNT_NBR <> IN_BANK_ACCOUNT_NBR
+           AND MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                      FROM MEMBER_BANK_CC_FUTURE
+                                     WHERE LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+                                       AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR);
+    V_FUTURE_ID              NUMBER;
+BEGIN
+    FOR lead_bank_cc_ftr_rec IN lead_bank_cc_ftr_cur LOOP
+
+        --now if the lead itself is expired
+        IF lead_bank_cc_ftr_rec.EXPIRATION_DATE IS NOT NULL THEN
+
+            --1) if this is a transfer virtual future, we need to unexpire the members from which the virtual future was created
+            UNEXPR_TRNSFRD_FRM_LEAD_MBRS(IN_BANK_ACCOUNT_NBR);
+
+            ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(lead_bank_cc_ftr_rec.LEAD_BANK_ACCOUNT_NBR, V_FUTURE_ID);
+        ELSE
+        
+            TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(lead_bank_cc_ftr_rec);
+
+            FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(bank_dep_tick_ftr_rec);
+            END LOOP;
+
+            FOR store_micr_format_dtls_ftr_rec IN store_micr_format_dtls_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(store_micr_format_dtls_ftr_rec);
+            END LOOP;
+
+            FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(bank_dep_bag_tick_ftr_rec);
+            END LOOP;
+        END IF; --lead is expired
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'VRTL_FTR_LEAD_BANK_CC_UPDT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END VRTL_FTR_LEAD_BANK_CC_UPDT;
+
+PROCEDURE VIRTUAL_FUTURE_UPSERT_SP ( 
+/******************************************************************************
+	This procedure performs the core insert/update process for virtual future maintenance
+
+As per discussion with Keith on 21-Oct-2015:
+Specifically assuming only one future (as our model won't support multiple futures, with the changed busniess requirements)
+
+Created : 10/21/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR         IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+    IN_REAL_FUTURE_BANK_ACCOUNT IN     VARCHAR2,
+    IN_TRANSFER_VRTL_FTR        IN     VARCHAR2,
+    IN_BANK_TYPE_CHNG_VRTL_FTR  IN     VARCHAR2)
+IS
+    V_FUTURE_ID                  NUMBER;
+    CURSOR bank_account_ftr_cur(IN_FUTURE_ID   IN      NUMBER) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM BANK_ACCOUNT A
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+BEGIN
+    --Get the virtual future ID for which we need to update the current details into
+    SELECT MAX(FUTURE_ID)
+      INTO V_FUTURE_ID
+      FROM BANK_ACCOUNT_FUTURE
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+
+    --loop through that virtual future bank account
+    FOR bank_account_ftr_rec IN bank_account_ftr_cur(V_FUTURE_ID) LOOP
+
+        --now if the bank account itself is expired, there are 2 scenarios
+        IF bank_account_ftr_rec.EXPIRATION_DATE IS NOT NULL THEN
+            --1) if this is a transfer virtual future, we need to unexpire the members from which the virtual future was created
+            --2) if this is a bank type change virtual future we don't need to do anything special
+            IF IN_TRANSFER_VRTL_FTR = 'Y' THEN
+                UNEXPR_TRNSFRD_FRM_LEAD_MBRS(IN_BANK_ACCOUNT_NBR);
+            END IF; --transfer virtual future
+            --finally delete the virtual future all together
+            ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(bank_account_ftr_rec.BANK_ACCOUNT_NBR,
+                                                             bank_account_ftr_rec.FUTURE_ID);
+        ELSE
+            --below procedure will deal with the bank MICR format virtual futures
+            VRTL_FTR_BANK_MICR_FRMT_UPDT(bank_account_ftr_rec.BANK_ACCOUNT_NBR,
+                                         bank_account_ftr_rec.FUTURE_ID);
+            IF IN_TRANSFER_VRTL_FTR = 'Y' THEN
+
+                --below procedure will deal with the lead virtual futures
+                --call not applicable for bank type change virtual futures
+                --reason being the bank account now can not be expired with a date less than the expired leads date
+                VRTL_FTR_LEAD_BANK_CC_UPDT(bank_account_ftr_rec.BANK_ACCOUNT_NBR,
+                                           bank_account_ftr_rec.FUTURE_ID);
+            END IF; --transfer virtual future
+
+            --update the bank account 
+            TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(bank_account_ftr_rec);
+        END IF; --bank account is expired
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'VIRTUAL_FUTURE_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END VIRTUAL_FUTURE_UPSERT_SP;
+    
+END VIRTUAL_FUTURE_MAINTENANCE_PKG;
+

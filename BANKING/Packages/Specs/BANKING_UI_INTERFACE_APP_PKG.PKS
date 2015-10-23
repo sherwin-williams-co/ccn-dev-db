@@ -50,6 +50,8 @@ Inputs:
 Created : 05/20/2015 jxc517 CCN Project....
 Changed : 08/21/2015 jxc517 CCN Project....
           Modified signature to pass future details also to allow future maintenance
+Changed : 10/22/2015 sxt410 CCN Project....
+          Modified Signature To Pass Current Order Date And Future Order Date.
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
@@ -57,7 +59,10 @@ IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_DEP_TICK_FTR_REF_CUR   OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
-,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR);
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR
+,OUT_BANK_DEP_TICKORD_REF_CUR    OUT REF_CURSOR
+,OUT_BANK_DEP_TKORD_FTR_REF_CUR  OUT REF_CURSOR
+);
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 /*******************************************************************************
@@ -67,10 +72,15 @@ Inputs:
     IN_COST_CENTER_CODE
 
 Created : 05/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/20/2015 jxc517 CCN Project....
+          Changes made to support future tabs
+Changed : 10/22/2015 sxt410 
 *******************************************************************************/
-IN_COST_CENTER_CODE IN     VARCHAR2
-,OUT_REF_CUR           OUT REF_CURSOR);
+IN_COST_CENTER_CODE               IN     VARCHAR2
+,OUT_BANK_DEP_BAG_TICK_CUR           OUT REF_CURSOR
+,OUT_BANK_DEP_BAG_TICK_FTR_CUR       OUT REF_CURSOR
+,OUT_BANK_DEP_BAG_TICKORD_CUR        OUT REF_CURSOR
+,OUT_BANK_DEP_BAG_TKORD_FTR_CUR      OUT REF_CURSOR);
 
 PROCEDURE MEMBER_CC_MAINTENACE_UI_SP (
 /*******************************************************************************
@@ -342,7 +352,19 @@ Created : 05/21/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB);
-    
+
+PROCEDURE PLACE_DEPOSIT_BAG_TICKET_ORDER(
+/*******************************************************************************
+This procedure is intended to place a deposit bag ticket order for the store passed in
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN     VARCHAR2,
+IN_ORDERED_DATE         IN     DATE,
+IN_FUTURE_ID            IN     NUMBER,
+IN_USER_ID              IN     VARCHAR2);
+
 PROCEDURE BANK_DEP_TICK_OAK_UI_UPSERT_SP ( 
 /******************************************************************************
 This procedure is intended to insert into following tables used in the 
@@ -436,3 +458,4 @@ Changed :
     IN_FUTURE_ID            IN  NUMBER);
 
 END BANKING_UI_INTERFACE_APP_PKG;
+

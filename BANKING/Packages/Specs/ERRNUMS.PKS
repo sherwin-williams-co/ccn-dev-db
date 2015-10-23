@@ -346,4 +346,17 @@ en_book_keeper_null_err CONSTANT NUMBER := -20028;
 exc_book_keeper_null_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_book_keeper_null_err , -20028);
 
+/*********************************************************** 
+The "bnk_dep_bag_tckord_seq_err" passes a numerical error of -20029
+This error will be used when current order is placed with a future order 
+already in place
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_bnk_dep_bag_tckord_seq_err CONSTANT NUMBER := -20029;
+exc_bnk_dep_bag_tckord_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_bnk_dep_bag_tckord_seq_err , -20029);
+
 END ERRNUMS;
+

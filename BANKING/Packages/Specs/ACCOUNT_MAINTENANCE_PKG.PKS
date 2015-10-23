@@ -1,4 +1,4 @@
-create or replace PACKAGE ACCOUNT_MAINTENANCE_PKG
+create or replace PACKAGE         ACCOUNT_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -8,6 +8,17 @@ Created : 07/09/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
+
+FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
+/******************************************************************************
+	This procedure checks if the passed future is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+
+Created : 10/15/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR     IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2;
 
 PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 /*******************************************************************************
@@ -114,3 +125,4 @@ Changed :
     IN_MEMBER_STORE_NBR     IN  VARCHAR2);
     
 END ACCOUNT_MAINTENANCE_PKG;
+

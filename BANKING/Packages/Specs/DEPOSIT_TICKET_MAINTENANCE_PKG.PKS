@@ -1,4 +1,4 @@
-create or replace PACKAGE DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -65,7 +65,8 @@ This procedure is intended to RETURN a ref cursor with data from
 tables based on passed input cost center code
 
 Created : 08/21/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/22/2015 sxt410 CCN Project....
+          Modified Signature To Pass Current Order Date And Future Order Date.
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -73,7 +74,9 @@ IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_MICR_FORMAT_REF_CUR         OUT REF_CURSOR
 ,OUT_BANK_DEP_TICK_FTR_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR         OUT REF_CURSOR
-,OUT_BANK_MICR_FRMT_FTR_REF_CUR       OUT REF_CURSOR);
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR       OUT REF_CURSOR
+,OUT_BANK_DEP_TICKORD_REF_CUR         OUT REF_CURSOR
+,OUT_BANK_DEP_TKORD_FTR_REF_CUR       OUT REF_CURSOR);
 
 PROCEDURE DEPOSIT_TKT_MNTNC_UI_UPSERT_SP( 
 /******************************************************************************
@@ -99,6 +102,23 @@ IN_EFFECTIVE_DATE       IN    DATE,
 IN_EXPIRATION_DATE      IN    DATE,
 IN_BANK_TYPE_CODE       IN    VARCHAR2);
 
+PROCEDURE CREATE_DEPOSIT_TKT_INPUT_FILE(
+/******************************************************************************
+This procedure is intended to create the input deposit ticket file.
+Corporate Treasury will then send the bank deposit ticket information to Linda. 
+Depending on the request, either of the following will be done:
+    1) Add a brand new bank account/routing number and attach store(s) to it
+    2) Add a new store to an existing bank account/routing number
+    3) Update existing bank account/routing number.  For example, a bank gets bought out and accounts are renumbered and/or routing number changes. 
+      (Note, all of these events trigger printing of deposit tickets).
+
+Created : 08/19/2015 jxc517 CCN Project....
+Changed : 10/21/2015 nxk927 CCN Project...
+          Added call to create the deposit order for future 
+*******************************************************************************/
+    IN_COST_CENTER IN VARCHAR2,
+    IN_FUTURE_ID   IN VARCHAR2);
+    
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
 This procedure is intended to place a deposit ticket order for the store passed in
@@ -112,3 +132,4 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
+

@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -218,7 +218,8 @@ This procedure is intended to RETURN a ref cursor with data from
 tables based on passed input cost center code
 
 Created : 08/21/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/22/2015 sxt410 CCN Project....
+          Modified Signature To Pass Current Order Date And Future Order Date. 
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -226,7 +227,9 @@ IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_MICR_FORMAT_REF_CUR         OUT REF_CURSOR
 ,OUT_BANK_DEP_TICK_FTR_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR         OUT REF_CURSOR
-,OUT_BANK_MICR_FRMT_FTR_REF_CUR       OUT REF_CURSOR)
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR       OUT REF_CURSOR
+,OUT_BANK_DEP_TICKORD_REF_CUR         OUT REF_CURSOR
+,OUT_BANK_DEP_TKORD_FTR_REF_CUR       OUT REF_CURSOR)
 IS
     V_STORE_MICR_FORMAT_DTLS_REC   STORE_MICR_FORMAT_DTLS%ROWTYPE;
     V_BANK_MICR_FORMAT_REC         BANK_MICR_FORMAT%ROWTYPE;
@@ -341,6 +344,16 @@ BEGIN
          WHERE BMFF.BANK_ACCOUNT_NBR = S.LEAD_BANK_ACCOUNT_NBR
            AND BMFF.FUTURE_ID        = S.FUTURE_ID
          ORDER BY BMFF.FUTURE_ID;
+
+    OPEN OUT_BANK_DEP_TICKORD_REF_CUR FOR 
+        SELECT *
+          FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    OPEN OUT_BANK_DEP_TKORD_FTR_REF_CUR FOR
+        SELECT *
+          FROM BANK_DEP_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
 END DEPOSIT_TICKET_MNTNC_UI_SP;
 
 PROCEDURE BUILD_TABLE_TYPES(
@@ -668,10 +681,9 @@ IS
     V_BANK_MICR_FORMAT_FUTURE_REC  BANK_MICR_FORMAT_FUTURE%ROWTYPE;
     V_BANK_ACCOUNT_FUTURE_REC      BANK_ACCOUNT_FUTURE%ROWTYPE;
     V_BANK_DEP_TICK_FUTURE_REC     BANK_DEP_TICK_FUTURE%ROWTYPE := IN_BANK_DEP_TICK_FUTURE_REC;
-    V_EXPIRATION_DATE              DATE;
     V_PROC_NAME                    VARCHAR2(30) := 'DEPOSIT_TKT_FUTURE_UPSERT_SP';
 BEGIN
-    EXPIRE_PREVIOUS_DEP_TICK_DTLS(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
+   EXPIRE_PREVIOUS_DEP_TICK_DTLS(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
@@ -742,10 +754,12 @@ IS
     V_BANK_DEP_TICK_REC             BANK_DEP_TICK%ROWTYPE;
     V_MICR_FORMAT_ID                NUMBER := NULL;
 BEGIN
+    
     BUILD_TABLE_TYPES(IN_ROW_DATA,
                       V_BANK_DEP_TICK_REC,
                       V_BANK_DEP_TICK_FUTURE_REC,
                       V_MICR_FORMAT_ID);
+    V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := SYSDATE;                      
     BUSINESS_RULES_PKG.DEPOSIT_TICKET_MNTNC_BR_SP(V_BANK_DEP_TICK_REC,
                                                   V_BANK_DEP_TICK_FUTURE_REC);
     IF V_BANK_DEP_TICK_REC.COST_CENTER_CODE IS NOT NULL THEN --Current Details
@@ -905,60 +919,6 @@ EXCEPTION
         RAISE;
 END INSERT_BANK_DEPOSIT_DTLS_FTR;
 
-PROCEDURE GET_BANK_MICR_FORMAT_REC(
-/*******************************************************************************
-This procedure is get the bank micr format future recrod based on previous bank account
-and format id combinatin. If it is not found it builds one
-
-Created : 08/25/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE      IN     VARCHAR2,
-IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
-OUT_BANK_MICR_FORMAT_REC    OUT BANK_MICR_FORMAT%ROWTYPE)
-IS
-    V_STR_MICR_FRMT_DTLS_PREV_REC  STORE_MICR_FORMAT_DTLS%ROWTYPE;
-    V_BANK_MICR_FORMAT_PREV_REC    BANK_MICR_FORMAT%ROWTYPE;
-    V_BANK_MICR_FORMAT_REC         BANK_MICR_FORMAT%ROWTYPE;
-    V_BANK_ACCOUNT_REC             BANK_ACCOUNT%ROWTYPE;
-    V_MICR_FORMAT_ID               NUMBER := NULL;
-BEGIN
-    V_STR_MICR_FRMT_DTLS_PREV_REC := BANKING_COMMON_TOOLS.GET_STORE_MICR_FORMAT_DTLS_REC(IN_COST_CENTER_CODE);
-    IF V_STR_MICR_FRMT_DTLS_PREV_REC.COST_CENTER_CODE IS NOT NULL THEN
-        BEGIN
-            SELECT *
-              INTO V_BANK_MICR_FORMAT_PREV_REC
-              FROM BANK_MICR_FORMAT
-             WHERE BANK_ACCOUNT_NBR = V_STR_MICR_FRMT_DTLS_PREV_REC.BANK_ACCOUNT_NBR
-               AND MICR_FORMAT_ID   = V_STR_MICR_FRMT_DTLS_PREV_REC.MICR_FORMAT_ID;
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-        V_MICR_FORMAT_ID := BANKING_COMMON_TOOLS.GET_MICR_FRMT_ID_FR_BA_FRMT_NM(IN_BANK_ACCOUNT_NBR,
-                                                                                V_BANK_MICR_FORMAT_PREV_REC.FORMAT_NAME,
-                                                                                NULL);
-        IF V_MICR_FORMAT_ID IS NOT NULL THEN --a MICR with that format name already exists for this new bank account number
-            V_BANK_MICR_FORMAT_REC := BANKING_COMMON_TOOLS.GET_STORE_BANK_MICR_FORMAT_REC(IN_BANK_ACCOUNT_NBR,
-                                                                                          V_MICR_FORMAT_ID);
-        ELSE --a MICR with that format name does not exist for this new bank account number, so build and insert one
-            V_BANK_MICR_FORMAT_REC := V_BANK_MICR_FORMAT_PREV_REC;
-            V_BANK_MICR_FORMAT_REC.BANK_ACCOUNT_NBR      := IN_BANK_ACCOUNT_NBR;
-            V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ID        := BANKING_COMMON_TOOLS.GET_NEXT_MICR_FORMAT_ID(IN_BANK_ACCOUNT_NBR, 'F');
-            V_BANK_MICR_FORMAT_REC.EFFECTIVE_DATE        := SYSDATE;
-            V_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(IN_BANK_ACCOUNT_NBR);
-            V_BANK_MICR_FORMAT_REC.EXPIRATION_DATE       := V_BANK_ACCOUNT_REC.EXPIRATION_DATE;
-            V_BANK_MICR_FORMAT_REC.UPDATE_DATE           := TRUNC(SYSDATE);
-            --V_BANK_MICR_FORMAT_REC.LAST_UPD_USER_ID      := 'CODEBLT';
-            INSERT INTO BANK_MICR_FORMAT VALUES V_BANK_MICR_FORMAT_REC;
-        END IF;
-        OUT_BANK_MICR_FORMAT_REC := V_BANK_MICR_FORMAT_REC;
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE;
-END GET_BANK_MICR_FORMAT_REC;
-
 FUNCTION GET_DEPOSIT_ORDER_SEQ_NBR(
 /*******************************************************************************
 This fucntion is intended to return the deposit ticket sequence for the cost center passed in
@@ -1000,9 +960,11 @@ Depending on the request, either of the following will be done:
       (Note, all of these events trigger printing of deposit tickets).
 
 Created : 08/19/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/21/2015 nxk927 CCN Project...
+          Added call to create the deposit order for future 
 *******************************************************************************/
-    IN_COST_CENTER IN VARCHAR2)
+    IN_COST_CENTER IN VARCHAR2,
+    IN_FUTURE_ID   IN VARCHAR2)
 IS
     CURSOR main_cur IS
         SELECT BDTO.BANK_ACCOUNT_NBR,
@@ -1030,10 +992,47 @@ IS
                        BANK_MICR_FORMAT BMF
                  WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
                    AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID) B
+        WHERE BDTO.COST_CENTER_CODE          = A.COST_CENTER_CODE(+)
+          AND (B.COST_CENTER_CODE            = BDTO.COST_CENTER_CODE        
+             OR B.COST_CENTER_CODE           = BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
+          --AND BDTO.COST_CENTER_CODE         = NVL(B.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(B.COST_CENTER_CODE))
+          AND BDTO.COST_CENTER_CODE          = IN_COST_CENTER
+          AND A.EXPIRATION_DATE IS NULL;
+
+    CURSOR main_cur_future IS
+        SELECT BDTO.BANK_ACCOUNT_NBR,
+               BDTO.COST_CENTER_CODE,
+               'BDCVSW' FORM_COVER, --hard coded?
+               'SHERWIN-WILLIAMS' COMPANY, --hard coded?
+               ADDRESS_LINE_1 ADDRESS,
+               CITY,
+               STATE_CODE,
+               ZIP_CODE||'-'||A.ZIP_CODE_4 ZIP,
+               B.MICR_ROUTING_NBR ROUTING_NUMBER,
+               B.MICR_FORMAT_ACCT_NBR ACCOUNT_NUMBER,
+               B.DJDE_FORM_PARM FORM_TICKET,
+               B.DJDE_FEED_PARM FEED_TICKET,
+               'DEPOSIT_TICKET_'||BDTO.COST_CENTER_CODE HTML_NAME
+          FROM BANK_DEP_TICKORD_FUTURE BDTO,
+               ADDRESS_VW A,
+               (SELECT SMFD.MICR_ROUTING_NBR,
+                       SMFD.MICR_FORMAT_ACCT_NBR,
+                       SMFD.COST_CENTER_CODE,
+                       --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
+                       BMF.DJDE_FORM_PARM ,
+                       BMF.DJDE_FEED_PARM 
+                  FROM STORE_MICR_FORMAT_DTLS_FUTURE SMFD,
+                       BANK_MICR_FORMAT_FUTURE BMF
+                 WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
+                   AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID
+                   AND SMFD.FUTURE_ID        = BMF.FUTURE_ID) B
          WHERE BDTO.COST_CENTER_CODE         = A.COST_CENTER_CODE(+)
-           AND BDTO.COST_CENTER_CODE         = NVL(B.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(B.COST_CENTER_CODE))
+           AND (B.COST_CENTER_CODE           = BDTO.COST_CENTER_CODE        
+             OR B.COST_CENTER_CODE           = BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
            AND BDTO.COST_CENTER_CODE         = IN_COST_CENTER
-           AND A.EXPIRATION_DATE IS NULL;
+           AND BDTO.FUTURE_ID                = IN_FUTURE_ID
+           AND A.EXPIRATION_DATE IS NULL;    
+        
        
     PATH        	           VARCHAR2(50) := 'BANKING_DATA_FILES';
     BANK_DEPOSIT_IP_FILE_NM  VARCHAR2(50) := 'DEPOSIT_TICKET_';
@@ -1043,7 +1042,7 @@ IS
 	  V_OUT_CLOB         CLOB;
     V_COUNT            NUMBER := 0;
 BEGIN
-
+  IF IN_FUTURE_ID IS NULL THEN
     FOR rec IN main_cur LOOP
        IF rec.COST_CENTER_CODE is not null then
         BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
@@ -1069,6 +1068,33 @@ BEGIN
        V_OUT_CLOB := NULL;
        END IF;
     END LOOP;
+  ELSE
+    FOR rec IN main_cur_future LOOP
+       IF rec.COST_CENTER_CODE is not null then
+        BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
+                                            ,BANK_DEPOSIT_IP_FILE_NM ||rec.COST_CENTER_CODE||'.txt'
+                                            ,'W' --BINARY
+                                            ,32767);
+        V_OUT_CLOB := V_OUT_CLOB ||
+                    RPAD(NVL(SUBSTR(rec.COST_CENTER_CODE, 3), ' '), 4, ' ') || --STORE-NBR (4)
+                    RPAD(NVL(rec.FORM_COVER, ' '), 6, ' ') ||                  --FORM_COVER (6)
+                    RPAD(NVL(rec.FORM_TICKET, ' '), 6, ' ') ||                 --FORM_TICKET (6)
+                    RPAD(NVL(rec.FEED_TICKET, ' '), 5, ' ') ||                 --FEED_TICKET (5)
+                    RPAD(NVL(rec.COMPANY, ' '), 26, ' ') ||                    --COMPANY (26)
+                    RPAD(NVL(rec.ADDRESS, ' '), 30, ' ') ||                    --ADDRESS (30)
+                    RPAD(NVL(rec.CITY, ' '), 30, ' ') ||                       --CITY (30)
+                    RPAD(NVL(rec.STATE_CODE, ' '), 2, ' ') ||                  --STATE_CODE (2)
+                    RPAD(NVL(rec.ZIP, ' '), 10, ' ') ||                        --ZIP (10)
+                    RPAD(NVL(rec.ROUTING_NUMBER, ' '), 11, ' ') ||             --ROUTING_NUMBER (11)
+                    RPAD(NVL(rec.ACCOUNT_NUMBER, ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
+                    RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ')                   --HTML_NAME (50)
+                    ;
+       UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
+       UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
+       V_OUT_CLOB := NULL;
+       END IF;
+    END LOOP;
+END IF;    
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_DEPOSIT_TKT_INPUT_FILE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
@@ -1079,7 +1105,12 @@ PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 This procedure is intended to place a deposit ticket order for the store passed in
 
 Created : 08/31/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/20/2015 sxt410 CCN Project....
+          Changed Column Name From Extract_Date To Order_Date
+Changed : 10/21/2015 jxc517 CCN Project....
+          Added code to re-calculate the onhand, ytd deposit tickets
+        : 10/21/2015 nxk927 CCN Project...
+          Added call to create the deposit order for future 
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1121,11 +1152,16 @@ BEGIN
             V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
             V_BANK_DEP_TICKORD.LAST_MAINT_USER_ID      := IN_USER_ID;
-            V_BANK_DEP_TICKORD.EXTRACT_DATE            := IN_ORDERED_DATE;
+            V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
             V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
             TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
-            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE);
+            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
+            TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
+            V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+            V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+            V_BANK_DEP_TICK.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
+            TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
         END IF;
     ELSE
         BEGIN
@@ -1149,10 +1185,20 @@ BEGIN
             V_BANK_DEP_TICKORD_FUTURE.EXPIRATION_DATE         := V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINT_USER_ID      := IN_USER_ID;
-            V_BANK_DEP_TICKORD_FUTURE.EXTRACT_DATE            := IN_ORDERED_DATE;
+            V_BANK_DEP_TICKORD_FUTURE.ORDER_DATE              := IN_ORDERED_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXTRACTED_USER_ID       := IN_USER_ID;
             V_BANK_DEP_TICKORD_FUTURE.FUTURE_ID               := V_BANK_DEP_TICK_FUTURE.FUTURE_ID;
             TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_I_SP(V_BANK_DEP_TICKORD_FUTURE);
+            V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY + V_BANK_DEP_TICK_FUTURE.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK_FUTURE.REORDER_NUMBER_BKS;
+            V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY + V_BANK_DEP_TICK_FUTURE.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK_FUTURE.REORDER_NUMBER_BKS;
+            V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE, SYSDATE), SYSDATE);
+            TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
+            CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID);
+            V_BANK_DEP_TICK.COST_CENTER_CODE              := V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE;
+            V_BANK_DEP_TICK.EFFECTIVE_DATE                := V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE;
+            V_BANK_DEP_TICK.LAST_MAINT_USER_ID            := V_BANK_DEP_TICK_FUTURE.LAST_MAINT_USER_ID;
+            V_BANK_DEP_TICK.PART_PAPER_PER_FORM           := V_BANK_DEP_TICK_FUTURE.PART_PAPER_PER_FORM;
+            RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
         END IF;
     END IF;
 EXCEPTION
@@ -1163,3 +1209,4 @@ EXCEPTION
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
+

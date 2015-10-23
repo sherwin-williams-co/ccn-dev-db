@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         TABLE_IU_PKG 
+create or replace PACKAGE         TABLE_IU_PKG 
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
@@ -9,7 +9,6 @@ Changed :
 **********************************************************/
 TYPE BANK_MICR_FORMAT_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT%ROWTYPE INDEX BY BINARY_INTEGER;
 TYPE BANK_MICR_FORMAT_FTR_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT_FUTURE%ROWTYPE INDEX BY BINARY_INTEGER;
-
 TYPE MEMBER_BANK_CC_TAB_TYPE IS TABLE OF MEMBER_BANK_CC%ROWTYPE INDEX BY BINARY_INTEGER;
 TYPE MEMBER_BANK_CC_FUTURE_TAB_TYPE IS TABLE OF MEMBER_BANK_CC_FUTURE%ROWTYPE INDEX BY BINARY_INTEGER;
 
@@ -124,6 +123,17 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_DEP_BAG_TICK%ROWTYPE);
 
+PROCEDURE BNK_DEP_BAG_TICKORD_ROWTYPE_SP (
+/*******************************************************************************
+    This procedure is intended to build the BANK_DEP_BAG_TICKORD record type
+
+Created : 10/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT BANK_DEP_BAG_TICKORD%ROWTYPE);
+
 ---------------------------FUTURE ROWTYPE PROCEDURES---------------------------
 PROCEDURE BANK_ACCOUNT_FUTURE_ROWTYPE_SP (
 /*******************************************************************************
@@ -179,6 +189,17 @@ Changed :
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_DEP_TICK_FUTURE%ROWTYPE);
+
+PROCEDURE BNK_DEP_BAG_TCK_FTR_ROWTYPE_SP (
+/*******************************************************************************
+	This procedure is intended to build the BANK_DEP_BAG_TICK_FUTURE record type
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
 
 ---------------------------HISTORY INSERT PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_HIST_I_SP (
@@ -253,6 +274,15 @@ Changed :
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_TICKORD%ROWTYPE);
 
+PROCEDURE BANK_DEP_BAG_TICKORD_HIST_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into BANK_DEP_BAG_TICKORD_HIST table
+
+Created : 10/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
+
 ---------------------------CURRENT INSERT PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_I_SP (
 /*******************************************************************************
@@ -326,6 +356,15 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICKORD%ROWTYPE);
 
+PROCEDURE BANK_DEP_BAG_TICKORD_I_SP (
+/*******************************************************************************
+    This procedure is intended to insert records into BANK_DEP_BAG_TICKORD table
+
+Created : 10/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
+
 ---------------------------FUTURE INSERT PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_FUTURE_I_SP (
 /*******************************************************************************
@@ -391,6 +430,15 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICK_FUTURE%ROWTYPE);
 
+PROCEDURE BANK_DEP_BAG_TICK_FUTURE_I_SP (
+/*******************************************************************************
+    This procedure is intended to insert records into BANK_DEP_BAG_TICK_FUTURE table
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
+
 PROCEDURE BANK_DEP_TICKORD_FUTURE_I_SP (
 /*******************************************************************************
     This procedure is intended to insert records into BANK_DEP_TICKORD_FUTURE table
@@ -399,6 +447,15 @@ Created : 09/01/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_DEP_BAG_TICKORD_FTR_I_SP (
+/*******************************************************************************
+    This procedure is intended to insert records into BANK_DEP_BAGTICKORD_FUTURE table
+
+Created : 10/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
 
 ---------------------------CURRENT DELETE PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_D_SP (
@@ -473,6 +530,15 @@ Changed :
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_TICKORD%ROWTYPE);
 
+PROCEDURE BANK_DEP_BAG_TICKORD_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from BANK_DEP_BAG_TICKORD table
+
+Created : 10/19/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
+
 ---------------------------FUTURE DELETE PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_FUTURE_D_SP (
 /*******************************************************************************
@@ -527,6 +593,33 @@ Created : 08/24/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_TICK_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_DEP_TICKORD_FUTURE_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from BANK_DEP_TICKORD_FUTURE table
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_DEP_BAG_TICK_FUTURE_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from BANK_DEP_BAG_TICK_FUTURE table
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_DEP_BAG_TICKORD_FTR_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from BANK_DEP_BAG_TICKORD_FUTURE table
+
+Created : 10/20/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
 
 END TABLE_IU_PKG;
 
