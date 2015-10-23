@@ -25,6 +25,7 @@ This procedure is intended to create an bag order via RSA Web Service
 Created : 09/28/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_DEP_BAG_TICK_REC  IN     BANK_DEP_BAG_TICK%ROWTYPE);
+    IN_DEP_BAG_TICK_REC  IN     BANK_DEP_BAG_TICK%ROWTYPE,
+    IN_USER_ID           IN     VARCHAR2);
 
 END RSA_WEB_SERVICES_PKG;
