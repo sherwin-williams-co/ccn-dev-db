@@ -1,8 +1,12 @@
 /*******************************************************************************
-Adding Index to MEMBER_STORE_NBR column in MEMBER_BANK_CC table to increase
+Changed the order of column in Index for MEMBER_BANK_CC table to increase
 performance when placing an order (UI).
 
 Created : 10/26/2015 CCN Project....
 *******************************************************************************/
-CREATE INDEX MEMBER_STORE_NBR_IDX
-ON MEMBER_BANK_CC (MEMBER_STORE_NBR);
+
+DROP INDEX MEMBER_BANK_CC_PK;
+
+
+CREATE INDEX MEMBER_BANK_CC_IDX
+ON MEMBER_BANK_CC (MEMBER_STORE_NBR, LEAD_BANK_ACCOUNT_NBR, LEAD_STORE_NBR);
