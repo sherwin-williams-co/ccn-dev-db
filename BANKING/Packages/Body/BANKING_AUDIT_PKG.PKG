@@ -25,6 +25,48 @@ BEGIN
             END;
 END XML_EXTRACT_NO_EXCEPTION;
 
+FUNCTION IS_ROW_DATA_DIFFERENT(
+/**********************************************************
+This function returns true if the new record data is different from old record data
+Some columns just gets updated for every commit, even though the actual data is not changed.
+This function will validate previous record and current record ignoring that columns
+which are store in AUDIT_COMPARE_IGNORE_COLUMNS table
+
+Created : 10/27/2015 jcx517 CCN project....
+Changed :
+**********************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_PREV   IN     XMLTYPE,
+    IN_ROW_CURR  IN     XMLTYPE) RETURN BOOLEAN
+IS
+    CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
+        SELECT COLUMN_NAME
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE
+           AND OWNER = 'BANKING'
+           AND COLUMN_NAME NOT IN (SELECT COLUMN_NAME
+                                     FROM AUDIT_COMPARE_IGNORE_COLUMNS)
+         ORDER BY COLUMN_ID ASC;
+
+    V_RETURN_VAL BOOLEAN := FALSE;
+BEGIN
+    IF IN_ROW_PREV IS NOT NULL THEN
+        FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
+            IF NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME),'~') <>
+               NVL(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~') THEN
+                V_RETURN_VAL := TRUE;
+                EXIT;
+            END IF;
+        END LOOP;
+    ELSE
+        V_RETURN_VAL := TRUE;
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_ROW_DATA_DIFFERENT;
+
 FUNCTION IS_COLUMN_PART_OF_KEY(
 /**********************************************************
 This function returns true if the passed input column part of key specified(as input)
@@ -104,6 +146,14 @@ Changed : 09/21/2015 jxc517 CCN Project....
           is being updates for Bank MICR Format details
           10/13/2015 sxh487 Added EFFECTIVE_DATE as part of the 
           backfeed process
+Changed : 10/27/2015 jcx517 CCN project....
+          Added the OWNER clause in the cursor as ALL_* gets same table data from
+          other schemas as well
+Changed : 10/27/2015 jcx517 CCN project....
+          Added call to IS_ROW_DATA_DIFFERENT function to make sure data actually changed or not.
+          Some columns just gets updated for every commit, even though the actual data is not changed.
+          This function will validate previous record and current record ignoring that columns
+          which are store in AUDIT_COMPARE_IGNORE_COLUMNS table
 *******************************************************/
     IN_TABLE_NAME     IN     VARCHAR2,
     IN_KEY            IN     VARCHAR2,
@@ -120,6 +170,7 @@ IS
         SELECT COLUMN_NAME, COLUMN_ID
           FROM ALL_TAB_COLUMNS
          WHERE TABLE_NAME = IN_TABLE
+           AND OWNER = 'BANKING'
          ORDER BY COLUMN_ID ASC;
     ROW_PREV           AUDIT_LOG.TABLE_ROW_DATA%TYPE;
     V_LOG_ID_PREV      AUDIT_LOG.LOG_ID%TYPE;
@@ -170,41 +221,45 @@ BEGIN
                          WHERE AL2.TABLE_NAME = AL.TABLE_NAME
                            AND AL2.TRANSACTION_ID = IN_KEY)
        AND ROWNUM < 2;
-    V_CONTEXT := 'Parsing the XMLType';
-    --Start building the XML string
-    XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
-    FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
-        IF V_CHANGE_TYPE = 'C' THEN
-            COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
-        END IF; 
-        COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
-        --If the elements have changed OR new row, append them to the XML string
-        IF V_CHANGE_TYPE = 'A' THEN
-            XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-        ELSE
-            --Populate the XML String only if the value is changed or if particular column is part of primary key
-            IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
-               OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL 
-               OR (GET_COLS_REC.COLUMN_NAME = 'FORMAT_NAME' AND IN_TABLE_NAME LIKE 'BANK_MICR_FORMAT%') 
-               OR (GET_COLS_REC.COLUMN_NAME = 'EFFECTIVE_DATE') THEN
+    V_CONTEXT := 'Data comparision ignoring some generic columns that always change';
+    IF IS_ROW_DATA_DIFFERENT(IN_TABLE_NAME, ROW_PREV, ROW_CURR) THEN
+        V_CONTEXT := 'Parsing the XMLType';
+        --Start building the XML string
+        XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
+        FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
+            IF V_CHANGE_TYPE = 'C' THEN
+                COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+            END IF; 
+            COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
+            --If the elements have changed OR new row, append them to the XML string
+            IF V_CHANGE_TYPE = 'A' THEN
                 XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+            ELSE
+                --Populate the XML String only if the value is changed or if particular column is part of primary key
+                IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
+                   OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL 
+                   OR (GET_COLS_REC.COLUMN_NAME = 'FORMAT_NAME' AND IN_TABLE_NAME LIKE 'BANK_MICR_FORMAT%') 
+                   OR (GET_COLS_REC.COLUMN_NAME = 'EFFECTIVE_DATE') THEN
+                    XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+                END IF;
             END IF;
-        END IF;
-        IF GET_COLS_REC.COLUMN_NAME IN ('BANK_ACCOUNT_NBR', 'LEAD_BANK_ACCOUNT_NBR') THEN
-            OUT_BNK_ACCNT_NBR := COMP_CURR;
-        ELSIF GET_COLS_REC.COLUMN_NAME IN ('COST_CENTER_CODE', 'LEAD_STORE_NBR', 'MEMBER_STORE_NBR') THEN
-            OUT_CC_CODE := COMP_CURR;
-        END IF;
-    END LOOP;
+            IF GET_COLS_REC.COLUMN_NAME IN ('BANK_ACCOUNT_NBR', 'LEAD_BANK_ACCOUNT_NBR') THEN
+                OUT_BNK_ACCNT_NBR := COMP_CURR;
+            ELSIF GET_COLS_REC.COLUMN_NAME IN ('COST_CENTER_CODE', 'LEAD_STORE_NBR', 'MEMBER_STORE_NBR') THEN
+                OUT_CC_CODE := COMP_CURR;
+            END IF;
+        END LOOP;
+        V_CONTEXT := 'Final value being set';
+        XMLSTRING        := XMLSTRING || '</' || IN_Table_name || '>';
+    END IF;
     UPDATE_AUDIT_REC_FLAG(IN_TABLE_NAME,IN_KEY, V_LOG_ID_PREV, V_LOG_ID_CURR, V_CONTEXT);
-    V_CONTEXT := 'Final value being set';
-    XMLSTRING        := XMLSTRING || '</' || IN_Table_name || '>';
-    V_CONTEXT := 'Converting to XMLType';
 
     OUT_CHANGE_TYPE   := V_CHANGE_TYPE;
     OUT_PREV_ROW      := ROW_PREV;
     OUT_CURR_ROW      := ROW_CURR;
-    OUT_DIFF          := XMLType(XMLSTRING);
+    IF XMLSTRING <> EMPTY_CLOB() THEN
+        OUT_DIFF          := XMLType(XMLSTRING);
+    END IF;
     OUT_LOG_ID_PREV   := V_LOG_ID_PREV;
     OUT_LOG_ID        := V_LOG_ID_CURR;
 END PARSE_DIFFERENCE_XML; 
@@ -215,7 +270,9 @@ This procedure is intended to build a file based on the table layout
 in order to be consumed by the Mainframe to backfill Legacy MainFrame
 
 Created : 09/15/2015 jcx517 CCN project....
-Changed :
+Changed : 10/27/2015 jcx517 CCN project....
+          Added the OWNER clause in the cursor as ALL_* gets same table data from
+          other schemas as well
 **********************************************************/
     IN_TABLE_NAME  IN     VARCHAR2,
     IN_ROW_DATE    IN     DATE,
@@ -234,6 +291,7 @@ IS
                COLUMN_ID
           FROM ALL_TAB_COLUMNS
          WHERE TABLE_NAME = IN_TABLE_NAME
+           AND OWNER = 'BANKING'
          ORDER BY COLUMN_ID ASC;
     PATH                VARCHAR2(50) := 'BANKING_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE UNTIL NEW ONE CREATED
     FILENAME            VARCHAR2(50) := IN_TABLE_NAME || '_backfeed' ;
@@ -283,7 +341,9 @@ This procedure is the core process that performs the required operations
 for the audit log processing
 
 Created : 09/15/2015 jcx517 CCN project....
-Changed :
+Changed : 10/27/2015 jcx517 CCN project....
+          Added condition around BUILD_FILE_SP call, as this call will not
+          be needed if the difference XML itself is null
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -312,16 +372,18 @@ BEGIN
                          DIFF_XML,
                          V_LOG_ID_PREV,
                          V_LOG_ID);
-    V_CONTEXT:='Call procedure Build_File_SP';
-    BUILD_FILE_SP(IN_TABLE_NAME, --in_TABLE_NAME IN VARCHAR2
-                  SYSDATE, --in_ROW_DATE   IN DATE
-                  OUT_PREV_ROW,
-                  OUT_CURR_ROW,
-                  DIFF_XML, --in_Row_data   IN sys.xmltype
-                  V_CHANGE_TYPE,
-                  V_LOG_ID_PREV,
-                  V_LOG_ID,
-                  V_CC_CODE);
+    IF DIFF_XML IS NOT NULL THEN
+        V_CONTEXT:='Call procedure Build_File_SP';
+        BUILD_FILE_SP(IN_TABLE_NAME, --in_TABLE_NAME IN VARCHAR2
+                      SYSDATE, --in_ROW_DATE   IN DATE
+                      OUT_PREV_ROW,
+                      OUT_CURR_ROW,
+                      DIFF_XML, --in_Row_data   IN sys.xmltype
+                      V_CHANGE_TYPE,
+                      V_LOG_ID_PREV,
+                      V_LOG_ID,
+                      V_CC_CODE);
+    END IF;
     OUT_BANK_ACCOUNT_NBR := V_BANK_ACCOUNT_NBR;
     OUT_CC_CODE          := V_CC_CODE;
     OUT_CONTEXT          := V_CONTEXT;
