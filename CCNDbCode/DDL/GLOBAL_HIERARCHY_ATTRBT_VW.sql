@@ -1,7 +1,10 @@
 CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW AS
 SELECT 
 /*******************************************************************************
-This View will give all the details of global hierarchy linked to the cost center
+This View holds all the details of global hierarchy linked to the cost center i.e. this view will 
+have all the details of each and every level of the global hierarchy for a particular cost center.
+It will also have all the upper level value attributes in separate columns for each level (1-9).
+
 
 Created  : 10/14/2015 nxk927 CCN Project....
 Modified : 
