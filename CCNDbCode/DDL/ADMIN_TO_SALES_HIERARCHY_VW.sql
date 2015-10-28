@@ -1,4 +1,4 @@
-CREATE VIEW ADMIN_TO_SALES_HIERARCHY_VW
+CREATE OR REPLACE VIEW ADMIN_TO_SALES_HIERARCHY_VW
 AS SELECT
 /*******************************************************************************
 This View will give all the details of Admin_to_sales_division, Admin_to_sales_area
@@ -16,7 +16,6 @@ Modified :
        ,H.DOMAIN_VAL DOMAIN
        ,H.GROUP_VAL "GROUP"
        ,H.DIVISION_VAL DIVISION
-       ,H.LEGACY_DIVISION_VAL LEGACY_DIVISION
        ,H.AREA_VAL AREA
        ,H.DISTRICT_VAL DISTRICT
        ,H.CITY_SALES_MANAGER_VAL CITY_SALES_MANAGER
@@ -26,7 +25,6 @@ Modified :
        ,H.DOMAIN_VAL_NAME DOMAIN_NAME
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
-       ,NVL2(H.LEGACY_DIVISION_VAL,H.LEGACY_DIVISION_VAL_NAME,NULL) LEGACY_DIVISION_NAME
        ,NVL2(H.AREA_VAL,H.AREA_VAL_NAME,NULL) AREA_NAME
        ,H.DISTRICT_VAL_NAME DISTRICT_NAME
        ,H.CITY_SALES_MANAGER_VAL_NAME CITY_SALES_MANAGER_NAME
@@ -61,7 +59,9 @@ Modified :
                     WHERE HD.HRCHY_HDR_NAME  = HDESC.HRCHY_HDR_NAME
                       AND HD.HRCHY_HDR_NAME  = HH.HRCHY_HDR_NAME
                       AND HD.HRCHY_DTL_LEVEL = HH.HRCHY_HDR_LEVELS
-                      AND NVL(HD.HRCHY_DTL_NEXT_LVL_VAL, '~~~') = '~~~')
+                      AND NVL(HD.HRCHY_DTL_NEXT_LVL_VAL, '~~~') = '~~~'
+                       --filtering only to get Admin_to_sales_division, Admin_to_sales_area And Admin_to_sales_district information.
+                      AND HD.HRCHY_HDR_NAME in ('ADMIN_TO_SALES_DIVISION','ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT'))
              SELECT *
                FROM T
                     --PIVOT function convers this entire result set into a transpose (level of rows to level of columns)
@@ -72,14 +72,11 @@ Modified :
                                                                      'Group' AS "GROUP",
                                                                      'Division' AS DIVISION,
                                                                      'Area' AS AREA,
-                                                                     'Legacy Division' AS LEGACY_DIVISION,
                                                                      'District' AS DISTRICT,
                                                                      'City/Sales Manager' AS CITY_SALES_MANAGER,
                                                                      'Zone' AS "ZONE",
                                                                      'Special Roles' AS SPECIAL_ROLES))) H
  --Finally result of the above two steps(WITH T and PIVOT) will be a new result set "H" which can be used as any other
  --table in a join condition
- WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE(+)
- --filtering only to get Admin_to_sales_division, Admin_to_sales_area And Admin_to_sales_district information.
- AND H.HRCHY_HDR_NAME in ('ADMIN_TO_SALES_DIVISION','ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT')
+ WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
  ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
