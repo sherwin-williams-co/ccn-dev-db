@@ -540,9 +540,6 @@ BEGIN
             NULL;
     END;
     V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_REC.EXPIRATION_DATE, SYSDATE), SYSDATE);
-    IF NVL(V_BANK_DEP_TICK_REC.YTD_DEP_TKTS_ORDERED_QTY,0) = 0 THEN
-       V_BANK_DEP_TICK_REC.YTD_DEP_TKTS_ORDERED_QTY :=  V_BANK_DEP_TICK_REC.DEP_TKTS_ONHAND_QTY;
-    END IF;
     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
@@ -717,6 +714,7 @@ Deposit Ticket Maintenance Window that are future records
 Created : 08/24/2015 jxc517 CCN Project....
 Changed : 10/29/2015 nxk927 CCN Project.... 
           DEP_TKTS_ONHAND_QTY start with 0
+          YTD_DEP_TKTS_ORDERED_QTY start with 0
 *******************************************************************************/
     IN_BANK_DEP_TICK_FUTURE_REC  IN     BANK_DEP_TICK_FUTURE%ROWTYPE,
     IN_MICR_FORMAT_ID            IN     NUMBER)
@@ -728,7 +726,8 @@ IS
     V_PROC_NAME                    VARCHAR2(30) := 'DEPOSIT_TKT_FUTURE_UPSERT_SP';
 BEGIN
    EXPIRE_PREVIOUS_DEP_TICK_DTLS(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
-   V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := '0';
+   --Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
+   V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := '0'; 
    V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := '0';
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
@@ -903,7 +902,8 @@ This procedure is intended to build the STORE_MICR_FORMAT_DTLS_FUTURE,
 BANK_DEP_TICK_FUTURE records and insert the same
 
 Created : 08/25/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/02/2015 nxk927 CCN Project....
+          Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
 IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
@@ -936,6 +936,7 @@ BEGIN
         V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID                 := IN_FUTURE_ID;
         V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINTENANCE_DATE     := SYSDATE;
         V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINT_USER_ID        := 'CODBLT';
+        --Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
         V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := '0';
         V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := '0';
         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
@@ -1163,6 +1164,7 @@ Changed : 10/21/2015 jxc517 CCN Project....
           Added code to re-calculate the onhand, ytd deposit tickets
         : 10/21/2015 nxk927 CCN Project...
           Added call to create the deposit order for future 
+          Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1218,7 +1220,7 @@ BEGIN
         END IF;
     ELSE
         BEGIN
-            SELECT *
+            SELECT *      
               INTO V_BANK_DEP_TICK_FUTURE
               FROM BANK_DEP_TICK_FUTURE
              WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
@@ -1249,10 +1251,34 @@ BEGIN
             V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
             CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID);
-            V_BANK_DEP_TICK.COST_CENTER_CODE              := V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE;
-            V_BANK_DEP_TICK.EFFECTIVE_DATE                := V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE;
-            V_BANK_DEP_TICK.LAST_MAINT_USER_ID            := V_BANK_DEP_TICK_FUTURE.LAST_MAINT_USER_ID;
-            V_BANK_DEP_TICK.PART_PAPER_PER_FORM           := V_BANK_DEP_TICK_FUTURE.PART_PAPER_PER_FORM;
+            BEGIN
+               SELECT BANK_ACCOUNT_NBR, 
+                      COST_CENTER_CODE,       
+                      DAILY_USE_ACTUAL,
+                      DAILY_USE_OVERRIDE,    
+                      DEP_TKTS_ONHAND_QTY,     
+                      YTD_DEP_TKTS_ORDERED_QTY,
+                      REORDER_POINT,
+                      REORDER_NUMBER_BKS,
+                      IMAGES_PER_PAGE,     
+                      NBR_FORMS_PER_BK,        
+                      PART_PAPER_PER_FORM,
+                      NBR_DEP_TICKETS_PER_BK,
+                      SHEETS_OF_PAPER_PER_BK, 
+                      EFFECTIVE_DATE, 
+                      EXPIRATION_DATE,         
+                      LAST_MAINTENANCE_DATE,
+                      LAST_MAINT_USER_ID,  
+                      REORDER_SWITCH,     
+                      LAST_VW_ORDER_DATE
+                 INTO V_BANK_DEP_TICK
+                 FROM BANK_DEP_TICK_FUTURE
+                WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                  AND FUTURE_ID        = IN_FUTURE_ID;
+            EXCEPTION
+              WHEN OTHERS THEN
+                  NULL;
+            END;
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
         END IF;
     END IF;

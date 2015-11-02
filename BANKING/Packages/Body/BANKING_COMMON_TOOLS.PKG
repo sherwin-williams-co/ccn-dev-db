@@ -658,19 +658,21 @@ END GET_MICR_FRMT_ID_FR_BA_FRMT_NM;
 
 FUNCTION IS_BAG_ORDER_PLACED(
 /*******************************************************************************
-  This function will return 'Y' if the store passed has any 
-  order placed bag orders
+  This function will return difference in deposit bag order seqeuence number 
+  i.e number of times the deposit bag has been ordered
 
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
+IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMBER
 IS
-    V_RETURN_VAL VARCHAR2(1) := 'N';
+    V_RETURN_VAL NUMBER := 0;
 BEGIN
-    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+    SELECT (NVL(DEPOSIT_BAG_ORDER_SEQ_NBR,0) - (SELECT NVL(MAX(DEPOSIT_BAG_ORDER_SEQ_NBR),0)
+                                                  FROM BANK_DEP_BAG_TICKORD_HIST 
+                                                 WHERE COST_CENTER_CODE = IN_COST_CENTER)) COUNT
       INTO V_RETURN_VAL
-      FROM BANK_DEP_BAG_TICKORD
+      FROM BANK_DEP_BAG_TICKORD_FUTURE
      WHERE COST_CENTER_CODE = IN_COST_CENTER;
     RETURN V_RETURN_VAL;
 EXCEPTION
@@ -680,19 +682,22 @@ END IS_BAG_ORDER_PLACED;
 
 FUNCTION IS_TICKET_ORDER_PLACED(
 /*******************************************************************************
-  This function will return 'Y' if the store passed has any deposit ticket 
-  order placed 
+  This function will return deposit order seq difference between the
+  future and the hist record if the store passed has any deposit ticket 
+  order placed i.e number of times the deposit ticket order has been placed.
 
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
+IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMBER
 IS
-    V_RETURN_VAL VARCHAR2(1) := 'N';
+    V_RETURN_VAL NUMBER := 0;
 BEGIN
-    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+    SELECT (NVL(DEPOSIT_ORDER_SEQ_NBR,0) - (SELECT NVL(MAX(DEPOSIT_ORDER_SEQ_NBR),0)
+                                             FROM BANK_DEP_TICKORD_HIST 
+                                            WHERE COST_CENTER_CODE = IN_COST_CENTER)) COUNT
       INTO V_RETURN_VAL
-      FROM BANK_DEP_TICKORD
+      FROM BANK_DEP_TICKORD_FUTURE
      WHERE COST_CENTER_CODE = IN_COST_CENTER;
     RETURN V_RETURN_VAL;
 EXCEPTION
@@ -711,6 +716,7 @@ Changed :
     IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_TICK_HIST%ROWTYPE
 IS
 V_DEP_TICK_HIST                   BANK_DEP_TICK_HIST%ROWTYPE;
+V_COUNT                           NUMBER := 0;
 BEGIN
       SELECT * 
         INTO V_DEP_TICK_HIST
@@ -720,8 +726,9 @@ BEGIN
                                  FROM BANK_DEP_TICK_HIST
                                 WHERE COST_CENTER_CODE = IN_COST_CENTER);
 
-    IF IS_TICKET_ORDER_PLACED(IN_COST_CENTER) = 'Y' THEN    
-       V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY + (NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
+    V_COUNT := IS_TICKET_ORDER_PLACED(IN_COST_CENTER);
+    IF V_COUNT > 0 THEN
+       V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY + (V_COUNT * NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
        V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY +  V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY;
     END IF;   
     RETURN V_DEP_TICK_HIST;
@@ -741,6 +748,7 @@ Changed :
     IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE
 IS
 V_BANK_BAG_TICK_HIST          BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+V_COUNT                       NUMBER := 0;
 BEGIN
    SELECT *
      INTO V_BANK_BAG_TICK_HIST
@@ -749,8 +757,9 @@ BEGIN
       AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
                                 FROM BANK_DEP_BAG_TICK_HIST
                                WHERE COST_CENTER_CODE = IN_COST_CENTER);
-   IF IS_BAG_ORDER_PLACED(IN_COST_CENTER) = 'Y' THEN    
-      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY + V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY;
+   V_COUNT := IS_BAG_ORDER_PLACED(IN_COST_CENTER);
+   IF V_COUNT > 0 THEN
+      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY + (V_COUNT * V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY);
       V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY +  V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY;
    END IF;   
    RETURN V_BANK_BAG_TICK_HIST;
