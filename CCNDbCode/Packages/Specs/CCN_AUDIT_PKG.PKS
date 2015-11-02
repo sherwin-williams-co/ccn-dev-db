@@ -1,5 +1,4 @@
-create or replace 
-PACKAGE CCN_AUDIT_PKG AS
+create or replace PACKAGE CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 
@@ -30,6 +29,20 @@ oracle throws an exception if not handled this way
 , p_xpath IN VARCHAR2
 ) RETURN VARCHAR2 
 ;
+
+FUNCTION HANDLE_SPECIAL_CHRCTRS(
+/**********************************************************
+This function will replace special characters while writing
+it to Audit Backfeed file
+
+
+parameters:
+
+IO_TEXT_STRING  IN OUT
+
+created : 11/02/2015 axk326 CCN Project Team....
+**********************************************************/
+IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE SELECT_AUDIT_LOG
 /*******************************************************
