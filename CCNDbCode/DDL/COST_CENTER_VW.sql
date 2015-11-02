@@ -1,5 +1,6 @@
 --------------------------------------------------------
 --  File created - 02/18/2015 
+--  Modified     - 11/02/2015 dxv848 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
 --------------------------------------------------------
 --------------------------------------------------------
 --  DDL for View COST_CENTER_VW
@@ -15,6 +16,7 @@ created  : 03/18/2014 for CCN project and
 Modified : 07/18/14 Added ACQUISITION_CODE column.
 Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Manager/Asst Manager/Sales rep Name broken out with first, initial, last.
+           10/06/2015 nxk927 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
 ********************************************************************************/ 
 COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -32,7 +34,9 @@ MISSION_TYPE_CODE,
 NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('MISSION_TYPE_CODE','COD',MISSION_TYPE_CODE),'N/A') MISSION_TYPE_CODE_DESCRIPTION,
 DUNS_NUMBER,
 ACQUISITION_CODE,
-COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER, 
+PRI_LOGO_GROUP_IND,
+SCD_LOGO_GROUP_IND,
+COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
