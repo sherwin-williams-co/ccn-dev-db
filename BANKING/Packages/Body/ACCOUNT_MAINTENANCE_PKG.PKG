@@ -742,8 +742,10 @@ IS
 BEGIN
     FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
         FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
-            bank_dep_tick_rec.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
-            bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+            bank_dep_tick_rec.EFFECTIVE_DATE           := IN_EFFECTIVE_DATE;
+            bank_dep_tick_rec.EXPIRATION_DATE          := NULL;
+            bank_dep_tick_rec.DEP_TKTS_ONHAND_QTY      := '0';
+            bank_dep_tick_rec.YTD_DEP_TKTS_ORDERED_QTY := '0';
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(bank_dep_tick_rec);
         END LOOP;
         FOR str_micr_format_rec IN store_micr_format_dtls_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
@@ -752,8 +754,10 @@ BEGIN
             TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(str_micr_format_rec);
         END LOOP;
         FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
-            bank_dep_bag_tick_rec.EFFECTIVE_DATE := IN_EFFECTIVE_DATE;
-            bank_dep_bag_tick_rec.EXPIRATION_DATE := NULL;
+            bank_dep_bag_tick_rec.EFFECTIVE_DATE         := IN_EFFECTIVE_DATE;
+            bank_dep_bag_tick_rec.EXPIRATION_DATE        := NULL;
+            bank_dep_bag_tick_rec.DEPBAG_ONHAND_QTY      := '0';
+            bank_dep_bag_tick_rec.DEPBAG_YTD_ORDERED_QTY := '0';
             TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(bank_dep_bag_tick_rec);
         END LOOP;
     END LOOP;
@@ -1127,9 +1131,13 @@ PROCEDURE CREATE_CURRENT_FROM_FUTURE (
 Created : 07/13/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 10/30/2015 nxk927 CCN Project....
+          Code has been changed to deal with Deposit Bag order futures and Deposit ticket order future
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE)
 IS
+V_BANK_DEP_TICK_REC      BANK_DEP_TICK_HIST%ROWTYPE;
+V_BANK_DEP_BAG_TICK_REC  BANK_DEP_BAG_TICK_HIST%ROWTYPE;
     --cursor to get all the bank account records for the bank account, future id passed
     CURSOR bank_account_ftr_cur IS 
         SELECT BANK_ACCOUNT_NBR,
@@ -1241,6 +1249,23 @@ IS
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
+    --cursor to get all the bank deposit ticket details for the store, future id passed
+    CURSOR bank_dep_tick_ord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
+        SELECT BANK_ACCOUNT_NBR,
+               COST_CENTER_CODE,
+               DEPOSIT_ORDER_PRIORITY,
+               DEPOSIT_ORDER_STATUS,
+               DEPOSIT_ORDER_SEQ_NBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINT_USER_ID,
+               ORDER_DATE,
+               EXTRACTED_USER_ID
+          FROM BANK_DEP_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID; 
+           
     --cursor to get all the bank deposit bag ticket details for the store, future id passed
     CURSOR bank_dep_bag_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
         SELECT BANK_ACCOUNT_NBR,
@@ -1260,6 +1285,24 @@ IS
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the bank deposit bag ticket order details for the store, future id passed
+    CURSOR bank_dep_bag_tick_ord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
+        SELECT BANK_ACCOUNT_NBR,
+               COST_CENTER_CODE,
+               DEPOSIT_BAG_ORDER_PRIORITY,
+               DEPOSIT_BAG_ORDER_STATUS,
+               DEPOSIT_BAG_ORDER_SEQ_NBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINT_USER_ID,
+               ORDER_DATE,
+               EXTRACTED_USER_ID
+          FROM BANK_DEP_BAG_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;     
+           
 BEGIN
     --loop through the future bank account records and build the current bank account record
     FOR bank_account_rec IN bank_account_ftr_cur LOOP --loops only once for that future id
@@ -1281,13 +1324,29 @@ BEGIN
 
             --loop through the future bank deposit tickets for that lead and build the current bank deposit tickets
             FOR bank_dep_tick_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                V_BANK_DEP_TICK_REC                        := BANKING_COMMON_TOOLS.GET_DEPOSIT_TICKET_ONHAND_YTD(lead_bank_cc_rec.LEAD_STORE_NBR);
+                bank_dep_tick_rec.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK_REC.DEP_TKTS_ONHAND_QTY;
+                bank_dep_tick_rec.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK_REC.YTD_DEP_TKTS_ORDERED_QTY; 
                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
             END LOOP; --bank_dep_tick_ftr_cur
 
             --loop through the future bank deposit bag tickets for that lead and build the current bank deposit tickets
             FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_ftr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                V_BANK_DEP_BAG_TICK_REC                      := BANKING_COMMON_TOOLS.GET_DEPOSIT_BAG_ONHAND_YTD(lead_bank_cc_rec.LEAD_STORE_NBR);
+                bank_dep_bag_tick_rec.DEPBAG_ONHAND_QTY      := V_BANK_DEP_BAG_TICK_REC.DEPBAG_ONHAND_QTY;
+                bank_dep_bag_tick_rec.DEPBAG_YTD_ORDERED_QTY := V_BANK_DEP_BAG_TICK_REC.DEPBAG_YTD_ORDERED_QTY; 
                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
             END LOOP; --bank_dep_bag_tick_ftr_cur
+            
+            --loop through the future bank deposit bag tickets order for that lead and build the current bank deposit tickets orders
+            FOR bank_dep_tick_ord_ftr_rec IN bank_dep_tick_ord_ftr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tick_ord_ftr_rec);
+            END LOOP; --bank_dep_tick_ord_ftr_cur
+             
+            --loop through the future bank deposit bag order for that lead and build the current bank deposit bag orders
+            FOR bank_dep_bag_tick_ord_ftr_rec IN bank_dep_bag_tick_ord_ftr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tick_ord_ftr_rec);
+            END LOOP; --bank_dep_bag_tick_ord_ftr_cur
 
             --loop through the future member details for that lead and build the current member details
             FOR mbr_bank_cc_rec IN mbr_bank_cc_ftr_cur(lead_bank_cc_rec) LOOP
@@ -1295,13 +1354,29 @@ BEGIN
 
                 --loop through the future bank deposit tickets for that member and build the current bank deposit tickets
                 FOR bank_dep_tick_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    V_BANK_DEP_TICK_REC                        := BANKING_COMMON_TOOLS.GET_DEPOSIT_TICKET_ONHAND_YTD(mbr_bank_cc_rec.MEMBER_STORE_NBR);
+                    bank_dep_tick_rec.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK_REC.DEP_TKTS_ONHAND_QTY;
+                    bank_dep_tick_rec.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK_REC.YTD_DEP_TKTS_ORDERED_QTY; 
                     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
                 END LOOP; --bank_dep_tick_ftr_cur
 
                 --loop through the future bank deposit bag tickets for that member and build the current bank deposit tickets
                 FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_ftr_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    V_BANK_DEP_BAG_TICK_REC                      := BANKING_COMMON_TOOLS.GET_DEPOSIT_BAG_ONHAND_YTD(mbr_bank_cc_rec.MEMBER_STORE_NBR);
+                    bank_dep_bag_tick_rec.DEPBAG_ONHAND_QTY      := V_BANK_DEP_BAG_TICK_REC.DEPBAG_ONHAND_QTY;
+                    bank_dep_bag_tick_rec.DEPBAG_YTD_ORDERED_QTY := V_BANK_DEP_BAG_TICK_REC.DEPBAG_YTD_ORDERED_QTY;
                     TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
-                END LOOP; --bank_dep_tick_ftr_cur
+                END LOOP; --bank_dep_bag_tick_ftr_cur
+                
+                --loop through the future bank deposit bag tickets order for that member and build the current bank deposit tickets orders
+                FOR bank_dep_tick_ord_ftr_rec IN bank_dep_tick_ord_ftr_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tick_ord_ftr_rec);
+                END LOOP; --bank_dep_tick_ord_ftr_cur
+                
+                --loop through the future bank deposit bag order for that member and build the current bank deposit bag orders
+                FOR bank_dep_bag_tick_ord_ftr_rec IN bank_dep_bag_tick_ord_ftr_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tick_ord_ftr_rec);
+                END LOOP; --bank_dep_bag_tick_ord_ftr_cur
             END LOOP; --mbr_bank_cc_ftr_cur
         END LOOP; --lead_bank_cc_ftr_cur
     END LOOP; --bank_account_ftr_cur
@@ -1318,6 +1393,8 @@ PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP (
 Created : 07/13/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 10/30/2015 nxk927 CCN Project....
+          Code has been changed to deal with Deposit Bag order futures and Deposit ticket order future
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE,
     IN_FTR_TO_CURR_FLAG         IN     VARCHAR2 DEFAULT 'N')
@@ -1365,6 +1442,20 @@ IS
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+           
+        --cursor to get all the deposit ticket orders records for the store, future id passed
+    CURSOR bank_dep_tickord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the deposit bag ticket orders records for the store, future id passed
+    CURSOR bank_dep_bag_tickord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
 BEGIN
     --check the input flag to make sure, weather we need to create current records from future or not
@@ -1400,6 +1491,19 @@ BEGIN
         --if so, get that child member bank details and delete those child future records first
         FOR mbr_bank_cc_ftr_rec IN mbr_bank_cc_ftr_cur(lead_bank_cc_ftr_rec) LOOP
 
+            --for this member store, get the bank deposit ticket order details
+            --if found, delete those child records first
+            FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
+            END LOOP; --bank_dep_tickord_cur
+
+            FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+
+                --now delete the bank deposit bag ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
+            END LOOP; --bank_dep_bag_tickord_cur
+            
             --for this member store, get the bank deposit ticket details
             --if found, delete those child records first
             FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
@@ -1417,6 +1521,19 @@ BEGIN
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_ftr_rec);
         END LOOP; --mbr_bank_cc_cur
 
+            --for this lead store, get the bank deposit ticket order details
+            --if found, delete those child records first
+            FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
+            END LOOP; --bank_dep_tickord_cur
+
+            FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+
+                --now delete the bank deposit bag ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
+            END LOOP; --bank_dep_bag_tickord_cur
+        
         --for this lead store, get the bank deposit ticket details
         --if found, delete those child records first
         FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
@@ -1726,4 +1843,3 @@ EXCEPTION
 END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
 
 END ACCOUNT_MAINTENANCE_PKG;
-

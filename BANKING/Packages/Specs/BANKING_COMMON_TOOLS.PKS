@@ -168,11 +168,11 @@ Changed :
     IN_BANK_ACCOUNT_NBR           IN     VARCHAR2,
     IN_EFFECTIVE_DATE             IN     BANK_ACCOUNT.EFFECTIVE_DATE%TYPE) RETURN BANK_ACCOUNT%ROWTYPE;
 
-FUNCTION GET_BANK_TYPE_CODE(
+FUNCTION IS_STORE_LEAD_EVER(
 /*******************************************************************************
-  This function will get the bank type code for the passed store number
+  This function will return 'Y' if the store passed is a lead ever
 
-Created : 07/13/2015 jxc517 CCN Project....
+Created : 10/20/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_COST_CENTER    IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE) RETURN VARCHAR2;
@@ -254,5 +254,24 @@ IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
 IN_FORMAT_NAME      IN     VARCHAR2,
 IN_FUTURE_ID        IN     NUMBER) RETURN NUMBER;
 
+FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
+/***********************************************************
+	  This function will get the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields
+Created : 10/30/2015 NXK927
+Changed : 
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+    
+FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
+/***********************************************************
+	  This function will get the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields  
+Created : 10/30/2015 NXK927
+Changed : 
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+    
 END BANKING_COMMON_TOOLS;
-

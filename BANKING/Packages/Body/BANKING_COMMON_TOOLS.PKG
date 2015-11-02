@@ -424,31 +424,33 @@ EXCEPTION
         RETURN NULL;
 END GET_BANK_ACCOUNT_HIST_REC;
 
-FUNCTION GET_BANK_TYPE_CODE(
+FUNCTION IS_STORE_LEAD_EVER(
 /*******************************************************************************
-  This function will get the bank type code for the passed store number
+  This function will return 'Y' if the store passed is a lead ever
 
-Created : 07/13/2015 jxc517 CCN Project....
+Created : 10/20/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_COST_CENTER    IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE) RETURN VARCHAR2
 IS
-    V_BANK_TYPE_CODE VARCHAR2(1);
+    V_RETURN_VAL VARCHAR2(1) := 'N';
 BEGIN
-    SELECT BANK_TYPE_CODE 
-      INTO V_BANK_TYPE_CODE
-      FROM (SELECT BANK_TYPE_CODE
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+      INTO V_RETURN_VAL
+      FROM (SELECT LEAD_BANK_ACCOUNT_NBR
               FROM LEAD_BANK_CC
              WHERE LEAD_STORE_NBR = IN_COST_CENTER
+               AND BANK_TYPE_CODE = 'L'
              UNION
-            SELECT 'M'
-              FROM MEMBER_BANK_CC
-             WHERE MEMBER_STORE_NBR = IN_COST_CENTER);
-    RETURN V_BANK_TYPE_CODE;
+            SELECT LEAD_BANK_ACCOUNT_NBR
+              FROM LEAD_BANK_CC_FUTURE
+             WHERE LEAD_STORE_NBR = IN_COST_CENTER
+               AND BANK_TYPE_CODE = 'L');
+    RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN V_BANK_TYPE_CODE;
-END GET_BANK_TYPE_CODE;
+        RETURN V_RETURN_VAL;
+END IS_STORE_LEAD_EVER;
 
 FUNCTION GET_FUTURE_ID(
 /***********************************************************
@@ -654,5 +656,107 @@ EXCEPTION
         RETURN NULL;
 END GET_MICR_FRMT_ID_FR_BA_FRMT_NM;
 
-END BANKING_COMMON_TOOLS;
+FUNCTION IS_BAG_ORDER_PLACED(
+/*******************************************************************************
+  This function will return 'Y' if the store passed has any 
+  order placed bag orders
 
+Created : 10/30/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+      INTO V_RETURN_VAL
+      FROM BANK_DEP_BAG_TICKORD
+     WHERE COST_CENTER_CODE = IN_COST_CENTER;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_BAG_ORDER_PLACED;
+
+FUNCTION IS_TICKET_ORDER_PLACED(
+/*******************************************************************************
+  This function will return 'Y' if the store passed has any deposit ticket 
+  order placed 
+
+Created : 10/30/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+      INTO V_RETURN_VAL
+      FROM BANK_DEP_TICKORD
+     WHERE COST_CENTER_CODE = IN_COST_CENTER;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_TICKET_ORDER_PLACED;
+
+FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
+/***********************************************************
+	  This function will get the old records
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields
+Created : 10/30/2015 NXK927
+Changed : 
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_TICK_HIST%ROWTYPE
+IS
+V_DEP_TICK_HIST                   BANK_DEP_TICK_HIST%ROWTYPE;
+BEGIN
+      SELECT * 
+        INTO V_DEP_TICK_HIST
+        FROM BANK_DEP_TICK_HIST
+       WHERE COST_CENTER_CODE = IN_COST_CENTER
+         AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
+                                 FROM BANK_DEP_TICK_HIST
+                                WHERE COST_CENTER_CODE = IN_COST_CENTER);
+
+    IF IS_TICKET_ORDER_PLACED(IN_COST_CENTER) = 'Y' THEN    
+       V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY + (NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,0) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
+       V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY +  V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY;
+    END IF;   
+    RETURN V_DEP_TICK_HIST;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN Null;
+END GET_DEPOSIT_TICKET_ONHAND_YTD;
+
+FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
+/***********************************************************
+	  This function will get the deposit bag old records
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields  
+Created : 10/30/2015 NXK927
+Changed : 
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE
+IS
+V_BANK_BAG_TICK_HIST          BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+BEGIN
+   SELECT *
+     INTO V_BANK_BAG_TICK_HIST
+     FROM BANK_DEP_BAG_TICK_HIST
+    WHERE COST_CENTER_CODE = IN_COST_CENTER
+      AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
+                                FROM BANK_DEP_BAG_TICK_HIST
+                               WHERE COST_CENTER_CODE = IN_COST_CENTER);
+   IF IS_BAG_ORDER_PLACED(IN_COST_CENTER) = 'Y' THEN    
+      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY + V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY;
+      V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY +  V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY;
+   END IF;   
+   RETURN V_BANK_BAG_TICK_HIST;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_DEPOSIT_BAG_ONHAND_YTD;
+
+END BANKING_COMMON_TOOLS;
