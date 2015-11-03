@@ -262,7 +262,8 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
-    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_TICK_HIST%ROWTYPE;
     
 FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 /***********************************************************
@@ -272,6 +273,7 @@ FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
-    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
     
 END BANKING_COMMON_TOOLS;
