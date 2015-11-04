@@ -1,4 +1,4 @@
-create or replace PACKAGE ERRNUMS
+CREATE OR REPLACE PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -254,109 +254,97 @@ exc_accnt_nbr_not_avlbl_for_cc EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_accnt_nbr_not_avlbl_for_cc , -20020);
 
 /*********************************************************** 
-The "bank_dep_tickord_seq_err" passes a numerical error of -20021
-This error will be used when current order is placed with a future order 
-already in place
-
-Created : 09/09/2015 jxc517 CCN Project....
-Changed :
-************************************************************/
-en_bank_dep_tickord_seq_err CONSTANT NUMBER := -20021;
-exc_bank_dep_tickord_seq_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_bank_dep_tickord_seq_err , -20021);
-
-/*********************************************************** 
-The "to_lead_not_provided_err" passes a numerical error of -20022
+The "to_lead_not_provided_err" passes a numerical error of -20021
 This error will be used when user tries to transfer members without specifying
 the new "To" lead
 
 Created : 09/09/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_to_lead_not_provided_err CONSTANT NUMBER := -20022;
+en_to_lead_not_provided_err CONSTANT NUMBER := -20021;
 exc_to_lead_not_provided_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_to_lead_not_provided_err , -20022);
+PRAGMA EXCEPTION_INIT(exc_to_lead_not_provided_err , -20021);
 
 /*********************************************************** 
-The "to_member_not_selected_err" passes a numerical error of -20023
+The "to_member_not_selected_err" passes a numerical error of -20022
 This error will be used when user tries to transfer members without selecting
 any member
 
 Created : 09/09/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_member_not_selected_err CONSTANT NUMBER := -20023;
+en_member_not_selected_err CONSTANT NUMBER := -20022;
 exc_member_not_selected_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_member_not_selected_err , -20023);
+PRAGMA EXCEPTION_INIT(exc_member_not_selected_err , -20022);
 
 /*********************************************************** 
-The "to_effective_date" passes a numerical error of -20024
+The "to_effective_date" passes a numerical error of -20023
 This error will be used when user tries to transfer members without selecting
 any effective date
 
 Created : 09/14/2015 axk326 CCN Project....
 Changed :
 ************************************************************/
-en_to_effect_date_err CONSTANT NUMBER := -20024;
+en_to_effect_date_err CONSTANT NUMBER := -20023;
 exc_to_effect_date_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_to_effect_date_err , -20024);
+PRAGMA EXCEPTION_INIT(exc_to_effect_date_err , -20023);
 
 /*********************************************************** 
-The "childs_effctv_before_parent" passes a numerical error of -20025
+The "childs_effctv_before_parent" passes a numerical error of -20024
 This error will be used when childs are effective before parents
 
 Created : 09/15/2015 axk326 CCN Project....
 Changed :
 ************************************************************/
-en_childs_effctv_before_parent CONSTANT NUMBER := -20025;
+en_childs_effctv_before_parent CONSTANT NUMBER := -20024;
 exc_childs_effctv_bfr_parent EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_childs_effctv_bfr_parent , -20025);
+PRAGMA EXCEPTION_INIT(exc_childs_effctv_bfr_parent , -20024);
 
 /*********************************************************** 
-The "future_del_wrn" passes a numerical error of -20026
+The "future_del_wrn" passes a numerical error of -20025
 This warning will be used if an expired member with future 
 is transferred again. 
 Created : 09/30/2015 sxh487 CCN Project....
 Changed :
 ************************************************************/
-en_future_del_wrn CONSTANT NUMBER := -20026;
+en_future_del_wrn CONSTANT NUMBER := -20025;
 exc_future_del_wrn EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_future_del_wrn , -20026);
+PRAGMA EXCEPTION_INIT(exc_future_del_wrn , -20025);
 
 /*********************************************************** 
-The "lead_bank_type_not_chg" passes a numerical error of -20027
+The "lead_bank_type_not_chg" passes a numerical error of -20026
 This error will be thrown if there is a change to Bank type and 
 effective date correspondingly
 Created : 10/06/2015 axk326 CCN Project....
 Changed :
 ************************************************************/
-en_lead_bnk_typ_not_chg_err CONSTANT NUMBER := -20027;
+en_lead_bnk_typ_not_chg_err CONSTANT NUMBER := -20026;
 exc_lead_bnk_typ_not_chg_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_lead_bnk_typ_not_chg_err , -20027);
+PRAGMA EXCEPTION_INIT(exc_lead_bnk_typ_not_chg_err , -20026);
 
 /*********************************************************** 
-The "book_keeper_null_err" passes a numerical error of -20028
+The "book_keeper_null_err" passes a numerical error of -20027
 This error will be thrown if the bank account book keeper number
 is not provided
 
 Created : 10/14/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_book_keeper_null_err CONSTANT NUMBER := -20028;
+en_book_keeper_null_err CONSTANT NUMBER := -20027;
 exc_book_keeper_null_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_book_keeper_null_err , -20028);
+PRAGMA EXCEPTION_INIT(exc_book_keeper_null_err , -20027);
 
 /*********************************************************** 
-The "bnk_dep_bag_tckord_seq_err" passes a numerical error of -20029
+The "bnk_dep_bag_tckord_seq_err" passes a numerical error of -20028
 This error will be used when current order is placed with a future order 
 already in place
 
 Created : 10/20/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
-en_bnk_dep_bag_tckord_seq_err CONSTANT NUMBER := -20029;
+en_bnk_dep_bag_tckord_seq_err CONSTANT NUMBER := -20028;
 exc_bnk_dep_bag_tckord_seq_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_bnk_dep_bag_tckord_seq_err , -20029);
+PRAGMA EXCEPTION_INIT(exc_bnk_dep_bag_tckord_seq_err , -20028);
 
 END ERRNUMS;
 

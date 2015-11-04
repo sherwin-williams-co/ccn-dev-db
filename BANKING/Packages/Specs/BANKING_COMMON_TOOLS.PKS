@@ -1,4 +1,4 @@
-create or replace PACKAGE BANKING_COMMON_TOOLS
+CREATE OR REPLACE PACKAGE BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have store drafts specific tools
@@ -275,3 +275,4 @@ Changed :
     IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
     
 END BANKING_COMMON_TOOLS;
+

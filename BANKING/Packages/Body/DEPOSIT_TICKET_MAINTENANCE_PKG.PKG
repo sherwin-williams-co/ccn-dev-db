@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
+CREATE OR REPLACE 
+PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -1002,6 +1003,36 @@ EXCEPTION
         RETURN NULL;
 END GET_DEPOSIT_ORDER_SEQ_NBR;
 
+FUNCTION GET_DEPOSIT_TKT_FUT_ID_NBR(
+/*******************************************************************************
+This fucntion is intended to return the deposit ticket future id
+for the cost center that has been passed in
+
+Created : 11/03/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE    IN      VARCHAR2,
+IN_FLAG                IN      VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(10);
+BEGIN
+    IF IN_FLAG = 'C' THEN
+       SELECT MAX(BANK_DEP_TICK_FTR_ID)
+         INTO V_RETURN_VAL
+         FROM BANK_DEP_TICKORD
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    ELSE
+       SELECT MAX(BANK_DEP_TICK_FTR_ID)
+         INTO V_RETURN_VAL
+         FROM BANK_DEP_TICKORD_FUTURE
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_DEPOSIT_TKT_FUT_ID_NBR;
+
 PROCEDURE CREATE_DEPOSIT_TKT_INPUT_FILE(
 /******************************************************************************
 This procedure is intended to create the input deposit ticket file.
@@ -1165,6 +1196,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
         : 10/21/2015 nxk927 CCN Project...
           Added call to create the deposit order for future 
           Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
+        : 11/04/2015 nxk927 CCN Project...
+          Added condition to not to update the on hand quantity if the date is not current
+          Removed the business rule that was not allowing order to be placed in current if future is present
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1180,11 +1214,7 @@ IS
     V_BANK_DEP_TICKORD_FUTURE          BANK_DEP_TICKORD_FUTURE%ROWTYPE;
     V_BANK_DEP_TICK                    BANK_DEP_TICK%ROWTYPE;
     V_BANK_DEP_TICK_FUTURE             BANK_DEP_TICK_FUTURE%ROWTYPE;
-    BANK_DEP_TICKORD_SEQ_ERR           EXCEPTION;
 BEGIN
-    FOR rec IN bank_dep_tickord_ftr_cur LOOP
-        RAISE BANK_DEP_TICKORD_SEQ_ERR;
-    END LOOP;
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
             SELECT *
@@ -1198,10 +1228,11 @@ BEGIN
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
             V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
+            V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, 'C'),0) + 1;
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_PRIORITY  := '100';
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE),'000');
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := LPAD(TO_NUMBER(V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR) + 1, 3, '0');
+            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE),0);
+            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR + 1;
             V_BANK_DEP_TICKORD.EFFECTIVE_DATE          := V_BANK_DEP_TICK.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1213,8 +1244,15 @@ BEGIN
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
             TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
             --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
+            IF IN_ORDERED_DATE > TRUNC(SYSDATE) THEN
+            V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY;
+            V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY;
+            ELSE
+            --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+            --if not the batch process will update the qauntity when it hits the date
             V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
             V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+            END IF;
             V_BANK_DEP_TICK.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
         END IF;
@@ -1232,10 +1270,11 @@ BEGIN
         IF V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR;
             V_BANK_DEP_TICKORD_FUTURE.COST_CENTER_CODE        := V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE;
+            V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, 'F'),0) + 1;
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_PRIORITY  := '100';
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE),'000');
-            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := LPAD(TO_NUMBER(V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR) + 1, 3, '0');
+            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE),0);
+            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR + 1;
             V_BANK_DEP_TICKORD_FUTURE.EFFECTIVE_DATE          := V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXPIRATION_DATE         := V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1283,10 +1322,9 @@ BEGIN
         END IF;
     END IF;
 EXCEPTION
-    WHEN BANK_DEP_TICKORD_SEQ_ERR THEN
-        ERRPKG.RAISE_ERR(errnums.en_bank_dep_tickord_seq_err, 'Deposit order cannot be placed as there is already a Future order for this Cost Center');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
+

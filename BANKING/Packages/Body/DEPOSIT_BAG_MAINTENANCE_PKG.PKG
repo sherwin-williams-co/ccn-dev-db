@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY         DEPOSIT_BAG_MAINTENANCE_PKG AS
+CREATE OR REPLACE PACKAGE BODY         DEPOSIT_BAG_MAINTENANCE_PKG AS
 /**********************************************************
 This Package contains all the procedures used in
 deposit bag update maintenance window
@@ -450,6 +450,36 @@ EXCEPTION
         RETURN NULL;
 END GET_DEPOSIT_BAG_ORDER_SEQ_NBR;
 
+FUNCTION GET_DEPOSIT_BAG_FUT_ID_NBR(
+/*******************************************************************************
+This fucntion is intended to return the deposit bag ticket future id
+for the cost center passed in
+
+Created : 11/03/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE    IN      VARCHAR2,
+IN_FLAG                IN      VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(10);
+BEGIN
+    IF IN_FLAG = 'C' THEN
+       SELECT MAX(BANK_DEP_BAG_FTR_ID)
+         INTO V_RETURN_VAL
+         FROM BANK_DEP_BAG_TICKORD
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    ELSE
+       SELECT BANK_DEP_BAG_FTR_ID
+         INTO V_RETURN_VAL
+         FROM BANK_DEP_BAG_TICKORD_FUTURE
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_DEPOSIT_BAG_FUT_ID_NBR;
+
 PROCEDURE PLACE_DEPOSIT_BAG_TICKET_ORDER(
 /*******************************************************************************
 This procedure is intended to place a deposit bag ticket order for the store passed in
@@ -462,6 +492,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
         : 10/21/2015 nxk927 CCN Project...
           Added call to create the deposit ticket bag order for future 
           Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
+        : 11/04/2015 nxk927 CCN Project...
+          Added condition to not to update the on hand quantity if the date is not current
+          Removed the business rule that was not allowing order to be placed in current if future is present
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -477,11 +510,7 @@ IS
     V_BANK_DEP_BAG_TICKORD_FUTURE          BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE;
     V_BANK_DEP_BAG_TICK                    BANK_DEP_BAG_TICK%ROWTYPE;
     V_BANK_DEP_BAG_TICK_FUTURE             BANK_DEP_BAG_TICK_FUTURE%ROWTYPE;
-    BANK_DEP_BAG_TICKORD_SEQ_ERR           EXCEPTION;
 BEGIN
-    FOR rec IN bank_dep_bag_tickord_ftr_cur LOOP
-        RAISE BANK_DEP_BAG_TICKORD_SEQ_ERR;
-    END LOOP;
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
             SELECT *
@@ -495,10 +524,11 @@ BEGIN
         IF V_BANK_DEP_BAG_TICK.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_BAG_TICKORD.BANK_ACCOUNT_NBR            := V_BANK_DEP_BAG_TICK.BANK_ACCOUNT_NBR;
             V_BANK_DEP_BAG_TICKORD.COST_CENTER_CODE            := V_BANK_DEP_BAG_TICK.COST_CENTER_CODE;
+            V_BANK_DEP_BAG_TICKORD.BANK_DEP_BAG_FTR_ID         := NVL(GET_DEPOSIT_BAG_FUT_ID_NBR(V_BANK_DEP_BAG_TICK.COST_CENTER_CODE, 'C'),0) + 1;
             V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_PRIORITY  := '100';
             V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_STATUS    := 'P';
-            V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_BAG_ORDER_SEQ_NBR(V_BANK_DEP_BAG_TICK.COST_CENTER_CODE),'000');
-            V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR   := LPAD(TO_NUMBER(V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR) + 1, 3, '0');
+            V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_BAG_ORDER_SEQ_NBR(V_BANK_DEP_BAG_TICK.COST_CENTER_CODE),0);
+            V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR   := V_BANK_DEP_BAG_TICKORD.DEPOSIT_BAG_ORDER_SEQ_NBR + 1;
             V_BANK_DEP_BAG_TICKORD.EFFECTIVE_DATE              := V_BANK_DEP_BAG_TICK.EFFECTIVE_DATE;
             V_BANK_DEP_BAG_TICKORD.EXPIRATION_DATE             := V_BANK_DEP_BAG_TICK.EXPIRATION_DATE;
             V_BANK_DEP_BAG_TICKORD.LAST_MAINTENANCE_DATE       := TRUNC(SYSDATE);
@@ -508,8 +538,15 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(V_BANK_DEP_BAG_TICKORD);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_BAG_ORDER(V_BANK_DEP_BAG_TICK, IN_USER_ID);
             --DEPBAG_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
+            IF IN_ORDERED_DATE > SYSDATE THEN
+            --if the order date is future then the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY should not be accounted
+            --it will be done when the batch job runs as the date becomes current
+            V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY;
+            V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY;
+            ELSE
             V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
             V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+            END IF;
             V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_DATE := IN_ORDERED_DATE;
             V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
             DEPOSIT_BAG_CURRENT_UPSERT_SP(V_BANK_DEP_BAG_TICK);
@@ -528,10 +565,11 @@ BEGIN
         IF V_BANK_DEP_BAG_TICK_FUTURE.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_BAG_TICKORD_FUTURE.BANK_ACCOUNT_NBR            := V_BANK_DEP_BAG_TICK_FUTURE.BANK_ACCOUNT_NBR;
             V_BANK_DEP_BAG_TICKORD_FUTURE.COST_CENTER_CODE            := V_BANK_DEP_BAG_TICK_FUTURE.COST_CENTER_CODE;
+            V_BANK_DEP_BAG_TICKORD_FUTURE.BANK_DEP_BAG_FTR_ID         := NVL(GET_DEPOSIT_BAG_FUT_ID_NBR(V_BANK_DEP_BAG_TICKORD_FUTURE.COST_CENTER_CODE, 'F'),0) + 1;
             V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_PRIORITY  := '100';
             V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_STATUS    := 'P';
-            V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_BAG_ORDER_SEQ_NBR(V_BANK_DEP_BAG_TICK_FUTURE.COST_CENTER_CODE),'000');
-            V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR   := LPAD(TO_NUMBER(V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR) + 1, 3, '0');
+            V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_BAG_ORDER_SEQ_NBR(V_BANK_DEP_BAG_TICK_FUTURE.COST_CENTER_CODE),0);
+            V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR   := V_BANK_DEP_BAG_TICKORD_FUTURE.DEPOSIT_BAG_ORDER_SEQ_NBR + 1;
             V_BANK_DEP_BAG_TICKORD_FUTURE.EFFECTIVE_DATE              := V_BANK_DEP_BAG_TICK_FUTURE.EFFECTIVE_DATE;
             V_BANK_DEP_BAG_TICKORD_FUTURE.EXPIRATION_DATE             := V_BANK_DEP_BAG_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_BAG_TICKORD_FUTURE.LAST_MAINTENANCE_DATE       := TRUNC(SYSDATE);
@@ -574,10 +612,9 @@ BEGIN
         END IF;
     END IF;
 EXCEPTION
-    WHEN BANK_DEP_BAG_TICKORD_SEQ_ERR THEN
-        ERRPKG.RAISE_ERR(errnums.en_bnk_dep_bag_tckord_seq_err, 'Deposit Bag order cannot be placed as there is already a Future order for this Cost Center');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_BAG_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END PLACE_DEPOSIT_BAG_TICKET_ORDER;
 
 END DEPOSIT_BAG_MAINTENANCE_PKG;
+

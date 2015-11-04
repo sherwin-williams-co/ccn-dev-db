@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY BANKING_COMMON_TOOLS
+CREATE OR REPLACE PACKAGE BODY BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have Banking specific tools
@@ -658,8 +658,8 @@ END GET_MICR_FRMT_ID_FR_BA_FRMT_NM;
 
 FUNCTION GET_BAG_ORDER_COUNT(
 /*******************************************************************************
-  This function will return difference in deposit bag order seqeuence number 
-  - The number of Bag orders placed
+  This function will return number of future deposit bag order placed
+  for the cost center that has been passed that needs to move to current
 
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
@@ -668,17 +668,11 @@ IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMB
 IS
     V_RETURN_VAL NUMBER := 0;
 BEGIN
-    SELECT (NVL(DEPOSIT_BAG_ORDER_SEQ_NBR,0) - (SELECT NVL(MAX(DEPOSIT_BAG_ORDER_SEQ_NBR),0)
-                                                  FROM (SELECT DEPOSIT_BAG_ORDER_SEQ_NBR
-                                                          FROM BANK_DEP_BAG_TICKORD_HIST
-                                                         WHERE COST_CENTER_CODE = IN_COST_CENTER
-                                                         UNION
-                                                         SELECT DEPOSIT_BAG_ORDER_SEQ_NBR
-                                                           FROM BANK_DEP_BAG_TICKORD
-                                                          WHERE COST_CENTER_CODE = IN_COST_CENTER))) COUNT
+    SELECT COUNT(*)
       INTO V_RETURN_VAL
       FROM BANK_DEP_BAG_TICKORD_FUTURE
-     WHERE COST_CENTER_CODE = IN_COST_CENTER;
+     WHERE COST_CENTER_CODE = IN_COST_CENTER
+       AND ORDER_DATE <= TRUNC(SYSDATE);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -687,9 +681,8 @@ END GET_BAG_ORDER_COUNT;
 
 FUNCTION GET_TICKET_ORDER_COUNT(
 /*******************************************************************************
-  This function will return deposit order seq difference between the
-  future and the hist record if the store passed has any deposit ticket 
-  order placed - The number of Ticket orders placed
+  This function will return number of future deposit ticket order placed
+  for the cost center that has been passed that needs to move to current
 
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
@@ -698,17 +691,11 @@ IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMBER
 IS
     V_RETURN_VAL NUMBER := 0;
 BEGIN
-    SELECT (NVL(DEPOSIT_ORDER_SEQ_NBR,0) - (SELECT NVL(MAX(DEPOSIT_ORDER_SEQ_NBR),0)
-                                             FROM (SELECT DEPOSIT_ORDER_SEQ_NBR
-                                                     FROM BANK_DEP_TICKORD_HIST
-                                                    WHERE COST_CENTER_CODE = IN_COST_CENTER
-                                                    UNION
-                                                    SELECT DEPOSIT_ORDER_SEQ_NBR
-                                                      FROM BANK_DEP_TICKORD
-                                                     WHERE COST_CENTER_CODE = IN_COST_CENTER))) COUNT
+    SELECT COUNT(*)
       INTO V_RETURN_VAL
       FROM BANK_DEP_TICKORD_FUTURE
-     WHERE COST_CENTER_CODE = IN_COST_CENTER;
+     WHERE COST_CENTER_CODE = IN_COST_CENTER
+       AND ORDER_DATE  <= TRUNC(SYSDATE);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -717,9 +704,11 @@ END GET_TICKET_ORDER_COUNT;
 
 FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
 /***********************************************************
-	  This function will get the old records
-    From history to update the current records as the future will have 0's for both the
-    field. When future moves to current, this need to run to update the two fields
+	  This function will get the old records 
+    --if present in current then will be inserted into history
+    From history it will be used to update the current records for DEP_TKTS_ONHAND_QTY
+    and YTD_DEP_TKTS_ORDERED_QTY as the future will have 0's. When future moves to current,
+    this need to run to update the two fields
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
@@ -728,34 +717,35 @@ IS
 V_DEP_TICK_HIST                   BANK_DEP_TICK_HIST%ROWTYPE;
 V_TICK_COUNT                      NUMBER := 0;
 BEGIN
-   SELECT Count(*)
-     INTO V_TICK_COUNT
-     FROM BANK_DEP_TICK
+  SELECT COUNT(*) 
+    INTO V_TICK_COUNT
+    FROM BANK_DEP_TICK
     WHERE COST_CENTER_CODE = IN_COST_CENTER;
-
-   IF V_TICK_COUNT <> 0 THEN 
-   SELECT *
-     INTO V_DEP_TICK_HIST
-     FROM BANK_DEP_TICK
-    WHERE COST_CENTER_CODE = IN_COST_CENTER;
-   TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_DEP_TICK_HIST);
-   END IF;
-   
+    
+    IF V_TICK_COUNT <> 0 THEN
+       SELECT *
+         INTO V_DEP_TICK_HIST
+         FROM BANK_DEP_TICK
+        WHERE COST_CENTER_CODE = IN_COST_CENTER;
+       
+       TABLE_IU_PKG.BANK_DEP_TICK_D_SP(V_DEP_TICK_HIST);
+   END IF;         
+      
    SELECT * 
      INTO V_DEP_TICK_HIST
      FROM BANK_DEP_TICK_HIST
     WHERE COST_CENTER_CODE = IN_COST_CENTER
       AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
                                 FROM BANK_DEP_TICK_HIST
-                               WHERE COST_CENTER_CODE = IN_COST_CENTER
-                                 AND ROWNUM < 2);
+                               WHERE COST_CENTER_CODE = IN_COST_CENTER)
+      AND ROWNUM < 2;
 
     --Get the number of Ticket orders placed for the cost center
-   V_TICK_COUNT := 0; 
+   V_TICK_COUNT := 0;
    V_TICK_COUNT := GET_TICKET_ORDER_COUNT(IN_COST_CENTER);
    IF V_TICK_COUNT > 0 THEN
-      V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY + (V_TICK_COUNT * NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
-      V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY +  (V_TICK_COUNT * NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
+      V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := NVL(V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY,0) + (V_TICK_COUNT * NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
+      V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := NVL(V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY,0) +  (V_TICK_COUNT *  NVL(V_DEP_TICK_HIST.REORDER_NUMBER_BKS,1) * NVL(V_DEP_TICK_HIST.NBR_DEP_TICKETS_PER_BK,162));
    END IF;   
    RETURN V_DEP_TICK_HIST;
 EXCEPTION
@@ -766,8 +756,10 @@ END GET_DEPOSIT_TICKET_ONHAND_YTD;
 FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 /***********************************************************
 	  This function will get the deposit bag old records
-    From history to update the current records as the future will have 0's for both the
-    field. When future moves to current, this need to run to update the two fields  
+    --if in current will be moved into history
+    From history to update the current records as the future will have 0's for DEPBAG_ONHAND_QTY
+    and DEPBAG_YTD_ORDERED_QTY.
+    When future moves to current, this need to run to update the two fields  
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
@@ -776,7 +768,7 @@ IS
 V_BANK_BAG_TICK_HIST          BANK_DEP_BAG_TICK_HIST%ROWTYPE;
 V_BAG_COUNT                   NUMBER := 0;
 BEGIN
-    SELECT count(*) 
+    SELECT COUNT(*) 
       INTO V_BAG_COUNT
       FROM BANK_DEP_BAG_TICK
      WHERE COST_CENTER_CODE = IN_COST_CENTER;
@@ -786,29 +778,31 @@ BEGIN
          INTO V_BANK_BAG_TICK_HIST
          FROM BANK_DEP_BAG_TICK
         WHERE COST_CENTER_CODE = IN_COST_CENTER;
-     TABLE_IU_PKG.BANK_DEP_BAG_TICK_HIST_I_SP(V_BANK_BAG_TICK_HIST);
-    END IF;
-    
-    SELECT *
-      INTO V_BANK_BAG_TICK_HIST
-      FROM BANK_DEP_BAG_TICK_HIST
-     WHERE COST_CENTER_CODE = IN_COST_CENTER
-       AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
+       
+       TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(V_BANK_BAG_TICK_HIST);
+   END IF;         
+      
+   SELECT *
+     INTO V_BANK_BAG_TICK_HIST
+     FROM BANK_DEP_BAG_TICK_HIST
+    WHERE COST_CENTER_CODE = IN_COST_CENTER
+      AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
                                  FROM BANK_DEP_BAG_TICK_HIST
-                                WHERE COST_CENTER_CODE = IN_COST_CENTER
-                                  AND ROWNUM < 2);
+                                WHERE COST_CENTER_CODE = IN_COST_CENTER)
+      AND ROWNUM < 2;
 
-   --Get the number of Bag orders placed for the cost center
+   --Check if there are any Bag orders placed for the cost center
    V_BAG_COUNT := 0;
    V_BAG_COUNT := GET_BAG_ORDER_COUNT(IN_COST_CENTER);
    IF V_BAG_COUNT > 0 THEN
-      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY + (V_BAG_COUNT * V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY);
-      V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY + (V_BAG_COUNT * V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY);
+      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY + (V_BAG_COUNT * NVL(V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY,200));
+      V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY + (V_BAG_COUNT * NVL(V_BANK_BAG_TICK_HIST.DEPBAG_REORDER_QTY,200));
    END IF;   
 RETURN V_BANK_BAG_TICK_HIST;
 EXCEPTION
-            WHEN OTHERS THEN
-               RETURN NULL;
+    WHEN OTHERS THEN
+        RETURN NULL;
 END GET_DEPOSIT_BAG_ONHAND_YTD;
 
 END BANKING_COMMON_TOOLS;
+
