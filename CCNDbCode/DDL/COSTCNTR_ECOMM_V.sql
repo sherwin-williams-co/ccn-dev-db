@@ -7,6 +7,8 @@ Created  : 06/05/2015 pxc828 CCN Project
 Modified : 08/18/2015 nxk927 CCN Project...
            added statement_type, statement type description, polling status, changed
            employee name to be in seperate fields, only including stores and territory, added zip 4
+         : 11/03/2015 dxv848 Added For email addresses if it is Product Finish stores then the store email is like
+           swpxxxx@sherwin.com  for other stores swxxxx@sherwin.com
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -45,7 +47,21 @@ Modified : 08/18/2015 nxk927 CCN Project...
         ,E.LAST_NAME
         ,C.OPEN_DATE
         ,C.CLOSE_DATE
-        ,(SUBSTR(C.COST_CENTER_CODE,3,6)||'@sherwin.com') AS STORE_EMAIL
+    -- if the division is in c522,c400(USA,CAN)and polling_status_code ='p'(then it is Product Finish Stores) then added swp in front of STORE_EMAIL
+    -- otherwise add sw in front of STORE_EMAIL
+        ,(CASE
+             WHEN
+              C.COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
+                                       FROM polling
+                                      WHERE POLLING_STATUS_CODE='P'
+                                        AND COST_CENTER_CODE in (SELECT SUBSTR(HRCHY_DTL_NEXT_LVL_VAL,9,14)
+                                                                   FROM HIERARCHY_DETAIL
+                                                                  WHERE HRCHY_DTL_CURR_ROW_VAL IN ('C522','C400'))
+                                        AND C.COUNTRY_CODE in  ('USA','CAN')) THEN
+                 ('swp'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
+             ELSE
+                 ('sw'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
+             END ) AS STORE_EMAIL
         ,DECODE(CATEGORY,'R',CATEGORY,NULL) REAL_ESTATE_TYPE
         ,C.MISSION_TYPE_CODE AS MISSION_CODE 
         ,DECODE(CATEGORY,'S',CATEGORY,NULL) STORE_TYPE
