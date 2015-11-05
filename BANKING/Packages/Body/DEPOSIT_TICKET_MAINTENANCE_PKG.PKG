@@ -763,8 +763,8 @@ IS
 BEGIN
     EXPIRE_PREVIOUS_DEP_TICK_DTLS(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
     --Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
-    V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := '0'; 
-    V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := '0';
+    V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := 0; 
+    V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := 0;
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
@@ -986,8 +986,8 @@ BEGIN
         V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINTENANCE_DATE     := SYSDATE;
         V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINT_USER_ID        := 'CODBLT';
         --Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
-        V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := '0';
-        V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := '0';
+        V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := 0;
+        V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := 0;
         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     END IF;
     IF NVL(IN_BANK_TYPE_CODE, 'X') <> 'M' THEN
@@ -1260,6 +1260,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
           Added condition to not to update the on hand quantity if the date is not current
           Removed the business rule that was not allowing order to be placed in current if future is present
           ADDED to take the standard value from bank_dep_tickoak table if sent as null
+        : 11/05/2015 nxk927 CCN Project...
+          record should be only moved if there are changes in current. So moved
+          the history insert inside the if condition when there will be changes in current
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1304,7 +1307,7 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
             CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
-            TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
+            
             V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
             V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
             V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
@@ -1314,13 +1317,15 @@ BEGIN
                V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY;
                V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY;
             ELSE
+               --record should be only moved if there are changes in current
+               TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
                --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
                --if not the batch process will update the qauntity when it hits the date
                V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
                V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+               V_BANK_DEP_TICK.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
+               TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
             END IF;
-            V_BANK_DEP_TICK.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
-            TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
         END IF;
     ELSE
         BEGIN

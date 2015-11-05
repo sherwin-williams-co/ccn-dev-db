@@ -335,8 +335,8 @@ IS
 BEGIN
     EXPIRE_PREVIOUS_DEP_BAG_DTLS(V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE, V_BANK_DEP_BAG_TICK_FTR_REC.EFFECTIVE_DATE);
     --Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
-    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_ONHAND_QTY      := '0';
-    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_YTD_ORDERED_QTY := '0';
+    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_ONHAND_QTY      := 0;
+    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_YTD_ORDERED_QTY := 0;
     TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(V_BANK_DEP_BAG_TICK_FTR_REC);
 EXCEPTION
     WHEN OTHERS THEN
@@ -411,8 +411,8 @@ BEGIN
         V_BANK_DEP_BAG_FUTURE_REC.EXPIRATION_DATE        := IN_EXPIRATION_DATE;
         V_BANK_DEP_BAG_FUTURE_REC.FUTURE_ID              := IN_FUTURE_ID;
         --Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
-        V_BANK_DEP_BAG_FUTURE_REC.DEPBAG_ONHAND_QTY      := '0';
-        V_BANK_DEP_BAG_FUTURE_REC.DEPBAG_YTD_ORDERED_QTY := '0';
+        V_BANK_DEP_BAG_FUTURE_REC.DEPBAG_ONHAND_QTY      := 0;
+        V_BANK_DEP_BAG_FUTURE_REC.DEPBAG_YTD_ORDERED_QTY := 0;
         TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(V_BANK_DEP_BAG_FUTURE_REC);
     END IF;
 EXCEPTION
@@ -497,6 +497,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
           Added condition to not to update the on hand quantity if the date is not current
           Removed the business rule that was not allowing order to be placed in current if future is present
           ADDED to take the standard value from bank_dep_tickoak table if sent as null
+        : 11/05/2015  nxk927 CCN Project...
+          record should be only moved to history if there are changes in current or else the record should not be changed
+          So moved  the DEPOSIT_BAG_CURRENT_UPSERT_SP call inside the if condition when there will be changes in current
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -543,17 +546,19 @@ BEGIN
             V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY     := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY,V_DEPBAG_REORDER_QTY);
             --DEPBAG_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             IF IN_ORDERED_DATE > SYSDATE THEN
-            --if the order date is future then the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY should not be accounted
-            --it will be done when the batch job runs as the date becomes current
-            V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0);
-            V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0);
+               --if the order date is future then the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY should not be accounted
+               --it will be done when the batch job runs as the date becomes current
+               V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0);
+               V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0);
             ELSE
-            V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
-            V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+               V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+               V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+               V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_DATE := IN_ORDERED_DATE;
+               V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+               --record should be only moved to history if there are changes in current or else the record should not be changed
+               --this process below will do both the insert in history and current
+               DEPOSIT_BAG_CURRENT_UPSERT_SP(V_BANK_DEP_BAG_TICK);
             END IF;
-            V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_DATE := IN_ORDERED_DATE;
-            V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
-            DEPOSIT_BAG_CURRENT_UPSERT_SP(V_BANK_DEP_BAG_TICK);
         END IF;
     ELSE
         BEGIN
