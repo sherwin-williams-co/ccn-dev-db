@@ -47,15 +47,15 @@ Modified : 08/18/2015 nxk927 CCN Project...
         ,E.LAST_NAME
         ,C.OPEN_DATE
         ,C.CLOSE_DATE
-    -- if the division is in c522,c400(USA,CAN)and polling_status_code ='p'(then it is Product Finish Stores) then added swp in front of STORE_EMAIL
-    -- otherwise add sw in front of STORE_EMAIL
+    -- if the FACTS_DIVISION in (C522,C400) and COUNTRY_CODE in (USA,CAN)and active polling_status_code ='P'(then it is Product Finish Stores) then
+    -- added swp in front of STORE_EMAIL otherwise add sw in front of STORE_EMAIL
         ,(CASE
              WHEN
-                  PO.COST_CENTER_CODE in (SELECT COST_CENTER_CODE
+                  PO.COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
                                              FROM HIERARCHY_DETAIL_VIEW
                                             WHERE HRCHY_HDR_NAME ='FACTS_DIVISION'
                                               AND DIVISION IN ('C522','C400'))
-                  AND  C.COUNTRY_CODE in  ('USA','CAN') THEN
+                  AND  C.COUNTRY_CODE IN  ('USA','CAN') THEN
                  ('swp'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
              ELSE
                  ('sw'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
