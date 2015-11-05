@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BANKING_COMMON_TOOLS
+create or replace PACKAGE BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have store drafts specific tools
@@ -272,9 +272,10 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
-    IN_COST_CENTER           IN     VARCHAR2,
+    IN_COST_CENTER              IN     VARCHAR2,
     IN_REORDER_NUMBER_BKS       IN     NUMBER,
-    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
+    IN_FUTURE_ID                IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
     
 FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 /***********************************************************
@@ -285,7 +286,7 @@ Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
-    IN_DEPBAG_REORDER_QTY    IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+    IN_DEPBAG_REORDER_QTY    IN     NUMBER,
+    IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
     
 END BANKING_COMMON_TOOLS;
-

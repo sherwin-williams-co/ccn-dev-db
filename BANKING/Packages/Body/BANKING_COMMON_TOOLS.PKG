@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE BODY BANKING_COMMON_TOOLS
+create or replace PACKAGE BODY BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have Banking specific tools
@@ -665,7 +664,8 @@ FUNCTION GET_BAG_ORDER_COUNT(
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMBER
+IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD.COST_CENTER_CODE%TYPE,
+IN_FUTURE_ID      IN     NUMBER) RETURN NUMBER
 IS
     V_RETURN_VAL NUMBER := 0;
 BEGIN
@@ -673,6 +673,7 @@ BEGIN
       INTO V_RETURN_VAL
       FROM BANK_DEP_BAG_TICKORD_FUTURE
      WHERE COST_CENTER_CODE = IN_COST_CENTER
+       AND FUTURE_ID = IN_FUTURE_ID  
        AND ORDER_DATE <= TRUNC(SYSDATE);
     RETURN V_RETURN_VAL;
 EXCEPTION
@@ -692,11 +693,16 @@ IN_COST_CENTER    IN     BANK_DEP_TICKORD_HIST.COST_CENTER_CODE%TYPE) RETURN VAR
 IS
     V_RETURN_VAL VARCHAR2(1) := 'N';
 BEGIN 
-    SELECT CASE WHEN (TO_CHAR(SYSDATE, 'YYYY') = TO_CHAR(TO_DATE(MAX(ORDER_DATE)),'YYYY')) THEN 'Y' ELSE 'N' END
+    SELECT CASE WHEN (TO_CHAR(SYSDATE, 'YYYY') = TO_CHAR(MAX(ORDER_DATE),'YYYY')) THEN 'Y' ELSE 'N' END
       INTO V_RETURN_VAL
-      FROM BANK_DEP_TICKORD_HIST
-     WHERE COST_CENTER_CODE = IN_COST_CENTER
-       AND ROWNUM < 2;
+      FROM (SELECT ORDER_DATE 
+              FROM BANK_DEP_TICKORD_HIST
+             WHERE COST_CENTER_CODE = IN_COST_CENTER
+            UNION
+            SELECT ORDER_DATE 
+              FROM BANK_DEP_TICKORD
+             WHERE COST_CENTER_CODE = IN_COST_CENTER
+               AND ORDER_DATE = TO_CHAR(SYSDATE, 'YYYY'));
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -715,11 +721,16 @@ IN_COST_CENTER    IN     BANK_DEP_BAG_TICKORD_HIST.COST_CENTER_CODE%TYPE) RETURN
 IS
     V_RETURN_VAL VARCHAR2(1) := 'N';
 BEGIN 
-    SELECT CASE WHEN (TO_CHAR(SYSDATE, 'YYYY') = TO_CHAR(TO_DATE(MAX(ORDER_DATE)),'YYYY')) THEN 'Y' ELSE 'N' END
+    SELECT CASE WHEN (TO_CHAR(SYSDATE, 'YYYY') = TO_CHAR(MAX(ORDER_DATE),'YYYY')) THEN 'Y' ELSE 'N' END
       INTO V_RETURN_VAL
-      FROM BANK_DEP_BAG_TICKORD_HIST
-     WHERE COST_CENTER_CODE = IN_COST_CENTER
-       AND ROWNUM < 2;
+      FROM (SELECT ORDER_DATE 
+              FROM BANK_DEP_BAG_TICKORD
+             WHERE COST_CENTER_CODE = IN_COST_CENTER
+              AND ORDER_DATE = TO_CHAR(SYSDATE, 'YYYY')
+            UNION
+            SELECT ORDER_DATE 
+              FROM BANK_DEP_BAG_TICKORD_HIST
+             WHERE COST_CENTER_CODE = IN_COST_CENTER);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -734,7 +745,8 @@ FUNCTION GET_TICKET_ORDER_COUNT(
 Created : 10/30/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE) RETURN NUMBER
+IN_COST_CENTER    IN     BANK_DEP_TICKORD.COST_CENTER_CODE%TYPE,
+IN_FUTURE_ID      IN     NUMBER) RETURN NUMBER
 IS
     V_RETURN_VAL NUMBER := 0;
 BEGIN
@@ -742,7 +754,8 @@ BEGIN
       INTO V_RETURN_VAL
       FROM BANK_DEP_TICKORD_FUTURE
      WHERE COST_CENTER_CODE = IN_COST_CENTER
-       AND ORDER_DATE  <= TRUNC(SYSDATE);
+       AND FUTURE_ID        = IN_FUTURE_ID
+       AND ORDER_DATE      <= TRUNC(SYSDATE);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -796,13 +809,16 @@ Changed :
 ************************************************************/
     IN_COST_CENTER              IN     VARCHAR2,
     IN_REORDER_NUMBER_BKS       IN     NUMBER,
-    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER) RETURN BANK_DEP_TICK_HIST%ROWTYPE
+    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
+    IN_FUTURE_ID                IN     NUMBER) RETURN BANK_DEP_TICK_HIST%ROWTYPE
 IS
 V_DEP_TICK_HIST                   BANK_DEP_TICK_HIST%ROWTYPE;
 V_TICK_COUNT                      NUMBER := 0;
 V_REORDER_NUMBER_BKS              NUMBER;
 V_NBR_DEP_TICKETS_PER_BK          NUMBER;
 BEGIN
+  -- this will check if there are any records on the current bank_dep_tick table
+  -- if so push it to history
   SELECT COUNT(*) 
     INTO V_TICK_COUNT
     FROM BANK_DEP_TICK
@@ -813,10 +829,13 @@ BEGIN
          INTO V_DEP_TICK_HIST
          FROM BANK_DEP_TICK
         WHERE COST_CENTER_CODE = IN_COST_CENTER;
-       
+       --push it to history and delete if there are current data present
+       --current records need to be pushed to history for YTD calculation to see
+       --if the order placed was in current year or prev       
        TABLE_IU_PKG.BANK_DEP_TICK_D_SP(V_DEP_TICK_HIST);
    END IF;         
-      
+   
+   --getting history record to calculate the current On hand quantity and YTD qauntity   
    SELECT * 
      INTO V_DEP_TICK_HIST
      FROM BANK_DEP_TICK_HIST
@@ -833,7 +852,7 @@ BEGIN
    END IF;
     --Get the number of Ticket orders placed for the cost center
    V_TICK_COUNT := 0;
-   V_TICK_COUNT := GET_TICKET_ORDER_COUNT(IN_COST_CENTER);
+   V_TICK_COUNT := GET_TICKET_ORDER_COUNT(IN_COST_CENTER, IN_FUTURE_ID);
    IF V_TICK_COUNT > 0 THEN
       --getting standard value incase there is null
       V_REORDER_NUMBER_BKS     := GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS'); 
@@ -841,8 +860,9 @@ BEGIN
               
       V_REORDER_NUMBER_BKS     := NVL(IN_REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
       V_NBR_DEP_TICKETS_PER_BK := NVL(IN_NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
-      V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := NVL(V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY,0) + (V_TICK_COUNT * V_REORDER_NUMBER_BKS * V_NBR_DEP_TICKETS_PER_BK);
-      V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := NVL(V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY,0) +  (V_TICK_COUNT * V_REORDER_NUMBER_BKS * V_NBR_DEP_TICKETS_PER_BK);
+      --every time it comes here calculate the on hand and ytd and single count
+      V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY      := NVL(V_DEP_TICK_HIST.DEP_TKTS_ONHAND_QTY,0) + (V_REORDER_NUMBER_BKS * V_NBR_DEP_TICKETS_PER_BK);
+      V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY := NVL(V_DEP_TICK_HIST.YTD_DEP_TKTS_ORDERED_QTY,0) +  (V_REORDER_NUMBER_BKS * V_NBR_DEP_TICKETS_PER_BK);
    END IF;   
    RETURN V_DEP_TICK_HIST;
 EXCEPTION
@@ -861,12 +881,15 @@ Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
-    IN_DEPBAG_REORDER_QTY    IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE
+    IN_DEPBAG_REORDER_QTY    IN     NUMBER,
+    IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE
 IS
 V_BANK_BAG_TICK_HIST          BANK_DEP_BAG_TICK_HIST%ROWTYPE;
 V_BAG_COUNT                   NUMBER := 0;
 V_DEPBAG_REORDER_QTY          NUMBER;
 BEGIN
+   -- this will check if there are any records on the current BANK_DEP_BAG_TICK table 
+   -- if so push it to history
     SELECT COUNT(*) 
       INTO V_BAG_COUNT
       FROM BANK_DEP_BAG_TICK
@@ -877,10 +900,13 @@ BEGIN
          INTO V_BANK_BAG_TICK_HIST
          FROM BANK_DEP_BAG_TICK
         WHERE COST_CENTER_CODE = IN_COST_CENTER;
-       
+       --push it to history and delete if there are current data present
+       --current records need to be pushed to history for YTD calculation to see
+       --if the order placed was in current year or prev
        TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(V_BANK_BAG_TICK_HIST);
    END IF;         
-      
+   
+   --getting history record to calculate the current On hand quantity and YTD qauntity   
    SELECT *
      INTO V_BANK_BAG_TICK_HIST
      FROM BANK_DEP_BAG_TICK_HIST
@@ -897,14 +923,14 @@ BEGIN
    END IF;
    --Check if there are any Bag orders placed for the cost center
    V_BAG_COUNT := 0;
-   V_BAG_COUNT := GET_BAG_ORDER_COUNT(IN_COST_CENTER);
+   V_BAG_COUNT := GET_BAG_ORDER_COUNT(IN_COST_CENTER, IN_FUTURE_ID);
    IF V_BAG_COUNT > 0 THEN
       --getting standard value incase there is null
       V_DEPBAG_REORDER_QTY     := GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
       V_DEPBAG_REORDER_QTY     := NVL(IN_DEPBAG_REORDER_QTY,V_DEPBAG_REORDER_QTY);
-      
-      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := NVL(V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY,0) + (V_BAG_COUNT * V_DEPBAG_REORDER_QTY);
-      V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY,0) + (V_BAG_COUNT * V_DEPBAG_REORDER_QTY);
+      --every time it comes here calculate the on hand and ytd and single count
+      V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY      := NVL(V_BANK_BAG_TICK_HIST.DEPBAG_ONHAND_QTY,0) + V_DEPBAG_REORDER_QTY;
+      V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_BAG_TICK_HIST.DEPBAG_YTD_ORDERED_QTY,0) + V_DEPBAG_REORDER_QTY;
    END IF;   
 RETURN V_BANK_BAG_TICK_HIST;
 EXCEPTION
@@ -913,4 +939,3 @@ EXCEPTION
 END GET_DEPOSIT_BAG_ONHAND_YTD;
 
 END BANKING_COMMON_TOOLS;
-
