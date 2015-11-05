@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY DPST_BAGS_UPDATE_BATCH_PKG
+create or replace PACKAGE BODY DPST_BAGS_UPDATE_BATCH_PKG
 AS
 /**********************************************************
   This Package contains procedured to update the deposit bag tickets on a daily
@@ -21,6 +21,7 @@ Changed : 11/04/2015 nxk927 CCN Project....
 IS
 V_BATCH_NUMBER              BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS              BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+V_DEPBAG_REORDER_QTY        BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY%TYPE; 
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('DPST_BAGS_UPDT_BTCH', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
@@ -40,7 +41,7 @@ BEGIN
             BEGIN
                --TBD as we have multiple records in this file for a store
                 UPDATE BANK_DEP_BAG_TICK
-                   SET DEPBAG_ONHAND_QTY      = DEPBAG_ONHAND_QTY - rec.POS_COUNT
+                   SET DEPBAG_ONHAND_QTY      = NVL(DEPBAG_ONHAND_QTY,0) - rec.POS_COUNT
                  WHERE SUBSTR(COST_CENTER_CODE, 3) = rec.COST_CENTER_CODE;
             EXCEPTION
                 WHEN OTHERS THEN
@@ -62,14 +63,15 @@ BEGIN
                     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DPST_BAGS_UPDATE_BATCH_PKG.PROCESS', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
             END;
         END LOOP;
+        V_DEPBAG_REORDER_QTY                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
         FOR rec IN (SELECT *
                       FROM BANK_DEP_BAG_TICKORD
                      WHERE ORDER_DATE = TRUNC(SYSDATE)) LOOP
             --This will update all the deposit bag if the order hits today's date
             BEGIN
                 UPDATE BANK_DEP_BAG_TICK
-                   SET DEPBAG_ONHAND_QTY      = DEPBAG_ONHAND_QTY + (NVL(DEPBAG_REORDER_QTY,200)),
-                       DEPBAG_YTD_ORDERED_QTY = DEPBAG_YTD_ORDERED_QTY + (NVL(DEPBAG_REORDER_QTY,200))
+                   SET DEPBAG_ONHAND_QTY      = NVL(DEPBAG_ONHAND_QTY,0) + (NVL(DEPBAG_REORDER_QTY,V_DEPBAG_REORDER_QTY)),
+                       DEPBAG_YTD_ORDERED_QTY = NVL(DEPBAG_YTD_ORDERED_QTY,0) + (NVL(DEPBAG_REORDER_QTY,V_DEPBAG_REORDER_QTY))
                  WHERE COST_CENTER_CODE       = rec.COST_CENTER_CODE;
             EXCEPTION
                 WHEN OTHERS THEN
@@ -90,4 +92,3 @@ EXCEPTION
 END PROCESS;
 
 END DPST_BAGS_UPDATE_BATCH_PKG;
-
