@@ -254,6 +254,16 @@ IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
 IN_FORMAT_NAME      IN     VARCHAR2,
 IN_FUTURE_ID        IN     NUMBER) RETURN NUMBER;
 
+FUNCTION GET_STANDARD_VAL_DEPOSIT_ORD(
+/*******************************************************************************
+  This function will return standard number for REORDER_NUMBER_BKS, NBR_DEP_TICKETS_PER_BK
+  and DEPBAG_REORDER_QTY
+
+Created : 11/05/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_IND		IN   VARCHAR2) RETURN NUMBER;
+
 FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
 /***********************************************************
 	  This function will get the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
@@ -262,7 +272,9 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
-    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_REORDER_NUMBER_BKS       IN     NUMBER,
+    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
     
 FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 /***********************************************************
@@ -272,7 +284,8 @@ FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
-    IN_COST_CENTER           IN     VARCHAR2) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_DEPBAG_REORDER_QTY    IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
     
 END BANKING_COMMON_TOOLS;
 

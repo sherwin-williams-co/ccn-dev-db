@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -1199,6 +1198,7 @@ Changed : 10/21/2015 jxc517 CCN Project....
         : 11/04/2015 nxk927 CCN Project...
           Added condition to not to update the on hand quantity if the date is not current
           Removed the business rule that was not allowing order to be placed in current if future is present
+          ADDED to take the standard value from bank_dep_tickoak table if sent as null
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1214,6 +1214,8 @@ IS
     V_BANK_DEP_TICKORD_FUTURE          BANK_DEP_TICKORD_FUTURE%ROWTYPE;
     V_BANK_DEP_TICK                    BANK_DEP_TICK%ROWTYPE;
     V_BANK_DEP_TICK_FUTURE             BANK_DEP_TICK_FUTURE%ROWTYPE;
+    V_NBR_DEP_TICKETS_PER_BK           BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK%TYPE;
+    V_REORDER_NUMBER_BKS               BANK_DEP_TICK.REORDER_NUMBER_BKS%TYPE;
 BEGIN
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
@@ -1243,15 +1245,19 @@ BEGIN
             CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
             TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
+            V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
+            V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
+            V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
+            V_BANK_DEP_TICK.REORDER_NUMBER_BKS         := NVL(V_BANK_DEP_TICK.REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
             --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             IF IN_ORDERED_DATE > TRUNC(SYSDATE) THEN
-            V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY;
-            V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY;
+               V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY;
+               V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY;
             ELSE
-            --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
-            --if not the batch process will update the qauntity when it hits the date
-            V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
-            V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+               --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+               --if not the batch process will update the qauntity when it hits the date
+               V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY      := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+               V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
             END IF;
             V_BANK_DEP_TICK.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
@@ -1285,8 +1291,8 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_I_SP(V_BANK_DEP_TICKORD_FUTURE);
             /***DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
-            V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := '0';
-            V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := '0';
+            V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := 0;
+            V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := 0;
             V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
             CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID);
@@ -1327,4 +1333,3 @@ EXCEPTION
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-

@@ -1,4 +1,4 @@
-create or replace PACKAGE ERRNUMS
+CREATE OR REPLACE PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -347,3 +347,4 @@ exc_bnk_dep_bag_tckord_seq_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_bnk_dep_bag_tckord_seq_err , -20029);
 
 END ERRNUMS;
+
