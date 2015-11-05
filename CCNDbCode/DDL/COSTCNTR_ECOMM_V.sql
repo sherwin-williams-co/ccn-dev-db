@@ -56,9 +56,9 @@ Modified : 08/18/2015 nxk927 CCN Project...
                                             WHERE HRCHY_HDR_NAME ='FACTS_DIVISION'
                                               AND DIVISION IN ('C522','C400'))
                   AND  C.COUNTRY_CODE IN  ('USA','CAN') THEN
-                 ('swp'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
+                 ('swp'||SUBSTR(c.COST_CENTER_CODE,3)||'@sherwin.com')
              ELSE
-                 ('sw'||SUBSTR(c.COST_CENTER_CODE,3,6)||'@sherwin.com')
+                 ('sw'||SUBSTR(c.COST_CENTER_CODE,3)||'@sherwin.com')
           END) AS STORE_EMAIL
         ,DECODE(CATEGORY,'R',CATEGORY,NULL) REAL_ESTATE_TYPE
         ,C.MISSION_TYPE_CODE AS MISSION_CODE 
