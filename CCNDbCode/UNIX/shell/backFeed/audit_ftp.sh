@@ -13,7 +13,8 @@
 # Created Date =11/27/2012  by B.Ramsey
 # Revised Date =06/18/2013  SH 
 #               09/16/2015  sxh487 Added the Archive for Banking_backfeed file
-#               10/13/2015  nxk927 Removed Main_Cat from here        
+#               10/13/2015  nxk927 Removed Main_Cat from here 
+#               11/06/2015  nxk927 Removed the condition to see if the banking_audit file is present or not.      
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
@@ -35,7 +36,7 @@ quote USER $mainframe_user
 quote PASS $mainframe_pw
 quote SITE RECFM=FB,LRECL=6000,BLKSIZE=24000,SPACE=(300,150),VOL(GDG350) CYL
 #put $file_name  'SMIS1.ORACLE.CCN00600.INPUT(+1)' 
-put $file_name  'STST.MDH01R.CCN00600.DEV.INPUT(+1)' 
+#put $file_name  'STST.MDH01R.CCN00600.DEV.INPUT(+1)' 
 bye
 FTP_MF`
 echo "FTP to Mainframe COMPLETED"
@@ -45,12 +46,10 @@ if [ "$ftpResult" -ne 0 ] ; then
   exit 1
 else
   echo "SUCCESS: ftp of $file_name completed successfully"
-
-  #Archive Banking_backfeed.txt 
-  if [ -s Banking_audit.txt ]; then
+  
+  #Archive the Banking_audit.txt file
   echo "Moving Banking_audit.txt to Archive"
   mv $bank_fname $LOG_PATH/$bank_fname"_"$cdate
-  fi
   
   #Archive the concatenated file
   echo "Move of Audit File to log"
