@@ -20,11 +20,17 @@ Created : 05/26/2015 jxc517 CCN Project....
 Changed : 11/02/2015 jxc517 CCN Project....
           Batch process was changed not to send the future to current details back to audit again
           These details were already sent when the actual future dated transaction was performed
+Changed : 11/09/2015 jxc517 CCN Project....
+          Batch process was changed not to handle below scenario
+          future with tomorrows date was cerated after yesterdays audit completion, say at 6pm
+          That will not be any more in future as this batch will delete it and if we mark them
+          as already sent the details will never go back to audit
 *******************************************************************************/
 IS
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_START_DATE        DATE := SYSDATE;
+V_END_DATE          DATE;
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('FUTR_TO_CURR_LOAD', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
@@ -41,10 +47,30 @@ BEGIN
         END LOOP;
         --Below AUDIT_LOG table update makes sure we mark all the future to current moved records as sent for audit
         --we should not send them back again as these details were already sent when the future dated transaction was processed
+        V_END_DATE := SYSDATE;
         UPDATE AUDIT_LOG
            SET AUDIT_REC_FLAG = 'R'
-         WHERE TRANSACTION_DATE BETWEEN V_START_DATE AND SYSDATE
+         WHERE TRANSACTION_DATE BETWEEN V_START_DATE AND V_END_DATE
            AND AUDIT_REC_FLAG IS NULL;
+        --Loop through all the futures created after previous batch having records effective date as today
+        FOR rec IN (SELECT DISTINCT TABLE_NAME,
+                                    TRANSACTION_ID
+                      FROM AUDIT_LOG
+                     WHERE AUDIT_REC_FLAG IS NULL
+                       AND TABLE_NAME LIKE '%FUTURE'
+                       AND TABLE_ROW_DATA LIKE '%<EFFECTIVE_DATE>'||TO_CHAR(SYSDATE, 'RRRRMMDD')||'</EFFECTIVE_DATE>%'
+                       AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                                  FROM BATCH_JOB
+                                                 WHERE BATCH_JOB_NAME = 'BANKING_AUDIT_LOG')) LOOP
+            --mark it as not sent, else it will never go back to audit
+            UPDATE AUDIT_LOG
+               SET AUDIT_REC_FLAG = NULL
+             WHERE TRANSACTION_DATE BETWEEN V_START_DATE AND V_END_DATE
+               AND TABLE_NAME = rec.TABLE_NAME
+               --below condition uses INSTR to get the transaction_id from 1st charater till second frmo last "|"
+               AND TRANSACTION_ID = SUBSTR(rec.TRANSACTION_ID, 1, INSTR(rec.TRANSACTION_ID, -1, 2))
+               AND AUDIT_REC_FLAG = 'R';
+        END LOOP;
     EXCEPTION
         WHEN OTHERS THEN
             V_TRANS_STATUS := 'ERROR';
