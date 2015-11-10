@@ -36,6 +36,8 @@ Created : 10/27/2015 jcx517 CCN project....
 Changed : 11/09/2015 jcx517 CCN project....
           If the virtual futures are created their effective dates will be less than TRUNC(SYSDATE)
           We should not pass those records again for future as they are virtual and exists in current table as well
+Changed : 11/10/2015 jcx517 CCN project....
+          Modified the code to deal with virtual futures that got updated as part of actual current tables
 **********************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
     IN_ROW_PREV   IN     XMLTYPE,
@@ -66,37 +68,41 @@ BEGIN
                 EXIT;
             END IF;
         END LOOP;
-    ELSE
-        --If the previous record is not existing, there might be a possibility that it is a virtual record
-        --So verify if it is a virtual future record with effective date < TRUNC(SYSDATE)
-        --If it is we should NOT send it as future as it is not a real future record but just a virtual future record
-        --So return FALSE in this scenario saying do not do anything for these records
-        --CONCLUSION: send future table details only if the effective date > TRUNC(SYSDATE)
-        IF IN_TABLE_NAME LIKE '%FUTURE' THEN
-            BEGIN
-                V_FTR_REC_EFFCTV_DT := TO_DATE(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//EFFECTIVE_DATE'), 'RRRRMMDD');
-                --We need to consider weekends as well
-                --If a future was created on friday with effective date as saturday, it will be a future
-                --But the batch won't pick these records until sunday(so we can't always say it's TRUNC(SYSDATE)
-                --Below query will get the TRUNC of last batch run date to deal with this weekend scenario's
-                --NVL around MAX function is because for the first time run in any environment there won't be any data
-                SELECT NVL(MAX(BATCH_JOB_LAST_RUN_DATE), TRUNC(SYSDATE - 1))
-                  INTO V_LAST_BATCH_RUN_DATE
-                  FROM BATCH_JOB
-                 WHERE BATCH_JOB_NAME          = 'BANKING_AUDIT_LOG'
-                   AND BATCH_JOB_LAST_RUN_DATE < TRUNC(SYSDATE);
-                IF NVL(V_FTR_REC_EFFCTV_DT, TRUNC(SYSDATE)) > TRUNC(V_LAST_BATCH_RUN_DATE) + 1 THEN
-                    V_RETURN_VAL := TRUE;
-                END IF;
-                --transaction done after the previous audit batch will be handled in future to current batch
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-        ELSE --Current tables with out previous record, just send it to back feed
-            V_RETURN_VAL := TRUE;
-        END IF;
+    ELSE --Current tables with out previous record, just send it to back feed
+        V_RETURN_VAL := TRUE;
     END IF;
+
+    --If the data is different we also need to see if it is a virtual future update happened due to current records update
+    --If so we should not send them twice(once for current and once for future) rather they should go only for current audit
+    --So verify if it is a virtual future record with effective date < TRUNC(last batch run date) + 1
+    --If it is we should NOT send it as future as it is not a real future record but just a virtual future record
+    --So return FALSE in this scenario saying do not do anything for these records
+    --CONCLUSION: send future table details only if the effective date > TRUNC(SYSDATE)
+    IF V_RETURN_VAL AND IN_TABLE_NAME LIKE '%FUTURE' THEN
+        BEGIN
+            V_FTR_REC_EFFCTV_DT := TO_DATE(XML_EXTRACT_NO_EXCEPTION(IN_ROW_CURR,'//EFFECTIVE_DATE'), 'RRRRMMDD');
+            --We need to consider weekends as well
+            --If a future was created on friday with effective date as saturday, it will be a future
+            --But the batch won't pick these records until sunday(so we can't always say it's TRUNC(SYSDATE)
+            --Below query will get the TRUNC of last batch run date to deal with this weekend scenario's
+            --NVL around MAX function is because for the first time run in any environment there won't be any data
+            SELECT NVL(MAX(BATCH_JOB_LAST_RUN_DATE), TRUNC(SYSDATE - 1))
+              INTO V_LAST_BATCH_RUN_DATE
+              FROM BATCH_JOB
+             WHERE BATCH_JOB_NAME          = 'BANKING_AUDIT_LOG'
+               AND BATCH_JOB_LAST_RUN_DATE < TRUNC(SYSDATE);
+            IF NVL(V_FTR_REC_EFFCTV_DT, TRUNC(SYSDATE)) > TRUNC(V_LAST_BATCH_RUN_DATE) + 1 THEN
+                V_RETURN_VAL := TRUE;
+            ELSE
+                V_RETURN_VAL := FALSE;
+            END IF;
+            --transaction done after the previous audit batch will be handled in future to current batch
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END IF;
+
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
