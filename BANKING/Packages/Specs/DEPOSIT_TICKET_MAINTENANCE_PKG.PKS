@@ -1133,7 +1133,6 @@ IS
                (SELECT SMFD.MICR_ROUTING_NBR,
                        SMFD.MICR_FORMAT_ACCT_NBR,
                        SMFD.COST_CENTER_CODE,
-                       --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
                        BMF.DJDE_FORM_PARM ,
                        BMF.DJDE_FEED_PARM
                   FROM (SELECT *
@@ -1176,7 +1175,6 @@ IS
                (SELECT SMFD.MICR_ROUTING_NBR,
                        SMFD.MICR_FORMAT_ACCT_NBR,
                        SMFD.COST_CENTER_CODE,
-                       --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
                        BMF.DJDE_FORM_PARM ,
                        BMF.DJDE_FEED_PARM,
                        SMFD.FUTURE_ID
