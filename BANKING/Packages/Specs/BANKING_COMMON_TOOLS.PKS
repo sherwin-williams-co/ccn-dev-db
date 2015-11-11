@@ -288,5 +288,15 @@ Changed :
     IN_COST_CENTER           IN     VARCHAR2,
     IN_DEPBAG_REORDER_QTY    IN     NUMBER,
     IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+
+FUNCTION IS_LEAD_ON_DATE_PASSED(
+/***********************************************************
+	  This function will check if the cost center is lead or not
+    on the date passed
+Created : 11/09/2015 NXK927 CCN Project....
+Changed : 
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
     
 END BANKING_COMMON_TOOLS;

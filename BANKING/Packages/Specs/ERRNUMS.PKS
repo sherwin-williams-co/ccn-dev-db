@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE ERRNUMS
+create or replace PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -346,5 +346,28 @@ en_bnk_dep_bag_tckord_seq_err CONSTANT NUMBER := -20029;
 exc_bnk_dep_bag_tckord_seq_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_bnk_dep_bag_tckord_seq_err , -20029);
 
-END ERRNUMS;
+/*********************************************************** 
+The "trnsfr_with_multiple_dts" passes a numerical error of -20030
+This error will be used when a transfer is performed selecting multiple dates
+for members selected
 
+Created : 11/10/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_trnsfr_with_multiple_dts CONSTANT NUMBER := -20030;
+exc_trnsfr_with_multiple_dts EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_trnsfr_with_multiple_dts , -20030);
+
+/*********************************************************** 
+The "mem_to_ld_effect_dt_err" passes a numerical error of -20031
+This error will be used when user tries to enter the date for the member transfer where 
+the TO_COST_CENTER is not lead in the date passed  
+
+Created : 10/11/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+en_mem_to_ld_effect_dt_err CONSTANT NUMBER := -20031;
+exc_mem_to_ld_effect_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_mem_to_ld_effect_dt_err , -20031);
+
+END ERRNUMS;
