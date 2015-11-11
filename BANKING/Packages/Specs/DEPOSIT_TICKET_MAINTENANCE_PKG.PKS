@@ -114,10 +114,14 @@ Depending on the request, either of the following will be done:
 
 Created : 08/19/2015 jxc517 CCN Project....
 Changed : 10/21/2015 nxk927 CCN Project...
-          Added call to create the deposit order for future 
+          Added call to create the deposit order for future
+Changed : 11/11/2015 nxk927 CCN Project...
+          made changes to get the micr details of lead if not present for the members.
+          added BANK_DEP_TICK_FTR_ID as a parameter to get the right data
 *******************************************************************************/
-    IN_COST_CENTER IN VARCHAR2,
-    IN_FUTURE_ID   IN VARCHAR2);
+    IN_COST_CENTER          IN VARCHAR2,
+    IN_FUTURE_ID            IN VARCHAR2,
+    IN_BANK_DEP_TICK_FTR_ID IN VARCHAR2);
     
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
@@ -132,4 +136,3 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-
