@@ -1106,9 +1106,12 @@ Depending on the request, either of the following will be done:
 Created : 08/19/2015 jxc517 CCN Project....
 Changed : 10/21/2015 nxk927 CCN Project...
           Added call to create the deposit order for future 
+Changed : 11/11/2015 nxk927 CCN Project...
+          made changes to get the micr details of lead if not present for the members           
 *******************************************************************************/
-    IN_COST_CENTER IN VARCHAR2,
-    IN_FUTURE_ID   IN VARCHAR2)
+    IN_COST_CENTER          IN VARCHAR2,
+    IN_FUTURE_ID            IN VARCHAR2,
+    IN_BANK_DEP_TICK_FTR_ID IN VARCHAR2)
 IS
     CURSOR main_cur IS
         SELECT BDTO.BANK_ACCOUNT_NBR,
@@ -1131,16 +1134,26 @@ IS
                        SMFD.COST_CENTER_CODE,
                        --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
                        BMF.DJDE_FORM_PARM ,
-                       BMF.DJDE_FEED_PARM 
-                  FROM STORE_MICR_FORMAT_DTLS SMFD,
+                       BMF.DJDE_FEED_PARM
+                  FROM (SELECT *
+                        --This top-N query was used to get member store MICR details if it has a default MICR assigned
+                           FROM (SELECT *
+                                   FROM STORE_MICR_FORMAT_DTLS
+                                  --IN clause below makes sure we always get the passed stores MICR details
+                                  --as well as it's leads storer MICR format details
+                                  WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
+                                                             BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER, NULL))
+                                  --below order by clause is to make sure we get store MICR details even for
+                                  --a member that doesn't have any default store MICR assigned to it in future
+                                  --if member got it's own store MICR that takes precedence
+                                  ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2))
+                            WHERE ROWNUM < 2) SMFD,
                        BANK_MICR_FORMAT BMF
                  WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
                    AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID) B
         WHERE BDTO.COST_CENTER_CODE          = A.COST_CENTER_CODE(+)
-          AND (B.COST_CENTER_CODE            = BDTO.COST_CENTER_CODE        
-             OR B.COST_CENTER_CODE           = BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
-          --AND BDTO.COST_CENTER_CODE         = NVL(B.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(B.COST_CENTER_CODE))
           AND BDTO.COST_CENTER_CODE          = IN_COST_CENTER
+          AND BDTO.BANK_DEP_TICK_FTR_ID      = IN_BANK_DEP_TICK_FTR_ID
           AND A.EXPIRATION_DATE IS NULL;
 
     CURSOR main_cur_future IS
@@ -1164,17 +1177,29 @@ IS
                        SMFD.COST_CENTER_CODE,
                        --NVL(SMFD.COST_CENTER_CODE, BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(SMFD.COST_CENTER_CODE)) COST_CENTER_CODE,
                        BMF.DJDE_FORM_PARM ,
-                       BMF.DJDE_FEED_PARM 
-                  FROM STORE_MICR_FORMAT_DTLS_FUTURE SMFD,
+                       BMF.DJDE_FEED_PARM,
+                       SMFD.FUTURE_ID
+                  FROM (SELECT *
+                        --This top-N query was used to get member store MICR details if it has a default MICR assigned
+                           FROM (SELECT *
+                                   FROM STORE_MICR_FORMAT_DTLS_FUTURE
+                                  --IN clause below makes sure we always get the passed stores MICR details
+                                  --as well as it's leads storer MICR format details
+                                  WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
+                                                             BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER, NULL))
+                                  --below order by clause is to make sure we get store MICR details even for
+                                  --a member that doesn't have any default store MICR assigned to it in future
+                                  --if member got it's own store MICR that takes precedence
+                                  ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2))
+                            WHERE ROWNUM < 2) SMFD,
                        BANK_MICR_FORMAT_FUTURE BMF
                  WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
                    AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID
                    AND SMFD.FUTURE_ID        = BMF.FUTURE_ID) B
          WHERE BDTO.COST_CENTER_CODE         = A.COST_CENTER_CODE(+)
-           AND (B.COST_CENTER_CODE           = BDTO.COST_CENTER_CODE        
-             OR B.COST_CENTER_CODE           = BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
            AND BDTO.COST_CENTER_CODE         = IN_COST_CENTER
            AND BDTO.FUTURE_ID                = IN_FUTURE_ID
+           AND BDTO.BANK_DEP_TICK_FTR_ID     = IN_BANK_DEP_TICK_FTR_ID
            AND A.EXPIRATION_DATE IS NULL;    
         
        
@@ -1264,6 +1289,8 @@ Changed : 10/21/2015 jxc517 CCN Project....
           record should be only moved if there are changes in current. So moved
           the history insert inside the if condition when there will be changes in current
           --removed the unwanted codes
+        : 11/11/2015 nxk927 CCN Project...
+          passing BANK_DEP_TICK_FTR_ID as well to get the right record.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1306,7 +1333,7 @@ BEGIN
             V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
             V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
             TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
-            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL);
+            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL,V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK);
             
             --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
@@ -1358,7 +1385,7 @@ BEGIN
             V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := 0;
             V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
-            CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID);
+            CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID,V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID);
             BEGIN
                SELECT BANK_ACCOUNT_NBR, 
                       COST_CENTER_CODE,       
