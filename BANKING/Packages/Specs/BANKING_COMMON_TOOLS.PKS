@@ -109,6 +109,16 @@ Changed :
 ************************************************************/
     IN_LEAD_STORE_NBR           IN     VARCHAR2) RETURN LEAD_BANK_CC%ROWTYPE;
 
+FUNCTION GET_UNEXP_LEAD_CC_FUTURE_REC(
+/***********************************************************
+	This function will return the un expired lead bank future record
+  based on lead store number 
+  
+Created : 11/11/2015 nxk927 CCN Project....
+Changed  : 
+************************************************************/
+    IN_LEAD_STORE_NBR        IN     VARCHAR2) RETURN LEAD_BANK_CC%ROWTYPE;    
+
 FUNCTION GET_LEAD_BANK_CC_HIST_REC(
 /***********************************************************
 	This function will get the lead bank record from current tables
