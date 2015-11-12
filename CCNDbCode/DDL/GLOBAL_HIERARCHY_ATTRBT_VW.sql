@@ -1,4 +1,5 @@
-CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW AS
+CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW
+AS 
 SELECT 
 /*******************************************************************************
 This View holds all the details of global hierarchy linked to the cost center i.e. this view will 
@@ -9,7 +10,7 @@ It will also have all the upper level value attributes in separate columns for e
 Created  : 10/14/2015 nxk927 CCN Project....
 Modified : 
 *******************************************************************************/
-       GV.*,
+       GV."STATEMENT_TYPE",GV."HRCHY_HDR_NAME",GV."COST_CENTER_CODE",GV."HRCHY_DTL_EFF_DATE",GV."HRCHY_DTL_EXP_DATE",GV."DOMAIN",GV."GROUP",GV."DIVISION",GV."AREA",GV."DISTRICT",GV."CITY_SALES_MANAGER",GV."ZONE",GV."SPECIAL_ROLES",GV."COST_CENTER",GV."DOMAIN_NAME",GV."GROUP_NAME",GV."DIVISION_NAME",GV."AREA_NAME",GV."DISTRICT_NAME",GV."CITY_SALES_MANAGER_NAME",GV."ZONE_NAME",GV."SPECIAL_ROLES_NAME",GV."COST_CENTER_NAME",
        (SELECT UPPER_LVL_VER_VALUE 
           FROM HIERARCHY_DETAIL 
          WHERE HRCHY_HDR_NAME = GV.HRCHY_HDR_NAME 
