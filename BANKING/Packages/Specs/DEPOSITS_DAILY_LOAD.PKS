@@ -4,6 +4,8 @@ AS
 This package will load the new CCN BANKING Oracle Database
 with the files for deposit ticket and deposit bags along with their orders
 
+NOTE: At one point this batch process will be obsolete
+
 Created : 11/11/2015 jxc517 CCN Project....
 Changed :
 *****************************************************************/
