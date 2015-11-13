@@ -8,8 +8,7 @@ It will also have all the upper level value attributes in separate columns for e
 
 Created  : 10/14/2015 nxk927 CCN Project....
 Modified : 11/12/2015 sxt410 CCN Project...
-           Getting the Attributes using function to minimize number of hits to the
-           Hierarchy_detail table.
+           Getting the Attributes using function to optimize the query.
 *******************************************************************************/
        GV.STATEMENT_TYPE,
        GV.HRCHY_HDR_NAME,
