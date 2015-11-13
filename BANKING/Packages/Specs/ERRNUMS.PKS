@@ -370,4 +370,15 @@ en_mem_to_ld_effect_dt_err CONSTANT NUMBER := -20031;
 exc_mem_to_ld_effect_dt_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_mem_to_ld_effect_dt_err , -20031);
 
+/*********************************************************** 
+The "lead_ever_mbr_frm_efctv_dt" passes a numerical error of -20032
+This error will be used when user tries to add a lead who is already a member 
+
+Created : 10/12/2015 jxc517 CCN Project....
+Changed :
+************************************************************/
+en_lead_ever_mbr_frm_efctv_dt CONSTANT NUMBER := -20032;
+exc_lead_ever_mbr_frm_efctv_dt EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_lead_ever_mbr_frm_efctv_dt , -20032);
+
 END ERRNUMS;

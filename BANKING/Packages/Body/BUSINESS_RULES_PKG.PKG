@@ -167,6 +167,38 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_LEAD_ACTV_FOR_EFFCTV_DT;
 
+FUNCTION IS_STR_A_MBR_EVER_FROM_DT_PASD(
+/*******************************************************************************
+  This function will return "Y" if the passed store is a member as of input date or in future
+
+Created : 11/12/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE   IN     VARCHAR2,
+IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+      INTO V_RETURN_VALUE
+      FROM (SELECT 1
+              FROM MEMBER_BANK_CC
+             WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+               AND (IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
+                    OR EFFECTIVE_DATE >= IN_EFFECTIVE_DATE)
+             UNION
+            SELECT 1
+              FROM MEMBER_BANK_CC_FUTURE
+             WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+               AND (IN_EFFECTIVE_DATE BETWEEN EFFECTIVE_DATE AND NVL(EXPIRATION_DATE, IN_EFFECTIVE_DATE)
+                    OR EFFECTIVE_DATE >= IN_EFFECTIVE_DATE)
+           );
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_STR_A_MBR_EVER_FROM_DT_PASD;
+
 FUNCTION IS_BNK_ACCNT_EXPRTN_INVALID(
 /******************************************************************************
   This function will return "Y" if the passed bank account contains active
@@ -643,7 +675,9 @@ PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
     This procedure validates the business rules for Account Maintenance Window 
 
 Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/12/2015 jxc517 CCN Project....
+          Added a new rule NOT to allow a store as a lead if he is a member 
+          as of the input effective date or in future
 *******************************************************************************/
     IN_BANK_ACCOUNT_REC                IN BANK_ACCOUNT%ROWTYPE,
     IN_BANK_ACCOUNT_FUTURE_REC         IN BANK_ACCOUNT_FUTURE%ROWTYPE,
@@ -657,17 +691,18 @@ IS
     V_MICR_FORMAT_NAME            VARCHAR2(10);
     V_BANK_MICR_FORMAT_TAB        TABLE_IU_PKG.BANK_MICR_FORMAT_TAB_TYPE;
     V_BANK_MICR_FORMAT_FUTURE_TAB TABLE_IU_PKG.BANK_MICR_FORMAT_FTR_TAB_TYPE;
-    lead_exists_for_effctv_dt     EXCEPTION;
-    lead_exprd_with_actv_chlds    EXCEPTION;
-    effctv_dt_lt_current_dt       EXCEPTION;
-    bnk_accnt_exprd_wt_actv_chld  EXCEPTION;
-    bnk_accnt_ftr_effctv_err      EXCEPTION;
-    micr_added_twice              EXCEPTION;
-    micr_exprd_with_actv_dptks    EXCEPTION;
-    lead_indpdt_with_actv_mbr     EXCEPTION;
-    lead_bnk_typ_not_chg_err      EXCEPTION;
-    childs_effctv_before_parent   EXCEPTION;
-    book_keeper_null_err          EXCEPTION;
+    lead_exists_for_effctv_dt      EXCEPTION;
+    lead_exprd_with_actv_chlds     EXCEPTION;
+    effctv_dt_lt_current_dt        EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld   EXCEPTION;
+    bnk_accnt_ftr_effctv_err       EXCEPTION;
+    micr_added_twice               EXCEPTION;
+    micr_exprd_with_actv_dptks     EXCEPTION;
+    lead_indpdt_with_actv_mbr      EXCEPTION;
+    lead_bnk_typ_not_chg_err       EXCEPTION;
+    childs_effctv_before_parent    EXCEPTION;
+    book_keeper_null_err           EXCEPTION;
+    lead_ever_mbr_from_effctv_dt   EXCEPTION;
 BEGIN
     IF IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN
     --********************************************************************************
@@ -761,6 +796,10 @@ BEGIN
                                       IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE) = 'Y' THEN
             RAISE lead_exists_for_effctv_dt;
         END IF;
+        IF IS_STR_A_MBR_EVER_FROM_DT_PASD(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                          IN_LEAD_BANK_CC_REC.EFFECTIVE_DATE) = 'Y' THEN
+            RAISE lead_ever_mbr_from_effctv_dt;
+        END IF;
         IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
                                       IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_REC.EXPIRATION_DATE,
@@ -805,6 +844,10 @@ BEGIN
                                       IN_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR,
                                       IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE) = 'Y' THEN
             RAISE lead_exists_for_effctv_dt;
+        END IF;
+        IF IS_STR_A_MBR_EVER_FROM_DT_PASD(IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,
+                                          IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE) = 'Y' THEN
+            RAISE lead_ever_mbr_from_effctv_dt;
         END IF;
         IF IS_LEAD_EXPIRATION_INVALID(IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,
                                       IN_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR,
@@ -932,6 +975,10 @@ EXCEPTION
         ERRPKG.RAISE_ERR(errnums.en_book_keeper_null_err,
                          V_PROC_NAME,
                          'Bank Account can not be created with out a book keeper number');
+    WHEN lead_ever_mbr_from_effctv_dt THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_ever_mbr_frm_efctv_dt,
+                         V_PROC_NAME,
+                         'Lead entered is a member currently or in future. Please verify the concentration once');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCOUNT_MAINTENANCE_BR_SP;

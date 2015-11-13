@@ -25,9 +25,11 @@ This procedure is intended to get the BANK_DEP_BAG_TICK record
 and expire it from the table
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/12/2015 nxk927 CCN Project....
+          Added BANK_ACCOUNT_NUMBER 
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
+IN_BANK_ACT_NBR         IN    VARCHAR2,
 IN_EXPIRATION_DATE      IN    DATE);
 
 PROCEDURE EXPR_DEPOSIT_BAG_DTLS_FTR(
@@ -36,9 +38,11 @@ This procedure is intended to get the BANK_DEP_BAG_TICK_FUTURE record
 and expire it from the table
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/12/2015 nxk927 CCN Project....
+          Added BANK_ACCOUNT_NUMBER
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
+IN_BANK_ACT_NBR         IN    VARCHAR2,
 IN_FUTURE_ID            IN    NUMBER,
 IN_EXPIRATION_DATE      IN    DATE);
 
@@ -98,4 +102,3 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_BAG_MAINTENANCE_PKG;
-
