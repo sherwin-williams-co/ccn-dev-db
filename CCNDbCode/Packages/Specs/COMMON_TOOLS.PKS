@@ -1,4 +1,4 @@
-create or replace PACKAGE            "COMMON_TOOLS" AS 
+create or replace PACKAGE          "COMMON_TOOLS" AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -357,5 +357,20 @@ IN_BLOB          - blob value delimited by , and termianted by new line characte
 Created by jxc517 02/19/2015
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
+
+FUNCTION GET_UPPER_LVL_VER_VALUE
+(
+/*******************************************************************************
+    This function will return Attributes for given Hierarchy Information
+
+Created : 11/12/2015 SXT410 CCN Project...
+Modified:
+*******************************************************************************/
+IN_HRCHY_HDR_NAME HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+IN_CURR_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE,
+IN_NEXT_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_NEXT_LVL_VAL%TYPE,
+IN_PREV_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
+)
+RETURN XMLTYPE;
 
 END COMMON_TOOLS;
