@@ -20,6 +20,33 @@ Changed :
     IN_REAL_FUTURE_BANK_ACCOUNT IN     VARCHAR2,
     IN_TRANSFER_VRTL_FTR        IN     VARCHAR2,
     IN_BANK_TYPE_CHNG_VRTL_FTR  IN     VARCHAR2);
-    
-END VIRTUAL_FUTURE_MAINTENANCE_PKG;
 
+PROCEDURE INSRT_BNK_DP_BG_DTL_VIR_CURR(
+/*******************************************************************************
+This procedure is intended GET THE BANK_DEP_BAG_TICK FUTURE 
+records if the lead we are transfering the member to is a virtual lead and 
+insert the same as a virtual member in current table
+
+Created : 11/12/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+      IN_COST_CENTER_CODE     IN    VARCHAR2,
+      IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
+      IN_FUTURE_ID            IN    NUMBER,
+      IN_FLAG                 IN    VARCHAR2);
+      
+PROCEDURE INSERT_BANK_DPST_DTLS_VIR_CUR(
+/*******************************************************************************
+This procedure is intended GET THE BANK_DEP_TICK FUTURE 
+records if the lead we are transfering the member to is a virtual lead and  
+insert the same as a virtual member in current table
+
+Created : 11/12/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+      IN_COST_CENTER_CODE     IN    VARCHAR2,
+      IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
+      IN_FUTURE_ID            IN    NUMBER,
+      IN_FLAG                 IN    VARCHAR2);      
+  
+END VIRTUAL_FUTURE_MAINTENANCE_PKG;
