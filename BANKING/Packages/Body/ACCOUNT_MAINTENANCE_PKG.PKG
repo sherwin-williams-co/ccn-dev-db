@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY         ACCOUNT_MAINTENANCE_PKG
+CREATE OR REPLACE 
+PACKAGE BODY         ACCOUNT_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -403,12 +404,15 @@ BEGIN
         V_INDEX := IN_BANK_MICR_FORMAT_TAB.NEXT(V_INDEX);
     END LOOP;
     IF IN_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NOT NULL THEN
-        DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
-                                                                     IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, --bank account number
+       DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
+                                                                    IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, --bank account number
+                                                                     --Passing LEAD_BANK_ACCOUNT_NBR instead of null
+                                                                     --need it for bank_dep_tick recs
                                                                      NULL, --micr format id
                                                                      IN_LEAD_BANK_CC_REC.EXPIRATION_DATE);
         DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR,
                                                             IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
+                                                            --Passing LEAD_BANK_ACCOUNT_NBR instead of null
                                                             IN_LEAD_BANK_CC_REC.EXPIRATION_DATE);
     END IF;
     IF IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR IS NOT NULL THEN
@@ -501,6 +505,7 @@ BEGIN
             IF mb_rec.EXPIRATION_DATE IS NOT NULL THEN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(mb_rec.MEMBER_STORE_NBR,
                                                                              mb_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
+                                                                             --passing bank account number instead of null
                                                                              NULL, --micr format id
                                                                              mb_rec.EXPIRATION_DATE);
                 DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(mb_rec.MEMBER_STORE_NBR,
@@ -514,6 +519,7 @@ BEGIN
             IF lb_rec.EXPIRATION_DATE IS NOT NULL THEN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(lb_rec.LEAD_STORE_NBR,
                                                                              lb_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
+                                                                              --passing bank account number instead of null
                                                                              NULL, --micr format id
                                                                              lb_rec.EXPIRATION_DATE);
                 DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(lb_rec.LEAD_STORE_NBR,
@@ -634,7 +640,8 @@ BEGIN
             END IF;*/
             IF mbf_rec.EXPIRATION_DATE IS NOT NULL THEN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
-                                                                           NULL, --bank account number
+                                                                           mbf_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
+                                                                           --passing bank account number instead of null
                                                                            NULL, --micr format id
                                                                            mbf_rec.FUTURE_ID,
                                                                            mbf_rec.EXPIRATION_DATE);
@@ -649,7 +656,7 @@ BEGIN
             lbf_rec.EXPIRATION_DATE := GREATEST(lbf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
             IF lbf_rec.EXPIRATION_DATE IS NOT NULL THEN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(lbf_rec.LEAD_STORE_NBR,
-                                                                           NULL, --bank account number
+                                                                           lbf_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
                                                                            NULL, --micr format id
                                                                            lbf_rec.FUTURE_ID,
                                                                            lbf_rec.EXPIRATION_DATE);
@@ -725,6 +732,8 @@ Changed : 10/21/2015 jxc517 CCN Project....
           Removed code to create member futures for the lead from current future
         : 11/04/2015 nxk927 CCN Project....
           added on hand quantity and YTD order quantity to reset to 0 for futures
+        : 11/16/2015 nxk927 CCN Project....
+          added already passed bank account number to get the right record
 *******************************************************************************/
     IN_BANK_ACCOUNT_NBR         IN     VARCHAR2,
     IN_EFFECTIVE_DATE           IN     DATE,
@@ -743,12 +752,14 @@ IS
         SELECT A.*,
                IN_FUTURE_ID AS FUTURE_ID
           FROM BANK_DEP_TICK A
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
     CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
         SELECT A.*,
                IN_FUTURE_ID AS FUTURE_ID
           FROM BANK_DEP_BAG_TICK A
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
     V_BANK_DEP_TICK_FUTURE           BANK_DEP_TICK_FUTURE%ROWTYPE;
 BEGIN
     FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
@@ -855,8 +866,9 @@ PROCEDURE EXPIRE_PREV_FTR_LEAD(
     This procedure is intended to check and expire previous future records
     before inserting new record
 
-Created : Created : 10/21/2015 jxc517 CCN Project....
-Changed : 
+Created : 10/21/2015 jxc517 CCN Project....
+Changed : 11/13/2015 nxk927 CCN Project....
+          Passing BANK_ACCOUNT_NUMBER as parameter instead of null
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
 IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
@@ -886,7 +898,7 @@ BEGIN
             V_MEMBER_STORE := mbf_rec.MEMBER_STORE_NBR;
             IF mbf_rec.EXPIRATION_DATE IS NOT NULL THEN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
-                                                                           NULL, --bank account number
+                                                                           mbf_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
                                                                            NULL, --micr format id
                                                                            mbf_rec.FUTURE_ID,
                                                                            mbf_rec.EXPIRATION_DATE);
@@ -900,7 +912,7 @@ BEGIN
         lbf_rec.EXPIRATION_DATE := GREATEST(lbf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
         IF lbf_rec.EXPIRATION_DATE IS NOT NULL THEN
             DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(lbf_rec.LEAD_STORE_NBR,
-                                                                       NULL, --bank account number
+                                                                       lbf_rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
                                                                        NULL, --micr format id
                                                                        lbf_rec.FUTURE_ID,
                                                                        lbf_rec.EXPIRATION_DATE);
@@ -1664,6 +1676,8 @@ PROCEDURE ACCNT_MNTNC_EXP_DELETE_SP (
 Created : 10/02/2015 sxh487 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 11/16/2015 nxk927 CCN Project....
+          Code has been changed to check for bank account number for BANK_DEP_TICK 
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
     IN_LEAD_STORE_NBR           IN  VARCHAR2,
@@ -1686,21 +1700,25 @@ IS
         SELECT *
           FROM BANK_DEP_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
            AND FUTURE_ID        = IN_FUTURE_ID;
     CURSOR bank_dep_tickord_cur IS
         SELECT *
           FROM BANK_DEP_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
            AND FUTURE_ID        = IN_FUTURE_ID;
     CURSOR bank_dep_bag_tick_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
            AND FUTURE_ID        = IN_FUTURE_ID;
     CURSOR bank_dep_bag_tickord_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
            AND FUTURE_ID        = IN_FUTURE_ID;
 BEGIN
      --expire CC related child tables
@@ -1735,6 +1753,9 @@ PROCEDURE ACCNT_MNTNC_UNEXPIRE_SP (
 Created : 09/28/2015 sxh487 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+Changed : 11/16/2015 nxk927 CCN Project....
+          Code has been changed check the bank account number as well as few of the tables might 
+          have multiple record for same cost center       
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2)
 IS
@@ -1763,19 +1784,23 @@ IS
     CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICK
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICKORD
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_BAG_TICK
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_bag_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
 BEGIN
      FOR bank_account_rec IN bank_account_cur LOOP
          FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
@@ -1843,6 +1868,9 @@ PROCEDURE ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP (
 Created : 09/28/2015 sxh487 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+Changed : 11/16/2015 nxk927 CCN Project....
+          Code has been changed check the bank account number as well as few of the tables might 
+          have multiple record for same cost center          
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
     IN_LEAD_STORE_NBR       IN  VARCHAR2,
@@ -1862,19 +1890,23 @@ IS
     CURSOR bank_dep_tick_cur IS
         SELECT *
           FROM BANK_DEP_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_tickord_cur IS
         SELECT *
           FROM BANK_DEP_TICKORD
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_bag_tick_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
     CURSOR bank_dep_bag_tickord_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
 BEGIN
      --expire CC related child tables
      FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
@@ -1907,3 +1939,4 @@ EXCEPTION
 END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
 
 END ACCOUNT_MAINTENANCE_PKG;
+

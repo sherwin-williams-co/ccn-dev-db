@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY MEMBER_MAINTENANCE_PKG
+CREATE OR REPLACE PACKAGE BODY MEMBER_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -16,7 +16,8 @@ Inputs:
     IN_COST_CENTER_CODE
 
 Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/16/2015 nxk927 CCN Project....
+          passing only current record
 *******************************************************************************/
 IN_COST_CENTER_CODE          IN      VARCHAR2,
 OUT_BANK_MBR_CC_REF_CUR         OUT REF_CURSOR,
@@ -195,6 +196,9 @@ PROCEDURE UPDT_VIRTUAL_FTR_MBR_STR_DTLS(
 Created : 10/14/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 11/16/2015 nxk927 CCN Project....
+          added the code for virtual future. 
+          if added in current need to be inserted in future virtual rec
 *******************************************************************************/
 IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE)
 IS
@@ -229,7 +233,7 @@ BEGIN
       FROM MEMBER_BANK_CC_FUTURE
      WHERE MEMBER_STORE_NBR      = IN_MBR_BANK_CC_REC.MEMBER_STORE_NBR
        AND LEAD_BANK_ACCOUNT_NBR = IN_MBR_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
-    IF V_FUTURE_ID IS NULL THEN 
+    IF V_FUTURE_ID IS NULL THEN --added this code for virtual future. if added in current need to be inserted in future virtual rec
        SELECT MAX(FUTURE_ID)
          INTO V_FUTURE_ID
          FROM MEMBER_BANK_CC_FUTURE
@@ -301,6 +305,8 @@ PROCEDURE EXPIRE_PREV_CUR_MEMBER_BANK_CC(
 Created : 07/09/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 11/13/2015 nxk927 CCN Project....
+          Added LEAD_BANK_ACCOUNT_NBR to be passed to the procedure call
 *******************************************************************************/
 IN_ROW IN     MEMBER_BANK_CC_FUTURE%ROWTYPE)
 IS
@@ -357,7 +363,7 @@ BEGIN
         rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
         IF rec.EXPIRATION_DATE IS NOT NULL THEN
             DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(rec.MEMBER_STORE_NBR,
-                                                                       NULL, --bank account number
+                                                                       rec.LEAD_BANK_ACCOUNT_NBR, --bank account number
                                                                        NULL, --micr format id
                                                                        rec.FUTURE_ID,
                                                                        rec.EXPIRATION_DATE);
@@ -464,7 +470,8 @@ PROCEDURE MBR_MNTNC_CURRENT_DELETE_SP (
   delete process for current records
 
 Created : 10/23/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/16/2015 nxk927 CCN Project....
+          getting bank account number from first cursor to use it in another cursor
 *******************************************************************************/
     IN_MEMBER_STORE_NBR  IN     VARCHAR2,
     IN_LEAD_STORE_NBR    IN     VARCHAR2)
@@ -478,20 +485,22 @@ IS
         SELECT *
           FROM STORE_MICR_FORMAT_DTLS
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_tick_cur IS
+    CURSOR bank_dep_tick_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_bag_tick_cur IS
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    CURSOR bank_dep_bag_tick_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_BAG_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
 BEGIN
     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
-        FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+        FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR) LOOP
             TABLE_IU_PKG.BANK_DEP_TICK_D_SP(bank_dep_tick_rec);
         END LOOP;
-        FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
+        FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(mbr_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR) LOOP
             TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(bank_dep_bag_tick_rec);
         END LOOP;
         FOR store_micr_format_dtls_rec IN store_micr_format_dtls_cur LOOP
@@ -510,7 +519,8 @@ PROCEDURE MBR_MNTNC_FUTURE_DELETE_SP (
   delete process for future records
 
 Created : 10/23/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/16/2015 nxk927 CCN Project....
+          getting bank account number from first cursor to use it in another cursor
 *******************************************************************************/
     IN_MEMBER_STORE_NBR  IN     VARCHAR2,
     IN_LEAD_STORE_NBR    IN     VARCHAR2,
@@ -532,17 +542,19 @@ IS
            AND FUTURE_ID             >= IN_FUTURE_ID;
 
     --cursor to get all the deposit ticket records for the store, future id passed
-    CURSOR bank_dep_tick_ftr_cur IS
+    CURSOR bank_dep_tick_ftr_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND FUTURE_ID        >= IN_FUTURE_ID;
 
     --cursor to get all the deposit bag ticket records for the store, future id passed
-    CURSOR bank_dep_bag_tick_ftr_cur IS
+    CURSOR bank_dep_bag_tick_ftr_cur(IN_BANK_ACCOUNT_NBR VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND FUTURE_ID        >= IN_FUTURE_ID;
 
 BEGIN
@@ -552,12 +564,12 @@ BEGIN
 
         --for this member store, get the bank deposit ticket details
         --if found, delete those child records first
-        FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur LOOP
+        FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_ftr_rec.LEAD_BANK_ACCOUNT_NBR) LOOP
             --now delete the bank deposit ticket details from the future
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
         END LOOP; --bank_dep_tick_cur
 
-        FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur LOOP
+        FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(mbr_bank_cc_ftr_rec.LEAD_BANK_ACCOUNT_NBR) LOOP
 
             --now delete the bank deposit bag ticket details from the future
             TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
@@ -606,3 +618,4 @@ EXCEPTION
 END MBR_MNTNC_UI_DELETE_SP;
 
 END MEMBER_MAINTENANCE_PKG;
+
