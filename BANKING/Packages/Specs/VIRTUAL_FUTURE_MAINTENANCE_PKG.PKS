@@ -48,5 +48,18 @@ Changed :
       IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
       IN_FUTURE_ID            IN    NUMBER,
       IN_FLAG                 IN    VARCHAR2);      
-  
+
+PROCEDURE CRTE_VIR_TRSFR_MBR_BAK_CC_REC(
+/***********************************************************
+This procedure is used to insert member information for transfer process
+in current table for the lead that is a virtual lead in future where the 
+member is being transferred. So we will have record in virtual current and future
+
+Created : 11/12/2015 nxk927 CCN Project....
+Changed : 
+************************************************************/
+IN_FUTURE_ID           IN     NUMBER,
+IN_MBR_BANK_CC_REC     IN     MEMBER_BANK_CC%ROWTYPE,
+IN_FLAG                IN     VARCHAR2);
+
 END VIRTUAL_FUTURE_MAINTENANCE_PKG;
