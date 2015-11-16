@@ -1,4 +1,4 @@
-create or replace PACKAGE CONCENTRATION_TRANSFER_PKG
+CREATE OR REPLACE PACKAGE CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -57,3 +57,4 @@ IN_TRANSFER_FLAG          IN VARCHAR2,
 IN_XML                    CLOB);
 
 END CONCENTRATION_TRANSFER_PKG;
+

@@ -1,4 +1,4 @@
-create or replace PACKAGE BANKING_COMMON_TOOLS
+CREATE OR REPLACE PACKAGE BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have store drafts specific tools
@@ -310,3 +310,4 @@ Changed :
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
     
 END BANKING_COMMON_TOOLS;
+

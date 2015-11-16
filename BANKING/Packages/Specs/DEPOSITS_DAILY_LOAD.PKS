@@ -1,4 +1,4 @@
-create or replace PACKAGE DEPOSITS_DAILY_LOAD
+CREATE OR REPLACE PACKAGE DEPOSITS_DAILY_LOAD
 AS
 /**************************************************************** 
 This package will load the new CCN BANKING Oracle Database

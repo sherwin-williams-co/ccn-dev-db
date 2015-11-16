@@ -1,4 +1,4 @@
-create or replace PACKAGE VIRTUAL_FUTURE_MAINTENANCE_PKG
+CREATE OR REPLACE PACKAGE VIRTUAL_FUTURE_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used to
@@ -63,3 +63,4 @@ IN_MBR_BANK_CC_REC     IN     MEMBER_BANK_CC%ROWTYPE,
 IN_FLAG                IN     VARCHAR2);
 
 END VIRTUAL_FUTURE_MAINTENANCE_PKG;
+

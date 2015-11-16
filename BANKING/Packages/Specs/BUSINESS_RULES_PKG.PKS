@@ -1,4 +1,4 @@
-create or replace PACKAGE BUSINESS_RULES_PKG
+CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable

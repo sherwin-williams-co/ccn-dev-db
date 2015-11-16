@@ -1,4 +1,4 @@
-create or replace PACKAGE         ACCOUNT_MAINTENANCE_PKG
+CREATE OR REPLACE PACKAGE         ACCOUNT_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in

@@ -1,4 +1,4 @@
-create or replace PACKAGE DPST_BAGS_UPDATE_BATCH_PKG
+CREATE OR REPLACE PACKAGE DPST_BAGS_UPDATE_BATCH_PKG
 AS
 /**********************************************************
   This Package contains procedured to update the deposit bag tickets on a daily

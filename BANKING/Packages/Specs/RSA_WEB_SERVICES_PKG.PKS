@@ -1,4 +1,4 @@
-create or replace PACKAGE RSA_WEB_SERVICES_PKG AS 
+CREATE OR REPLACE PACKAGE RSA_WEB_SERVICES_PKG AS 
 /**********************************************************
 This Package contains all the procedures used to
 communicate with RSA Web Services
@@ -29,3 +29,4 @@ Changed :
     IN_USER_ID           IN     VARCHAR2);
 
 END RSA_WEB_SERVICES_PKG;
+

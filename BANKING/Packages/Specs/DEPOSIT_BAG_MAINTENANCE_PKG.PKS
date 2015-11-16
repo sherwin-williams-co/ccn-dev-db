@@ -1,4 +1,4 @@
-create or replace PACKAGE         DEPOSIT_BAG_MAINTENANCE_PKG AS 
+CREATE OR REPLACE PACKAGE         DEPOSIT_BAG_MAINTENANCE_PKG AS 
 /**********************************************************
 This Package contains all the procedures used in
 deposit bag update maintenance window
@@ -102,3 +102,4 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_BAG_MAINTENANCE_PKG;
+

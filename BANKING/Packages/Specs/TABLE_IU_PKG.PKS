@@ -1,4 +1,4 @@
-create or replace PACKAGE         TABLE_IU_PKG 
+CREATE OR REPLACE PACKAGE         TABLE_IU_PKG 
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
