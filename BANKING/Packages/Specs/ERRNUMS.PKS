@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE ERRNUMS
+create or replace PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -380,5 +380,17 @@ Changed :
 en_lead_ever_mbr_frm_efctv_dt CONSTANT NUMBER := -20032;
 exc_lead_ever_mbr_frm_efctv_dt EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_lead_ever_mbr_frm_efctv_dt , -20032);
+
+/*********************************************************** 
+The "str_micr_dtls_not_avail" passes a numerical error of -20033
+This error will be used when there is no store micr format details attached
+to the passed cost_center_code
+
+Created : 11/12/2015 axk326 CCN Project....
+Changed :
+************************************************************/
+en_str_micr_dtls_not_avail CONSTANT NUMBER := -20033;
+exc_str_micr_dtls_not_avail EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_str_micr_dtls_not_avail , -20033);
 
 END ERRNUMS;
