@@ -59,6 +59,19 @@ Changed :
 IN_FORMAT     IN     VARCHAR2,
 IN_VALUE      IN     VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION GET_DEPOSIT_TKT_FUT_ID_NBR(
+/*******************************************************************************
+This fucntion is intended to return the deposit ticket future id
+for the cost center that has been passed in
+
+Created : 11/03/2015 nxk927 CCN Project....
+Changed : 11/16/2015 axk326 CCN Project....
+          Added spec to make this function as public
+*******************************************************************************/
+IN_COST_CENTER_CODE    IN      VARCHAR2,
+IN_BANK_ACCT_NBR       IN      VARCHAR2,
+IN_FUTURE_ID           IN      NUMBER) RETURN VARCHAR2;
+
 PROCEDURE DEPOSIT_TICKET_MNTNC_UI_SP (
 /*******************************************************************************
 This procedure is intended to RETURN a ref cursor with data from 
