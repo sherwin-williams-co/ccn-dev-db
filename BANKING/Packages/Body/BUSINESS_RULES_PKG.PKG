@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY BUSINESS_RULES_PKG
+CREATE OR REPLACE 
+PACKAGE BODY BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -1355,6 +1356,9 @@ Changed : 09/16/2015 axk326 CCN Project....
           is transferred again all the futures will be deleted
 Changed : 11/10/2015 jxc517 CCN Project....
           Added business rule to throw error if user tries to perform transfer with multiple dates
+Changed : 11/10/2015 nxk927 CCN Project....
+          Added business rule to throw error if user tries to enter the date for the member transfer where 
+          the TO_COST_CENTER is not lead in the date passed
 *******************************************************************************/
 IN_XML           CLOB)
 IS
@@ -1417,6 +1421,7 @@ BEGIN
                          V_PROC_NAME,
                          'Please select at least one member to transfer');
     END IF;
+   
     SELECT COUNT(*)
       INTO V_COUNT
       FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
@@ -1424,11 +1429,31 @@ BEGIN
                      COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()',
                              EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')
      WHERE EFFECTIVE_DATE IS NULL;
+
     IF V_COUNT > 0 THEN
         ERRPKG.RAISE_ERR(errnums.en_to_effect_date_err,
                          V_PROC_NAME,
                          'To effective date is not specified. Please enter an effective date for the member stores to be transfered');
     END IF;
+
+    FOR REC IN (SELECT DISTINCT TO_DATE(SUBSTR(EFFECTIVE_DATE, 1, 10), 'MM-DD-RRRR') EFFECTIVE_DATE
+                  FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                                   PASSING V_ROW_DATA
+                                   COLUMNS EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')) LOOP
+       -- if the TO_LEAD is currently an independent, but lead in future we should throw error if the transfer was performed 
+       -- with the effective date less than that of the lead's effective date in future
+       --2) If the TO_LEAD is currently an independent without a future, it wouldn't come here as we don't do a transfer if the CC is not a lead ever
+       --3) If the TO_LEAD is currently assigned to bank account "A" and in future assigned to bank account "B"
+        --we should run this business rule to stop them trying to transfer before the future effective date of lead  
+        --attached to bank account B
+        --The reason for above hard error is because of real future scenario                                   
+        IF BANKING_COMMON_TOOLS.IS_LEAD_ON_DATE_PASSED(V_TO_LEAD_CC, rec.EFFECTIVE_DATE) = 'N' THEN 
+            ERRPKG.RAISE_ERR(errnums.en_mem_to_ld_effect_dt_err,
+                             V_PROC_NAME,
+                             'The passed effective date is less than the lead effective date. Please enter correct effective date for the member stores to be transfered');
+        END IF;
+    END LOOP;
+    
     FOR rec IN (SELECT *
                   FROM MEMBER_BANK_CC
                  WHERE LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
@@ -1438,8 +1463,8 @@ BEGIN
                                                    PASSING V_ROW_DATA
                                                    COLUMNS Value VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()'))
                   AND EXPIRATION_DATE IS NOT NULL) LOOP
-                  ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
-                                        'This Transfer will delete all futures for Member store - '||rec.MEMBER_STORE_NBR);
+          ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
+                                'This Transfer will delete all futures for Member store - '||rec.MEMBER_STORE_NBR);
     END LOOP;
 
    --Below call will check if there are any warnings and raise those from here
@@ -1582,3 +1607,4 @@ BEGIN
 END DEPOSIT_BAG_TICKET_MNTNC_BR_SP;
 
 END BUSINESS_RULES_PKG;
+

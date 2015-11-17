@@ -280,9 +280,11 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields
 Created : 10/30/2015 NXK927
-Changed : 
+Changed : 11/17/2015 NXK927 CCN Project....
+          passing bank account nummber as parameter
 ************************************************************/
     IN_COST_CENTER              IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR         IN     VARCHAR2,
     IN_REORDER_NUMBER_BKS       IN     NUMBER,
     IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
     IN_FUTURE_ID                IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
@@ -293,9 +295,11 @@ FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields  
 Created : 10/30/2015 NXK927
-Changed : 
+Changed : 11/17/2015 NXK927 CCN Project....
+          passing bank account nummber as parameter
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
     IN_DEPBAG_REORDER_QTY    IN     NUMBER,
     IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
 
@@ -308,6 +312,19 @@ Changed :
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
-    
+
+FUNCTION IS_VIRTUAL_MEMBER(
+/******************************************************************************
+	This function checks if the passed cost center
+   is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+
+Created : 11/17/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+   IN_COST_CENTER        IN  VARCHAR2,
+   IN_BANK_ACCOUNT_NBR   IN  NUMBER) RETURN VARCHAR2;
+   
 END BANKING_COMMON_TOOLS;
 

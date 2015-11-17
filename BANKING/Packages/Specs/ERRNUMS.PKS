@@ -1,4 +1,4 @@
-create or replace PACKAGE ERRNUMS
+CREATE OR REPLACE PACKAGE ERRNUMS
 AS
 /*********************************************************** 
 This package will hold all error definitions for 
@@ -392,4 +392,6 @@ Changed :
 en_str_micr_dtls_not_avail CONSTANT NUMBER := -20033;
 exc_str_micr_dtls_not_avail EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_str_micr_dtls_not_avail , -20033);
+
 END ERRNUMS;
+

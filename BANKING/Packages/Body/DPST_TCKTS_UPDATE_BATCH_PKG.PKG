@@ -23,6 +23,8 @@ Changed : 11/04/2015 nxk927 CCN Project....
           added LAST_MAINT_USER_ID <> 'BATCH' so there won't be multiple updates
         : 11/13/2015 nxk927 CCN Project....
           Added condition to take the actual current record 
+        : 11/17/2015 nxk927 CCN Project....
+          Added condition to see if the member is virtual current or real
 *******************************************************************************/
 IS
 V_BATCH_NUMBER                 BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
@@ -58,10 +60,12 @@ BEGIN
             END;
         END LOOP;
         FOR rec IN (SELECT *
-                      FROM BANK_DEP_TICKORD
+                      FROM BANK_DEP_TICKORD A
                      WHERE COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
                                                   FROM BANK_DEP_TICK
-                                                 WHERE DEP_TKTS_ONHAND_QTY <= REORDER_POINT)) LOOP
+                                                 WHERE DEP_TKTS_ONHAND_QTY <= REORDER_POINT
+                                                   AND BANK_ACCOUNT_NBR     = A.BANK_ACCOUNT_NBR
+                                                   AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE))) LOOP
             BEGIN
                 DEPOSIT_TICKET_MAINTENANCE_PKG.PLACE_DEPOSIT_TICKET_ORDER(rec.COST_CENTER_CODE,
                                                                           TRUNC(SYSDATE),
@@ -80,12 +84,16 @@ BEGIN
                        AND LAST_MAINT_USER_ID <> 'BATCH') LOOP--exclude batch as is already taken care before this call
             BEGIN
             --This will update all the deposit ticket if the order hits today's date
-                UPDATE BANK_DEP_TICK
-                   SET DEP_TKTS_ONHAND_QTY      = NVL(DEP_TKTS_ONHAND_QTY,0) + (NVL(REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS) * NVL(NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK)),
-                       YTD_DEP_TKTS_ORDERED_QTY = NVL(YTD_DEP_TKTS_ORDERED_QTY,0) +  (NVL(REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS) * NVL(NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK))
-                 WHERE COST_CENTER_CODE         = rec.COST_CENTER_CODE
-                   AND BANK_ACCOUNT_NBR         = rec.BANK_ACCOUNT_NBR
-                   AND TRUNC(EFFECTIVE_DATE)   <= TRUNC(SYSDATE);
+            IF BANKING_COMMON_TOOLS.IS_VIRTUAL_MEMBER(rec.COST_CENTER_CODE,rec.BANK_ACCOUNT_NBR) = 'N' THEN
+                --Checking if the cc passed is virtual or real
+                --if virtual then don't place the order
+               UPDATE BANK_DEP_TICK
+                  SET DEP_TKTS_ONHAND_QTY      = NVL(DEP_TKTS_ONHAND_QTY,0) + (NVL(REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS) * NVL(NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK)),
+                      YTD_DEP_TKTS_ORDERED_QTY = NVL(YTD_DEP_TKTS_ORDERED_QTY,0) +  (NVL(REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS) * NVL(NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK))
+                WHERE COST_CENTER_CODE         = rec.COST_CENTER_CODE
+                  AND BANK_ACCOUNT_NBR         = rec.BANK_ACCOUNT_NBR
+                  AND TRUNC(EFFECTIVE_DATE)   <= TRUNC(SYSDATE);
+            END IF;                   
             EXCEPTION
                 WHEN OTHERS THEN
                     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
