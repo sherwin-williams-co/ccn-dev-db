@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -149,4 +149,3 @@ IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-
