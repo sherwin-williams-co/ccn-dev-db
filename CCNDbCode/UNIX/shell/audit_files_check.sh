@@ -9,8 +9,8 @@
 # Created  : 10/12/2015 nxk927 CCN Project Team.....
 # Modified : 11/18/2015 jxc517 CCN Project Team.....
 #            Modified the script to wait for a minute before archive, concatenating and ftp
-#            If we do not do this, we migth miss some records as ftp happens while the 
-#            indivisual file concatenation is still giong on
+#            If we do not do this, we might miss some records as ftp happens while the 
+#            individual file concatenation is still going on
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/audit_files_check.sh > $HOME/audit_files_check.log 2>&1 &
