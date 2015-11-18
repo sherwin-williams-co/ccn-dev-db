@@ -7,7 +7,10 @@
 #                 2)audit_ftp.sh
 #
 # Created  : 10/12/2015 nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 11/18/2015 jxc517 CCN Project Team.....
+#            Modified the script to wait for a minute before archive, concatenating and ftp
+#            If we do not do this, we migth miss some records as ftp happens while the 
+#            indivisual file concatenation is still giong on
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/audit_files_check.sh > $HOME/audit_files_check.log 2>&1 &
@@ -24,8 +27,9 @@ cmd_path="$HOME/batchJobs/backFeed/current"
 while true; do
    if [ -f $cmd_path/Audit_backfeed.txt ] &&  [ -f $cmd_path/Banking_audit.txt ]  
    then
+      sleep 60
       cd $HOME/batchJobs/backFeed
-	  sh Main_CAT.sh
+      sh Main_CAT.sh
       sh audit_ftp.sh
    fi
 done
