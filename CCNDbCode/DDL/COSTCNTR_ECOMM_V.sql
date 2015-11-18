@@ -120,13 +120,7 @@ Modified : 08/18/2015 nxk927 CCN Project...
                                   WHERE UPPER(E2.COST_CENTER_CODE) = UPPER(E1.COST_CENTER_CODE)
                                     AND UPPER(E2.JOB_TITLE) ='MGR'
                                     AND E2.EMP_PAYROLL_STATUS = 'Active')) E
-        ,(SELECT COST_CENTER_CODE,
-                 TWJ_STATE,
-                 TWJ_ZIP,
-                 TWJ_GEO,
-                 TWJ_COUNTRY,
-                 TWJ_COMPANY
-            FROM TAXWARE) TAX
+        ,TAXWARE TAX
     WHERE C.CATEGORY IN ('S', 'T')
       AND C.COST_CENTER_CODE = ADDRESS.COST_CENTER_CODE(+)
       AND C.COST_CENTER_CODE = H.COST_CENTER_CODE(+)
