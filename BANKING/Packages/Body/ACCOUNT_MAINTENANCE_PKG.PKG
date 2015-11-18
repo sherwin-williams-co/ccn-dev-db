@@ -1448,6 +1448,41 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_CURRENT_FROM_FUTURE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END CREATE_CURRENT_FROM_FUTURE;
 
+PROCEDURE DELETE_VIRTUAL_FUT
+/******************************************************************************
+  This procedure will delete all the virutal future table records 
+      MEMBER_BANK_CC_FUTURE
+      BANK_DEP_TICK_FUTURE
+      BANK_DEP_BAG_FUTURE
+
+Created : 11/17/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IS
+   BEGIN
+       FOR rec IN (SELECT *
+                     FROM MEMBER_BANK_CC_FUTURE A
+                    WHERE EFFECTIVE_DATE <= TRUNC(SYSDATE)
+                     AND EXPIRATION_DATE IS NULL
+                     AND EXISTS (SELECT 1 
+                                   FROM MEMBER_BANK_CC
+                                  WHERE MEMBER_STORE_NBR      = A.MEMBER_STORE_NBR
+                                    AND LEAD_BANK_ACCOUNT_NBR = A.LEAD_BANK_ACCOUNT_NBR
+                                    AND EFFECTIVE_DATE        = A.EFFECTIVE_DATE
+                                    AND EXPIRATION_DATE IS NULL)) LOOP
+        BEGIN
+        --with the below call we will be delete those virtual future record in the future tables
+        --This record will already be present in the current tables. 
+        --when it hits the current date where batch will perform the future to current process
+        --this will run at the end of future to current process
+         ACCNT_MNTNC_EXP_DELETE_SP(rec.LEAD_BANK_ACCOUNT_NBR, rec.LEAD_STORE_NBR, rec.MEMBER_STORE_NBR,rec.FUTURE_ID);
+       EXCEPTION
+       WHEN OTHERS THEN
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DELETE_VIRTUAL_CURR', SQLERRM, rec.LEAD_BANK_ACCOUNT_NBR, rec.MEMBER_STORE_NBR, 'MEMBER_BANK_CC');
+       END;
+       END LOOP;
+END DELETE_VIRTUAL_FUT;
+
 PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP ( 
 /******************************************************************************
 	This procedure performs the core process for Account Maintenance Window,
@@ -1466,6 +1501,8 @@ Changed : 11/04/2015 jxc517 CCN Project....
           bank future.
         : 11/17/2015 nxk927
           passing bank account number for the dep tick, order, dep bag and order as a parameter
+          added the delete procedure to delete the virtual future that will be active as of today
+          and are already present in the current table
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE,
     IN_FTR_TO_CURR_FLAG         IN     VARCHAR2 DEFAULT 'N')
@@ -1568,6 +1605,9 @@ BEGIN
                     NULL;
             END;
             IF V_COUNT = 0 THEN
+                 --before exiting delete those virtual current records that are active as of today and are already present 
+                 --in the current table
+                 DELETE_VIRTUAL_FUT(); 
                  --exit out the process without doing anything, if the future record came for deletion is a virtual future
                  --NOTE: return should happen only from batch not from UI deletion processes
                  RETURN;
@@ -1709,6 +1749,7 @@ Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
         : 11/16/2015 nxk927 CCN Project....
           Code has been changed to check for bank account number for BANK_DEP_TICK 
+          changed the order to delete the orders first
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
     IN_LEAD_STORE_NBR           IN  VARCHAR2,
@@ -1756,17 +1797,17 @@ BEGIN
      FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
          TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP (str_micr_format_rec);
      END LOOP;
-     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
-         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
-     END LOOP;
      FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
          TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_rec);
      END LOOP;
-     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
-         TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_rec);
+     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
      END LOOP;
      FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur LOOP
          TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_rec);
+     END LOOP;
+     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_rec);
      END LOOP;
      FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
          TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_rec);

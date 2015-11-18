@@ -1,4 +1,5 @@
-CREATE OR REPLACE PACKAGE BODY         DEPOSIT_BAG_MAINTENANCE_PKG AS
+CREATE OR REPLACE 
+PACKAGE BODY         DEPOSIT_BAG_MAINTENANCE_PKG AS
 /**********************************************************
 This Package contains all the procedures used in
 deposit bag update maintenance window
@@ -15,25 +16,27 @@ Created : 10/19/2015 jxc517 CCN Project....
 Changed : 11/16/2015 nxk927 CCN Project....
           get the current record only which has effective date as of today or before
 *******************************************************************************/
-IN_COST_CENTER_CODE     IN    VARCHAR2)
+IN_COST_CENTER_CODE     IN    VARCHAR2,
+IN_BANK_ACCOUNT_NBR     IN    VARCHAR2)
 IS
     CURSOR bank_dep_bag_tick_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICK
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE);
     
-    CURSOR bank_dep_bag_tickord_cur(IN_BANK_ACCOUNT_NBR IN VARCHAR2) IS
+    CURSOR bank_dep_bag_tickord_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
 BEGIN
     FOR rec IN bank_dep_bag_tick_cur LOOP
-        TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(rec);
-        FOR rec1 IN bank_dep_bag_tickord_cur(rec.BANK_ACCOUNT_NBR) LOOP
+        FOR rec1 IN bank_dep_bag_tickord_cur LOOP
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_D_SP(rec1);
         END LOOP;
+        TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(rec);
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -67,14 +70,14 @@ IS
            AND BANK_ACCOUNT_NBR = IN_BANK_ACT_NBR
            AND EXPIRATION_DATE IS NULL;
 BEGIN
-    FOR rec IN bank_dep_bag_tick_cur LOOP
-        rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
-        TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(rec);
-    END LOOP;
     FOR rec IN bank_dep_bag_tickord_cur LOOP
         rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(rec);
-    END LOOP;
+        FOR rec IN bank_dep_bag_tick_cur LOOP
+            rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
+            TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(rec);
+        END LOOP;
+    END LOOP;   
 EXCEPTION
     WHEN OTHERS THEN
         NULL;
@@ -109,13 +112,13 @@ IS
            AND FUTURE_ID        = IN_FUTURE_ID
            AND EXPIRATION_DATE IS NULL;
 BEGIN
-    FOR rec IN bank_dep_bag_tick_cur LOOP
-        rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
-        TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(rec);
-    END LOOP;
     FOR rec IN bank_dep_bag_tickord_cur LOOP
         rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_I_SP(rec);
+        FOR rec IN bank_dep_bag_tick_cur LOOP
+            rec.EXPIRATION_DATE := IN_EXPIRATION_DATE;
+            TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(rec);
+        END LOOP;
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -249,18 +252,20 @@ PROCEDURE EXPIRE_PREV_CUR_DEP_BAG_DTLS(
 
 Created : 10/20/2015 jxc517 CCN Project....
 Changed : 11/16/2015 nxk927 CCN Project....
-          get the bank account number from 1st cursor and using it to pull the tick order 
+          pass the bank account number as a parameter
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2,
+IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
 IN_EFFECTIVE_DATE   IN     DATE)
 IS
     CURSOR bank_dep_bag_tick_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICK
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+         WHERE COST_CENTER_CODE   = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND EFFECTIVE_DATE  <  IN_EFFECTIVE_DATE
            AND EXPIRATION_DATE IS NULL;
-    CURSOR bank_dep_bag_tickord_cur(IN_BANK_ACCOUNT_NBR IN VARCHAR2)  IS
+    CURSOR bank_dep_bag_tickord_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
@@ -270,12 +275,12 @@ IS
     V_EXPIRE_DATE              DATE := IN_EFFECTIVE_DATE - INTERVAL '1' SECOND;
 BEGIN
     FOR rec IN bank_dep_bag_tick_cur LOOP
-        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
-        TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(rec);
-        FOR rec1 IN bank_dep_bag_tickord_cur(REC.BANK_ACCOUNT_NBR) LOOP
+        FOR rec1 IN bank_dep_bag_tickord_cur LOOP
             rec1.EXPIRATION_DATE := GREATEST(rec1.EFFECTIVE_DATE, V_EXPIRE_DATE);
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(rec1);
         END LOOP;
+        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(rec);
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -288,19 +293,21 @@ PROCEDURE EXPIRE_PREV_FTR_DEP_BAG_DTLS(
     before inserting new record
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 11/16/2015 nxk927 CCN Project....
-          get the bank account number from 1st cursor and using it to pull the tick order 
+Changed : 11/17/2015 nxk927 CCN Project.... 
+          passed bank account number as parameter
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2,
+IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
 IN_EFFECTIVE_DATE   IN     DATE)
 IS
     CURSOR bank_dep_bag_tick_future_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND EFFECTIVE_DATE  <  IN_EFFECTIVE_DATE
            AND EXPIRATION_DATE IS NULL;
-    CURSOR bank_dep_bag_tickord_ftr_cur(IN_BANK_ACCOUNT_NBR VARCHAR2)IS
+    CURSOR bank_dep_bag_tickord_ftr_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
@@ -311,12 +318,12 @@ IS
     V_EXPIRE_DATE              DATE := IN_EFFECTIVE_DATE - INTERVAL '1' SECOND;
 BEGIN
     FOR rec IN bank_dep_bag_tick_future_cur LOOP
-        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
-        TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(rec);
-        FOR rec1 IN bank_dep_bag_tickord_ftr_cur(REC.BANK_ACCOUNT_NBR) LOOP
+        FOR rec1 IN bank_dep_bag_tickord_ftr_cur LOOP
             rec1.EXPIRATION_DATE := GREATEST(rec1.EFFECTIVE_DATE, V_EXPIRE_DATE);
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_I_SP(rec1);
         END LOOP;
+        rec.EXPIRATION_DATE := GREATEST(rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(rec);
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
@@ -329,15 +336,17 @@ PROCEDURE EXPIRE_PREVIOUS_DEP_BAG_DTLS(
     before inserting new record
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/17/2015 nxk927 CCN Project.... 
+          passed bank account number as parameter
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2,
+IN_BANK_ACCOUNT_NBR IN     VARCHAR2,
 IN_EFFECTIVE_DATE   IN     DATE)
 IS
     V_PROC_NAME                VARCHAR2(30) := 'EXPIRE_PREVIOUS_DEP_BAG_DTLS';
 BEGIN
-    EXPIRE_PREV_CUR_DEP_BAG_DTLS(IN_COST_CENTER_CODE, IN_EFFECTIVE_DATE);
-    EXPIRE_PREV_FTR_DEP_BAG_DTLS(IN_COST_CENTER_CODE, IN_EFFECTIVE_DATE);
+    EXPIRE_PREV_CUR_DEP_BAG_DTLS(IN_COST_CENTER_CODE,IN_BANK_ACCOUNT_NBR, IN_EFFECTIVE_DATE);
+    EXPIRE_PREV_FTR_DEP_BAG_DTLS(IN_COST_CENTER_CODE, IN_BANK_ACCOUNT_NBR,IN_EFFECTIVE_DATE);
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME, SUBSTR(SQLERRM,1,500));
@@ -353,13 +362,15 @@ Deposit Bag Maintenance Window that are future records
 Created : 08/24/2015 jxc517 CCN Project....
 Changed : 11/02/2015 nxk927 CCN Project.... 
           Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
+        :11/17/2015 nxk927 CCN Project.... 
+         passed bank account number as parameter to EXPIRE_PREVIOUS_DEP_BAG_DTLS
 *******************************************************************************/
     IN_BANK_DEP_BAG_TICK_FTR_REC IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE)
 IS
     V_BANK_DEP_BAG_TICK_FTR_REC    BANK_DEP_BAG_TICK_FUTURE%ROWTYPE := IN_BANK_DEP_BAG_TICK_FTR_REC;
     V_PROC_NAME                    VARCHAR2(30) := 'DEPOSIT_BAG_FUTURE_UPSERT_SP';
 BEGIN
-    EXPIRE_PREVIOUS_DEP_BAG_DTLS(V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE, V_BANK_DEP_BAG_TICK_FTR_REC.EFFECTIVE_DATE);
+    EXPIRE_PREVIOUS_DEP_BAG_DTLS(V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE,V_BANK_DEP_BAG_TICK_FTR_REC.BANK_ACCOUNT_NBR, V_BANK_DEP_BAG_TICK_FTR_REC.EFFECTIVE_DATE);
     --Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
     V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_ONHAND_QTY      := 0;
     V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_YTD_ORDERED_QTY := 0;
@@ -549,6 +560,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
         : 11/16/2015 nxk927 CCN Project...
           getting only current record
           passing bank account number to the function GET_DEPOSIT_BAG_ORDER_SEQ_NBR and GET_DEPOSIT_BAG_FUT_ID_NBR
+        : 11/18/2015 nxk927 CCN Project...
+          checking if we have virtual current while placing the order in future tab.
+          if it has virtual current then replicating the same in the current table as well
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -667,6 +681,29 @@ BEGIN
                    NULL;
             END;
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_BAG_ORDER(V_BANK_DEP_BAG_TICK, IN_USER_ID);
+            --checking if the record has virtual current.
+            --if it has then inserting the same in the current table
+            IF BANKING_COMMON_TOOLS.IS_VIRTUAL_MEMBER(IN_COST_CENTER_CODE,V_BANK_DEP_BAG_TICK_FUTURE.BANK_ACCOUNT_NBR) = 'Y' THEN
+               TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(V_BANK_DEP_BAG_TICK);
+               SELECT BANK_ACCOUNT_NBR,      
+                      COST_CENTER_CODE,
+                      BANK_DEP_BAG_FTR_ID,
+                      DEPOSIT_BAG_ORDER_PRIORITY,
+                      DEPOSIT_BAG_ORDER_STATUS,
+                      DEPOSIT_BAG_ORDER_SEQ_NBR,
+                      EFFECTIVE_DATE,
+                      EXPIRATION_DATE,
+                      LAST_MAINTENANCE_DATE,
+                      LAST_MAINT_USER_ID,
+                      ORDER_DATE,
+                      EXTRACTED_USER_ID
+                 INTO V_BANK_DEP_BAG_TICKORD
+                 FROM BANK_DEP_BAG_TICKORD_FUTURE
+                WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                  AND BANK_ACCOUNT_NBR = V_BANK_DEP_BAG_TICK_FUTURE.BANK_ACCOUNT_NBR
+                  AND FUTURE_ID        = IN_FUTURE_ID;
+               TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(V_BANK_DEP_BAG_TICKORD);
+            END IF;
         END IF;
     END IF;
 EXCEPTION

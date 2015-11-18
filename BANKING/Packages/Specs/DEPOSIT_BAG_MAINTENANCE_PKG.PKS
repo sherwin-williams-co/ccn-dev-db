@@ -17,7 +17,8 @@ and delete it from the table
 Created : 10/19/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER_CODE     IN    VARCHAR2);
+IN_COST_CENTER_CODE     IN    VARCHAR2,
+IN_BANK_ACCOUNT_NBR     IN    VARCHAR2);
 
 PROCEDURE EXPIRE_DEPOSIT_BAG_DTLS(
 /*******************************************************************************

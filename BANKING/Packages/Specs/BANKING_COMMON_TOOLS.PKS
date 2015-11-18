@@ -317,8 +317,8 @@ FUNCTION IS_VIRTUAL_MEMBER(
 /******************************************************************************
 	This function checks if the passed cost center
    is a virtual future or real future
-  returns 'N' if it is virtual future
-  returns 'Y' if it is real future
+  returns 'Y' if it is a virtual Current
+  returns 'N' if it is not a virtual current
 
 Created : 11/17/2015 nxk927 CCN Project....
 Changed : 

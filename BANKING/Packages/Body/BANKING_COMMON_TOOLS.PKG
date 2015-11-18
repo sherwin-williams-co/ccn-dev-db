@@ -727,6 +727,7 @@ Changed : 11/09/2015 nxk927 CCN Project....
           added to_char for the order date 
         : 11/17/2015 nxk927 CCN Project....
           added bank account number as parameter
+          --in current we may have next year's orders as well. Exclude those
 *******************************************************************************/
 IN_COST_CENTER      IN     BANK_DEP_TICKORD_HIST.COST_CENTER_CODE%TYPE,
 IN_BANK_ACCOUNT_NBR IN     BANK_DEP_TICKORD_HIST.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2
@@ -744,7 +745,8 @@ BEGIN
               FROM BANK_DEP_TICKORD
              WHERE COST_CENTER_CODE           = IN_COST_CENTER
                AND BANK_ACCOUNT_NBR           = IN_BANK_ACCOUNT_NBR
-               AND TO_CHAR(ORDER_DATE,'YYYY') = TO_CHAR(SYSDATE, 'YYYY'));
+               AND ORDER_DATE                <= TRUNC(SYSDATE));
+               --in current we may have next year's orders as well. Exclude those
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -761,6 +763,7 @@ Changed : 11/09/2015 nxk927 CCN Project....
           added to_char for the order date 
         : 11/17/2015 NXK927 CCN Project....
           passing bank account nummber as parameter
+          --in current we may have next year's orders as well. Exclude those
 *******************************************************************************/
 IN_COST_CENTER        IN     BANK_DEP_BAG_TICKORD_HIST.COST_CENTER_CODE%TYPE,
 IN_BANK_ACCOUNT_NBR   IN     BANK_DEP_BAG_TICKORD_HIST.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2
@@ -771,9 +774,10 @@ BEGIN
       INTO V_RETURN_VAL
       FROM (SELECT ORDER_DATE 
               FROM BANK_DEP_BAG_TICKORD
-             WHERE COST_CENTER_CODE           = IN_COST_CENTER
-               AND BANK_ACCOUNT_NBR           = IN_BANK_ACCOUNT_NBR
-               AND TO_CHAR(ORDER_DATE,'YYYY') = TO_CHAR(SYSDATE, 'YYYY')
+             WHERE COST_CENTER_CODE            = IN_COST_CENTER
+               AND BANK_ACCOUNT_NBR            = IN_BANK_ACCOUNT_NBR
+               AND ORDER_DATE                 <= TRUNC(SYSDATE)
+               --in current we may have next year's orders as well. Exclude those
             UNION
             SELECT ORDER_DATE 
               FROM BANK_DEP_BAG_TICKORD_HIST
@@ -864,6 +868,7 @@ Changed : 11/09/2015 NXK927 CCN Project....
           only taking the data if there is no current data.
         : 11/17/2015 NXK927 CCN Project....
           passing bank account nummber as parameter
+          -changed the call the same proc was not called twice. removed one of the call
 ************************************************************/
     IN_COST_CENTER              IN     VARCHAR2,
     IN_BANK_ACCOUNT_NBR         IN     VARCHAR2,
@@ -877,35 +882,32 @@ V_REORDER_NUMBER_BKS              NUMBER;
 V_NBR_DEP_TICKETS_PER_BK          NUMBER;
 BEGIN
   -- this will check if there are any records on the current bank_dep_tick table
-  -- if so push it to history
-  SELECT COUNT(*) 
-    INTO V_TICK_COUNT
-    FROM BANK_DEP_TICK
-   WHERE COST_CENTER_CODE = IN_COST_CENTER
-     AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
-    
-    IF V_TICK_COUNT <> 0 THEN
-       SELECT *
-         INTO V_DEP_TICK_HIST
-         FROM BANK_DEP_TICK
-        WHERE COST_CENTER_CODE = IN_COST_CENTER
-          AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
-       --push it to history and delete if there are current data present
-       --current records need to be pushed to history for YTD calculation to see
-       --if the order placed was in current year or prev       
-       TABLE_IU_PKG.BANK_DEP_TICK_D_SP(V_DEP_TICK_HIST);
-    ELSE 
-      SELECT * 
-        INTO V_DEP_TICK_HIST
-        FROM BANK_DEP_TICK_HIST
-       WHERE COST_CENTER_CODE = IN_COST_CENTER
-         AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-         AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
-                                   FROM BANK_DEP_TICK_HIST
-                                  WHERE COST_CENTER_CODE = IN_COST_CENTER
-                                    AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR)
-         AND ROWNUM < 2;
-   END IF;         
+  -- if so push it to history and delete it from current
+    BEGIN  
+        SELECT *
+          INTO V_DEP_TICK_HIST
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+         
+        IF V_DEP_TICK_HIST.COST_CENTER_CODE IS NOT NULL THEN
+           TABLE_IU_PKG.BANK_DEP_TICK_D_SP(V_DEP_TICK_HIST);
+        END IF;     
+    EXCEPTION 
+        WHEN NO_DATA_FOUND THEN
+           NULL;
+    END;
+        
+    SELECT * 
+      INTO V_DEP_TICK_HIST
+      FROM BANK_DEP_TICK_HIST
+     WHERE COST_CENTER_CODE = IN_COST_CENTER
+       AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+       AND EFFECTIVE_DATE   = (SELECT MAX(EFFECTIVE_DATE) 
+                                 FROM BANK_DEP_TICK_HIST
+                                WHERE COST_CENTER_CODE = IN_COST_CENTER
+                                  AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR)
+       AND ROWNUM < 2;
    
    --checking to see if the last order placed was in current year or previous
    --if previous start with 0
@@ -945,6 +947,7 @@ Changed : 11/09/2015 NXK927 CCN Project....
           only taking the data if there is no current data.  
         : 11/17/2015 NXK927 CCN Project....
           passing bank account nummber as parameter
+          -changed the call the same proc was not called twice. removed one of the call
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
@@ -957,23 +960,23 @@ V_DEPBAG_REORDER_QTY          NUMBER;
 BEGIN
    -- this will check if there are any records on the current BANK_DEP_BAG_TICK table 
    -- if so push it to history
-    SELECT COUNT(*) 
-      INTO V_BAG_COUNT
-      FROM BANK_DEP_BAG_TICK
-     WHERE COST_CENTER_CODE = IN_COST_CENTER
-       AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
-    
-    IF V_BAG_COUNT <> 0 THEN
-       SELECT *
-         INTO V_BANK_BAG_TICK_HIST
-         FROM BANK_DEP_BAG_TICK
-        WHERE COST_CENTER_CODE = IN_COST_CENTER
-          AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    BEGIN
+        SELECT *
+          INTO V_BANK_BAG_TICK_HIST
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER
+           AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
        --push it to history and delete if there are current data present
        --current records need to be pushed to history for YTD calculation to see
        --if the order placed was in current year or prev
-       TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(V_BANK_BAG_TICK_HIST);
-    ELSE
+        IF V_BANK_BAG_TICK_HIST.COST_CENTER_CODE IS NOT NULL THEN
+           TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(V_BANK_BAG_TICK_HIST);
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+           NULL;
+      END;
+       
        --getting history record to calculate the current On hand quantity and YTD qauntity   
        SELECT *
          INTO V_BANK_BAG_TICK_HIST
@@ -985,8 +988,7 @@ BEGIN
                                    WHERE COST_CENTER_CODE = IN_COST_CENTER
                                      AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR)
           AND ROWNUM < 2;
-    END IF;         
-      
+         
    --checking to see if the last order placed was in current year or previous
    --if previous start with 0
    IF IS_LAST_BAG_ORDER_FOR_CURR_YTD(IN_COST_CENTER,IN_BANK_ACCOUNT_NBR) = 'N' THEN
@@ -1014,7 +1016,8 @@ FUNCTION IS_LEAD_ON_DATE_PASSED(
 	  This function will check if the cost center is lead or not
     on the date passed
 Created : 11/09/2015 NXK927 CCN Project....
-Changed : 
+Changed : 11/17/2017 NXK927 CCN Project....
+          removed rownum < 2 as it will always get one record
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2
@@ -1036,8 +1039,7 @@ BEGIN
                 FROM LEAD_BANK_CC_FUTURE
                WHERE LEAD_STORE_NBR = IN_COST_CENTER
                  AND BANK_TYPE_CODE = 'L'
-                 AND EXPIRATION_DATE IS NULL)
-       WHERE ROWNUM < 2;
+                 AND EXPIRATION_DATE IS NULL);
    RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -1059,17 +1061,17 @@ Changed :
 IS
   V_RETURN_VAL VARCHAR2(1) := 'N';
 BEGIN
---if the cost center exists in current tables with expiration date as null and future has the same record
---then it is virtual current and will return 'Y'
+--if the cost center exists in future table with expiration date as null and current has the same record
+--then it is future and will return 'Y'
   SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
     INTO V_RETURN_VAL
-    FROM MEMBER_BANK_CC A
+    FROM MEMBER_BANK_CC_FUTURE A
    WHERE MEMBER_STORE_NBR      = IN_COST_CENTER
      AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
      AND EFFECTIVE_DATE <= (SYSDATE)
      AND EXPIRATION_DATE IS NULL
      AND EXISTS (SELECT 1 
-                   FROM MEMBER_BANK_CC_FUTURE
+                   FROM MEMBER_BANK_CC
                   WHERE MEMBER_STORE_NBR      = IN_COST_CENTER
                     AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
                     AND EFFECTIVE_DATE        = A.EFFECTIVE_DATE
