@@ -280,11 +280,10 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields
 Created : 10/30/2015 NXK927
-Changed : 11/17/2015 NXK927 CCN Project....
-          passing bank account nummber as parameter
+Changed : 
 ************************************************************/
     IN_COST_CENTER              IN     VARCHAR2,
-    IN_BANK_ACCOUNT_NBR         IN     VARCHAR2,
+    IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
     IN_REORDER_NUMBER_BKS       IN     NUMBER,
     IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
     IN_FUTURE_ID                IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
@@ -295,8 +294,7 @@ FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields  
 Created : 10/30/2015 NXK927
-Changed : 11/17/2015 NXK927 CCN Project....
-          passing bank account nummber as parameter
+Changed : 
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
@@ -313,18 +311,39 @@ Changed :
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
 
-FUNCTION IS_VIRTUAL_MEMBER(
+FUNCTION CHECK_TICK_ORDER_DATE(
 /******************************************************************************
-	This function checks if the passed cost center
-   is a virtual future or real future
-  returns 'Y' if it is a virtual Current
-  returns 'N' if it is not a virtual current
+	This function checks 
+     -- If order is placed in current tab, it will check if there are any record 
+        in future tab before that order date
+     -- If order is placed in future tab, it will check to see if the order date 
+        falls before the order date's in current record
+   If this falls within this two scenario then it will return 'Y' else 'N'
 
-Created : 11/17/2015 nxk927 CCN Project....
+Created : 11/18/2015 nxk927 CCN Project....
 Changed : 
-*******************************************************************************/
-   IN_COST_CENTER        IN  VARCHAR2,
-   IN_BANK_ACCOUNT_NBR   IN  NUMBER) RETURN VARCHAR2;
+******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
+   IN_ORDER_DATE         IN VARCHAR2,
+   IN_FUTURE_ID          IN NUMBER)  RETURN VARCHAR2;
+
+FUNCTION CHECK_BAG_ORDER_DATE(
+/******************************************************************************
+	This function checks 
+     -- If order is placed in current tab, it will check if there are any record 
+        in future tab before that order date
+     -- If order is placed in future tab, it will check to see if the order date 
+        falls before the order date's in current record
+   If this falls within this two scenario then it will return 'Y' else 'N'
+
+Created : 11/18/2015 nxk927 CCN Project....
+Changed : 
+******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
+   IN_ORDER_DATE         IN VARCHAR2,
+   IN_FUTURE_ID          IN NUMBER)  RETURN VARCHAR2;   
    
 END BANKING_COMMON_TOOLS;
 

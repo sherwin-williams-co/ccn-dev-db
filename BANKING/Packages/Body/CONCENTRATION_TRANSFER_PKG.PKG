@@ -412,8 +412,8 @@ BEGIN
                 TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(rec);
             END LOOP;
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(mbr_bank_cc_rec);
-            DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR, mbr_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR, NULL);
-            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR,mbr_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR );
+            DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR, NULL, NULL);
+            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR);
             IF mbr_bank_cc_rec.MEMBER_STORE_NBR <> IN_NEW_LEAD_CC THEN
                 mbr_bank_cc_rec.LEAD_STORE_NBR := IN_NEW_LEAD_CC;
                 mbr_bank_cc_rec.EFFECTIVE_DATE := SYSDATE;
@@ -424,7 +424,7 @@ BEGIN
             END IF;
         END LOOP;
         DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR, lead_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR, NULL);
-        DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR,lead_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR);
+        DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR);
         TABLE_IU_PKG.LEAD_BANK_CC_D_SP(lead_bank_cc_rec);
     END LOOP;
 EXCEPTION
@@ -689,6 +689,47 @@ EXCEPTION
         RETURN V_RETURN_VAL;
 END IS_FTR_LEAD_EXISTS_FOR_DATE;
 
+PROCEDURE CREATE_DELETE_VIRTUAL_MBR(
+/***********************************************************
+This procedure is used to create or delete the virtaul member 
+depending upon the flag sent
+
+This Procdedure does the following
+1) If the flag is D then it will delete the virtual current while deleting the futures
+2) If the flag is not D then it will create the future rec from the currently inserted record 
+   (Happens when there is a current transfer and there is a virtual future 
+   lead for the lead that the member is transferred to)
+
+Created : 11/18/2015 nxk927 CCN Project ...
+***********************************************************/
+   IN_MEMBER_STORE_NBR IN VARCHAR2,
+   IN_LEAD_STORE_NBR   IN VARCHAR2,
+   IN_FUTURE_ID        NUMBER,
+   IN_FLAG             IN VARCHAR2)
+IS
+  V_REC        MEMBER_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+     IF IN_FLAG = 'D' THEN
+        DELETE 
+          FROM MEMBER_BANK_CC
+         WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR
+           AND LEAD_STORE_NBR   = IN_LEAD_STORE_NBR;
+     ELSE   
+        BEGIN
+            SELECT M.*,
+                   IN_FUTURE_ID FUTURE_ID
+              INTO V_REC
+              FROM MEMBER_BANK_CC M
+             WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR
+               AND LEAD_STORE_NBR   = IN_LEAD_STORE_NBR; 
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_REC);
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+              NULL;
+        END;
+    END IF;
+END CREATE_DELETE_VIRTUAL_MBR;
+
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
 This procedure is used to transfer member from one lead to another
@@ -814,7 +855,10 @@ BEGIN
             --plus we need to delete from the current as well as it is only virtual
             --so that our record won't have dublicates and if not current will have 2 records with diff lead
         -- We need to delete the Virtual Current as well
-        VIRTUAL_FUTURE_MAINTENANCE_PKG.CRTE_VIR_TRSFR_MBR_BAK_CC_REC(each_mbr.FUTURE_ID, each_mbr_rec, 'D');
+        CREATE_DELETE_VIRTUAL_MBR(each_mbr_rec.MEMBER_STORE_NBR,
+                                  each_mbr_rec.LEAD_STORE_NBR,
+                                  NULL,
+                                  'D');
         EXCEPTION
           WHEN NO_DATA_FOUND THEN
            NULL;
@@ -846,7 +890,6 @@ BEGIN
                                                                      NULL, --micr format id
                                                                      V_EXPIRE_DATE); --store MICR formats needs to be expired for these members
         DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(rec.MEMBER_STORE_NBR,
-                                                            rec.LEAD_BANK_ACCOUNT_NBR,
                                                             V_EXPIRE_DATE);
         rec.LEAD_BANK_ACCOUNT_NBR   := V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
         rec.LEAD_STORE_NBR          := V_TO_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
@@ -865,8 +908,8 @@ BEGIN
         IF TRUNC(rec.EFFECTIVE_DATE) = TRUNC(SYSDATE)THEN
             --insert Bank Account and Lead into history as we are going to insert members into history
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(V_MEMBER_BANK_CC_REC); --member needs to be removed from old lead
-            DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR, V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, NULL);
-            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR,V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
+            DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR, NULL, NULL);
+            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR);
             --member needs to be removed from old leads virtual future
             --so check if there is a virtual future out there for this members lead bank accunt
             --if there exists one, delete all those member details from the future as well
@@ -874,8 +917,14 @@ BEGIN
             MEMBER_MAINTENANCE_PKG.MBR_MNTNC_UI_DELETE_SP(V_MEMBER_BANK_CC_REC, 1); 
             TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
             IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL --checking if the lead is a virtual
-               AND V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN
-               MEMBER_MAINTENANCE_PKG.UPDT_VIRTUAL_FTR_MBR_STR_DTLS(rec);
+               AND V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN
+                   IF  V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN
+                       V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(rec.LEAD_BANK_ACCOUNT_NBR) -1;
+                       CREATE_DELETE_VIRTUAL_MBR(rec.MEMBER_STORE_NBR,
+                                                 rec.LEAD_STORE_NBR,
+                                                 V_FUTURE_ID,
+                                                'I'); 
+                    END IF;
                --member needs to be added to new lead in future if the lead is a virtual  
             END IF;
         ELSIF TRUNC(rec.EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
@@ -887,7 +936,7 @@ BEGIN
             IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  
                AND V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN --checking if this is a virtual lead 
                -- if it is a virutal lead then insert in the current as well
-              VIRTUAL_FUTURE_MAINTENANCE_PKG.CRTE_VIR_TRSFR_MBR_BAK_CC_REC(V_FUTURE_ID, rec, 'I');
+               TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
             END IF;
         END IF;
     END LOOP;

@@ -17,8 +17,7 @@ and delete it from the table
 Created : 10/19/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER_CODE     IN    VARCHAR2,
-IN_BANK_ACCOUNT_NBR     IN    VARCHAR2);
+IN_COST_CENTER_CODE     IN    VARCHAR2);
 
 PROCEDURE EXPIRE_DEPOSIT_BAG_DTLS(
 /*******************************************************************************
@@ -26,11 +25,9 @@ This procedure is intended to get the BANK_DEP_BAG_TICK record
 and expire it from the table
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 11/12/2015 nxk927 CCN Project....
-          Added BANK_ACCOUNT_NUMBER 
+Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
-IN_BANK_ACT_NBR         IN    VARCHAR2,
 IN_EXPIRATION_DATE      IN    DATE);
 
 PROCEDURE EXPR_DEPOSIT_BAG_DTLS_FTR(
@@ -39,11 +36,9 @@ This procedure is intended to get the BANK_DEP_BAG_TICK_FUTURE record
 and expire it from the table
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 11/12/2015 nxk927 CCN Project....
-          Added BANK_ACCOUNT_NUMBER
+Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
-IN_BANK_ACT_NBR         IN    VARCHAR2,
 IN_FUTURE_ID            IN    NUMBER,
 IN_EXPIRATION_DATE      IN    DATE);
 

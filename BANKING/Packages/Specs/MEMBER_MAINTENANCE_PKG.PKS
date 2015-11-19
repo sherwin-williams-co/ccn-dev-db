@@ -25,17 +25,6 @@ Changed : 10/20/2015 jxc517 CCN Project....
 *******************************************************************************/
     IN_MBR_BANK_CC_TAB IN TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE);
     
-PROCEDURE UPDT_VIRTUAL_FTR_MBR_STR_DTLS(
-/******************************************************************************
-    This procedure will update the virtual future member details with the current records
-    updated details
-
-Created : 10/14/2015 jxc517 CCN Project....
-Changed : 10/20/2015 jxc517 CCN Project....
-          Code has been changed to deal with Deposit Bag futures
-*******************************************************************************/
-IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE);
-
 PROCEDURE MEMBER_CC_MAINTENACE_UI_SP (
 /*******************************************************************************
 	This procedure is intended to RETURN a ref cursor with data from member

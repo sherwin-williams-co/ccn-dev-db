@@ -393,5 +393,31 @@ en_str_micr_dtls_not_avail CONSTANT NUMBER := -20033;
 exc_str_micr_dtls_not_avail EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_str_micr_dtls_not_avail , -20033);
 
+/*********************************************************** 
+The "ticket_order_date_err" passes a numerical error of -20034
+This error will be used when user tries to enter place a order for ticket
+with a date for future records that is either before orders in current table 
+or for current with the date after the order in future record
+
+Created : 10/19/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+en_ticket_order_date_err CONSTANT NUMBER := -20034;
+exc_ticket_order_date_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_ticket_order_date_err , -20034);
+
+/*********************************************************** 
+The "bag_order_date_err" passes a numerical error of -20035
+This error will be used when user tries to enter place a order for bag
+with a date for future records that is either before orders in current table 
+or for current with the date after the order in future record
+
+Created : 10/19/2015 nxk927 CCN Project....
+Changed :
+************************************************************/
+en_bag_order_date_err CONSTANT NUMBER := -20035;
+exc_bag_order_date_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_bag_order_date_err , -20035);
+
 END ERRNUMS;
 

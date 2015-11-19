@@ -122,5 +122,29 @@ Changed : 10/20/2015 jxc517 CCN Project Team....
     IN_BANK_DEP_BAG_TICK_REC     IN BANK_DEP_BAG_TICK%ROWTYPE,
     IN_BANK_DEP_BAG_TICK_FTR_REC IN BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
 
+PROCEDURE PLACE_TCKT_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed : 
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
+   IN_ORDER_DATE         IN VARCHAR2,
+   IN_FUTURE_ID          IN NUMBER);
+
+PROCEDURE PLACE_BAG_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed : 
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
+   IN_ORDER_DATE         IN VARCHAR2,
+   IN_FUTURE_ID          IN NUMBER);
+   
 END BUSINESS_RULES_PKG;
 
