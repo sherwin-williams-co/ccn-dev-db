@@ -130,8 +130,7 @@ Created : 11/19/2015 nxk927 CCN Project Team....
 Changed : 
 *******************************************************************************/
    IN_COST_CENTER        IN VARCHAR2,
-   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
-   IN_ORDER_DATE         IN VARCHAR2,
+   IN_ORDER_DATE         IN DATE,
    IN_FUTURE_ID          IN NUMBER);
 
 PROCEDURE PLACE_BAG_ORDER_BR_SP(
@@ -142,8 +141,7 @@ Created : 11/19/2015 nxk927 CCN Project Team....
 Changed : 
 *******************************************************************************/
    IN_COST_CENTER        IN VARCHAR2,
-   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
-   IN_ORDER_DATE         IN VARCHAR2,
+   IN_ORDER_DATE         IN DATE,
    IN_FUTURE_ID          IN NUMBER);
    
 END BUSINESS_RULES_PKG;

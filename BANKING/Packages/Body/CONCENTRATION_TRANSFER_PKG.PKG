@@ -688,48 +688,6 @@ EXCEPTION
         RETURN V_RETURN_VAL;
 END IS_FTR_LEAD_EXISTS_FOR_DATE;
 
-PROCEDURE CREATE_DELETE_VIRTUAL_MBR(
-/***********************************************************
-This procedure is used to create or delete the virtaul member 
-depending upon the flag sent
-
-This Procdedure does the following
-1) If the flag is D then it will delete the virtual current while deleting the futures
-2) If the flag is not D then it will create the future rec from the currently inserted record 
-   (Happens when there is a current transfer and there is a virtual future 
-   lead for the lead that the member is transferred to)
-
-Created : 11/18/2015 nxk927 CCN Project ...
-***********************************************************/
-   IN_MEMBER_STORE_NBR IN VARCHAR2,
-   IN_LEAD_STORE_NBR   IN VARCHAR2,
-   IN_FUTURE_ID        NUMBER,
-   IN_FLAG             IN VARCHAR2)
-IS
-  V_REC        MEMBER_BANK_CC_FUTURE%ROWTYPE;
-BEGIN
-     IF IN_FLAG = 'D' THEN
-        DELETE 
-          FROM MEMBER_BANK_CC
-         WHERE MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR
-           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
-           AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE);
-     ELSE   
-        BEGIN
-            SELECT M.*,
-                   IN_FUTURE_ID FUTURE_ID
-              INTO V_REC
-              FROM MEMBER_BANK_CC M
-             WHERE MEMBER_STORE_NBR = IN_MEMBER_STORE_NBR
-               AND LEAD_STORE_NBR   = IN_LEAD_STORE_NBR; 
-            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_REC);
-        EXCEPTION
-            WHEN NO_DATA_FOUND THEN
-              NULL;
-        END;
-    END IF;
-END CREATE_DELETE_VIRTUAL_MBR;
-
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
 This procedure is used to transfer member from one lead to another
@@ -764,12 +722,7 @@ Changed : 11/09/2015 jxc517 CCN Project....
 Changed : 11/11/2015 nxk927 CCN Project....
           check if the lead is expired. If expired pull the unexpired lead record from future table         
 Changed : 11/12/2015 nxk927 CCN Project....
-          if lead is virtual, insert in current as well.
           if lead is virtual and new record inserted in current then insert in virtual as well
-Changed : 11/18/2015 nxk927 CCN Project....
-          if lead is virtual, insert in current as well.
-          if lead is virtual and new record inserted in current then insert in virtual as well   
-          passsing bank account as parameter as well for the deposit ticket and order call.
 ************************************************************/
 IN_TRANSFER_FLAG          IN VARCHAR2,
 IN_XML                    CLOB)
@@ -781,8 +734,9 @@ IS
     V_FROM_LEAD_BANK_CC_REC         LEAD_BANK_CC%ROWTYPE;
     V_FROM_BANK_ACCOUNT_REC         BANK_ACCOUNT%ROWTYPE;
     V_TO_LEAD_BANK_CC_REC           LEAD_BANK_CC%ROWTYPE;
-    V_TO_LEAD_BANK_CC_FUT_REC       LEAD_BANK_CC%ROWTYPE;
+    V_TO_LEAD_BANK_CC_FUT_REC       LEAD_BANK_CC_FUTURE%ROWTYPE;
     V_MEMBER_BANK_CC_REC            MEMBER_BANK_CC%ROWTYPE;
+    V_MEMBER_BANK_CC_FUT_REC        MEMBER_BANK_CC_FUTURE%ROWTYPE;
     V_EXPIRE_DATE                   DATE;
     V_TEMP_EFFECTIVE_DATE           DATE;
     V_FUTURE_ID                     NUMBER;
@@ -804,7 +758,8 @@ BEGIN
     V_TO_LEAD_BANK_CC_REC     := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
     --IF the Lead is expired then we have to get the new record from future
     IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NOT NULL THEN 
-       V_TO_LEAD_BANK_CC_REC   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
+       V_TO_LEAD_BANK_CC_FUT_REC                   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
+       V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR := V_TO_LEAD_BANK_CC_FUT_REC.LEAD_BANK_ACCOUNT_NBR;
     END IF;
     V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
     V_FROM_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
@@ -844,16 +799,7 @@ BEGIN
                                                                            PASSING V_ROW_DATA
                                                                            COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()')))) LOOP
         
-        -- IF WE have a member already transfered to a virtual lead
-            --then again we making another transfer with the member, we need to delete from future which is happening below
-            --plus we need to delete from the current as well as it is only virtual
-            --so that our record won't have dublicates and if not current will have 2 records with diff lead
-        -- We need to delete the Virtual Current as well
-        CREATE_DELETE_VIRTUAL_MBR(each_mbr.MEMBER_STORE_NBR,
-                                  each_mbr.LEAD_STORE_NBR,
-                                  NULL,
-                                  'D');
-       --Delete all the futures for this member store
+        --Delete all the futures for this member store
         ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
         --Re-Activate the expired records that are non CC related
         ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_FROM_LEAD_CC, each_mbr.MEMBER_STORE_NBR);
@@ -887,16 +833,8 @@ BEGIN
         rec.EXPIRATION_DATE         := NULL; --this anyways will be null, but just for understanding, else transfer will fail
         rec.UPDATE_DATE             := TRUNC(SYSDATE);
         rec.LAST_UPD_USER_ID        := V_USER_ID;
-        V_TO_LEAD_BANK_CC_REC     := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
-        V_TO_LEAD_BANK_CC_FUT_REC := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
         IF TRUNC(NVL(V_TEMP_EFFECTIVE_DATE, SYSDATE)) <> TRUNC(rec.EFFECTIVE_DATE) THEN
             V_TEMP_EFFECTIVE_DATE := rec.EFFECTIVE_DATE;
-            --before inserting to the future table, making sure that the lead is virtual or not. 
-            IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  
-               AND V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN --checking if this is a virtual lead 
-               -- if it is a virutal lead then insert in the current as well
-                  TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
-            END IF;
             IF IS_FTR_LEAD_EXISTS_FOR_DATE(rec, V_FUTURE_ID) = 'N' THEN
                 CREATE_TRANSFER_FUTURE_PROCESS(rec, V_TO_LEAD_BANK_CC_REC, V_FUTURE_ID);
             END IF;
@@ -912,14 +850,17 @@ BEGIN
             -- this should delete virtual and current members
             MEMBER_MAINTENANCE_PKG.MBR_MNTNC_UI_DELETE_SP(V_MEMBER_BANK_CC_REC, 1); 
             TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
+            V_TO_LEAD_BANK_CC_FUT_REC                   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
             IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL --checking if the lead is a virtual
-               AND V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN
-                       V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(rec.LEAD_BANK_ACCOUNT_NBR) -1;
-                       CREATE_DELETE_VIRTUAL_MBR(rec.MEMBER_STORE_NBR,
-                                                 rec.LEAD_STORE_NBR,
-                                                 V_FUTURE_ID,
-                                                'I'); 
-            --member needs to be added to new lead in future if the lead is a virtual  
+               AND V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN
+                   SELECT M.*,
+                          V_TO_LEAD_BANK_CC_FUT_REC.FUTURE_ID FUTURE_ID
+                     INTO V_MEMBER_BANK_CC_FUT_REC
+                     FROM MEMBER_BANK_CC M
+                    WHERE MEMBER_STORE_NBR  = rec.MEMBER_STORE_NBR
+                      AND LEAD_STORE_NBR    = rec.LEAD_STORE_NBR; 
+                    TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_MEMBER_BANK_CC_FUT_REC);
+                   --member needs to be added to new lead in future if the lead is a virtual  
             END IF;
         ELSIF TRUNC(rec.EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
             --by the time it comes here all the futures for this member gets deleted
@@ -929,9 +870,9 @@ BEGIN
             CREATE_TRNSFR_MBR_BANK_CC_REC(V_FUTURE_ID, rec);
         END IF;
     END LOOP;
-EXCEPTION
-   WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+--EXCEPTION
+--   WHEN OTHERS THEN
+--        ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END LEAD_TRANSFER_PROCESS;
 
 END CONCENTRATION_TRANSFER_PKG;

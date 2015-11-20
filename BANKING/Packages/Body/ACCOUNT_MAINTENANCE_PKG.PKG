@@ -1422,10 +1422,9 @@ Changed : 11/04/2015 jxc517 CCN Project....
           moved future to current call outside as it didn't run until we have a real 
           bank future.
         : 11/19/2015 nxk927 CCN Project....
-          added expiration is not null check to see if it is a virtual current
-          --if the member is not expired in the current, then it is a virtual current
           check added to see if there are any child record present. 
           moved the deletion of str_micr_format_ftr records from outside to inner loop.
+          removed the filter with micr format id for store_micr_format_dtls_ftr_cur
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE,
     IN_FTR_TO_CURR_FLAG         IN     VARCHAR2 DEFAULT 'N')
@@ -1454,12 +1453,11 @@ IS
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
     --cursor to get all the store micr records for the bank account, micr format id, future id passed
-    CURSOR store_micr_format_dtls_ftr_cur(IN_MICR_FORMAT_ID NUMBER, IN_COST_CENTER_CODE IN VARCHAR2) IS 
+    CURSOR store_micr_format_dtls_ftr_cur(IN_COST_CENTER_CODE IN VARCHAR2) IS 
         SELECT *
           FROM STORE_MICR_FORMAT_DTLS_FUTURE
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
-           AND COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID           
+           AND COST_CENTER_CODE = IN_COST_CENTER_CODE          
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
     
@@ -1521,9 +1519,7 @@ BEGIN
                            AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
                            AND NOT EXISTS (SELECT 1
                                              FROM MEMBER_BANK_CC
-                                            WHERE MEMBER_STORE_NBR = B.MEMBER_STORE_NBR
-                                              AND EXPIRATION_DATE IS NOT NULL));
-                                              --if the member is not expired in the current, then it is a virtual current
+                                            WHERE MEMBER_STORE_NBR = B.MEMBER_STORE_NBR));
             EXCEPTION
                 WHEN OTHERS THEN
                     NULL;
@@ -1571,17 +1567,12 @@ BEGIN
                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
             END LOOP; --bank_dep_bag_tick_cur
             
-            --get all the bank micr details for this future and loop through
-            FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
-
-                --for each bank micr, check if there is a child store micr attched to it
-                --if so, get that store micr details and delete those child future records first
-                FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(bank_micr_format_ftr_rec.MICR_FORMAT_ID,mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
-                    --now delete the store micr format details from the future that the member is attached with
-                    TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
-                END LOOP; --store_micr_format_dtls_cur
-           END LOOP; --bank_micr_format_cur
-    
+            --if so, get that store micr details and delete those child future records first
+            FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+               --now delete the store micr format details from the future that the member is attached with
+                TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
+            END LOOP; --store_micr_format_dtls_cur
+          
             --now delete the member bank details from the future
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_ftr_rec);
         END LOOP; --mbr_bank_cc_cur
@@ -1620,16 +1611,12 @@ BEGIN
                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
                 END LOOP; --bank_dep_bag_tick_cur
                 
+                FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                        --now delete the store micr format details from the future
+                    TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
+                END LOOP; --store_micr_format_dtls_cur
                 --get all the bank micr details for this future and loop through
                 FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
-
-                    --for each bank micr, check if there is a child store micr attched to it
-                    --if so, get that store micr details and delete those child future records first
-                    FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(bank_micr_format_ftr_rec.MICR_FORMAT_ID, lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
-                        --now delete the store micr format details from the future
-                        TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
-                    END LOOP; --store_micr_format_dtls_cur
-
                     --now delete the bank micr details from the future
                     TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_ftr_rec);
                 END LOOP; --bank_micr_format_cur
