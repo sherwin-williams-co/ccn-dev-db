@@ -310,40 +310,6 @@ Changed :
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
-
-FUNCTION CHECK_TICK_ORDER_DATE(
-/******************************************************************************
-	This function checks 
-     -- If order is placed in current tab, it will check if there are any record 
-        in future tab before that order date
-     -- If order is placed in future tab, it will check to see if the order date 
-        falls before the order date's in current record
-   If this falls within this two scenario then it will return 'Y' else 'N'
-
-Created : 11/18/2015 nxk927 CCN Project....
-Changed : 
-******************************************************************************/
-   IN_COST_CENTER        IN VARCHAR2,
-   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
-   IN_ORDER_DATE         IN VARCHAR2,
-   IN_FUTURE_ID          IN NUMBER)  RETURN VARCHAR2;
-
-FUNCTION CHECK_BAG_ORDER_DATE(
-/******************************************************************************
-	This function checks 
-     -- If order is placed in current tab, it will check if there are any record 
-        in future tab before that order date
-     -- If order is placed in future tab, it will check to see if the order date 
-        falls before the order date's in current record
-   If this falls within this two scenario then it will return 'Y' else 'N'
-
-Created : 11/18/2015 nxk927 CCN Project....
-Changed : 
-******************************************************************************/
-   IN_COST_CENTER        IN VARCHAR2,
-   IN_BANK_ACCOUNT_NBR   IN VARCHAR2,
-   IN_ORDER_DATE         IN VARCHAR2,
-   IN_FUTURE_ID          IN NUMBER)  RETURN VARCHAR2;   
-   
+  
 END BANKING_COMMON_TOOLS;
 

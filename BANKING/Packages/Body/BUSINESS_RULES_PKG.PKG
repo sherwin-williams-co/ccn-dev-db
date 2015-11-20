@@ -1634,99 +1634,84 @@ Changed :
 IS
    V_PROC_NAME    VARCHAR2(30) := 'PLACE_TCKT_ORDER_BR_SP';
    V_COUNT        NUMBER := 0;
-   V_RETURN_VAL   VARCHAR2(1) := 'N';
+   V_REC          BANK_DEP_TICK_FUTURE%ROWTYPE;
 BEGIN
     IF IN_FUTURE_ID IS NULL THEN
        SELECT COUNT(*)
          INTO V_COUNT
-         FROM (SELECT *
-               --This top-N query was used to get member store MICR details if it has a default MICR assigned
-                 FROM (SELECT *
-                         FROM STORE_MICR_FORMAT_DTLS
-                         --IN clause below makes sure we always get the passed stores MICR details
-                         --as well as it's leads storer MICR format details
-                        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
-                                                   BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
-                        --below order by clause is to make sure we get store MICR details even for
-                        --a member that doesn't have any default store MICR assigned to it 
-                        --if member got it's own store MICR that takes precedence
-                        ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2))
-                        WHERE ROWNUM < 2) SMFD,
-                      BANK_MICR_FORMAT BMF
-                WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
-                  AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID;
+         FROM STORE_MICR_FORMAT_DTLS
+        --IN clause below makes sure we always get the passed stores MICR details
+        --as well as it's leads storer MICR format details
+        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
+                                   BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
+            --below order by clause is to make sure we get store MICR details even for
+            --a member that doesn't have any default store MICR assigned to it 
+           --if member got it's own store MICR that takes precedence
+       ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2);
        IF V_COUNT = 0 THEN
           ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
                            V_PROC_NAME,
                            'The cost center retrieved do not have any Store Micr Format Details Attached');
        END IF;
-       
-        --below check will check to see if there are any order placed for the future ticket with the 
-        --order date lesser than that of the order date used for the current order
-       IF BANKING_COMMON_TOOLS.CHECK_TICK_ORDER_DATE(IN_COST_CENTER,
-                                                  IN_BANK_ACCOUNT_NBR,
-                                                  IN_ORDER_DATE,
-                                                  IN_FUTURE_ID) = 'Y' THEN
-          ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
-                           V_PROC_NAME,
-                           'The order placed date is greater than the order already placed for future ticket. 
-                            Please enter order date that is earlier than the order date of future orders.');
-        END IF;
+       --this check will see if the order date  is less than the effective date of the ticket in future
+       BEGIN
+           SELECT *
+             INTO V_REC
+             FROM BANK_DEP_TICK_FUTURE
+            WHERE COST_CENTER_CODE = IN_COST_CENTER
+              AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+           
+           IF V_REC.EFFECTIVE_DATE < IN_ORDER_DATE THEN  --need to have the order placed with date less than the effective date of the future
+              ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
+                              V_PROC_NAME,
+                             'The order placed date is greater than the effective date of the deposit ticket in future. 
+                              Please enter order date that is before the effective date of the deposit ticket in future');
+           END IF;
+        EXCEPTION 
+            WHEN NO_DATA_FOUND THEN 
+               NULL;
+        END;
     ELSE
        SELECT COUNT(*)
          INTO V_COUNT
-         FROM (SELECT *
-              --This top-N query was used to get member store MICR details if it has a default MICR assigned
-                 FROM (SELECT *
-                         FROM STORE_MICR_FORMAT_DTLS_FUTURE
-                  --IN clause below makes sure we always get the passed stores MICR details
-                  --as well as it's leads storer MICR format details
-                        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
-                                                    BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER, IN_FUTURE_ID))
-                                  --below order by clause is to make sure we get store MICR details even for
-                                  --a member that doesn't have any default store MICR assigned to it 
-                                  --if member got it's own store MICR that takes precedence
-                          AND FUTURE_ID = IN_FUTURE_ID
-                        ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2))
-                        WHERE ROWNUM < 2) SMFD,
-                      BANK_MICR_FORMAT_FUTURE BMF
-                WHERE SMFD.BANK_ACCOUNT_NBR = BMF.BANK_ACCOUNT_NBR
-                  AND SMFD.MICR_FORMAT_ID   = BMF.MICR_FORMAT_ID;
+         FROM STORE_MICR_FORMAT_DTLS_FUTURE
+       --IN clause below makes sure we always get the passed stores MICR details
+       --as well as it's leads storer MICR format details
+        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
+                                   BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER, IN_FUTURE_ID))
+           --below order by clause is to make sure we get store MICR details even for
+           --a member that doesn't have any default store MICR assigned to it 
+           --if member got it's own store MICR that takes precedence
+         AND FUTURE_ID = IN_FUTURE_ID
+       ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2);
        IF V_COUNT = 0 THEN
           ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
                            V_PROC_NAME,
                            'The cost center retrieved do not have any Store Micr Format Details Attached');
        END IF;
       
-      --this check will see if the order date  is less than the effective date of the ticket
-      SELECT CASE WHEN TRUNC(EFFECTIVE_DATE) > IN_ORDER_DATE THEN 'Y' ELSE 'N' END
-         INTO V_RETURN_VAL
-         FROM BANK_DEP_TICK_FUTURE
-        WHERE COST_CENTER_CODE = IN_COST_CENTER
-          AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-          AND FUTURE_ID        = IN_FUTURE_ID;
-        IF V_RETURN_VAL = 'Y' THEN  --need to have the order placed with date greater than the effective date 
+      --this check will see if the order date  is less than the effective date of the future ticket 
+        BEGIN
+           SELECT *
+             INTO V_REC
+             FROM BANK_DEP_TICK_FUTURE
+            WHERE COST_CENTER_CODE = IN_COST_CENTER
+              AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+        
+        IF V_REC.EFFECTIVE_DATE < IN_ORDER_DATE THEN  --need to have the order placed with date greater than the effective date 
            ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
                            V_PROC_NAME,
                            'The order placed date is less than the effective date of the deposit ticket. 
                             Please enter order date that is after the effective date.');
         END IF; 
-       --below check will check to see if there are any order placed for the current ticket with the 
-        --order date greater than that of the order date used for the future order
-       IF BANKING_COMMON_TOOLS.CHECK_TICK_ORDER_DATE(IN_COST_CENTER,
-                                                     IN_BANK_ACCOUNT_NBR,
-                                                     IN_ORDER_DATE,
-                                                     IN_FUTURE_ID) = 'Y' THEN
-          ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
-                           V_PROC_NAME,
-                           'The order placed date is less than the order already placed in current ticket. 
-                            Please enter order date that is after the order date that is already placed for current ticket.');
-       END IF;
-       
+        EXCEPTION 
+            WHEN NO_DATA_FOUND THEN 
+               NULL;
+        END;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE;--ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END PLACE_TCKT_ORDER_BR_SP;
 
 PROCEDURE PLACE_BAG_ORDER_BR_SP(
@@ -1747,51 +1732,37 @@ Changed :
    IN_FUTURE_ID          IN NUMBER) 
 IS
    V_PROC_NAME    VARCHAR2(30) := 'CHECK_BAG_ORDER_DATE';
-   V_RETURN_VAL   VARCHAR2(1)  := 'N';
+   V_REC          BANK_DEP_BAG_TICK_FUTURE%ROWTYPE;
 BEGIN
+    SELECT *
+      INTO V_REC
+      FROM BANK_DEP_BAG_TICK_FUTURE
+     WHERE COST_CENTER_CODE = IN_COST_CENTER
+       AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+        
     IF IN_FUTURE_ID IS NULL THEN
        --below check will check to see if there are any order placed for the future bag with the 
         --order date lesser than that of the order date used for the current order
-       IF BANKING_COMMON_TOOLS.CHECK_BAG_ORDER_DATE(IN_COST_CENTER,
-                                                    IN_BANK_ACCOUNT_NBR,
-                                                    IN_ORDER_DATE,
-                                                    IN_FUTURE_ID) = 'Y' THEN
-          ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
+        IF V_REC.EFFECTIVE_DATE < IN_ORDER_DATE  THEN
+                ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
                            V_PROC_NAME,
                            'The order placed date is greater than the order already placed for future bag. 
                             Please enter order date that is earlier than the order date of future orders.');
         END IF;
-       ELSE
-          --this check will see if the order date  is less than the effective date of the ticket
-       SELECT CASE WHEN TRUNC(EFFECTIVE_DATE) > IN_ORDER_DATE THEN 'Y' ELSE 'N' END
-         INTO V_RETURN_VAL
-         FROM BANK_DEP_BAG_TICK_FUTURE
-        WHERE COST_CENTER_CODE = IN_COST_CENTER
-          AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-          AND FUTURE_ID        = IN_FUTURE_ID;
-          
-        IF V_RETURN_VAL = 'Y' THEN  --need to have the order placed with date greater than the effective date 
-           ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
+    ELSE
+      --this check will see if the order date  is less than the effective date of the ticket
+       IF V_REC.EFFECTIVE_DATE < IN_ORDER_DATE  THEN--need to have the order placed with date greater than the effective date 
+          ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
                            V_PROC_NAME,
                            'The order placed date is less than the effective date of the deposit bag. 
                             Please enter order date that is after the effective date.');
-        END IF; 
-       --below check will check to see if there are any order placed for the current bag with the 
-        --order date greater than that of the order date used for the future order
-          IF BANKING_COMMON_TOOLS.CHECK_BAG_ORDER_DATE(IN_COST_CENTER,
-                                                    IN_BANK_ACCOUNT_NBR,
-                                                    IN_ORDER_DATE,
-                                                    IN_FUTURE_ID) = 'Y' THEN
-            ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
-                           V_PROC_NAME,
-                           'The order placed date is less than the order already placed for current bag. 
-                            Please enter order date that is after the order date that is already placed for current bag.');
-          END IF;
-      
+       END IF;
     END IF;
 EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+           NULL;
     WHEN OTHERS THEN
-        RAISE;--ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END PLACE_BAG_ORDER_BR_SP;
 
 END BUSINESS_RULES_PKG;

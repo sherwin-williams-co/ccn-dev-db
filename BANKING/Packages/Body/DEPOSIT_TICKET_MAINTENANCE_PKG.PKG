@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
+CREATE OR REPLACE 
+PACKAGE BODY         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -1098,9 +1099,11 @@ FUNCTION GET_DEPOSIT_ORDER_SEQ_NBR(
 This fucntion is intended to return the deposit ticket sequence for the cost center passed in
 
 Created : 09/08/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/18/2015 nxk927 CCN Project....
+          added bank account number. we need the sequence number change if the account number changes
 *******************************************************************************/
-IN_COST_CENTER_CODE    IN      VARCHAR2) RETURN VARCHAR2
+IN_COST_CENTER_CODE    IN      VARCHAR2,
+IN_BANK_ACCOUNT_NBR    IN      VARCHAR2) RETURN VARCHAR2
 IS
     V_RETURN_VAL VARCHAR2(10);
 BEGIN
@@ -1109,14 +1112,17 @@ BEGIN
       FROM (SELECT DEPOSIT_ORDER_SEQ_NBR
               FROM BANK_DEP_TICKORD_HIST
              WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
              UNION
             SELECT DEPOSIT_ORDER_SEQ_NBR
               FROM BANK_DEP_TICKORD
              WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+              AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
              UNION
             SELECT DEPOSIT_ORDER_SEQ_NBR
               FROM BANK_DEP_TICKORD_FUTURE
-             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE);
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -1325,9 +1331,10 @@ Changed : 10/21/2015 jxc517 CCN Project....
         : 11/13/2015 axk326 CCN Project...
           added a new condition to raise error when we try to place order for the input cost center 
           that has no store micr format details attached to it.
-        : 11/19/2015  nxk927 CCN Project...
+        : 11/18/2015  nxk927 CCN Project...
           added the business rule for current and future for order date and check to see if 
           store micr detail moved inside the business rule call.
+          passing the bank account number to get the deposit seq number and fut_id 
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1359,14 +1366,17 @@ BEGIN
         END;
         --business rule to check if micr detail is present
         -- check the order place date is valid or not
-        BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,V_BANK_DEP_TICK.BANK_ACCOUNT_NBR,IN_ORDERED_DATE,IN_FUTURE_ID);
+        BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,
+                                                  V_BANK_DEP_TICK.BANK_ACCOUNT_NBR,
+                                                  IN_ORDERED_DATE,
+                                                  IN_FUTURE_ID);
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
             V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
             V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_PRIORITY  := 100;
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE),0) + 1;
+            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE,V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR),0) + 1;
             V_BANK_DEP_TICKORD.EFFECTIVE_DATE          := V_BANK_DEP_TICK.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1407,7 +1417,10 @@ BEGIN
         END;
         
         -- check the order place date is valid or not
-        BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR,IN_ORDERED_DATE,IN_FUTURE_ID);
+        BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,
+                                                  V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR,
+                                                  IN_ORDERED_DATE,
+                                                  IN_FUTURE_ID);
 
         IF V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR;
@@ -1415,7 +1428,7 @@ BEGIN
             V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_PRIORITY  := 100;
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE),0) + 1;
+            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR),0) + 1;
             V_BANK_DEP_TICKORD_FUTURE.EFFECTIVE_DATE          := V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXPIRATION_DATE         := V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1468,3 +1481,4 @@ EXCEPTION
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
+
