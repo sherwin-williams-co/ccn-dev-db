@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY CONCENTRATION_TRANSFER_PKG
+CREATE OR REPLACE 
+PACKAGE BODY CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -787,7 +788,6 @@ IS
     V_FUTURE_ID                     NUMBER;
     V_TEMP_LEAD_BANK_ACCOUNT_NBR    LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_MBR_BANK_CC_TAB               TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE;
-    each_mbr_rec                    MEMBER_BANK_CC%ROWTYPE;
 BEGIN
     IF NVL(IN_TRANSFER_FLAG, 'N') = 'N' THEN
        BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
@@ -845,7 +845,7 @@ BEGIN
                                                                            COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()')))) LOOP
         
         -- IF WE have a member already transfered to a virtual lead
-            --then again if we make another transfer with the member, we need to delete from future which is happening below
+            --then again we making another transfer with the member, we need to delete from future which is happening below
             --plus we need to delete from the current as well as it is only virtual
             --so that our record won't have dublicates and if not current will have 2 records with diff lead
         -- We need to delete the Virtual Current as well
@@ -853,7 +853,7 @@ BEGIN
                                   each_mbr.LEAD_STORE_NBR,
                                   NULL,
                                   'D');
-        --Delete all the futures for this member store
+       --Delete all the futures for this member store
         ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
         --Re-Activate the expired records that are non CC related
         ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_FROM_LEAD_CC, each_mbr.MEMBER_STORE_NBR);
@@ -887,14 +887,22 @@ BEGIN
         rec.EXPIRATION_DATE         := NULL; --this anyways will be null, but just for understanding, else transfer will fail
         rec.UPDATE_DATE             := TRUNC(SYSDATE);
         rec.LAST_UPD_USER_ID        := V_USER_ID;
+        V_TO_LEAD_BANK_CC_REC     := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
+        V_TO_LEAD_BANK_CC_FUT_REC := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
         IF TRUNC(NVL(V_TEMP_EFFECTIVE_DATE, SYSDATE)) <> TRUNC(rec.EFFECTIVE_DATE) THEN
             V_TEMP_EFFECTIVE_DATE := rec.EFFECTIVE_DATE;
+            --before inserting to the future table, making sure that the lead is virtual or not. 
+            IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  
+               AND V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN
+               IF V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN --checking if this is a virtual lead 
+               -- if it is a virutal lead then insert in the current as well
+                  TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
+               END IF;
+            END IF;
             IF IS_FTR_LEAD_EXISTS_FOR_DATE(rec, V_FUTURE_ID) = 'N' THEN
                 CREATE_TRANSFER_FUTURE_PROCESS(rec, V_TO_LEAD_BANK_CC_REC, V_FUTURE_ID);
             END IF;
         END IF;
-        V_TO_LEAD_BANK_CC_REC     := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
-        V_TO_LEAD_BANK_CC_FUT_REC := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
         IF TRUNC(rec.EFFECTIVE_DATE) = TRUNC(SYSDATE)THEN
             --insert Bank Account and Lead into history as we are going to insert members into history
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(V_MEMBER_BANK_CC_REC); --member needs to be removed from old lead
@@ -923,11 +931,11 @@ BEGIN
             V_MBR_BANK_CC_TAB(1) := V_MEMBER_BANK_CC_REC;
             MEMBER_MAINTENANCE_PKG.MEMBER_MNTNC_CURRENT_UPSERT_SP(V_MBR_BANK_CC_TAB); --member needs to be expired for old lead
             CREATE_TRNSFR_MBR_BANK_CC_REC(V_FUTURE_ID, rec);
-            IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  
-               AND V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN --checking if this is a virtual lead 
-               -- if it is a virutal lead then insert in the current as well
-               TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
-            END IF;
+--            IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  
+--               AND V_TO_LEAD_BANK_CC_FUT_REC.EXPIRATION_DATE IS NULL THEN --checking if this is a virtual lead 
+--               -- if it is a virutal lead then insert in the current as well
+--               TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec);
+--            END IF;
         END IF;
     END LOOP;
 EXCEPTION
@@ -936,3 +944,4 @@ EXCEPTION
 END LEAD_TRANSFER_PROCESS;
 
 END CONCENTRATION_TRANSFER_PKG;
+
