@@ -285,6 +285,8 @@ Changed : 10/29/2015 jxc517 CCN Project....
           Modified code to include order by clause for bank MICR formats based on FORMAT_NAME
         : 11/16/2015 axk326 CCN Project....
           Added code to retreive the latest order details for the deposit ticket order when placed for current and future tabs
+        : 11/23/2015 nxk927 CCN Project...
+          For future tab only displaying if the record is a real not the virtual
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -374,11 +376,11 @@ BEGIN
 			      UNION
             SELECT LEAD_BANK_ACCOUNT_NBR,
                    EFFECTIVE_DATE
-             FROM MEMBER_BANK_CC
-            WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
-              AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE
-              AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE)
-            ORDER BY EFFECTIVE_DATE DESC)
+              FROM MEMBER_BANK_CC
+             WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+               AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE
+               AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE)
+             ORDER BY EFFECTIVE_DATE DESC)
      WHERE ROWNUM < 2;
     --Below cursor will provide all the current bank deposit ticket order details for the store number passed
     OPEN OUT_BANK_DEP_TICKORD_REF_CUR FOR 
@@ -423,9 +425,11 @@ BEGIN
                        BANK_MICR_FORMAT_FUTURE BMFF
                  WHERE SMFDF.BANK_ACCOUNT_NBR = BMFF.BANK_ACCOUNT_NBR
                    AND SMFDF.MICR_FORMAT_ID   = BMFF.MICR_FORMAT_ID
-                   AND SMFDF.FUTURE_ID        = BMFF.FUTURE_ID) B
+                   AND SMFDF.FUTURE_ID        = BMFF.FUTURE_ID
+                   AND SMFDF.EFFECTIVE_DATE    > TRUNC(SYSDATE)) B
          WHERE A.COST_CENTER_CODE     = IN_COST_CENTER_CODE
            AND A.FUTURE_ID            = B.FUTURE_ID(+)
+           AND A.EFFECTIVE_DATE       > TRUNC(SYSDATE)
          ORDER BY A.FUTURE_ID;
 
     --Below cursor will provide the future bank account details and store type for the store number passed
@@ -439,15 +443,17 @@ BEGIN
                        BANK_TYPE_CODE,
                        FUTURE_ID
                   FROM LEAD_BANK_CC_FUTURE
-                 WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+                 WHERE LEAD_STORE_NBR   = IN_COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   > TRUNC(SYSDATE)
                  UNION
                 SELECT LEAD_BANK_ACCOUNT_NBR,
                        'M' AS BANK_TYPE_CODE,
                        FUTURE_ID
                   FROM MEMBER_BANK_CC_FUTURE
-                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE) S
-         WHERE BAF.BANK_ACCOUNT_NBR = S.LEAD_BANK_ACCOUNT_NBR
-           AND BAF.FUTURE_ID        = S.FUTURE_ID
+                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   > TRUNC(SYSDATE)) S
+         WHERE BAF.BANK_ACCOUNT_NBR     = S.LEAD_BANK_ACCOUNT_NBR
+           AND BAF.FUTURE_ID            = S.FUTURE_ID
          ORDER BY BAF.FUTURE_ID;
 
     --Below cursor will provide all the future bank MICR format details for the store number passed
@@ -460,13 +466,15 @@ BEGIN
                        FUTURE_ID
                   FROM LEAD_BANK_CC_FUTURE
                  WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+                   AND EFFECTIVE_DATE > TRUNC(SYSDATE)
                  UNION
                 SELECT LEAD_BANK_ACCOUNT_NBR,
                        FUTURE_ID
                   FROM MEMBER_BANK_CC_FUTURE
-                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE) S
-         WHERE BMFF.BANK_ACCOUNT_NBR = S.LEAD_BANK_ACCOUNT_NBR
-           AND BMFF.FUTURE_ID        = S.FUTURE_ID
+                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+                   AND EFFECTIVE_DATE   > TRUNC(SYSDATE)) S
+         WHERE BMFF.BANK_ACCOUNT_NBR    = S.LEAD_BANK_ACCOUNT_NBR
+           AND BMFF.FUTURE_ID           = S.FUTURE_ID
          ORDER BY BMFF.FUTURE_ID, BMFF.FORMAT_NAME;
 
     --Below cursor will provide all the future bank deposit ticket order details for the store number passed
@@ -937,7 +945,9 @@ This procedure is get the bank micr format future recrod based on previous bank 
 and format id combinatin. If it is not found it builds one
 
 Created : 08/25/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/23/2015 nxk927 CCN Project....
+          assigning the prev micr format effective date if the passed effective date is null
+          This is for the virtual future
 *******************************************************************************/
 IN_COST_CENTER_CODE          IN     VARCHAR2,
 IN_BANK_ACCOUNT_NBR          IN     VARCHAR2,
@@ -950,6 +960,7 @@ IS
     V_BANK_MICR_FORMAT_FUTURE_REC  BANK_MICR_FORMAT_FUTURE%ROWTYPE;
     V_BANK_ACCOUNT_FUTURE_REC      BANK_ACCOUNT_FUTURE%ROWTYPE;
     V_MICR_FORMAT_ID               NUMBER := NULL;
+    V_EFFECTIVE_DATE               DATE;
 BEGIN
     V_STR_MICR_FRMT_DTLS_PREV_REC := BANKING_COMMON_TOOLS.GET_STORE_MICR_FORMAT_DTLS_REC(IN_COST_CENTER_CODE);
     IF V_STR_MICR_FRMT_DTLS_PREV_REC.COST_CENTER_CODE IS NOT NULL THEN
@@ -977,6 +988,7 @@ BEGIN
             WHEN OTHERS THEN
                 NULL;
         END;
+        V_EFFECTIVE_DATE := NVL(IN_EFFECTIVE_DATE,V_BANK_MICR_FRMT_FTR_PREV_REC.EFFECTIVE_DATE);
         V_MICR_FORMAT_ID := BANKING_COMMON_TOOLS.GET_MICR_FRMT_ID_FR_BA_FRMT_NM(IN_BANK_ACCOUNT_NBR,
                                                                                 V_BANK_MICR_FRMT_FTR_PREV_REC.FORMAT_NAME,
                                                                                 IN_FUTURE_ID);
@@ -989,7 +1001,7 @@ BEGIN
             V_BANK_MICR_FORMAT_FUTURE_REC.BANK_ACCOUNT_NBR      := IN_BANK_ACCOUNT_NBR;
             V_BANK_MICR_FORMAT_FUTURE_REC.FUTURE_ID             := IN_FUTURE_ID;
             V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ID        := BANKING_COMMON_TOOLS.GET_NEXT_MICR_FORMAT_ID(IN_BANK_ACCOUNT_NBR, 'F');
-            V_BANK_MICR_FORMAT_FUTURE_REC.EFFECTIVE_DATE        := IN_EFFECTIVE_DATE;
+            V_BANK_MICR_FORMAT_FUTURE_REC.EFFECTIVE_DATE        := V_EFFECTIVE_DATE;
             V_BANK_ACCOUNT_FUTURE_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_FUTURE_REC(IN_BANK_ACCOUNT_NBR, IN_FUTURE_ID);
             V_BANK_MICR_FORMAT_FUTURE_REC.EXPIRATION_DATE       := V_BANK_ACCOUNT_FUTURE_REC.EXPIRATION_DATE;
             V_BANK_MICR_FORMAT_FUTURE_REC.LAST_MAINTENANCE_DATE := TRUNC(SYSDATE);
@@ -1015,6 +1027,9 @@ Changed : 11/02/2015 nxk927 CCN Project....
           Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
 Changed : 11/05/2015 jxc517 CCN Project....
           If the store MICR format change, we need to recalculate (if needed) the number of deposit tickets per book
+        : 11/20/2015 nxk927 CCN Project....
+          assigning the effective date from prev record if it is passed as null.
+          This is for the virtual future
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
 IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
@@ -1028,6 +1043,7 @@ IS
     V_BANK_DEP_TICK_FUTURE_REC     BANK_DEP_TICK_FUTURE%ROWTYPE;
     V_STR_MICR_FRMT_DTLS_FTR_REC   STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
     V_BANK_ACCOUNT_FUTURE_REC      BANK_ACCOUNT_FUTURE%ROWTYPE;
+    V_EFFECTIVE_DATE               DATE;
 BEGIN
     BEGIN
         SELECT A.*,
@@ -1039,10 +1055,11 @@ BEGIN
         WHEN OTHERS THEN
             NULL;
     END;
+    V_EFFECTIVE_DATE := NVL(IN_EFFECTIVE_DATE,V_BANK_DEP_TICK_FTR_PREV_REC.EFFECTIVE_DATE);
     IF V_BANK_DEP_TICK_FTR_PREV_REC.COST_CENTER_CODE IS NOT NULL THEN
         V_BANK_DEP_TICK_FUTURE_REC := V_BANK_DEP_TICK_FTR_PREV_REC;
         V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR          := IN_BANK_ACCOUNT_NBR;
-        V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE            := IN_EFFECTIVE_DATE;
+        V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE            := V_EFFECTIVE_DATE;
         V_BANK_DEP_TICK_FUTURE_REC.EXPIRATION_DATE           := IN_EXPIRATION_DATE;
         V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID                 := IN_FUTURE_ID;
         V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINTENANCE_DATE     := SYSDATE;
@@ -1063,7 +1080,7 @@ BEGIN
             V_STR_MICR_FRMT_DTLS_FTR_REC.BANK_ACCOUNT_NBR := IN_BANK_ACCOUNT_NBR;
             V_STR_MICR_FRMT_DTLS_FTR_REC.MICR_FORMAT_ID   := V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ID;
             V_STR_MICR_FRMT_DTLS_FTR_REC.COST_CENTER_CODE := IN_COST_CENTER_CODE;
-            V_STR_MICR_FRMT_DTLS_FTR_REC.EFFECTIVE_DATE   := IN_EFFECTIVE_DATE;
+            V_STR_MICR_FRMT_DTLS_FTR_REC.EFFECTIVE_DATE   := V_EFFECTIVE_DATE;
             V_STR_MICR_FRMT_DTLS_FTR_REC.EXPIRATION_DATE  := IN_EXPIRATION_DATE;
             V_STR_MICR_FRMT_DTLS_FTR_REC.FUTURE_ID        := IN_FUTURE_ID;
             VALIDATE_AND_GET_FORMAT_VALUES(IN_BANK_ACCOUNT_NBR,
@@ -1372,10 +1389,10 @@ BEGIN
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
             V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
-            V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICK.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
+            V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_PRIORITY  := 100;
             V_BANK_DEP_TICKORD.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE,V_BANK_DEP_TICK.BANK_ACCOUNT_NBR),0) + 1;
+            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE,V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR),0) + 1;
             V_BANK_DEP_TICKORD.EFFECTIVE_DATE          := V_BANK_DEP_TICK.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1423,10 +1440,10 @@ BEGIN
         IF V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE IS NOT NULL THEN
             V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR;
             V_BANK_DEP_TICKORD_FUTURE.COST_CENTER_CODE        := V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE;
-            V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
+            V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_PRIORITY  := 100;
             V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE.BANK_ACCOUNT_NBR),0) + 1;
+            V_BANK_DEP_TICKORD_FUTURE.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE, V_BANK_DEP_TICKORD_FUTURE.BANK_ACCOUNT_NBR),0) + 1;
             V_BANK_DEP_TICKORD_FUTURE.EFFECTIVE_DATE          := V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXPIRATION_DATE         := V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
@@ -1479,3 +1496,4 @@ EXCEPTION
 END PLACE_DEPOSIT_TICKET_ORDER;
 
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
+
