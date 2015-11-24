@@ -17,6 +17,7 @@ Modified : 07/18/14 Added ACQUISITION_CODE column.
 Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Manager/Asst Manager/Sales rep Name broken out with first, initial, last.
            10/06/2015 nxk927 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
+           10/26/2015 dxv848 Added COLOR_CONSULTANT_TYPE column.
 ********************************************************************************/ 
 COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -36,6 +37,7 @@ DUNS_NUMBER,
 ACQUISITION_CODE,
 PRI_LOGO_GROUP_IND,
 SCD_LOGO_GROUP_IND,
+COLOR_CONSULTANT_TYPE,
 COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
