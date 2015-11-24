@@ -73,7 +73,8 @@ PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP (
   delete process for future records
 
 Created : 07/13/2015 jxc517 CCN Project....
-Changed : 
+Changed : 11/24/2015 nxk927 CCN Project....
+          removed the flag from ACCNT_MNTNC_FUTURE_DELETE_SP call
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE);
 
@@ -124,4 +125,3 @@ Changed :
     IN_MEMBER_STORE_NBR     IN  VARCHAR2);
     
 END ACCOUNT_MAINTENANCE_PKG;
-
