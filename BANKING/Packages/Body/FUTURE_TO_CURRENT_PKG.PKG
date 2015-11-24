@@ -58,6 +58,26 @@ V_BANK_DEP_BAG_TICK_REC  BANK_DEP_BAG_TICK_HIST%ROWTYPE;
            AND FUTURE_ID              = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID
            AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE);
 
+    --cursor to get all the bank micr details for the bank account, future id passed
+    CURSOR bank_micr_format_ftr_cur IS 
+        SELECT BANK_ACCOUNT_NBR,
+               FORMAT_NAME,
+               DJDE_FORM_PARM,
+               DJDE_FEED_PARM,
+               MICR_COST_CNTR,
+               MICR_ROUTING_NBR,
+               MICR_FORMAT_ACTNBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINT_USER_ID,
+               UPDATE_DATE,
+               LAST_UPD_USER_ID,
+               MICR_FORMAT_ID
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR       = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+           AND FUTURE_ID              = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
     --cursor to get all the lead details for the bank account, future id passed
     CURSOR lead_bank_cc_ftr_cur IS 
         SELECT LEAD_BANK_ACCOUNT_NBR,
@@ -89,26 +109,6 @@ V_BANK_DEP_BAG_TICK_REC  BANK_DEP_BAG_TICK_HIST%ROWTYPE;
            AND LEAD_STORE_NBR        = IN_LEAD_BANK_CC_REC.LEAD_STORE_NBR
            AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID
            AND TRUNC(EFFECTIVE_DATE) <= TRUNC(SYSDATE);
-
-    --cursor to get all the bank micr details for the bank account, future id passed
-    CURSOR bank_micr_format_ftr_cur IS 
-        SELECT BANK_ACCOUNT_NBR,
-               FORMAT_NAME,
-               DJDE_FORM_PARM,
-               DJDE_FEED_PARM,
-               MICR_COST_CNTR,
-               MICR_ROUTING_NBR,
-               MICR_FORMAT_ACTNBR,
-               EFFECTIVE_DATE,
-               EXPIRATION_DATE,
-               LAST_MAINTENANCE_DATE,
-               LAST_MAINT_USER_ID,
-               UPDATE_DATE,
-               LAST_UPD_USER_ID,
-               MICR_FORMAT_ID
-          FROM BANK_MICR_FORMAT_FUTURE
-         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
-           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
     --cursor to get all the store micr details for the bank account, micr format id, future id passed
     CURSOR store_micr_format_dtls_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
@@ -167,7 +167,7 @@ V_BANK_DEP_BAG_TICK_REC  BANK_DEP_BAG_TICK_HIST%ROWTYPE;
           FROM BANK_DEP_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-           
+
     --cursor to get all the bank deposit bag ticket details for the store, future id passed
     CURSOR bank_dep_bag_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS 
         SELECT BANK_ACCOUNT_NBR,
@@ -205,7 +205,7 @@ V_BANK_DEP_BAG_TICK_REC  BANK_DEP_BAG_TICK_HIST%ROWTYPE;
           FROM BANK_DEP_BAG_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-           
+
 BEGIN
     --loop through the future bank account records and build the current bank account record
     FOR bank_account_rec IN bank_account_ftr_cur LOOP --loops only once for that future id
@@ -327,7 +327,7 @@ IS
          WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
            AND EFFECTIVE_DATE       <= TRUNC(SYSDATE)
            AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-           
+
     --cursor to get all the member records for the bank account, lead store, future id passed
     CURSOR mbr_bank_cc_ftr_cur(IN_LEAD_BANK_CC_FTR_REC IN LEAD_BANK_CC_FUTURE%ROWTYPE) IS 
         SELECT *
@@ -352,7 +352,6 @@ IS
            AND COST_CENTER_CODE = IN_COST_CENTER_CODE          
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
-    
     --cursor to get all the deposit ticket records for the store, future id passed
     CURSOR bank_dep_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
@@ -366,8 +365,8 @@ IS
           FROM BANK_DEP_BAG_TICK_FUTURE
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
-           
-        --cursor to get all the deposit ticket orders records for the store, future id passed
+
+    --cursor to get all the deposit ticket orders records for the store, future id passed
     CURSOR bank_dep_tickord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICKORD_FUTURE
@@ -385,55 +384,54 @@ IS
 
 BEGIN
     IF ACCOUNT_MAINTENANCE_PKG.IS_REAL_FUTURE_BANK_ACCOUNT(IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR) = 'N' THEN
-            --below query will check if any of these virtual futures members/leads reached the
-            --time to move from future to current
-            BEGIN
-                SELECT COUNT(*)
-                  INTO V_COUNT
-                  FROM (
-                        --below query checkes if member is active in future, it's effective date is <= batch date
-                        --and that lead does not exist in current (as current to history batch already deleted it from current)
-                        SELECT 1
-                          FROM LEAD_BANK_CC_FUTURE A
-                         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
-                           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
-                           AND NOT EXISTS (SELECT 1
-                                             FROM LEAD_BANK_CC
-                                            WHERE LEAD_STORE_NBR = A.LEAD_STORE_NBR)
-                         UNION
-                        --below query checkes if member is active in future, it's effective date is <= batch date
-                        --and that member does not exist in current (as current to history batch already deleted it from current)
-                        SELECT 1
-                          FROM MEMBER_BANK_CC_FUTURE B
-                         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
-                           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
-                           AND NOT EXISTS (SELECT 1
-                                             FROM MEMBER_BANK_CC
-                                            WHERE MEMBER_STORE_NBR = B.MEMBER_STORE_NBR));
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            IF V_COUNT = 0 THEN
-                 --exit out the process without doing anything, if the future record came for deletion is a virtual future
-                 --NOTE: return should happen only from batch not from UI deletion processes
-                 RETURN;
-             END IF;
-        END IF;
-        --below call will create the current records from future records
-        CREATE_CURRENT_FROM_FUTURE(IN_BANK_ACCOUNT_FTR_REC);
-    
+       --below query will check if any of these virtual futures members/leads reached the
+       --time to move from future to current
+       BEGIN
+           SELECT COUNT(*)
+             INTO V_COUNT
+             FROM (
+              --below query checkes if member is active in future, it's effective date is <= batch date
+              --and that lead does not exist in current (as current to history batch already deleted it from current)
+                   SELECT 1
+                     FROM LEAD_BANK_CC_FUTURE A
+                    WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+                      AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+                      AND NOT EXISTS (SELECT 1
+                                        FROM LEAD_BANK_CC
+                                       WHERE LEAD_STORE_NBR = A.LEAD_STORE_NBR)
+                   UNION
+                    --below query checkes if member is active in future, it's effective date is <= batch date
+                    --and that member does not exist in current (as current to history batch already deleted it from current)
+                  SELECT 1
+                    FROM MEMBER_BANK_CC_FUTURE B
+                   WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+                     AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+                     AND NOT EXISTS (SELECT 1
+                                       FROM MEMBER_BANK_CC
+                                      WHERE MEMBER_STORE_NBR = B.MEMBER_STORE_NBR));
+       EXCEPTION
+           WHEN OTHERS THEN
+              NULL;
+       END;
+       IF V_COUNT = 0 THEN
+          --exit out the process without doing anything, if the future record came for deletion is a virtual future
+          --NOTE: return should happen only from batch not from UI deletion processes
+          RETURN;
+       END IF;
+    END IF;
+    --below call will create the current records from future records
+    CREATE_CURRENT_FROM_FUTURE(IN_BANK_ACCOUNT_FTR_REC);
+
     --get all the lead bank cc details for this future and loop through
     FOR lead_bank_cc_ftr_rec IN lead_bank_cc_ftr_cur LOOP
          --getting the count if there are any more members transfering in future for the same lead
          --this check is to see if there are any member present for the same lead for future date.
-         SELECT COUNT(*)
-           INTO V_COUNT
-           FROM MEMBER_BANK_CC_FUTURE
-          WHERE LEAD_STORE_NBR = lead_bank_cc_ftr_rec.LEAD_STORE_NBR
-            AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE);
-        
-                     
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_STORE_NBR = lead_bank_cc_ftr_rec.LEAD_STORE_NBR
+           AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE);
+
         --for each lead bakn, check if there is a child member banks attched to it
         --if so, get that child member bank details and delete those child future records first
         FOR mbr_bank_cc_ftr_rec IN mbr_bank_cc_ftr_cur(lead_bank_cc_ftr_rec) LOOP
@@ -450,7 +448,7 @@ BEGIN
                 --now delete the bank deposit bag ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
             END LOOP; --bank_dep_bag_tickord_cur
-            
+
             --for this member store, get the bank deposit ticket details
             --if found, delete those child records first
             FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
@@ -459,69 +457,59 @@ BEGIN
             END LOOP; --bank_dep_tick_cur
 
             FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
-
                 --now delete the bank deposit bag ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
             END LOOP; --bank_dep_bag_tick_cur
-            
+
             --if so, get that store micr details and delete those child future records first
             FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
-               --now delete the store micr format details from the future that the member is attached with
+                --now delete the store micr format details from the future that the member is attached with
                 TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
             END LOOP; --store_micr_format_dtls_cur
-          
+
             --this check is to make sure if we have any future members for the same lead. If we have then to keep it identical
             --this will have to be in the future as well
             IF V_COUNT = 0 THEN
-            --now delete the member bank details from the future if there are no other members in the future for same lead
+               --now delete the member bank details from the future if there are no other members in the future for same lead
                TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_ftr_rec);
             END IF;
         END LOOP; --mbr_bank_cc_cur
 
-             --this check is to see if there are any member present for the same lead.
-             --If not then delete the bank future rec
-             IF V_COUNT = 0 THEN
-                --for this lead store, get the bank deposit ticket order details
-                --if found, delete those child records first
-                FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
-                    --now delete the bank deposit ticket details from the future
-                    TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
-                END LOOP; --bank_dep_tickord_cur
+        --this check is to see if there are any member present for the same lead.
+        --If not then delete the bank future rec
+        IF V_COUNT = 0 THEN
+           --for this lead store, get the bank deposit ticket order details
+           --if found, delete those child records first
+            FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
+             END LOOP; --bank_dep_tickord_cur
 
-                FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+             FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                 --now delete the bank deposit bag ticket details from the future
+                 TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
+             END LOOP; --bank_dep_bag_tickord_cur
 
-                    --now delete the bank deposit bag ticket details from the future
-                    TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
-                END LOOP; --bank_dep_bag_tickord_cur
-        
-                --for this lead store, get the bank deposit ticket details
-                --if found, delete those child records first
-                FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+             --for this lead store, get the bank deposit ticket details
+             --if found, delete those child records first
+             FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                 --now delete the bank deposit ticket details from the future
+                 TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
+             END LOOP; --bank_dep_tick_cur
 
-                    --now delete the bank deposit ticket details from the future
-                    TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
-                END LOOP; --bank_dep_tick_cur
-        
-                FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+             FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                 --now delete the bank deposit ticket bag details from the future
+                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
+             END LOOP; --bank_dep_bag_tick_cur
 
-                --now delete the bank deposit ticket bag details from the future
-                TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
-                END LOOP; --bank_dep_bag_tick_cur
-                
-                FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
-                        --now delete the store micr format details from the future
-                    TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
-                END LOOP; --store_micr_format_dtls_cur
-                --get all the bank micr details for this future and loop through
-                FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
-                    --now delete the bank micr details from the future
-                    TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_ftr_rec);
-                END LOOP; --bank_micr_format_cur
-    
-                --now delete the lead bank details from the future
-                TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_D_SP(lead_bank_cc_ftr_rec);
-                
-             END IF;
+             FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                 --now delete the store micr format details from the future
+                 TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
+             END LOOP; --store_micr_format_dtls_cur
+
+            --now delete the lead bank details from the future
+            TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_D_SP(lead_bank_cc_ftr_rec);
+        END IF;
     END LOOP; --lead_bank_cc_cur
     
     SELECT COUNT(*)
@@ -530,8 +518,14 @@ BEGIN
      WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR;
     --this check is to see if there are any lead present. If not then delete the bank future rec
     IF V_COUNT = 0 THEN 
-       --now delete the bank account details from the future
-       TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_D_SP(IN_BANK_ACCOUNT_FTR_REC);
+        --get all the bank micr details for this future and loop through
+        FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
+            --now delete the bank micr details from the future
+            TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_ftr_rec);
+        END LOOP; --bank_micr_format_cur
+
+        --now delete the bank account details from the future
+        TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_D_SP(IN_BANK_ACCOUNT_FTR_REC);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
