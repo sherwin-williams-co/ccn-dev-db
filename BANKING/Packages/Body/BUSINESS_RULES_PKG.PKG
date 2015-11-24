@@ -1624,15 +1624,18 @@ PROCEDURE PLACE_TCKT_ORDER_BR_SP(
        order date greater than the effective date used for the future ticket    
 
 Created : 11/19/2015 nxk927 CCN Project Team....
-Changed : 
+Changed : 11/24/2015 nxk927 CCN Project Team....
+          calling the function to get the store micr details
 *******************************************************************************/
    IN_COST_CENTER        IN VARCHAR2,
    IN_ORDER_DATE         DATE,
    IN_FUTURE_ID          IN NUMBER) 
 IS
-   V_PROC_NAME         VARCHAR2(30) := 'PLACE_TCKT_ORDER_BR_SP';
-   V_COUNT             NUMBER := 0;
-   V_REC               BANK_DEP_TICK_FUTURE%ROWTYPE;
+   V_PROC_NAME           VARCHAR2(30) := 'PLACE_TCKT_ORDER_BR_SP';
+   V_COUNT               NUMBER := 0;
+   V_REC                 BANK_DEP_TICK_FUTURE%ROWTYPE;
+   V_ST_MICR_DTLS_REC    STORE_MICR_FORMAT_DTLS%ROWTYPE;
+   V_ST_MCR_DTLS_F_REC   STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
    
 BEGIN
     BEGIN
@@ -1646,53 +1649,32 @@ BEGIN
                NULL;
     END;
     IF IN_FUTURE_ID IS NULL THEN
-       SELECT COUNT(*)
-         INTO V_COUNT
-         FROM STORE_MICR_FORMAT_DTLS
-        --IN clause below makes sure we always get the passed stores MICR details
-        --as well as it's leads storer MICR format details
-        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
-                                   BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_COST_CENTER))
-            --below order by clause is to make sure we get store MICR details even for
-            --a member that doesn't have any default store MICR assigned to it 
-           --if member got it's own store MICR that takes precedence
-       ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2);
-       IF V_COUNT = 0 THEN
-          ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
-                           V_PROC_NAME,
-                           'The cost center retrieved do not have any Store Micr Format Details Attached');
-       END IF;
        --this check will see if the order date  is less than the effective date of the ticket in future
        IF NVL(V_REC.EFFECTIVE_DATE,IN_ORDER_DATE +1) <= IN_ORDER_DATE THEN  --need to have the order placed with date less than the effective date of the future
               ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
                               V_PROC_NAME,
                              'The order placed date is greater/equal than the effective date of the deposit ticket in future.Please enter order date that is before the effective date of the deposit ticket in future');
        END IF;
-   ELSE
-       SELECT COUNT(*)
-         INTO V_COUNT
-         FROM STORE_MICR_FORMAT_DTLS_FUTURE
-       --IN clause below makes sure we always get the passed stores MICR details
-       --as well as it's leads storer MICR format details
-        WHERE COST_CENTER_CODE IN (IN_COST_CENTER,
-                                   BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER, IN_FUTURE_ID))
-           --below order by clause is to make sure we get store MICR details even for
-           --a member that doesn't have any default store MICR assigned to it 
-           --if member got it's own store MICR that takes precedence
-         AND FUTURE_ID = IN_FUTURE_ID
-       ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER, 1, 2);
-       IF V_COUNT = 0 THEN
+       V_ST_MICR_DTLS_REC:= BANKING_COMMON_TOOLS.GET_STORE_MICR_FORMAT_DTLS_REC(IN_COST_CENTER);
+       IF V_ST_MICR_DTLS_REC.COST_CENTER_CODE IS NULL THEN
           ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
                            V_PROC_NAME,
                            'The cost center retrieved do not have any Store Micr Format Details Attached');
        END IF;
-      
+
+   ELSE
       --this check will see if the order date  is less than the effective date of the future ticket 
-        IF V_REC.EFFECTIVE_DATE > IN_ORDER_DATE THEN  --need to have the order placed with date greater than the effective date 
-              ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
-                               V_PROC_NAME,
-                               'The order placed date is less than the effective date of the deposit ticket.Please enter order date that is after the effective date.');
-        END IF;
+       IF V_REC.EFFECTIVE_DATE > IN_ORDER_DATE THEN  --need to have the order placed with date greater than the effective date 
+          ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
+                           V_PROC_NAME,
+                          'The order placed date is less than the effective date of the deposit ticket.Please enter order date that is after the effective date.');
+       END IF;
+       V_ST_MCR_DTLS_F_REC:= BANKING_COMMON_TOOLS.GET_STR_MICR_FRMT_DTLS_FTR_REC(IN_COST_CENTER,IN_FUTURE_ID);
+       IF V_ST_MCR_DTLS_F_REC.COST_CENTER_CODE IS NULL THEN
+          ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
+                           V_PROC_NAME,
+                           'The cost center retrieved do not have any Store Micr Format Details Attached');
+       END IF;
    END IF;
 EXCEPTION
     WHEN OTHERS THEN

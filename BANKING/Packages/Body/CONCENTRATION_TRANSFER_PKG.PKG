@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE BODY CONCENTRATION_TRANSFER_PKG
+create or replace PACKAGE BODY CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -424,7 +423,7 @@ BEGIN
                 TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
             END IF;
         END LOOP;
-        DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR, lead_bank_cc_rec.LEAD_BANK_ACCOUNT_NBR, NULL);
+        DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR, NULL, NULL);
         DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR);
         TABLE_IU_PKG.LEAD_BANK_CC_D_SP(lead_bank_cc_rec);
     END LOOP;
@@ -661,13 +660,14 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_TRNSFR_MBR_BANK_CC_REC, ' || ' ' || 'FAILED TO CREATE MEMBERS - ' || SQLERRM);
 END CREATE_TRNSFR_MBR_BANK_CC_REC;
 
-FUNCTION IS_FTR_LEAD_EXISTS_FOR_DATE(
+FUNCTION IS_FTR_LEAD_EXISTS(
 /***********************************************************
 This function will return "Y" if a future lead exisst fro the date passed in,
 else it returns "N"
 
 Created : 10/09/2015 jxc517 CCN Project....
-Changed :
+Changed : 11/24/2015 nxk927 CCN Project....
+          changed the name as the requirement changed
 ************************************************************/
 IN_REC        IN     MEMBER_BANK_CC%ROWTYPE,
 OUT_FUTURE_ID    OUT NUMBER) RETURN VARCHAR2
@@ -688,7 +688,7 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VAL;
-END IS_FTR_LEAD_EXISTS_FOR_DATE;
+END IS_FTR_LEAD_EXISTS;
 
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
@@ -744,6 +744,7 @@ IS
     V_FUTURE_ID                     NUMBER;
     V_TEMP_LEAD_BANK_ACCOUNT_NBR    LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_MBR_BANK_CC_TAB               TABLE_IU_PKG.MEMBER_BANK_CC_TAB_TYPE;
+    V_LEAD_BANK_ACCOUNT_NBR         LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
 BEGIN
     IF NVL(IN_TRANSFER_FLAG, 'N') = 'N' THEN
        BUSINESS_RULES_PKG.LEAD_TRANSFER_BR_SP(IN_XML);
@@ -761,8 +762,9 @@ BEGIN
     --IF the Lead is expired then we have to get the new record from future
     IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NOT NULL THEN 
        V_TO_LEAD_BANK_CC_FUT_REC                   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
-       V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR := V_TO_LEAD_BANK_CC_FUT_REC.LEAD_BANK_ACCOUNT_NBR;
     END IF;
+    --If it satisfies the above condition as the previous rec was expired then we will use the LEAD_BANK_ACCOUNT_NBR from future
+    V_LEAD_BANK_ACCOUNT_NBR := NVL(V_TO_LEAD_BANK_CC_FUT_REC.LEAD_BANK_ACCOUNT_NBR, V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
     V_FROM_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_FROM_LEAD_CC);
     V_FROM_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_HIST_REC(V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,
                                                                               V_FROM_LEAD_BANK_CC_REC.EFFECTIVE_DATE);
@@ -823,20 +825,20 @@ BEGIN
         V_EXPIRE_DATE := rec.EFFECTIVE_DATE - INTERVAL '1' SECOND;
         V_MEMBER_BANK_CC_REC.EXPIRATION_DATE := V_EXPIRE_DATE;
         DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR,
-                                                                     null, --bank account number
+                                                                     NULL, --bank account number
                                                                      NULL, --micr format id
                                                                      V_EXPIRE_DATE); --store MICR formats needs to be expired for these members
         DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(rec.MEMBER_STORE_NBR,
                                                             V_EXPIRE_DATE);
-        rec.LEAD_BANK_ACCOUNT_NBR   := V_TO_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
-        rec.LEAD_STORE_NBR          := V_TO_LEAD_BANK_CC_REC.LEAD_STORE_NBR;
+        rec.LEAD_BANK_ACCOUNT_NBR   := V_LEAD_BANK_ACCOUNT_NBR;
+        rec.LEAD_STORE_NBR          := V_TO_LEAD_CC;
         rec.MEMBER_BANK_ACCOUNT_NBR := NULL; --wipe out the sub account details for the member being transferred
         rec.EXPIRATION_DATE         := NULL; --this anyways will be null, but just for understanding, else transfer will fail
         rec.UPDATE_DATE             := TRUNC(SYSDATE);
         rec.LAST_UPD_USER_ID        := V_USER_ID;
         IF TRUNC(NVL(V_TEMP_EFFECTIVE_DATE, SYSDATE)) <> TRUNC(rec.EFFECTIVE_DATE) THEN
             V_TEMP_EFFECTIVE_DATE := rec.EFFECTIVE_DATE;
-            IF IS_FTR_LEAD_EXISTS_FOR_DATE(rec, V_FUTURE_ID) = 'N' THEN
+            IF IS_FTR_LEAD_EXISTS(rec, V_FUTURE_ID) = 'N' THEN
                 CREATE_TRANSFER_FUTURE_PROCESS(rec, V_TO_LEAD_BANK_CC_REC, V_FUTURE_ID);
             END IF;
         END IF;
@@ -848,20 +850,23 @@ BEGIN
             --member needs to be removed from old leads virtual future
             --so check if there is a virtual future out there for this members lead bank accunt
             --if there exists one, delete all those member details from the future as well
-            -- this should delete virtual and current members
-            MEMBER_MAINTENANCE_PKG.MBR_MNTNC_UI_DELETE_SP(V_MEMBER_BANK_CC_REC, 1); 
+            IF ACCOUNT_MAINTENANCE_PKG.IS_REAL_FUTURE_BANK_ACCOUNT(V_MEMBER_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR) = 'N' THEN
+                MEMBER_MAINTENANCE_PKG.MBR_MNTNC_UI_DELETE_SP(V_MEMBER_BANK_CC_REC, 1);
+            END IF;
             TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(rec); --member needs to be added to new lead
-            V_TO_LEAD_BANK_CC_FUT_REC                   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
-            IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL --checking if the lead is a virtual
-               AND V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN--checking if the lead store is present in future table
-                   SELECT M.*,
-                          V_TO_LEAD_BANK_CC_FUT_REC.FUTURE_ID FUTURE_ID
-                     INTO V_MEMBER_BANK_CC_FUT_REC
-                     FROM MEMBER_BANK_CC M
-                    WHERE MEMBER_STORE_NBR  = rec.MEMBER_STORE_NBR
-                      AND LEAD_STORE_NBR    = rec.LEAD_STORE_NBR; 
-                    TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_MEMBER_BANK_CC_FUT_REC);
+            IF V_TO_LEAD_BANK_CC_FUT_REC.LEAD_STORE_NBR IS NOT NULL THEN --IF the future record is present then 
+               V_TO_LEAD_BANK_CC_FUT_REC                   := BANKING_COMMON_TOOLS.GET_UNEXP_LEAD_CC_FUTURE_REC(V_TO_LEAD_CC);
+               --checking if the lead store is present in future table
+               IF V_TO_LEAD_BANK_CC_REC.EXPIRATION_DATE IS NULL  THEN--checking if the lead is a virtual
+                  SELECT M.*,
+                         V_TO_LEAD_BANK_CC_FUT_REC.FUTURE_ID FUTURE_ID
+                    INTO V_MEMBER_BANK_CC_FUT_REC
+                    FROM MEMBER_BANK_CC M
+                   WHERE MEMBER_STORE_NBR  = rec.MEMBER_STORE_NBR
+                     AND LEAD_STORE_NBR    = rec.LEAD_STORE_NBR; 
+                   TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(V_MEMBER_BANK_CC_FUT_REC);
                    --member needs to be added to new lead in future if the lead is a virtual  
+               END IF;
             END IF;
         ELSIF TRUNC(rec.EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
             --by the time it comes here all the futures for this member gets deleted
@@ -877,4 +882,3 @@ EXCEPTION
 END LEAD_TRANSFER_PROCESS;
 
 END CONCENTRATION_TRANSFER_PKG;
-
