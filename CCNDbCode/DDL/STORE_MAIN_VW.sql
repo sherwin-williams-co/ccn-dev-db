@@ -7,7 +7,7 @@ such as Store number, Zone code, Statement type, Store name,Store open/close dat
 Status, Status description, Cost center Type, Cost center and Mission code.
 
 Created : 12/11/2014 SXT410 CCN project
-Modified: 01/23/2014 jxc517 CCN Project....
+Modified: 01/23/2015 jxc517 CCN Project....
 **********************************************************/ 
       SUBSTR(CC.COST_CENTER_CODE,3) STORE_NUMBER,
        CC.COST_CENTER_CODE,
