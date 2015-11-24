@@ -75,8 +75,7 @@ PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP (
 Created : 07/13/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE,
-    IN_FTR_TO_CURR_FLAG         IN     VARCHAR2 DEFAULT 'N');
+    IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE);
 
 PROCEDURE ACCNT_MNTNC_UI_DELETE_SP ( 
 /******************************************************************************
