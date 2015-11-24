@@ -1,0 +1,36 @@
+/*
+Created : dxv848 11/21/2015 INSERTS for  CODE_DETAIL table.
+*/
+
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','01','01',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','20','20',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','30','30',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','40','40',null,null,null,4,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','50','50',null,null,null,5,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','60','60',null,null,null,6,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','70','70',null,null,null,7,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','80','80',null,null,null,8,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','90','90',null,null,null,9,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BOOK_KEEPER','COD','99','99',null,null,null,10,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BANK_TYPE','COD','I','INDEPENDENT',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BANK_TYPE','COD','L','LEAD',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('RECONCELLATION_SWITCH','COD','N','NO',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('RECONCELLATION_SWITCH','COD','Y','YES',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('REORDER_SWTICH','COD','L','FULL LOAD OF DEPOSITTICK',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('REORDER_SWTICH','COD','Y','DEPOSITTICK HAS BEEN ORDERED',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_REORDER_SWITCH','COD','L','FULL LOAD OF DEPOSITBAG',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_REORDER_SWITCH','COD','Y','DEPOSITBAG HAS BEEN ORDERED',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_TYPE','COD','1','1',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_TYPE','COD','2','2',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_TYPE','COD','3','3',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_TYPE','COD','4','4',null,null,null,4,null,null);
+INSERT INTO CODE_DETAIL VALUES ('ADD_ON_QUANTITY','COD','1','1',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('ADD_ON_QUANTITY','COD','2','2',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('ADD_ON_QUANTITY','COD','3','3',null,null,null,4,null,null);
+INSERT INTO CODE_DETAIL VALUES ('ADD_ON_QUANTITY','COD','4','4',null,null,null,5,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BANK_TYPE','COD','M','MEMBER',null,null,null,3,null,null);
+INSERT INTO CODE_DETAIL VALUES ('ADD_ON_QUANTITY','COD','0','0',null,null,null,1,null,null);
+INSERT INTO CODE_DETAIL VALUES ('BAG_REORDER_SWITCH','COD','N','DEPOSITBAG NOT  ORDERED',null,null,null,2,null,null);
+INSERT INTO CODE_DETAIL VALUES ('REORDER_SWTICH','COD','N','DEPOSITTICK NOT ORDERED',null,null,null,2,null,null);
+
+COMMIT;

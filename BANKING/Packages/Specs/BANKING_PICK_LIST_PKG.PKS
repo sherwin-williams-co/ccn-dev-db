@@ -1,0 +1,249 @@
+CREATE OR REPLACE PACKAGE BANKING_PICK_LIST_PKG AS 
+/**********************************************************
+	BANKING_PICK_LIST_PKG
+
+	This Package is intended to return values for picklists and 
+	picklist screen
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+
+	 	TYPE REF_CUR_CODE IS REF CURSOR
+;
+
+PROCEDURE CODE_HEADER_S_SP (
+/**********************************************************
+	CODE_HEADER_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the CODE_HEADER.  
+
+created : 11/21/2015 dxv848 CCN Project....
+changed : 
+**********************************************************/	
+in_HEADER_NAME IN CODE_HEADER.CODE_HEADER_NAME%TYPE
+,in_HEADER_TYPE IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
+,out_CODE_HEADER_CUR OUT REF_CUR_CODE)
+;
+
+PROCEDURE CODE_DETAIL_S_SP (
+/**********************************************************
+	CODE_DETAIL_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the CODE_DETAIL table.  
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/		
+in_HEADER_NAME IN CODE_DETAIL.CODE_HEADER_NAME%TYPE
+,in_HEADER_TYPE IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
+,out_CODE_DETAIL_CUR OUT REF_CUR_CODE)
+;
+
+FUNCTION GET_CODE_DETAIL_VALUE_DSCRPTN (
+/**********************************************************
+	GET_CODE_DETAIL_VALUE_DSCRPTN
+
+	This procedure is intended to return the description for the code detail value
+  from CODE_DETAIL table based on the passed parameters.  
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+in_HEADER_NAME  IN CODE_DETAIL.CODE_HEADER_NAME%TYPE,
+in_HEADER_TYPE  IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE,
+in_DETAIL_VALUE IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE)
+RETURN VARCHAR2;
+
+PROCEDURE CODE_DETAIL_DESC_SP (
+/**********************************************************
+	CODE_DETAIL_DESC_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the CODE_DETAIL table.  
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+in_HEADER_NAME IN CODE_DETAIL.CODE_HEADER_NAME%TYPE
+,in_HEADER_TYPE IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
+,in_DETAIL_VALUE IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
+,out_CODE_DETAIL_CUR OUT REF_CUR_CODE);
+
+--**********************************************************
+
+PROCEDURE CODE_DETAIL_INSERT(
+/**********************************************************
+CODE_DETAIL_INSERT
+	This procedure will insert into the CODE_DETAIL table 
+<CODE_DETAIL_UI>
+  <CODE_DETAIL>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_DETAIL_VALUE>CD</CODE_DETAIL_VALUE> 
+      <CODE_DETAIL_DESCRIPTION>TEST</CODE_DETAIL_DESCRIPTION>
+      <CODE_DETAIL_EXPIRE_FLAG></CODE_DETAIL_EXPIRE_FLAG>
+      <CODE_DETAIL_EXPIRE_USER></CODE_DETAIL_EXPIRE_USER>
+	    <CODE_DETAIL_EXPIRE_EFF_DATE></CODE_DETAIL_EXPIRE_EFF_DATE>
+	    <CODE_DETAIL_ID>1</CODE_DETAIL_ID>	 
+      <CODE_DETAIL_CREATE_USER></CODE_DETAIL_CREATE_USER>
+	    <CODE_DETAIL_EFF_DATE></CODE_DETAIL_EFF_DATE>
+  </CODE_DETAIL>
+  <CODE_DETAIL>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_DETAIL_VALUE>CE</CODE_DETAIL_VALUE> 
+      <CODE_DETAIL_DESCRIPTION>TEST</CODE_DETAIL_DESCRIPTION>
+      <CODE_DETAIL_EXPIRE_FLAG></CODE_DETAIL_EXPIRE_FLAG>
+      <CODE_DETAIL_EXPIRE_USER></CODE_DETAIL_EXPIRE_USER>
+	    <CODE_DETAIL_EXPIRE_EFF_DATE></CODE_DETAIL_EXPIRE_EFF_DATE>
+	    <CODE_DETAIL_ID>2</CODE_DETAIL_ID>	 
+      <CODE_DETAIL_CREATE_USER></CODE_DETAIL_CREATE_USER>
+	    <CODE_DETAIL_EFF_DATE></CODE_DETAIL_EFF_DATE>
+  </CODE_DETAIL>
+  <CODE_DETAIL>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_DETAIL_VALUE>CF</CODE_DETAIL_VALUE> 
+      <CODE_DETAIL_DESCRIPTION>TES</CODE_DETAIL_DESCRIPTION>
+      <CODE_DETAIL_EXPIRE_FLAG></CODE_DETAIL_EXPIRE_FLAG>
+      <CODE_DETAIL_EXPIRE_USER></CODE_DETAIL_EXPIRE_USER>
+	    <CODE_DETAIL_EXPIRE_EFF_DATE></CODE_DETAIL_EXPIRE_EFF_DATE>
+	    <CODE_DETAIL_ID>3</CODE_DETAIL_ID>	 
+      <CODE_DETAIL_CREATE_USER></CODE_DETAIL_CREATE_USER>
+	    <CODE_DETAIL_EFF_DATE></CODE_DETAIL_EFF_DATE>
+  </CODE_DETAIL>
+</CODE_DETAIL_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    in_XML                VARCHAR2);
+
+PROCEDURE CODE_DETAIL_UPDATE(
+/**********************************************************
+	CODE_DETAIL_UPDATE
+
+This procedure will UPDATE into the table CODE_DETAIL
+<CODE_DETAIL_UI>
+  <CODE_DETAIL>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_DETAIL_VALUE>CE</CODE_DETAIL_VALUE> 
+      <CODE_DETAIL_DESCRIPTION>TEST CHANGE</CODE_DETAIL_DESCRIPTION>
+      <CODE_DETAIL_EXPIRE_FLAG></CODE_DETAIL_EXPIRE_FLAG>
+      <CODE_DETAIL_EXPIRE_USER></CODE_DETAIL_EXPIRE_USER>
+	    <CODE_DETAIL_EXPIRE_EFF_DATE></CODE_DETAIL_EXPIRE_EFF_DATE>
+	    <CODE_DETAIL_ID>2</CODE_DETAIL_ID>	 
+      <CODE_DETAIL_CREATE_USER></CODE_DETAIL_CREATE_USER>
+	    <CODE_DETAIL_EFF_DATE></CODE_DETAIL_EFF_DATE>
+  </CODE_DETAIL>
+  </CODE_DETAIL_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    in_XML                VARCHAR2);
+	
+PROCEDURE CODE_DETAIL_DELETE(
+/**********************************************************
+CODE_DETAIL_DELETE
+
+	This procedure will UPDATE THE EXISTING CODES FROM the table CODE_DETAIL
+<CODE_DETAIL_UI>
+  <CODE_DETAIL>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_DETAIL_VALUE>CE</CODE_DETAIL_VALUE> 
+      <CODE_DETAIL_DESCRIPTION>TEST CHANGE</CODE_DETAIL_DESCRIPTION>
+      <CODE_DETAIL_EXPIRE_FLAG>Y</CODE_DETAIL_EXPIRE_FLAG>
+      <CODE_DETAIL_EXPIRE_USER></CODE_DETAIL_EXPIRE_USER>
+	    <CODE_DETAIL_EXPIRE_EFF_DATE></CODE_DETAIL_EXPIRE_EFF_DATE>
+	    <CODE_DETAIL_ID>2</CODE_DETAIL_ID>	 
+      <CODE_DETAIL_CREATE_USER></CODE_DETAIL_CREATE_USER>
+	    <CODE_DETAIL_EFF_DATE></CODE_DETAIL_EFF_DATE>
+  </CODE_DETAIL>
+  </CODE_DETAIL_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    IN_XML                VARCHAR2);
+  
+PROCEDURE CODE_HEADER_INSERT(
+/**********************************************************
+	CODE_HEADER_INSERT
+
+	This procedure will insert into the table CODE_HEADER
+<CODE_HEADER_UI>
+  <CODE_HEADER>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_HEADER_DESCRIPTION>TESTING</CODE_HEADER_DESCRIPTION>
+      <CODE_HEADER_EXPIRE_FLAG></CODE_HEADER_EXPIRE_FLAG>
+      <CODE_HEADER_EXPIRE_USER></CODE_HEADER_EXPIRE_USER>
+	    <CODE_HEADER_EXPIRE_EFF_DATE></CODE_HEADER_EXPIRE_EFF_DATE>
+	    <CODE_HEADER_DTL_VAL_SIZE>1</CODE_HEADER_DTL_VAL_SIZE>
+      <CODE_HEADER_DTL_VAL_DEFAULT></CODE_HEADER_DTL_VAL_DEFAULT>	
+      <CODE_HEADER_CREATE_USER></CODE_HEADER_CREATE_USER>
+	    <CODE_HEADER_EFF_DATE></CODE_HEADER_EFF_DATE>
+  </CODE_HEADER>
+</CODE_HEADER_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    IN_XML                VARCHAR2);
+    
+PROCEDURE CODE_HEADER_UPDATE(
+/**********************************************************
+CODE_HEADER_UPDATE
+	
+	This procedure will UPDATE into the table CODE_HEADER
+<CODE_HEADER_UI>
+  <CODE_HEADER>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_HEADER_DESCRIPTION>TESTING</CODE_HEADER_DESCRIPTION>
+      <CODE_HEADER_EXPIRE_FLAG>Y</CODE_HEADER_EXPIRE_FLAG>
+      <CODE_HEADER_EXPIRE_USER></CODE_HEADER_EXPIRE_USER>
+	    <CODE_HEADER_EXPIRE_EFF_DATE></CODE_HEADER_EXPIRE_EFF_DATE>
+	    <CODE_HEADER_DTL_VAL_SIZE>2</CODE_HEADER_DTL_VAL_SIZE>
+      <CODE_HEADER_DTL_VAL_DEFAULT></CODE_HEADER_DTL_VAL_DEFAULT>	
+      <CODE_HEADER_CREATE_USER></CODE_HEADER_CREATE_USER>
+	    <CODE_HEADER_EFF_DATE></CODE_HEADER_EFF_DATE>
+  </CODE_HEADER>
+  </CODE_HEADER_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    in_XML                VARCHAR2);
+    
+PROCEDURE CODE_HEADER_DELETE(
+/**********************************************************
+		CODE_HEADER_DELETE
+	This procedure will update existing code header FROM the table CODE_HEADER
+<CODE_HEADER_UI>
+  <CODE_HEADER>
+      <CODE_HEADER_NAME>SAT</CODE_HEADER_NAME> 
+      <CODE_HEADER_TYPE>COD</CODE_HEADER_TYPE> 
+      <CODE_HEADER_DESCRIPTION>TESTING</CODE_HEADER_DESCRIPTION>
+      <CODE_HEADER_EXPIRE_FLAG>Y</CODE_HEADER_EXPIRE_FLAG>
+      <CODE_HEADER_EXPIRE_USER></CODE_HEADER_EXPIRE_USER>
+	    <CODE_HEADER_EXPIRE_EFF_DATE></CODE_HEADER_EXPIRE_EFF_DATE>
+	    <CODE_HEADER_DTL_VAL_SIZE>2</CODE_HEADER_DTL_VAL_SIZE>
+      <CODE_HEADER_DTL_VAL_DEFAULT></CODE_HEADER_DTL_VAL_DEFAULT>	
+      <CODE_HEADER_CREATE_USER></CODE_HEADER_CREATE_USER>
+	    <CODE_HEADER_EFF_DATE></CODE_HEADER_EFF_DATE>
+  </CODE_HEADER>
+  </CODE_HEADER_UI>
+
+created : 11/21/2015 dxv848 CCN Project....
+changed :
+**********************************************************/
+    in_XML                VARCHAR2);
+
+END BANKING_PICK_LIST_PKG;
