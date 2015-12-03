@@ -64,10 +64,13 @@ PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT (
   MATCHED PROCESSING REPORT #1 BY STORE NO. & DRAFT NO.
 
 Created : 06/19/2015 jxc517 CCN Project....
-Changed : 
+Changed : 12/02/2015 nxk927 CCN Project Team....
+          passing the FSS sent start date and end date as  parameter so this can be called from UI as well
+          on demand
 *******************************************************************************/
-IN_DATE      IN     DATE
-,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+IN_FSS_SENT_ST_DT      IN     DATE,
+IN_FSS_SENT_END_DT     IN     DATE,
+OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
 PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
 /*******************************************************************************
@@ -75,10 +78,13 @@ PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
   NO MATCH FOUND ON VENDOR FILE BY STORE NO. & DRAFT NO.
 
 Created : 06/19/2015 jxc517 CCN Project....
-Changed : 
+Changed : 12/02/2015 nxk927 CCN Project Team....
+          passing the 1099 picked start date and end date parameter.
+          Currently not using but we might need in later.
 *******************************************************************************/
-IN_DATE      IN     DATE
-,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+IN_1099_PICKED_ST_DT   IN     DATE,
+IN_1099_PICKED_END_DT  IN     DATE,
+OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
 PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
 /*******************************************************************************
@@ -86,9 +92,12 @@ PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
   NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
 
 Created : 06/19/2015 jxc517 CCN Project....
-Changed : 
+Changed : 12/02/2015 nxk927 CCN Project Team....
+          passing the 1099 picked start date and end date parameter.
+          Currently not using but we might need in later.
 *******************************************************************************/
-IN_DATE      IN     DATE
-,OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+IN_1099_PICKED_ST_DT   IN     DATE,
+IN_1099_PICKED_END_DT  IN     DATE,
+OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
 END SD_UI_REPORTS_PKG;
