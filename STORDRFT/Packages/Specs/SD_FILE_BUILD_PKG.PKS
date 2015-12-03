@@ -98,11 +98,11 @@ PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT(
   
 created : 7/29/2015 nxk927 CCN Project....
 changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the 1099 picked start date and end date parameter.
+          passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
 **********************************************************/
-IN_1099_PICKED_ST_DT   IN     DATE,
-IN_1099_PICKED_END_DT  IN     DATE);
+IN_FSS_SENT_ST_DT      IN     DATE,
+IN_FSS_SENT_END_DT     IN     DATE);
 
 PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT(
 /**********************************************************
@@ -124,7 +124,7 @@ PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT(
 
 Created : 7/29/2015 nxk927 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the 1099 picked start date and end date parameter.
+          passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
 *******************************************************************************/
 IN_FSS_SENT_ST_DT      IN     DATE,
@@ -137,7 +137,7 @@ PROCEDURE SD_1099_TXPYR_ID_AP_TRNS_CRT(
 
 Created : 7/29/2015 nxk927 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the 1099_PICKED start date and end date as  parameter so this can be called from UI as well
+          passing the FSS sent start date and end date as  parameter so this can be called from UI as well
           on demand
 **********************************************************/
 IN_FSS_SENT_ST_DT      IN     DATE,

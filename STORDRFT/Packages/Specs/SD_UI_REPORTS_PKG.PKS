@@ -79,7 +79,7 @@ PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
 
 Created : 06/19/2015 jxc517 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the 1099 picked start date and end date parameter.
+          passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
 *******************************************************************************/
 IN_FSS_SENT_ST_DT      IN     DATE,
@@ -93,7 +93,7 @@ PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
 
 Created : 06/19/2015 jxc517 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the 1099 picked start date and end date parameter.
+          passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
 *******************************************************************************/
 IN_FSS_SENT_ST_DT      IN     DATE,
