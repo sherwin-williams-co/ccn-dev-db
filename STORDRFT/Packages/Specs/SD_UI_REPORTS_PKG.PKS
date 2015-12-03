@@ -82,8 +82,8 @@ Changed : 12/02/2015 nxk927 CCN Project Team....
           passing the 1099 picked start date and end date parameter.
           Currently not using but we might need in later.
 *******************************************************************************/
-IN_1099_PICKED_ST_DT   IN     DATE,
-IN_1099_PICKED_END_DT  IN     DATE,
+IN_FSS_SENT_ST_DT      IN     DATE,
+IN_FSS_SENT_END_DT     IN     DATE,
 OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
 PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
@@ -96,8 +96,8 @@ Changed : 12/02/2015 nxk927 CCN Project Team....
           passing the 1099 picked start date and end date parameter.
           Currently not using but we might need in later.
 *******************************************************************************/
-IN_1099_PICKED_ST_DT   IN     DATE,
-IN_1099_PICKED_END_DT  IN     DATE,
+IN_FSS_SENT_ST_DT      IN     DATE,
+IN_FSS_SENT_END_DT     IN     DATE,
 OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
 END SD_UI_REPORTS_PKG;
