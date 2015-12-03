@@ -14,8 +14,7 @@
 proc="1099_consolidated_report"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${MNTLY_1099_RUNDATE} 
-DATE1=${JV_MNTLY_RUNDATE}
+DATE=${JV_MNTLY_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"
@@ -23,7 +22,7 @@ echo "Processing Started for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
-execute SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'), to_date('$DATE','MM/DD/YYYY'),to_date('$DATE1','MM/DD/YYYY'),to_date('$DATE1','MM/DD/YYYY'));
+execute SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'), to_date('$DATE','MM/DD/YYYY'));
 exit;
 END
 

@@ -150,8 +150,6 @@ PROCEDURE SD_1099_CONSOLIDATED_RPT(
 Created : 12/02/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_1099_PICKED_ST_DT   IN     DATE,
-IN_1099_PICKED_END_DT  IN     DATE,
 IN_FSS_SENT_ST_DT      IN     DATE,
 IN_FSS_SENT_END_DT     IN     DATE);
 
