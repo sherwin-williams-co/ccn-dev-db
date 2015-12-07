@@ -33,8 +33,14 @@ ACQUISITION_CODE,
 PRI_LOGO_GROUP_IND,
 SCD_LOGO_GROUP_IND,
 COLOR_CONSULTANT_TYPE,
-NVL2(extractValue(PCC_PCL_STORE, '//PCC/CC/text()'), extractValue(PCC_PCL_STORE, '//PCC/CC/text()')|| '~Personnel Color Code', NULL)PCC_STORE,
-NVL2(extractValue(PCC_PCL_STORE, '//PCL/CC/text()'), extractValue(PCC_PCL_STORE, '//PCL/CC/text()')|| '~Personnel Color Lead', NULL)PCL_STORE,
+(CASE WHEN extractValue(PCC_PCL_STORE, '//PCC/CC') IS NOT NULL THEN
+           extractValue(PCC_PCL_STORE, '//PCC/CC')|| '~Personnel Color Consultant' 
+      ELSE NULL
+  END)PCC_STORE,
+(CASE WHEN extractValue(PCC_PCL_STORE, '//PCL/CC') IS NOT NULL THEN
+           extractValue(PCC_PCL_STORE, '//PCL/CC')|| '~Personnel Color Lead' 
+      ELSE NULL
+  END)PCL_STORE,
 COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
