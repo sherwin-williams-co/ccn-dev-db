@@ -1,13 +1,3 @@
---------------------------------------------------------
---  File created - 02/18/2015 
---  Modified     - 11/02/2015 dxv848 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
---               - 11/25/2015 axk326 CCN Project Team....
---                 Added columns PCC_STORE, PCL_STORE to determine the color consultant and color lead
---------------------------------------------------------
---------------------------------------------------------
---  DDL for View COST_CENTER_VW
---------------------------------------------------------
-
 CREATE OR REPLACE VIEW COST_CENTER_VW
 AS 
 SELECT
