@@ -56,6 +56,8 @@ fi
 
 echo "ending audit_load_otr_one.sh script "
 
+exit 0
+
 ##############################
 #  end of script             #
 ##############################
