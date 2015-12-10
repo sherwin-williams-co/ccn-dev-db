@@ -546,5 +546,14 @@ modified:
 IN_USER_ID      IN     VARCHAR2,
 OUT_REF_CURSOR     OUT CCN_COMMON_TOOLS.REF_CURSOR) RETURN VARCHAR2;
 
-END SD_UI_INTERFACE_APP_PKG;
+PROCEDURE SD_1099_CONSOLIDATED_RPT(
+/******************************************************************************
+  This procedure is a wrapper for store draft 1099 info feed to ap report
+  
+Created : 12/09/2015 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_FSS_SENT_ST_DT      IN     DATE,
+IN_FSS_SENT_END_DT     IN     DATE);
 
+END SD_UI_INTERFACE_APP_PKG;
