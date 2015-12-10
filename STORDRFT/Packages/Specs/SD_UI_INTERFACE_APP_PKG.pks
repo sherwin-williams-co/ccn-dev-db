@@ -548,8 +548,14 @@ OUT_REF_CURSOR     OUT CCN_COMMON_TOOLS.REF_CURSOR) RETURN VARCHAR2;
 
 PROCEDURE SD_1099_CONSOLIDATED_RPT(
 /******************************************************************************
-  This procedure is a wrapper for store draft 1099 info feed to ap report
+  This procedure is a wrapper for store draft 1099 info feed to AP report.
+  This will be generating all the 4 reports for 1099. Matched, unmatched, no vendor
+  and 1099_TXPYR_ID_AP_TRNS.
   
+  Parameters : 
+    IN_FSS_SENT_ST_DT  : This will be the start date from when, the report is to be generated.
+    IN_FSS_SENT_END_DT : This will be end date for the report till which, the report is expected
+        
 Created : 12/09/2015 nxk927 CCN Project....
 Changed : 
 *******************************************************************************/
