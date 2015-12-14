@@ -1,0 +1,18 @@
+/*********************************************************** 
+This table contains the details for the translated value
+
+created : 12/14/2015   jxc517 CCN Project....
+modified:
+************************************************************/
+CREATE TABLE TRANSLATION_DETAIL
+   (	HEADER_NAME             VARCHAR2(50) NOT NULL, 
+	DETAIL_VALUE            VARCHAR2(30) NOT NULL, 
+	DETAIL_SEQ_NUMBER       NUMBER NOT NULL, 
+	DETAIL_TRANSLATION      VARCHAR2(200), 
+	DETAIL_EXPIRE_FLAG      VARCHAR2(1), 
+	DETAIL_EXPIRE_USER      VARCHAR2(20), 
+	DETAIL_EXPIRE_EFF_DATE  DATE, 
+	 CONSTRAINT TRANSLATION_DETAIL_PK PRIMARY KEY (HEADER_NAME, DETAIL_VALUE, DETAIL_SEQ_NUMBER),
+	 CONSTRAINT TRANSLATION_DETAIL_FK FOREIGN KEY (HEADER_NAME) REFERENCES TRANSLATION_HEADER(HEADER_NAME)
+   );
+

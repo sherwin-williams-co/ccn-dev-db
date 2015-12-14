@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_COMMON_TOOLS AS 
+create or replace PACKAGE             CCN_COMMON_TOOLS AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -207,5 +207,17 @@ Modified On :
     IN_EMP_NO   IN     MANAGER_EMPLOYEE.GEMS_ID_NUMBER%TYPE,
     IN_MGR_FLAG IN     VARCHAR2,
     OUT_VALID      OUT VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION GET_TRANSLATED_CODE_DETAIL_VAL(
+/**********************************************************
+This procedure will return all the translated code detail value
+based on the input header name and detail value from
+TRANSLATION_DETAIL table
+
+Created : 12/03/2015 jxc517 CCN Project....
+Modified: 
+**********************************************************/
+IN_CODE_HEADER_NAME      IN     VARCHAR2,
+IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2;
 
 END CCN_COMMON_TOOLS;
