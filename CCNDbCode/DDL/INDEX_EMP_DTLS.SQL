@@ -1,0 +1,6 @@
+/*
+Created: 12/15/2015 AXK326 CCN Project Team....
+         Added Index EMP_DTL_TONBR_INDX to improve performance.
+*/
+
+CREATE INDEX EMP_DTL_TONBR_INDX ON EMPLOYEE_DETAILS (TO_NUMBER(EMPLOYEE_NUMBER));
