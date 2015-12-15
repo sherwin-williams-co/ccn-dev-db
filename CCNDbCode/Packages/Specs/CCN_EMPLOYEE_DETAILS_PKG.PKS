@@ -115,7 +115,7 @@ FUNCTION GET_EMPLOYEE_NAME(
 /*******************************************************************************
     This function will return the employee name for given employee number as input
 
-Created : 12/08/2015 AXK326 CCN Project Team...
+Created : 12/15/2015 AXK326 CCN Project Team...
 Modified:
 *******************************************************************************/
 IN_EMP_NBR  IN   VARCHAR2
