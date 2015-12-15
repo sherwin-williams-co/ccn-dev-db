@@ -15,6 +15,6 @@ Insert into ROLE_DETAILS values ('SDEUS','Store Drafts User - Enquiry Window Sel
 </USER_RULES_DESCRIPTION>');
 
 --Adding users ama317 for storedraft(SDEUS)
-insert into security_matrix values('ama317', 'mxs363', 'SDEUS');
+insert into security_matrix values('ama317', 'ama317', 'SDEUS');
 
 COMMIT;
