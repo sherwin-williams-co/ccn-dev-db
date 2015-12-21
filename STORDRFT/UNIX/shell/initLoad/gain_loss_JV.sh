@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #################################################################
 # Script name   : gain_loss_JV.sh
 #
@@ -8,8 +8,11 @@
 # Modified : 01/14/2015 sxt410 Added get_param.sh to spool closing date.
 #            01/16/2015 axk326.....
 #            Added code to invoke DRAFT.TRG file to be placed on the remote server when the GainLoass_JV process is completed
-#          : 04/27/2015 axk326 CCN Project Team.....
-#            Substituted hard coded date value with the date value from date_param.config file
+#          : 04/23/2015 axk326 CCN Project Team.....
+#            Added call for date_host.sh file to pick up date_param.config file and to pull out the run date 
+#            Added call for get_dateparam.sh to spool the dates to date_param.config file
+#          : 11/18/2015 axk326 CCN Project Team.....
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -30,11 +33,44 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <
 set heading off;
 set serveroutput on;
 set verify off;
-
-exec GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$DATE','MM/DD/YYYY'));
-
-exit;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+GAINLOSS_JV_PKG.CREATE_GAINLOSS_JV(to_date('$DATE','MM/DD/YYYY'));
+EXCEPTION
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode;
 END
+if [ 0 -ne "$?" ]; then
+    echo "GAIN_LOSS_JV process blew up." 
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+set heading off;
+set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+MAIL_PKG.send_mail('GAIN_LOSS_JV_ERROR');
+ Exception 
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
+END
+if [ 0 -ne "$?" ]; then
+echo "GAIN_LOSS_JV_ERROR - send_mail process blew up." 
+else
+echo "Successfully sent mail for the errors"
+fi
+exit 1
+fi
 
 TIME=`date +"%H:%M:%S"`
 echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
@@ -62,7 +98,8 @@ TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
-./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
+echo -e "FTP SCRIPT CALL REPLACE"
+#./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
 echo -e "\nEND ftp_draft_trg.sh : Processing finished at $TIME"
@@ -75,7 +112,8 @@ TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE"
-./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
+echo -e "ARCHIVE SCRIPT CALL REPLACE"
+#./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
 echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"

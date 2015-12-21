@@ -1,5 +1,5 @@
-#!/bin/sh
-#################################################################
+#!/bin/sh -e
+################################################################################################################################
 # Script name   : ccn_sd_daily_paids_load.sh
 #
 # Description   : This shell program will initiate the script that
@@ -10,18 +10,20 @@
 #            Added concatenation and archiving process before run
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
-#################################################################
+#          : 11/18/2015 axk326 CCN Project Team.....
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
 proc="ccn_sd_daily_paids_load"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE}
+DATE=${DAILY_LOAD_RUNDATE} 
 echo "Processing Started for $proc at $TIME on $DATE"
 
-##############################################################################
+########################################################################################
 # Run the shell script to concatenate the daily files and archiving the individual files
-##############################################################################
+########################################################################################
 ./dailyLoad_CAT_Archieve_Paids.sh
 
 ##############################################################################
@@ -34,9 +36,9 @@ echo "Processing Started for $proc at $TIME on $DATE"
 ##############################################################################
 ./Archive_dailyLoad_Paid_Files.sh
 
-############################################################################
+##############################################################################
 #                           ERROR STATUS CHECK 
-############################################################################
+##############################################################################
 TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0

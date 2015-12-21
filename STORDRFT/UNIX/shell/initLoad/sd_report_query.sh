@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 ########################################################################################################################
 # Script name   : sd_report_query.sh
 #
@@ -8,6 +8,8 @@
 # Modified : 04/23/2015 axk326 CCN Project Team.....
 #            Added call for date_host.sh file to pick up date_param.config file and to pull out the run date 
 #            Added call for get_dateparam.sh to spool the dates to date_param.config file
+#          : 11/18/2015 axk326 CCN Project Team.....
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
 ########################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -33,11 +35,44 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <
 set heading off;
 set serveroutput on;
 set verify off;
-
-exec SD_REPORT_PKG.sd_report_query(to_date('$DATE','MM/DD/YYYY'));
-
-exit;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+SD_REPORT_PKG.sd_report_query(to_date('$DATE','MM/DD/YYYY'));
+Exception 
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 END
+if [ 0 -ne "$?" ]; then
+    echo "SD_REPORT_QUERY process blew up." 
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+set heading off;
+set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+MAIL_PKG.send_mail('SD_REPORT_QUERY_ERROR');
+ Exception 
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
+END
+if [ 0 -ne "$?" ]; then
+echo "SD_REPORT_QUERY_ERROR - send_mail process blew up." 
+else
+echo "Successfully sent mail for the errors"
+fi
+exit 1
+fi
 
 TIME=`date +"%H:%M:%S"`
 echo "END SD Report Query : Processing finished at ${TIME}"  

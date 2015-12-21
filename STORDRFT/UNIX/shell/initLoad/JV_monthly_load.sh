@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 ################################################################################################################
 # Script Name : JV_monthly_load.sh
 #
@@ -14,6 +14,8 @@
 #			  : sxt410 02/04/2015 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
 #			  : sxt410 03/04/2015 Changed the calling package SD_BENEFIT_JV to SD_PAIDS_JV_PKG
 #             : axk326 04/27/2015 Substituted hard coded date value with the date value from date_param.config file
+#             : 11/18/2015 axk326 CCN Project Team.....
+#               Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
 ################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
 . /app/stordrft/host.sh
@@ -29,11 +31,46 @@ echo "Processing Started for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
-
-execute SD_PAIDS_JV_PKG.CREATE_JV(to_date('$DATE','MM/DD/YYYY'));
-
-exit;
+set serveroutput on;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+SD_PAIDS_JV_PKG.CREATE_JV(to_date('$DATE','MM/DD/YYYY'));
+EXCEPTION
+ when others then
+ :exitCode := 2;
+END;
+/
+exit :exitCode
 END
+
+if [ 0 -ne "$?" ]; then
+    echo "JV_MONTHLY_LOAD process blew up." 
+sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+set heading off;
+set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+MAIL_PKG.send_mail('JV_MONTHLY_LOAD_ERROR');
+ Exception 
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
+END
+if [ 0 -ne "$?" ]; then
+echo "JV_MONTHLY_LOAD_ERROR - send_mail process blew up." 
+else
+echo "Successfully sent mail for the errors"
+fi
+exit 1
+fi
 
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -57,7 +94,7 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 TRG_FTP="ftp_draft_trg"
 
 echo -e "\nSTART FTPing DRAFT.TRG file: Processing Started at $TIME on $DATE "
-
+echo -e "\nFTP process call "
 ./ftp_paid_draft_trg.sh >> $LOGDIR/$TRG_FTP"_"$TimeStamp.log
 
 echo -e "END FTPing DRAFT.TRG file: Processing finished at $TIME on $DATE\n"
@@ -71,7 +108,7 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 ARCHIVE_TRG="arc_draft_trg_file"
 
 echo "START Archiving DRAFT.TRG file: Processing Started at $TIME on $DATE"
-
+echo -e "\nArchive process call "
 ./archive_paid_draft_trg_file.sh >> $LOGDIR/$ARCHIVE_TRG"_"$TimeStamp.log
 
 echo -e "END Archiving DRAFT.TRG file: Processing finished at $TIME on $DATE \n"

@@ -1,5 +1,5 @@
-#!/bin/sh
-#################################################################
+#!/bin/sh -e
+##############################################################################################################################
 # Script name   : ccn_sd_daily_load.sh
 #
 # Description   : This shell program will initiate the script that 
@@ -11,7 +11,9 @@
 #			 Commented daily_paids_load.sh and triggered it out in individual cron 
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
-#################################################################
+#          : 11/18/2015 axk326 CCN Project Team.....
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
