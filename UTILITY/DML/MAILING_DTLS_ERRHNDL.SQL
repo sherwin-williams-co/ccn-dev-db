@@ -1,7 +1,18 @@
 /***********************************************************************************
  Created: 12/21/2015 AXK326 CCN Project Team....
-          Mailing details for all the store drafts scripts when error is raised
+          Mailing Group and Mailing details for all the store drafts scripts when 
+		  error is raised
 ***********************************************************************************/
+--------------------------------------------------------
+--  MAILING_GROUP  
+--------------------------------------------------------
+REM INSERTING into MAILING_GROUP
+SET DEFINE OFF;
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('25','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;durga.sowjanya.vanaparti@sherwin.com');
+
+--------------------------------------------------------
+--  MAILING_DETAILS 
+--------------------------------------------------------
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_FILE_ERROR','25','Failed Job in CCN Store Drafts for initiating the monthly 1099 process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the monthly 1099 process ','Thanks,
