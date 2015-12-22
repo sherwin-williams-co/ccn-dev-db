@@ -11,6 +11,8 @@ Modified : 08/18/2015 nxk927 CCN Project...
      	    is like swpxxxx@sherwin.com  for other stores swxxxx@sherwin.com
          : 11/13/2015 dxv848 CCN Project...
            Added TAXWare information and FIPS_codes.
+         : 1222/2015 jxc517 CCN Project...
+           Added new fields to pass active TYPE_CODE and description
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -89,6 +91,8 @@ Modified : 08/18/2015 nxk927 CCN Project...
         ,(SUBSTR(ADDRESS.FIPS_CODE,1,2)) AS FIPS_ST
         ,(SUBSTR(ADDRESS.FIPS_CODE,3,3)) AS FIPS_COUNTY
         ,(SUBSTR(ADDRESS.FIPS_CODE,6,5)) AS FIPS_CITY
+        ,TYPE.TYPE_CODE
+        ,(SELECT CODE_DETAIL_DESCRIPTION FROM CODE_DETAIL WHERE CODE_HEADER_NAME = 'TYPE_CODE' AND CODE_DETAIL_VALUE = TYPE.TYPE_CODE) TYPE_CODE_DESCRIPTION
     FROM COST_CENTER C,
     ---  FIPS_CODE only avaliable in address_USA, so in other tables(ADDRESS_CAN,ADDRESS_MEX,ADDRESS_OTHER) added NULL as FIPS_CODE for the UNION ALL.
         (SELECT ADDRESS_LINE_1, ADDRESS_LINE_2, ADDRESS_LINE_3, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4, COUNTY, COST_CENTER_CODE, COUNTRY_CODE,FIPS_CODE  FROM ADDRESS_USA WHERE ADDRESS_TYPE = 'M' AND EXPIRATION_DATE IS NULL
@@ -102,7 +106,7 @@ Modified : 08/18/2015 nxk927 CCN Project...
         (SELECT 'A' ACTIVE_CD, COST_CENTER_CODE, POLLING_STATUS_CODE
            FROM POLLING
           WHERE  POLLING_STATUS_CODE = 'P'
-            AND CURRENT_FLAG ='Y')PO,
+            AND CURRENT_FLAG ='Y') PO,
         (WITH T AS (SELECT COST_CENTER_CODE,(PHONE_AREA_CODE||PHONE_NUMBER) VAL,PHONE_NUMBER_TYPE
                       FROM PHONE P)
               SELECT *
@@ -121,6 +125,9 @@ Modified : 08/18/2015 nxk927 CCN Project...
                                     AND UPPER(E2.JOB_TITLE) ='MGR'
                                     AND E2.EMP_PAYROLL_STATUS = 'Active')) E
         ,TAXWARE TAX
+        ,(SELECT *
+            FROM TYPE
+           WHERE EXPIRATION_DATE IS NULL) TYPE
     WHERE C.CATEGORY IN ('S', 'T')
       AND C.COST_CENTER_CODE = ADDRESS.COST_CENTER_CODE(+)
       AND C.COST_CENTER_CODE = H.COST_CENTER_CODE(+)
@@ -128,4 +135,5 @@ Modified : 08/18/2015 nxk927 CCN Project...
       AND C.COST_CENTER_CODE = P.COST_CENTER_CODE(+)
       AND C.COST_CENTER_CODE = E.COST_CENTER_CODE(+)
       AND C.COST_CENTER_CODE = TAX.COST_CENTER_CODE(+)
+      AND C.COST_CENTER_CODE = TYPE.COST_CENTER_CODE(+)
       ORDER BY C.COST_CENTER_CODE;
