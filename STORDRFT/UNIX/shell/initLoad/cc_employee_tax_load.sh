@@ -42,7 +42,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-    EXECUTE IMMEDIATE 'DROP TABLE CUSTOMER_TAXID_VW_COSTCNTR1';
+    EXECUTE IMMEDIATE 'DROP TABLE CUSTOMER_TAXID_VW_COSTCNTR';
     EXECUTE IMMEDIATE 'CREATE TABLE CUSTOMER_TAXID_VW_COSTCNTR AS SELECT * FROM CUSTOMER_TAXID_VW';
     COMMIT;
     EXECUTE IMMEDIATE 'GRANT SELECT ON COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR TO STORDRFT';
@@ -53,31 +53,15 @@ EXCEPTION
  /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
      echo "cc_employee_tax_load process blew up."
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-  MAIL_PKG.send_mail('CC_EMPLOYEE_TAX_LOAD_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "CC_EMPLOYEE_TAX_LOAD_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+     cd $HOME/dailyLoad
+	 sh send_err_status_email.sh CC_EMPLOYEE_TAX_LOAD_ERROR	
+     echo "Successfully sent mail for the errors"
 exit 1
-fi	 
+fi	
+ 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set serveroutput on;
@@ -87,7 +71,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-EXECUTE IMMEDIATE 'TRUNCATE TABLE CUSTOMER_TAXID_VW1';
+EXECUTE IMMEDIATE 'TRUNCATE TABLE CUSTOMER_TAXID_VW';
 INSERT INTO CUSTOMER_TAXID_VW 
     SELECT CUSTNUM,
            NVL(SSN,TAXID),
@@ -103,29 +87,12 @@ EXCEPTION
  /
  exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
     echo "CUSTOMER_TAXID_VW Insert process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-  MAIL_PKG.send_mail('CUSTOMER_TAXID_VW_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "CUSTOMER_TAXID_VW_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh CUSTOMER_TAXID_VW_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi
 

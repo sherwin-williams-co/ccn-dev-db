@@ -40,29 +40,12 @@ Exception
  /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
     echo "DAILY_DRAFTS_LOAD_ERROR process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('DAILY_DRAFTS_LOAD_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "DAILY_DRAFTS_LOAD_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi
 
@@ -81,9 +64,6 @@ MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
  END;
  /
 exit :exitCode
-END
-
-exit;
 END
 
 ############################################################################

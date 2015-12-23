@@ -1,15 +1,15 @@
 #!/bin/sh -e
-#################################################################
+##################################################################################################################################
 # Script name   : ccn_hierarchy_info.sh
 #
-# Description   : Tshi script will invoke SD_REPORT_PKG.CCN_HIERARCHY_INFO
+# Description   : This script will invoke SD_REPORT_PKG.CCN_HIERARCHY_INFO
 #
-# Created  : 10/22/2014 jxc517 CCN Project Team.....
-# Modified : 04/28/2015 axk326 CCN Project Team.....
-#            Added parameter to pick up the date from the config file 
-#          : 11/18/2015 axk326 CCN Project Team.....
-#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
-#################################################################
+# Created       : 10/22/2014 jxc517 CCN Project Team.....
+# Modified      : 04/28/2015 axk326 CCN Project Team.....
+#                 Added parameter to pick up the date from the config file 
+#               : 11/18/2015 axk326 CCN Project Team.....
+#                 Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+#################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
@@ -42,27 +42,9 @@ END
 
 if [ 0 -ne "$?" ]; then
     echo "CCN_HIERARCHY_INFO_LOAD process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('CCN_HIERARCHY_INFO_LOAD_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "CCN_HIERARCHY_INFO_LOAD_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi
 

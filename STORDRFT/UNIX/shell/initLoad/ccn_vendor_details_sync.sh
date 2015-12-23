@@ -48,33 +48,14 @@ Exception
  /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
     echo "ccn_vendor_details_sync process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
- MAIL_PKG.send_mail('VENDOR_DETAILS_SYNC_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "VENDOR_DETAILS_SYNC_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh VENDOR_DETAILS_SYNC_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi	
-exit;
-END
 
 ############################################################################
 #                           ERROR STATUS CHECK 

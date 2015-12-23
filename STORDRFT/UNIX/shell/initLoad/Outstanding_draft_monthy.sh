@@ -28,7 +28,7 @@ WHENEVER SQLERROR EXIT 1
 var exitCode number;
 BEGIN
 :exitCode := 0;
-SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC1(to_date('$DATE','MM/DD/YYYY'), 'C101');
+SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C101');
 SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C400');
 EXCEPTION
  when others then
@@ -37,29 +37,12 @@ END;
 /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
      echo "OUTSTANDING DRAFT MONTHLY Process blew up."
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('OUTSTANDING_DRAFT_ERROR');	 
- EXCEPTION
- when others then
- :exitCode := 2;
-END;
-/
-exit :exitCode 
-END
-if [0 -ne "$?" ]; then
-echo "OUTSTANDING_DRAFT_ERROR - send mail process blew up."
-else
-echo "Successfully sent mail for the errors"
-fi
+     cd $HOME/dailyLoad
+	 sh send_err_status_email.sh OUTSTANDING_DRAFT_ERROR	
+     echo "Successfully sent mail for the errors"
 exit 1
 fi 
 

@@ -40,25 +40,15 @@ SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP();
  /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-else
-TimeStamp=`date '+%Y%m%d%H%M%S'`
+    echo "daily_paids_load process blew up."
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh SD_DAILY_PAIDS_LOAD_ERROR	
+    echo "Successfully sent mail for the errors"
+exit 1
+fi
+
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
@@ -75,10 +65,7 @@ MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_END');
  /
 exit :exitCode
 END
-echo "Successfully sent mail for the errors"
-fi
-exit 1
-fi
+
 
 ############################################################################
 #                           ERROR STATUS CHECK 

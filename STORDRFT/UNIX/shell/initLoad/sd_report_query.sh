@@ -48,29 +48,12 @@ Exception
  /
 exit :exitCode
 END
+
 if [ 0 -ne "$?" ]; then
     echo "SD_REPORT_QUERY process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('SD_REPORT_QUERY_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "SD_REPORT_QUERY_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh SD_REPORT_QUERY_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi
 

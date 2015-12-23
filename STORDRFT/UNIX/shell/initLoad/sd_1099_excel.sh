@@ -18,9 +18,9 @@ LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=${QTLY_1099_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc at $TIME on $DATE"
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set serveroutput on;
 set verify off;
@@ -40,27 +40,9 @@ END
 
 if [ 0 -ne "$?" ]; then
     echo "SD_1099_EXCEL_REPORT process blew up." 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
-set heading off;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-MAIL_PKG.send_mail('SD_1099_EXCEL_REPORT_ERROR');
- Exception 
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
-if [ 0 -ne "$?" ]; then
-echo "SD_1099_EXCEL_REPORT_ERROR - send_mail process blew up." 
-else
-echo "Successfully sent mail for the errors"
-fi
+    cd $HOME/dailyLoad
+	sh send_err_status_email.sh SD_1099_EXCEL_REPORT_ERROR	
+    echo "Successfully sent mail for the errors"
 exit 1
 fi
 ############################################################################
