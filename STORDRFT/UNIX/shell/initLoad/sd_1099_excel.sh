@@ -46,7 +46,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "SD_1099_EXCEL_REPORT process blew up." 
      cd $HOME/dailyLoad
-	 sh send_err_status_email.sh SD_1099_EXCEL_REPORT_ERROR	
+	 ./send_err_status_email.sh SD_1099_EXCEL_REPORT_ERROR	
      echo "Successfully sent mail for the errors"
 	 echo "processing FAILED at $TIME on $DATE"
      exit 1;

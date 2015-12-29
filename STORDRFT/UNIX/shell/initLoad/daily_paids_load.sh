@@ -32,7 +32,7 @@ BEGIN
 :exitCode := 0;
 
 MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_START');
-SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP();
+SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP1();
  Exception 
  when others then
  :exitCode := 2;

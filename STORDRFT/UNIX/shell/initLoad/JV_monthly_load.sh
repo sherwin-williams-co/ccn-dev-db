@@ -54,7 +54,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "JV_MONTHLY_LOAD process blew up." 
      cd $HOME/dailyLoad
-	 sh send_err_status_email.sh JV_MONTHLY_LOAD_ERROR	
+	 ./send_err_status_email.sh JV_MONTHLY_LOAD_ERROR	
      echo "Successfully sent mail for the errors"
 	 echo "processing FAILED at $TIME on $DATE"
      exit 1;

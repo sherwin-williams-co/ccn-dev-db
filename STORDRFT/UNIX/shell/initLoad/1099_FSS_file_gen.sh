@@ -45,7 +45,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "1099_FSS_monthly_file_gen process blew up."
 	 cd $HOME/dailyLoad
-	 sh send_err_status_email.sh BUILD_1099_FILE_FOR_FSS_ERROR	
+	 ./send_err_status_email.sh BUILD_1099_FILE_FOR_FSS_ERROR	
      echo "Successfully sent mail for the errors"	     
 	 echo "processing FAILED at $TIME on $DATE"
      exit 1;

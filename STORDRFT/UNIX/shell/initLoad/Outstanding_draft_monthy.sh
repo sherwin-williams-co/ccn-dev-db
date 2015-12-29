@@ -46,7 +46,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "OUTSTANDING DRAFT MONTHLY Process blew up."
      cd $HOME/dailyLoad
-	 sh send_err_status_email.sh OUTSTANDING_DRAFT_ERROR	
+	 ./send_err_status_email.sh OUTSTANDING_DRAFT_ERROR	
      echo "Successfully sent mail for the errors"
 	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
