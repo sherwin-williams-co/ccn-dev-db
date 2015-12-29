@@ -40,22 +40,17 @@ END;
 exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "BUILD_1099_MID_MNTLY_FILE process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh BUILD_1099_MID_MNTLY_FILE_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
-fi
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "BUILD_1099_MID_MNTLY_FILE process blew up." 
+     cd $HOME/dailyLoad
+	 sh send_err_status_email.sh BUILD_1099_MID_MNTLY_FILE_ERROR	
+     echo "Successfully sent mail for the errors"
+	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
 

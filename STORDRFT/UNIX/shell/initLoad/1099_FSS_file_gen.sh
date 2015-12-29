@@ -28,7 +28,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','MM/DD/YYYY'));
+SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS1(to_date('$DATE','MM/DD/YYYY'));
 EXCEPTION
  when others then
  :exitCode := 2;
@@ -37,24 +37,20 @@ END;
 exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "BUILD_1099_FILE_FOR_FSS process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh BUILD_1099_FILE_FOR_FSS_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
-fi
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "1099_FSS_monthly_file_gen process blew up."
+	 cd $HOME/dailyLoad
+	 sh send_err_status_email.sh BUILD_1099_FILE_FOR_FSS_ERROR	
+     echo "Successfully sent mail for the errors"	     
+	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
+
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 exit 0
 ############################################################################

@@ -40,24 +40,17 @@ EXCEPTION
 exit :exitCode;
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "CCN_HIERARCHY_INFO_LOAD process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
-fi
-
-TIME=`date +"%H:%M:%S"`
-echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "CCN_HIERARCHY_INFO_LOAD process blew up." 
+     cd $HOME/dailyLoad
+	 ./send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR	
+     echo "Successfully sent mail for the errors"
+	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
 

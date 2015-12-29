@@ -11,12 +11,10 @@
 . /app/stordrft/host.sh
 
 err_name=$1
-LOGDIR=$HOME/dailyLoad/logs
 proc_name=send_err_status_email
 TIME=`date +"%H:%M:%S"`
 DATE=${DAILY_LOAD_RUNDATE} 
-TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+echo "Processing Started for $proc_name - $err_name at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
@@ -37,15 +35,15 @@ END
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
+TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name - $err_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name - $err_name at ${TIME} on ${DATE}"  
 
 exit 0
 ############################################################################

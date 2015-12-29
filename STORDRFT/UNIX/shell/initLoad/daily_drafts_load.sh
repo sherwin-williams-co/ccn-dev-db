@@ -41,15 +41,21 @@ Exception
 exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "DAILY_DRAFTS_LOAD_ERROR process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "DAILY_DRAFTS_LOAD_ERROR process blew up." 
+     cd $HOME/dailyLoad
+	 ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR	
+     echo "Successfully sent mail for the errors"
+	 echo "processing FAILED at $TIME on $DATE"
+     exit 1;
 fi
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 var exitCode number;
@@ -65,17 +71,6 @@ MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
  /
 exit :exitCode
 END
-
-############################################################################
-#                           ERROR STATUS CHECK 
-############################################################################
-TIME=`date +"%H:%M:%S"`
-status=$?
-if test $status -ne 0
-then
-    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-exit 1;
-fi
 
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 

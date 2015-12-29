@@ -54,13 +54,21 @@ EXCEPTION
 exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
      echo "cc_employee_tax_load process blew up."
      cd $HOME/dailyLoad
-	 sh send_err_status_email.sh CC_EMPLOYEE_TAX_LOAD_ERROR	
+	 ./send_err_status_email.sh CC_EMPLOYEE_TAX_LOAD_ERROR	
      echo "Successfully sent mail for the errors"
-exit 1
-fi	
+	 echo "processing FAILED at $TIME on $DATE"
+     exit 1;
+fi
+
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
  
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
@@ -88,23 +96,18 @@ EXCEPTION
  exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "CUSTOMER_TAXID_VW Insert process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh CUSTOMER_TAXID_VW_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
-fi
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-     exit 1;
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+    echo "CUSTOMER_TAXID_VW Insert process blew up." 
+    cd $HOME/dailyLoad
+	./send_err_status_email.sh CUSTOMER_TAXID_VW_ERROR	
+    echo "Successfully sent mail for the errors"
+	echo "processing FAILED at $TIME on $DATE"
+    exit 1;
 fi
 
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  

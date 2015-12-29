@@ -30,7 +30,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-UPDATE storedrft_param 
+UPDATE storedrft_param1 
    SET DAILY_LOAD_RUNDATE = TRUNC(SYSDATE),
        QTLY_1099_RUNDATE = TRUNC(SYSDATE,'Q'),
 	   MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
@@ -48,27 +48,20 @@ Exception
  /
 exit :exitCode
 END
-if [ 0 -ne "$?" ]; then
-    echo "update_storedrft_param process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR	
-    echo "Successfully sent mail for the errors"
-	cd $HOME
-    crontab -r
-fi
-exit 1
 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for Get Parameter at $TIME on $DATE"
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "update_storedrft_param process blew up." 
+	 cd $HOME/dailyLoad
+	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
+     echo "Successfully sent mail for the errors"	
+	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
-
 echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"
 ############################################################################
 

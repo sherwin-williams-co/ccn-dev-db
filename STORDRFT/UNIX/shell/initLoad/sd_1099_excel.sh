@@ -38,21 +38,17 @@ END;
 exit :exitCode
 END
 
-if [ 0 -ne "$?" ]; then
-    echo "SD_1099_EXCEL_REPORT process blew up." 
-    cd $HOME/dailyLoad
-	sh send_err_status_email.sh SD_1099_EXCEL_REPORT_ERROR	
-    echo "Successfully sent mail for the errors"
-exit 1
-fi
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "SD_1099_EXCEL_REPORT process blew up." 
+     cd $HOME/dailyLoad
+	 sh send_err_status_email.sh SD_1099_EXCEL_REPORT_ERROR	
+     echo "Successfully sent mail for the errors"
+	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
 
