@@ -7,7 +7,7 @@
 #
 # Created  : 06/18/2015 nxk927 CCN Project Team.....
 # Modified : 12/30/2015 nxk927 CCN Project Team.....
-#            changed the parameter to take it from the date_param file
+#            changed the parameter to take it from the STOREDRFT_PARAM table
 #            
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
