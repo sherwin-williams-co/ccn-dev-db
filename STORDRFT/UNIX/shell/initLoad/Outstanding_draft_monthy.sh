@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ##############################################################################################################
 # Script name   : Outstanding_draft_monthly.sh
 #
@@ -6,8 +6,9 @@
 #                 and depending on the division code it will be mailed to the right person
 #
 # Created  : 06/18/2015 nxk927 CCN Project Team.....
-# Modified : 09/23/2015 axk326 CCN Project Team.....
-#            Substituted hard coded date value with the date value from date_param.config file           
+# Modified : 12/30/2015 nxk927 CCN Project Team.....
+#            changed the parameter to take it from the date_param file
+#            
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -15,7 +16,7 @@
 proc_name="Outstanding_draft_monthly"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${PL_GAIN_RUNDATE}
+DATE=$PL_GAIN_RUNDATE
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
@@ -23,32 +24,20 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <
 set heading off;
 set serveroutput on;
 set verify off;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-var exitCode number;
-BEGIN
-:exitCode := 0;
-SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C101');
-SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C400');
-EXCEPTION
- when others then
- :exitCode := 2;
-END;
-/
-exit :exitCode
+
+exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C101');
+exec SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C400');
+exit;
 END
 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-status=$?
 TIME=`date +"%H:%M:%S"`
-if [ $status -ne 0 ]; then
-     echo "OUTSTANDING DRAFT MONTHLY Process blew up."
-     cd $HOME/dailyLoad
-	 ./send_err_status_email.sh OUTSTANDING_DRAFT_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
+status=$?
+if test $status -ne 0
+then
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
