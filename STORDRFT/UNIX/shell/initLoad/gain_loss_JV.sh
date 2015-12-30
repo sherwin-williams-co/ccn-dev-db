@@ -56,11 +56,8 @@ echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "GAIN_LOSS_JV process blew up." 
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh GAIN_LOSS_JV_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
 
@@ -77,7 +74,7 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
 echo -e "FTP SCRIPT CALL REPLACE"
-#./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
+./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
 
 TIME=`date +"%H:%M:%S"`
 echo -e "\nEND ftp_draft_trg.sh : Processing finished at $TIME"
@@ -101,8 +98,7 @@ echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 ############################################################################
 TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
      exit 1;
 fi

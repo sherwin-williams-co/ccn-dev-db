@@ -47,11 +47,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "BUILD_1099_FILE process blew up." 
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh BUILD_1099_FILE_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
+	 ./send_err_status_email.sh BUILD_1099_FILE_ERROR
      exit 1;
 fi
 

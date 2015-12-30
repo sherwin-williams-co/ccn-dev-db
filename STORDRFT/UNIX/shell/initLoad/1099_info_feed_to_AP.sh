@@ -1,6 +1,6 @@
 #!/bin/sh -e
 ##############################################################################################################
-# Script name   : 1099_consolidated_report.sh
+# Script name   : 1099_info_feed_to_AP.sh
 #
 # Description   : This shell program will initiate the monthly 1099 information feed to AP
 #
@@ -16,8 +16,7 @@
 proc="1099_consolidated_report"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${MNTLY_1099_RUNDATE} 
-DATE1=${JV_MNTLY_RUNDATE}
+DATE=${JV_MNTLY_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"
@@ -31,7 +30,7 @@ WHENEVER SQLERROR EXIT 1
 var exitCode number;
 BEGIN
 :exitCode := 0;
-SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'), to_date('$DATE1','MM/DD/YYYY'));
+SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'), to_date('$DATE','MM/DD/YYYY'));
 EXCEPTION
  when others then
  :exitCode := 2;
@@ -46,11 +45,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "BUILD_1099_CONSOLIDATED_REPORT process blew up." 
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh BUILD_1099_CONSOLIDATED_RPT_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
+	 ./send_err_status_email.sh BUILD_1099_CONSOLIDATED_RPT_ERROR
      exit 1;
 fi
 

@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh -e
 ############################################################################################################################
 # Script name   : EXEC_PROC_1PARAM.sh
 #
@@ -43,11 +43,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo $proc_name " process blew up."
      cd $HOME/dailyLoad
-     ./send_err_status_email.sh EXEC_PROC1_PARAM_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
+     ./send_err_status_email.sh EXEC_PROC1_PARAM_ERROR
      exit 1;
 fi
 

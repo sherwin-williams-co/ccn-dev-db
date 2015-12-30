@@ -55,11 +55,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "update_storedrft_param process blew up." 
 	 cd $HOME/dailyLoad
 	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
-     echo "Successfully sent mail for the errors"	
-	 echo "processing FAILED at $TIME on $DATE"
      exit 1;
 fi
 echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"

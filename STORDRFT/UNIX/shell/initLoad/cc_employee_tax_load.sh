@@ -20,7 +20,6 @@ proc_name="cc_employee_tax_load"
 LOGDIR=$HOME/dailyLoad/logs
 FILE=cc_employee_tax_load_ddl.sql
 TIME=`date +"%H:%M:%S"`
-CURRENT_TIME=`date +"%H%M%S"`
 DATE=${DAILY_LOAD_RUNDATE} 
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
@@ -60,11 +59,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "cc_employee_tax_load process blew up."
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh CC_EMPLOYEE_TAX_LOAD_ERROR	
-     echo "Successfully sent mail for the errors"
-	 echo "processing FAILED at $TIME on $DATE"
+	 ./send_err_status_email.sh CC_EMPLOYEE_TAX_LOAD_ERROR
      exit 1;
 fi
 
@@ -102,11 +98,8 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-    echo "CUSTOMER_TAXID_VW Insert process blew up." 
     cd $HOME/dailyLoad
-	./send_err_status_email.sh CUSTOMER_TAXID_VW_ERROR	
-    echo "Successfully sent mail for the errors"
-	echo "processing FAILED at $TIME on $DATE"
+	./send_err_status_email.sh CUSTOMER_TAXID_VW_ERROR
     exit 1;
 fi
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #################################################################################################################################
 # Script name   : send_err_status_email.sh
 #
@@ -37,8 +37,7 @@ END
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc_name - $err_name at ${TIME} on ${DATE}"
      exit 1;
 fi
