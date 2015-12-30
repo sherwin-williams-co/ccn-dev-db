@@ -1,89 +1,35 @@
 /***********************************************************************************
  Created: 12/21/2015 AXK326 CCN Project Team....
           Mailing Group and Mailing details for all the store drafts scripts when 
-		  error is raised
+		  error is raised.
 ***********************************************************************************/
---------------------------------------------------------
---  MAILING_GROUP  
---------------------------------------------------------
+SET SCAN OFF;
 REM INSERTING into MAILING_GROUP
 SET DEFINE OFF;
-Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('25','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;durga.sowjanya.vanaparti@sherwin.com');
 
---------------------------------------------------------
---  MAILING_DETAILS 
---------------------------------------------------------
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('25','Nirajan.Karki@sherwin.com;Shahla.Husain@sherwin.com;Jaydeep.Cheruku@sherwin.com;Keith.D.Parker@sherwin.com;Abhitej.Kasula@sherwin.com;durga.sowjanya.vanaparti@sherwin.com');
+COMMIT;
+
+
+SET SCAN OFF;
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_FILE_ERROR','25','Failed Job in CCN Store Drafts for initiating the monthly 1099 process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the monthly 1099 process ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('EXEC_PROC1_PARAM_ERROR','25','Failed Job in CCN Store Drafts Dailys','Keith.D.Parker@sherwin.com','Failed to load dailys','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_MID_MNTLY_FILE_ERROR','25','Failed Job in CCN Store Drafts for initiating the mid monthly 1099 process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the mid monthly 1099 process ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_CONSOLIDATED_RPT_ERROR','25','Failed Job in CCN Store Drafts for creating monthly 1099 information feed to AP Error','Keith.D.Parker@sherwin.com','Failed to Initiate the monthly 1099 information feed to AP process ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_FILE_FOR_FSS_ERROR','25','Failed Job in CCN Store Drafts for creating 1099 FSS process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the 1099 FSS process as and when needed','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('GET_DATEPARAM_ERROR','25','Failed Job in CCN store drafts in updating the date_param.config file','Keith.D.Parker@sherwin.com','Failed to update the date_param.config file','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('VENDOR_DETAILS_SYNC_ERROR','25','Failed Job in CCN Store Drafts Vendor Details Sync','Keith.D.Parker@sherwin.com','Failed to sync vendor details ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('UPD_STRDRFT_PARAM_ERROR','25','Failed Job in CCN store drafts for updating  STORDRFT_PARAM table ','Keith.D.Parker@sherwin.com','Failed to update the stordrft_param table','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_REPORT_QUERY_ERROR','25','Failed Job in CCN Store Drafts script to run the package to load the store_draft_report table','Keith.D.Parker@sherwin.com','Failed to load the store_draft_report table','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CC_EMPLOYEE_TAX_LOAD_ERROR','25','Failed Job in CCN Store Drafts CostCenter Employee Tax Load Error','Keith.D.Parker@sherwin.com','Failed to load costcenter employee tax load information ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CUSTOMER_TAXID_VW_ERROR','25','Failed Job in CCN Store Drafts Customer TAXID VW Error','Keith.D.Parker@sherwin.com','Failed to load customer tax id view for the drafts ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_DAILY_PAIDS_LOAD_ERROR','25','Failed Job in CCN Store Drafts Daily Paids Load Error','Keith.D.Parker@sherwin.com','Failed to load daily paids for the drafts ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('DAILY_DRAFTS_LOAD_ERROR','25','Failed Job in CCN Store Drafts Daily Loads Error','Keith.D.Parker@sherwin.com','Failed to Load all the store drafts tables.','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CCN_HIERARCHY_INFO_LOAD_ERROR','25','Failed Job in CCN Store Drafts CCN Hierarchy Info Load process ','Keith.D.Parker@sherwin.com','Failed to load CCN Hierarchy Info ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('OUTSTANDING_DRAFT_ERROR','25','Failed Job in CCNStore Drafts for Ouotstanding Drafts ','Keith.D.Parker@sherwin.com','Failed to load outstanding drafts ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('JV_MONTHLY_LOAD_ERROR','25','Failed Job in CCN Store Drafts for performing JV Monthly Load Error','Keith.D.Parker@sherwin.com','Failed to Load JV Monthly data ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('GAIN_LOSS_JV_ERROR','25','Failed Job in CCN Store Drafts Gain Loss JV Report Error','Keith.D.Parker@sherwin.com','Failed to create Gain Loss JV Reports','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_1099_EXCEL_REPORT_ERROR','25','Failed Job in CCN Store Drafts for creating 1099 Excel Report Error','Keith.D.Parker@sherwin.com','Failed to create store drafts 1099 excel report ','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_FILE_ERROR','25','Failed Job in CCN Store Drafts for initiating the monthly 1099 process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the monthly 1099 process ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('EXEC_PROC1_PARAM_ERROR','25','Failed Job in CCN Store Drafts Dailys','Keith.D.Parker@sherwin.com','Failed to load dailys','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_MID_MNTLY_FILE_ERROR','25','Failed Job in CCN Store Drafts for initiating the mid monthly 1099 process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the mid monthly 1099 process ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_CONSOLIDATED_RPT_ERROR','25','Failed Job in CCN Store Drafts for creating monthly 1099 information feed to AP Error','Keith.D.Parker@sherwin.com','Failed to Initiate the monthly 1099 information feed to AP process ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('BUILD_1099_FILE_FOR_FSS_ERROR','25','Failed Job in CCN Store Drafts for creating 1099 FSS process Error','Keith.D.Parker@sherwin.com','Failed to Initiate the 1099 FSS process as and when needed','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('GET_DATEPARAM_ERROR','25','Failed Job in CCN store drafts in updating the date_param.config file','Keith.D.Parker@sherwin.com','Failed to update the date_param.config file','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('VENDOR_DETAILS_SYNC_ERROR','25','Failed Job in CCN Store Drafts Vendor Details Sync','Keith.D.Parker@sherwin.com','Failed to sync vendor details ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('UPD_STRDRFT_PARAM_ERROR','25','Failed Job in CCN store drafts for updating  STORDRFT_PARAM table ','Keith.D.Parker@sherwin.com','Failed to update the stordrft_param table','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_REPORT_QUERY_ERROR','25','Failed Job in CCN Store Drafts script to run the package to load the store_draft_report table','Keith.D.Parker@sherwin.com','Failed to load the store_draft_report table','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CC_EMPLOYEE_TAX_LOAD_ERROR','25','Failed Job in CCN Store Drafts CostCenter Employee Tax Load Error','Keith.D.Parker@sherwin.com','Failed to load costcenter employee tax load information ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CUSTOMER_TAXID_VW_ERROR','25','Failed Job in CCN Store Drafts Customer TAXID VW Error','Keith.D.Parker@sherwin.com','Failed to load customer tax id view for the drafts ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_DAILY_PAIDS_LOAD_ERROR','25','Failed Job in CCN Store Drafts Daily Paids Load Error','Keith.D.Parker@sherwin.com','Failed to load daily paids for the drafts ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('DAILY_DRAFTS_LOAD_ERROR','25','Failed Job in CCN Store Drafts Daily Loads Error','Keith.D.Parker@sherwin.com','Failed to Load all the store drafts tables.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('CCN_HIERARCHY_INFO_LOAD_ERROR','25','Failed Job in CCN Store Drafts CCN Hierarchy Info Load process ','Keith.D.Parker@sherwin.com','Failed to load CCN Hierarchy Info ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('OUTSTANDING_DRAFT_ERROR','25','Failed Job in CCNStore Drafts for Ouotstanding Drafts ','Keith.D.Parker@sherwin.com','Failed to load outstanding drafts ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('JV_MONTHLY_LOAD_ERROR','25','Failed Job in CCN Store Drafts for performing JV Monthly Load Error','Keith.D.Parker@sherwin.com','Failed to Load JV Monthly data ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('GAIN_LOSS_JV_ERROR','25','Failed Job in CCN Store Drafts Gain Loss JV Report Error','Keith.D.Parker@sherwin.com','Failed to create Gain Loss JV Reports','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_1099_EXCEL_REPORT_ERROR','25','Failed Job in CCN Store Drafts for creating 1099 Excel Report Error','Keith.D.Parker@sherwin.com','Failed to create store drafts 1099 excel report ','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+COMMIT;
