@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW COST_CENTER_VW
+CREATE OR REPLACE VIEW COST_CENTER_VW 
 AS 
 SELECT
 /*******************************************************************************
@@ -10,11 +10,13 @@ Modified : 07/18/14 Added ACQUISITION_CODE column.
 Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Manager/Asst Manager/Sales rep Name broken out with first, initial, last.
            10/06/2015 nxk927 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
-		 : 10/26/2015 dxv848 Added COLOR_CONSULTANT_TYPE column.
+		     : 10/26/2015 dxv848 Added COLOR_CONSULTANT_TYPE column.
          : 11/25/2015 axk326 CCN Project Team....
            Added columns PCC_STORE, PCL_STORE to determine the color consultant and color lead 
          : 12/07/2015 jxc527 Modified query for performance to use function based index by adding UPPER() around COST_CENTER_CODE 
            in EMPLOYEE_DETAILS table query
+         : 01/06/2015 axk326 CCN Project Team....
+           Removed columns PCC_STORE, PCL_STORE and added the column PCC_PCL_STORE from cost_center table
 ********************************************************************************/ 
 COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -35,14 +37,7 @@ ACQUISITION_CODE,
 PRI_LOGO_GROUP_IND,
 SCD_LOGO_GROUP_IND,
 COLOR_CONSULTANT_TYPE,
-(CASE WHEN extractValue(PCC_PCL_STORE, '/PCC_PCL_STR/PCC/CC') IS NOT NULL THEN
-           extractValue(PCC_PCL_STORE, '/PCC_PCL_STR/PCC/CC')|| '~Personnel Color Consultant' 
-      ELSE NULL
-  END) PCC_STORE,
-(CASE WHEN extractValue(PCC_PCL_STORE, '/PCC_PCL_STR/PCL/CC') IS NOT NULL THEN
-           extractValue(PCC_PCL_STORE, '/PCC_PCL_STR/PCL/CC')|| '~Personnel Color Lead' 
-      ELSE NULL
-  END) PCL_STORE,
+PCC_PCL_STORE,
 COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
