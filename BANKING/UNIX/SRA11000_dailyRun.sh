@@ -80,29 +80,25 @@ else
   mkdir $ARCHIVE_PATH/$FOLDER
 fi
 #################################################################
-#         Archieve files SRA10510_*.TXT, SRA13510_*.TXT, SRA11060_*.TXT
-#         Archieve files SRA10510.TXT, SRA13510.TXT, SRA11060.TXT
+#         Archieve files SRA10510*.TXT, SRA13510*.TXT, SRA11060*.TXT
 #################################################################
 if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510_*.TXT $ARCHIVE_PATH/$FOLDER
-    mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/SRA10510*.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA13510.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA13510.TXT files exist "
-    mv $DATA_FILES_PATH/SRA13510_*.TXT $ARCHIVE_PATH/$FOLDER
-    mv $DATA_FILES_PATH/SRA13510.TXT $ARCHIVE_PATH/$FOLDER	
+    mv $DATA_FILES_PATH/SRA13510*.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/SRA13510.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA11060.TXT files exist "
-    mv $DATA_FILES_PATH/SRA11060_*.TXT $ARCHIVE_PATH/$FOLDER
-    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER	
+    mv $DATA_FILES_PATH/SRA11060*.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
 fi
