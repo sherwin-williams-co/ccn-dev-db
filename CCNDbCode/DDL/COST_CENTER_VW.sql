@@ -10,7 +10,7 @@ Modified : 07/18/14 Added ACQUISITION_CODE column.
 Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Manager/Asst Manager/Sales rep Name broken out with first, initial, last.
            10/06/2015 nxk927 Added PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND columns.
-		     : 10/26/2015 dxv848 Added COLOR_CONSULTANT_TYPE column.
+		 : 10/26/2015 dxv848 Added COLOR_CONSULTANT_TYPE column.
          : 11/25/2015 axk326 CCN Project Team....
            Added columns PCC_STORE, PCL_STORE to determine the color consultant and color lead 
          : 12/07/2015 jxc527 Modified query for performance to use function based index by adding UPPER() around COST_CENTER_CODE 
