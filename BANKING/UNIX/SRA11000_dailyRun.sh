@@ -10,7 +10,11 @@
 # Created  : 08/04/2015 jxc517 CCN Project Team.....
 # Modified : 10/16/2015 jxc517 CCN Project Team.....
 #            added the FTP call before archiving
-#
+#          : 01/06/2016 nxk927 CCN Project Team.....
+#            changed mv to cat command. If we recieve multiple files then 
+#            mv command will fail. cat will concatenate the files to one file and 
+#            the process won't fail. 
+#            Also archiving all the original files in the same folder as well.
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -29,21 +33,21 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510_*.TXT $DATA_FILES_PATH/SRA10510.TXT
+    cat $DATA_FILES_PATH/SRA10510_*.TXT >> $DATA_FILES_PATH/SRA10510.TXT
 else
     echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA13510_*.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA13510_*.TXT files exist "
-    mv $DATA_FILES_PATH/SRA13510_*.TXT $DATA_FILES_PATH/SRA13510.TXT
+    cat $DATA_FILES_PATH/SRA13510_*.TXT >> $DATA_FILES_PATH/SRA13510.TXT
 else
     echo "$DATA_FILES_PATH/SRA13510_*.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA11060_*.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA11060_*.TXT files exist "
-    mv $DATA_FILES_PATH/SRA11060_*.TXT $DATA_FILES_PATH/SRA11060.TXT
+    cat $DATA_FILES_PATH/SRA11060_*.TXT >> $DATA_FILES_PATH/SRA11060.TXT
 else
     echo "$DATA_FILES_PATH/SRA11060_*.TXT files does not exist"
 fi
@@ -76,10 +80,12 @@ else
   mkdir $ARCHIVE_PATH/$FOLDER
 fi
 #################################################################
+#         Archieve files SRA10510_*.TXT, SRA13510_*.TXT, SRA11060_*.TXT
 #         Archieve files SRA10510.TXT, SRA13510.TXT, SRA11060.TXT
 #################################################################
 if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
+    mv $DATA_FILES_PATH/SRA10510_*.TXT $ARCHIVE_PATH/$FOLDER
     mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
@@ -87,14 +93,16 @@ fi
 
 if ls $DATA_FILES_PATH/SRA13510.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA13510.TXT files exist "
-    mv $DATA_FILES_PATH/SRA13510.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/SRA13510_*.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/SRA13510.TXT $ARCHIVE_PATH/$FOLDER	
 else
     echo "$DATA_FILES_PATH/SRA13510.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
     echo "$DATA_FILES_PATH/SRA11060.TXT files exist "
-    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/SRA11060_*.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER	
 else
     echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
 fi
