@@ -4,8 +4,8 @@
 #
 # Description   : This shell program will Archive the DAILY_LOADS.TRG 
 #                 file created when the storedraft param table is updated 
-# Created  : 01/08/2016 AXK326 CCN Project Team.....
-# Modified : 
+# Created       : 01/08/2016 AXK326 CCN Project Team.....
+# Modified      : 
 #######################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
