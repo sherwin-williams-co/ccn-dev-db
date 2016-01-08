@@ -16,10 +16,11 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
+proc="update_storedrft_param"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo -e "\nBegin Get Parameter: Processing Started at $TIME on $DATE"
+echo -e "\nBegin Get Parameter: Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
@@ -60,9 +61,12 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 cd $HOME/dailyLoad
+# Call for script get_dateparam.sh to spool the updated dates into date_param.config file
+./get_dateparam.sh
+# Call to create a trigger file for the file watcher to initiate the process of daily loads 
 echo "" > DAILY_LOADS.TRG
 echo "DAILY_LOADS.TRG is created in dailyLoad folder"
-echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"
+echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
 ############################################################################
 
 exit 0

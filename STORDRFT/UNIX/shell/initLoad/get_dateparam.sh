@@ -11,10 +11,11 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
+proc="get_dateparam"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo -e "\nBegin Get Parameter: Processing Started at $TIME on $DATE"
+echo -e "\nBegin Get Parameter: Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 
@@ -61,5 +62,5 @@ then
      exit 1;
 fi
 
-echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"
+echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
 ############################################################################
