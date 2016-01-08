@@ -30,7 +30,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-UPDATE storedrft_param1 
+UPDATE storedrft_param 
    SET DAILY_LOAD_RUNDATE = TRUNC(SYSDATE),
        QTLY_1099_RUNDATE = TRUNC(SYSDATE,'Q'),
 	   MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
@@ -59,6 +59,9 @@ if [ $status -ne 0 ]; then
 	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
      exit 1;
 fi
+cd $HOME/dailyLoad
+echo "" > DAILY_LOADS.TRG
+echo "DAILY_LOADS.TRG is created in dailyLoad folder"
 echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"
 ############################################################################
 
