@@ -24,7 +24,7 @@ else
   mkdir $ARCHIVE_PATH/"DAILY_LOADS"
 fi
 
-#Archive file for INSPAYMENT.TRG file.
+#Archive file for DAILY_LOADS.TRG file.
 if 
     ls DAILY_LOADS.TRG &> /dev/null; then
     echo " DAILY_LOADS.TRG file exist "
