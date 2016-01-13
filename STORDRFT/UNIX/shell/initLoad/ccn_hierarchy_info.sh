@@ -9,9 +9,25 @@
 #                 Added parameter to pick up the date from the config file 
 #               : 11/18/2015 axk326 CCN Project Team.....
 #                 Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+#               : 01/12/2016 axk326 CCN Project Team.....
+#                 Added shell script call to check if the trigger file exists or not before proceeding further
+#                 Also deletes the trigger file from dailyLoad and creates a failure trigger file as well
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+# below command will invoke the daily_trigger_check shell script to check if the trigger file exists or not
+ cd $HOME/dailyLoad
+./daily_trigger_check.sh 
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "Trigger file do not exists - process exiting out"
+     exit 1;
+fi
 
 proc_name="ccn_hierarchy_info"
 LOGDIR=$HOME/dailyLoad/logs
@@ -48,6 +64,10 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR
+	 rm -f DAILY_LOADS.TRG;
+	 echo "Trigger file is deleted from dailyLoad folder"
+	 echo "" > DAILY_LOADS_FAILURE.TRG
+	 echo "Failure Trigger file is created in dailyLoad folder"
      exit 1;
 fi
 

@@ -13,9 +13,23 @@
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs
+#          : 01/12/2016 axk326 CCN Project Team.....
+#            Added shell script call to check if the trigger file exists or not before proceeding further
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+# below command will invoke the daily_trigger_check shell script to check if the trigger file exists or not
+./daily_trigger_check.sh 
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "Trigger file do not exists - process exiting out "
+     exit 1;
+fi
 
 proc="ccn_sd_daily_load"
 TIME=`date +"%H:%M:%S"`
@@ -43,7 +57,6 @@ echo "Processing Started for $proc at $TIME on $DATE"
 #      2) Call for the daily reconciliation report
 # else it will send mail for the error. 
 ##############################################################################
-
 status=$?
 if test $status -ne 0
 then

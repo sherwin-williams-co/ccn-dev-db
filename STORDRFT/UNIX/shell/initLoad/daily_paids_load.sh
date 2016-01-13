@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh 
 ###############################################################################################################################
 # Script name   : daily_paids_load.sh
 #
@@ -11,6 +11,8 @@
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+#          : 01/12/2016 axk326 CCN Project Team.....
+#            Added call to remove the regular trigger file and recreate the failure trigger file in dailyLoad folder
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -32,7 +34,7 @@ BEGIN
 :exitCode := 0;
 
 MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_START');
-SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP1();
+SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP();
  Exception 
  when others then
  :exitCode := 2;
@@ -49,6 +51,10 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_DAILY_PAIDS_LOAD_ERROR
+	 rm -f DAILY_LOADS.TRG;
+	 echo "Trigger file is deleted from dailyLoad folder"
+	 echo "" > DAILY_LOADS_FAILURE.TRG
+	 echo "Failure Trigger file is created in dailyLoad folder"
      exit 1;
 fi
 

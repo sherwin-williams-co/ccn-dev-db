@@ -11,10 +11,25 @@
 #               Adding date logic to populate columns based on sysdate
 #             : 11/18/2015 axk326 CCN Project Team.....
 #               Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+#             : 01/12/2016 axk326 CCN Project Team.....
+#               Added shell script call to check if the failure trigger file exists or not before proceeding to the next day
+#               Added call to create the trigger file in dailyLoad folder
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+# below command will invoke the daily_failure_trigger_check shell script to check if the trigger file exists or not
+./daily_failure_trigger_check.sh
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "Failure Trigger file exists - process exiting out "
+     exit 1;
+fi
 
 proc="update_storedrft_param"
 TIME=`date +"%H:%M:%S"`
@@ -31,7 +46,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-UPDATE storedrft_param 
+UPDATE storedrft_param
    SET DAILY_LOAD_RUNDATE = TRUNC(SYSDATE),
        QTLY_1099_RUNDATE = TRUNC(SYSDATE,'Q'),
 	   MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
@@ -61,9 +76,6 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 cd $HOME/dailyLoad
-# Call for script get_dateparam.sh to spool the updated dates into date_param.config file
-./get_dateparam.sh
-# Call to create a trigger file for the file watcher to initiate the process of daily loads 
 echo "" > DAILY_LOADS.TRG
 echo "DAILY_LOADS.TRG is created in dailyLoad folder"
 echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"

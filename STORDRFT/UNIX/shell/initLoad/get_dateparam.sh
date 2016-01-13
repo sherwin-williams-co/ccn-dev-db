@@ -1,15 +1,31 @@
-#!/bin/sh
-########################################################################################
+set -e
+#!/bin/sh 
+##############################################################################################################
 # Script Name : get_dateparam.sh
 #
 # Description : This shell script will get dates information to date_param.config file 
 #               by spooling from storedrft_param table.                  
 # 
 # Created     : 04/23/2015 axk326 CCN Project Team....
-########################################################################################
+#             : 01/12/2016 axk326 CCN Project Team.....
+#               Added shell script call to check if the trigger file exists or not before proceeding further
+#               Added call to remove the regular trigger file and recreate the failure trigger file in dailyLoad folder
+##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+# below command will invoke the daily_trigger_check shell script to check if the trigger file exists or not
+./daily_trigger_check.sh 
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "Trigger file do not exists - process exiting out from spooling the file"
+     exit 1;
+fi
 
 proc="get_dateparam"
 TIME=`date +"%H:%M:%S"`
@@ -43,8 +59,6 @@ SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
   FROM STOREDRFT_PARAM;
 
 spool off
-exit;
-
 END
 
 cd $HOME
@@ -56,9 +70,13 @@ mv -f date_param_temp.config date_param.config
 ############################################################################
 TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
+	 cd $HOME/dailyLoad
+	 rm -f DAILY_LOADS.TRG;
+	 echo "Trigger file is deleted from dailyLoad folder"
+	 echo "" > DAILY_LOADS_FAILURE.TRG
+	 echo "Failure Trigger file is created in dailyLoad folder"
      exit 1;
 fi
 
