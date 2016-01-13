@@ -419,4 +419,19 @@ en_bag_order_date_err CONSTANT NUMBER := -20035;
 exc_bag_order_date_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_bag_order_date_err , -20035);
 
+
+/***********************************************************
+The "invalid_code_hdr_size_err" passes a numerical error of -20036.
+This error will state that the Size of the code detail value
+should not exceed the value defined in the code header.
+
+created : 11/23/2015 dxv848 CCN Project....
+revisions:
+
+************************************************************/
+en_invalid_code_hdr_size_err CONSTANT NUMBER := -20036;
+exc_invalid_code_hdr_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_code_hdr_size_err , -20036);
+
 END ERRNUMS;
