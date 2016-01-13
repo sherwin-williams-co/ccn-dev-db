@@ -16,9 +16,9 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the daily_trigger_check shell script to check if the trigger file exists or not
+# below command will invoke the batch_dependency_check shell script to check if the trigger file exists or not
  cd $HOME/dailyLoad
-./daily_trigger_check.sh 
+./batch_dependency_check.sh 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################

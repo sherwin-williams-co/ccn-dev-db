@@ -1,7 +1,7 @@
 set -e
 #!/bin/sh 
 ###########################################################################################################
-# Script Name    :  daily_trigger_check.sh
+# Script Name    :  batch_dependency_check.sh
 #
 # Description    :  This shell program will search for the DAILY_LOADS.TRG file in dailyLoad folder
 # Created        :  AXK326 01/08/2016 CCN Project Team....
@@ -12,7 +12,7 @@ set -e
 
 cd $HOME/dailyLoad
 
-proc_name="daily_trigger_check"
+proc_name="batch_dependency_check"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
@@ -26,3 +26,4 @@ else
 fi
 
 echo "  Processing finished for $proc_name at $TIME on $DATE "
+exit 0

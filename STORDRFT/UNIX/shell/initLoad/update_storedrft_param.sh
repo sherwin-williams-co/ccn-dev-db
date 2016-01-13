@@ -13,14 +13,14 @@
 #               Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the failure trigger file exists or not before proceeding to the next day
-#               Added call to create the trigger file in dailyLoad folder
+#               Added call to create the DAILY_LOADS trigger file in dailyLoad folder
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the daily_failure_trigger_check shell script to check if the trigger file exists or not
-./daily_failure_trigger_check.sh
+# below command will invoke the batch_dependency_fail_trg_check shell script to check if the trigger file exists or not
+./batch_dependency_fail_trg_check.sh
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
