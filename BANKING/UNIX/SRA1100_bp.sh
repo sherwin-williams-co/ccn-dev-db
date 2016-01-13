@@ -6,7 +6,9 @@
 #                 1)SRA11000_dailyRun.sh     
 #                 It will be running in the background and is for SRA1100 process.
 # Created  : 10/12/2015 nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 01/11/2016 nxk927 CCN Project Team.....
+#            added the script to sleep for 60 secs after the file is present
+#            This will prevent not to miss some records while we are still receiving the file completely
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/SRA1100_bp.sh > $HOME/SRA1100_bp.log 2>&1 &
@@ -23,8 +25,12 @@ cmd_path="$HOME/initLoad"
 while true; do
    if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/SRA13510_*.TXT ]  &&  [ -f $cmd_path/SRA11060_*.TXT ]
    then
+      sleep 60
+	  #This above sleep command will prevent not to miss some records while ftp is still going on
 	  sh $HOME/SRA11000_dailyRun.sh
    fi
 done
 
 echo "process completed - but should not come to this point"
+
+
