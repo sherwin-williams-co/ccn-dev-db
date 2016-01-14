@@ -1,4 +1,3 @@
-set -e
 #!/bin/sh 
 ##############################################################################################################
 # Script Name : get_dateparam.sh
@@ -60,6 +59,8 @@ SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
   FROM STOREDRFT_PARAM;
 
 spool off
+exit;
+
 END
 
 cd $HOME

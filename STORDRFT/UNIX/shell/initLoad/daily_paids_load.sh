@@ -18,16 +18,16 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
-./batch_dependency_ok_check.sh 
+# below command will invoke the paids_mntnc_ok_check shell script to check if the trigger file exists or not
+./paids_mntnc_ok_check.sh
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "OK file do not exists - process exiting out "
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+     echo "PAIDS_MNTNC_CHECK.OK file do not exists - process exiting out "
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -65,7 +65,6 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_DAILY_PAIDS_LOAD_ERROR
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 

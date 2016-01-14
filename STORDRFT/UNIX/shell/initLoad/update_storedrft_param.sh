@@ -74,6 +74,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
 	 cd $HOME/dailyLoad
 	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 cd $HOME/dailyLoad

@@ -13,21 +13,21 @@
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs 
 #          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the .OK file exists or not before proceeding further
+#            Added shell script call to check if the PAIDS_MNTNC_CHECK.OK file exists or not before proceeding further
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
-./batch_dependency_ok_check.sh 
+# below command will invoke the paids_mntnc_ok_check shell script to check if the trigger file exists or not
+./paids_mntnc_ok_check.sh
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "OK file do not exists - process exiting out "
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+     echo "PAIDS_MNTNC_CHECK.OK file do not exists - process exiting out "
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -47,7 +47,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving Store Drafts Paids process failed"
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -77,6 +77,7 @@ TIME=`date +"%H:%M:%S"`
 status=$?
 if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
