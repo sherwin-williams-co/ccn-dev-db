@@ -26,8 +26,6 @@
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "PAIDS_MNTNC_CHECK.OK file do not exists - process exiting out "
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -62,6 +60,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "daily paids load process exiting out"
+	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 

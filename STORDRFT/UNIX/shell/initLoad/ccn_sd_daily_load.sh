@@ -27,8 +27,6 @@
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "OK file do not exists - process exiting out "
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -48,14 +46,10 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving process failed"
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	 ./rename_file_ok_to_notok.sh
      exit 1;
 fi
-
-##############################################################################
-# Load the data from cpr into stordrft database
-##############################################################################
-./cc_employee_tax_load.sh
 
 ##############################################################################
 # Load the daily drafts data from files into stordrft database
@@ -94,7 +88,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "OK file do not exists - process exiting out "
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -113,7 +107,27 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+cd $HOME/dailyLoad
+rm -f BATCH_DEPENDENCY.OK;
+echo "" > PAIDS_MNTNC_CHECK.OK
+echo "PAIDS_MNTNC_CHECK.OK is created in dailyLoad folder"
+
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+
+##############################################################################
+# Load the data from cpr into stordrft database
+##############################################################################
+./cc_employee_tax_load.sh
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "CC_EMPLOYEE_TAX_LOAD script failed"
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     exit 1;
+fi
 
 exit 0
 ############################################################################

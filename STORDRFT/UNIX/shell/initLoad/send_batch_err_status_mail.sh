@@ -10,6 +10,7 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
+err_name=$1
 proc_name=send_batch_err_status_mail
 TIME=`date +"%H:%M:%S"`
 DATE=${DAILY_LOAD_RUNDATE} 
@@ -23,7 +24,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
- MAIL_PKG.send_mail('SD_BATCH_PROCESSING_ERROR');
+ MAIL_PKG.send_mail('$err_name');
  Exception 
  when others then
  :exitCode := 2;

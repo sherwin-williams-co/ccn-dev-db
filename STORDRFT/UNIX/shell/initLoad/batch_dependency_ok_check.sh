@@ -17,13 +17,15 @@ TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-#Check to see if the trigger file BATCH_DEPENDENCY.TRG exists or not
+#Check to see if the trigger file BATCH_DEPENDENCY.OK exists or not
 if ls BATCH_DEPENDENCY.OK; then
    echo "  BATCH_DEPENDENCY.OK file exists in dailyLoad folder "
 else
    echo "  BATCH_DEPENDENCY.OK file do not exist "
+   ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
    exit 1
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "  Processing finished for $proc_name at $TIME on $DATE "
 exit 0

@@ -17,16 +17,14 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the paids_mntnc_ok_check shell script to check if the trigger file exists or not
-./paids_mntnc_ok_check.sh
+# below command will invoke the mntnc_dpndncy_ok_check shell script to check if the trigger file exists or not
+./mntnc_dpndncy_ok_check.sh.sh
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "PAIDS_MNTNC_CHECK.OK file do not exists - process exiting out "
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -63,6 +61,7 @@ then
 fi
 
 rm -f PAIDS_MNTNC_CHECK.OK
+rm -f MNTNC_DPNDNCY_CHECK.OK
 echo "PAIDS_MNTNC_CHECK.OK file deleted as all the process have completed succesfully"
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
