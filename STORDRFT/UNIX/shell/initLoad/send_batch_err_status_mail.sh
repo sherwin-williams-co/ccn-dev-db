@@ -40,13 +40,13 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc_name - $err_name at ${TIME} on ${DATE}"
 	 rm -f BATCH_DEPENDENCY.OK;
 	 echo "" > BATCH_DEPENDENCY.NOT_OK
-	 echo "Failure Trigger file is created in dailyLoad folder"
+	 echo "NOT OK file is created in dailyLoad folder"
      exit 1;
 fi
 
 rm -f BATCH_DEPENDENCY.OK;
 echo "" > BATCH_DEPENDENCY.NOT_OK
-echo "Failure Trigger file is created in dailyLoad folder"
+echo "NOT OK file is created in dailyLoad folder"
 echo "Processing finished for $proc_name - $err_name at ${TIME} on ${DATE}"  
 exit 0
 ############################################################################
