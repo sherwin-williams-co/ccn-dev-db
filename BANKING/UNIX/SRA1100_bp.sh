@@ -7,8 +7,10 @@
 #                 It will be running in the background and is for SRA1100 process.
 # Created  : 10/12/2015 nxk927 CCN Project Team.....
 # Modified : 01/11/2016 nxk927 CCN Project Team.....
-#            added the script to sleep for 60 secs after the file is present
-#            This will prevent not to miss some records while we are still receiving the file completely
+#            Modified the script to sleep for 60 secs after the file is avaiable
+#            This is to prevent kicking off the process, as the bigger files are still 
+#            getting ftp'd even though they are available resulting in skipping data
+#            added exit 1 at the end which should never happen, but if happens should exit with 1
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh $HOME/SRA1100_bp.sh > $HOME/SRA1100_bp.log 2>&1 &
@@ -32,5 +34,5 @@ while true; do
 done
 
 echo "process completed - but should not come to this point"
-
+exit 1
 
