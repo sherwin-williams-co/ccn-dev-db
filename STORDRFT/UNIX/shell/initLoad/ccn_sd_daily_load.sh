@@ -14,20 +14,21 @@
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs
 #          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the trigger file exists or not before proceeding further
+#            Added shell script call to check if the .OK file exists or not before proceeding further
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_check shell script to check if the trigger file exists or not
-./batch_dependency_check.sh 
+# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
+./batch_dependency_ok_check.sh 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "Trigger file do not exists - process exiting out "
+     echo "OK file do not exists - process exiting out "
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -40,6 +41,16 @@ echo "Processing Started for $proc at $TIME on $DATE"
 # Run the shell script to concatenate the daily files and archiving the individual files
 ##############################################################################
 ./dailyLoad_CAT_Archieve.sh
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "Concatenation and Archiving process failed"
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+     exit 1;
+fi
 
 ##############################################################################
 # Load the data from cpr into stordrft database
@@ -72,6 +83,19 @@ else
  echo "Running DLY_DRAFT_LOAD process"
 	./DLY_DRAFT_LOAD.sh
 	./DLY_RECONCILIATION.sh
+fi
+
+# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
+./batch_dependency_ok_check.sh 
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]; then
+     echo "OK file do not exists - process exiting out "
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+     exit 1;
 fi
 
 ##############################################################################

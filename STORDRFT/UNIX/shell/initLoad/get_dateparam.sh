@@ -8,22 +8,23 @@ set -e
 # 
 # Created     : 04/23/2015 axk326 CCN Project Team....
 #             : 01/12/2016 axk326 CCN Project Team.....
-#               Added shell script call to check if the trigger file exists or not before proceeding further
-#               Added call to remove the regular trigger file and recreate the failure trigger file in dailyLoad folder
+#               Added shell script call to check if the .OK file exists or not before proceeding further
+#               Added call to remove the regular .OK file and recreate the .NOT_OK file in dailyLoad folder
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_check shell script to check if the trigger file exists or not
-./batch_dependency_check.sh 
+# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
+./batch_dependency_ok_check.sh 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "Trigger file do not exists - process exiting out from spooling the file"
+     echo "OK file do not exists - process exiting out from spooling the file"		 
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -73,10 +74,7 @@ status=$?
 if [ $status -ne 0 ]; then
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
 	 cd $HOME/dailyLoad
-	 rm -f DAILY_LOADS.TRG;
-	 echo "Trigger file is deleted from dailyLoad folder"
-	 echo "" > DAILY_LOADS_FAILURE.TRG
-	 echo "Failure Trigger file is created in dailyLoad folder"
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 

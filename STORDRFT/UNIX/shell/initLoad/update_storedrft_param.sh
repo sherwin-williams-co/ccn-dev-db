@@ -12,22 +12,23 @@
 #             : 11/18/2015 axk326 CCN Project Team.....
 #               Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #             : 01/12/2016 axk326 CCN Project Team.....
-#               Added shell script call to check if the failure trigger file exists or not before proceeding to the next day
-#               Added call to create the DAILY_LOADS trigger file in dailyLoad folder
+#               Added shell script call to check if the NOT OK file exists or not before proceeding to the next day
+#               Added call to create the BATCH_DEPENDENCY.OK file in dailyLoad folder
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_fail_trg_check shell script to check if the trigger file exists or not
-./batch_dependency_fail_trg_check.sh
+# below command will invoke the batch_dependency_not_ok_check shell script to check if the NOT OK file exists or not
+./batch_dependency_not_ok_check.sh
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "Failure Trigger file exists - process exiting out "
+     echo "Not OK file exists - process exiting out "
+	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -76,8 +77,8 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 cd $HOME/dailyLoad
-echo "" > DAILY_LOADS.TRG
-echo "DAILY_LOADS.TRG is created in dailyLoad folder"
+echo "" > BATCH_DEPENDENCY.OK
+echo "BATCH_DEPENDENCY.OK is created in dailyLoad folder"
 echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
 ############################################################################
 
