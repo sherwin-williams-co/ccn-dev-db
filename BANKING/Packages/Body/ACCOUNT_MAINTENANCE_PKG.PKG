@@ -198,7 +198,9 @@ This procedure is intended to build all the table types from input xml
 for this process
 
 Created : 07/09/2015 jxc517 CCN Project....
-Changed : 
+Changed : 01/15/2015 dxv848 CCN Project....
+          Adding the condition if the bank_account effective_date is greater than the sysdate
+          Then that bank_account in future table.
 *******************************************************************************/
     IN_XML                         IN     CLOB,
     O_BANK_ACCOUNT_REC                OUT BANK_ACCOUNT%ROWTYPE,
@@ -222,6 +224,9 @@ IS
     V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_XML);
     V_XML_BANK_MICR_FORMAT_FRAG     CLOB;
     V_FLAG                          VARCHAR2(1) := 'C';
+    V_EFFECTIVE_DATE                BANK_ACCOUNT.EFFECTIVE_DATE%TYPE;
+    V_FUTURE_ID                     NUMBER;
+    V_BANK_ACCOUNT_NBR              BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
 
     V_BANK_MICR_FRMT_REC        BANK_MICR_FORMAT%ROWTYPE;
     V_BANK_MICR_FRMT_FTRE_REC   BANK_MICR_FORMAT_FUTURE%ROWTYPE;
@@ -244,8 +249,11 @@ BEGIN
                 NULL;
         END CASE;
     END LOOP;
-    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
-        V_FLAG := 'F';
+    V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
+    IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) OR V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
+          V_BANK_ACCOUNT_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();
+          V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_BANK_ACCOUNT_NBR);
+          V_FLAG := 'F';
     END IF;
     IF V_XML_BANK_ACCOUNT_FRAG IS NOT NULL THEN
         IF V_FLAG = 'C' THEN --current
@@ -256,6 +264,7 @@ BEGIN
             TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_ROWTYPE_SP('BANK_ACCOUNT_FUTURE'
                                                         ,REPLACE(V_XML_BANK_ACCOUNT_FRAG,'BANK_ACCOUNT>','BANK_ACCOUNT_FUTURE>')
                                                         ,O_BANK_ACCOUNT_FUTURE_REC);
+            O_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID := V_FUTURE_ID;
         END IF;
     END IF;
     IF V_XML_LEAD_BANK_CC_FRAG IS NOT NULL THEN
@@ -267,6 +276,7 @@ BEGIN
             TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_ROWTYPE_SP('LEAD_BANK_CC_FUTURE'
                                                         ,REPLACE(V_XML_LEAD_BANK_CC_FRAG,'LEAD_BANK_CC>','LEAD_BANK_CC_FUTURE>')
                                                         ,O_LEAD_BANK_CC_FUTURE_REC);
+            O_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID := V_FUTURE_ID;
         END IF;
     END IF;
     IF V_XML_BANK_MICR_FRAG IS NOT NULL THEN
@@ -283,6 +293,7 @@ BEGIN
                     TABLE_IU_PKG.BANK_MICR_FRMT_FTR_ROWTYPE_SP('BANK_MICR_FORMAT_FUTURE'
                                                                ,REPLACE(V_XML_BANK_MICR_FORMAT_FRAG,'BANK_MICR_FORMAT>','BANK_MICR_FORMAT_FUTURE>')
                                                                ,V_BANK_MICR_FRMT_FTRE_REC);
+                    V_BANK_MICR_FRMT_FTRE_REC.FUTURE_ID := V_FUTURE_ID;
                     O_BANK_MICR_FORMAT_FUTURE_TAB(NVL(O_BANK_MICR_FORMAT_FUTURE_TAB.LAST, 0) +1) := V_BANK_MICR_FRMT_FTRE_REC;
                 END IF;
             END IF;
@@ -952,6 +963,9 @@ Changed : 10/08/2015 jxc517 CCN Project....
           details insertion not valid for new futures that are getting created
 Changed : 10/21/2015 jxc517 CCN Project....
           code changes so that for bank account and bank MICR the effective dates should still carry forward
+Changed : 01/15/2015 dxv848 CCN Project....
+          Added the condition if we adding a new bank_account without lead_store then
+		  it wont check for lead_bank_cc_future
 *******************************************************************************/
     IN_BANK_ACCOUNT_FUTURE_REC         IN BANK_ACCOUNT_FUTURE%ROWTYPE,
     IN_LEAD_BANK_CC_FUTURE_REC         IN LEAD_BANK_CC_FUTURE%ROWTYPE,
@@ -978,7 +992,10 @@ BEGIN
         TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_I_SP(IN_BANK_MICR_FORMAT_FUTURE_TAB(V_INDEX));
         V_INDEX := IN_BANK_MICR_FORMAT_FUTURE_TAB.NEXT(V_INDEX);
     END LOOP;
-    TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(IN_LEAD_BANK_CC_FUTURE_REC);
+    --IF we are adding a new bank_account without lead_store then it wont check for lead_bank_cc_future
+    IF IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR IS NOT NULL THEN
+       TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(IN_LEAD_BANK_CC_FUTURE_REC);
+    END IF;
     IF V_LEAD_BANK_CC_REC.LEAD_STORE_NBR IS NOT NULL
        AND V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR =  IN_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR THEN
        --lead details changed for the same account number, create child futures from current
