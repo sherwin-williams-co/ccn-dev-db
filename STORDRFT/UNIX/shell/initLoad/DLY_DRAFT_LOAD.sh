@@ -11,8 +11,6 @@
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
-#          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the .OK file exists or not before proceeding further
 ############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

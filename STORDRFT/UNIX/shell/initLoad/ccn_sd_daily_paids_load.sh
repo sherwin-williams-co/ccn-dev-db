@@ -14,6 +14,7 @@
 #            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs 
 #          : 01/12/2016 axk326 CCN Project Team.....
 #            Added shell script call to check if the PAIDS_MNTNC_CHECK.OK file exists or not before proceeding further
+#            Added shell script call to rename the ok file to not ok file in case of failure
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -46,6 +47,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving Store Drafts Paids process failed"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	 ./rename_file_ok_to_notok.sh PAIDS_MNTNC_CHECK.OK PAIDS_MNTNC_CHECK.NOT_OK
      exit 1;
 fi
 
@@ -61,6 +63,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "daily paids load process exiting out"
 	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	  ./rename_file_ok_to_notok.sh PAIDS_MNTNC_CHECK.OK PAIDS_MNTNC_CHECK.NOT_OK
      exit 1;
 fi
 
@@ -77,6 +80,7 @@ status=$?
 if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	 ./rename_file_ok_to_notok.sh PAIDS_MNTNC_CHECK.OK PAIDS_MNTNC_CHECK.NOT_OK
      exit 1;
 fi
 

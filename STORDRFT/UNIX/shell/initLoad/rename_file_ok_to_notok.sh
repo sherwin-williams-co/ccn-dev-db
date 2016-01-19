@@ -12,13 +12,15 @@
 . /app/stordrft/host.sh
 
 proc_name=rename_file_ok_to_notok
+from_file_name=$1
+to_file_name=$2
 TIME=`date +"%H:%M:%S"`
 DATE=${DAILY_LOAD_RUNDATE} 
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
-rm -f BATCH_DEPENDENCY.OK;
-echo "" > BATCH_DEPENDENCY.NOT_OK
-echo "NOT OK file is created in dailyLoad folder"
+rm -f $from_file_name
+echo "" > $to_file_name
+echo "$to_file_name file is created in dailyLoad folder"
 
 ############################################################################
 #                           ERROR STATUS CHECK 

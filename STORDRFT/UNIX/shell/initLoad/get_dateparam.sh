@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh -e
 ##############################################################################################################
 # Script Name : get_dateparam.sh
 #
@@ -8,7 +8,7 @@
 # Created     : 04/23/2015 axk326 CCN Project Team....
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the .OK file exists or not before proceeding further
-#               Added call to remove the regular .OK file and recreate the .NOT_OK file in dailyLoad folder
+#               Added call to rename the regular .OK file and recreate the .NOT_OK file in dailyLoad folder
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -22,8 +22,6 @@
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "OK file do not exists - process exiting out from spooling the file"		 
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
@@ -70,12 +68,13 @@ mv -f date_param_temp.config date_param.config
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
+TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
 	 cd $HOME/dailyLoad
-	 ./send_batch_err_status_mail.sh SD_BATCH_PROCESSING_ERROR
+	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 

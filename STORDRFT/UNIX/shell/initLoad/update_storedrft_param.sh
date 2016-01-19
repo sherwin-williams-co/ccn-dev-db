@@ -14,6 +14,7 @@
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the NOT OK file exists or not before proceeding to the next day
 #               Added call to create the BATCH_DEPENDENCY.OK file in dailyLoad folder
+#               Added call to rename the .ok file to .not_ok file when there is some kind of error.
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -72,7 +73,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
 	 cd $HOME/dailyLoad
 	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
-	 ./rename_file_ok_to_notok.sh
+	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 cd $HOME/dailyLoad

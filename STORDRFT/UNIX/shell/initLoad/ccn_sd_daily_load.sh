@@ -15,6 +15,7 @@
 #            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs
 #          : 01/12/2016 axk326 CCN Project Team.....
 #            Added shell script call to check if the .OK file exists or not before proceeding further
+#            Added shell script call to rename the .OK file to .NOT_OK file in case of error
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -47,7 +48,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving process failed"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh
+	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 
@@ -79,19 +80,6 @@ else
 	./DLY_RECONCILIATION.sh
 fi
 
-# below command will invoke the batch_dependency_ok_check shell script to check if the trigger file exists or not
-./batch_dependency_ok_check.sh 
-############################################################################
-#                           ERROR STATUS CHECK 
-############################################################################
-status=$?
-TIME=`date +"%H:%M:%S"`
-if [ $status -ne 0 ]; then
-     echo "OK file do not exists - process exiting out "
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-     exit 1;
-fi
-
 ##############################################################################
 # Run the shell script to archive the STORE_DRAFT and CUSTOMER_LABOR files
 ##############################################################################
@@ -103,7 +91,8 @@ fi
 TIME=`date +"%H:%M:%S"`
 status=$?
 if [ $status -ne 0 ]; then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 

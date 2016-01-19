@@ -7,10 +7,7 @@
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/18/2015 axk326 CCN Project Team.....
-#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
-#          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the .OK file exists or not before proceeding further
-#            Added call to remove the regular .OK file and recreate the .NOT_OK file in dailyLoad folder
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 ############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

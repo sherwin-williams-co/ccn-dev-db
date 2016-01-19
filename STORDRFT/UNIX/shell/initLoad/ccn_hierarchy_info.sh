@@ -30,10 +30,10 @@ set verify off;
 set serveroutput on;
 var exitCode number;
 WHENEVER OSERROR EXIT 1
-WHENEVER SQKERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-SD_REPORT_PKG.CCN_HIERARCHY_INFO();
+SD_REPORT_PKG.CCN_HIERARCHY_INFO1();
 EXCEPTION
  when others then
  :exitCode := 2;
