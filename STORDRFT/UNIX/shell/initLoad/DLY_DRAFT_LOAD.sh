@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ############################################################################################################################
 # Script name   : DLY_DRAFT_LOAD.sh
 #
@@ -30,8 +30,6 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 
@@ -43,8 +41,6 @@ fi
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 
@@ -56,8 +52,6 @@ fi
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 
@@ -69,8 +63,6 @@ fi
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
      exit 1;
 fi
 

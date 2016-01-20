@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ##############################################################################################################################
 # Script name   : ccn_sd_daily_load.sh
 #
@@ -11,11 +11,9 @@
 #			 Commented daily_paids_load.sh and triggered it out in individual cron 
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
-#          : 11/18/2015 axk326 CCN Project Team.....
-#            Added -e to the script to catch the errors in subsequent shell scripts while running the daily jobs
 #          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the .OK file exists or not before proceeding further
-#            Added shell script call to rename the .OK file to .NOT_OK file in case of error
+#            Added shell script call to check if the .ok file exists or not before proceeding further
+#            Added shell script call to rename the .ok file to .not_ok file in case of error
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -48,7 +46,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving process failed"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
+	 ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 
@@ -75,7 +73,7 @@ exit;
 END
 exit 1
 else
- echo "Running DLY_DRAFT_LOAD process"
+    echo "Running DLY_DRAFT_LOAD process"
 	./DLY_DRAFT_LOAD.sh
 	############################################################################
 	#                           ERROR STATUS CHECK 
@@ -83,9 +81,11 @@ else
 	status=$?
 	TIME=`date +"%H:%M:%S"`
 	if [ $status -ne 0 ]; then
-		exit 1;
+	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	  ./rename_file_ok_to_notok.sh batch_dependency
+	exit 1;
 	fi
- echo "Running DLY_RECONCILIATION process"
+    echo "Running DLY_RECONCILIATION process"
 	./DLY_RECONCILIATION.sh
 	############################################################################
 	#                           ERROR STATUS CHECK 
@@ -93,7 +93,9 @@ else
 	status=$?
 	TIME=`date +"%H:%M:%S"`
 	if [ $status -ne 0 ]; then
-		exit 1;
+	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+	  ./rename_file_ok_to_notok.sh batch_dependency
+	exit 1;
 	fi	 
 fi
 
@@ -109,13 +111,9 @@ TIME=`date +"%H:%M:%S"`
 status=$?
 if [ $status -ne 0 ]; then
      ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
+	 ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
-
-cd $HOME/dailyLoad
-echo "" > PAIDS_MNTNC_CHECK.OK
-echo "PAIDS_MNTNC_CHECK.OK is created in dailyLoad folder"
 
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 

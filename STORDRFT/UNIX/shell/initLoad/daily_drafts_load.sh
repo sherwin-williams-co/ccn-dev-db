@@ -12,7 +12,7 @@
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to rename the .OK file to .NOT_OK file in case of error
+#            Added shell script call to rename the .ok file to .not_ok file in case of error
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -34,7 +34,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_START');
-SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP1();
+SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP();
 Exception 
  when others then
  :exitCode := 2;
@@ -51,7 +51,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
+	 ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 

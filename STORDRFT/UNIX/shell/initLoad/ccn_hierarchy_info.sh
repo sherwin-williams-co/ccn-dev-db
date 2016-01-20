@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ##################################################################################################################################
 # Script name   : ccn_hierarchy_info.sh
 #
@@ -10,7 +10,8 @@
 #               : 11/18/2015 axk326 CCN Project Team.....
 #                 Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
 #               : 01/12/2016 axk326 CCN Project Team.....
-#                 Added call to generate the MNTNC_DPNDNCY_CHECK.OK file in dailyLoad folder
+#                 Added shell script call to send email when the script fails due to some kind of error
+#                 Added shell script call to rename the trigger file from .ok to .not_ok in case of error
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -50,12 +51,10 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR
+	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
 
-cd $HOME/dailyLoad
-echo "" > MNTNC_DPNDNCY_CHECK.OK
-echo "MNTNC_DPNDNCY_CHECK.OK file is created in dailyLoad folder"
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

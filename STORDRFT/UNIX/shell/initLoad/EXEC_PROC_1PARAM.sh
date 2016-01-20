@@ -44,7 +44,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-     ./send_err_status_email.sh EXEC_PROC1_PARAM_ERROR
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 

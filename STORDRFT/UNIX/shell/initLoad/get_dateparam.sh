@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ##############################################################################################################
 # Script Name : get_dateparam.sh
 #
@@ -7,8 +7,8 @@
 # 
 # Created     : 04/23/2015 axk326 CCN Project Team....
 #             : 01/12/2016 axk326 CCN Project Team.....
-#               Added shell script call to check if the .OK file exists or not before proceeding further
-#               Added shell scri[t call to rename the .OK file to .NOT_OK file in dailyLoad folder
+#               Added shell script call to check if the .ok file exists or not before proceeding further
+#               Added shell script call to rename the .ok file to .not_ok file in dailyLoad folder
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -74,9 +74,11 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
 	 cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh BATCH_DEPENDENCY.OK BATCH_DEPENDENCY.NOT_OK
+	 ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 
 echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
 ############################################################################
+
+exit 0

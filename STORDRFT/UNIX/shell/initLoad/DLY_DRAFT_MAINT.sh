@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 #############################################################################################################################
 # Script name   : DLY_DRAFT_MAINT.sh
 #
@@ -12,8 +12,8 @@
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 01/12/2016 axk326 CCN Project Team.....
-#            Added shell script call to check if the PAIDS_MNTNC_CHECK.OK file exists or not before proceeding further
-#            Added shell script call to rename the ok trigger files to no_ok in case of failure
+#            Added shell script call to check if the mntnc_dpndncy_check.ok and paids_mntnc_check.ok files exists or not before proceeding further
+#            Added shell script call to rename the .ok trigger files to .not_ok trigger files in case of failure
 #############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -44,8 +44,8 @@ if test $status -ne 0
 then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh PAIDS_MNTNC_CHECK.OK PAIDS_MNTNC_CHECK.NOT_OK
-	 ./rename_file_ok_to_notok.sh MNTNC_DPNDNCY_CHECK.OK MNTNC_DPNDNCY_CHECK.NOT_OK
+	 ./rename_file_ok_to_notok.sh paids_mntnc_check
+	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
 
@@ -60,15 +60,11 @@ if test $status -ne 0
 then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh PAIDS_MNTNC_CHECK.OK PAIDS_MNTNC_CHECK.NOT_OK
-	 ./rename_file_ok_to_notok.sh MNTNC_DPNDNCY_CHECK.OK MNTNC_DPNDNCY_CHECK.NOT_OK
+	 ./rename_file_ok_to_notok.sh paids_mntnc_check
+	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
 
-rm -f PAIDS_MNTNC_CHECK.OK
-echo "PAIDS_MNTNC_CHECK.OK file deleted as all the process have completed successfully"
-rm -f MNTNC_DPNDNCY_CHECK.OK
-echo "MNTNC_DPNDNCY_CHECK.OK file deleted as all the process have completed successfully"
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0
