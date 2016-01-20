@@ -29,7 +29,7 @@ proc="get_dateparam"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo -e "\nBegin Get Parameter: Processing Started for $proc at $TIME on $DATE"
+echo "Begin Get Parameter: Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 
@@ -78,7 +78,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
-echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
+echo "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}"
 ############################################################################
 
 exit 0

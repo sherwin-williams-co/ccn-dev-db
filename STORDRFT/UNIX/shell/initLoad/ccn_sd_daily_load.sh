@@ -81,8 +81,6 @@ else
 	status=$?
 	TIME=`date +"%H:%M:%S"`
 	if [ $status -ne 0 ]; then
-	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	  ./rename_file_ok_to_notok.sh batch_dependency
 	exit 1;
 	fi
     echo "Running DLY_RECONCILIATION process"
@@ -93,8 +91,6 @@ else
 	status=$?
 	TIME=`date +"%H:%M:%S"`
 	if [ $status -ne 0 ]; then
-	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	  ./rename_file_ok_to_notok.sh batch_dependency
 	exit 1;
 	fi	 
 fi

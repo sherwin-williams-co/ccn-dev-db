@@ -6,6 +6,8 @@
 #                 due to any kind of error
 #
 # Created  : 01/14/2016 AXK326 CCN Project Team.....
+#            This script will exist in $HOME/dailyLoad folder and all existing trigger files including any new ones coming in future 
+#            should be placed in the same folder alone.
 # Modified : 
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from

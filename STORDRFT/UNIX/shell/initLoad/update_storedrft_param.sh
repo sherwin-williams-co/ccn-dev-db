@@ -34,7 +34,7 @@ proc="update_storedrft_param"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo -e "\nBegin Get Parameter: Processing Started for $proc at $TIME on $DATE"
+echo "Begin Get Parameter: Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
@@ -45,7 +45,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-UPDATE storedrft_param1
+UPDATE storedrft_param
    SET DAILY_LOAD_RUNDATE = TRUNC(SYSDATE),
        QTLY_1099_RUNDATE = TRUNC(SYSDATE,'Q'),
 	   MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
@@ -76,7 +76,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
-echo -e "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}\n"
+echo "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}"
 ############################################################################
 
 exit 0
