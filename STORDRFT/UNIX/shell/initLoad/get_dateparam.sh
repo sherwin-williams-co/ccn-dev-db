@@ -8,7 +8,7 @@
 # Created     : 04/23/2015 axk326 CCN Project Team....
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the .OK file exists or not before proceeding further
-#               Added call to rename the regular .OK file and recreate the .NOT_OK file in dailyLoad folder
+#               Added shell scri[t call to rename the .OK file to .NOT_OK file in dailyLoad folder
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from

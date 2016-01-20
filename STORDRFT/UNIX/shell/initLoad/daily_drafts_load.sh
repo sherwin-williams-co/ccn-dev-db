@@ -34,7 +34,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_START');
-SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP();
+SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP1();
 Exception 
  when others then
  :exitCode := 2;

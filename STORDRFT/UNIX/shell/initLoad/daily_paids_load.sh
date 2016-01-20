@@ -32,7 +32,7 @@ BEGIN
 :exitCode := 0;
 
 MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_START');
-SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP();
+SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP1();
  Exception 
  when others then
  :exitCode := 2;
@@ -47,8 +47,6 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
-	 ./send_err_status_email.sh SD_DAILY_PAIDS_LOAD_ERROR
      exit 1;
 fi
 

@@ -12,16 +12,16 @@
 #             : 11/18/2015 axk326 CCN Project Team.....
 #               Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #             : 01/12/2016 axk326 CCN Project Team.....
-#               Added shell script call to check if the NOT OK file exists or not before proceeding to the next day
+#               Added shell script call to check if the OK file exists or not before proceeding to the next day
 #               Added call to create the BATCH_DEPENDENCY.OK file in dailyLoad folder
-#               Added call to rename the .ok file to .not_ok file when there is some kind of error.
+#               Added call to rename the .OK file to .NOT_OK file when there is some kind of error.
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the batch_dependency_not_ok_check shell script to check if the NOT OK file exists or not
-./batch_dependency_not_ok_check.sh
+# below command will invoke the batch_dependency_ok_check shell script to check if the NOT OK file exists or not
+./batch_dependency_ok_check.sh 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################

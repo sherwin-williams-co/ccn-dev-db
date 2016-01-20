@@ -77,7 +77,24 @@ exit 1
 else
  echo "Running DLY_DRAFT_LOAD process"
 	./DLY_DRAFT_LOAD.sh
+	############################################################################
+	#                           ERROR STATUS CHECK 
+	############################################################################
+	status=$?
+	TIME=`date +"%H:%M:%S"`
+	if [ $status -ne 0 ]; then
+		exit 1;
+	fi
+ echo "Running DLY_RECONCILIATION process"
 	./DLY_RECONCILIATION.sh
+	############################################################################
+	#                           ERROR STATUS CHECK 
+	############################################################################
+	status=$?
+	TIME=`date +"%H:%M:%S"`
+	if [ $status -ne 0 ]; then
+		exit 1;
+	fi	 
 fi
 
 ##############################################################################
@@ -97,7 +114,6 @@ if [ $status -ne 0 ]; then
 fi
 
 cd $HOME/dailyLoad
-rm -f BATCH_DEPENDENCY.OK;
 echo "" > PAIDS_MNTNC_CHECK.OK
 echo "PAIDS_MNTNC_CHECK.OK is created in dailyLoad folder"
 
