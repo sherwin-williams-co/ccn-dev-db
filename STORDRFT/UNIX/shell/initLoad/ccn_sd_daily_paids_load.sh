@@ -19,8 +19,8 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-# below command will invoke the paids_mntnc_ok_check shell script to check if the trigger file exists or not
-./paids_mntnc_ok_check.sh
+# below command will invoke the check_file_ok_status shell script to check if the paids_mntnc_check.ok file exists or not
+./check_file_ok_status.sh paids_mntnc_check.ok
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
