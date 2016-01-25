@@ -18,11 +18,11 @@ while true; do
           DATE=`date +"%m/%d/%Y"`
           TIME=`date +"%I:%M:%S"`
 	  echo "sd_monthly_load.trg trigger file found at $TIME on $DATE"
-	  echo "Running the Report Generatin process at $TIME on $DATE"
-	  #./app/strdrft/sdReport/scripts/sdreport.sh	  
+	  echo "Running the Report Generation process at $TIME on $DATE"
+	  ./app/strdrft/sdReport/scripts/sdreport.sh	  
           TIME=`date +"%I:%M:%S"`
 	  echo "Running the FTP Process at $TIME on $DATE"
-	  #./app/strdrft/sdReport/scripts/plgain_ftp.sh
+	  ./app/strdrft/sdReport/scripts/plgain_ftp.sh
           TIME=`date +"%I:%M:%S"`
 	  echo "Removing sd_monthly_load.trg trigger file at $TIME on $DATE"
 	  rm -f /app/strdrft/sdReport/data/sd_monthly_load.trg
