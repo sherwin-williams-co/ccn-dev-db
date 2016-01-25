@@ -16,8 +16,8 @@ DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 src_file=$HOME/datafiles/STINSINV*.TXT
-#trgt_dir=/inbound
-trgt_dir=/app/strdrft/sdReport
+trgt_dir=/inbound
+#trgt_dir=/app/strdrft/sdReport
 
 echo "Processing Started for $proc at $TIME on $DATE"
 
