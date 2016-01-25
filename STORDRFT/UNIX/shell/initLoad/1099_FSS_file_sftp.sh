@@ -1,41 +1,42 @@
-#!/bin/sh -e
+#!/bin/sh
 ##############################################################################################################
-# Script name   : 1099_FSS_file_gen.sh
+# Script name   : 1099_FSS_file_sftp.sh
 #
 # Description   : This shell program will initiate the 1099 FSS process as and when needed
 #
 # Created  : 08/28/2015 jxc517 CCN Project Team.....
-# Modified : 11/18/2015 axk326 CCN Project Team.....
-#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+# Modified : 
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc="1099_FSS_monthly_file_gen"
+proc="1099_FSS_monthly_file_sftp"
 LOGDIR="$HOME/initLoad/logs"
+DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-DATE=${MNTLY_1099_RUNDATE} 
 TimeStamp=`date '+%Y%m%d%H%M%S'`
+src_file=$HOME/datafiles/STINSINV*.TXT
+#trgt_dir=/inbound
+trgt_dir=/app/strdrft/sdReport
 
 echo "Processing Started for $proc at $TIME on $DATE"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
-set heading off;
-set verify off;
-set serveroutput on;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-SD_FILE_BUILD_PKG.BUILD_1099_FILE_FOR_FSS(to_date('$DATE','MM/DD/YYYY'));
-EXCEPTION
- when others then
- :exitCode := 2;
-END;
-/
-exit :exitCode
-END
+/usr/bin/expect >> $LOGDIR/$proc"_"$TimeStamp.log << EOD
+spawn /usr/bin/sftp -o Port=22 -o StrictHostKeyChecking=no $swerp_erp_user@$swerp_erp_host
+expect "password:"
+send "$swerp_erp_pw\r"
+expect "sftp> "
+send "put $src_file $trgt_dir\r"
+expect "sftp>"
+send -- "exit\r"
+send -- "exit\r"
+exit 0
+EOD
+
+############################################################################
+#                           ARCHIVING THE FILES 
+############################################################################
+mv $HOME/datafiles/STINSINV*.TXT $HOME/datafiles/archieve/1099_FSS
 
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -43,8 +44,7 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-	 cd $HOME/dailyLoad
-	 ./send_err_status_email.sh BUILD_1099_FILE_FOR_FSS_ERROR
+     echo "Processing failed for $proc at ${TIME} on ${DATE}"  
      exit 1;
 fi
 

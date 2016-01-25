@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ##############################################################################################################
 # Script name   : Outstanding_draft_monthly.sh
 #
@@ -17,7 +17,7 @@ LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=${PL_GAIN_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-echo "Processing Started for $proc at $TIME on $DATE"
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;

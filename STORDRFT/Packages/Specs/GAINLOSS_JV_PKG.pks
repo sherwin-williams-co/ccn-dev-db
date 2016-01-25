@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE GAINLOSS_JV_PKG
+create or replace PACKAGE GAINLOSS_JV_PKG
 /****************************************************************************** 
 This package will hold all pl/sql objects that are needed to 
 create and build the Monthly GAINLOSS_JV
@@ -38,4 +38,14 @@ revision:
 *****************************************************************************/
 IN_DATE    IN DATE);
 
+PROCEDURE CREATE_GAINLOSS_UNBOOKED_RPRT(
+/*****************************************************************************
+This procedure will create JV unbooked entries for GAIN AND LOSS
+
+created : 01/11/2016 jxc517 CCN Project Team....
+revision: 
+*****************************************************************************/
+IN_DATE    IN DATE);
+
 END GAINLOSS_JV_PKG;
+
