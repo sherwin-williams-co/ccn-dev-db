@@ -120,8 +120,12 @@ CODE_DETAIL_INSERT
 	    <CODE_DETAIL_EFF_DATE>DATE</CODE_DETAIL_EFF_DATE>
   </row_data>
 </CODE_DETAIL>
+
+Created : 
+Modified : 01/26/2016 jxc517 CCN Project Team....
+          Updated the parameter from VARCHAR2 to CLOB type
 **********************************************************/
-    in_XML                VARCHAR2);
+    in_XML                CLOB);
 
 	PROCEDURE CODE_DETAIL_UPDATE(
 /**********************************************************
@@ -146,7 +150,7 @@ CODE_DETAIL_INSERT
 
 created : 
 Revised : 08/27/2015 AXK326 CCN Project Team....
-          Updated the parameter from XML to CLOB type
+          Updated the parameter from VARCHAR2 to CLOB type
 **********************************************************/
     in_XML                CLOB);
 	
@@ -173,7 +177,7 @@ CODE_DETAIL_DELETE
 
 created : 
 Revised : 08/27/2015 AXK326 CCN Project Team....
-          Updated the parameter from XML to CLOB type
+          Updated the parameter from VARCHAR2 to CLOB type
 **********************************************************/
     IN_XML                CLOB);
   
