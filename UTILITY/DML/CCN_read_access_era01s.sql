@@ -4,7 +4,7 @@
 
 SET SCAN OFF;
 --INSERTING into ROLE_DETAILS 
-Insert into ROLE_DETAILS values ('HWGUS','Global Hierarchy Window User','N','N','N','Y',
+Insert into ROLE_DETAILS values ('HWGUS','Hierarchy Window User - Global Hierarchy Select','N','N','N','Y',
 '<USER_RULES>
    <HIERARCHY_WINDOW>
       <VALUE>HIERARCHY_NAME</VALUE>
