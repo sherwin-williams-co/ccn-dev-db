@@ -4,7 +4,7 @@
 
 SET SCAN OFF;
 --INSERTING into ROLE_DETAILS 
-Insert into ROLE_DETAILS values ('GHWU','Global Hierarchy Window User','N','N','N','Y',
+Insert into ROLE_DETAILS values ('HWGUS','Global Hierarchy Window User','N','N','N','Y',
 '<USER_RULES>
    <HIERARCHY_WINDOW>
       <VALUE>HIERARCHY_NAME</VALUE>
@@ -19,6 +19,7 @@ Insert into ROLE_DETAILS values ('GHWU','Global Hierarchy Window User','N','N','
 </USER_RULES_DESCRIPTION>');
 
 --INSERTING into SECURITY_MATRIX
-Insert into SECURITY_MATRIX values ('era01s','era01s','GHWU');
+Insert into SECURITY_MATRIX values ('era01s','era01s','HWGUS');
 Insert into SECURITY_MATRIX values ('era01s','era01s','CCNUS1');
 COMMIT;
+
