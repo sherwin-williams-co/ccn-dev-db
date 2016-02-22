@@ -122,27 +122,18 @@ Changed : 10/20/2015 jxc517 CCN Project Team....
     IN_BANK_DEP_BAG_TICK_REC     IN BANK_DEP_BAG_TICK%ROWTYPE,
     IN_BANK_DEP_BAG_TICK_FTR_REC IN BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
 
-PROCEDURE PLACE_TCKT_ORDER_BR_SP(
+FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************
-    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+  This function returns CODE1 as SNZ, SAM or null depending on the criteria below
+  for the UAR POS FILE generation
+  1) SNZ  := item was loaded without a valid store number.
+  2) SAM  := item does not match account number shown on serial file.
+  3) NULL := no issue
 
-Created : 11/19/2015 nxk927 CCN Project Team....
-Changed : 
+Created : 02/08/2015 nxk927 CCN Project....
+Changed :
 *******************************************************************************/
-   IN_COST_CENTER        IN VARCHAR2,
-   IN_ORDER_DATE         IN DATE,
-   IN_FUTURE_ID          IN NUMBER);
+IN_COST_CENTER_CODE IN VARCHAR2,
+IN_BANK_ACCT_NBR    IN VARCHAR2) RETURN VARCHAR2;
 
-PROCEDURE PLACE_BAG_ORDER_BR_SP(
-/******************************************************************************
-    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
-
-Created : 11/19/2015 nxk927 CCN Project Team....
-Changed : 
-*******************************************************************************/
-   IN_COST_CENTER        IN VARCHAR2,
-   IN_ORDER_DATE         IN DATE,
-   IN_FUTURE_ID          IN NUMBER);
-   
 END BUSINESS_RULES_PKG;
-
