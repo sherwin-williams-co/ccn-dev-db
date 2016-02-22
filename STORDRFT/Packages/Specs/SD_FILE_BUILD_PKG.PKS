@@ -153,4 +153,15 @@ Changed :
 IN_FSS_SENT_ST_DT      IN     DATE,
 IN_FSS_SENT_END_DT     IN     DATE);
 
+PROCEDURE STORE_DRAFT_QRTLY_1099(
+  /******************************************************************************
+     This procedure will generate store draft report for every
+     quarterly and send an email.
+  Created : 02/19/2016 mxr916 CCN Project....
+  Changed : 
+  *******************************************************************************/
+  IN_DATE IN DATE);
+  
+ 
+
 END SD_FILE_BUILD_PKG;
