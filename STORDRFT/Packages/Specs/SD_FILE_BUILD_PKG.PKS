@@ -153,7 +153,7 @@ Changed :
 IN_FSS_SENT_ST_DT      IN     DATE,
 IN_FSS_SENT_END_DT     IN     DATE);
 
-PROCEDURE STORE_DRAFT_QRTLY_1099(
+PROCEDURE SD_1099_QRTLY_RPT(
   /******************************************************************************
      This procedure will generate store draft report for every
      quarterly and send an email.
