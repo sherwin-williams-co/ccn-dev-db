@@ -6,5 +6,5 @@ SET SCAN OFF;
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
 
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('STORE_DRAFT_QRTLY_REPORT','21','STORE DRAFT 1099 QRTLY REPORT','Keith.D.Parker@sherwin.com','Please find the attached SD 1099 QRTLY Report.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('SD_1099_QRTLY_RPT','21','STORE DRAFT 1099 QRTLY REPORT','Keith.D.Parker@sherwin.com','Please find the attached SD 1099 QRTLY Report.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 COMMIT;
