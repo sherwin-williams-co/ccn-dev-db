@@ -1,0 +1,44 @@
+/*
+Created : 02/24/2016 dxv848/nxk927 removing the duplicate records in the SUMMARY_EXTRCT_CNTRL_FL table
+*/
+--create a table SUMMARY_EXTRCT_CNTRL_FL_TEMP
+CREATE TABLE SUMMARY_EXTRCT_CNTRL_FL_TEMP AS  SELECT * FROM SUMMARY_EXTRCT_CNTRL_FL WHERE 1=0;
+
+/
+-- Select the distinct records  from SUMMARY_EXTRCT_CNTRL_FL and insert into SUMMARY_EXTRCT_CNTRL_FL_TEMP table
+DECLARE
+v_count NUMBER:= 0;
+BEGIN
+FOR REC IN (
+    SELECT *
+      FROM SUMMARY_EXTRCT_CNTRL_FL A
+     WHERE LOAD_DATE = (SELECT MIN(LOAD_DATE)
+                          FROM SUMMARY_EXTRCT_CNTRL_FL
+                         WHERE COST_CENTER_CODE = A.COST_CENTER_CODE
+                           AND CENTURY = A.CENTURY
+                           AND BANK_DEP_AMT = A.BANK_DEP_AMT
+                           AND BANK_ACCOUNT_NBR = A.BANK_ACCOUNT_NBR
+                           AND TRANSACTION_DATE = A.TRANSACTION_DATE)) LOOP
+    v_count := v_count +1;
+    INSERT INTO SUMMARY_EXTRCT_CNTRL_FL_TEMP VALUES rec;
+    IF v_count =100 THEN
+        v_count:= 0;
+        COMMIT;
+    END IF;
+END LOOP;
+COMMIT;
+END;
+
+/
+-- check the count of the SUMMARY_EXTRCT_CNTRL_FL_temp table
+SELECT COUNT(*) FROM SUMMARY_EXTRCT_CNTRL_FL_TEMP;  
+
+/
+-- DROP the SUMMARY_EXTRCT_CNTRL_FL table
+DROP TABLE SUMMARY_EXTRCT_CNTRL_FL;
+
+/
+-- RENAME THE table  
+ALTER TABLE SUMMARY_EXTRCT_CNTRL_FL_TEMP RENAME TO SUMMARY_EXTRCT_CNTRL_FL;
+
+/
