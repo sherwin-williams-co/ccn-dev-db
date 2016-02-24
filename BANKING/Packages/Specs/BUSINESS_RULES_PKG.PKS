@@ -124,13 +124,14 @@ Changed : 10/20/2015 jxc517 CCN Project Team....
 
 FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************
-  This function returns CODE1 as SNZ, SAM or null depending on the criteria below
-  for the UAR POS FILE generation
-  1) SNZ  := item was loaded without a valid store number.
-  2) SAM  := item does not match account number shown on serial file.
+  This function returns exception code defined by mainframe as CODE1(Exception code)
+  for the cost center and bank account number passed
+  as SNZ, SAM or null depending on the criteria below  for the UAR POS FILE generation
+  1) SNZ  := item was loaded without a valid store number
+  2) SAM  := item does not match account number shown on serial file
   3) NULL := no issue
 
-Created : 02/08/2015 nxk927 CCN Project....
+Created : 02/08/2015 nxk927/dxv848 CCN Project....
 Changed :
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2,
