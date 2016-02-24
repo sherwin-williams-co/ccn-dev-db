@@ -282,94 +282,6 @@ BEGIN
     UTL_FILE.FCLOSE(UAR_SERIAL_OTPT_FL);
 END GENERATE_UAR_SERIAL_FILE;
 
-FUNCTION GET_ACH_EXTRCT_CNTRL_FL_DT(
-/******************************************************************************
-  This function will return the previous run date for the 4 digit store passed in
-
-Created : 09/30/2015 jxc517 CCN Project....
-Changed : 10/07/2015 nxk927 CCN Project....
-          added load date and passing the date parameter as well
-		    : 01/29/2016 nxk927/dxv848  CCN Project....
-		      passing bank account number as parameter
-*******************************************************************************/
-IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_BANK_ACCT_NBR        IN     VARCHAR2,
-IN_DATE                 IN     DATE) RETURN DATE
-IS
-    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
-BEGIN
-    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
-      INTO V_RETURN_DATE_VAL
-      FROM ACH_DRFTS_EXTRCT_CNTRL_FL
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND BANK_ACCOUNT_NBR = IN_BANK_ACCT_NBR
-       AND LOAD_DATE        < IN_DATE;
-     RETURN V_RETURN_DATE_VAL;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_DATE_VAL;
-END GET_ACH_EXTRCT_CNTRL_FL_DT;
-
-FUNCTION GET_PREV_JV_EXTRCT_CNTRL_FL_DT(
-/******************************************************************************
-  This function will return the previous run date for the 4 digit store passed in
-
-Created : 09/30/2015 jxc517 CCN Project....
-Changed : 10/07/2015 nxk927 CCN Project....
-          added load date and passing the date parameter as well
-        : 01/29/2016 nxk927/dxv848  CCN Project....
-		      passing bank account number as parameter
-        : 02/18/2016 nxk927/dxv848  CCN Project....
-          adding the tcode and refeedtcode in the where condition
-*******************************************************************************/
-IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_BANK_ACCT_NBR        IN     VARCHAR2,
-IN_DATE                 IN     DATE) RETURN DATE
-IS
-    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
-BEGIN
-    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
-      INTO V_RETURN_DATE_VAL
-      FROM JV_EXTRCT_CNTRL_FL
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND BANK_ACCOUNT_NBR = IN_BANK_ACCT_NBR
-       AND TCODE              IS NOT NULL
-       AND REFEED_TCODE       IS NOT NULL
-       AND LOAD_DATE        < IN_DATE;
-     RETURN V_RETURN_DATE_VAL;
-EXCEPTION
-    WHEN OTHERS THEN
-         RETURN V_RETURN_DATE_VAL;
-END GET_PREV_JV_EXTRCT_CNTRL_FL_DT;
-
-FUNCTION GET_PREV_SUM_EXTRCT_CTRL_FL_DT(
-/******************************************************************************
-  This function will return the previous run date for the 4 digit store passed in
-
-Created : 09/30/2015 jxc517 CCN Project....
-Changed : 10/07/2015 nxk927 CCN Project....
-          added load date and passing the date parameter as well
-		    : 01/29/2016 nxk927/dxv848  CCN Project....
-          passing bank account number as parameter
-*******************************************************************************/
-IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_BANK_ACCT_NBR        IN     VARCHAR2,
-IN_DATE                 IN     DATE) RETURN DATE
-IS
-    V_RETURN_DATE_VAL DATE := TO_DATE('01-JAN-1900');
-BEGIN
-    SELECT MAX(TRANSACTION_DATE) DATE_VALUE
-      INTO V_RETURN_DATE_VAL
-      FROM SUMMARY_EXTRCT_CNTRL_FL
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND BANK_ACCOUNT_NBR = IN_BANK_ACCT_NBR
-       AND LOAD_DATE        < IN_DATE -1;
-     RETURN V_RETURN_DATE_VAL;
-EXCEPTION
-    WHEN OTHERS THEN
-         RETURN V_RETURN_DATE_VAL;
-END GET_PREV_SUM_EXTRCT_CTRL_FL_DT;
-
 PROCEDURE GENERATE_HEADER(
 /******************************************************************************
   This procedure generates Header for UAR POS files
@@ -507,7 +419,8 @@ Created : 06/26/2015 jxc517 CCN Project....
 Changed : 10/07/2015 nxk927 CCN Project....
           added load date and passing the date parameter
         : 01/29/2016 nxk927/dxv848 CCN Project....
-          Added Order by cost center
+          Added BANK_AUTO_REC_IND in the where condition and Order by cost center in main_cur
+          TRAN-CODE field changed from 0020 to 0055. All the data coming from ACH_DRFTS_EXTRCT_CNTRL_FL table will have the TRAN-CODE as 0055.
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -575,7 +488,7 @@ PROCEDURE GENERATE_UAR_REFEED_FILE(
   the cost center associated with it. When it's done with the body it will write the trailer
 
   In this process we will validate the data (cost center and bank account number)
-  If the cost center sent in the file is not valide, then we will assign it with Code1 (exception codes) as SNZ
+  If the cost center sent in the file is not valid, then we will assign it with CODE1 (exception codes) as SNZ
   If the bank account number that is in the input file doesn't match with the serial dat file that we will write,
   then the Code1 (exception codes) will be assigned as SAM else nothing.
 
@@ -621,7 +534,6 @@ IS
     V_COUNT                    NUMBER := 0;
     V_AMOUNT                   NUMBER := 0;
     V_PREV_BNK_ACCT_NBR        VARCHAR2(17);
-    V_DATE                     DATE;
     V_DIVISION                 VARCHAR2(10);
     V_AREA                     VARCHAR2(10);
     V_DISTRICT                 VARCHAR2(10);
@@ -633,62 +545,58 @@ BEGIN
                                           ,'W' --BINARY
                                           ,32767);
     FOR rec IN main_cur LOOP
-        V_DATE := GET_PREV_JV_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE,rec.BANK_ACCOUNT_NBR, IN_DATE);
-        IF rec.TRANSACTION_DATE > V_DATE
-            OR V_DATE IS NULL THEN  ---this is if there are new records or first record
-            IF V_PREV_BNK_ACCT_NBR IS NOT NULL AND
-                V_PREV_BNK_ACCT_NBR <> rec.BANK_ACCOUNT_NBR THEN
-                GENERATE_TRAILER('N',V_AMOUNT ,OUT_TRAILER );
-                --Trailer
-                V_OUT_CLOB := V_OUT_CLOB || OUT_TRAILER;
-                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                    UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
-                    V_OUT_CLOB := NULL;
-                    OUT_TRAILER:= NULL;
-                END IF;
-                V_AMOUNT := 0;
-                V_COUNT  := 0;
-            END IF;
-            --Push the data into SMIS1.TMP.SRA11063 file
-            --Header
-            IF NVL(V_PREV_BNK_ACCT_NBR,'XXX') <> rec.BANK_ACCOUNT_NBR THEN
-                GENERATE_HEADER(rec.BANK_ACCOUNT_NBR, OUT_HEADER);
-                V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
-                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                    UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
-                    V_OUT_CLOB := NULL;
-                    OUT_HEADER := NULL;
-                END IF;
-            END IF;
-            BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
-            V_AMOUNT := V_AMOUNT + rec.AMOUNT1;
-            V_COUNT := V_COUNT + 1;
-            V_OUT_CLOB := V_OUT_CLOB ||
-                         '1' ||                                                                   --SER-FLAG (1)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                   --FIELD-4 (17)
-                         '0' ||                                                                   --STORE-NBR-PFX (1)
-                         RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                   --STORE-NBR(4 + 12 spaces)
-                         FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||                            --AMOUNT (12)
-                         FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) || --TRAN-DATE YYMMDD (2 + 2 + 2)
-                         RPAD(rec.TCODE, 4, ' ') ||                                               --TRAN-CODE (4)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                    --FILLER (4 spaces)
-                         RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                    --DIVISION-NBR (2 + 15 spaces)
-                         RPAD(NVL(V_AREA,' '), 17, ' ') ||                                        --AREA-NBR (2 + 15 spaces)
-                         RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                    --DISTRICT-NBR (2 + 38 spaces)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                                   --FILLER (40 spaces)
-                         --60 characters below
-                         FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||                    --TRAN_SEQNUM (9)
-                         FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||                               --CODE (2)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                                   --FILLER (21 spaces)
-                         FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||                              --CODE1 (3)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                                   --FILLER (25 spaces)
-                         CHR(13);
+        IF V_PREV_BNK_ACCT_NBR IS NOT NULL AND
+            V_PREV_BNK_ACCT_NBR <> rec.BANK_ACCOUNT_NBR THEN
+            GENERATE_TRAILER('N',V_AMOUNT ,OUT_TRAILER );
+            --Trailer
+            V_OUT_CLOB := V_OUT_CLOB || OUT_TRAILER;
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
                 UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
                 V_OUT_CLOB := NULL;
+                OUT_TRAILER:= NULL;
             END IF;
-            V_PREV_BNK_ACCT_NBR := rec.BANK_ACCOUNT_NBR;
+            V_AMOUNT := 0;
+            V_COUNT  := 0;
         END IF;
+        --Push the data into SMIS1.TMP.SRA11063 file
+        --Header
+        IF NVL(V_PREV_BNK_ACCT_NBR,'XXX') <> rec.BANK_ACCOUNT_NBR THEN
+            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR, OUT_HEADER);
+            V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
+            IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+                UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
+                V_OUT_CLOB := NULL;
+                OUT_HEADER := NULL;
+            END IF;
+        END IF;
+        BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+        V_AMOUNT := V_AMOUNT + rec.AMOUNT1;
+        V_COUNT := V_COUNT + 1;
+        V_OUT_CLOB := V_OUT_CLOB ||
+                          '1' ||                                                                   --SER-FLAG (1)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                   --FIELD-4 (17)
+                          '0' ||                                                                   --STORE-NBR-PFX (1)
+                          RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                   --STORE-NBR(4 + 12 spaces)
+                          FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||                            --AMOUNT (12)
+                          FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) || --TRAN-DATE YYMMDD (2 + 2 + 2)
+                          RPAD(rec.TCODE, 4, ' ') ||                                               --TRAN-CODE (4)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                    --FILLER (4 spaces)
+                          RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                    --DIVISION-NBR (2 + 15 spaces)
+                          RPAD(NVL(V_AREA,' '), 17, ' ') ||                                        --AREA-NBR (2 + 15 spaces)
+                          RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                    --DISTRICT-NBR (2 + 38 spaces)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                                   --FILLER (40 spaces)
+                          --60 characters below
+                          FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||                    --TRAN_SEQNUM (9)
+                          FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||                               --CODE (2)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                                   --FILLER (21 spaces)
+                          FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||                              --CODE1 (3)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                                   --FILLER (25 spaces)
+                          CHR(13);
+        IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+            UTL_FILE.PUT_LINE(UAR_REFEED_OTPT_FL, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
+        END IF;
+            V_PREV_BNK_ACCT_NBR := rec.BANK_ACCOUNT_NBR;
     END LOOP;
     IF V_COUNT <> 0 THEN
         GENERATE_TRAILER('N',V_AMOUNT ,OUT_TRAILER );
@@ -757,59 +665,54 @@ IS
     V_DISTRICT              VARCHAR2(10);
     V_OUT_CLOB              CLOB;
     V_COUNT                 NUMBER := 0;
-    V_DATE                  DATE;
     OUT_TRAILER             CLOB;
     OUT_HEADER              CLOB;
     V_FLAG                  VARCHAR2(1) := 'Y';
 BEGIN
     --Push the data into SMIS1.SRA12060(+1) file
     FOR rec IN refeed_cur LOOP--POS_REFEED_CUR
-        --Body [REFEED details first and then POS details]
-        V_DATE := GET_PREV_JV_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE,rec.BANK_ACCOUNT_NBR, IN_DATE);
-        IF rec.TRANSACTION_DATE > V_DATE
-            OR V_DATE IS NULL THEN --if there are any new records
-            --Header
-            --writing the header for the first time per bank account
-            --then the body for all the cost center under the same bank account number
-            IF V_FLAG = 'Y' THEN
-                GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
-                V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
+        --Body (REFEED details first and then POS details)
+        --Header
+        --writing the header for the first time per bank account
+        --then the body for all the cost center under the same bank account number
+        IF V_FLAG = 'Y' THEN
+            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
+            V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
 
-                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                    UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
-                    V_OUT_CLOB := NULL;
-                END IF;
-                V_FLAG := 'N';
+            IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+                UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
+                V_OUT_CLOB := NULL;
             END IF;
+            V_FLAG := 'N';
+        END IF;
             V_COUNT := V_COUNT +1;
             ---getting DAD for the cost center
             BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
             V_OUT_CLOB := V_OUT_CLOB ||
-                             '1' ||                                                                   --SER-FLAG (1)
-                             FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                   --FIELD-4 (17)
-                             '0' ||                                                                   --STORE-NBR-PFX (1)
-                             RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                   --STORE-NBR(4 + 12 spaces)
-                             FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||                            --AMOUNT (12)
-                             FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) || --TRAN-DATE YYMMDD (2 + 2 + 2)
-                             RPAD(rec.TCODE, 4, ' ') ||                                               --TRAN-CODE (4)
-                             FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                    --FILLER (4 spaces)
-                             RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                    --DIVISION-NBR (2 + 15 spaces)
-                             RPAD(NVL(V_AREA,' '), 17, ' ') ||                                        --AREA-NBR (2 + 15 spaces)
-                             RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                    --DISTRICT-NBR (2 + 38 spaces)
-                             FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                                   --FILLER (40 spaces)
-                             --60 characters below
-                             FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||                    --TRAN_SEQNUM (9)
-                             FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||                               --CODE (2)
-                             FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                                   --FILLER (21 spaces)
-                             FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||                              --CODE1 (3)
-                             FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                                   --FILLER (25 spaces)
-                             CHR(13);
+                              '1' ||                                                                   --SER-FLAG (1)
+                              FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                   --FIELD-4 (17)
+                              '0' ||                                                                   --STORE-NBR-PFX (1)
+                              RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                   --STORE-NBR(4 + 12 spaces)
+                              FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||                            --AMOUNT (12)
+                              FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) || --TRAN-DATE YYMMDD (2 + 2 + 2)
+                              RPAD(rec.TCODE, 4, ' ') ||                                               --TRAN-CODE (4)
+                              FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                    --FILLER (4 spaces)
+                              RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                    --DIVISION-NBR (2 + 15 spaces)
+                              RPAD(NVL(V_AREA,' '), 17, ' ') ||                                        --AREA-NBR (2 + 15 spaces)
+                              RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                    --DISTRICT-NBR (2 + 38 spaces)
+                              FORMAT_INPUT_FOR_FILE(' ', ' ', 40) ||                                   --FILLER (40 spaces)
+                              --60 characters below
+                              FORMAT_INPUT_FOR_FILE(rec.TRNSCTN_SEQ_NBR, '0', 9) ||                    --TRAN_SEQNUM (9)
+                              FORMAT_INPUT_FOR_FILE(rec.CODE, ' ', 2) ||                               --CODE (2)
+                              FORMAT_INPUT_FOR_FILE(' ', ' ', 21) ||                                   --FILLER (21 spaces)
+                              FORMAT_INPUT_FOR_FILE(rec.CODE1, ' ', 3) ||                              --CODE1 (3)
+                              FORMAT_INPUT_FOR_FILE(' ', ' ', 25) ||                                   --FILLER (25 spaces)
+                              CHR(13);
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
                 UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
                 V_OUT_CLOB := NULL;
                 OUT_HEADER := NULL;
             END IF;
-        END IF;
     END LOOP;
     IF V_COUNT <> 0 THEN
         --Trailer
@@ -878,55 +781,45 @@ IS
     V_DISTRICT            VARCHAR2(10);
     V_OUT_CLOB            CLOB;
     V_COUNT               NUMBER := 0;
-    V_DATE                DATE;
     OUT_TRAILER           CLOB;
     OUT_HEADER            CLOB;
     V_FLAG                VARCHAR2(1) := 'Y';
 BEGIN
     FOR rec IN pos_cur LOOP
-        IF rec.TCODE = '0022' THEN --data coming from SUMMARY_EXTRCT_CNTRL_FL
-           V_DATE := GET_PREV_SUM_EXTRCT_CTRL_FL_DT(rec.COST_CENTER_CODE,rec.BANK_ACCOUNT_NBR, IN_DATE);
-        ELSE
-           --data coming from ACH_DRFTS_EXTRCT_CNTRL_FL
-           V_DATE := GET_ACH_EXTRCT_CNTRL_FL_DT(rec.COST_CENTER_CODE,rec.BANK_ACCOUNT_NBR, IN_DATE);
-        END IF;
-        IF rec.TRANSACTION_DATE > V_DATE
-            OR V_DATE IS NULL THEN --If the cost center is the new record
-            --Header
-            --writing the header for the first time per bank account.
-            --then the body for all the cost center under the same bank account number
-            IF V_FLAG = 'Y' THEN
-                GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
-                V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
+        --Header
+        --writing the header for the first time per bank account.
+        --then the body for all the cost center under the same bank account number
+        IF V_FLAG = 'Y' THEN
+            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
+            V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
 
-                IF V_OUT_CLOB <> EMPTY_CLOB() THEN
-                    UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
-                    V_OUT_CLOB := NULL;
-                    OUT_HEADER := NULL;
-                END IF;
-                V_FLAG := 'N';
-            END IF;
-
-            BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
-            V_COUNT := V_COUNT +1;
-            V_OUT_CLOB := V_OUT_CLOB ||
-                         '1' ||                                                                    --SER-FLAG (1)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                    --FIELD-4 (17)
-                         '0' ||                                                                    --STORE-NBR-PFX (1)
-                         RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                    --STORE-NBR(4 + 12 spaces)
-                         FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||                       --AMOUNT (12)
-                         FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) ||  --TRAN-DATE YYMMDD (2 + 2 + 2)
-                         RPAD(rec.TCODE, 4, ' ') ||                                                --TRAN-CODE (4)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                     --FILLER (4 spaces)
-                         RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                     --DIVISION-NBR (2 + 15 spaces)
-                         RPAD(NVL(V_AREA,' '), 17, ' ') ||                                         --AREA-NBR (2 + 15 spaces)
-                         RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                     --DISTRICT-NBR (2 + 38 spaces)
-                         FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                                   --FILLER (40 + 60 spaces)
-                         CHR(13);
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
                 UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
                 V_OUT_CLOB := NULL;
+                OUT_HEADER := NULL;
             END IF;
+            V_FLAG := 'N';
+        END IF;
+
+        BANKING_COMMON_TOOLS.GET_DAD_FOR_COST_CENTER(rec.COST_CENTER_CODE, V_DIVISION, V_AREA, V_DISTRICT);
+        V_COUNT := V_COUNT +1;
+        V_OUT_CLOB := V_OUT_CLOB ||
+                          '1' ||                                                                    --SER-FLAG (1)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                    --FIELD-4 (17)
+                          '0' ||                                                                    --STORE-NBR-PFX (1)
+                          RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                    --STORE-NBR(4 + 12 spaces)
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||                       --AMOUNT (12)
+                          FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) ||  --TRAN-DATE YYMMDD (2 + 2 + 2)
+                          RPAD(rec.TCODE, 4, ' ') ||                                                --TRAN-CODE (4)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                     --FILLER (4 spaces)
+                          RPAD(NVL(V_DIVISION,' '), 17, ' ') ||                                     --DIVISION-NBR (2 + 15 spaces)
+                          RPAD(NVL(V_AREA,' '), 17, ' ') ||                                         --AREA-NBR (2 + 15 spaces)
+                          RPAD(NVL(V_DISTRICT,' '), 40, ' ') ||                                     --DISTRICT-NBR (2 + 38 spaces)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 100) ||                                   --FILLER (40 + 60 spaces)
+                          CHR(13);
+        IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+            UTL_FILE.PUT_LINE(IO_UAR_POSITION_OTPT_FL, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
         END IF;
     END LOOP;
     --Trailer
