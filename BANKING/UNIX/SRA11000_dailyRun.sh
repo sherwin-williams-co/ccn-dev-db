@@ -15,6 +15,8 @@
 #            mv command will fail. cat will concatenate the files to one file and 
 #            the process won't fail. 
 #            Also archiving all the original files in the same folder as well.
+#          : 02/26/2016 nxk927/dxv848 CCN Project Team.....
+#            Archiving scripts called to archive the input files   
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -80,33 +82,17 @@ else
   mkdir $ARCHIVE_PATH/$FOLDER
 fi
 #################################################################
-#         Archieve files SRA10510*.TXT, SRA13510*.TXT, SRA11060*.TXT
+#                    Running individual script to Archieve files
+#                    SRA10510*.TXT, SRA13510*.TXT, SRA11060*.TXT
 #################################################################
-if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510*.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
-fi
-
-if ls $DATA_FILES_PATH/SRA13510.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA13510.TXT files exist "
-    mv $DATA_FILES_PATH/SRA13510*.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA13510.TXT files does not exist"
-fi
-
-if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA11060.TXT files exist "
-    mv $DATA_FILES_PATH/SRA11060*.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
-fi
+./SRA11000_Arch_SRA10510.sh
+./SRA11000_Arch_SRA13510.sh
+./SRA11000_Arch_SRA11060.sh
 
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-./SRA11000_dailyRun_ftp.sh
+#./SRA11000_dailyRun_ftp.sh
 TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
@@ -119,19 +105,8 @@ echo "Processing finished for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
 #################################################################
 #         Archieve files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-if ls $DATA_FILES_PATH/SMIS1.SRA12060_* &> /dev/null; then
-    echo "$DATA_FILES_PATH/SMIS1.SRA12060_* files exist "
-    mv $DATA_FILES_PATH/SMIS1.SRA12060_* $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SMIS1.SRA12060_* files does not exist"
-fi
+./SRA11000_Arch_Output_file.sh
 
-if ls $DATA_FILES_PATH/SMIS1.SRA10060_* &> /dev/null; then
-    echo "$DATA_FILES_PATH/SMIS1.SRA10060_* files exist "
-    mv $DATA_FILES_PATH/SMIS1.SRA10060_* $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SMIS1.SRA10060_* files does not exist"
-fi
 #################################################################
 #                                              ERROR STATUS CHECK
 #################################################################
