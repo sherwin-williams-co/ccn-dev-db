@@ -1,4 +1,4 @@
-create or replace PACKAGE BUSINESS_RULES_PKG
+CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -122,6 +122,28 @@ Changed : 10/20/2015 jxc517 CCN Project Team....
     IN_BANK_DEP_BAG_TICK_REC     IN BANK_DEP_BAG_TICK%ROWTYPE,
     IN_BANK_DEP_BAG_TICK_FTR_REC IN BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
 
+PROCEDURE PLACE_TCKT_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_ORDER_DATE         IN DATE,
+   IN_FUTURE_ID          IN NUMBER);
+
+PROCEDURE PLACE_BAG_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_ORDER_DATE         IN DATE,
+   IN_FUTURE_ID          IN NUMBER);
+
 FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************
   This function returns exception code defined by mainframe as CODE1(Exception code)
@@ -135,6 +157,6 @@ Created : 02/08/2015 nxk927/dxv848 CCN Project....
 Changed :
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2,
-IN_BANK_ACCT_NBR    IN VARCHAR2) RETURN VARCHAR2;	
+IN_BANK_ACCT_NBR    IN VARCHAR2) RETURN VARCHAR2;
 
 END BUSINESS_RULES_PKG;

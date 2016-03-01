@@ -1,4 +1,5 @@
-create or replace PACKAGE BODY BUSINESS_RULES_PKG
+CREATE OR REPLACE 
+PACKAGE BODY BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -1355,6 +1356,9 @@ Changed : 09/16/2015 axk326 CCN Project....
           is transferred again all the futures will be deleted
 Changed : 11/10/2015 jxc517 CCN Project....
           Added business rule to throw error if user tries to perform transfer with multiple dates
+Changed : 11/10/2015 nxk927 CCN Project....
+          Added business rule to throw error if user tries to enter the date for the member transfer where
+          the TO_COST_CENTER is not lead in the date passed
 *******************************************************************************/
 IN_XML           CLOB)
 IS
@@ -1417,6 +1421,7 @@ BEGIN
                          V_PROC_NAME,
                          'Please select at least one member to transfer');
     END IF;
+
     SELECT COUNT(*)
       INTO V_COUNT
       FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
@@ -1424,11 +1429,39 @@ BEGIN
                      COLUMNS MEMBER_STORE_NBR VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()',
                              EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')
      WHERE EFFECTIVE_DATE IS NULL;
+
     IF V_COUNT > 0 THEN
         ERRPKG.RAISE_ERR(errnums.en_to_effect_date_err,
                          V_PROC_NAME,
                          'To effective date is not specified. Please enter an effective date for the member stores to be transfered');
     END IF;
+
+    FOR REC IN (SELECT DISTINCT TO_DATE(SUBSTR(EFFECTIVE_DATE, 1, 10), 'MM-DD-RRRR') EFFECTIVE_DATE
+                  FROM XMLTABLE ('/MEMBER_TRANSFER_UI/MEMBER_STORES/MEMBER'
+                                   PASSING V_ROW_DATA
+                                   COLUMNS EFFECTIVE_DATE VARCHAR2(24) PATH 'EFFECTIVE_DATE/text()')) LOOP
+       --This rule will be kicked if :-
+       -- scenario 1 -->
+          -- if the TO_LEAD is currently an independent, but lead in future we should throw error if the transfer was performed
+          -- with the effective date less than that of the lead's effective date in future
+       --  scenario 2 -->
+          --) If the TO_LEAD is currently assigned to bank account "A" and in future assigned to bank account "B"
+        --this business rule will fire if trying to transfer before the future effective date of lead  attached to bank account B
+        --lead with bank account "A" will be expired so we will be performing the transfer with the lead having B's record
+
+      --This rule won't be kicked if :-
+       -- scenario 1 -->
+          --If the TO_LEAD has a virtual future (same bank account in future as lead with no expiration date), this won't be fired
+          --unless the effective date is less than that of to_lead
+
+        --The reason for above hard error is because of real future scenario
+        IF BANKING_COMMON_TOOLS.IS_LEAD_ON_DATE_PASSED(V_TO_LEAD_CC, rec.EFFECTIVE_DATE) = 'N' THEN
+            ERRPKG.RAISE_ERR(errnums.en_mem_to_ld_effect_dt_err,
+                             V_PROC_NAME,
+                             'The passed effective date is less than the lead effective date. Please enter correct effective date for the member stores to be transfered');
+        END IF;
+    END LOOP;
+
     FOR rec IN (SELECT *
                   FROM MEMBER_BANK_CC
                  WHERE LEAD_BANK_ACCOUNT_NBR = V_FROM_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR
@@ -1580,6 +1613,126 @@ BEGIN
                                    'Deposit Bag Ticket');
     END IF;
 END DEPOSIT_BAG_TICKET_MNTNC_BR_SP;
+
+PROCEDURE PLACE_TCKT_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+    Below procedure will check to see
+    1) if there are store micr details attached to the cost center,
+    2) if there are any order placed for the future ticket with the
+       order date lesser than the effective date of the future record,
+    2) if there are any order placed for the current ticket with the
+       order date greater than the effective date used for the future ticket
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed : 11/24/2015 nxk927 CCN Project Team....
+          calling the function to get the store micr details
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_ORDER_DATE         DATE,
+   IN_FUTURE_ID          IN NUMBER)
+IS
+   V_PROC_NAME           VARCHAR2(30) := 'PLACE_TCKT_ORDER_BR_SP';
+   V_COUNT               NUMBER := 0;
+   V_REC                 BANK_DEP_TICK_FUTURE%ROWTYPE;
+   V_ST_MICR_DTLS_REC    STORE_MICR_FORMAT_DTLS%ROWTYPE;
+   V_ST_MCR_DTLS_F_REC   STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
+
+BEGIN
+    BEGIN
+       SELECT *
+         INTO V_REC
+         FROM BANK_DEP_TICK_FUTURE
+        WHERE COST_CENTER_CODE  = IN_COST_CENTER
+          AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE);
+    EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+               NULL;
+    END;
+    IF IN_FUTURE_ID IS NULL THEN
+       --this check will see if the order date  is less than the effective date of the ticket in future
+       IF NVL(V_REC.EFFECTIVE_DATE,IN_ORDER_DATE +1) <= IN_ORDER_DATE THEN  --need to have the order placed with date less than the effective date of the future
+              ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
+                              V_PROC_NAME,
+                             'The order placed date is greater/equal than the effective date of the deposit ticket in future.Please enter order date that is before the effective date of the deposit ticket in future');
+       END IF;
+       V_ST_MICR_DTLS_REC:= BANKING_COMMON_TOOLS.GET_STORE_MICR_FORMAT_DTLS_REC(IN_COST_CENTER);
+       IF V_ST_MICR_DTLS_REC.COST_CENTER_CODE IS NULL THEN
+          ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
+                           V_PROC_NAME,
+                           'The cost center retrieved do not have any Store Micr Format Details Attached');
+       END IF;
+
+   ELSE
+      --this check will see if the order date  is less than the effective date of the future ticket
+       IF V_REC.EFFECTIVE_DATE > IN_ORDER_DATE THEN  --need to have the order placed with date greater than the effective date
+          ERRPKG.RAISE_ERR(errnums.en_ticket_order_date_err,
+                           V_PROC_NAME,
+                          'The order placed date is less than the effective date of the deposit ticket.Please enter order date that is after the effective date.');
+       END IF;
+       V_ST_MCR_DTLS_F_REC:= BANKING_COMMON_TOOLS.GET_STR_MICR_FRMT_DTLS_FTR_REC(IN_COST_CENTER,IN_FUTURE_ID);
+       IF V_ST_MCR_DTLS_F_REC.COST_CENTER_CODE IS NULL THEN
+          ERRPKG.RAISE_ERR(errnums.en_str_micr_dtls_not_avail,
+                           V_PROC_NAME,
+                           'The cost center retrieved do not have any Store Micr Format Details Attached');
+       END IF;
+   END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PLACE_TCKT_ORDER_BR_SP;
+
+PROCEDURE PLACE_BAG_ORDER_BR_SP(
+/******************************************************************************
+    This procedure validates the business rules for placing order from Deposit Bag TIcket Window
+    Below procedure will check to see
+    1) if there are any order placed for the future bag with the
+       order date lesser than the effective date of the future record,
+    2) if there are any order placed for the current ticket with the
+       order date greater than the effective date used for the future bag
+
+Created : 11/19/2015 nxk927 CCN Project Team....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER        IN VARCHAR2,
+   IN_ORDER_DATE         IN DATE,
+   IN_FUTURE_ID          IN NUMBER)
+IS
+   V_PROC_NAME           VARCHAR2(30) := 'CHECK_BAG_ORDER_DATE';
+   V_REC                 BANK_DEP_BAG_TICK_FUTURE%ROWTYPE;
+BEGIN
+    BEGIN
+       SELECT *
+         INTO V_REC
+         FROM BANK_DEP_BAG_TICK_FUTURE
+        WHERE COST_CENTER_CODE      = IN_COST_CENTER
+          AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE);
+    EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+               NULL;
+    END;
+
+    IF IN_FUTURE_ID IS NULL THEN
+       --below check will check to see if the passed order date is greater than the effective
+       --date for the future member effective date if present
+        --order date lesser than that of the order date used for the current order
+        IF NVl(V_REC.EFFECTIVE_DATE, IN_ORDER_DATE + 1)<= IN_ORDER_DATE  THEN
+               ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
+                                V_PROC_NAME,
+                               'The order placed date is greater/equal than the order already placed for future bag.Please enter order date that is earlier than the order date of future orders.');
+        END IF;
+    ELSE
+      --this check will see if the order date  is less than the effective date of the ticket
+       IF V_REC.EFFECTIVE_DATE > IN_ORDER_DATE  THEN--need to have the order placed with date greater than the effective date
+          ERRPKG.RAISE_ERR(errnums.en_bag_order_date_err,
+                           V_PROC_NAME,
+                           'The order placed date is less than the effective date of the deposit bag.Please enter order date that is after the effective date.');
+       END IF;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PLACE_BAG_ORDER_BR_SP;
 
 FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************
