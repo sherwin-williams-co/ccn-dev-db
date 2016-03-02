@@ -280,6 +280,20 @@ FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields
 Created : 10/30/2015 NXK927
+Changed :
+************************************************************/
+    IN_COST_CENTER              IN     VARCHAR2,
+    IN_REORDER_NUMBER_BKS       IN     NUMBER,
+    IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
+    IN_FUTURE_ID                IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+
+
+FUNCTION GET_DEPOSIT_TICKET_ONHAND_YTD(
+/***********************************************************
+	  This function will get the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields
+Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
     IN_COST_CENTER              IN     VARCHAR2,
@@ -287,12 +301,25 @@ Changed :
     IN_REORDER_NUMBER_BKS       IN     NUMBER,
     IN_NBR_DEP_TICKETS_PER_BK   IN     NUMBER,
     IN_FUTURE_ID                IN     NUMBER)RETURN BANK_DEP_TICK_HIST%ROWTYPE;
+
     
 FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
 /***********************************************************
 	  This function will get the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY
     From history to update the current records as the future will have 0's for both the
     field. When future moves to current, this need to run to update the two fields  
+Created : 10/30/2015 NXK927
+Changed :
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_DEPBAG_REORDER_QTY    IN     NUMBER,
+    IN_FUTURE_ID             IN     NUMBER) RETURN BANK_DEP_BAG_TICK_HIST%ROWTYPE;
+
+FUNCTION GET_DEPOSIT_BAG_ONHAND_YTD(
+/***********************************************************
+	  This function will get the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY
+    From history to update the current records as the future will have 0's for both the
+    field. When future moves to current, this need to run to update the two fields
 Created : 10/30/2015 NXK927
 Changed : 
 ************************************************************/
