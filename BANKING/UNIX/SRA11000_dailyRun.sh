@@ -17,6 +17,11 @@
 #            Also archiving all the original files in the same folder as well.
 #          : 02/26/2016 nxk927/dxv848 CCN Project Team.....
 #            Archiving scripts called to archive the input files   
+#          : 03/03/2016 dxv848/nxk927 CCn project Team.....
+#            created separate scripts
+#            1.concatenate the input files then move only input files to archive folder-- SRA11000_Archinput_file.sh
+#            2. move the concatenate files to archive folder after the core process done -- SRA11000_Archconcat_file.sh
+#
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -30,29 +35,23 @@ TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
+
 #################################################################
-#     Rename files SRA10510_*.TXT, SRA13510_*.TXT, SRA11060_*.TXT
+#          Control will output if directory with that date exists
 #################################################################
-if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist"
-    cat $DATA_FILES_PATH/SRA10510_*.TXT >> $DATA_FILES_PATH/SRA10510.TXT
+if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
+   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
 else
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist"
+  echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
+  mkdir $ARCHIVE_PATH/$FOLDER
 fi
 
-if ls $DATA_FILES_PATH/SRA13510_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA13510_*.TXT files exist "
-    cat $DATA_FILES_PATH/SRA13510_*.TXT >> $DATA_FILES_PATH/SRA13510.TXT
-else
-    echo "$DATA_FILES_PATH/SRA13510_*.TXT files does not exist"
-fi
+#################################################################
+#concatenate the input files then archive only input files to archive folder
+#################################################################
 
-if ls $DATA_FILES_PATH/SRA11060_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA11060_*.TXT files exist "
-    cat $DATA_FILES_PATH/SRA11060_*.TXT >> $DATA_FILES_PATH/SRA11060.TXT
-else
-    echo "$DATA_FILES_PATH/SRA11060_*.TXT files does not exist"
-fi
+./SRA11000_Archinput_file.sh
+
 #################################################################
 #                  STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS
 #################################################################
@@ -68,26 +67,16 @@ TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
-     exit 1;
+    echo "processing FAILED for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
+    exit 1;
 fi
 echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
+
 #################################################################
-#          Control will output if directory with that date exists
+#                 Archive the concatenate files to archive folder
 #################################################################
-if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
-   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
-else
-  echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
-  mkdir $ARCHIVE_PATH/$FOLDER
-fi
-#################################################################
-#                    Running individual script to Archieve files
-#                    SRA10510*.TXT, SRA13510*.TXT, SRA11060*.TXT
-#################################################################
-./SRA11000_Arch_SRA10510.sh
-./SRA11000_Arch_SRA13510.sh
-./SRA11000_Arch_SRA11060.sh
+
+./SRA11000_Archconcat_file.sh
 
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
@@ -103,7 +92,7 @@ fi
 echo "Processing finished for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
 
 #################################################################
-#         Archieve files SMIS1.SRA12060_*, SMIS1.SRA10060_*
+#         ARCHIVE files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
 ./SRA11000_Arch_Output_file.sh
 

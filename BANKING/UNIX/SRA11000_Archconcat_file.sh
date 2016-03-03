@@ -1,17 +1,16 @@
 #!/bin/sh
 #################################################################
-# Script name   : SRA11000_Arch_SRA13510.sh
-#
+# Script name   : SRA11000_Archconcat_file.sh #
 # Description   : This shell script will perform below tasks
-#                 1. archieve the SRA13510 file in it's corresponding folder
+#                  archive the concatenated files in it's corresponding folder
 #
-# Created  : 02/26/2016 nxk927/dxv848 CCN Project Team.....
+# Created  : 03/03/2016 nxk927/dxv848 CCN Project Team.....
 # Modified : 
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
-proc_name="SRA11000_Arch_SRA13510"
+proc_name="SRA11000_Archconcat_file"
 DATA_FILES_PATH="$HOME/initLoad"
 ARCHIVE_PATH="$HOME/SRA11000"
 DATE=`date +"%m/%d/%Y"`
@@ -20,13 +19,27 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
-#                                    Archieve files SRA13510*.TXT
+#                                       Archieve files to folder
 #################################################################
+if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA11060.TXT files exist"
+    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER
+else
+    echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
+fi
+
 if ls $DATA_FILES_PATH/SRA13510.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA13510.TXT files exist "
-    mv $DATA_FILES_PATH/SRA13510*.TXT $ARCHIVE_PATH/$FOLDER
+    echo "$DATA_FILES_PATH/SRA13510.TXT files exist"
+    mv $DATA_FILES_PATH/SRA13510.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/SRA13510.TXT files does not exist"
+fi
+
+if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
+    mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
+else
+    echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
 fi
 #################################################################
 #                                              ERROR STATUS CHECK
