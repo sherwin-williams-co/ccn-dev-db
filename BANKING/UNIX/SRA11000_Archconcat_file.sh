@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################
-# Script name   : SRA11000_Archconcat_file.sh #
+# Script name   : SRA11000_Archconcat_file.sh
 # Description   : This shell script will perform below tasks
 #                  archive the concatenated files in it's corresponding folder
 #
@@ -19,13 +19,13 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
-#                                       Archieve files to folder
+#                                       Archive files to folder
 #################################################################
-if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA11060.TXT files exist"
-    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER
+if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
+    mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
+    echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SRA13510.TXT &> /dev/null; then
@@ -35,12 +35,13 @@ else
     echo "$DATA_FILES_PATH/SRA13510.TXT files does not exist"
 fi
 
-if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
+if ls $DATA_FILES_PATH/SRA11060.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA11060.TXT files exist"
+    mv $DATA_FILES_PATH/SRA11060.TXT $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
+    echo "$DATA_FILES_PATH/SRA11060.TXT files does not exist"
 fi
+
 #################################################################
 #                                              ERROR STATUS CHECK
 #################################################################

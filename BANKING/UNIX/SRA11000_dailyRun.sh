@@ -47,7 +47,13 @@ else
 fi
 
 #################################################################
-#concatenate the input files then archive only input files to archive folder
+#                                          Rename the input files
+#################################################################
+
+./SRA11000_Rename_file.sh
+
+#################################################################
+#                          archive input files to archive folder
 #################################################################
 
 ./SRA11000_Archinput_file.sh
