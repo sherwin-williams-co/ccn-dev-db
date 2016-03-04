@@ -51,12 +51,28 @@ fi
 #################################################################
 
 ./SRA11000_Rename_file.sh
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+    echo "processing FAILED for SRA11000_Rename_file script at ${TIME} on ${DATE}"
+    exit 1;
+fi
+echo "Processing finished for SRA11000_Rename_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #                          archive input files to archive folder
 #################################################################
 
 ./SRA11000_Archinput_file.sh
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+    echo "processing FAILED for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
+    exit 1;
+fi
+echo "Processing finished for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #                  STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS
@@ -83,6 +99,14 @@ echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at 
 #################################################################
 
 ./SRA11000_Archconcat_file.sh
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+    echo "processing FAILED for SRA11000_Archconcat_file script at ${TIME} on ${DATE}"
+    exit 1;
+fi
+echo "Processing finished for SRA11000_Archconcat_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
@@ -101,6 +125,14 @@ echo "Processing finished for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
 #         ARCHIVE files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
 ./SRA11000_Arch_Output_file.sh
+TIME=`date +"%H:%M:%S"`
+status=$?
+if test $status -ne 0
+then
+    echo "processing FAILED for SRA11000_Arch_Output_file script at ${TIME} on ${DATE}"
+    exit 1;
+fi
+echo "Processing finished for SRA11000_Arch_Output_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #                                              ERROR STATUS CHECK

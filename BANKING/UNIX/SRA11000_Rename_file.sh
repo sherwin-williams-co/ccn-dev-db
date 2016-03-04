@@ -11,11 +11,8 @@
 
 proc_name="SRA11000_Rename_file"
 DATA_FILES_PATH="$HOME/initLoad"
-ARCHIVE_PATH="$HOME/SRA11000"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
-FOLDER=`date +"%m%d%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                               Rename the files 
