@@ -1,6 +1,6 @@
 #!/bin/sh
 #################################################################
-# Script name   : MNTHLY_RUN_PROC.sh
+# Script name   : mthly_run_2nd_wk_day.sh
 #
 # Description   : This script is to run the monthly process on the second week day of the month
 #                 This process will check if current date matches the second week day of the month in the SECOND_WEEKDAY file
