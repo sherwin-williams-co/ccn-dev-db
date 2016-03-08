@@ -1,28 +1,44 @@
-CREATE OR REPLACE VIEW STORE_MAIN_VW
-AS 
-SELECT  
-/**********************************************************
-This view holds required information about STORE
-such as Store number, Zone code, Statement type, Store name,Store open/close date, 
-Status, Status description, Cost center Type, Cost center and Mission code.
-
-Created : 12/11/2014 SXT410 CCN project
-Modified: 01/23/2015 jxc517 CCN Project....
-**********************************************************/ 
-      SUBSTR(CC.COST_CENTER_CODE,3) STORE_NUMBER,
-       CC.COST_CENTER_CODE,
-       CC.COST_CENTER_NAME,
-       CC.STATEMENT_TYPE,
-       CC.OPEN_DATE,
-       CC.CLOSE_DATE,
-       S.STATUS_CODE,
-       CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATUS_CODE','COD',S.STATUS_CODE) STATUS_DESCRIPTION,
-       CCN_HIERARCHY.GET_TYPE_FNC(CC.COST_CENTER_CODE) TYPE,
-       CC.MISSION_TYPE_CODE,
-       (SELECT RURAL_METRO_ZONE_CODE 
-          FROM STORE 
-         WHERE COST_CENTER_CODE = CC.COST_CENTER_CODE) RURAL_METRO_ZONE_CODE
-  FROM COST_CENTER CC,
-       STATUS S
- WHERE CC.COST_CENTER_CODE = S.COST_CENTER_CODE
+CREATE OR REPLACE  VIEW STORE_MAIN_VW  AS 
+  SELECT
+   /**********************************************************
+   This view holds required information about STORE
+   such as Store number, Zone code, Statement type, Store name,Store open/close date, 
+   Status, Status description, Cost center Type, Cost center and Mission code.
+   
+   Created : 12/11/2014 SXT410 CCN project
+   Modified: 01/23/2014 jxc517 CCN Project....
+             03/02/2016 mxr916 CCN Project
+             Added STATEMENT_TYPE_DESCRIPTION,TYPE_DESCRIPTION,MISSION_TYPE_CODE_DESCRIPTION,RURAL_METRO_ZONE_CODE_DESC Columns.
+   **********************************************************/
+          SUBSTR(CC.COST_CENTER_CODE,3) STORE_NUMBER,
+          CC.COST_CENTER_CODE,
+          CC.COST_CENTER_NAME,
+          CC.STATEMENT_TYPE,
+          NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE','COD',CC.STATEMENT_TYPE),'N/A') STATEMENT_TYPE_DESCRIPTION,
+          CC.OPEN_DATE,
+          CC.CLOSE_DATE,
+          S.STATUS_CODE,
+          CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATUS_CODE','COD',S.STATUS_CODE) STATUS_CODE_DESCRIPTION,
+          CCN_HIERARCHY.GET_TYPE_FNC(CC.COST_CENTER_CODE) TYPE,
+          NVL((SELECT CD.CODE_DETAIL_DESCRIPTION
+                 FROM CODE_DETAIL CD, 
+                      TYPE T
+                WHERE CD.CODE_DETAIL_VALUE=T.TYPE_CODE
+                  AND CD.CODE_HEADER_NAME='TYPE_CODE'
+                  AND T.COST_CENTER_CODE=CC.COST_CENTER_CODE
+                  AND T.EXPIRATION_DATE IS NULL),'N/A') TYPE_DESCRIPTION,
+          CC.MISSION_TYPE_CODE,
+          NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('MISSION_TYPE_CODE','COD',CC.MISSION_TYPE_CODE),'N/A') MISSION_TYPE_CODE_DESCRIPTION,
+          (SELECT RURAL_METRO_ZONE_CODE 
+             FROM STORE 
+            WHERE COST_CENTER_CODE = CC.COST_CENTER_CODE)RURAL_METRO_ZONE_CODE,
+          NVL((SELECT CD.CODE_DETAIL_DESCRIPTION
+                 FROM CODE_DETAIL CD,
+                      STORE S
+                WHERE CD.CODE_DETAIL_VALUE=S.RURAL_METRO_ZONE_CODE
+                  AND CD.CODE_HEADER_NAME='RURAL_METRO_ZONE_CODE'
+                  AND S.COST_CENTER_CODE=CC.COST_CENTER_CODE),'N/A') RURAL_METRO_ZONE_CODE_DESC
+     FROM COST_CENTER CC,
+          STATUS S
+    WHERE CC.COST_CENTER_CODE = S.COST_CENTER_CODE
    AND S.EXPIRATION_DATE IS NULL;
