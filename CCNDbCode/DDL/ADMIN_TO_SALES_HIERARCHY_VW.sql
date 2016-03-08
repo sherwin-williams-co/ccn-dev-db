@@ -5,7 +5,7 @@ This View will give all the details of Admin_to_sales_division, Admin_to_sales_a
 and Admin_to_sales_district hierarchies for linked to the cost center
 
 Created  : 10/28/2015 SXT410 CCN Project....
-Modified : Modified : 03/01/2016 MXR916 Added STATEMENT_TYPE_DESCRIPTION column.
+Modified : 03/01/2016 MXR916 Added STATEMENT_TYPE_DESCRIPTION column.
 *******************************************************************************/ 
        DISTINCT
        CC.STATEMENT_TYPE
