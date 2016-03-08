@@ -1,0 +1,11 @@
+/*
+Created : dxv848 03/08/2016 truncate the tables before initload process
+*/
+
+TRUNCATE TABLE  ACH_DRFTS_EXTRCT_CNTRL_FL;
+
+TRUNCATE TABLE  SUMMARY_EXTRCT_CNTRL_FL;
+
+TRUNCATE TABLE  JV_EXTRCT_CNTRL_FL ;
+
+
