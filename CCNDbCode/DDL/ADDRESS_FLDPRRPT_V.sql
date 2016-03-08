@@ -1,0 +1,28 @@
+CREATE OR REPLACE VIEW ADDRESS_FLDPRRPT_V AS
+  SELECT
+    /*******************************************************************************
+    Modified : 03/02/2016 MXR916 Added PROVINCE_CODE_DESCRIPTION,STATE_CODE_DESCRIPTION,COUNTRY_CODE_DESCRIPTION columns.
+    *******************************************************************************/
+    COST_CENTER_CODE,
+    ADDRESS_TYPE,
+    EFFECTIVE_DATE,
+    EXPIRATION_DATE,
+    ADDRESS_LINE_1,
+    ADDRESS_LINE_2,
+    ADDRESS_LINE_3,
+    CITY,
+    PROVINCE_CODE,
+    PROVINCE_CODE_DESCRIPTION,
+    STATE_CODE,
+    STATE_CODE_DESCRIPTION,
+    POSTAL_CODE,
+    ZIP_CODE,
+    ZIP_CODE_4,
+    COUNTY,
+    FIPS_CODE,
+    DESTINATION_POINT,
+    CHECK_DIGIT,
+    VALID_ADDRESS,
+    COUNTRY_CODE,
+    COUNTRY_CODE_DESCRIPTION
+  FROM ADDRESS_VW;
