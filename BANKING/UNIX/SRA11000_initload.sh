@@ -10,7 +10,7 @@
 
 proc_name="Initload"
 DATA_FILES_PATH="$HOME/initLoad"
-ARCHIVE_PATH="$HOME/SRA11000_TEST"
+ARCHIVE_PATH="$HOME/SRA11000"
 LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
