@@ -1,8 +1,5 @@
 DECLARE 
-    sq NUMBER;
-    se VARCHAR2(1000);
-	V_LOAD_DATE   DATE:= &1;
-
+    V_LOAD_DATE   DATE:= &1;
     CURSOR JV_CUR IS
         SELECT BANK_ACCOUNT_NBR,
                COST_CENTER_CODE,
@@ -41,13 +38,13 @@ DECLARE
                               AND AMOUNT               = JV.AMOUNT
                               AND TRANSACTION_DATE     = TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR')
                               AND NVL(REFEED_TCODE,'X')= NVL(JV.REFEED_TCODE,'X'));
-    V_COUNT NUMBER := 0;
-	V_TCOUNT NUMBER := 0;
+        V_COUNT NUMBER := 0;
+        V_TCOUNT NUMBER := 0;
 BEGIN
     FOR REC IN JV_CUR LOOP
         INSERT INTO JV_EXTRCT_CNTRL_FL VALUES REC;
         V_COUNT := V_COUNT +1;
-		V_TCOUNT := V_TCOUNT+1;
+        V_TCOUNT := V_TCOUNT+1;
         IF V_COUNT = 1000 THEN
             COMMIT;
             V_COUNT := 0;
@@ -57,10 +54,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Total rows inserted JV_EXTRCT_CNTRL_FL ' || V_TCOUNT);	
 EXCEPTION
     WHEN OTHERS THEN
-	sq := SQLCODE;
-	se := SQLERRM;
-
-	DBMS_OUTPUT.PUT_LINE('FAILED ' || sq || ' ' || se);
+	DBMS_OUTPUT.PUT_LINE('FAILED ' || SQLCODE || ' ' || SQLERRM);
 	
 END;
 /
