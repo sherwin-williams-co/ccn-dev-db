@@ -145,8 +145,7 @@ echo "Processing Finished for loading tables at $dt1 at $TIME on $DATE"
 #################################################################
 #               SEND email if the 3 files does not have same date
 #################################################################
-            cd $HOME
-            ./send_mail.sh "$proc_name"
+            $HOME/send_mail.sh "SRA11000_INITLOAD"
 
             TIME=`date +"%H:%M:%S"`
             status=$?
