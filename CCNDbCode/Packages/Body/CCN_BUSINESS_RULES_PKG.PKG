@@ -4959,6 +4959,9 @@ PROCEDURE BANK_CARD_BR_SP (
 	TRD  Section: 3.3.11 
 
 created : BLR 7/26//2012
+modified: 03/02/2016 nxk927 CCN Project....
+          added new error if the polling status is P and
+          PCI_MERCHANT_ID or PCI_DISCOVER_ID IS NULL.
 ******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
    ,inCostctr_rowtype           IN COST_CENTER%ROWTYPE
@@ -4978,6 +4981,7 @@ created : BLR 7/26//2012
  invalid_cost_center_err    EXCEPTION;  
  invalid_bank_card_err      EXCEPTION; 
  invalid_amex_id_size_err   EXCEPTION;
+ invalid_pci_id_err         EXCEPTION;
  
  
  v_curr_date           date := sysdate;
@@ -5047,7 +5051,13 @@ created : BLR 7/26//2012
        RAISE invalid_amex_id_size_err;
    END IF;
 	
-             
+   IF ((inbankcard_rowtype.PCI_MERCHANT_ID IS NULL or
+        inbankcard_rowtype.PCI_DISCOVER_ID IS NULL)
+        AND  inPolling_rowtype.polling_status_code = 'P') THEN
+        ERRPKG.STORE_WARNINGS(errnums.en_invalid_pci_id_err,
+                             'PCI information passed is null when polling_status is P');
+   END IF;
+
 EXCEPTION
 	
 	
@@ -6858,6 +6868,9 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
 created : TAL 07/27/2012
 Modified: 06/02/2015 jxc517 CCN Project....
           Code to handle first time duplicate terminal add's is added
+        : 03/02/2016 nxk927 CCN Project....
+          added new error if the polling status is P and
+          PCI_TERMINAL_ID IS NULL.
 ******************************************************************************/	
   
     IN_TERMINAL_ROWTYPE    IN   TERMINAL%ROWTYPE,
@@ -7079,6 +7092,11 @@ END;
     IF V_COUNT > 0 THEN
         RAISE actv_dup_terr_exists_err;
     END IF;
+   --checking if PCI_terminal_id  is null.
+   --if null raise warning
+   IF in_terminal_rowtype.PCI_TERMINAL_ID is null then
+      ERRPKG.STORE_WARNINGS(errnums.en_pci_terminal_id_err,'PCI Terminal ID is null when polling_status is P');
+   END IF;
           EXCEPTION
 
 -- First Error A                   
@@ -7450,6 +7468,42 @@ EXCEPTION
     WHEN NO_DATA_FOUND THEN
         NULL;
 END COMPARE_ZIPCODE_SP;
+
+PROCEDURE PCI_TERMINAL_COUNT_CHECK(
+/*****************************************************************************
+    This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
+    matches. If it don't match then send the report in an email
+
+Created : 03/02/2016 nxk927 CCN Project Team...
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
+IS
+ V_TERMINAL_COUNT   NUMBER := 0;
+ V_PCI_TERM_COUNT   NUMBER :=0;
+ V_CLOB             CLOB;
+BEGIN
+    SELECT COUNT(TERMINAL_NUMBER), COUNT(PCI_TERMINAL_ID)
+      INTO V_TERMINAL_COUNT, V_PCI_TERM_COUNT
+      FROM TERMINAL
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND EXPIRATION_DATE IS NULL;
+    IF V_TERMINAL_COUNT <> V_PCI_TERM_COUNT THEN
+       FOR REC IN (SELECT COST_CENTER_CODE,
+                          TERMINAL_NUMBER,
+                          PCI_TERMINAL_ID
+                     FROM TERMINAL
+                    WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                      AND EXPIRATION_DATE IS NULL) LOOP
+           V_CLOB := V_CLOB ||
+                     REC.COST_CENTER_CODE || ',' || REC.TERMINAL_NUMBER || ',' || REC.PCI_TERMINAL_ID  ||
+                     CHR(10) ;
+       END LOOP;
+       IF V_CLOB <> EMPTY_CLOB() THEN
+          MAIL_PKG.SEND_MAIL('PCI_POS_TERMINAL_MISMATCH', NULL, IN_COST_CENTER_CODE,V_CLOB);
+       END IF;
+    END IF;
+END PCI_TERMINAL_COUNT_CHECK;
 
 END CCN_BUSINESS_RULES_PKG;
 

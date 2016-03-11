@@ -2633,6 +2633,34 @@ PRAGMA EXCEPTION_INIT
 (exc_sales_manager_lvl_err , -20527);
 
 /*********************************************************** 
+The "invalid_pci_id_err" passes a numerical error of -20529.
+This error will state that the PCI_MERCHANT_ID and
+PCI_DISCOVER_ID should not be null when the polling status is 'P'
+
+created  : 03/02/2016 nxk927 CCN Project
+revisions:
+
+************************************************************/
+en_invalid_pci_id_err CONSTANT NUMBER := -20529;
+exc_invalid_pci_id_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_pci_id_err , -20529);
+
+/***********************************************************
+The "pci_terminal_id_err" passes a numerical error of -20530.
+This error will state that the PCI_TERMINAL_ID should not be
+null when the polling status is 'P'
+
+created  : 03/02/2016 nxk927 CCN Project
+revisions:
+
+************************************************************/
+en_pci_terminal_id_err CONSTANT NUMBER := -20530;
+exc_pci_terminal_id_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_pci_terminal_id_err , -20530);
+
+/***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2649,4 +2677,3 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 END errnums;
-
