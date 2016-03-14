@@ -515,6 +515,7 @@ PROCEDURE PCI_TERMINAL_COUNT_CHECK(
 Created : 03/02/2016 nxk927 CCN Project Team...
 Changed : 
 *******************************************************************************/
-IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE);
+IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
+IN_ROW_DATA          IN  CLOB);
 
 END CCN_BUSINESS_RULES_PKG;

@@ -5038,7 +5038,7 @@ modified: 03/02/2016 nxk927 CCN Project....
 	        AND  inPolling_rowtype.polling_status_code = 'P') THEN
 	        RAISE invalid_amexid_err;
       END IF;
-
+   
     IF (TRANSLATE( inbankcard_rowtype.amex_se_id, ' +-.0123456789',' ') IS NOT NULL) THEN  
  	      RAISE amex_id_nonum_err;
  	  END IF;
@@ -5053,9 +5053,9 @@ modified: 03/02/2016 nxk927 CCN Project....
 	
    IF ((inbankcard_rowtype.PCI_MERCHANT_ID IS NULL or
         inbankcard_rowtype.PCI_DISCOVER_ID IS NULL)
-        AND  inPolling_rowtype.polling_status_code = 'P') THEN
-        ERRPKG.STORE_WARNINGS(errnums.en_invalid_pci_id_err,
-                             'PCI information passed is null when polling_status is P');
+	        AND  inPolling_rowtype.polling_status_code = 'P') THEN
+          ERRPKG.STORE_WARNINGS(errnums.en_invalid_pci_id_err,
+                                'PCI information passed is null when polling_status is P');
    END IF;
 
 EXCEPTION
@@ -5124,15 +5124,14 @@ EXCEPTION
         v_code := errnums.en_invalid_amex_id_size_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_amex_id_size_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'AMEX ID entered is not of valid size'); 
-
-		WHEN OTHERS THEN
+                              
+    WHEN OTHERS THEN
         v_code := SQLCODE;
 	      v_errm := substr(SQLERRM,1, 500);
         errpkg.raise_err(v_code, v_errm ||
         'CCN_BUSINESS_RULES_PKG '  || 'No errors found');
-     
-    
-	END  BANK_CARD_BR_SP;
+
+END  BANK_CARD_BR_SP;
   
   
 PROCEDURE COST_CENTER_BR_SP  (
@@ -5283,7 +5282,8 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
    INVALID_DUNS_NUM_EXP            EXCEPTION;
 -- Error #10c   
    INVALID_PRI_LOGO_GROUP          EXCEPTION;
-
+-- Error #11   
+   INVALID_PCC_PCL_EXP             EXCEPTION;
    
    v_code   number;
    v_date   date  ;
@@ -5653,6 +5653,15 @@ BEGIN
   END IF;
 END;
 
+/*******************************************************************************
+ 11). PCC_PCL_CHECK: 
+     a. This function will return 'Y' if the count in greater than 1 meaning more 
+        than 1 PCC or PCL 
+*******************************************************************************/	
+-- PCC PCL check 
+--  IF COMMON_TOOLS.PCC_PCL_CHECK(incost_center_rowtype.PCC_PCL_STORE) = 'Y' THEN
+--      RAISE INVALID_PCC_PCL_EXP;
+--  END IF;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
@@ -5766,11 +5775,15 @@ END;
                     v_code := errnums.en_invalid_duns_nbr_size_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_duns_nbr_size_err ' ,
                    'Duns Number must be of 9 characters'); 
-                 WHEN INVALID_PRI_LOGO_GROUP THEN
+               WHEN INVALID_PRI_LOGO_GROUP THEN
                     v_code := errnums.en_invalid_pri_logo_group;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.INVALID_PRI_LOGO_GROUP ' ,
                    'STORE MUST HAVE A PRIMARY LOGO');  
-               
+-- Error #11a
+               WHEN INVALID_PCC_PCL_EXP THEN
+                    v_code := errnums.en_invalid_pcc_pcl_exp;
+                    errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.INVALID_PCC_PCL_EXP ' ,
+                   'Cost Center cannot have more than one PCC or PCL assigned to it'); 
 
 END COST_CENTER_BR_SP;
 
@@ -6869,8 +6882,8 @@ created : TAL 07/27/2012
 Modified: 06/02/2015 jxc517 CCN Project....
           Code to handle first time duplicate terminal add's is added
         : 03/02/2016 nxk927 CCN Project....
-          added new error if the polling status is P and
-          PCI_TERMINAL_ID IS NULL.
+          added new error if the polling status is P and 
+          PCI_TERMINAL_ID IS NULL.   
 ******************************************************************************/	
   
     IN_TERMINAL_ROWTYPE    IN   TERMINAL%ROWTYPE,
@@ -7092,11 +7105,13 @@ END;
     IF V_COUNT > 0 THEN
         RAISE actv_dup_terr_exists_err;
     END IF;
-   --checking if PCI_terminal_id  is null.
+   
+   --checking if PCI_terminal_id  is null. 
    --if null raise warning
    IF in_terminal_rowtype.PCI_TERMINAL_ID is null then
       ERRPKG.STORE_WARNINGS(errnums.en_pci_terminal_id_err,'PCI Terminal ID is null when polling_status is P');
-   END IF;
+   END IF;   
+   
           EXCEPTION
 
 -- First Error A                   
@@ -7475,27 +7490,30 @@ PROCEDURE PCI_TERMINAL_COUNT_CHECK(
     matches. If it don't match then send the report in an email
 
 Created : 03/02/2016 nxk927 CCN Project Team...
-Changed :
+Changed : 
 *******************************************************************************/
-IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
+IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
+IN_ROW_DATA          IN  CLOB)
 IS
  V_TERMINAL_COUNT   NUMBER := 0;
  V_PCI_TERM_COUNT   NUMBER :=0;
  V_CLOB             CLOB;
+ V_ROW_DATA XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
 BEGIN
     SELECT COUNT(TERMINAL_NUMBER), COUNT(PCI_TERMINAL_ID)
       INTO V_TERMINAL_COUNT, V_PCI_TERM_COUNT
-      FROM TERMINAL
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND EXPIRATION_DATE IS NULL;
+      FROM XMLTABLE ('/POLLING_UI/TERMINAL_TABLE/TERMINAL'
+           PASSING V_ROW_DATA
+           COLUMNS TERMINAL_NUMBER VARCHAR2(6) PATH 'TERMINAL_NUMBER/text()',
+                   PCI_TERMINAL_ID VARCHAR2(6) PATH  'PCI_TERMINAL_ID/text()' );   
     IF V_TERMINAL_COUNT <> V_PCI_TERM_COUNT THEN
-       FOR REC IN (SELECT COST_CENTER_CODE,
+       FOR REC IN (SELECT COST_CENTER_CODE, 
                           TERMINAL_NUMBER,
                           PCI_TERMINAL_ID
                      FROM TERMINAL
                     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
                       AND EXPIRATION_DATE IS NULL) LOOP
-           V_CLOB := V_CLOB ||
+           V_CLOB := V_CLOB || 
                      REC.COST_CENTER_CODE || ',' || REC.TERMINAL_NUMBER || ',' || REC.PCI_TERMINAL_ID  ||
                      CHR(10) ;
        END LOOP;
@@ -7506,4 +7524,3 @@ BEGIN
 END PCI_TERMINAL_COUNT_CHECK;
 
 END CCN_BUSINESS_RULES_PKG;
-
