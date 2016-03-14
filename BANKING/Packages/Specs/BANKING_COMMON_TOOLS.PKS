@@ -337,6 +337,23 @@ Changed :
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
-  
-END BANKING_COMMON_TOOLS;
 
+FUNCTION GET_MBR_STORE_NBR_FOR_LEAD_STR(
+/*******************************************************************************
+  This function will get the all the member store details for the passed member store
+
+Created : 12/19/2015 dxv848 CCN Project....
+Changed :
+*******************************************************************************/
+  IN_LEAD_STORE_NBR   IN MEMBER_BANK_CC.LEAD_STORE_NBR%TYPE) RETURN MEMBER_BANK_CC%ROWTYPE;
+
+  FUNCTION GET_LEADBANK_FOR_BANKACC_NBR(
+/*******************************************************************************
+  This function will get the lead_store info for the bank account
+
+Created : 01/21/2015 dxv848 CCN Project....
+Changed :
+*******************************************************************************/
+  IN_BANK_ACCOUNT_NBR   IN LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE) RETURN LEAD_BANK_CC%ROWTYPE;
+
+END BANKING_COMMON_TOOLS;

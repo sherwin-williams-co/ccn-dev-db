@@ -419,7 +419,6 @@ en_bag_order_date_err CONSTANT NUMBER := -20035;
 exc_bag_order_date_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_bag_order_date_err , -20035);
 
-
 /***********************************************************
 The "invalid_code_hdr_size_err" passes a numerical error of -20036.
 This error will state that the Size of the code detail value
@@ -433,5 +432,16 @@ en_invalid_code_hdr_size_err CONSTANT NUMBER := -20036;
 exc_invalid_code_hdr_size_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_code_hdr_size_err , -20036);
+
+/***********************************************************
+The "future_del_wrn" passes a numerical error of -20037
+This warning will be used if an expired member with future
+is transferred again
+Created : 11/30/2015 dxv848 CCN Project....
+Changed :
+************************************************************/
+en_future_del_wrn_accmain CONSTANT NUMBER := -20037;
+exc_future_del_wrn_accmain EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_future_del_wrn_accmain , -20037);
 
 END ERRNUMS;

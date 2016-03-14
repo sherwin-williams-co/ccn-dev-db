@@ -1,0 +1,1001 @@
+create or replace PACKAGE BODY ACC_MEM_MAIN_COMMONTOOLS AS
+/**********************************************************
+This Package contains all the procedures used commonly in
+account maintenance window and concentration transfer window
+
+Created : 12/10/2015 dxv848 CCN Project....
+Changed :
+**********************************************************/
+
+FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
+/******************************************************************************
+	This procedure checks if the passed future is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+
+Created : 10/15/2015 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR     IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+    --if the bank account exists in current tables with expiration date as null => it's not real future
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'N' ELSE 'Y' END
+      INTO V_RETURN_VAL
+      FROM BANK_ACCOUNT BA
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+       AND EXPIRATION_DATE IS NULL
+       AND EXISTS (SELECT 1
+                     FROM BANK_ACCOUNT_FUTURE
+                    WHERE BANK_ACCOUNT_NBR = BA.BANK_ACCOUNT_NBR
+                      AND EFFECTIVE_DATE   = BA.EFFECTIVE_DATE
+                      AND EXPIRATION_DATE IS NULL);
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_REAL_FUTURE_BANK_ACCOUNT;
+
+PROCEDURE ACCNT_MNTNC_CURRENT_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the core process for Account Maintenance Window,
+  delete process for current records
+
+Created : 07/13/2015 jxc517 CCN Project....
+Changed : 08/18/2015 jxc517 CCN Project....
+          Added logic to take care of new child table STORE_MICR_FORMAT_DTL for
+          parent table BANK_MICR_FORMAT
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2)
+IS
+    CURSOR bank_account_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR lead_bank_cc_cur IS 
+        SELECT *
+          FROM LEAD_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR mbr_bank_cc_cur(IN_LEAD_STORE_NBR IN VARCHAR2) IS 
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR;
+    CURSOR bank_micr_format_cur IS 
+        SELECT *
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR store_micr_format_dtls_cur(IN_MICR_FORMAT_ID NUMBER) IS
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID;
+    CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+BEGIN
+    FOR bank_account_rec IN bank_account_cur LOOP
+        FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
+            FOR str_micr_format_rec IN store_micr_format_dtls_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
+                TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_D_SP(str_micr_format_rec);
+            END LOOP;
+            TABLE_IU_PKG.BANK_MICR_FORMAT_D_SP(bank_micr_format_rec);
+        END LOOP;
+        FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+            FOR mbr_bank_cc_rec IN mbr_bank_cc_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    TABLE_IU_PKG.BANK_DEP_TICK_D_SP(bank_dep_tick_rec);
+                END LOOP;
+                FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(bank_dep_bag_tick_rec);
+                END LOOP;
+                TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(mbr_bank_cc_rec);
+            END LOOP;
+            FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_TICK_D_SP(bank_dep_tick_rec);
+            END LOOP;
+            FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(bank_dep_bag_tick_rec);
+            END LOOP;
+            TABLE_IU_PKG.LEAD_BANK_CC_D_SP(lead_bank_cc_rec);
+        END LOOP;
+        TABLE_IU_PKG.BANK_ACCOUNT_D_SP(bank_account_rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_CURRENT_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_CURRENT_DELETE_SP;
+
+PROCEDURE ACCNT_MNTNC_FUTURE_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the core process for Account Maintenance Window,
+  delete process for future records
+
+Created : 07/13/2015 jxc517 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+        : 10/30/2015 nxk927 CCN Project....
+          Code has been changed to deal with Deposit Bag order futures and Deposit ticket order future
+Changed : 11/04/2015 jxc517 CCN Project....
+          Code changed to triger future to current process if any of these virtual futures
+          members/leads reached the time to move from future to current
+        : 11/09/2015 nxk927/jxc517 CCN Project....
+          moved future to current call outside as it didn't run until we have a real
+          bank future.
+        : 11/24/2015 nxk927/jxc517 CCN Project....
+          Removed the flag
+          removed the future to current  call as this will be called from UI just to delete
+          the future records
+*******************************************************************************/
+    IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE)
+IS
+    --cursor to get all the lead records for the bank account, future id passed
+    CURSOR lead_bank_cc_ftr_cur IS
+        SELECT *
+          FROM LEAD_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+           AND FUTURE_ID             = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the bank micr records for the bank account, future id passed
+    CURSOR bank_micr_format_ftr_cur IS
+        SELECT *
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the store micr records for the bank account, micr format id, future id passed
+    CURSOR store_micr_format_dtls_ftr_cur(IN_MICR_FORMAT_ID NUMBER) IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+           AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the member records for the bank account, lead store, future id passed
+    CURSOR mbr_bank_cc_ftr_cur(IN_LEAD_BANK_CC_FTR_REC IN LEAD_BANK_CC_FUTURE%ROWTYPE) IS 
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_FTR_REC.BANK_ACCOUNT_NBR
+           AND LEAD_STORE_NBR        = IN_LEAD_BANK_CC_FTR_REC.LEAD_STORE_NBR
+           AND FUTURE_ID             = IN_LEAD_BANK_CC_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the deposit ticket records for the store, future id passed
+    CURSOR bank_dep_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the deposit bag ticket records for the store, future id passed
+    CURSOR bank_dep_bag_tick_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+           
+        --cursor to get all the deposit ticket orders records for the store, future id passed
+    CURSOR bank_dep_tickord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    --cursor to get all the deposit bag ticket orders records for the store, future id passed
+    CURSOR bank_dep_bag_tickord_ftr_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
+
+    V_COUNT NUMBER := 0;
+
+BEGIN
+    --get all the bank micr details for this future and loop through
+    FOR bank_micr_format_ftr_rec IN bank_micr_format_ftr_cur LOOP
+
+        --for each bank micr, check if there is a child store micr attched to it
+        --if so, get that store micr details and delete those child future records first
+        FOR str_micr_format_ftr_rec IN store_micr_format_dtls_ftr_cur(bank_micr_format_ftr_rec.MICR_FORMAT_ID) LOOP
+            --now delete the store micr format details from the future
+            TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(str_micr_format_ftr_rec);
+        END LOOP; --store_micr_format_dtls_cur
+
+        --now delete the bank micr details from the future
+        TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_ftr_rec);
+    END LOOP; --bank_micr_format_cur
+    
+    --get all the lead bank cc details for this future and loop through
+    FOR lead_bank_cc_ftr_rec IN lead_bank_cc_ftr_cur LOOP
+
+        --for each lead bakn, check if there is a child member banks attched to it
+        --if so, get that child member bank details and delete those child future records first
+        FOR mbr_bank_cc_ftr_rec IN mbr_bank_cc_ftr_cur(lead_bank_cc_ftr_rec) LOOP
+
+            --for this member store, get the bank deposit ticket order details
+            --if found, delete those child records first
+            FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
+            END LOOP; --bank_dep_tickord_cur
+
+            FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+
+                --now delete the bank deposit bag ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
+            END LOOP; --bank_dep_bag_tickord_cur
+            
+            --for this member store, get the bank deposit ticket details
+            --if found, delete those child records first
+            FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
+            END LOOP; --bank_dep_tick_cur
+
+            FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
+
+                --now delete the bank deposit bag ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
+            END LOOP; --bank_dep_bag_tick_cur
+
+            --now delete the member bank details from the future
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_ftr_rec);
+        END LOOP; --mbr_bank_cc_cur
+
+            --for this lead store, get the bank deposit ticket order details
+            --if found, delete those child records first
+            FOR bank_dep_tickord_ftr_rec IN bank_dep_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+                --now delete the bank deposit ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
+            END LOOP; --bank_dep_tickord_cur
+
+            FOR bank_dep_bag_tickord_ftr_rec IN bank_dep_bag_tickord_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+
+                --now delete the bank deposit bag ticket details from the future
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_ftr_rec);
+            END LOOP; --bank_dep_bag_tickord_cur
+        
+        --for this lead store, get the bank deposit ticket details
+        --if found, delete those child records first
+        FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+
+            --now delete the bank deposit ticket details from the future
+            TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
+        END LOOP; --bank_dep_tick_cur
+        
+        FOR bank_dep_bag_tick_ftr_rec IN bank_dep_bag_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
+
+            --now delete the bank deposit ticket bag details from the future
+            TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_ftr_rec);
+        END LOOP; --bank_dep_bag_tick_cur
+
+        --now delete the lead bank details from the future
+        TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_D_SP(lead_bank_cc_ftr_rec);
+    END LOOP; --lead_bank_cc_cur
+
+    --now delete the bank account details from the future
+    TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_D_SP(IN_BANK_ACCOUNT_FTR_REC);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_FUTURE_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_FUTURE_DELETE_SP;
+
+PROCEDURE UNEXPR_REAL_MBRS(
+/******************************************************************************
+	This procedure unexpire the transferred from leads members as that transfer is
+  obsolete as part of this current data updates for the virtual future
+
+Created : 12/18/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR         IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE)
+IS
+    CURSOR lead_bank_cc_cur IS
+        SELECT *
+          FROM LEAD_BANK_CC A
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR;
+    CURSOR mbr_bank_cc_othr_cur(IN_LEAD_STORE_NBR   IN     MEMBER_BANK_CC.LEAD_STORE_NBR%TYPE) IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_STORE_NBR        <> IN_LEAD_STORE_NBR
+           AND LEAD_BANK_ACCOUNT_NBR <> IN_BANK_ACCOUNT_NBR
+           AND MEMBER_STORE_NBR IN (SELECT MEMBER_STORE_NBR
+                                      FROM MEMBER_BANK_CC_FUTURE
+                                     WHERE LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+                                       AND LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR);
+BEGIN
+    FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+        FOR mbr_bank_cc_othr_rec IN mbr_bank_cc_othr_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+            mbr_bank_cc_othr_rec.EXPIRATION_DATE := NULL;
+            TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_othr_rec);
+        END LOOP;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'UNEXPR_TRNSFRD_FRM_LEAD_MBRS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END UNEXPR_REAL_MBRS;
+
+PROCEDURE EXPIRE_PREV_CURR_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous current records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE,
+IN_FLAG                IN     VARCHAR2)
+IS
+    CURSOR bank_account_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EFFECTIVE_DATE   < IN_NEW_EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR bank_micr_format_cur IS
+        SELECT *
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR lead_bank_cc_cur IS
+        SELECT *
+          FROM LEAD_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR member_bank_cc_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EXPIRATION_DATE IS NULL;
+
+    lead_exprd_with_actv_chlds   EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld EXCEPTION;
+    micr_exprd_with_actv_dptks   EXCEPTION;
+    mbr_exprd_with_actv_dptks    EXCEPTION;
+    V_PROC_NAME                  VARCHAR2(30) := 'EXPIRE_PREV_CURR_BANK_ACCOUNT';
+    V_MEMBER_STORE               VARCHAR2(10);
+    V_FORMAT_NAME                VARCHAR2(10);
+    V_EXPIRE_DATE                DATE := IN_NEW_EFFECTIVE_DATE - INTERVAL '1' SECOND;
+BEGIN
+    FOR ba_rec IN bank_account_cur LOOP
+        FOR bmf_rec IN bank_micr_format_cur LOOP
+            bmf_rec.EXPIRATION_DATE := GREATEST(bmf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            V_FORMAT_NAME := bmf_rec.MICR_FORMAT_ID;
+            IF IN_FLAG = 'ACCNT_MNTNC' THEN
+                IF BUSINESS_RULES_PKG.IS_MICR_EXPIRATION_INVALID(bmf_rec.BANK_ACCOUNT_NBR,
+                                                                 bmf_rec.MICR_FORMAT_ID,
+                                                                 bmf_rec.EXPIRATION_DATE,
+                                                                 NULL) = 'Y' THEN
+                    RAISE micr_exprd_with_actv_dptks;
+                END IF;
+            ELSIF IN_FLAG IN ('MAKE_LEAD', 'TRANSFER') THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(NULL, --cost center code
+                                                                             bmf_rec.BANK_ACCOUNT_NBR,
+                                                                             bmf_rec.MICR_FORMAT_ID,
+                                                                             bmf_rec.EXPIRATION_DATE);
+            END IF;
+            TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(bmf_rec);
+        END LOOP;
+        FOR mb_rec IN member_bank_cc_cur LOOP
+            mb_rec.EXPIRATION_DATE := GREATEST(mb_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            V_MEMBER_STORE := mb_rec.MEMBER_STORE_NBR;
+            /*IF BUSINESS_RULES_PKG.IS_MEMBER_EXPIRATION_INVALID(mb_rec.MEMBER_STORE_NBR,
+                                                               mb_rec.EXPIRATION_DATE,
+                                                               NULL) = 'Y' THEN
+                RAISE mbr_exprd_with_actv_dptks;
+            END IF;*/
+            IF mb_rec.EXPIRATION_DATE IS NOT NULL THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(mb_rec.MEMBER_STORE_NBR,
+                                                                             NULL, --bank account number
+                                                                             NULL, --micr format id
+                                                                             mb_rec.EXPIRATION_DATE);
+                DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(mb_rec.MEMBER_STORE_NBR,
+                                                                    mb_rec.EXPIRATION_DATE);
+            END IF;
+            TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mb_rec);
+        END LOOP;
+        FOR lb_rec IN lead_bank_cc_cur LOOP
+            lb_rec.EXPIRATION_DATE := GREATEST(lb_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            IF lb_rec.EXPIRATION_DATE IS NOT NULL THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(lb_rec.LEAD_STORE_NBR,
+                                                                             NULL, --bank account number
+                                                                             NULL, --micr format id
+                                                                             lb_rec.EXPIRATION_DATE);
+                DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(lb_rec.LEAD_STORE_NBR,
+                                                                    lb_rec.EXPIRATION_DATE);
+            END IF;
+            IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lb_rec.LEAD_STORE_NBR,
+                                                             lb_rec.LEAD_BANK_ACCOUNT_NBR,
+                                                             lb_rec.EXPIRATION_DATE,
+                                                             NULL) = 'Y' THEN
+                RAISE lead_exprd_with_actv_chlds;
+            END IF;
+            TABLE_IU_PKG.LEAD_BANK_CC_I_SP(lb_rec);
+        END LOOP;
+        ba_rec.EXPIRATION_DATE := GREATEST(ba_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        IF BUSINESS_RULES_PKG.IS_BNK_ACCNT_EXPRTN_INVALID(ba_rec.BANK_ACCOUNT_NBR,
+                                                          ba_rec.EXPIRATION_DATE,
+                                                          NULL) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
+        TABLE_IU_PKG.BANK_ACCOUNT_I_SP(ba_rec);
+    END LOOP;
+EXCEPTION
+    WHEN bnk_accnt_exprd_wt_actv_chld THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
+                         V_PROC_NAME,
+                         'Effective date of this future bank account is less than it''s previous lead/MICR formats. Please check the details in previous tab');
+    WHEN lead_exprd_with_actv_chlds THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_exprd_with_actv_chlds,
+                         V_PROC_NAME,
+                         'Effective date of this future lead is less than some of it''s previous members/store deposit ticket. Please correct the previous future concentration/store deposit ticket first');
+    WHEN mbr_exprd_with_actv_dptks THEN
+        ERRPKG.RAISE_ERR(errnums.en_mbr_exprd_with_actv_dptks,
+                         V_PROC_NAME,
+                         'Effective date of this future member "'|| V_MEMBER_STORE ||'" is less than some of it''s previous store deposit ticket. Please correct the previous future store deposit ticket first');
+    WHEN micr_exprd_with_actv_dptks THEN
+        ERRPKG.RAISE_ERR(errnums.en_micr_exprd_with_actv_dptks,
+                         V_PROC_NAME,
+                         'Effective date of this future MICR "'|| V_FORMAT_NAME ||'" is less than it''s previous stores MICR formats. Please correct the previous stores MICR format first');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_CURR_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_CURR_BANK_ACCOUNT;
+
+PROCEDURE EXPIRE_PREV_FTR_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous future records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE,
+IN_FLAG                IN     VARCHAR2)
+IS
+    CURSOR bank_account_future_cur IS
+        SELECT *
+          FROM BANK_ACCOUNT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND EFFECTIVE_DATE   < IN_NEW_EFFECTIVE_DATE
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR bank_micr_format_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM BANK_MICR_FORMAT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR lead_bank_cc_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM LEAD_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+    CURSOR member_bank_cc_future_cur(IN_FUTURE_ID IN NUMBER) IS
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID
+           AND EXPIRATION_DATE IS NULL;
+
+    lead_exprd_with_actv_chlds   EXCEPTION;
+    bnk_accnt_exprd_wt_actv_chld EXCEPTION;
+    micr_exprd_with_actv_dptks   EXCEPTION;
+    mbr_exprd_with_actv_dptks    EXCEPTION;
+    V_PROC_NAME                  VARCHAR2(30) := 'EXPIRE_PREV_FTR_BANK_ACCOUNT';
+    V_MEMBER_STORE               VARCHAR2(10);
+    V_FORMAT_NAME                VARCHAR2(10);
+    V_EXPIRE_DATE                DATE := IN_NEW_EFFECTIVE_DATE - INTERVAL '1' SECOND;
+BEGIN
+    FOR baf_rec IN bank_account_future_cur LOOP
+        FOR bmff_rec IN bank_micr_format_future_cur(baf_rec.FUTURE_ID) LOOP
+            bmff_rec.EXPIRATION_DATE := GREATEST(bmff_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            V_FORMAT_NAME := bmff_rec.MICR_FORMAT_ID;
+            IF IN_FLAG = 'ACCNT_MNTNC' THEN
+                IF BUSINESS_RULES_PKG.IS_MICR_EXPIRATION_INVALID(bmff_rec.BANK_ACCOUNT_NBR,
+                                                                 bmff_rec.MICR_FORMAT_ID,
+                                                                 bmff_rec.EXPIRATION_DATE,
+                                                                 bmff_rec.FUTURE_ID) = 'Y' THEN
+                    RAISE micr_exprd_with_actv_dptks;
+                END IF;
+            ELSIF IN_FLAG IN ('MAKE_LEAD', 'TRANSFER') THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(NULL, --cost center code
+                                                                           bmff_rec.BANK_ACCOUNT_NBR,
+                                                                           bmff_rec.MICR_FORMAT_ID,
+                                                                           bmff_rec.FUTURE_ID,
+                                                                           bmff_rec.EXPIRATION_DATE);
+            END IF;
+            TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_I_SP(bmff_rec);
+        END LOOP;
+        FOR mbf_rec IN member_bank_cc_future_cur(baf_rec.FUTURE_ID) LOOP
+            mbf_rec.EXPIRATION_DATE := GREATEST(mbf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            V_MEMBER_STORE := mbf_rec.MEMBER_STORE_NBR;
+            /*IF BUSINESS_RULES_PKG.IS_MEMBER_EXPIRATION_INVALID(mbf_rec.MEMBER_STORE_NBR,
+                                                               mbf_rec.EXPIRATION_DATE,
+                                                               mbf_rec.FUTURE_ID) = 'Y' THEN
+                RAISE mbr_exprd_with_actv_dptks;
+            END IF;*/
+            IF mbf_rec.EXPIRATION_DATE IS NOT NULL THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
+                                                                           NULL, --bank account number
+                                                                           NULL, --micr format id
+                                                                           mbf_rec.FUTURE_ID,
+                                                                           mbf_rec.EXPIRATION_DATE);
+                DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
+                                                                      mbf_rec.FUTURE_ID,
+                                                                      mbf_rec.EXPIRATION_DATE);
+            END IF;
+            TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(mbf_rec);
+        END LOOP;
+        FOR lbf_rec IN lead_bank_cc_future_cur(baf_rec.FUTURE_ID) LOOP
+            lbf_rec.EXPIRATION_DATE := GREATEST(lbf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+            IF lbf_rec.EXPIRATION_DATE IS NOT NULL THEN
+                DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(lbf_rec.LEAD_STORE_NBR,
+                                                                           NULL, --bank account number
+                                                                           NULL, --micr format id
+                                                                           lbf_rec.FUTURE_ID,
+                                                                           lbf_rec.EXPIRATION_DATE);
+                DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR(lbf_rec.LEAD_STORE_NBR,
+                                                                      lbf_rec.FUTURE_ID,
+                                                                      lbf_rec.EXPIRATION_DATE);
+            END IF;
+            IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lbf_rec.LEAD_STORE_NBR,
+                                                             lbf_rec.LEAD_BANK_ACCOUNT_NBR,
+                                                             lbf_rec.EXPIRATION_DATE,
+                                                             lbf_rec.FUTURE_ID) = 'Y' THEN
+                RAISE lead_exprd_with_actv_chlds;
+            END IF;
+            TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_I_SP(lbf_rec);
+        END LOOP;
+        baf_rec.EXPIRATION_DATE := GREATEST(baf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        IF BUSINESS_RULES_PKG.IS_BNK_ACCNT_EXPRTN_INVALID(baf_rec.BANK_ACCOUNT_NBR,
+                                                          baf_rec.EXPIRATION_DATE,
+                                                          baf_rec.FUTURE_ID) = 'Y' THEN
+            RAISE bnk_accnt_exprd_wt_actv_chld;
+        END IF;
+        TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_I_SP(baf_rec);
+    END LOOP;
+EXCEPTION
+    WHEN bnk_accnt_exprd_wt_actv_chld THEN
+        ERRPKG.RAISE_ERR(errnums.en_bnk_accnt_expr_wt_actv_chld,
+                         V_PROC_NAME,
+                         'Effective date of this future bank account is less than it''s previous lead/MICR formats. Please check the details in previous tab');
+    WHEN lead_exprd_with_actv_chlds THEN
+        ERRPKG.RAISE_ERR(errnums.en_lead_exprd_with_actv_chlds,
+                         V_PROC_NAME,
+                         'Effective date of this future lead is less than some of it''s previous members. Please correct the previous future concentration first');
+    WHEN mbr_exprd_with_actv_dptks THEN
+        ERRPKG.RAISE_ERR(errnums.en_mbr_exprd_with_actv_dptks,
+                         V_PROC_NAME,
+                         'Effective date of this future member "'|| V_MEMBER_STORE ||'" is less than some of it''s previous store deposit ticket. Please correct the previous future store deposit ticket first');
+    WHEN micr_exprd_with_actv_dptks THEN
+        ERRPKG.RAISE_ERR(errnums.en_micr_exprd_with_actv_dptks,
+                         V_PROC_NAME,
+                         'Effective date of this future MICR "'|| V_FORMAT_NAME ||'" is less than it''s previous stores MICR formats. Please correct the previous stores MICR format first');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_FTR_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_FTR_BANK_ACCOUNT;
+
+PROCEDURE ACCNT_MNTNC_UI_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the core process for Account Maintenance Window,
+  delete process
+
+Created : 07/13/2015 jxc517 CCN Project....
+Changed : 11/24/2015 nxk927 CCN Project....
+          removed the flag from ACCNT_MNTNC_FUTURE_DELETE_SP call
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
+    IN_FUTURE_ID            IN  NUMBER)
+IS
+    CURSOR bank_account_ftr_cur(IN_FTR_ID    IN    NUMBER) IS 
+        SELECT *
+          FROM BANK_ACCOUNT_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND FUTURE_ID >= IN_FTR_ID;
+BEGIN
+    /*Business Rules  - TBD*/
+    IF IN_FUTURE_ID IS NOT NULL THEN --deleting from a future record
+        FOR bank_account_ftr_rec IN bank_account_ftr_cur(IN_FUTURE_ID) LOOP
+            ACCNT_MNTNC_FUTURE_DELETE_SP(bank_account_ftr_rec);
+        END LOOP;
+    ELSE --deleting from a current record
+        FOR bank_account_ftr_rec IN bank_account_ftr_cur(1) LOOP --notice hard coded "1" to delete all futures
+            ACCNT_MNTNC_FUTURE_DELETE_SP(bank_account_ftr_rec);
+        END LOOP;
+        ACCNT_MNTNC_CURRENT_DELETE_SP(IN_BANK_ACCOUNT_NUMBER);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UI_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_UI_DELETE_SP;
+
+PROCEDURE ACCNT_MNTNC_EXP_DELETE_SP ( 
+/******************************************************************************
+	This procedure performs the delete process for expired member future records
+  and its related tables
+
+Created : 10/02/2015 sxh487 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
+    IN_LEAD_STORE_NBR           IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR         IN  VARCHAR2,
+    IN_FUTURE_ID                IN  NUMBER)
+IS
+    CURSOR mbr_bank_cc_cur IS 
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID             = IN_FUTURE_ID;
+    CURSOR store_micr_format_dtls_cur IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS_FUTURE
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+    CURSOR bank_dep_tickord_cur IS
+        SELECT *
+          FROM BANK_DEP_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+    CURSOR bank_dep_bag_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+    CURSOR bank_dep_bag_tickord_cur IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD_FUTURE
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
+           AND FUTURE_ID        = IN_FUTURE_ID;
+BEGIN
+     --expire CC related child tables
+     FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
+         TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP (str_micr_format_rec);
+     END LOOP;
+     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_rec);
+     END LOOP;
+     FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_rec);
+     END LOOP;
+     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_rec);
+     END LOOP;
+     FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur LOOP
+         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_rec);
+     END LOOP;
+     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
+         TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_rec);
+     END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_EXP_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_EXP_DELETE_SP;
+
+PROCEDURE ACCNT_MNTNC_UNEXPIRE_SP (
+/******************************************************************************
+	This procedure Un-Expires the current records that have a future
+  expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2)
+IS
+    CURSOR bank_account_cur IS 
+        SELECT *
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR lead_bank_cc_cur IS 
+        SELECT *
+          FROM LEAD_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR mbr_bank_cc_cur(IN_LEAD_STORE_NBR IN VARCHAR2) IS 
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR;
+    CURSOR bank_micr_format_cur IS 
+        SELECT *
+          FROM BANK_MICR_FORMAT
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER;
+    CURSOR store_micr_format_dtls_cur(IN_MICR_FORMAT_ID NUMBER) IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND MICR_FORMAT_ID   = IN_MICR_FORMAT_ID;
+    CURSOR bank_dep_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+BEGIN
+     FOR bank_account_rec IN bank_account_cur LOOP
+         FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
+             FOR str_micr_format_rec IN store_micr_format_dtls_cur(bank_micr_format_rec.MICR_FORMAT_ID) LOOP
+                 str_micr_format_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
+             END LOOP;
+             bank_micr_format_rec.EXPIRATION_DATE := NULL;
+             TABLE_IU_PKG.BANK_MICR_FORMAT_I_SP(bank_micr_format_rec);
+         END LOOP;
+         FOR lead_bank_cc_rec IN lead_bank_cc_cur LOOP
+             FOR mbr_bank_cc_rec IN mbr_bank_cc_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+                 END LOOP;
+                 FOR bank_dep_tickord_rec IN bank_dep_tickord_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+                 END LOOP;
+                 FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_bag_tick_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
+                 END LOOP;
+                 FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                     bank_dep_bag_tickord_rec.EXPIRATION_DATE := NULL;
+                     TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tickord_rec);
+                 END LOOP;
+                 mbr_bank_cc_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
+             END LOOP;
+             FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+             END LOOP;
+             FOR bank_dep_tickord_rec IN bank_dep_tickord_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+             END LOOP;
+             FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_bag_tick_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
+             END LOOP;
+             FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                 bank_dep_bag_tickord_rec.EXPIRATION_DATE := NULL;
+                 TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tickord_rec);
+             END LOOP;
+             lead_bank_cc_rec.EXPIRATION_DATE := NULL;
+             TABLE_IU_PKG.LEAD_BANK_CC_I_SP(lead_bank_cc_rec);
+         END LOOP;
+         bank_account_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_ACCOUNT_I_SP(bank_account_rec);
+     END LOOP;
+       
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_UNEXPIRE_SP;
+
+PROCEDURE ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP (
+/******************************************************************************
+	This procedure Un-Expires the current records that are cost center related and
+  have a future expiration date
+  
+Created : 09/28/2015 sxh487 CCN Project....
+Changed : 10/20/2015 jxc517 CCN Project....
+          Code has been changed to deal with Deposit Bag futures
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
+    IN_LEAD_STORE_NBR       IN  VARCHAR2,
+    IN_MEMBER_STORE_NBR     IN  VARCHAR2)
+IS
+    CURSOR mbr_bank_cc_cur IS 
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR;
+    CURSOR store_micr_format_dtls_cur IS 
+        SELECT *
+          FROM STORE_MICR_FORMAT_DTLS
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
+           AND COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_tickord_cur IS
+        SELECT *
+          FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_bag_tick_cur IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+    CURSOR bank_dep_bag_tickord_cur IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD
+         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
+BEGIN
+     --expire CC related child tables
+     FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
+         str_micr_format_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
+     END LOOP;
+     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
+         bank_dep_tick_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
+     END LOOP;
+     FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
+         bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
+     END LOOP;
+     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
+         bank_dep_bag_tick_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
+     END LOOP;
+     FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur LOOP
+         bank_dep_bag_tickord_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tickord_rec);
+     END LOOP;
+     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
+         mbr_bank_cc_rec.EXPIRATION_DATE := NULL;
+         TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
+     END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
+
+PROCEDURE EXPIRE_PREVIOUS_BANK_ACCOUNT(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 07/31/2015 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE,
+IN_FLAG                IN     VARCHAR2)
+IS
+BEGIN
+    EXPIRE_PREV_CURR_BANK_ACCOUNT(IN_BANK_ACCOUNT_NBR, IN_NEW_EFFECTIVE_DATE, IN_FLAG);
+    EXPIRE_PREV_FTR_BANK_ACCOUNT(IN_BANK_ACCOUNT_NBR, IN_NEW_EFFECTIVE_DATE, IN_FLAG);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREVIOUS_BANK_ACCOUNT', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREVIOUS_BANK_ACCOUNT;
+
+
+PROCEDURE EXPIRE_PREV_CURR_MEM(
+/*******************************************************************************
+    This procedure is intended to check and expire previous current records
+    before inserting new record
+
+Created : 10/21/2015 dxv848 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
+IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE)
+IS
+    CURSOR member_bank_cc_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR
+           AND EXPIRATION_DATE IS NULL;
+
+    V_MEMBER_STORE               VARCHAR2(10);
+    V_EXPIRE_DATE                DATE := IN_NEW_EFFECTIVE_DATE - INTERVAL '1' SECOND;
+BEGIN
+    FOR mb_rec IN member_bank_cc_cur LOOP
+        mb_rec.EXPIRATION_DATE := GREATEST(mb_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        V_MEMBER_STORE := mb_rec.MEMBER_STORE_NBR;
+        IF mb_rec.EXPIRATION_DATE IS NOT NULL THEN
+            DEPOSIT_TICKET_MAINTENANCE_PKG.EXPIRE_STORE_MICR_FORMAT_DTLS(mb_rec.MEMBER_STORE_NBR,
+                                                                         NULL, --bank account number
+                                                                         NULL, --micr format id
+                                                                         mb_rec.EXPIRATION_DATE);
+            DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(mb_rec.MEMBER_STORE_NBR,
+                                                                mb_rec.EXPIRATION_DATE);
+        END IF;
+        TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mb_rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_CURR_MEMBER', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_CURR_MEM;
+
+PROCEDURE EXPIRE_PREV_FTR_MEM(
+/*******************************************************************************
+    This procedure is intended to check and expire previous future records
+    before inserting new record
+
+Created : 10/21/2015 dxv848 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
+IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE)
+IS
+    CURSOR member_bank_cc_future_cur IS
+        SELECT *
+          FROM MEMBER_BANK_CC_FUTURE
+         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
+           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR
+           AND EXPIRATION_DATE IS NULL;
+
+    V_MEMBER_STORE               VARCHAR2(10);
+    V_EXPIRE_DATE                DATE := IN_NEW_EFFECTIVE_DATE - INTERVAL '1' SECOND;
+BEGIN
+    FOR mbf_rec IN member_bank_cc_future_cur LOOP
+        mbf_rec.EXPIRATION_DATE := GREATEST(mbf_rec.EFFECTIVE_DATE, V_EXPIRE_DATE);
+        V_MEMBER_STORE := mbf_rec.MEMBER_STORE_NBR;
+        IF mbf_rec.EXPIRATION_DATE IS NOT NULL THEN
+            DEPOSIT_TICKET_MAINTENANCE_PKG.EXPR_STR_MICR_FRMT_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
+                                                                       NULL, --bank account number
+                                                                       NULL, --micr format id
+                                                                       mbf_rec.FUTURE_ID,
+                                                                       mbf_rec.EXPIRATION_DATE);
+            DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
+                                                                  mbf_rec.FUTURE_ID,
+                                                                  mbf_rec.EXPIRATION_DATE);
+        END IF;
+        TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(mbf_rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREV_FTR_MEMBER', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREV_FTR_MEM;
+
+PROCEDURE EXPIRE_PREVIOUS_MEM(
+/*******************************************************************************
+    This procedure is intended to check and expire previous records
+    before inserting new record
+
+Created : 10/21/2015 dxv848 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
+IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
+IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
+IN_NEW_EFFECTIVE_DATE  IN     DATE)
+IS
+BEGIN
+    EXPIRE_PREV_CURR_MEM(IN_BANK_ACCOUNT_NBR, IN_LEAD_STORE_NBR,IN_MEMBER_STORE_NBR, IN_NEW_EFFECTIVE_DATE);
+    EXPIRE_PREV_FTR_MEM(IN_BANK_ACCOUNT_NBR, IN_LEAD_STORE_NBR,IN_MEMBER_STORE_NBR, IN_NEW_EFFECTIVE_DATE);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'EXPIRE_PREVIOUS_MEMBER', SUBSTR(SQLERRM,1,500));
+END EXPIRE_PREVIOUS_MEM;
+
+END ACC_MEM_MAIN_COMMONTOOLS;

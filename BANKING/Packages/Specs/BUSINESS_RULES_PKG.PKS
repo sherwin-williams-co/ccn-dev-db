@@ -144,6 +144,17 @@ Changed :
    IN_ORDER_DATE         IN DATE,
    IN_FUTURE_ID          IN NUMBER);
 
+PROCEDURE ACCOUNT_MAINTEN_LEAD_SP(
+/******************************************************************************
+    This procedure validates the business rules for Make Lead process of Concentration Window
+
+Created :  11/28/2015 DXV848 Added a warning that if an expired member with future
+           is transferred again all the futures will be deleted
+*******************************************************************************/
+IN_LEAD_CC        IN     VARCHAR2,
+IN_BANKACC_CC     IN     VARCHAR2,
+IN_EFFECTIVE_DATE IN     DATE);
+
 FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************
   This function returns exception code defined by mainframe as CODE1(Exception code)
