@@ -2648,8 +2648,7 @@ PRAGMA EXCEPTION_INIT
 
 /***********************************************************
 The "pci_terminal_id_err" passes a numerical error of -20530.
-This error will state that the PCI_TERMINAL_ID should not be
-null when the polling status is 'P'
+This error will state that the PCI_TERMINAL_ID is null
 
 created  : 03/02/2016 nxk927 CCN Project
 revisions:
