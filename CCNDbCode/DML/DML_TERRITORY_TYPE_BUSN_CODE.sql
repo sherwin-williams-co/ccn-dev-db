@@ -2,8 +2,7 @@
 Created : nxk927 03/15/2016 
           updating the TERRITORY_TYPE_BUSN_CODE in TERRITORY table
           and cost center name in the cost center table
-		  
-		  check the external file
+
 *******************************/
 
 ----UPDATING THE TERRITORY_TYPE_BUSN_CODE
