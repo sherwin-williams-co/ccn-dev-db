@@ -2651,8 +2651,8 @@ The "pci_terminal_id_err" passes a numerical error of -20530.
 This error will state that the PCI_TERMINAL_ID is null
 
 created  : 03/02/2016 nxk927 CCN Project
-revisions:
-
+revisions: 03/15/2016 nxk927 CCN Project
+           updated the comments
 ************************************************************/
 en_pci_terminal_id_err CONSTANT NUMBER := -20530;
 exc_pci_terminal_id_err EXCEPTION;
