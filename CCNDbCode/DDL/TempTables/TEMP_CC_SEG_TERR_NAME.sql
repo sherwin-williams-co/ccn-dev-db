@@ -4,9 +4,9 @@ Created : nxk927 03/15/2016
           TERRITORY_TYPE_BUSN_CODE in TERRITORY table
           and cost center name in the cost center table
 		  
-		  check the external file
-          place it in the server
-		  this table will be dropped after the update
+          check the external file
+          if not then place it in the server
+          this table will be dropped after the update
 *******************************/
 
 CREATE TABLE TEMP_CC_SEG_TERR_NAME
