@@ -1,0 +1,445 @@
+create or replace PACKAGE BODY CREDIT_HIERARCHY_LOAD
+/*******************************************************************************
+This package is intended to load Credit Hierarchy files from mainframe into the 
+HIERARCHY tables
+
+created : 02/12/2016 sxh487927 CCN project
+modified:
+*******************************************************************************/
+AS
+
+PROCEDURE ALTER_HIER_TRIGGERS   
+/*******************************************************************************
+	ALTER_HIER_TRIGGERS   --    Alter Hierarchy table(s) triggers
+
+  This procedure will enable and/or disable Hierarchy table(s) triggers based on an
+  input "status" parameter.  
+	  
+created : 02/12/2016 sxh487 CCN Project....
+*******************************************************************************/
+ ( IN_STATUS  IN VARCHAR2 )
+ IS
+ 
+ tr_stmnt VARCHAR2(500);
+ V_CODE NUMBER;
+ v_errm varchar2(500);
+
+ BEGIN
+    IF IN_STATUS NOT IN ('ENABLE', 'enable', 'DISABLE', 'disable') THEN 
+       DBMS_OUTPUT.PUT_LINE('ALTER_HIER_TRIGGERS ' ||
+                            'Status: <' || IN_STATUS  || '>' ||
+                            ' IS Invalid, only ' || 'ENABLE or DISABLE' ||
+                            ' are accepted as valid parameters');
+      RAISE VALUE_ERROR;
+    END IF;
+--
+      tr_stmnt := 'ALTER TRIGGER TR_HIER_DETAIL_UPD';
+      EXECUTE IMMEDIATE tr_stmnt || ' ' || IN_STATUS;
+      
+      EXECUTE IMMEDIATE 'ALTER TRIGGER TR_HIER_HEAD_UPD ' || IN_STATUS;
+      EXECUTE IMMEDIATE 'ALTER TRIGGER TR_HIER_DESC_UPD ' || IN_STATUS;
+      EXECUTE IMMEDIATE 'ALTER TRIGGER TR_COST_CENTER_UPD ' || IN_STATUS;
+--
+DBMS_OUTPUT.PUT_LINE('Hier Triggers '||IN_STATUS);
+  EXCEPTION
+--
+        WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'HIERARCHY_LOADING_PKG.ALTER_HIER_TRIGGERS' ||
+                 V_ERRM );
+ END ALTER_HIER_TRIGGERS;
+ 
+FUNCTION GET_CREDIT_HIERARCHY_REC(
+/***********************************************************
+	This function will get the credit hier row for the level passed
+  
+Created : 02/12/2016 sxh487
+Changed : 
+************************************************************/
+    IN_HRCHY_DTL_LEVEL         IN  CREDIT_HIERARCHY_T.HRCHY_DTL_LEVEL%TYPE,
+    IN_HRCHY_DTL_CURR_LVL_VAL  IN  CREDIT_HIERARCHY_T.HRCHY_DTL_CURR_LVL_VAL%TYPE)
+    RETURN CREDIT_HIERARCHY_T%ROWTYPE
+    
+IS
+    V_CREDIT_HIERARCHY_T_rec   CREDIT_HIERARCHY_T%ROWTYPE;
+BEGIN
+    SELECT */*+ INDEX(CREDIT_HIERARCHY_T CRDT_HRCHY_IDX )*/
+          INTO V_CREDIT_HIERARCHY_T_rec
+          FROM CREDIT_HIERARCHY_T B
+         WHERE  HRCHY_HDR_NAME = 'CREDIT_HIERARCHY'
+           AND HRCHY_DTL_CURR_LVL_VAL = IN_HRCHY_DTL_CURR_LVL_VAL
+           AND HRCHY_DTL_LEVEL = IN_HRCHY_DTL_LEVEL
+           AND ROWNUM <2;
+           
+    RETURN V_CREDIT_HIERARCHY_T_rec;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_CREDIT_HIERARCHY_REC;
+
+FUNCTION GET_CREDIT_HIER_ATTR_VAL(
+/***********************************************************
+	This function will get the credit hier attributes
+  
+Created : 02/12/2016 sxh487
+Changed : 
+************************************************************/
+IN_HRCHY_DTL_LEVEL         CREDIT_HIERARCHY_T.HRCHY_DTL_LEVEL%TYPE,
+IN_HRCHY_DTL_CURR_LVL_VAL  CREDIT_HIERARCHY_T.HRCHY_DTL_CURR_LVL_VAL%TYPE) 
+return XMLType 
+AS 
+V_UPPER_LVL_VER_VALUE HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE; 
+V_CREDIT_HIER_T_rec  CREDIT_HIERARCHY_T%ROWTYPE; 
+
+v_ACM_VAL   CRDT_HIER_ACM_LOOKUP.ACM_VAL%TYPE;
+v_DCM_VAL   CRDT_HIER_DCM_LOOKUP.DCM_VAL%TYPE;
+
+BEGIN 
+    V_CREDIT_HIER_T_rec       := GET_CREDIT_HIERARCHY_REC(IN_HRCHY_DTL_LEVEL, IN_HRCHY_DTL_CURR_LVL_VAL);
+    
+    CASE WHEN IN_HRCHY_DTL_LEVEL = '2' THEN
+          
+           SELECT XMLElement("attributes"
+                        , ( XMLAgg( XMLElement("upper_lvl_ver_desc",
+                                                XMLForest( 'RCM' AS "Name",
+                                                           'Picklist Value' AS "Description",
+                                                           V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"
+                                                            )))))
+                              INTO V_UPPER_LVL_VER_VALUE
+                              FROM DUAL;
+                              
+      WHEN IN_HRCHY_DTL_LEVEL = '4' THEN
+          begin
+              select ACM_VAL into v_ACM_VAL from CRDT_HIER_ACM_LOOKUP where ACM_NBR = V_CREDIT_HIER_T_rec.ATTRIB1; 
+          exception
+             when NO_DATA_FOUND THEN
+                 DBMS_OUTPUT.PUT_LINE('No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
+          end;
+           begin
+               select DCM_VAL into v_DCM_VAL from CRDT_HIER_DCM_LOOKUP where DCM_NBR = V_CREDIT_HIER_T_rec.ATTRIB2;
+           exception
+             when NO_DATA_FOUND THEN
+                 DBMS_OUTPUT.PUT_LINE('No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
+          end;
+          
+          CASE WHEN v_ACM_VAL IS NULL AND v_DCM_VAL IS NULL THEN 
+             SELECT XMLELEMENT ( "attributes",
+                                      (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                                  XMLFOREST(
+                                                            'ACM'  AS "Name"
+                                                           ,'Picklist Value' as "Description"
+                                                           ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
+                                                            )))),
+                                              XMLELEMENT("upper_lvl_ver_desc", 
+                                                       XMLFOREST(
+                                                             'DCM' AS "Name",
+                                                             'Picklist Value' as "Description",
+                                                             V_CREDIT_HIER_T_rec.ATTRIB2 as "Value"
+                                                             )))
+                                                      INTO V_UPPER_LVL_VER_VALUE
+                                                      FROM DUAL;
+           WHEN v_ACM_VAL IS NULL AND v_DCM_VAL IS NOT NULL THEN 
+                SELECT XMLELEMENT ( "attributes",
+                                        (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                                    XMLFOREST(
+                                                              'ACM'  AS "Name"
+                                                             ,'Picklist Value' as "Description"
+                                                             ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
+                                                              )))),
+                                                XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'DCM' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               V_CREDIT_HIER_T_rec.ATTRIB2 as "Value"
+                                                               )),
+                                               XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'DCM_MGR' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               v_DCM_VAL as "Value"
+                                                               )))
+                                                        INTO V_UPPER_LVL_VER_VALUE
+                                                        FROM DUAL;
+           WHEN v_ACM_VAL IS NOT NULL AND v_DCM_VAL IS NULL THEN 
+                SELECT XMLELEMENT ( "attributes",
+                                        (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                                    XMLFOREST(
+                                                              'ACM'  AS "Name"
+                                                             ,'Picklist Value' as "Description"
+                                                             ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
+                                                              )))),
+                                                 XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'ACM_MGR' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               v_ACM_VAL as "Value"                                                     
+                                                               )),
+                                                XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'DCM' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               V_CREDIT_HIER_T_rec.ATTRIB2 as "Value"
+                                                               )))
+                                                        INTO V_UPPER_LVL_VER_VALUE
+                                                        FROM DUAL;
+          
+           ELSE
+               SELECT XMLELEMENT ( "attributes",
+                                        (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                                    XMLFOREST(
+                                                              'ACM'  AS "Name"
+                                                             ,'Picklist Value' as "Description"
+                                                             ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
+                                                              )))),
+                                                 XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'ACM_MGR' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               v_ACM_VAL as "Value"                                                     
+                                                               )),
+                                                XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'DCM' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               V_CREDIT_HIER_T_rec.ATTRIB2 as "Value"
+                                                               )),
+                                               XMLELEMENT("upper_lvl_ver_desc", 
+                                                         XMLFOREST(
+                                                               'DCM_MGR' AS "Name",
+                                                               'Picklist Value' as "Description",
+                                                               v_DCM_VAL as "Value"
+                                                               )))
+                                                        INTO V_UPPER_LVL_VER_VALUE
+                                                        FROM DUAL;
+           END CASE;
+          
+      WHEN IN_HRCHY_DTL_LEVEL = '5' THEN
+         
+           SELECT XMLELEMENT ( "attributes",
+                                    (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
+                                                XMLFOREST(
+                                                          'SYSOUT'  AS "Name"
+                                                         ,'Picklist Value' as "Description"
+                                                         ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
+                                                          )))))
+                                                    INTO V_UPPER_LVL_VER_VALUE
+                                                    FROM DUAL;   
+      
+      ELSE
+          NULL;
+      END CASE;
+                              
+RETURN V_UPPER_LVL_VER_VALUE;
+END GET_CREDIT_HIER_ATTR_VAL;
+
+PROCEDURE CREDIT_HIER_HDR_DESC_LOAD
+/*******************************************************************************
+This Procedure Loads HIERARCHY_HEADER and HIERARCHY_DESCRIPTION for credit hierarchy
+before loading the files from Mainframe into hierarchy_detail table
+
+created : 02/12/2016 sxh487 CCN project
+modified:
+*******************************************************************************/
+IS
+ V_CODE NUMBER;
+ V_ERRM VARCHAR2(500);
+BEGIN
+---INSERT FOR CREDIT HIERARCHY INTO HIERARCHY_HEADER
+Insert into HIERARCHY_HEADER (HRCHY_HDR_NAME,HRCHY_HDR_LEVELS,HRCHY_HDR_DESC,STMNT_TYPE_VALIDATION_IND,ALL_APPLICABLE_ATTRIBUTES) values ('CREDIT_HIERARCHY','6','Credit Hierarchy Structure',null,null);
+
+---INSERT FOR CREDIT HIERARCHY INTO HIERARCHY_DESCRIPTION
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','1','Group',null,null,2);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','2','Division','<attributes>
+  <upper_lvl_ver_desc>
+    <Name>RCM</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+</attributes>
+',null,2);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','3','Area',null,null,2);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','4','District','<attributes>
+  <upper_lvl_ver_desc>
+    <Name>ACM</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+  <upper_lvl_ver_desc>
+    <Name>ACM_MGR</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+  <upper_lvl_ver_desc>
+    <Name>DCM</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+  <upper_lvl_ver_desc>
+    <Name>DCM_MGR</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+</attributes>
+',null,3);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','5','DCO','<attributes>
+  <upper_lvl_ver_desc>
+    <Name>SYSOUT</Name>
+    <Description>pkListValue</Description>
+  </upper_lvl_ver_desc>
+</attributes>
+',null,5);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','6','Cost Center',null,null,6);
+
+EXCEPTION
+  WHEN OTHERS THEN
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,500);
+       DBMS_OUTPUT.PUT_LINE('CREDIT_HIER_HDR_DESC_LOAD FAILED AT '||V_ERRM || ' : ' ||V_CODE ); 
+END CREDIT_HIER_HDR_DESC_LOAD;
+
+PROCEDURE LOAD_INTERMEDIATE_TABLES
+/*******************************************************************************
+This Procedure Loads the intermediate tables CREDIT_HIERARCHY_EXT_DETAIL_T and 
+for credit hierarchy before loading the files from Mainframe into hierarchy_detail table
+
+created : 02/12/2016 sxh487 CCN project
+modified:
+*******************************************************************************/
+ IS
+ V_CODE NUMBER;
+ V_ERRM VARCHAR2(500);
+BEGIN
+      EXECUTE IMMEDIATE 'TRUNCATE TABLE CREDIT_HIERARCHY_T';
+      
+      INSERT INTO CREDIT_HIERARCHY_T
+         SELECT /*+ NO_PARALLEL (CREDIT_HIERARCHY_EXT_DETAIL)*/ * FROM CREDIT_HIERARCHY_EXT_DETAIL;
+
+EXCEPTION
+  WHEN OTHERS THEN
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,200);
+       DBMS_OUTPUT.PUT_LINE('LOAD_INTERMEDIATE_TABLES FAILED AT '||V_ERRM || ' : ' ||V_CODE ); 
+END LOAD_INTERMEDIATE_TABLES;
+
+PROCEDURE CREDIT_HIERARCHY_LOAD_MAIN
+/******************************************************************************
+This Procedure Loads the hierarchy_detail table with the 6 level Credit hierarchy
+This procedure will build the necesarry  levels and will be loaded in the main table
+
+created : 02/12/2016 sxh487 CCN project
+modified:
+*******************************************************************************/
+IS
+    V_CODE NUMBER;
+    V_ERRM VARCHAR2(500);
+    v_count integer := 0;
+    
+    CURSOR CREDIT_HIER_CUR is
+            SELECT *
+              FROM CREDIT_HIERARCHY_T ORDER BY HRCHY_DTL_LEVEL;
+              
+      time_before   PLS_INTEGER := DBMS_UTILITY.get_time;
+      V_COMMIT INTEGER := 0;
+      V_UPPER_LVL_VER_VALUE     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
+      V_HRCHY_DTL_CURR_ROW_VAL  HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+    
+    BEGIN
+       FOR EACH_REC IN CREDIT_HIER_CUR LOOP
+   
+            CASE WHEN EACH_REC.HRCHY_DTL_LEVEL = '1' THEN
+                      EACH_REC.HRCHY_DTL_PREV_LVL_VAL := '~~~';
+                      V_HRCHY_DTL_CURR_ROW_VAL := EACH_REC.HRCHY_DTL_CURR_LVL_VAL;
+                 WHEN EACH_REC.HRCHY_DTL_LEVEL = '4' THEN
+                      V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -3, 3);
+                 WHEN EACH_REC.HRCHY_DTL_LEVEL = '5' THEN
+                      V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -5, 5);
+                 WHEN EACH_REC.HRCHY_DTL_LEVEL = '6' THEN
+                      EACH_REC.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
+                      V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -6, 6);
+                 ELSE
+                      V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -2, 2);
+                 END CASE;
+
+                            V_UPPER_LVL_VER_VALUE := GET_CREDIT_HIER_ATTR_VAL( EACH_REC.HRCHY_DTL_LEVEL,EACH_REC.HRCHY_DTL_CURR_LVL_VAL);
+                                                  
+                            INSERT INTO HIERARCHY_DETAIL (  HRCHY_HDR_NAME,
+                                                            HRCHY_DTL_LEVEL,
+                                                            HRCHY_DTL_PREV_LVL_VAL,
+                                                            HRCHY_DTL_CURR_LVL_VAL,
+                                                            HRCHY_DTL_NEXT_LVL_VAL,
+                                                            HRCHY_DTL_EFF_DATE,
+                                                            HRCHY_DTL_EXP_DATE,
+                                                            HRCHY_DTL_DESC,
+                                                            HRCHY_DTL_CURR_ROW_VAL,
+                                                            UPPER_LVL_VER_VALUE
+                                                      )
+                                                VALUES ( EACH_REC.HRCHY_HDR_NAME,
+                                                         EACH_REC.HRCHY_DTL_LEVEL,
+                                                         EACH_REC.HRCHY_DTL_PREV_LVL_VAL,
+                                                         EACH_REC.HRCHY_DTL_CURR_LVL_VAL,
+                                                         EACH_REC.HRCHY_DTL_NEXT_LVL_VAL,
+                                                         EACH_REC.HRCHY_DTL_EFF_DATE,
+                                                         EACH_REC.HRCHY_DTL_EXP_DATE,
+                                                         EACH_REC.HRCHY_DTL_DESC,
+                                                         V_HRCHY_DTL_CURR_ROW_VAL,
+                                                         V_UPPER_LVL_VER_VALUE
+                                                       );
+
+           IF V_COMMIT > 100 THEN 
+              COMMIT;
+              V_COMMIT := 0;
+           ELSE
+              V_COMMIT := V_COMMIT + 1;
+           END IF;
+                  
+           V_HRCHY_DTL_CURR_ROW_VAL := NULL;
+           V_UPPER_LVL_VER_VALUE    := NULL;
+
+     END LOOP;
+     COMMIT;
+     DBMS_OUTPUT.put_line (DBMS_UTILITY.get_time - time_before);
+     DBMS_OUTPUT.PUT_LINE('CREDIT_HIERARCHY_LOAD_MAIN completed. ');
+EXCEPTION
+  when OTHERS then
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,200);
+       DBMS_OUTPUT.PUT_LINE('CREDIT_HIERARCHY_LOAD_MAIN FAILED AT '||V_ERRM || ' : ' ||V_CODE); 
+END CREDIT_HIERARCHY_LOAD_MAIN; 
+
+PROCEDURE CREDIT_HIERARCHY_LOAD_MAIN_SP
+/******************************************************************
+This Procedure is a wrapper for the Credit Hierarchy Load.
+This Procedure
+    * Disables all the Triggers for HIERARCHY_DETAIL Table
+    * Loads the HIERARCHY_HEADER,HIERARCHY_DESCRIPTION, INTERMEDIATE  tables
+    * Loads the HIERARCHY_DETAIL table with the Credit Hierarchy data
+    * Re-Enables the Triggers
+
+created : 02/12/2016 sxh487 CCN project
+modified:
+******************************************************************/
+AS
+  V_CONTEXT VARCHAR2(200);
+  time_before   PLS_INTEGER := DBMS_UTILITY.get_time;
+  BEGIN
+      CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+      V_CONTEXT := 'Alter triggers - DISABLE ';
+      ALTER_HIER_TRIGGERS ( 'DISABLE' );
+      
+      V_CONTEXT := 'Loading credit hier header and description ';
+      CREDIT_HIER_HDR_DESC_LOAD();
+
+      V_CONTEXT := 'Loading Temp Tables from External Tables  ';
+      LOAD_INTERMEDIATE_TABLES();
+
+      V_CONTEXT := 'Loading credit hier into hierarchy_detail table';
+      CREDIT_HIERARCHY_LOAD_MAIN;
+            
+      V_CONTEXT := 'Alter triggers - ENABLE ';
+      ALTER_HIER_TRIGGERS ( 'ENABLE' );
+
+      --comment
+      DBMS_OUTPUT.put_line (DBMS_UTILITY.get_time - time_before);
+      CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+EXCEPTION
+   WHEN OTHERS THEN
+      dbms_output.put_line('CREDIT_HIERARCHY_LOAD_MAIN_SP failed at ' ||  V_CONTEXT);
+END CREDIT_HIERARCHY_LOAD_MAIN_SP;
+
+END CREDIT_HIERARCHY_LOAD;

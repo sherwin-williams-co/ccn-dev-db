@@ -326,11 +326,10 @@ cursor hier_detail_cur(p_HRCHY_HDR_NAME         IN hierarchy_description.hrchy_h
      and HRCHY_DTL_CURR_LVL_VAL = p_HRCHY_DTL_CURR_LVL_VAL;
     
 BEGIN
-
       CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(IN_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE,
                                               'STATEMENT_TYPE',
                                               V_CC_DETAIL_STMNT_TYPE);
-
+                          
       IF V_CC_DETAIL_STMNT_TYPE IS NULL THEN
          V_WARNINGTEXT := 'Cost Center cannot be Null. Please check.';
          RAISE invalid_cc_wrn;
@@ -440,7 +439,7 @@ BEGIN
       FOR each_hier in sub_hier_cur LOOP
          FOR each_rec in hier_detail_cur(each_hier.hrchy_hdr_name, in_HRCHY_DTL_LEVEL) LOOP
             --check if the all the lower levels are expired
-            IF in_HRCHY_DTL_EXP_DATE IS NULL THEN
+            IF each_rec.HRCHY_DTL_EXP_DATE IS NULL THEN
                v_warningtext := 'The Hierarchy ' || in_HRCHY_HDR_NAME || ' does not have all the lower levels Expired yet.';
                RAISE exp_date_wrn;
             END IF;
@@ -452,6 +451,48 @@ EXCEPTION
             errpkg.raise_err(v_code, v_WarningText);
 
 END Lower_Level_Exp_Rules;
+
+procedure HIERARCHY_EXPIRATION_RULES(
+/*******************************************************************************
+ HIERARCHY_EXPIRATION_RULES  
+   
+  This procedure will validate the business rules for the new hierarchies
+  not attached with the global hierarchy 
+  Before allowing the expiration of any level (i.e. division or area) all lower nodes 
+  (area, district, cost center) must have been expired previously!
+
+created : sxh487 02/24/2016
+********************************************************************************/
+in_HRCHY_HDR_NAME     hierarchy_detail.hrchy_hdr_name%TYPE, 
+in_HRCHY_DTL_LEVEL    hierarchy_detail.hrchy_dtl_level%TYPE, 
+in_HRCHY_DTL_EXP_DATE hierarchy_detail.hrchy_dtl_exp_date%TYPE
+)
+
+IS
+    exp_date_wrn EXCEPTION;
+    v_code       NUMBER;
+    
+    V_COUNT           INTEGER := 0;
+    V_WARNINGTEXT     VARCHAR2(500);
+
+BEGIN
+  SELECT COUNT(*)
+    INTO V_COUNT
+    FROM hierarchy_detail 
+   WHERE hrchy_hdr_name = in_HRCHY_HDR_NAME
+     AND HRCHY_DTL_LEVEL < in_HRCHY_DTL_LEVEL
+     AND HRCHY_DTL_EXP_DATE IS NULL;
+
+         IF V_COUNT > 0 THEN
+            v_warningtext := 'The Hierarchy ' || in_HRCHY_HDR_NAME || ' does not have all the lower levels Expired yet.';
+            RAISE exp_date_wrn;
+         END IF;
+EXCEPTION
+    WHEN exp_date_wrn THEN
+            v_code := errnums.en_exp_date_wrn;
+            errpkg.raise_err(v_code, v_WarningText);
+
+END HIERARCHY_EXPIRATION_RULES;
 
 procedure District_Duplication_Rules(
 /*******************************************************************************
@@ -881,14 +922,13 @@ IS
      V_CONTEXT            VARCHAR2(100);
   
 BEGIN
-
        V_HRCHY_HDR_NAME := IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
        V_HRCHY_DTL_LEVEL := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
        V_HRCHY_HDR_LVL_DESC := ccn_hier_business_rules_pkg.GET_HDR_LVL_DESC_SP(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
 
-       V_CONTEXT := 'Calling the Stmnt_Type_Validation_Rules';       
+       V_CONTEXT := 'Calling the Stmnt_Type_Validation_Rules'; 
        CCN_HIER_BUSINESS_RULES_PKG.Stmnt_Type_Validation_Rules(IN_HIERARCHY_DETAIL_ROW);
-
+       
        IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' then
           IF v_hrchy_dtl_level = '9' THEN
               V_CONTEXT := 'Calling the cost_center_change_Rules';
@@ -925,4 +965,3 @@ BEGIN
 END HIER_BUSINESS_RULES_MAIN;
 
 END CCN_HIER_BUSINESS_RULES_PKG;
-

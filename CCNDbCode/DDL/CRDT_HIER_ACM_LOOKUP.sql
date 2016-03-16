@@ -1,0 +1,5 @@
+  CREATE TABLE CRDT_HIER_ACM_LOOKUP 
+           (	ACM_NBR VARCHAR2(100), 
+        	ACM_NAME VARCHAR2(100), 
+        	ACM_VAL VARCHAR2(100)
+   	   ) ;

@@ -125,6 +125,21 @@ in_HRCHY_HDR_NAME     hierarchy_detail.hrchy_hdr_name%TYPE,
 in_HRCHY_DTL_LEVEL    hierarchy_detail.hrchy_dtl_level%TYPE, 
 in_HRCHY_DTL_EXP_DATE hierarchy_detail.hrchy_dtl_exp_date%TYPE);
 
+procedure HIERARCHY_EXPIRATION_RULES(
+/*******************************************************************************
+ HIERARCHY_EXPIRATION_RULES  
+   
+  This procedure will validate the business rules that before allowing the expiration 
+  of any level (i.e. division or area) all lower nodes (area, district, cost center)
+  must have been expired previously!
+
+created : sxh487 02/24/2016
+********************************************************************************/
+in_HRCHY_HDR_NAME     hierarchy_detail.hrchy_hdr_name%TYPE, 
+in_HRCHY_DTL_LEVEL    hierarchy_detail.hrchy_dtl_level%TYPE, 
+in_HRCHY_DTL_EXP_DATE hierarchy_detail.hrchy_dtl_exp_date%TYPE
+);
+
 procedure District_Duplication_Rules(
 /*******************************************************************************
  District_Duplication_Rules  
@@ -235,4 +250,3 @@ created : 06/27/2013 SH CCN
 ********************************************************************************/
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 END CCN_HIER_BUSINESS_RULES_PKG;
-
