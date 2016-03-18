@@ -1471,8 +1471,8 @@ BEGIN
                                                    PASSING V_ROW_DATA
                                                    COLUMNS Value VARCHAR2(6) PATH 'MEMBER_STORE_NBR/text()'))
                   AND EXPIRATION_DATE IS NOT NULL) LOOP
-                  ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
-                                        'This Transfer will delete all futures for Member store - '||rec.MEMBER_STORE_NBR);
+        ERRPKG.STORE_WARNINGS(errnums.en_future_del_wrn,
+                              'This Transfer will delete all futures for Member store - '||rec.MEMBER_STORE_NBR);
     END LOOP;
 
    --Below call will check if there are any warnings and raise those from here
@@ -1749,6 +1749,7 @@ IS
     V_PROC_NAME               VARCHAR2(30) := 'ACCOUNT_MAINTEN_LEAD_SP';
     V_RETURN_VALUE            VARCHAR2(1) := 'N';
 BEGIN
+
     VALIDATE_DATE_RULES(IN_EFFECTIVE_DATE,
                         NULL,
                         NULL,
@@ -1765,7 +1766,7 @@ BEGIN
               WHERE (LEAD_STORE_NBR         = IN_LEAD_CC
                  OR  LEAD_BANK_ACCOUNT_NBR  = IN_BANKACC_CC
                  OR  LEAD_STORE_NBR         = (SELECT LEAD_STORE_NBR
-                                                 FROM member_bank_cc_future
+                                                 FROM MEMBER_BANK_CC_FUTURE
                                                 WHERE MEMBER_STORE_NBR=IN_LEAD_CC))
                 AND EXPIRATION_DATE IS  NULL) ;
 
@@ -1779,6 +1780,55 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCOUNT_MAINTEN_LEAD_SP;
+
+PROCEDURE ACCOUNT_MAINTEN_CHECK_FUTURE(
+/******************************************************************************
+    This procedure validates the business rules for Make Lead process of Account Maintenance Window
+    This procedure get the current and future store number and bank account number and checks the business rule
+Created :  01/15/2016 dxv848 CCN Project ....
+
+*******************************************************************************/
+IN_ROW_DATA               IN  CLOB,
+IN_LEAD_FLAG              IN VARCHAR2)
+IS
+    V_LEAD_STORE_NBR                VARCHAR2(6);
+    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_LD_EFFECTIVE_DATE             LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;
+	  V_BANK_ACC_NBR                  LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_BK_EFFECTIVE_DATE             BANK_ACCOUNT.EFFECTIVE_DATE%TYPE;
+    V_LDF_EFFECTIVE_DATE            LEAD_BANK_CC_FUTURE.EFFECTIVE_DATE%TYPE;
+    V_BKF_EFFECTIVE_DATE            BANK_ACCOUNT_FUTURE.EFFECTIVE_DATE%TYPE;
+    V_EFFECTIVE_DATE                BANK_ACCOUNT.EFFECTIVE_DATE%TYPE;
+BEGIN
+
+    V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
+
+    IF (V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()') = 1) THEN
+        V_LEAD_STORE_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()').GETSTRINGVAL();  -- lead store
+        IF TRUNC(V_EFFECTIVE_DATE) <= TRUNC(SYSDATE) THEN
+            V_LD_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');   -- current lead bank effective date
+        ELSE
+            V_LDF_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');   --future lead bank effective date
+        END IF;
+    END IF;
+    IF (V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()') = 1) THEN
+        V_BANK_ACC_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();   -- bank_acc_nbr
+        IF TRUNC(V_EFFECTIVE_DATE) <= TRUNC(SYSDATE) THEN
+            V_BK_EFFECTIVE_DATE := V_EFFECTIVE_DATE;  --current bank effective date
+        ELSE
+            V_BKF_EFFECTIVE_DATE := V_EFFECTIVE_DATE;  --future bank effective date
+        END IF;
+    END IF;
+
+    -- check the business rule if the lead or bank account has future
+    IF NVL(IN_LEAD_FLAG, 'N')  = 'N'
+       AND (TRUNC(V_LD_EFFECTIVE_DATE) > TRUNC(SYSDATE)
+             OR TRUNC(V_LDF_EFFECTIVE_DATE) >= TRUNC(V_BKF_EFFECTIVE_DATE)) THEN
+        BUSINESS_RULES_PKG.ACCOUNT_MAINTEN_LEAD_SP(V_LEAD_STORE_NBR,
+                                                   V_BANK_ACC_NBR,
+                                                   NVL(V_LD_EFFECTIVE_DATE,V_LDF_EFFECTIVE_DATE));
+    END IF;
+END ACCOUNT_MAINTEN_CHECK_FUTURE;
 
 FUNCTION VALIDATE_CC_BNK_NBR(
 /******************************************************************************

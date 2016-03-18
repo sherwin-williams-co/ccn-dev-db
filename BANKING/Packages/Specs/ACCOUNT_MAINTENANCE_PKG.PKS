@@ -33,17 +33,6 @@ PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP (
 Created : 07/09/2015 jxc517 CCN Project....
 Changed : 12/12/2015 dxv848 added the flag for future check
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB,
-    IN_FLAG      IN VARCHAR2);
-
-PROCEDURE ACCNT_MNTNC_LEAD_PROCESS (
-/******************************************************************************
-	This procedure performs the core insert/update process for Account Maintenance Window
-
-Created : 12/04/2015 dxv848 CCN Project....
-        : added the flag to check for the future
-*******************************************************************************/
-IN_ROW_DATA               IN  CLOB,
-IN_LEAD_FLAG              IN VARCHAR2);
+IN_ROW_DATA  IN  CLOB);
 
 END ACCOUNT_MAINTENANCE_PKG;

@@ -657,7 +657,7 @@ Changed : 10/21/2015 jxc517 CCN Project....
           code changes so that for bank account and bank MICR the effective dates should still carry forward
 Changed : 01/15/2015 dxv848 CCN Project....
           Added the condition if we adding a new bank_account without lead_store then
-		  it wont check for lead_bank_cc_future
+          it wont check for lead_bank_cc_future
           12/08/2015 dxv848 CCN Project....
           Added the code to expire the previous member for the future lead..
 *******************************************************************************/
@@ -687,7 +687,7 @@ BEGIN
                              IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,
                              IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE);
     ELSIF
-         -- if the bank details changed for the for the future lead
+        -- check if the future lead is current member to another lead
         (V_MEMBER_STORE_REC.MEMBER_STORE_NBR IS NOT NULL
         AND V_MEMBER_STORE_REC.MEMBER_STORE_NBR =  IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR) THEN
         --lead details changed for the different account number, expire child from current
@@ -701,7 +701,7 @@ BEGIN
                                                               'ACCNT_MNTNC');
     END IF;
     -- We need to check if the bank_account also having the current lead attach to it
-    -- if the bank account current lead_cost center is  present thenn expire the lead
+    -- if the bank account current lead_cost center is  present then expire the lead
     IF V_BANKACC_LEAD_REC.LEAD_STORE_NBR IS NOT NULL THEN
         IF V_BANKACC_LEAD_REC.LEAD_BANK_ACCOUNT_NBR =  IN_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR THEN
             V_LEAD_BANK_NBR := IN_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR;
@@ -736,18 +736,165 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_FUTURE_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCNT_MNTNC_FUTURE_UPSERT_SP;
 
-PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
+PROCEDURE ACC_MAIN_FUTURE_LEAD (
+/******************************************************************************
+	This procedure check the future lead_store attaching to the bank is having
+  an existing future by passing the lead_store_nbr
+  If we attachment a cost center as lead(L1) to bank with future effective date
+  that lead cost center(L1) is already a future lead for another bank
+  1) if the future is present the delete the future and
+  2) Updates the expiration date(re-activate current)
+
+Created : 12/04/2015 dxv848 CCN Project....
+
+*******************************************************************************/
+IN_LEAD_STORE_NBR VARCHAR2)
+IS
+    V_TEMP_LEAD_BANK_ACCOUNT_NBR    LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_LEAD_ST_REC                   LEAD_BANK_CC%ROWTYPE;
+    V_GET_MEM_STORE_REC             MEMBER_BANK_CC%ROWTYPE;
+
+BEGIN
+    --check if the lead cost_center attaching to the bank has existing future lead
+    FOR each_lead IN (SELECT *
+                        FROM LEAD_BANK_CC_FUTURE
+                       WHERE LEAD_STORE_NBR =IN_LEAD_STORE_NBR
+                         AND EXPIRATION_DATE is NULL) LOOP
+
+        IF NVL(V_TEMP_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> each_lead.LEAD_BANK_ACCOUNT_NBR THEN
+            V_TEMP_LEAD_BANK_ACCOUNT_NBR := each_lead.LEAD_BANK_ACCOUNT_NBR;
+            -- before delete check if the member have virtual futures
+            ACC_MEM_MAIN_COMMONTOOLS.UNEXPR_REAL_MBRS (V_TEMP_LEAD_BANK_ACCOUNT_NBR);
+            --Delete all the futures for this Bank Account
+            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR, each_lead.FUTURE_ID);
+            --get the lead bank deatils passing the lead store and get the member store details passing the lead store
+            V_LEAD_ST_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(each_lead.LEAD_STORE_NBR);
+            V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_lead.LEAD_STORE_NBR);
+            --the future lead store is also current lead for another bank
+            IF (each_lead.LEAD_STORE_NBR = V_LEAD_ST_REC.LEAD_STORE_NBR) THEN
+                --Re-Activate all the expired records
+                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_ST_REC.LEAD_BANK_ACCOUNT_NBR);
+            --if the future lead store is the member for the current lead then unexpire the current
+            ELSIF (each_lead.LEAD_STORE_NBR = V_GET_MEM_STORE_REC.MEMBER_STORE_NBR) THEN
+                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR);
+            ELSE
+                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR);
+            END IF;
+        END IF;
+    END LOOP;
+
+END ACC_MAIN_FUTURE_LEAD;
+
+PROCEDURE ACC_MAIN_FUTURE_MEM (
+/******************************************************************************
+	This procedure check the future lead_store attaching to the bank is having
+  an existing future by passing the lead_store_nbr
+  If we attachment a cost center as lead(L1) to bank with future effective date
+  that lead cost center(L1) is already a future member for another bank
+  1) if the future is present the delete the future and
+  2) Updates the expiration date(re-activate current)
+
+
+Created : 12/04/2015 dxv848 CCN Project....
+
+*******************************************************************************/
+IN_LEAD_STORE_NBR VARCHAR2)
+IS
+    V_LEAD_BANK_CC_REC              LEAD_BANK_CC%ROWTYPE;
+    V_LEAD_STR_NBR                  MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE;
+
+BEGIN
+    V_LEAD_STR_NBR     := BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(IN_LEAD_STORE_NBR); -- paasing the curr store and get the lead_str_nbr
+    V_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_LEAD_STR_NBR);  --- passing lead store number and get the lead_bank_cc details
+    --check if the lead cost_center attaching to the bank has existing future member
+    FOR each_mbr IN (SELECT *
+                       FROM MEMBER_BANK_CC_FUTURE
+                      WHERE MEMBER_STORE_NBR=IN_LEAD_STORE_NBR
+                        AND EXPIRATION_DATE is NULL) LOOP
+        --Delete all the futures for this member store
+        ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
+        --Re-Activate the expired records for the member
+        ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_LEAD_STR_NBR, each_mbr.MEMBER_STORE_NBR);
+    END LOOP;
+END ACC_MAIN_FUTURE_MEM;
+
+PROCEDURE ACC_MAIN_FUTURE_BANK (
+/******************************************************************************
+	This procedure check if the bank attaching to the future lead_store  is having
+  an existing future by passing the lead_store_nbr and bank account number
+  If we attachment a cost center as lead(L1) to bank with future effective date
+  that bank is already having a future
+  1) if the future is present the delete the future and
+  2) Updates the expiration date(re-activate current)
+
+Created : 12/04/2015 dxv848 CCN Project....
+
+*******************************************************************************/
+IN_BANK_ACC_NBR VARCHAR2,
+IN_LEAD_STORE_NBR varchar2)
+IS
+    V_GET_MEM_STORE_REC             MEMBER_BANK_CC%ROWTYPE;
+    V_LEAD_BANK_REC                 LEAD_BANK_CC%ROWTYPE;
+BEGIN
+    V_LEAD_BANK_REC :=BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(IN_LEAD_STORE_NBR);
+    --check if the lead cost_center attaching to the bank has existing future bank
+    FOR each_bank IN (SELECT *
+                        FROM LEAD_BANK_CC_FUTURE
+                       WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACC_NBR)LOOP
+
+        IF NVL(IN_BANK_ACC_NBR, 'XXX') = each_bank.LEAD_BANK_ACCOUNT_NBR THEN
+            --Delete all the futures for this Bank Account
+            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(IN_BANK_ACC_NBR, each_bank.FUTURE_ID);
+        END IF;
+        -- if the bank lead_store is current a lead then reactivate the lead
+        IF (NVL(each_bank.LEAD_STORE_NBR,'XXX') =  V_LEAD_BANK_REC.LEAD_STORE_NBR ) THEN
+             --Re-Activate all the expired records
+             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+        ELSE
+            -- if the bank lead_store is current a member then reactivate the lead
+             -- get the member store details by passing the lead store number and unexpire it
+             V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_bank.LEAD_STORE_NBR);
+             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR, V_GET_MEM_STORE_REC.LEAD_STORE_NBR, each_bank.LEAD_STORE_NBR);
+        END IF;
+    END LOOP;
+ END ACC_MAIN_FUTURE_BANK;
+
+PROCEDURE ACCNT_MNTNC_LEAD_PROCESS (
+/******************************************************************************
+	This procedure performs the core insert/update process for Account Maintenance Window
+  This Procdedure does the following
+  it call the below procedures and check if the lead attached from IU has the future
+  ACC_MAIN_FUTURE_LEAD
+  ACC_MAIN_FUTURE_MEM
+  ACC_MAIN_FUTURE_BANK
+
+Created : 12/04/2015 dxv848 CCN Project....
+Modified:
+*******************************************************************************/
+IN_LEAD_STORE_NBR          varchar2,
+IN_LEAD_BANK_ACCOUNT_NBR   varchar2)
+IS
+
+BEGIN
+    --check if the lead cost_center attaching to the bank has existing future lead
+    ACC_MAIN_FUTURE_LEAD(IN_LEAD_STORE_NBR);
+    --check if the lead cost_center attaching to the bank has existing future member
+    ACC_MAIN_FUTURE_MEM(IN_LEAD_STORE_NBR);
+    --check if the lead cost_center attaching to the bank has existing future bank
+    ACC_MAIN_FUTURE_BANK(IN_LEAD_BANK_ACCOUNT_NBR,IN_LEAD_STORE_NBR);
+
+END ACCNT_MNTNC_LEAD_PROCESS;
+
+PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP (
 /******************************************************************************
 	This procedure performs the core insert/update process for Account Maintenance Window
 
 Created : 07/09/2015 jxc517 CCN Project....
 Changed : 10/07/2015 jxc517 CCN Project....
           Added logic to support future dated lead effective dates, to create future details
-        : 12/10/2015 dxv848 added to logic to check for the future which is already exist.
-          Addedthe flag for the warning message.
+        : 12/10/2015 dxv848 added to logic to check for the future which is already exists
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB,
-    IN_FLAG      IN VARCHAR2)
+    IN_ROW_DATA  IN  CLOB)
 IS
     V_BANK_ACCOUNT_REC                BANK_ACCOUNT%ROWTYPE;
     V_BANK_ACCOUNT_FUTURE_REC         BANK_ACCOUNT_FUTURE%ROWTYPE;
@@ -770,8 +917,8 @@ BEGIN
     --The future "I" comes to current once the date hits, so this "I" record should go into future table even though
     --we got them as current details from UI. Below IF condition will take care of this particular scenario
     IF TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE) > TRUNC(SYSDATE)  THEN
-       -- check if the future lead is present
-       ACCNT_MNTNC_LEAD_PROCESS(IN_ROW_DATA,IN_FLAG);
+       -- if we attach a future lead(L1) to current bank(B1) then check the future lead(L1) is already having the existing future.
+       ACCNT_MNTNC_LEAD_PROCESS(V_LEAD_BANK_CC_REC.LEAD_STORE_NBR,V_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR);
        BUILD_FUTURE_FROM_CURRENT(V_BANK_ACCOUNT_REC,
                                  V_LEAD_BANK_CC_REC,
                                  V_BANK_MICR_FORMAT_TAB,
@@ -781,12 +928,9 @@ BEGIN
         V_BANK_ACCOUNT_REC := NULL;
         V_LEAD_BANK_CC_REC := NULL;
         V_BANK_MICR_FORMAT_TAB.DELETE();
-    -- check if the future bank account is present
-    ELSIF TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE) >= TRUNC(V_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE)  THEN
-        ACCNT_MNTNC_LEAD_PROCESS(IN_ROW_DATA,IN_FLAG);
-        V_BANK_ACCOUNT_REC := NULL;
-        V_LEAD_BANK_CC_REC := NULL;
-        V_BANK_MICR_FORMAT_TAB.DELETE();
+    --IF a bank account is in future(not present in current). then we attach a future lead to that future bank
+    ELSIF TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE) >= TRUNC(V_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE) THEN
+        ACCNT_MNTNC_LEAD_PROCESS(V_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR,V_BANK_ACCOUNT_FUTURE_REC.BANK_ACCOUNT_NBR);
     ELSE
         BUSINESS_RULES_PKG.ACCOUNT_MAINTENANCE_BR_SP(V_BANK_ACCOUNT_REC,
                                                      V_BANK_ACCOUNT_FUTURE_REC,
@@ -956,117 +1100,5 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
-
-PROCEDURE ACCNT_MNTNC_LEAD_PROCESS (
-/******************************************************************************
-	This procedure performs the core insert/update process for Account Maintenance Window
-  This Procdedure does the following
-1) check if the lead attached from IU has the future
-2) its validate the lead rules gives us a warning message
-3) if the future is present the delte the future and
-4) Updates the expiration date to expire the current cost_center and  on the date passed (effective -1)
-5) Inserts the cost_center as the New Lead in the future table
-
-Created : 12/04/2015 dxv848 CCN Project....
-
-*******************************************************************************/
-IN_ROW_DATA               IN  CLOB,
-IN_LEAD_FLAG              IN VARCHAR2)
-
-IS
- V_TEMP_LEAD_BANK_ACCOUNT_NBR    LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
- V_LEAD_STORE_NBR                VARCHAR2(6);
- V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
- V_EFFECTIVE_DATE                LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;
- V_LEAD_STR_NBR                  MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE;
- V_LEAD_BANK_CC_REC              LEAD_BANK_CC%ROWTYPE;
- V_BANK_ACC_NBR                  LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
- V_FUTURE_ID                     BANK_ACCOUNT_FUTURE.FUTURE_ID%TYPE;
- V_BANK_ACCOUNT_FUR_CC           BANK_ACCOUNT_FUTURE%ROWTYPE;
- V_MEMBER_STORE_REC              MEMBER_BANK_CC%ROWTYPE;
- V_GET_MEM_STORE_REC             MEMBER_BANK_CC%ROWTYPE;
- V_LEAD_ST_REC                   LEAD_BANK_CC%ROWTYPE;
-
-BEGIN
-
-    IF (V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()') = 1) THEN
-        V_LEAD_STORE_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()').GETSTRINGVAL();  -- getting lead store
-        V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');   -- effective date
-    END IF;
-    IF (V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()') = 1) THEN
-        V_BANK_ACC_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();   -- bank_acc_nbr
-    END IF;
-
-    IF NVL(IN_LEAD_FLAG, 'N')  = 'N' THEN
-    -- check the business rule if the lead or bank account has future
-    BUSINESS_RULES_PKG.ACCOUNT_MAINTEN_LEAD_SP(V_LEAD_STORE_NBR,
-                                               V_BANK_ACC_NBR,
-                                               V_EFFECTIVE_DATE);
-    END IF;
-    -- From the current bank account number get the futureid and future bank details
-    -- then if that bank account has future delete their future deatils first then unexpire the lead who is present for that bank in future 1 and get the cost center connect to that and do remaining
-    -- then revert back that lead . then create a future and expire the current
-    V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_BANK_ACC_NBR); -- getting fututre_id
-    V_BANK_ACCOUNT_FUR_CC :=BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_FUTURE_REC(V_BANK_ACC_NBR,V_FUTURE_ID);  -- getting future bank details
-
-    V_LEAD_STR_NBR     := BANKING_COMMON_TOOLS.GET_LEAD_STORE_NBR_FOR_MBR_STR(V_LEAD_STORE_NBR); -- paasing the curr store and get the lead_str_nbr
-    V_LEAD_BANK_CC_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_LEAD_STR_NBR);  --- passing lead store number and get the lead_bank_cc details
-    V_MEMBER_STORE_REC := BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(V_LEAD_STORE_NBR);
-
-    --check if the lead cost_center attaching to the bank has existing future lead
-    FOR each_lead IN (SELECT *
-                        FROM LEAD_BANK_CC_FUTURE
-                       WHERE LEAD_STORE_NBR =V_LEAD_STORE_NBR
-                         AND EXPIRATION_DATE is NULL) LOOP
-        IF NVL(V_TEMP_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> each_lead.LEAD_BANK_ACCOUNT_NBR THEN
-            V_TEMP_LEAD_BANK_ACCOUNT_NBR := each_lead.LEAD_BANK_ACCOUNT_NBR;
-            -- before delete check if the member have virtual futures
-            ACC_MEM_MAIN_COMMONTOOLS.UNEXPR_REAL_MBRS (V_TEMP_LEAD_BANK_ACCOUNT_NBR);
-            --Delete all the futures for this Bank Account
-            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR, each_lead.FUTURE_ID);
-            --get the lead bank deatils passing the lead store and get the member store details passing the lead store
-            V_LEAD_ST_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(each_lead.LEAD_STORE_NBR);
-            V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_lead.LEAD_STORE_NBR);
-            IF (each_lead.LEAD_STORE_NBR = V_LEAD_ST_REC.LEAD_STORE_NBR) THEN
-                --Re-Activate all the expired records
-                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_ST_REC.LEAD_BANK_ACCOUNT_NBR);
-            --if the future lead store is the member for the current lead then unexpire the current
-            ELSIF (each_lead.LEAD_STORE_NBR = V_GET_MEM_STORE_REC.MEMBER_STORE_NBR) THEN
-                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR);
-            ELSE
-                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_TEMP_LEAD_BANK_ACCOUNT_NBR);
-            END IF;
-        END IF;
-    END LOOP;
-    --check if the lead cost_center attaching to the bank has existing future member
-    FOR each_mbr IN (SELECT *
-                       FROM MEMBER_BANK_CC_FUTURE
-                      WHERE MEMBER_STORE_NBR=V_LEAD_STORE_NBR
-                        AND EXPIRATION_DATE is NULL) LOOP
-        --Delete all the futures for this member store
-        ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
-        --Re-Activate the expired records
-        ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_LEAD_STR_NBR, each_mbr.MEMBER_STORE_NBR);
-    END LOOP;
-    --check if the lead cost_center attaching to the bank has existing future bank
-    FOR each_bank IN (SELECT *
-                        FROM LEAD_BANK_CC_FUTURE
-                       WHERE LEAD_BANK_ACCOUNT_NBR = V_BANK_ACC_NBR)LOOP
-
-        IF NVL(V_BANK_ACC_NBR, 'XXX') = each_bank.LEAD_BANK_ACCOUNT_NBR THEN
-            --Delete all the futures for this Bank Account
-            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(V_BANK_ACC_NBR, each_bank.FUTURE_ID);
-        END IF;
-        IF (NVL(each_bank.LEAD_STORE_NBR,'XXX') =  V_LEAD_STR_NBR ) THEN
-             --Re-Activate all the expired records
-             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_BANK_ACC_NBR);
-        ELSE
-             -- get the member store details by passing the lead store number and unexpire it
-             V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_bank.LEAD_STORE_NBR);
-             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR, V_GET_MEM_STORE_REC.LEAD_STORE_NBR, each_bank.LEAD_STORE_NBR);
-        END IF;
-    END LOOP;
-
-END ACCNT_MNTNC_LEAD_PROCESS;
 
 END ACCOUNT_MAINTENANCE_PKG;
