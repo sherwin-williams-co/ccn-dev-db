@@ -222,9 +222,8 @@ BEGIN
     END LOOP;
     V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
     IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
-       IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
-          V_FUTURE_ID := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()').GETSTRINGVAL();
-       ELSE
+       --if the effective is greater then the sysdate then it goes to future so extracting the bank acount and getting the future id
+       IF NOT V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
           V_BANK_ACCOUNT_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();
           V_FUTURE_ID := BANKING_COMMON_TOOLS.GET_FUTURE_ID(V_BANK_ACCOUNT_NBR);
        END IF;
@@ -240,7 +239,7 @@ BEGIN
             TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_ROWTYPE_SP('BANK_ACCOUNT_FUTURE'
                                                         ,REPLACE(V_XML_BANK_ACCOUNT_FRAG,'BANK_ACCOUNT>','BANK_ACCOUNT_FUTURE>')
                                                         ,O_BANK_ACCOUNT_FUTURE_REC);
-            O_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID := V_FUTURE_ID;
+            O_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID := NVL(O_BANK_ACCOUNT_FUTURE_REC.FUTURE_ID,V_FUTURE_ID);
         END IF;
     END IF;
     IF V_XML_LEAD_BANK_CC_FRAG IS NOT NULL THEN
@@ -252,7 +251,7 @@ BEGIN
             TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_ROWTYPE_SP('LEAD_BANK_CC_FUTURE'
                                                         ,REPLACE(V_XML_LEAD_BANK_CC_FRAG,'LEAD_BANK_CC>','LEAD_BANK_CC_FUTURE>')
                                                         ,O_LEAD_BANK_CC_FUTURE_REC);
-            O_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID := V_FUTURE_ID;
+            O_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID := NVL(O_LEAD_BANK_CC_FUTURE_REC.FUTURE_ID,V_FUTURE_ID);
         END IF;
     END IF;
     IF V_XML_BANK_MICR_FRAG IS NOT NULL THEN
@@ -269,7 +268,7 @@ BEGIN
                     TABLE_IU_PKG.BANK_MICR_FRMT_FTR_ROWTYPE_SP('BANK_MICR_FORMAT_FUTURE'
                                                                ,REPLACE(V_XML_BANK_MICR_FORMAT_FRAG,'BANK_MICR_FORMAT>','BANK_MICR_FORMAT_FUTURE>')
                                                                ,V_BANK_MICR_FRMT_FTRE_REC);
-                    V_BANK_MICR_FRMT_FTRE_REC.FUTURE_ID := V_FUTURE_ID;
+                    V_BANK_MICR_FRMT_FTRE_REC.FUTURE_ID :=NVL(V_BANK_MICR_FRMT_FTRE_REC.FUTURE_ID,V_FUTURE_ID);
                     O_BANK_MICR_FORMAT_FUTURE_TAB(NVL(O_BANK_MICR_FORMAT_FUTURE_TAB.LAST, 0) +1) := V_BANK_MICR_FRMT_FTRE_REC;
                 END IF;
             END IF;
@@ -691,7 +690,9 @@ BEGIN
         (V_MEMBER_STORE_REC.MEMBER_STORE_NBR IS NOT NULL
         AND V_MEMBER_STORE_REC.MEMBER_STORE_NBR =  IN_LEAD_BANK_CC_FUTURE_REC.LEAD_STORE_NBR) THEN
         --lead details changed for the different account number, expire child from current
-        ACC_MEM_MAIN_COMMONTOOLS.EXPIRE_PREVIOUS_MEM(V_MEMBER_STORE_REC.LEAD_BANK_ACCOUNT_NBR,
+        -- For expiring the member,Directly we are calling the expire previous cuurent member. because if we have future member it already delete the future in the ACCNT_MNTNC_LEAD_PROCESS process
+        -- so we are direclty calling thr expire prev curent member
+        ACC_MEM_MAIN_COMMONTOOLS.EXPIRE_PREV_CURR_MEM(V_MEMBER_STORE_REC.LEAD_BANK_ACCOUNT_NBR,
                                                      V_MEMBER_STORE_REC.LEAD_STORE_NBR,
                                                      V_MEMBER_STORE_REC.MEMBER_STORE_NBR,
                                                      IN_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE);
@@ -812,8 +813,8 @@ BEGIN
                       WHERE MEMBER_STORE_NBR=IN_LEAD_STORE_NBR
                         AND EXPIRATION_DATE is NULL) LOOP
         --Delete all the futures for this member store
-        ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_EXP_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.LEAD_STORE_NBR, each_mbr.MEMBER_STORE_NBR, each_mbr.FUTURE_ID);
-        --Re-Activate the expired records for the member
+         ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(each_mbr.LEAD_BANK_ACCOUNT_NBR, each_mbr.FUTURE_ID);
+         --Re-Activate the expired records for the member
         ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR, V_LEAD_STR_NBR, each_mbr.MEMBER_STORE_NBR);
     END LOOP;
 END ACC_MAIN_FUTURE_MEM;

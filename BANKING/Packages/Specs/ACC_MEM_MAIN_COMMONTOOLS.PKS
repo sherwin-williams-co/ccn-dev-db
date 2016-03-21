@@ -119,30 +119,4 @@ IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
 IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
 IN_NEW_EFFECTIVE_DATE  IN     DATE);
 
-PROCEDURE EXPIRE_PREV_FTR_MEM(
-/*******************************************************************************
-    This procedure is intended to check and expire previous future records
-    before inserting new record
-
-Created : Created : 10/21/2015 jxc517 CCN Project....
-Changed :
-*******************************************************************************/
-IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
-IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
-IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
-IN_NEW_EFFECTIVE_DATE  IN     DATE);
-
-PROCEDURE EXPIRE_PREVIOUS_MEM(
-/*******************************************************************************
-    This procedure is intended to check and expire previous records
-    before inserting new record
-
-Created : 10/21/2015 jxc517 CCN Project....
-Changed :
-*******************************************************************************/
-IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
-IN_LEAD_STORE_NBR      IN     LEAD_BANK_CC.LEAD_STORE_NBR%TYPE,
-IN_MEMBER_STORE_NBR    IN     MEMBER_BANK_CC.MEMBER_STORE_NBR%TYPE,
-IN_NEW_EFFECTIVE_DATE  IN     DATE);
-
 END ACC_MEM_MAIN_COMMONTOOLS;
