@@ -383,15 +383,18 @@ PROCEDURE UPDATE_FNCL_SRVCS_SENT_DATE(
 This procedure will update FNCL_SRVCS_SENT_DATE in all tables  
 
 created : 08/28/2015 jxc517 CCN Project....
-changed : 
+changed : 02/01/2016 jxc517 CCN Project....
+          Added IN_NUMBER paameter to get the invoice number to be updated for the draft record
 *****************************************************************************/
 IN_CHECK_SERIAL_NUMBER  IN     VARCHAR2,
-IN_DATE                 IN     DATE)
+IN_DATE                 IN     DATE,
+IN_NUMBER               IN     NUMBER)
 IS
 BEGIN
     BEGIN
         UPDATE STORE_DRAFTS
-           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE,
+               FSS_INVOICE_NUMBER   = IN_NUMBER
          WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
            AND FNCL_SRVCS_SENT_DATE IS NULL;
     EXCEPTION
@@ -400,7 +403,8 @@ BEGIN
     END;
     BEGIN
         UPDATE HST_STORE_DRAFTS
-           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE,
+               FSS_INVOICE_NUMBER   = IN_NUMBER
          WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
            AND FNCL_SRVCS_SENT_DATE IS NULL;
     EXCEPTION
@@ -409,7 +413,8 @@ BEGIN
     END;
     BEGIN
         UPDATE UNATTACHED_MNL_DRFT_DTL
-           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE,
+               FSS_INVOICE_NUMBER   = IN_NUMBER
          WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
            AND FNCL_SRVCS_SENT_DATE IS NULL;
     EXCEPTION
@@ -418,7 +423,8 @@ BEGIN
     END;
     BEGIN
         UPDATE UNATTACHED_MNL_DRFT_DTL_HST
-           SET FNCL_SRVCS_SENT_DATE = IN_DATE
+           SET FNCL_SRVCS_SENT_DATE = IN_DATE,
+               FSS_INVOICE_NUMBER   = IN_NUMBER
          WHERE CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
            AND FNCL_SRVCS_SENT_DATE IS NULL;
     EXCEPTION
@@ -430,6 +436,55 @@ EXCEPTION
         RAISE;
 END UPDATE_FNCL_SRVCS_SENT_DATE;
 
+FUNCTION GET_FSS_INVOICE_NUMBER(
+/*****************************************************************************
+This function will build the FSS invoice number based on the cost center, run date and
+customer account number that are passed as inputs
+
+created : 02/01/2016 jxc517 CCN Project....
+changed : 
+*****************************************************************************/
+IN_COST_CENTER_CODE        IN     VARCHAR2,
+IN_CUSTOMER_ACCOUNT_NUMBER IN     VARCHAR2,
+IN_DATE                    IN     DATE) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE    VARCHAR2(16);
+    V_SEQ_COUNT       NUMBER := 0;
+BEGIN
+    --Invoice number is a 16 characters number which contains
+    --4 character store#, 4 character mmyy, 2 character 00, 2 character mm, 4 character sequence number
+    --But there might be sceanrios where we end up running this process more than once
+    --even in those scenarios we should not start the sequence always starting from 1 but rather
+    --based on the previous run max for that store/customer/month combination
+    
+    --Build the 12 chaacters search string to come up with the new invoice number
+    V_RETURN_VALUE := SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(IN_COST_CENTER_CODE, 3),'0',4)
+                           || TO_CHAR(IN_DATE,'MMRR')
+                           || '00'
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(IN_DATE,'MM'),'0',2);
+    --using aboce string, search if the vendor got drafts for this store/month before
+    BEGIN
+        SELECT NVL(MAX(FSS_INVOICE_NUMBER), 0)
+          INTO V_SEQ_COUNT
+          FROM STORE_DRAFTS
+         WHERE COST_CENTER_CODE        = IN_COST_CENTER_CODE
+           AND CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+           AND FSS_INVOICE_NUMBER LIKE V_RETURN_VALUE || '%';
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF V_SEQ_COUNT = 0 THEN --0 means first draft record for the vendor for this store/month => start with 1
+        V_RETURN_VALUE := V_RETURN_VALUE || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(1,'0',4);
+    ELSE --other than 0 means that this is subsequent draft record for the vendor for this store/month => increment by 1
+        V_RETURN_VALUE := SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(V_SEQ_COUNT + 1,'0',16);
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_FSS_INVOICE_NUMBER;
+
 PROCEDURE BUILD_1099_FILE_FOR_FSS(
 /*****************************************************************************
 	This procedure will build the 1099 file from CPR views that will be sent for FSS(Financial Shared Services)
@@ -437,6 +492,11 @@ PROCEDURE BUILD_1099_FILE_FOR_FSS(
 created : 04/07/2015 jxc517 CCN Project....
 changed : 08/28/2015 jxc517 CCN Project....
           Changed FNCL_SRVCS_SENT_DATE to PICKED_BY_1099_ON_DATE
+changed : 02/01/2016 jxc517 CCN Project....
+          Invoice number is not based on cost center alone, but on cost center and customer account number
+          multiple runs on a single month should be smart enough to build new invoice numbers based on previous max
+          modified the logic to build the invoice number based on call to GET_FSS_INVOICE_NUMBER
+          modified call to UPDATE_FNCL_SRVCS_SENT_DATE to update invoice number as well
 *****************************************************************************/
 IN_DATE           IN DATE)
 IS
@@ -447,6 +507,7 @@ IS
                        NET_AMOUNT,
                        ISSUE_DATE,
                        DRAFT_NUMBER,
+                       CUSTOMER_ACCOUNT_NUMBER,
                        SD_FILE_BUILD_PKG.GET_CUSTOMER_VENDOR_NO(CUSTOMER_ACCOUNT_NUMBER) VENDOR_NO
                   FROM STORE_DRAFTS
                  WHERE FNCL_SRVCS_SENT_DATE IS NULL
@@ -464,13 +525,12 @@ IS
     OUTPUT_FILE 		UTL_FILE.FILE_TYPE;
 
 	  V_OUT_CLOB            CLOB;
-    V_SEQ_COUNT           NUMBER := 0;
     V_BATCH_NUMBER        BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS        BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-    V_OLD_STORE_NUMBER    STORE_DRAFTS.COST_CENTER_CODE%TYPE;
     V_TOTAL_RECORD_COUNT  NUMBER := 0;
     V_TOTAL_HEADER_AMOUNT NUMBER := 0;
     V_TOTAL_LINE_AMOUNT   NUMBER := 0;
+    V_INVOICE_NUMBER      VARCHAR2(16);
 BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
@@ -526,12 +586,8 @@ BEGIN
                       || CHR(10) --LF
                       ;
         FOR rec IN cur LOOP
-            IF V_OLD_STORE_NUMBER <> rec.COST_CENTER_CODE THEN
-                V_SEQ_COUNT := 1;
-            ELSE
-                V_SEQ_COUNT := V_SEQ_COUNT + 1;
-            END IF;
-            UPDATE_FNCL_SRVCS_SENT_DATE(rec.CHECK_SERIAL_NUMBER, TRUNC(SYSDATE));
+            V_INVOICE_NUMBER := GET_FSS_INVOICE_NUMBER(rec.COST_CENTER_CODE, rec.CUSTOMER_ACCOUNT_NUMBER, IN_DATE);
+            UPDATE_FNCL_SRVCS_SENT_DATE(rec.CHECK_SERIAL_NUMBER, TRUNC(SYSDATE), V_INVOICE_NUMBER);
             V_OUT_CLOB := V_OUT_CLOB 
                            --RECORD-TYPE (1) -> 1 = Invoice Header Record
                            || '1'
@@ -539,19 +595,11 @@ BEGIN
                            --INVOICE-ID (50) -> 16 spaces, 4 store#, 4 store#, mmyy, 00, mm, seq from 0001, rrrrmmddhrmiss
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',16)
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
-                           || TO_CHAR(IN_DATE,'MMRR')
-                           || '00'
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(IN_DATE,'MM'),'0',2)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(V_SEQ_COUNT,'0',4)
+                           || V_INVOICE_NUMBER
                            || STAMP
                            || '|'
                            --INVOICE-NBR (50) -> 4 store#, mmyy, 00, mm, seq from 0001, 34 spaces
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE,3,4),'0',4)
-                           || TO_CHAR(IN_DATE,'MMRR')
-                           || '00'
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(IN_DATE,'MM'),'0',2)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(V_SEQ_COUNT,'0',4)
+                           || V_INVOICE_NUMBER
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',34)
                            || '|'
                            --INVOICE-TYPE (25) STANDARD, 17 spaces => INVOICE_AMOUNT > 0
@@ -749,11 +797,7 @@ BEGIN
                            --INV-DTL-ID (50) -> 16 spaces, 4 store#, 4 store#, mmyy, 00, mm, seq from 0001, rrrrmmddhrmiss
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',16)
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
-                           || TO_CHAR(IN_DATE,'MMRR')
-                           || '00'
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(IN_DATE,'MM'),'0',2)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(V_SEQ_COUNT,'0',4)
+                           || V_INVOICE_NUMBER
                            || STAMP
                            || '|'
                            --INV-DTL-LINE-NBR (17) -> 00000000000000001
@@ -1015,7 +1059,6 @@ BEGIN
                            || CHR(13);
             UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
             V_OUT_CLOB := NULL;
-            V_OLD_STORE_NUMBER := rec.COST_CENTER_CODE;
         END LOOP;
 
         UTL_FILE.FCLOSE(OUTPUT_FILE);
