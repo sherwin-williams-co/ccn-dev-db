@@ -1,12 +1,12 @@
 CREATE OR REPLACE VIEW CREDIT_HIERARCHY_DETAIL_VIEW
 AS
+  SELECT
 /*******************************************************************************
 This View will give all the credit hierarchy details for the cost center passed
 
 Created  : 03/23/2016 jxc517 CCN Project....
 Modified : 
 *******************************************************************************/
-  SELECT
        DISTINCT
         CC.STATEMENT_TYPE
        ,H.HRCHY_HDR_NAME
