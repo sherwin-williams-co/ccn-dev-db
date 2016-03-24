@@ -24,14 +24,14 @@ appfile1099=`date -d ${MNTLY_1099_RUNDATE} +"STINSINV01%Y%m%d"$CURRENT_TIME".TXT
 
 echo "Processing Started for $proc at ${TIME} on ${DATE}"
 
-#ftp -n ${swerp_host} <<END_SCRIPT
-#quote USER ${swerp_user}
-#quote PASS ${swerp_pw}
-#
-#put $dbfile1099 $appfile1099
-#
-#quit
-#END_SCRIPT
+ftp -n ${swerp_host} <<END_SCRIPT
+quote USER ${swerp_user}
+quote PASS ${swerp_pw}
+
+put $dbfile1099 $appfile1099
+
+quit
+END_SCRIPT
 echo " FTP Process Successful "
 
 if [ -d "$HOME/Monthly/1099" ]; then
