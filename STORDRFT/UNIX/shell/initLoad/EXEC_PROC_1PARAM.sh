@@ -8,6 +8,9 @@
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+#          : 3/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 ############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -41,13 +44,14 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
      cd $HOME/dailyLoad
      ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

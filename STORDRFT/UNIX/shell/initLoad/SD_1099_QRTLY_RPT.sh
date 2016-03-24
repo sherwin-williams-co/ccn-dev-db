@@ -5,8 +5,9 @@
 # Description   : This script is to run the store draft reports that includes stops and voids for every quarterly
 #
 # Created  : 02/18/2016 mxr916 CCN Project Team.....
-# 
-#            
+#          : 03/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -22,14 +23,15 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 #################################################################
 # Script name   : gain_loss_JV.sh
 #
@@ -13,6 +13,9 @@
 #            Added call for get_dateparam.sh to spool the dates to date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+#          : 03/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -47,20 +50,19 @@ EXCEPTION
 exit :exitCode;
 END
 
-TIME=`date +"%H:%M:%S"`
-echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh GAIN_LOSS_JV_ERROR	
+	 echo "END GAIN LOSS JV Query : Processing failed"  
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
+echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 ###############################################################################
@@ -96,13 +98,14 @@ echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"  
 
 exit 0

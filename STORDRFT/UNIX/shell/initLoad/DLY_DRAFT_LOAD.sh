@@ -1,5 +1,5 @@
 #!/bin/sh
-############################################################################################################################
+###########################################################################################################################
 # Script name   : DLY_DRAFT_LOAD.sh
 #
 # Description   : This script is to run the daily maintenance load for AutoMotive and Non AutoMotive
@@ -13,6 +13,10 @@
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 01/19/2016 axk326 CCN Project Team.....
 #            Added renaming the trigger file code from ok to not_ok in case of any failures
+#          : 03/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#            Removed all the Un necessary declared time variable
 ############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -28,7 +32,6 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      exit 1;
 fi
@@ -39,7 +42,6 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      exit 1;
 fi
@@ -50,7 +52,6 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      exit 1;
 fi
@@ -60,12 +61,12 @@ fi
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

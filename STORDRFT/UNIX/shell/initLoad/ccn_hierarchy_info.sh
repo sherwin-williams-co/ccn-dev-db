@@ -12,6 +12,8 @@
 #               : 01/12/2016 axk326 CCN Project Team.....
 #                 Added shell script call to send email when the script fails due to some kind of error
 #                 Added shell script call to rename the trigger file from .ok to .not_ok in case of error
+#               : 03/18/2016 nxk927 CCN Project Team....
+#                 Moved the declared TIME vairable at the end
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -47,7 +49,6 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh CCN_HIERARCHY_INFO_LOAD_ERROR
@@ -55,6 +56,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

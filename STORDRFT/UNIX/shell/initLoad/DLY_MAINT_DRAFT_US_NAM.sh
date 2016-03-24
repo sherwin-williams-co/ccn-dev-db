@@ -1,5 +1,5 @@
 #!/bin/sh
-#################################################################
+############################################################################################################################
 # Script name   : DLY_MAINT_DRAFT_US_NAM.sh
 #
 # Description   : This script is to run the SD_AUDITFILES_PKG.CREATE_US_NONAUTO_BANK_FILE
@@ -9,7 +9,12 @@
 #            Date logic modified to run on every day. 
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
-#################################################################
+#          : 11/18/2015 axk326 CCN Project Team.....
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+#          : 3/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
@@ -23,14 +28,15 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     TIME=`date +"%H:%M:%S"`
+	 echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ########################################################################################################################
 # Script name   : sd_report_query.sh
 #
@@ -29,6 +29,15 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #############################################################
 ./ccn_hierarchy_info.sh
 
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+   exit 1;
+fi
+
+TIME=`date +"%H:%M:%S"`
 echo "START SD Report Query : Processing Started at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
@@ -53,13 +62,13 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_REPORT_QUERY_ERROR	
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

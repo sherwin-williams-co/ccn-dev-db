@@ -5,7 +5,9 @@
 #   calls DB procedures to load the gainloss_JV table
 # 
 #   Created  : 01/02/2015 NXK927
-#   MOdified : 
+#   MOdified : 03/18/2016 nxk927 CCN Project Team.....
+#              Added Error handling calls to exit out if there are any errors
+#              Removed declared DATE variable from all the other place leaving only at the beginning
 ##########################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -20,10 +22,20 @@ proc=sd_load
 # 2)    lOAD THE STORE_DRAFT_REPORT TABLE
 #############################################################
 TIME=`date +"%H:%M:%S"`
-DATE=${SD_REPORT_QRY_RUNDATE}
+DATE=`date +"%m/%d/%Y"`
 
 echo "START sd_report_query.sh : Processing Started at $TIME on $DATE"
 ./sd_report_query.sh
+
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+    TIME=`date +"%H:%M:%S"`
+    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+    exit 1;
+fi
 
 TIME=`date +"%H:%M:%S"`
 echo "END sd_report_query.sh : Processing finished at $TIME on $DATE"
@@ -33,26 +45,22 @@ echo "END sd_report_query.sh : Processing finished at $TIME on $DATE"
 #############################################################
 
 TIME=`date +"%H:%M:%S"`
-DATE=${GAINLOSS_MNTLY_RUNDATE}
-
 echo "START gain_loss_JV.sh : Processing Started at $TIME on $DATE"
 ./gain_loss_JV.sh
-
-TIME=`date +"%H:%M:%S"`
-echo "END gain_loss_JV.sh : Processing finished at $TIME on $DATE"
-
 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
+echo "END gain_loss_JV.sh : Processing finished at $TIME on $DATE"
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
 exit 0

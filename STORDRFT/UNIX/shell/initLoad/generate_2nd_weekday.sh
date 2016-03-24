@@ -6,7 +6,8 @@
 #                 and generate a file with the second weekday of the month
 #
 # Created       : 03/01/2016 nxk927 CCN Project Team.....
-# Modified      : 
+# Modified      : 03/18/2016 nxk927 CCN Project Team.....
+#                 Added Error message
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -41,11 +42,13 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-    exit 1;
+   TIME=`date +"%H:%M:%S"`
+   echo "PROCESSING FAILED At $proc_name AT ${TIME} ON ${DATE}"
+   exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "PROCESSING FINISHED FOR $proc_name AT ${TIME} ON ${DATE}"  
 
 exit 0

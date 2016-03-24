@@ -14,6 +14,10 @@
 #          : 01/12/2016 axk326 CCN Project Team.....
 #            Added shell script call to check if the mntnc_dpndncy_check.ok and paids_mntnc_check.ok files exists or not before proceeding further
 #            Added shell script call to rename the .ok trigger files to .not_ok trigger files in case of failure
+#          : 3/18/2016 nxk927 CCN Project Team.....
+#            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#            Removed all the Un necessary declared time variable
 #############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -24,7 +28,6 @@
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      exit 1;
 fi
@@ -35,7 +38,6 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      exit 1;
 fi
@@ -50,9 +52,9 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
 	 ./rename_file_ok_to_notok.sh paids_mntnc_check
@@ -66,16 +68,16 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
 	 ./rename_file_ok_to_notok.sh paids_mntnc_check
 	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

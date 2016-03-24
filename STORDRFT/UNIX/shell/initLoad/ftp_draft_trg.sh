@@ -5,7 +5,12 @@
 # Created by/Date : AXK326 01/15/2015 
 # Modified on/Date: AXK326 04/28/2015 
 #                   Added date parameter to pick date from the config file
-#                 : AXK326 10/12/2015 changed name to INSPAYMENT.TRG 
+#                 : AXK326 10/12/2015 changed name to INSPAYMENT.TRG
+#                 : AXK326 02/03/2015 Originally modified Trigger file name from DRAFT.TRG to INSPAYMENT.TRG in Production Environment
+#                 : AXK326 10/12/2015 changed name to INSPAYMENT.TRG as a new request
+#                 : 03/18/2016 nxk927 CCN Project Team.....
+#                   Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#                   the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #######################################################################################
 
 . /app/stordrft/host.sh
@@ -34,15 +39,16 @@ echo " FTP Process Successful "
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-     echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

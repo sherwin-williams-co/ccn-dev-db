@@ -5,6 +5,9 @@
 # Created         : 04/22/2015 jxc517 Store Drafts Project....
 # Modified        : 04/27/2015 axk326 CCN Project Team.....
 #                   Substituted hard coded date value with the date value from date_param.config file
+#                 : 03/18/2016 nxk927 CCN Project Team.....
+#                   Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#                   the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #######################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
@@ -42,14 +45,14 @@ echo "$dbfile1099 has been archieved to $HOME/Monthly/1099/ path"
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
 exit 0

@@ -9,6 +9,9 @@
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the .ok file exists or not before proceeding further
 #               Added shell script call to rename the .ok file to .not_ok file in dailyLoad folder
+#             : 03/18/2016 nxk927 CCN Project Team.....
+#               Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#               the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -69,8 +72,8 @@ mv -f date_param_temp.config date_param.config
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
 	 cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
@@ -78,6 +81,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}"
 ############################################################################
 
