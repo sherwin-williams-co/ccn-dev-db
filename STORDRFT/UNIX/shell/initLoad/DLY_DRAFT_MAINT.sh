@@ -17,10 +17,16 @@
 #          : 3/18/2016 nxk927 CCN Project Team.....
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
-#            Removed all the Un necessary declared time variable
+#          : 3/24/2016 nxk927 CCN Project Team.....
+#            Removed all the Un necessary declared time variable and added error messages for check_file_ok status
+#            changed the error check to make it uniform
 #############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+proc_name="DLY_DRAFT_MAINT"
+TIME=`date +"%H:%M:%S"`
+DATE=${DAILY_LOAD_RUNDATE}
 
 # below command will invoke the check_file_ok_status shell script to check if the mntnc_dpndncy_check.ok file exists or not
 ./check_file_ok_status.sh mntnc_dpndncy_check.ok
@@ -29,7 +35,9 @@
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for DLY_DRAFT_MAINT-mntnc_dpndncy_check at $TIME on $DATE"
+	 exit 1;
 fi
 
 # below command will invoke the check_file_ok_status shell script to check if the paids_mntnc_check.ok file exists or not
@@ -39,12 +47,11 @@ fi
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for DLY_DRAFT_MAINT-paids_mntnc_check at $TIME on $DATE"
      exit 1;
 fi
 
-proc_name="DLY_DRAFT_MAINT"
-TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ./DLY_MAINT_DRAFT_US_AM.sh
@@ -52,8 +59,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
@@ -68,8 +74,7 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR

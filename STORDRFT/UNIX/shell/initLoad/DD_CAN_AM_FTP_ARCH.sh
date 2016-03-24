@@ -10,6 +10,7 @@
 #          : 03/18/2016 nxk927 CCN Project Team.....
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#            Removed the error check at the end
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -43,17 +44,7 @@ echo "DLY_DRAFT_CAN_AM has been archieved to $ARCHIVE path"
 #Move back to invoking folder, to continue the rest of the process
 cd $HOME/dailyLoad
 
-############################################################################
-#                           ERROR STATUS CHECK 
-############################################################################
-status=$?
-if test $status -ne 0
-then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-     exit 1;
-fi
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

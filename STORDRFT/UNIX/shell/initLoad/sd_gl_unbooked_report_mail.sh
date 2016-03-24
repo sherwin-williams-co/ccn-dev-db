@@ -7,6 +7,7 @@
 # Created  : 01/12/2016 jxc517 CCN Project Team....
 # Modified : 03/18/2016 nxk927 CCN Project Team....
 #            Moved the declared TIME variable at the end
+#            Added the message with TIME, DATE AND PROC name to see where it failed in case it fails
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -44,6 +45,8 @@ status=$?
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh GAIN_LOSS_JV_UNBOOKED_ERROR	
+	 TIME=`date +"%H:%M:%S"`
+	 echo "Process Failed for $proc_name at $TIME on $DATE"
      exit 1;
 fi
 

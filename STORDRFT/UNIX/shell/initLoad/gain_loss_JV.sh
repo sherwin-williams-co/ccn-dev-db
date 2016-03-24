@@ -57,7 +57,8 @@ status=$?
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh GAIN_LOSS_JV_ERROR	
-	 echo "END GAIN LOSS JV Query : Processing failed"  
+	 TIME=`date +"%H:%M:%S"`
+	 echo "END GAIN LOSS JV Query : Processing failed at $TIME on $DATE"
      exit 1;
 fi
 

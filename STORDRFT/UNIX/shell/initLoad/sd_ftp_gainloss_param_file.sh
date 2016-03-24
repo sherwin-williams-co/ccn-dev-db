@@ -9,6 +9,9 @@
 # Modified    : 03/18/2016 nxk927 CCN Project Team.....
 #               Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #               the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#             : 03/24/2016 nxk927 CCN Project Team.....
+#               changed the error check to make it uniform. 
+#               added proc name in the error message
 ############################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -38,8 +41,7 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at $TIME on $DATE"
      exit 1;
@@ -60,12 +62,12 @@ END_SCRIPT
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for FTP $proc at ${TIME} on ${DATE}"
+     echo "processing FAILED at FTP process for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
+
 echo " FTP Process Successful "
 
 TIME=`date +"%H:%M:%S"`

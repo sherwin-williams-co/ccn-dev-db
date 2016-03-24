@@ -17,6 +17,8 @@
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #            Removed all the Un necessary declared time variable
+#          : 03/24/2016 nxk927 CCN Project Team.....
+#            added error message for errors
 ############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -33,6 +35,8 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc_name at $TIME on $DATE"
      exit 1;
 fi
 
@@ -43,6 +47,8 @@ fi
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc_name at $TIME on $DATE"
      exit 1;
 fi
 
@@ -53,7 +59,9 @@ fi
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc_name at $TIME on $DATE"
+	 exit 1;
 fi
 
 # below command will invoke the shell script to create the Canada Non-Automotive file
@@ -63,11 +71,13 @@ fi
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc_name at $TIME on $DATE"
+	 exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

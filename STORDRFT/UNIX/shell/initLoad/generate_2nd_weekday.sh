@@ -44,7 +44,7 @@ END
 status=$?
 if [ $status -ne 0 ]; then
    TIME=`date +"%H:%M:%S"`
-   echo "PROCESSING FAILED At $proc_name AT ${TIME} ON ${DATE}"
+   echo "PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
    exit 1;
 fi
 

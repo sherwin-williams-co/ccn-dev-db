@@ -12,6 +12,8 @@
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
+#          : 03/24/2016 nxk927 CCN Project Team.....
+#            added the error message
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -57,9 +59,10 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+     echo " processing FAILED for $proc_name at ${TIME} on ${DATE}"
+	 exit 1;
 fi
 
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
@@ -94,8 +97,9 @@ END
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
+    TIME=`date +"%H:%M:%S"`
+    echo " processing FAILED for $proc_name at ${TIME} on ${DATE}"
     exit 1;
 fi
 

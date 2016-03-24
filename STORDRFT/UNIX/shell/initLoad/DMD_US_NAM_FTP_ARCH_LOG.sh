@@ -13,6 +13,8 @@
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #            added if condition to check for the file if it is present or not
+#          : 03/24/2016 nxk927 CCN Project Team....
+#            changed the status check to make it uniform
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -44,8 +46,7 @@ fi
 #                           ERROR STATUS CHECK
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;

@@ -10,6 +10,10 @@
 #            Added call for get_dateparam.sh to spool the dates to date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+#          : 03/18/2016 nxk927 CCN Project Team.....
+#            Added Error handling calls to each shell script
+#          : 03/24/2016 nxk927 CCN Project Team.....
+#            Added Error message to  get the time and proc name if it errors out
 ########################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -34,6 +38,8 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
+   TIME=`date +"%H:%M:%S"`
+   echo "Processing FAILED for $proc_name at $TIME on $DATE"
    exit 1;
 fi
 
@@ -65,6 +71,8 @@ status=$?
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
 	 ./send_err_status_email.sh SD_REPORT_QUERY_ERROR	
+	 TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for $proc_name at $TIME on $DATE"
      exit 1;
 fi
 

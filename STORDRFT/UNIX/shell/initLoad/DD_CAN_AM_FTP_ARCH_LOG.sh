@@ -44,8 +44,7 @@ fi
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;

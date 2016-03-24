@@ -18,6 +18,8 @@
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #            Left the time varaible where needed. Deleted rest of the un necessary TIME variable
+#          : 03/24/2016 nxk927 CCN Project Team.....
+#            added error message for errors
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -29,8 +31,11 @@
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
+DATE=${DAILY_LOAD_RUNDATE}
 if [ $status -ne 0 ]; then
-     exit 1;
+    TIME=`date +"%H:%M:%S"`
+    echo "Processing failed for ccn_sd_daily_load at $TIME on $DATE"    
+	exit 1;
 fi
 
 proc="ccn_sd_daily_load"
@@ -50,6 +55,8 @@ if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving process failed"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
 	 ./rename_file_ok_to_notok.sh batch_dependency
+	 TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc at $TIME on $DATE" 
      exit 1;
 fi
 
@@ -65,9 +72,9 @@ fi
 # else it will send mail for the error. 
 ##############################################################################
 status=$?
-if test $status -ne 0
-then
-echo "Daily Load process failed"
+if [ $status -ne 0 ]; then
+TIME=`date +"%H:%M:%S"`
+echo "Daily Load process failed for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set verify off;
@@ -92,6 +99,8 @@ else
 	############################################################################
 	status=$?
 	if [ $status -ne 0 ]; then
+	TIME=`date +"%H:%M:%S"`
+	echo "Processing failed for $proc at $TIME on $DATE" 
 	exit 1;
 	fi	 
 fi
@@ -108,6 +117,8 @@ status=$?
 if [ $status -ne 0 ]; then
      ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
 	 ./rename_file_ok_to_notok.sh batch_dependency
+	 TIME=`date +"%H:%M:%S"`
+	 echo "Processing failed for $proc at $TIME on $DATE" 
      exit 1;
 fi
 
@@ -123,7 +134,8 @@ echo "Processing finished for $proc at ${TIME} on ${DATE}"
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-     echo "CC_EMPLOYEE_TAX_LOAD script failed"
+     TIME=`date +"%H:%M:%S"`
+     echo "CC_EMPLOYEE_TAX_LOAD script failed at $TIME on $DATE"
 	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi

@@ -8,13 +8,13 @@
 # Created       : 02/29/2016 nxk927.....
 # Modified      : 03/18/2016 nxk927 CCN Project Team....
 #                 Moved the declared TIME variable at the end
-#                 added error check for each call
+#                 added error check for each call and added time and proc in the error
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
 
-PROC_NAME="MNTHLY_RUN_PROC"
+PROC_NAME="mthly_run_2nd_wk_day"
 LOGDIR=$HOME/Reports/log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
@@ -28,14 +28,16 @@ echo "MONTHLY PROCESS STARTED AT ${TIME} ON ${DATE}"
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-   echo "Process exited due to error while generating the second week day of the month"
+   TIME=`date +"%H:%M:%S"`
+   echo "Process exited due to error while generating the second week day of the month for $PROC_NAME at $TIME on $DATE"
    exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 SECOND_WEEKDAY=`cat $HOME/initLoad/SECOND_WEEKDAY.TXT`
 
 if [ $DATE == $SECOND_WEEKDAY ] 
-   then echo "MONTHLY PROCESS STARTED ON $SECOND_WEEKDAY"
+   then echo "MONTHLY PROCESS STARTED ON $SECOND_WEEKDAY AT ${TIME} ON ${DATE}"
    cd $HOME/initLoad
    sh Monthly_Run.sh
    else
@@ -47,7 +49,8 @@ fi
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-   echo "Process exited due to error while running the monthly process"
+   TIME=`date +"%H:%M:%S"`
+   echo "Process exited due to error while running the monthly process for $PROC_NAME at $TIME on $DATE"
    exit 1;
 fi
 

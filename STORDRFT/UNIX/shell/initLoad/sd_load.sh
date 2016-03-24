@@ -8,6 +8,8 @@
 #   MOdified : 03/18/2016 nxk927 CCN Project Team.....
 #              Added Error handling calls to exit out if there are any errors
 #              Removed declared DATE variable from all the other place leaving only at the beginning
+#            : 03/24/2016 nxk927 CCN Project Team.....
+#              changed the error check to make it uniform.
 ##########################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -52,11 +54,10 @@ echo "START gain_loss_JV.sh : Processing Started at $TIME on $DATE"
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-if test $status -ne 0
-then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
+if [ $status -ne 0 ]; then
+    TIME=`date +"%H:%M:%S"`
+    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+    exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`

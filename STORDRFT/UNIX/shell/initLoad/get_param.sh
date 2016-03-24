@@ -7,8 +7,11 @@
 # 
 # Created     : 01/14/2015 sxt410 Store Draft Project
 # Modified    : 02/04/2015 sxt410 Added set linesize 10 to avoid extra white space.
-#             : 04/27/2015 axk326 CCN Project Team.....
-#               Substituted hard coded date value with the date value from date_param.config file
+#             : 03/18/2016 nxk927 CCN Project Team.....
+#               Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
+#               the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#             : 03/24/2016 nxk927 CCN Project Team.....
+#               changed the error check to make it uniform
 ############################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -27,7 +30,7 @@ set linesize 10
 
 spool $HOME/initLoad/param.lst
 
-select to_char(PL_GAIN_RUNDATE,'mm/dd/yyyy')from storedrft_param;
+select to_char(closing_date,'mm/dd/yyyy')from storedrft_param;
 
 spool off
 exit;
@@ -37,14 +40,12 @@ END
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
 status=$?
-if test $status -ne 0
-then
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
      exit 1;
 fi
-
+TIME=`date +"%H:%M:%S"`
 echo -e "End Get Parameter: Processing finished at ${TIME} on ${DATE}\n"
 ############################################################################
