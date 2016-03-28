@@ -17,12 +17,14 @@
 #          : 03/18/2016 nxk927 CCN Project Team.....
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
-#            Left the time varaible where needed. Deleted rest of the un necessary TIME variable
+#            Left the time variable where needed. Deleted rest of the un necessary TIME variable
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            added error message for errors
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
+
+DATE=${DAILY_LOAD_RUNDATE}
 
 # below command will invoke the check_file_ok_status shell script to check if the batch_dependency.ok file exists or not
 ./check_file_ok_status.sh batch_dependency.ok
@@ -30,8 +32,6 @@
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE}
 if [ $status -ne 0 ]; then
     TIME=`date +"%H:%M:%S"`
     echo "Processing failed for ccn_sd_daily_load at $TIME on $DATE"    
