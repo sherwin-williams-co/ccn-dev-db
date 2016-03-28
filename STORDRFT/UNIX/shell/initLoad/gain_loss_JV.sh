@@ -16,6 +16,7 @@
 #          : 03/18/2016 nxk927 CCN Project Team.....
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#            added error check for all the calls
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -79,6 +80,16 @@ echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
 echo -e "FTP SCRIPT CALL REPLACE"
 ./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
 
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
 TIME=`date +"%H:%M:%S"`
 echo -e "\nEND ftp_draft_trg.sh : Processing finished at $TIME"
 
@@ -91,10 +102,7 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE"
 echo -e "ARCHIVE SCRIPT CALL REPLACE"
-#./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
-
-TIME=`date +"%H:%M:%S"`
-echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
+./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
 
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -102,11 +110,12 @@ echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc_name1 at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name2 at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
+echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
 echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"  
 
 exit 0
