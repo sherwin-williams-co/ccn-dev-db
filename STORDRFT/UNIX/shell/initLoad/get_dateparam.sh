@@ -20,7 +20,6 @@
 . /app/stordrft/host.sh
 
 proc="get_dateparam"
-TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
 # below command will invoke the check_file_ok_status shell script to check if the batch_dependency.ok file exists or not
@@ -35,6 +34,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Begin Get Parameter: Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
