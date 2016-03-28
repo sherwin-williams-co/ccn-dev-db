@@ -12,6 +12,7 @@
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            Removed the error check from the end
+#            added the error check for the ftp. left it commented as ftp part is commented as well
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -37,6 +38,15 @@ cd $HOME/initLoad
 #END_SCRIPT
 #echo "bye the transfer is complete"
 #FTP_MF
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+#status=$?
+#if [ $status -ne 0 ]; then
+#     TIME=`date +"%H:%M:%S"`
+#     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+#     exit 1;
+#fi
 
 #Archieve the bank files
 mv "DLY_DRAFT_CAN_NAM" $ARCHIVE/DLY_DRAFT_CAN_NAM"_"$TimeStamp
