@@ -31,7 +31,7 @@ if [ -f $HOME/initLoad/$FILE_NAME ];
 then
    if [[ `ls -l $HOME/initLoad/$FILE_NAME  | awk '{print $5}'` -eq 18 ]]
    then
-	  ./echo "$FILE_NAME is empty"
+	  echo "$FILE_NAME is empty"
    else
       echo "Processing Started for $proc_name1 at $TIME on $DATE"
 	  ./DD_CAN_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log
