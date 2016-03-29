@@ -581,25 +581,36 @@ created : 09/11/2013 jxc517 CCN Project....
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
+          03/22/2016 axd783 Added Logic to pull list of Duplicate Cost Centers for 6/4 Character input cost center
 **********************************************************/
    in_COST_CENTER_CODE    IN VARCHAR2,
    in_CATEGORY_CODE       IN VARCHAR2) IS
    V_COUNT                     NUMBER := 0;
+   v_cost_center_str           VARCHAR2(30);
    dup_mainframe_costcntr_err  EXCEPTION;
    first_two_digit_err         EXCEPTION;
 BEGIN
    --Last 4 digit dup value validation is not needed for territory category
    IF NVL(in_CATEGORY_CODE,'X') <> 'T' THEN
       --Cost center usually is of 6 characters, in which last 4 characters need to be validated
-      --Thats implies from 3rd position till 6th position
+      --If in_COST_CENTER_CODE is 6 digits then compare only last 4 digits
       --Example : 781234 - last 4 characters implies "1234"
       SELECT COUNT(*) INTO V_COUNT
         FROM COST_CENTER
-       WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(SUBSTR(in_COST_CENTER_CODE,3))
+       WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(DECODE(LENGTH(in_COST_CENTER_CODE),6,SUBSTR(in_COST_CENTER_CODE,3),4,in_COST_CENTER_CODE,NULL))
        AND UPPER(COST_CENTER_CODE) <> UPPER(IN_COST_CENTER_CODE);
 
-      IF V_COUNT > 0 THEN
+      IF V_COUNT > 0 AND LENGTH(in_COST_CENTER_CODE)=4 THEN
+      -- This is used to pull duplicate cost centers with same last 4 characters
+      SELECT RTRIM (
+          XMLAGG (XMLELEMENT (e, cost_center_code || ', ')).EXTRACT ('//text()'),
+          ', ')
+          INTO v_cost_center_str
+      FROM cost_center
+      WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(DECODE(LENGTH(in_COST_CENTER_CODE),6,SUBSTR(in_COST_CENTER_CODE,3),4,in_COST_CENTER_CODE,NULL));  
+      
          RAISE dup_mainframe_costcntr_err;
+         
       END IF;
    END IF;
    --Cost center usually is of 6 characters, in which first 2 characters need to be validated
@@ -617,8 +628,8 @@ BEGIN
 EXCEPTION
    WHEN dup_mainframe_costcntr_err THEN
         errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err, 
-                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
-                         'COMMON_TOOLS ' || 'Cost Center with last four characters as ''' || SUBSTR(in_COST_CENTER_CODE,3) || ''' already exists in the Mainframe');
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER',
+                         'Two or more Cost Centers ''' ||v_cost_center_str|| '''exists with same last four characters in the Mainframe');
                          
    WHEN first_two_digit_err THEN
         errpkg.raise_err(errnums.en_first_two_digit_err, 
