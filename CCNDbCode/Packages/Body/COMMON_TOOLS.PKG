@@ -435,24 +435,58 @@ created : 04/19/2013 SH CCN Project
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
+          03/30/2016 axd783 Modified the logic to list the cost centers having same last 4 characters 
 **********************************************************/
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
 )
 RETURN varchar2
 IS
 
-	v_COST_CENTER_CODE COST_CENTER.COST_CENTER_CODE%TYPE;
+	v_COST_CENTER_CODE          VARCHAR2(30);  
+  invalid_cost_center_err     EXCEPTION;
+  multi_costcntr_error        EXCEPTION;
+  v_count                     NUMBER;
+  v_cost_center_str           VARCHAR2(30)  := NULL ;
+  
+  
 --
 BEGIN
 
-    SELECT COST_CENTER_CODE
-      INTO v_COST_CENTER_CODE
-      FROM COST_CENTER
-     WHERE UPPER(cost_center_code) LIKE '%' || upper(in_COST_CENTER);
+
+SELECT LISTAGG(COST_CENTER_CODE, ',') WITHIN GROUP (ORDER BY COST_CENTER_CODE)
+INTO v_cost_center_str
+                 FROM COST_CENTER
+                WHERE UPPER(DECODE(LENGTH(in_COST_CENTER),
+                                   6, COST_CENTER_CODE,
+                                   4, SUBSTR(COST_CENTER_CODE,3),
+                                   NULL)) = UPPER(in_COST_CENTER);
+   
+   IF v_cost_center_str IS NOT NULL THEN
+       IF INSTR(v_cost_center_str, ',') > 0 THEN
+           RAISE multi_costcntr_error;
+       END IF;
+   ELSE
+       RAISE invalid_cost_center_err;
+   END IF;
+   
+    --It comes here only if there is only one cost center for the input passed    
+   v_COST_CENTER_CODE := v_cost_center_str ;  
+   
+   RETURN v_COST_CENTER_CODE;
   
-     RETURN v_COST_CENTER_CODE;
-     
  EXCEPTION
+ 
+  WHEN invalid_cost_center_err THEN  
+       errpkg.raise_err(errnums.en_invalid_cost_center_err, 'COMMON_TOOLS.cost_center_look_up_fnc'      
+        ||'Entered Cost_Center_Code was "' ||  in_COST_CENTER || '". ' || 
+        'CCN_TABLE_IU_PKG ' || 'Cost Center is not found - Would you like to Add? '
+        ); 
+ 
+ WHEN multi_costcntr_error THEN
+ errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err, 
+                         'COMMON_TOOLS.cost_center_look_up_fnc',
+                         'Two or more Cost Centers ''' ||v_cost_center_str|| '''exists with same last four characters in the Mainframe');
+   
   WHEN OTHERS THEN
      v_COST_CENTER_CODE := in_COST_CENTER;
         errpkg.raise_err(SQLCODE, 
@@ -581,36 +615,26 @@ created : 09/11/2013 jxc517 CCN Project....
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
-          03/22/2016 axd783 Added Logic to pull list of Duplicate Cost Centers for 6/4 Character input cost center
+          03/30/2016 axd783 Changed Logic to handle 4 character cost center
 **********************************************************/
    in_COST_CENTER_CODE    IN VARCHAR2,
    in_CATEGORY_CODE       IN VARCHAR2) IS
    V_COUNT                     NUMBER := 0;
-   v_cost_center_str           VARCHAR2(30);
    dup_mainframe_costcntr_err  EXCEPTION;
    first_two_digit_err         EXCEPTION;
 BEGIN
    --Last 4 digit dup value validation is not needed for territory category
    IF NVL(in_CATEGORY_CODE,'X') <> 'T' THEN
       --Cost center usually is of 6 characters, in which last 4 characters need to be validated
-      --If in_COST_CENTER_CODE is 6 digits then compare only last 4 digits
+      --Thats implies from 3rd position till 6th position
       --Example : 781234 - last 4 characters implies "1234"
       SELECT COUNT(*) INTO V_COUNT
         FROM COST_CENTER
-       WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(DECODE(LENGTH(in_COST_CENTER_CODE),6,SUBSTR(in_COST_CENTER_CODE,3),4,in_COST_CENTER_CODE,NULL))
+       WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(in_COST_CENTER_CODE)
        AND UPPER(COST_CENTER_CODE) <> UPPER(IN_COST_CENTER_CODE);
 
-      IF V_COUNT > 0 AND LENGTH(in_COST_CENTER_CODE)=4 THEN
-      -- This is used to pull duplicate cost centers with same last 4 characters
-      SELECT RTRIM (
-          XMLAGG (XMLELEMENT (e, cost_center_code || ', ')).EXTRACT ('//text()'),
-          ', ')
-          INTO v_cost_center_str
-      FROM cost_center
-      WHERE UPPER(SUBSTR(COST_CENTER_CODE,3)) = UPPER(DECODE(LENGTH(in_COST_CENTER_CODE),6,SUBSTR(in_COST_CENTER_CODE,3),4,in_COST_CENTER_CODE,NULL));  
-      
+      IF V_COUNT > 0 THEN
          RAISE dup_mainframe_costcntr_err;
-         
       END IF;
    END IF;
    --Cost center usually is of 6 characters, in which first 2 characters need to be validated
@@ -628,8 +652,8 @@ BEGIN
 EXCEPTION
    WHEN dup_mainframe_costcntr_err THEN
         errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err, 
-                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER',
-                         'Two or more Cost Centers ''' ||v_cost_center_str|| '''exists with same last four characters in the Mainframe');
+                         'COMMON_TOOLS.CHECK_DUP_COST_CENTER ',
+                         'COMMON_TOOLS ' || 'Cost Center with last four characters as ''' || SUBSTR(in_COST_CENTER_CODE,3) || ''' already exists in the Mainframe');
                          
    WHEN first_two_digit_err THEN
         errpkg.raise_err(errnums.en_first_two_digit_err, 
