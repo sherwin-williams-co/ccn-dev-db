@@ -1,13 +1,14 @@
 CREATE OR REPLACE VIEW EMPLOYEE_DETAILS_VW
 AS 
 SELECT 
-/* Comments
-This view holds data about an Employee
-Such as Employee Number, Cost Center, Employee Name and Job title
-who's Payroll status is Active.
+/*******************************************************************************
+This view holds required data for an Employee
+Such as Employee Number, Cost Center, Employee Name and Job title who's
+Payroll status is Active.
+
 Created  : 12/10/2014 SXT410 CCN project
 Modified : 
-*/
+*******************************************************************************/
       EMPLOYEE_NUMBER,
       COST_CENTER_CODE,      
       EMPLOYEE_NAME,
