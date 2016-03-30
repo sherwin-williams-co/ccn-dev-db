@@ -11,6 +11,8 @@
 #                 : 03/18/2016 nxk927 CCN Project Team.....
 #                   Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #                   the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
+#                 : 03/18/2016 nxk927 CCN Project Team.....
+#                   moved the echo after the error check
 #######################################################################################
 
 . /app/stordrft/host.sh
@@ -34,8 +36,6 @@ put INSPAYMENT.TRG
 quit
 END_SCRIPT
 
-echo " FTP Process Successful "
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
@@ -45,6 +45,7 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
+echo " FTP Process Successful "
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"

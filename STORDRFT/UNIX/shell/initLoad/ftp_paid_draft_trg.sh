@@ -33,7 +33,6 @@ put DRAFT.TRG
 
 quit
 END_SCRIPT
-echo " FTP Process Successful "
 
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -44,6 +43,8 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED for $File at ${TIME} on ${DATE}"
      exit 1;
 fi
+
+echo " FTP Process Successful "
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $File at ${TIME} on ${DATE}"  
 
