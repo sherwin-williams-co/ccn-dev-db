@@ -32,6 +32,15 @@ put $dbfile1099 $appfile1099
 
 quit
 END_SCRIPT
+############################################################################
+#                           ERROR STATUS CHECK 
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     exit 1;
+fi
 echo " FTP Process Successful "
 
 if [ -d "$HOME/Monthly/1099" ]; then
@@ -44,15 +53,6 @@ fi
 mv $dbfile1099 $HOME/Monthly/1099/
 echo "$dbfile1099 has been archieved to $HOME/Monthly/1099/ path"
 
-############################################################################
-#                           ERROR STATUS CHECK 
-############################################################################
-status=$?
-if [ $status -ne 0 ]; then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
-fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
