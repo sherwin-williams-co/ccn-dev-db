@@ -34,7 +34,6 @@ cd /BizLink/Application/CPRPP/RcvFromApp
 put DLY_DRAFT_US_AM CPRPP_0275.AUTO_USA_ISSUE.txt
 bye
 END_SCRIPT
-echo "bye the transfer is complete"
 FTP_MF
 ############################################################################
 #                           ERROR STATUS CHECK
@@ -45,6 +44,7 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED to ftp for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
+echo "bye the transfer is complete"
 
 #Archieve the bank files
 mv "DLY_DRAFT_US_AM" $ARCHIVE/DLY_DRAFT_US_AM"_"$TimeStamp
