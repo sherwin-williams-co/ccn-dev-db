@@ -171,7 +171,6 @@ created : 09/06/2012 MDH CCN Project....
 modified: 02/02/2015 axk326 CCN Project Team...
           Added Upper() function while selecting from any table 
           based on COST_CENTER_CODE
-          03/29/2016 axd783 Added logic to test if theres any duplicate cost center exists
 *******************************************************************************/
             IN_COST_CENTER          IN  COST_CENTER.COST_CENTER_CODE%TYPE
  --          
@@ -197,20 +196,24 @@ invalid_cost_center_err     EXCEPTION;
 BEGIN --  COST_CENTER_UI_SP
 --
 
+ 
 
---  Convert the in_cost_center to valid 6 digits if it has more than one through the list Cost centers with same last 4 characters in the error.  
-
+  BEGIN
+  v_break  := ('Convert the in_cost_center to 6 digit ' );
+    
   v_cost_center := common_tools.cost_center_look_up_fnc(in_COST_CENTER);
+  EXCEPTION
+     WHEN OTHERS THEN
+           RAISE invalid_cost_center_err;
+                  
+  END; -- get 6 digit Cost Center
+  
 
-
-
-
-
-
-  BEGIN -- Get Cost Center
+  BEGIN -- Get Cost Center  
                 
   v_break  := ('Entered the Cost_Center_UI_SP ' 
                 || ' in_cost_center = ' || v_cost_center || ' ' );
+                
 --
 /**  Call COST_CENTER to get Category Code  ***/
       SELECT * INTO v_cost_center_rowtype
@@ -431,15 +434,15 @@ invalid_cost_center_err     EXCEPTION;
 V_COST_CENTER          COST_CENTER.COST_CENTER_CODE%TYPE;
 BEGIN --  POLLING_UI_SP     
 
-
- --  Convert the in_cost_center to valid 6 characters if it has more than one through the list Cost centers with same last 4 characters in the error.    
-
+  BEGIN
+  v_break  := ('Convert the in_cost_center to 6 digit ' );
+    
   v_cost_center := common_tools.cost_center_look_up_fnc(in_COST_CENTER);
-
-
-
-
-
+  EXCEPTION
+     WHEN OTHERS THEN
+           RAISE invalid_cost_center_err;
+                  
+  END; -- get 6 digit Cost Center
 
 /**  Call POLLING Reference Cursor  ***/
 
@@ -729,6 +732,9 @@ revised : 08/26/2013 CCN Project : Business Rules Validation ....
 revised : 05/06/2014 SXT410 CCN Project: Extracting Cost Center Code from XML
           to pass the Cost Center code into COMPARE_ZIPCODE_SP.
         : Calling COMPARE_ZIPCODE_SP to Compare Taxware Zip Code with Address Zip Code.
+        : 03/30/2016 AXK326 CCN Project Team....
+          Modified code to be able to handle extraction of cost_center_code by 
+          looping through each xml node.
 *******************************************************************************/
 
 in_row_data  IN  varchar2 ) --sys.xmltype 
@@ -758,12 +764,14 @@ v_xml_frag clob;
 v_code number;
 v_errm varchar2(500);
 v_cost_center_code cost_center.cost_center_code%type;
+v_address_type address_usa.address_type%type;
 --
 v_xml_ADDRESS_CAN_frag clob;
 v_xml_ADDRESS_USA_frag clob;
 v_xml_ADDRESS_MEX_frag clob;
 v_xml_ADDRESS_OTH_frag clob;
 v_xml_TAXWARE_frag     clob;
+v_xml_ADDRESS_frag     clob;
 --
 V_TAXWARE_ROWTYPE              TAXWARE%ROWTYPE;
 --
@@ -800,19 +808,28 @@ BEGIN      -- ADDRESS Processing
   BEGIN      -- ADDRESS_CAN Insert Process 
           
             IF v_xml_ADDRESS_CAN_frag  IS NOT NULL  THEN
-                    
-                CCN_TABLE_IU_PKG.ADDRESS_CAN_I_SP (
-                    NULL                                --in_cost_center
-                  , NULL                                --in_address_type
-                  , NULL                                --in_effective_date
-                  , 'ADDRESS_CAN'                       --in_table_name
-                  , NULL                                --in_row_date
-                  , V_XML_ADDRESS_CAN_FRAG );           --in_row_data   xml
+                V_COUNT := 1;
+                
+             -- Looping throught the XML fragment each time when multiple addresses are passed in the node.   
+                WHILE SYS.XMLTYPE(v_xml_ADDRESS_CAN_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/' || 'ADDRESS_CAN' || '[' || V_COUNT || ']') = 1 LOOP
+                	v_xml_ADDRESS_frag := SYS.XMLTYPE(v_xml_ADDRESS_CAN_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_CAN' || '[' || V_COUNT || ']').GETCLOBVAL();
+                	CCN_TABLE_IU_PKG.ADDRESS_CAN_I_SP (
+                  	   NULL                                --in_cost_center
+                 	 , NULL                                --in_address_type
+                 	 , NULL                                --in_effective_date
+               	     , 'ADDRESS_CAN'                       --in_table_name
+                 	 , NULL                                --in_row_date
+               	     , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_ADDRESS_frag,'ADDRESS_UI_UPSERT') );           --in_row_data   xml
 
-				       IF XMLTYPE(V_XML_ADDRESS_CAN_FRAG).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_CAN/COST_CENTER_CODE/text()') = 1 THEN
-					         v_cost_center_code:= XMLTYPE(V_XML_ADDRESS_CAN_FRAG).extract('/ADDRESS_UI_UPSERT/ADDRESS_CAN/COST_CENTER_CODE/text()').getstringval();
-                   CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );				
-				       END IF;
+             -- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M'                   
+                  v_address_type:= XMLTYPE(v_xml_ADDRESS_frag).extract('/ADDRESS_CAN/ADDRESS_TYPE/text()').getstringval();
+                  IF v_address_type = 'M' THEN 
+                     v_cost_center_code:= XMLTYPE(v_xml_ADDRESS_frag).extract('/ADDRESS_CAN/COST_CENTER_CODE/text()').getstringval();
+					 CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );	
+				  END IF;
+                  
+                V_COUNT := V_COUNT + 1;
+               END LOOP;
 
             END IF;
           
@@ -830,20 +847,28 @@ BEGIN      -- ADDRESS Processing
   BEGIN      -- ADDRESS_USA Insert Process 
           
             IF v_xml_ADDRESS_USA_frag  IS NOT NULL  THEN
-                    
-                CCN_TABLE_IU_PKG.ADDRESS_USA_I_SP (
-                    NULL                                --in_cost_center
-                  , NULL                                --in_address_type
-                  , NULL                                --in_effective_date
-                  , 'ADDRESS_USA'                       --in_table_name
-                  , NULL                                --in_row_date
-                  , v_xml_ADDRESS_USA_frag );           --in_row_data   xml
+               V_COUNT := 1;    
+               
+            -- Looping throught the XML fragment each time when multiple addresses are passed in the node.   
+               WHILE SYS.XMLTYPE(v_xml_ADDRESS_USA_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/' || 'ADDRESS_USA' || '[' || V_COUNT || ']') = 1 LOOP
+               		v_xml_ADDRESS_frag := SYS.XMLTYPE(v_xml_ADDRESS_USA_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_USA' || '[' || V_COUNT || ']').GETCLOBVAL();
+               		CCN_TABLE_IU_PKG.ADDRESS_USA_I_SP (
+                  	   NULL                                --in_cost_center
+               	     , NULL                                --in_address_type
+                     , NULL                                --in_effective_date
+                  	 , 'ADDRESS_USA'                       --in_table_name
+                 	 , NULL                                --in_row_date
+                 	 , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_ADDRESS_frag,'ADDRESS_UI_UPSERT')); --in_row_data   xml
+                  
+             -- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M' 
+                  v_address_type:= XMLTYPE(v_xml_ADDRESS_frag).extract('/ADDRESS_USA/ADDRESS_TYPE/text()').getstringval();
+                  IF v_address_type = 'M' THEN 
+                     v_cost_center_code:= XMLTYPE(v_xml_ADDRESS_frag).extract('/ADDRESS_USA/COST_CENTER_CODE/text()').getstringval();
+					 CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );	
+				  END IF;
 
-				        IF XMLTYPE(v_xml_ADDRESS_USA_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_USA/COST_CENTER_CODE/text()') = 1 THEN
-					          v_cost_center_code:= XMLTYPE(v_xml_ADDRESS_USA_frag).extract('/ADDRESS_UI_UPSERT/ADDRESS_USA/COST_CENTER_CODE/text()').getstringval();
-					          CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );				
-				        END IF;
-
+                V_COUNT := V_COUNT + 1;
+               END LOOP;
                      
             END IF;
           
