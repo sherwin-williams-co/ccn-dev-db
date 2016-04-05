@@ -833,16 +833,13 @@ Modified: 04/04/2016 dxv848 CCn project....
           added the condition to unexpire the current lead store which is attached to the bank in future
           (add the code which is missed when merging the code)
           scenario: if the bank account attached with future lead cost center which is also currently lead is another bank
+          and removed the variables which is not used.
 *******************************************************************************/
-IN_BANK_ACC_NBR VARCHAR2,
-IN_LEAD_STORE_NBR varchar2)
+IN_BANK_ACC_NBR VARCHAR2)
 IS
     V_GET_MEM_STORE_REC             MEMBER_BANK_CC%ROWTYPE;
-    V_LEAD_BANK_REC                 LEAD_BANK_CC%ROWTYPE;
     V_LEAD_ST_BANK_REC              LEAD_BANK_CC%ROWTYPE;
 BEGIN
-    V_LEAD_BANK_REC :=BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(IN_LEAD_STORE_NBR);
-
     --check if the lead cost_center attaching to the bank has existing future bank
     FOR each_bank IN (SELECT *
                         FROM LEAD_BANK_CC_FUTURE
@@ -852,20 +849,18 @@ BEGIN
         IF NVL(IN_BANK_ACC_NBR, 'XXX') = each_bank.LEAD_BANK_ACCOUNT_NBR THEN
             --Delete all the futures for this Bank Account
             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UI_DELETE_SP(IN_BANK_ACC_NBR, each_bank.FUTURE_ID);
+            --Re-Activate all the expired records of current bank
+            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(IN_BANK_ACC_NBR);
         END IF;
-        -- if the bank lead_store is current a lead then reactivate the lead
-        IF (NVL(each_bank.LEAD_STORE_NBR,'XXX') =  V_LEAD_BANK_REC.LEAD_STORE_NBR ) THEN
-             --Re-Activate all the expired records
-             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
         --the bank future lead is lead in future and current also(currently lead with diff bank)
-        ELSIF (each_bank.LEAD_STORE_NBR = V_LEAD_ST_BANK_REC.LEAD_STORE_NBR) THEN
-                --Re-Activate all the expired records
-                ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_ST_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
+        IF (each_bank.LEAD_STORE_NBR = V_LEAD_ST_BANK_REC.LEAD_STORE_NBR) THEN
+            --Re-Activate all the expired records
+            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_UNEXPIRE_SP(V_LEAD_ST_BANK_REC.LEAD_BANK_ACCOUNT_NBR);
         ELSE
             -- if the bank lead_store is current a member then reactivate the lead
-             -- get the member store details by passing the lead store number and unexpire it
-             V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_bank.LEAD_STORE_NBR);
-             ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR, V_GET_MEM_STORE_REC.LEAD_STORE_NBR, each_bank.LEAD_STORE_NBR);
+            -- get the member store details by passing the lead store number and unexpire it
+            V_GET_MEM_STORE_REC:= BANKING_COMMON_TOOLS.GET_MBR_STORE_NBR_FOR_LEAD_STR(each_bank.LEAD_STORE_NBR);
+            ACC_MEM_MAIN_COMMONTOOLS.ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP(V_GET_MEM_STORE_REC.LEAD_BANK_ACCOUNT_NBR, V_GET_MEM_STORE_REC.LEAD_STORE_NBR, each_bank.LEAD_STORE_NBR);
         END IF;
     END LOOP;
  END ACC_MAIN_FUTURE_BANK;
@@ -880,7 +875,8 @@ PROCEDURE ACCNT_MNTNC_LEAD_PROCESS (
   ACC_MAIN_FUTURE_BANK
 
 Created : 12/04/2015 dxv848 CCN Project....
-Modified:
+Modified: 04/04/2016 dxv848 CCN Project....
+          Removed the variable in ACC_MAIN_FUTURE_BANK which is not used
 *******************************************************************************/
 IN_LEAD_STORE_NBR          varchar2,
 IN_LEAD_BANK_ACCOUNT_NBR   varchar2)
@@ -892,7 +888,7 @@ BEGIN
     --check if the lead cost_center attaching to the bank has existing future member
     ACC_MAIN_FUTURE_MEM(IN_LEAD_STORE_NBR);
     --check if the lead cost_center attaching to the bank has existing future bank
-    ACC_MAIN_FUTURE_BANK(IN_LEAD_BANK_ACCOUNT_NBR,IN_LEAD_STORE_NBR);
+    ACC_MAIN_FUTURE_BANK(IN_LEAD_BANK_ACCOUNT_NBR);
 
 END ACCNT_MNTNC_LEAD_PROCESS;
 
@@ -1040,76 +1036,5 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_CURRENT_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END ACCNT_MNTNC_CURRENT_DELETE_SP;
-
-PROCEDURE ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ( 
-/******************************************************************************
-	This procedure Un-Expires the current records that are cost center related and
-  have a future expiration date
-  
-Created : 09/28/2015 sxh487 CCN Project....
-Changed : 10/20/2015 jxc517 CCN Project....
-          Code has been changed to deal with Deposit Bag futures
-*******************************************************************************/
-    IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
-    IN_LEAD_STORE_NBR       IN  VARCHAR2,
-    IN_MEMBER_STORE_NBR     IN  VARCHAR2)
-IS
-    CURSOR mbr_bank_cc_cur IS 
-        SELECT *
-          FROM MEMBER_BANK_CC
-         WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
-           AND LEAD_STORE_NBR        = IN_LEAD_STORE_NBR
-           AND MEMBER_STORE_NBR      = IN_MEMBER_STORE_NBR;
-    CURSOR store_micr_format_dtls_cur IS 
-        SELECT *
-          FROM STORE_MICR_FORMAT_DTLS
-         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NUMBER
-           AND COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_tick_cur IS
-        SELECT *
-          FROM BANK_DEP_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_tickord_cur IS
-        SELECT *
-          FROM BANK_DEP_TICKORD
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_bag_tick_cur IS
-        SELECT *
-          FROM BANK_DEP_BAG_TICK
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-    CURSOR bank_dep_bag_tickord_cur IS
-        SELECT *
-          FROM BANK_DEP_BAG_TICKORD
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR;
-BEGIN
-     --expire CC related child tables
-     FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
-         str_micr_format_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(str_micr_format_rec);
-     END LOOP;
-     FOR bank_dep_tick_rec IN bank_dep_tick_cur LOOP
-         bank_dep_tick_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.BANK_DEP_TICK_I_SP(bank_dep_tick_rec);
-     END LOOP;
-     FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
-         bank_dep_tickord_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(bank_dep_tickord_rec);
-     END LOOP;
-     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
-         bank_dep_bag_tick_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(bank_dep_bag_tick_rec);
-     END LOOP;
-     FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur LOOP
-         bank_dep_bag_tickord_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(bank_dep_bag_tickord_rec);
-     END LOOP;
-     FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
-         mbr_bank_cc_rec.EXPIRATION_DATE := NULL;
-         TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mbr_bank_cc_rec);
-     END LOOP;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
-END ACCNT_MNTNC_TRNSFR_UNEXPIRE_SP;
 
 END ACCOUNT_MAINTENANCE_PKG;
