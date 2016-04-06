@@ -4,7 +4,9 @@
 #                   triggers the report run
 #
 # Created         : 01/15/2016 jxc517 CCN Project Team....
-# Modified        :    
+# Modified        : 04/06/2016 nxk927 CCN Project Team....
+#                   changed the path where the trigger file will be sent
+#                   changed the error check to make it uniform and pushed the echo at the end
 #######################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from.
@@ -21,27 +23,27 @@ echo "" > sd_monthly_load.trg
 ftp -n ${appserver_host} <<END_SCRIPT
 quote USER ${appserver_user}
 quote PASS ${appserver_pw}
-cd /app/strdrft/sdReport/data
+cd /app/strdrft/sdReport/scripts
 
 put sd_monthly_load.trg
 
 quit
 END_SCRIPT
-echo " FTP Process Successful "
-
-rm -f sd_monthly_load.trg
 
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
-if test $status -ne 0
-then
-     echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-     exit 1;
+if [ $status -ne 0 ]; then
+   TIME=`date +"%H:%M:%S"`
+   echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+   exit 1;
 fi
 
+echo " FTP Process Successful "
+rm -f sd_monthly_load.trg
+
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
 
 exit 0
