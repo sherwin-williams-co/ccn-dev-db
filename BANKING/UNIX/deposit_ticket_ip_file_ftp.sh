@@ -72,7 +72,7 @@ echo "Process finished for get_deposit_tkt_xml at $TIME on $DATE"
 
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-echo "Process started for deposit_tkts_ftp at $TIME on $DATE"
+echo "Process started for deposit_tkts_file_chk at $TIME on $DATE"
 #this will check if the files are present in our issue file folder (meaning the file is not processed in their server)
 #if the file is present then we will send email to get the file processed before we ftp the new file
 #else we will ftp the files to be processed
@@ -88,7 +88,7 @@ then
      exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo "Process finished for deposit_tkts_ftp at $TIME on $DATE"
+echo "Process finished for deposit_tkts_file_chk at $TIME on $DATE"
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

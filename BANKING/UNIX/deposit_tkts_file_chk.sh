@@ -14,7 +14,7 @@
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
-proc_name="deposit_tkts_ftp"
+proc_name="deposit_tkts_file_chk"
 file_path="$HOME/datafiles"
 archieve_path="$HOME/datafiles/archieve"
 TIME=`date +"%H:%M:%S"`
@@ -30,22 +30,20 @@ cd $HOME/datafiles/issue_file
 if [ -f $file1 ] || [ -f $file2 ]; then
     cd $HOME
     ./deposit_tkt_send_mail.sh $filename
-	 TIME=`date +"%H:%M:%S"`
-     echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 else
     # ftp the files to the Server
 	cd $HOME
 	./deposit_tkts_ftp.sh $file1 $file2
-     ############################################################################
-     #                           ERROR STATUS CHECK
-     ############################################################################
-     status=$?
-     if test $status -ne 0
-     then
-        TIME=`date +"%H:%M:%S"`
-        echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-        exit 1;
-     fi
+fi
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if test $status -ne 0
+then
+   TIME=`date +"%H:%M:%S"`
+   echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+   exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
