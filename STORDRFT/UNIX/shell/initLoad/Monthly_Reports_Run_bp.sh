@@ -17,7 +17,7 @@
 while true; do
    if [ -f sd_monthly_load.trg ]
    then
-      rm sd_monthly_load.trg
+      rm -f sd_monthly_load.trg
 	  TIME=`date +"%I:%M:%S"`
 	  DATE=`date +"%m/%d/%Y"`
 	  echo "sd_monthly_load.trg trigger file removed at $TIME on $DATE"
