@@ -2,8 +2,7 @@
 #################################################################
 # Script name   : deposit_tkt_xml_ftp.sh
 #
-# Description   : this scripts to check if there are any unprocessed deposit ticket for the cost center 
-#                 in the server we are going to ftp the newly created deposit ticket
+# Description   : this scripts ftp's the deposit ticket xml file
 #
 # Created  : 04/04/2016 nxk927 CCN Project Team.....
 # Modified :
@@ -52,7 +51,7 @@ cp -f $file_path/$filename $archieve_path/$fname"_"$date.xml
 TIME=`date +"%H:%M:%S"`
 echo "removing the files from $file_path at ${TIME} on ${DATE}"
 # Rename the file to something else for future running purpose
-rm -rf $file_path/$filename
+rm $file_path/$filename
      
 TIME=`date +"%H:%M:%S"`	 
 echo "bye the transfer is complete at ${TIME} on ${DATE}"

@@ -2,8 +2,9 @@
 #################################################################
 # Script name   : get_deposit_tkt_xml.sh
 #
-# Description   : this scripts to check if there are any unprocessed deposit ticket for the cost center 
-#                 in the server we are going to ftp the newly created deposit ticket
+# Description   : this scripts is to get the unprocessed deposit ticket text file for the cost center if any
+#                 in their server that we are going to ftp the newly created deposit ticket. This is to make sure we won't over write 
+#                 the old deposit ticket file with the new one
 #
 # Created  : 04/04/2016 nxk927 CCN Project Team.....
 # Modified :

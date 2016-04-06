@@ -33,6 +33,7 @@ TIME=`date +"%H:%M:%S"`
 ############################################################################
 echo "Process started for get_deposit_tkt_txt at $TIME on $DATE"
 #this will check if the deposit ticket (txt) for same cost center is processed or not.
+#by getting the file from their server. If the file is present, then it means the files is not yet processed
 
 cd $HOME
 ./get_deposit_tkt_txt.sh $fname
@@ -53,6 +54,7 @@ echo "Process finished for get_deposit_tkt_txt at $TIME on $DATE"
 TIME=`date +"%H:%M:%S"`
 echo "Process started for get_deposit_tkt_xml at $TIME on $DATE"
 #this will check if the deposit ticket (xml) for same cost center is processed or not.
+#by getting the file from their server. If the file is present, then it means the files is not yet processed
 
 ./get_deposit_tkt_xml.sh $fname
 ############################################################################
@@ -71,7 +73,10 @@ echo "Process finished for get_deposit_tkt_xml at $TIME on $DATE"
 ############################################################################
 TIME=`date +"%H:%M:%S"`
 echo "Process started for deposit_tkts_ftp at $TIME on $DATE"
-./deposit_tkts_ftp.sh $fname
+#this will check if the files are present in our issue file folder (meaning the file is not processed in their server)
+#if the file is present then we will send email to get the file processed before we ftp the new file
+#else we will ftp the files to be processed
+./deposit_tkts_file_chk.sh $fname
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
