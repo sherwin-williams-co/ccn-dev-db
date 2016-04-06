@@ -11,6 +11,11 @@
 #             added the time stamp in the file to be placed in the archieve and the recover folder
 #          : 04/05/2016 nxk927 CCN Project Team.....
 #             modularized the code
+#             This script does the following
+#             1) checks if the .txt file is present on their server (stexstdv.sw.sherwin.com) that means it is unprocessed
+#             2) checks if the .xml file is present on their server (stexstdv.sw.sherwin.com) that means it is unprocessed
+#             3) if any one is not processed(present) then send email and archive the files to recovered folder
+#             4) if none are present, then ftp it and archive in archive folder
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -21,8 +26,8 @@ DATE=`date +"%m/%d/%Y"`
 
 echo "Process started for $proc_name at $TIME on $DATE"
 cd $HOME/datafiles
-export filename=DEPOSIT_TICKET_*.txt
-file_name=`echo $filename`
+
+file_name=DEPOSIT_TICKET_*.txt
 fname=$(echo $file_name | cut -f 1 -d '.')
 TIME=`date +"%H:%M:%S"`
 ############################################################################
@@ -32,7 +37,7 @@ echo "Process started for get_deposit_tkt_txt at $TIME on $DATE"
 cd $HOME
 ./get_deposit_tkt_txt.sh $fname
 ############################################################################
-#                           ERROR STATUS CHECK
+#                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 if test $status -ne 0
@@ -68,7 +73,7 @@ TIME=`date +"%H:%M:%S"`
 echo "Process started for deposit_tkts_ftp at $TIME on $DATE"
 ./deposit_tkts_ftp.sh $fname
 ############################################################################
-#                           ERROR STATUS CHECK
+#                           ERROR STATUS CHECK 
 ############################################################################
 status=$?
 if test $status -ne 0
