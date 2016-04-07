@@ -13,6 +13,19 @@ created :
 
 --
 --
+FUNCTION GET_USER_ROLES_DESC(
+/**********************************************************
+	CODE_TABLE_H_SP
+
+	This procedure is intended to return the Roles and their Description 
+	for the user ID passed
+
+created : 
+changed : 03/02/2016 sxh487 Added IN_USER_ID for Credit Hierarchy
+**********************************************************/	
+  IN_USER_ID  IN VARCHAR2
+ ) RETURN VARCHAR2;
+ 
 		PROCEDURE CODE_TABLE_H_SP (
 /**********************************************************
 	CODE_TABLE_H_SP
@@ -21,13 +34,14 @@ created :
 	from the CODE_HEADER.  
 
 created : 
+changed : 03/02/2016 sxh487 Added IN_USER_ID for Credit Hierarchy
+        : Added logic to check if the user has special roles
 **********************************************************/	
-			in_HEADER_NAME IN CODE_HEADER.CODE_HEADER_NAME%TYPE
+      IN_USER_ID     IN     VARCHAR2
+			,in_HEADER_NAME IN CODE_HEADER.CODE_HEADER_NAME%TYPE
 			,in_HEADER_TYPE IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
 			, out_CODE_HEADER_CUR OUT REF_CUR_CODE)
 ;
-
-
 
 TYPE REF_CURSOR IS REF CURSOR;
 

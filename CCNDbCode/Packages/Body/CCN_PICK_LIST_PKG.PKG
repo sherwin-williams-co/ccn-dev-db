@@ -9,6 +9,45 @@ create or replace PACKAGE BODY CCN_PICK_LIST_PKG
 created : 
 **********************************************************/
 
+FUNCTION GET_USER_ROLES_DESC(
+/**********************************************************
+	CODE_TABLE_H_SP
+
+	This procedure is intended to return the Roles and their Description 
+	for the user ID passed
+
+created : 
+changed : 03/02/2016 sxh487 
+**********************************************************/	
+ IN_USER_ID  IN VARCHAR2
+ ) RETURN VARCHAR2
+IS
+ 
+ V_CLOB VARCHAR2(20000);
+ 
+CURSOR user_roles IS
+    SELECT RD.ROLE_DESCRIPTION, RD.ROLE_CODE
+      FROM ROLE_DETAILS RD,
+           SECURITY_MATRIX SM
+         WHERE UPPER(USER_ID) = UPPER(IN_USER_ID)
+           AND SM.ROLE_CODE = RD.ROLE_CODE;
+   
+BEGIN
+    V_CLOB := V_CLOB || '<ROLES>';
+    FOR each_role IN user_roles LOOP
+         V_CLOB := V_CLOB || '<ROLE>';
+         V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(each_role.ROLE_CODE, 'Value');
+         V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(each_role.ROLE_DESCRIPTION, 'Desc');
+         V_CLOB := V_CLOB || '</ROLE>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</ROLES>';
+  RETURN V_CLOB;
+
+EXCEPTION
+   WHEN OTHERS THEN
+       RETURN NULL;  
+END GET_USER_ROLES_DESC;
+
 	PROCEDURE CODE_TABLE_H_SP (
 /**********************************************************
 	CODE_TABLE_H_SP
@@ -17,28 +56,78 @@ created :
 	from the CODE HEADER table
 
 created : 
+changed : 03/02/2016 sxh487 Added IN_USER_ID for Credit Hierarchy
+        : Added logic to check if the user has special roles
 **********************************************************/	
-	in_HEADER_NAME IN CODE_HEADER.CODE_HEADER_NAME%TYPE
+   IN_USER_ID     IN     VARCHAR2
+	,in_HEADER_NAME IN CODE_HEADER.CODE_HEADER_NAME%TYPE
 	,in_HEADER_TYPE IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
 	, out_CODE_HEADER_CUR OUT REF_CUR_CODE)
-IS       
-  V_CODE NUMBER;
-  v_errm varchar2(500);
-
+IS  
+  V_COUNT NUMBER := 0;
+  V_CODE  NUMBER;
+  v_errm  VARCHAR2(500);
+     
 	BEGIN
+     --check to see if a user has CCNU, that means he should be able to view the entire picklist
+     --irrespective of special roles
+     SELECT COUNT(*)
+      INTO V_COUNT
+      FROM ROLE_DETAILS RD,
+           SECURITY_MATRIX SM
+         WHERE UPPER(USER_ID) =  UPPER(IN_USER_ID)
+           AND SM.ROLE_CODE = RD.ROLE_CODE
+           AND SM.ROLE_CODE = 'CCNU';
 
-		  OPEN out_CODE_HEADER_CUR FOR
-		  SELECT *
-		  FROM 	CODE_HEADER
-		  WHERE CODE_HEADER_NAME = NVL(in_HEADER_NAME, CODE_HEADER_NAME)
-		  AND   CODE_HEADER_TYPE = NVL(in_HEADER_TYPE, CODE_HEADER_TYPE);
-
+    IF V_COUNT <> 0 THEN
+        --if the user has CCNU role code, he should get access to all pick list values
+        OPEN out_CODE_HEADER_CUR FOR
+            SELECT DISTINCT CODE_HEADER_NAME
+                   ,CODE_HEADER_TYPE
+                   ,CODE_HEADER_DESCRIPTION
+                   ,CODE_HEADER_EXPIRE_FLAG
+                   ,CODE_HEADER_EXPIRE_USER
+                   ,CODE_HEADER_EXPIRE_EFF_DATE
+                   ,CODE_HEADER_DTL_VAL_SIZE
+                   ,CODE_HEADER_DTL_VAL_DEFAULT
+                   ,CODE_HEADER_CREATE_USER
+                   ,CODE_HEADER_EFF_DATE
+                   ,CCN_PICK_LIST_PKG.GET_USER_ROLES_DESC(IN_USER_ID) CODE_HEADER_IDENTIFIER
+                FROM CODE_HEADER
+               WHERE CODE_HEADER_NAME = NVL(in_HEADER_NAME, CODE_HEADER_NAME)
+                 AND CODE_HEADER_TYPE = NVL(in_HEADER_TYPE, CODE_HEADER_TYPE);
+        
+    --Get the special roles from Code Header Identifier
+    --Check to see if any of those roles are applicable for the current user  
+    --If YES, he is a special user and should get access only to certain pick list values
+    ELSE
+        OPEN out_CODE_HEADER_CUR FOR
+            SELECT DISTINCT CODE_HEADER_NAME
+                   ,CODE_HEADER_TYPE
+                   ,CODE_HEADER_DESCRIPTION
+                   ,CODE_HEADER_EXPIRE_FLAG
+                   ,CODE_HEADER_EXPIRE_USER
+                   ,CODE_HEADER_EXPIRE_EFF_DATE
+                   ,CODE_HEADER_DTL_VAL_SIZE
+                   ,CODE_HEADER_DTL_VAL_DEFAULT
+                   ,CODE_HEADER_CREATE_USER
+                   ,CODE_HEADER_EFF_DATE
+                   ,CCN_PICK_LIST_PKG.GET_USER_ROLES_DESC(IN_USER_ID) CODE_HEADER_IDENTIFIER
+              FROM CODE_HEADER CH,
+                   XMLTable('/ROLES/ROLE' PASSING CH.CODE_HEADER_IDENTIFIER COLUMNS ROLE_CODE VARCHAR2(15) PATH 'VALUE') T
+             WHERE CODE_HEADER_NAME = NVL(in_HEADER_NAME, CODE_HEADER_NAME)
+               AND CODE_HEADER_TYPE = NVL(in_HEADER_TYPE, CODE_HEADER_TYPE)
+               AND EXISTS (SELECT 1
+                             FROM SECURITY_MATRIX
+                            WHERE UPPER(USER_ID) = UPPER(IN_USER_ID)
+                              AND ROLE_CODE = T.ROLE_CODE);
+       END IF; 
+                            
 EXCEPTION
     WHEN OTHERS THEN 
         v_code  := SQLCODE;
         V_ERRM  := SUBSTR(SQLERRM,1,200);
-        errpkg.raise_err(v_code, 'CODE_TABLE_H_SP, ' || ' ' || 'in_HEADER_NAME is ' || in_HEADER_NAME, v_errm);	  
-
+        errpkg.raise_err(v_code, 'CODE_TABLE_H_SP, ' || ' ' || 'in_HEADER_NAME is ' || in_HEADER_NAME, v_errm);
 END CODE_TABLE_H_SP;
 
 	PROCEDURE CODE_TABLE_D_SP (
@@ -322,6 +411,7 @@ PROCEDURE CODE_HEADER_INSERT(
   <CODE_HEADER_EXPIRE_EFF_DATE></CODE_HEADER_EXPIRE_EFF_DATE>
   <CODE_HEADER_DTL_VAL_SIZE>3</CODE_HEADER_DTL_VAL_SIZE>
   <CODE_HEADER_DTL_VAL_DEFAULT></CODE_HEADER_DTL_VAL_DEFAULT>
+  <CODE_HEADER_IDENTIFIER></CODE_HEADER_IDENTIFIER>
   <CODE_HEADER_FLAG>S</CODE_HEADER_FLAG>
 </CODE_HEADER>
 </CODE_HEADER_UI>
@@ -339,8 +429,8 @@ BEGIN
                            --in_XML,
                            SYS.XMLTYPE(in_XML).EXTRACT('/CODE_HEADER_UI/CODE_HEADER[1]').getCLOBVal(),
                            V_CODE_HEADER_ROW);
-                                
-    V_CONTEXT := 'Inserting in to CODE_HEADER table';
+    
+    V_CONTEXT := 'Inserting into CODE_HEADER table';
     INSERT INTO CODE_HEADER VALUES V_CODE_HEADER_ROW;
 
 EXCEPTION
@@ -358,7 +448,7 @@ PROCEDURE CODE_HEADER_UPDATE(
 	CODE_HEADER_UPDATE
 	
 	This procedure will UPDATE into the table CODE_HEADER
-
+Revised : 04/01/2016 sxh487 updating only the fields that are not null
 **********************************************************/
     in_XML                VARCHAR2)
 IS
@@ -375,10 +465,20 @@ BEGIN
                                 
     V_CONTEXT := 'Updating CODE_HEADER table';
     UPDATE CODE_HEADER 
-       SET ROW = V_CODE_HEADER_ROW
-     WHERE CODE_HEADER_NAME         = V_CODE_HEADER_ROW.CODE_HEADER_NAME
-       AND CODE_HEADER_TYPE         = V_CODE_HEADER_ROW.CODE_HEADER_TYPE
-       AND CODE_HEADER_DESCRIPTION  = V_CODE_HEADER_ROW.CODE_HEADER_DESCRIPTION;
+       SET CODE_HEADER_NAME             = NVL(V_CODE_HEADER_ROW.CODE_HEADER_NAME, CODE_HEADER_NAME),
+           CODE_HEADER_TYPE             = NVL(V_CODE_HEADER_ROW.CODE_HEADER_TYPE, CODE_HEADER_TYPE),
+           CODE_HEADER_DESCRIPTION      = NVL(V_CODE_HEADER_ROW.CODE_HEADER_DESCRIPTION, CODE_HEADER_DESCRIPTION),
+           CODE_HEADER_EXPIRE_FLAG      = NVL(V_CODE_HEADER_ROW.CODE_HEADER_EXPIRE_FLAG, CODE_HEADER_EXPIRE_FLAG),
+           CODE_HEADER_EXPIRE_USER      = NVL(V_CODE_HEADER_ROW.CODE_HEADER_EXPIRE_USER, CODE_HEADER_EXPIRE_USER),
+           CODE_HEADER_EXPIRE_EFF_DATE  = NVL(V_CODE_HEADER_ROW.CODE_HEADER_EXPIRE_EFF_DATE, CODE_HEADER_EXPIRE_EFF_DATE),
+           CODE_HEADER_DTL_VAL_SIZE     = NVL(V_CODE_HEADER_ROW.CODE_HEADER_DTL_VAL_SIZE, CODE_HEADER_DTL_VAL_SIZE),
+           CODE_HEADER_DTL_VAL_DEFAULT  = NVL(V_CODE_HEADER_ROW.CODE_HEADER_DTL_VAL_DEFAULT,CODE_HEADER_DTL_VAL_DEFAULT),
+           CODE_HEADER_CREATE_USER      = NVL(V_CODE_HEADER_ROW.CODE_HEADER_CREATE_USER, CODE_HEADER_CREATE_USER),
+           CODE_HEADER_EFF_DATE         = NVL(V_CODE_HEADER_ROW.CODE_HEADER_EFF_DATE, CODE_HEADER_EFF_DATE),
+           CODE_HEADER_IDENTIFIER       = NVL(V_CODE_HEADER_ROW.CODE_HEADER_IDENTIFIER, CODE_HEADER_IDENTIFIER)
+     WHERE CODE_HEADER_NAME             = V_CODE_HEADER_ROW.CODE_HEADER_NAME
+       AND CODE_HEADER_TYPE             = V_CODE_HEADER_ROW.CODE_HEADER_TYPE
+       AND CODE_HEADER_DESCRIPTION      = V_CODE_HEADER_ROW.CODE_HEADER_DESCRIPTION;
 
 EXCEPTION
     WHEN OTHERS THEN 
@@ -421,7 +521,7 @@ PROCEDURE CODE_HEADER_ROWTYPE_SP (
 	This procedure is intended to insert new CODE_HEADER records
 
 created : 11/27/2013 jxc517 CCN Project....
-changed : 
+changed : 03/02/2016 sxh487 Added new column CODE_HEADER_IDENTIFIER for Credit Hierarchy
 *******************************************************************************/
 
 in_TABLE_NAME           IN      VARCHAR2 
@@ -444,8 +544,19 @@ cursor table_fields_cur is
     v_Row_data               sys.xmltype := xmltype(in_Row_data);
 begin
     for table_fields_rec in table_fields_cur loop
-        if (v_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) then
-            v_row_value := v_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal(); 
+        if (v_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()') = 1) OR table_fields_rec.data_type = 'XMLTYPE' THEN
+
+            if table_fields_rec.data_type = 'XMLTYPE' then
+                IF (v_Row_data.existsNode('/'|| in_table_name|| '/' || table_fields_rec.column_name || '/ROLES/ROLE/VALUE/text()') = 1) THEN
+                    v_row_value := V_ROW_DATA.EXTRACT('/'|| in_table_name|| '/' || table_fields_rec.column_name).GETCLOBVAL();
+                    v_row_value := REPLACE(REPLACE(v_row_value,'<'||table_fields_rec.column_name ||'>'),'</'||table_fields_rec.column_name||'>');
+                ELSE
+                    v_row_value := NULL;
+                END IF;
+            else           
+                v_row_value := v_Row_data.extract('/'|| in_table_name|| '/' || table_fields_rec.column_name ||'/text()').getStringVal();
+            end if;
+
             v_row_value := common_tools.ELIMINATE_SPECIAL_CHRCTRS(v_row_value);
             case table_fields_rec.column_name
                 when 'CODE_HEADER_NAME' then 
@@ -468,6 +579,10 @@ begin
                     v_CODE_HEADER_row.CODE_HEADER_CREATE_USER     :=  v_row_value;
                 when 'CODE_HEADER_EFF_DATE' then 
                     v_CODE_HEADER_row.CODE_HEADER_EFF_DATE        :=  TO_DATE(v_row_value,'MM-DD-YYYY');
+                when 'CODE_HEADER_IDENTIFIER' then 
+                    IF v_row_value IS NOT NULL THEN
+                       v_CODE_HEADER_row.CODE_HEADER_IDENTIFIER := sys.xmltype(v_row_value);
+                    END IF;
                 ELSE null;
             END CASE;
         end if;
