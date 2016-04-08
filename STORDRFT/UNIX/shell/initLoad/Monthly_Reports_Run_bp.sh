@@ -11,7 +11,7 @@
 #            changed the executable ./ to sh to eliminate the 2 process running in the background
 #################################################################
 #Run below command to make the process run in the background even after shutdown
-#nohup sh /app/strdrft/sdReport/scripts/Monthly_Reports_Run_bp.sh > /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp1.log 2>&1 &
+#nohup sh /app/strdrft/sdReport/scripts/Monthly_Reports_Run_bp.sh > /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp.log 2>&1 &
 
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep Monthly_Reports_Run_bp.sh
