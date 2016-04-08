@@ -5,7 +5,6 @@
 #
 # Created         : 01/15/2016 jxc517 CCN Project Team....
 # Modified        : 04/06/2016 nxk927 CCN Project Team....
-#                   changed the path where the trigger file will be sent
 #                   changed the error check to make it uniform and pushed the echo at the end
 #######################################################################################
 
@@ -23,7 +22,7 @@ echo "" > sd_monthly_load.trg
 ftp -n ${appserver_host} <<END_SCRIPT
 quote USER ${appserver_user}
 quote PASS ${appserver_pw}
-cd /app/strdrft/sdReport/scripts
+cd /app/strdrft/sdReport/data
 
 put sd_monthly_load.trg
 
