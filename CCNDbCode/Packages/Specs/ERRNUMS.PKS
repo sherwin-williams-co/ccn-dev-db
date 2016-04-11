@@ -2634,11 +2634,11 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_pci_id_err" passes a numerical error of -20529.
-This error will state that the PCI_MERCHANT_ID and
+This error will state that the PCI_MERCHANT_ID and 
 PCI_DISCOVER_ID should not be null when the polling status is 'P'
 
-created  : 03/02/2016 nxk927 CCN Project
-revisions:
+created : 03/02/2016 nxk927 CCN Project
+revisions: 
 
 ************************************************************/
 en_invalid_pci_id_err CONSTANT NUMBER := -20529;
@@ -2646,20 +2646,68 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/***********************************************************
+/*********************************************************** 
 The "pci_terminal_id_err" passes a numerical error of -20530.
 This error will state that the PCI_TERMINAL_ID is null
 
-created  : 03/02/2016 nxk927 CCN Project
+created : 03/02/2016 nxk927 CCN Project
 revisions: 03/15/2016 nxk927 CCN Project
-           updated the comments
+
 ************************************************************/
 en_pci_terminal_id_err CONSTANT NUMBER := -20530;
 exc_pci_terminal_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_pci_terminal_id_err , -20530);
 
-/***********************************************************
+/*********************************************************** 
+The "invalid_dscvr_id_size_err" passes a numerical error of -20533
+This error will state that Bank Card Discover ID Size is wrong
+
+Created  : 04/11/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invalid_dscvr_id_size_err CONSTANT NUMBER := -20533;
+exc_invalid_dscvr_id_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_dscvr_id_size_err , -20533);
+
+/*********************************************************** 
+The "invld_pci_dscvr_id_size_err" passes a numerical error of -20534
+This error will state that Bank Card PCI Discover ID Size is wrong
+
+Created  : 04/11/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_pci_dscvr_id_size_err CONSTANT NUMBER := -20534;
+exc_invld_pci_dscvr_id_size_er EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_pci_dscvr_id_size_er , -20534);
+
+/*********************************************************** 
+The "invalid_mrchnt_id_size_err" passes a numerical error of -20535
+This error will state that Bank Card Merchant ID Size is wrong
+
+Created  : 04/11/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invalid_mrchnt_id_size_err CONSTANT NUMBER := -20535;
+exc_invalid_mrchnt_id_size_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_mrchnt_id_size_err , -20535);
+
+/*********************************************************** 
+The "invld_pci_mrchnt_id_sz_err" passes a numerical error of -20536
+This error will state that Bank Card PCI Merchant ID Size is wrong
+
+Created  : 04/11/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_pci_mrchnt_id_sz_err CONSTANT NUMBER := -20536;
+exc_invld_pci_mrchnt_id_sz_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_pci_mrchnt_id_sz_err , -20536);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
