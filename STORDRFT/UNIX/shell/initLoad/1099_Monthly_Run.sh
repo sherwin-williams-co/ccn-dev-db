@@ -1,27 +1,25 @@
 #!/bin/sh
 
 ##############################################################################################################
-# Script name   : Monthly_Run.sh
+# Script name   : 1099_Monthly_Run.sh
 #
-# Description   : This script is to automatically run the monthly process
+# Description   : This script is to automatically run the 1099 monthly process
 #
-# Created  : 12/15/2015 jxc517 CCN Project Team.....
-# Modified : 04/12/2016 nxk927 CCN Project Team.....
-#            script modified to run on the second weekday of the month
-#            moved the ones that needs to run on 1st of the month in another script (1099_monthly_run.sh)
+# Created  : 04/12/2016 nxk927 CCN Project Team.....
+# Modified : 
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="Monthly_Run"
+proc_name="1099_Monthly_Run"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ##############################################################
-# JV Monthly Process
+# 1099 Monthly Process
 ##############################################################
-./JV_monthly_load.sh
+./1099_monthly_file_gen.sh
 
 status=$?
 if test $status -ne 0
@@ -30,9 +28,9 @@ then
 fi
 
 ##############################################################
-# Outstanding Drafts Monthly
+# 1099 Financial Shared Services (FSS)
 ##############################################################
-./Outstanding_draft_monthy.sh
+./1099_FSS_file_gen.sh
 
 status=$?
 if test $status -ne 0
@@ -41,21 +39,9 @@ then
 fi
 
 ##############################################################
-# 1099 Account Payable Reports
+# 1099 Financial Shared Services (FSS) - SFTP
 ##############################################################
-./1099_info_feed_to_AP.sh
-
-status=$?
-if test $status -ne 0
-then
-     exit 1;
-fi
-
-cd $HOME/Reports
-##############################################################
-# Booked/Unbooked Reports - Data Load
-##############################################################
-./sd_load.sh
+./1099_FSS_file_sftp.sh
 
 status=$?
 if test $status -ne 0
@@ -64,21 +50,9 @@ then
 fi
 
 ##############################################################
-# Unbooked Reports - MAIL to Christopher T. Greve/Sherwin-Williams@SWCBD 
+# 1099 Financial Shared Services (FSS) - MAIL to Tharanga M. Kandanarachchi/Sherwin-Williams
 ##############################################################
-./sd_gl_unbooked_report_mail.sh
-
-status=$?
-if test $status -ne 0
-then
-     exit 1;
-fi
-
-cd $HOME/initLoad
-##############################################################
-# FTP Trigger File for Application Server
-##############################################################
-./sd_monthly_app_srvr_trgr_file.sh
+./1099_FSS_file_mail.sh
 
 status=$?
 if test $status -ne 0
