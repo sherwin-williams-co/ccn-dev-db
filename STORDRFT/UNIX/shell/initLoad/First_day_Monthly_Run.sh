@@ -41,7 +41,7 @@ fi
 ##############################################################
 # 1099 Financial Shared Services (FSS) - SFTP
 ##############################################################
-#./1099_FSS_file_sftp.sh
+./1099_FSS_file_sftp.sh
 
 status=$?
 if test $status -ne 0
