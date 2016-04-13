@@ -28,6 +28,6 @@ CREATE TABLE TEMP_FIPS_UPDATE
             ZIP_SUFF         POSITION(70:73)      CHAR(4))
             )
       LOCATION
-       ('CCN09000.FIPS.D160316.TXT'
+       ('CCN_FIPS_USA_UPDATE.TXT'
         )
     );
