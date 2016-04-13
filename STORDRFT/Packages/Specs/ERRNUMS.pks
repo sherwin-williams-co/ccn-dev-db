@@ -134,6 +134,19 @@ exc_wrong_filter_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_wrong_filter_err , -20031);
 
+/*********************************************************** 
+The "fss_batch_run_err" passes a numerical error of -20032.
+This error raises if the FSS on-demand batch is running and some one
+tries to re-trigger it again
+
+created : 04/13/2016 jxc517 CCN Project
+revisions: 
+************************************************************/
+en_fss_batch_run_err CONSTANT NUMBER := -20032;
+exc_fss_batch_run_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_fss_batch_run_err , -20032);
+
 
 END errnums;
 

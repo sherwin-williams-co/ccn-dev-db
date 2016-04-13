@@ -740,4 +740,54 @@ BEGIN
 
 END SD_1099_CONSOLIDATED_RPT;
 
+PROCEDURE FSS_ON_DEMAND_BATCH_RUN
+/**********************************************************
+This process will kick off the FSS shell scripts on demand
+
+created : 04/12/2016 jxc517 CCN Project Team....
+modified :
+**********************************************************/
+IS
+   fss_batch_run_err       EXCEPTION;
+   v_path                  VARCHAR2(100);
+   v_output_file           UTL_FILE.FILE_TYPE;
+   v_directory_name        VARCHAR2(100) := 'STORDRFT_DATAFILES';
+   v_filename              VARCHAR2(50) := 'cmd_start.sh';
+   v_out_clob              CLOB;
+   v_length                NUMBER;
+   v_blocksize             NUMBER;
+   v_exists                BOOLEAN;
+BEGIN
+   SELECT SUBSTR(DIRECTORY_PATH,1,
+                 --4th occurance of '/' in all other environments (dev, test and qa)
+                 --3rd occurance of '/' in production
+                 INSTR(DIRECTORY_PATH,'/',1,DECODE(SYS_CONTEXT('USERENV','SERVICE_NAME'),'STCCNP',3,4)))
+     INTO v_path
+     FROM ALL_DIRECTORIES
+    WHERE DIRECTORY_NAME = v_directory_name
+      AND ROWNUM < 2;
+
+    UTL_FILE.FGETATTR(v_directory_name, v_filename, v_exists, v_length, v_blocksize);
+    IF V_EXISTS THEN
+        RAISE fss_batch_run_err;
+    END IF;
+
+    IF DBMS_LOB.FILEEXISTS(BFILENAME(v_directory_name, v_filename)) = 1 THEN
+        DBMS_OUTPUT.PUT_LINE('PREVIOUS COMMAND STILL EXECUTING. PLEASE TRY AGAIN AFTER SOME TIME');
+    ELSE
+        v_out_clob := NVL('cd '||TRIM(V_PATH)||'initLoad' ||
+                               CHR(10) || 'sh 1099_FSS_file_gen.sh' ||
+                               CHR(10) || 'sh 1099_FSS_file_sftp.sh',
+                          'ls -ltr');
+        v_output_file := UTL_FILE.FOPEN(v_directory_name, v_filename, 'w', 32767);
+        UTL_FILE.PUT_LINE(v_output_file, v_out_clob, TRUE);
+        UTL_FILE.FCLOSE(v_output_file);
+    END IF;
+EXCEPTION
+    WHEN fss_batch_run_err THEN
+         ERRPKG.RAISE_ERR(ERRNUMS.en_fss_batch_run_err,'FSS_ON_DEMAND_BATCH_RUN', 'FSS Batch still running, please wait until current run completes');
+    WHEN OTHERS THEN
+         ERRPKG.RAISE_ERR(SQLCODE,'FSS_ON_DEMAND_BATCH_RUN',  SQLERRM);
+END FSS_ON_DEMAND_BATCH_RUN;
+
 END SD_UI_INTERFACE_APP_PKG;

@@ -562,4 +562,13 @@ Changed :
 IN_FSS_SENT_ST_DT      IN     DATE,
 IN_FSS_SENT_END_DT     IN     DATE);
 
+PROCEDURE FSS_ON_DEMAND_BATCH_RUN
+/**********************************************************
+This process will kick off the FSS shell scripts on demand
+
+created : 04/12/2016 jxc517 CCN Project Team....
+modified :
+**********************************************************/
+;
+
 END SD_UI_INTERFACE_APP_PKG;
