@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ##############################################################################################################
-# Script name   : 1099_Monthly_Run.sh
+# Script name   : First_day_Monthly_Run.sh
 #
 # Description   : This script is to automatically run the 1099 monthly process
 #
@@ -11,7 +11,7 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="1099_Monthly_Run"
+proc_name="First_day_Monthly_Run"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"

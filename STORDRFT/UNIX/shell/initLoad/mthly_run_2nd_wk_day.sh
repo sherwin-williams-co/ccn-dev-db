@@ -8,7 +8,9 @@
 # Created       : 02/29/2016 nxk927.....
 # Modified      : 03/18/2016 nxk927 CCN Project Team....
 #                 Moved the declared TIME variable at the end
-#                 added error check for each call and added time and proc in the error
+#                 added error check for each call
+#               : 04/13/2016 nxk927 CCN Project Team....
+#                 renamed the monthly script name.
 #################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -39,7 +41,7 @@ SECOND_WEEKDAY=`cat $HOME/initLoad/SECOND_WEEKDAY.TXT`
 if [ $DATE == $SECOND_WEEKDAY ] 
    then echo "MONTHLY PROCESS STARTED ON $SECOND_WEEKDAY AT ${TIME} ON ${DATE}"
    cd $HOME/initLoad
-   sh Monthly_Run.sh
+   sh Second_wk_day_mnthly_run.sh
    else
    echo "NOT A SECOND WEEK DAY OF THE MONTH TO RUN THE MONTHLY PROCESS"
 fi
