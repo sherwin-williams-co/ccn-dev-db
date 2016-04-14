@@ -14,11 +14,13 @@ PROCEDURE UPDATE_FIPS_CODE
 Created : 04/11/2016 nxk927 CCN Project....
 Modified: 04/14/2016 nxk927 CCN Project....
           inserting the records in the error log table if no record is present
-          for update
+          for update, COUNTY mist match, or country code was not USA or PRI
 *******************************************************************************/
 IS
- V_COUNT NUMBER := 0;
- V_START_TIME NUMBER;
+ V_START_TIME   NUMBER;
+ V_COUNTRY_CODE VARCHAR2(3);
+ V_COUNT        NUMBER := 0;
+ V_COUNTY_COUNT NUMBER := 0;
 BEGIN
    CCN_BATCH_PKG.LOCK_DATABASE_SP();
 
@@ -27,18 +29,40 @@ BEGIN
                  FROM TEMP_FIPS_UPDATE) LOOP
        V_COUNT:= V_COUNT+1;
        BEGIN
-          UPDATE ADDRESS_USA
-             SET FIPS_CODE = REC.FIPS_CODE
-           WHERE SUBSTR(COST_CENTER_CODE,3) = REC.COST_CENTER_CODE
-             AND EXPIRATION_DATE IS NULL;
+          --GETTING THE COUNTRY CODE TO CHECK IF IT IS USA OR PRI.
+          --FIPS CODE WILL ONLY BE UPDATED FOR COUNTRY CODE USA AND PRI.
+          V_COUNTRY_CODE := COMMON_TOOLS.COUNTRY_LOOK_UP_FNC(REC.COST_CENTER_CODE);
 
-          IF SQL%ROWCOUNT = 0 THEN
-             ERRPKG.INSERT_ERROR_LOG_SP('000000', 'UPDATE_FIPS_CODE', 'NO SUCH RECORD TO UPDATE FIPS_CODE', REC.COST_CENTER_CODE);
-          END IF;
+          IF V_COUNTRY_CODE IN ('USA', 'PRI') THEN
+             UPDATE ADDRESS_USA
+                SET FIPS_CODE = REC.FIPS_CODE
+              WHERE SUBSTR(COST_CENTER_CODE,3)              = REC.COST_CENTER_CODE
+                AND NVL(TRIM(SUBSTR(COUNTY,1,16)), 'X')     = NVL(TRIM(REC.COUNTY), 'X')
+                AND EXPIRATION_DATE IS NULL;
 
-          IF V_COUNT = 100 THEN
-             COMMIT;
-             V_COUNT := 0;
+             IF SQL%ROWCOUNT = 0 THEN
+                SELECT COUNT(*)
+                  INTO V_COUNTY_COUNT
+                  FROM ADDRESS_USA
+                 WHERE SUBSTR(COST_CENTER_CODE,3)              = REC.COST_CENTER_CODE
+                   AND EXPIRATION_DATE IS NULL;
+
+                IF V_COUNTY_COUNT <> 0 THEN
+                   --LOGGING IN THE ERROR LOG AS THE COUNTY DID NOT MATCH
+                   ERRPKG.INSERT_ERROR_LOG_SP('000000', 'UPDATE_FIPS_CODE', 'FIPS_CODE CAN NOT BE UPDATED AS COUNTY DID NOT MATCH', REC.COST_CENTER_CODE);
+                ELSE
+                   --LOGGING IN THE ERROR LOG AS THERE WAS NOT RECORD IN ADDRESS_USA TO UPDATE
+                   ERRPKG.INSERT_ERROR_LOG_SP('000000', 'UPDATE_FIPS_CODE', 'NO SUCH RECORD TO UPDATE FIPS_CODE', REC.COST_CENTER_CODE);
+                END IF;
+             END IF;
+
+             IF V_COUNT = 100 THEN
+                COMMIT;
+                V_COUNT := 0;
+             END IF;
+          ELSE
+             --LOGGING IN THE ERROR LOG AS THE COUNTRY CODE WAS OTHER THAN USA OR PRI
+             ERRPKG.INSERT_ERROR_LOG_SP('000000', 'UPDATE_FIPS_CODE', 'COUNTRY CODE SHOULD BE USA OR PRI FOR THE FIPS CODE UPDATE NOT ' || V_COUNTRY_CODE, REC.COST_CENTER_CODE);
           END IF;
        EXCEPTION
           WHEN OTHERS THEN
