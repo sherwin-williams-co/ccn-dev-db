@@ -1,0 +1,1 @@
+This folder contains all the shell script that needs to be placed in for CCN Project
