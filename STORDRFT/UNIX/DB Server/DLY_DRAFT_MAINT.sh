@@ -31,24 +31,24 @@ DATE=${DAILY_LOAD_RUNDATE}
 # below command will invoke the check_file_ok_status shell script to check if the mntnc_dpndncy_check.ok file exists or not
 ./check_file_ok_status.sh mntnc_dpndncy_check.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for DLY_DRAFT_MAINT-mntnc_dpndncy_check at $TIME on $DATE"
-	 exit 1;
+     echo "Processing failed for DLY_DRAFT_MAINT-mntnc_dpndncy_check at $TIME on $DATE"
+     exit 1;
 fi
 
 # below command will invoke the check_file_ok_status shell script to check if the paids_mntnc_check.ok file exists or not
 ./check_file_ok_status.sh paids_mntnc_check.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for DLY_DRAFT_MAINT-paids_mntnc_check at $TIME on $DATE"
+     echo "Processing failed for DLY_DRAFT_MAINT-paids_mntnc_check at $TIME on $DATE"
      exit 1;
 fi
 
@@ -56,34 +56,34 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ./DLY_MAINT_DRAFT_US_AM.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh paids_mntnc_check
-	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh paids_mntnc_check
+     ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
 
 ./DLY_MAINT_DRAFT_US_NAM.sh
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh paids_mntnc_check
-	 ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh paids_mntnc_check
+     ./rename_file_ok_to_notok.sh mntnc_dpndncy_check
      exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

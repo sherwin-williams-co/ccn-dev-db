@@ -25,7 +25,7 @@
 
 proc_name="DLY_DRAFT_LOAD"
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 # below command will invoke the shell script to create the US Automotive file
@@ -55,13 +55,13 @@ fi
 # below command will invoke the shell script to create the Canada Automotive file
 ./DLY_DRAFT_CAN_AM.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for $proc_name at $TIME on $DATE"
-	 exit 1;
+     echo "Processing failed for $proc_name at $TIME on $DATE"
+     exit 1;
 fi
 
 # below command will invoke the shell script to create the Canada Non-Automotive file

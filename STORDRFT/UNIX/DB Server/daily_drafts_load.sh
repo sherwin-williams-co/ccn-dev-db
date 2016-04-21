@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 ##############################################################################################################################
 # Script name   : daily_drafts_load.sh
 #
@@ -20,7 +20,7 @@
 proc="daily_drafts_load"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
@@ -35,7 +35,7 @@ BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_START');
 SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP();
-Exception 
+Exception
  when others then
  :exitCode := 2;
  END;
@@ -44,14 +44,14 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR
-	 ./rename_file_ok_to_notok.sh batch_dependency
+     ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR
+     ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 
@@ -64,7 +64,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
- Exception 
+ Exception
  when others then
  :exitCode := 2;
  END;
@@ -72,7 +72,7 @@ MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
 exit :exitCode
 END
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

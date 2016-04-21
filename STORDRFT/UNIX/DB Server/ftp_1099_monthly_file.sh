@@ -1,7 +1,7 @@
 #!/bin/sh
 #######################################################################################
-# Description     : Script to FTP dbfile1099 file to the swerp_host server 
-#                   once the execution of 1099 monthly process is completed. 
+# Description     : Script to FTP dbfile1099 file to the swerp_host server
+#                   once the execution of 1099 monthly process is completed.
 # Created         : 04/22/2015 jxc517 Store Drafts Project....
 # Modified        : 04/27/2015 axk326 CCN Project Team.....
 #                   Substituted hard coded date value with the date value from date_param.config file
@@ -33,7 +33,7 @@ put $dbfile1099 $appfile1099
 quit
 END_SCRIPT
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -54,6 +54,6 @@ mv $dbfile1099 $HOME/Monthly/1099/
 echo "$dbfile1099 has been archieved to $HOME/Monthly/1099/ path"
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0

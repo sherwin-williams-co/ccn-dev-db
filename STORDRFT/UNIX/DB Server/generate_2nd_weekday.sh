@@ -2,7 +2,7 @@
 ##################################################################################################################################
 # Script name   : generate_2nd_weekday.sh
 #
-# Description   : This script will invoke SD_COMMON_TOOLS.GENERATE_SECOND_WEEKDAY 
+# Description   : This script will invoke SD_COMMON_TOOLS.GENERATE_SECOND_WEEKDAY
 #                 and generate a file with the second weekday of the month
 #
 # Created       : 03/01/2016 nxk927 CCN Project Team.....
@@ -39,7 +39,7 @@ exit :exitCode;
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -49,7 +49,7 @@ if [ $status -ne 0 ]; then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "PROCESSING FINISHED FOR $proc_name AT ${TIME} ON ${DATE}"  
+echo "PROCESSING FINISHED FOR $proc_name AT ${TIME} ON ${DATE}"
 
 exit 0
 ############################################################################

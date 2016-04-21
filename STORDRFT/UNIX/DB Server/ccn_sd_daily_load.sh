@@ -2,13 +2,13 @@
 ##############################################################################################################################
 # Script name   : ccn_sd_daily_load.sh
 #
-# Description   : This shell program will initiate the script that 
+# Description   : This shell program will initiate the script that
 #                 Loads all the store drafts tables
 #                 It also sends the emails regarding starting and ending of the process#
-#				  
+#
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/05/2014 axk326 CCN Project Team.....
-#			 Commented daily_paids_load.sh and triggered it out in individual cron 
+#            Commented daily_paids_load.sh and triggered it out in individual cron
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 01/12/2016 axk326 CCN Project Team.....
@@ -29,13 +29,13 @@ DATE=${DAILY_LOAD_RUNDATE}
 # below command will invoke the check_file_ok_status shell script to check if the batch_dependency.ok file exists or not
 ./check_file_ok_status.sh batch_dependency.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
     TIME=`date +"%H:%M:%S"`
-    echo "Processing failed for ccn_sd_daily_load at $TIME on $DATE"    
-	exit 1;
+    echo "Processing failed for ccn_sd_daily_load at $TIME on $DATE"
+    exit 1;
 fi
 
 proc="ccn_sd_daily_load"
@@ -48,15 +48,15 @@ echo "Processing Started for $proc at $TIME on $DATE"
 ##############################################################################
 ./dailyLoad_CAT_Archieve.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      echo "Concatenation and Archiving process failed"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh batch_dependency
-	 TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for $proc at $TIME on $DATE" 
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh batch_dependency
+     TIME=`date +"%H:%M:%S"`
+     echo "Processing failed for $proc at $TIME on $DATE"
      exit 1;
 fi
 
@@ -69,7 +69,7 @@ fi
 # if there is no error in the daily load then following process will run
 #      1) Call for the daily issue interface files into stordrft database
 #      2) Call for the daily reconciliation report
-# else it will send mail for the error. 
+# else it will send mail for the error.
 ##############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -84,25 +84,25 @@ END
 exit 1
 else
     echo "Running DLY_DRAFT_LOAD process"
-	./DLY_DRAFT_LOAD.sh
-	############################################################################
-	#                           ERROR STATUS CHECK 
-	############################################################################
-	status=$?
-	if [ $status -ne 0 ]; then
-	exit 1;
-	fi
+   ./DLY_DRAFT_LOAD.sh
+    ############################################################################
+    #                           ERROR STATUS CHECK
+    ############################################################################
+    status=$?
+    if [ $status -ne 0 ]; then
+    exit 1;
+    fi
     echo "Running DLY_RECONCILIATION process"
-	./DLY_RECONCILIATION.sh
-	############################################################################
-	#                           ERROR STATUS CHECK 
-	############################################################################
-	status=$?
-	if [ $status -ne 0 ]; then
-	TIME=`date +"%H:%M:%S"`
-	echo "Processing failed for $proc at $TIME on $DATE" 
-	exit 1;
-	fi	 
+    ./DLY_RECONCILIATION.sh
+    ############################################################################
+    #                           ERROR STATUS CHECK
+    ############################################################################
+    status=$?
+    if [ $status -ne 0 ]; then
+    TIME=`date +"%H:%M:%S"`
+    echo "Processing failed for $proc at $TIME on $DATE"
+    exit 1;
+    fi
 fi
 
 ##############################################################################
@@ -111,32 +111,32 @@ fi
 ./Archive_dailyLoad_SC.sh
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh batch_dependency
-	 TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for $proc at $TIME on $DATE" 
+     ./rename_file_ok_to_notok.sh batch_dependency
+     TIME=`date +"%H:%M:%S"`
+     echo "Processing failed for $proc at $TIME on $DATE"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 ##############################################################################
 # Load the data from cpr into stordrft database
 ##############################################################################
 ./cc_employee_tax_load.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "CC_EMPLOYEE_TAX_LOAD script failed at $TIME on $DATE"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
      exit 1;
 fi
 

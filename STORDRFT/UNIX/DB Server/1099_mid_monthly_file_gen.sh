@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 ###################################################################################################
 # Script name   : 1099_mid_monthly_file_gen.sh
 #
@@ -41,17 +41,17 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh BUILD_1099_MID_MNTLY_FILE_ERROR
+     ./send_err_status_email.sh BUILD_1099_MID_MNTLY_FILE_ERROR
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

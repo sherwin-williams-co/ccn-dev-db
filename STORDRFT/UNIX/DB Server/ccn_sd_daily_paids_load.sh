@@ -4,7 +4,7 @@
 #
 # Description   : This shell program will initiate the script that
 #                 Loads all the store drafts tables paid details
-#				  
+#
 # Created  : 11/05/2014 axk326 CCN Project Team.....
 # Modified : 11/06/2014 jxc517/axk326 CCN Project Team.....
 #            Added concatenation and archiving process before run
@@ -31,12 +31,12 @@ DATE=${DAILY_LOAD_RUNDATE}
 # below command will invoke the check_file_ok_status shell script to check if the paids_mntnc_check.ok file exists or not
 ./check_file_ok_status.sh paids_mntnc_check.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "paids_mntnc_check failed for $proc at ${TIME} on ${DATE}"
+     echo "paids_mntnc_check failed for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
@@ -47,14 +47,14 @@ echo "Processing Started for $proc at $TIME on $DATE"
 ########################################################################################
 ./dailyLoad_CAT_Archieve_Paids.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "Concatenation and Archiving Store Drafts Paids process failed for $proc at ${TIME} on ${DATE}"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh paids_mntnc_check
+     echo "Concatenation and Archiving Store Drafts Paids process failed for $proc at ${TIME} on ${DATE}"
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh paids_mntnc_check
      exit 1;
 fi
 
@@ -63,14 +63,14 @@ fi
 ##############################################################################
 ./daily_paids_load.sh
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "daily paids load process exiting out for $proc at ${TIME} on ${DATE}"
-	  ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	  ./rename_file_ok_to_notok.sh paids_mntnc_check
+     echo "daily paids load process exiting out for $proc at ${TIME} on ${DATE}"
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh paids_mntnc_check
      exit 1;
 fi
 
@@ -80,19 +80,19 @@ fi
 ./Archive_dailyLoad_Paid_Files.sh
 
 ##############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ##############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh paids_mntnc_check
+    ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+    ./rename_file_ok_to_notok.sh paids_mntnc_check
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

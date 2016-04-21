@@ -6,7 +6,7 @@
 # Description   : This script is to automatically run the 1099 monthly process
 #
 # Created  : 04/12/2016 nxk927 CCN Project Team.....
-# Modified : 
+# Modified :
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh

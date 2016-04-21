@@ -30,7 +30,7 @@ quit
 END_SCRIPT
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -43,6 +43,6 @@ echo " FTP Process Successful "
 rm -f sd_monthly_load.trg
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0

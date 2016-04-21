@@ -2,9 +2,9 @@
 ##############################################################################################################
 # Script Name : get_dateparam.sh
 #
-# Description : This shell script will get dates information to date_param.config file 
-#               by spooling from storedrft_param table.                  
-# 
+# Description : This shell script will get dates information to date_param.config file
+#               by spooling from storedrft_param table.
+#
 # Created     : 04/23/2015 axk326 CCN Project Team....
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the .ok file exists or not before proceeding further
@@ -25,12 +25,12 @@ DATE=`date +"%m/%d/%Y"`
 # below command will invoke the check_file_ok_status shell script to check if the batch_dependency.ok file exists or not
 ./check_file_ok_status.sh batch_dependency.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "Processing failed for get_dateparam at $TIME on $DATE"
+     echo "Processing failed for get_dateparam at $TIME on $DATE"
      exit 1;
 fi
 
@@ -59,7 +59,7 @@ SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
        'QTLY_1099_RUNDATE='||To_char(QTLY_1099_RUNDATE, 'mm/dd/yyyy'),
        'MNTLY_1099_RUNDATE='||To_char(MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
        'MID_MNTLY_1099_RUNDATE='||To_char(MID_MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
-	   'DAILY_PREV_RUNDATE='||TO_char(DAILY_PREV_RUNDATE, 'mm/dd/yyyy')
+       'DAILY_PREV_RUNDATE='||TO_char(DAILY_PREV_RUNDATE, 'mm/dd/yyyy')
   FROM STOREDRFT_PARAM;
 
 spool off
@@ -72,15 +72,15 @@ cd $HOME
 mv -f date_param_temp.config date_param.config
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for Get Parameter at $TIME on $DATE"
-	 cd $HOME/dailyLoad
-	 ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
-	 ./rename_file_ok_to_notok.sh batch_dependency
+     cd $HOME/dailyLoad
+     ./send_err_status_email.sh SD_BATCH_PROCESSING_ERROR
+     ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 

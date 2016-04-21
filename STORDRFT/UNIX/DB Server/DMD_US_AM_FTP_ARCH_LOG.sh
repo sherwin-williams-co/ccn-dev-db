@@ -31,17 +31,17 @@ if [ -f $HOME/initLoad/$FILE_NAME ];
 then
    if [[ `ls -l $HOME/initLoad/$FILE_NAME  | awk '{print $5}'` -eq 1 ]]
    then
-	  echo "$FILE_NAME is empty"
+      echo "$FILE_NAME is empty"
    else
-	  echo "Processing Started for $proc_name1 at $TIME on $DATE"
-	  ./DMD_US_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log
+      echo "Processing Started for $proc_name1 at $TIME on $DATE"
+      ./DMD_US_AM_FTP_ARCH.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log
    fi
 else
     echo "$FILE_NAME not found"
 fi
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -50,7 +50,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

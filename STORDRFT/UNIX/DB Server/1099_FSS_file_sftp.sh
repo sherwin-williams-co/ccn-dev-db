@@ -5,7 +5,7 @@
 # Description   : This shell program will initiate the 1099 FSS process as and when needed
 #
 # Created  : 08/28/2015 jxc517 CCN Project Team.....
-# Modified : 
+# Modified :
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -34,20 +34,20 @@ exit 0
 EOD
 
 ############################################################################
-#                           ARCHIVING THE FILES 
+#                           ARCHIVING THE FILES
 ############################################################################
 mv $HOME/datafiles/STINSINV*.TXT $HOME/datafiles/archieve/1099_FSS
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     echo "Processing failed for $proc at ${TIME} on ${DATE}"  
+     echo "Processing failed for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 exit 0
 ############################################################################

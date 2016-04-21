@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : DD_US_NAM_FTP_ARCH.sh
 #
-# Description   : 
+# Description   :
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 04/27/2015 axk326 CCN Project Team.....
@@ -56,7 +56,7 @@ cd $HOME/dailyLoad
 
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

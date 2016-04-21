@@ -6,7 +6,7 @@
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
 # Modified : 11/12/2014 axk326 CCN Project Team.....
-#            Date logic modified to run on every day. 
+#            Date logic modified to run on every day.
 #          : 04/27/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
@@ -28,17 +28,17 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ./EXEC_PROC_1PARAM.sh "SD_AUDITFILES_PKG.CREATE_US_NONAUTO_BANK_FILE" "$DATE"
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-	 echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

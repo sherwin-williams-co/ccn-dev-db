@@ -14,7 +14,7 @@
 proc="1099_FSS_monthly_file_gen"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
-DATE=${MNTLY_1099_RUNDATE} 
+DATE=${MNTLY_1099_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"
@@ -38,7 +38,7 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
@@ -48,6 +48,6 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 exit 0
 ############################################################################

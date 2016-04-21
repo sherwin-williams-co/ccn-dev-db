@@ -9,10 +9,10 @@
 #            01/16/2015 axk326.....
 #            Added code to invoke DRAFT.TRG file to be placed on the remote server when the GainLoass_JV process is completed
 #          : 04/23/2015 axk326 CCN Project Team.....
-#            Added call for date_host.sh file to pick up date_param.config file and to pull out the run date 
+#            Added call for date_host.sh file to pick up date_param.config file and to pull out the run date
 #            Added call for get_dateparam.sh to spool the dates to date_param.config file
 #          : 11/18/2015 axk326 CCN Project Team.....
-#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR 
+#            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 03/18/2016 nxk927 CCN Project Team.....
 #            Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
@@ -52,20 +52,20 @@ exit :exitCode;
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh GAIN_LOSS_JV_ERROR	
-	 TIME=`date +"%H:%M:%S"`
-	 echo "END GAIN LOSS JV Query : Processing failed at $TIME on $DATE"
+     ./send_err_status_email.sh GAIN_LOSS_JV_ERROR
+     TIME=`date +"%H:%M:%S"`
+     echo "END GAIN LOSS JV Query : Processing failed at $TIME on $DATE"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"  
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "END GAIN LOSS JV Query : Processing finished at ${TIME}"
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 ###############################################################################
 
@@ -78,7 +78,7 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ftp_draft_trg.sh : Processing Started at $TIME on $DATE"
 echo -e "FTP SCRIPT CALL REPLACE"
-./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log 
+./ftp_draft_trg.sh >> $LOGDIR/$proc_name1"_"$TimeStamp.log
 
 ############################################################################
 #                           ERROR STATUS CHECK
@@ -102,10 +102,10 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo -e "\nSTART ARCHIVE_DRAFT_TRG_FILE.sh : Processing Started at $TIME on $DATE"
 echo -e "ARCHIVE SCRIPT CALL REPLACE"
-./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log 
+./ARCHIVE_DRAFT_TRG_FILE.sh >> $LOGDIR/$proc_name2"_"$TimeStamp.log
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -116,7 +116,7 @@ fi
 
 TIME=`date +"%H:%M:%S"`
 echo -e "\nEND ARCHIVE_DRAFT_TRG_FILE.sh : Processing finished at $TIME"
-echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

@@ -5,7 +5,7 @@
 # Description   : This script is to send email communication about the FSS file to erp team
 #
 # Created  : 01/12/2016 jxc517 CCN Project Team.....
-# Modified :            
+# Modified :
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -36,7 +36,7 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
@@ -46,7 +46,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

@@ -39,19 +39,19 @@ exit :exitCode;
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-	 ./send_err_status_email.sh GAIN_LOSS_JV_UNBOOKED_ERROR	
-	 TIME=`date +"%H:%M:%S"`
-	 echo "Process Failed for $proc_name at $TIME on $DATE"
+     ./send_err_status_email.sh GAIN_LOSS_JV_UNBOOKED_ERROR
+      TIME=`date +"%H:%M:%S"`
+     echo "Process Failed for $proc_name at $TIME on $DATE"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

@@ -1,9 +1,9 @@
 #!/bin/sh
 #######################################################################################
-# Description     : Script to FTP INSPAYMENT.TRG file to the STDSSAPHQ server 
-#                   once the execution of GainLossJV script is completed. 
-# Created by/Date : AXK326 01/15/2015 
-# Modified on/Date: AXK326 04/28/2015 
+# Description     : Script to FTP INSPAYMENT.TRG file to the STDSSAPHQ server
+#                   once the execution of GainLossJV script is completed.
+# Created by/Date : AXK326 01/15/2015
+# Modified on/Date: AXK326 04/28/2015
 #                   Added date parameter to pick date from the config file
 #                 : AXK326 10/12/2015 changed name to INSPAYMENT.TRG
 #                 : AXK326 02/03/2015 Originally modified Trigger file name from DRAFT.TRG to INSPAYMENT.TRG in Production Environment
@@ -18,7 +18,7 @@
 . /app/stordrft/host.sh
 
 TIME=`date +"%H:%M:%S"`
-DATE=${GAINLOSS_MNTLY_RUNDATE} 
+DATE=${GAINLOSS_MNTLY_RUNDATE}
 proc_name="ftp_draft_trg"
 
 echo "Processing Started for $proc_name at ${TIME} on ${DATE}"
@@ -37,7 +37,7 @@ quit
 END_SCRIPT
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then

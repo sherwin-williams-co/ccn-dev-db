@@ -1,7 +1,7 @@
 #!/bin/sh
 #######################################################################################
-# Description     : Script to FTP PAID_DRAFT.TRG file to the STDSSAPHQ server 
-#                   once the execution of JV_monthly_load.sh scripts is completed. 
+# Description     : Script to FTP PAID_DRAFT.TRG file to the STDSSAPHQ server
+#                   once the execution of JV_monthly_load.sh scripts is completed.
 # Created         : SXT410 01/20/2015
 # Modified        : sxt410 02/04/2015 Changed trigger file name from PAID_DRAFT.TRG to DRAFT.TRG
 #                 : 04/27/2015 axk326 CCN Project Team.....
@@ -35,7 +35,7 @@ quit
 END_SCRIPT
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -46,6 +46,6 @@ fi
 
 echo " FTP Process Successful "
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $File at ${TIME} on ${DATE}"  
+echo "Processing finished for $File at ${TIME} on ${DATE}"
 
 exit 0

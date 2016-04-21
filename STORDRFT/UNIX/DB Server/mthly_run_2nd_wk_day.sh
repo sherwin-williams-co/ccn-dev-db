@@ -38,7 +38,7 @@ fi
 TIME=`date +"%H:%M:%S"`
 SECOND_WEEKDAY=`cat $HOME/initLoad/SECOND_WEEKDAY.TXT`
 
-if [ $DATE == $SECOND_WEEKDAY ] 
+if [ $DATE == $SECOND_WEEKDAY ]
    then echo "MONTHLY PROCESS STARTED ON $SECOND_WEEKDAY AT ${TIME} ON ${DATE}"
    cd $HOME/initLoad
    sh Second_wk_day_mnthly_run.sh
@@ -47,7 +47,7 @@ if [ $DATE == $SECOND_WEEKDAY ]
 fi
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -57,5 +57,5 @@ if [ $status -ne 0 ]; then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "PROCESSING FINISHED FOR $PROC_NAME AT ${TIME} ON ${DATE}"  
+echo "PROCESSING FINISHED FOR $PROC_NAME AT ${TIME} ON ${DATE}"
 exit 0

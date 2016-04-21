@@ -23,7 +23,7 @@ TIME=`date +"%H:%M:%S"`
 DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo "Processing Started for $proc_name at $TIME on $DATE" 
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 # Move to datafiles from where ever you are in
 cd $HOME/initLoad
@@ -56,7 +56,7 @@ echo "DLY_DRAFT_CAN_NAM has been archieved to $ARCHIVE path"
 cd $HOME/dailyLoad
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

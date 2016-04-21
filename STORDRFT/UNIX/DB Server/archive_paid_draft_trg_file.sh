@@ -2,7 +2,7 @@
 #############################################################################
 # Script name : archive_paid_draft_trg_file.sh
 #
-# Description : This shell program will Archive the Paid_Draft.trg 
+# Description : This shell program will Archive the Paid_Draft.trg
 #                 file created when JV_monthly_load.sh process is completed.
 #
 # Created  : 01/20/2015 SXT410 CCN Project Team.....

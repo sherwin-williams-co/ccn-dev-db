@@ -4,13 +4,13 @@
 #
 # Description : This shell script will generate param_app_server.lst file that gets ftp'd
 #               as param.lst to app server
-# 
+#
 # Created     : 04/22/2015 jxc517 Store Draft Project
 # Modified    : 03/18/2016 nxk927 CCN Project Team.....
 #               Changed the order of declaring variables after capturing the STATUS to avoid the scenario where
 #               the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #             : 03/24/2016 nxk927 CCN Project Team.....
-#               changed the error check to make it uniform. 
+#               changed the error check to make it uniform.
 #               added proc name in the error message
 ############################################################################
 
@@ -38,7 +38,7 @@ exit;
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -59,7 +59,7 @@ quit
 END_SCRIPT
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -71,6 +71,6 @@ fi
 echo " FTP Process Successful "
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}" 
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0

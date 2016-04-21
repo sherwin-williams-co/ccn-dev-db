@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 ############################################################################################################################
 # Script name   : EXEC_PROC_1PARAM.sh
 #
@@ -32,7 +32,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 $proc_name
-Exception 
+Exception
  when others then
  :exitCode := 2;
  END;
@@ -41,7 +41,7 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -53,7 +53,7 @@ if [ $status -ne 0 ]; then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

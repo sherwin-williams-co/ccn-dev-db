@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : Archive_dailyLoad.sh
 #
-# Description   : This shell program will Archive the dailyLoad files created 
+# Description   : This shell program will Archive the dailyLoad files created
 #                   for CUSTOMER_LABOR, STORE_DRAFT, Suntrust & Royal paid Files
 #
 # Created  : 10/22/2014 jxc517 CCN Project Team.....
@@ -33,7 +33,7 @@ fi
 
 cd $CUR_PATH
 #Archive file for store_draft.
-if 
+if
     ls STORE_DRAFT_*.TXT &> /dev/null; then
     echo " Store Draft files exist "
     find -maxdepth 1 -name STORE_DRAFT_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
@@ -42,7 +42,7 @@ else
 fi
 
 #Archive file for customer_labor.
-if 
+if
     ls CUSTOMER_LABOR_*.TXT &> /dev/null; then
     echo " Customer Labor files exist "
     find -maxdepth 1 -name CUSTOMER_LABOR_\*.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
@@ -54,7 +54,7 @@ fi
 cd $HOME/dailyLoad
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

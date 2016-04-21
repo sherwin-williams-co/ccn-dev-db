@@ -2,7 +2,7 @@
 #######################################################################################
 # Script name   : ARCHIVE_DRAFT_TRG_FILE
 #
-# Description   : This shell program will Archive the INSPAYMENT.trg 
+# Description   : This shell program will Archive the INSPAYMENT.trg
 #                 file created when the gainloss_jv process is completed
 # Created  : 01/20/2015 AXK326 CCN Project Team.....
 # Modified : 04/27/2015 AXK326 CCN Project Team.....
@@ -33,7 +33,7 @@ else
 fi
 
 #Archive file for INSPAYMENT.TRG file.
-if 
+if
     ls INSPAYMENT.TRG &> /dev/null; then
     echo " INSPAYMENT.TRG file exist "
     find -maxdepth 1 -name INSPAYMENT.TRG -exec mv {} $ARCHIVE_PATH/"INSPAYMENT"_"$DATE"/INSPAYMENT"_"$TimeStamp.TRG \; > /dev/null 2>&1
@@ -42,7 +42,7 @@ else
 fi
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
@@ -51,7 +51,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo " Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo " Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

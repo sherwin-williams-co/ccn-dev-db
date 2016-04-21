@@ -7,7 +7,7 @@
 #
 # Created  : 06/18/2015 nxk927 CCN Project Team.....
 # Modified : 09/23/2015 axk326 CCN Project Team.....
-#            Substituted hard coded date value with the date value from date_param.config file           
+#            Substituted hard coded date value with the date value from date_param.config file
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -39,7 +39,7 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
@@ -49,7 +49,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

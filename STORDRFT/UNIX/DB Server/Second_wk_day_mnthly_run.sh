@@ -53,7 +53,7 @@ then
 fi
 
 ##############################################################
-# Unbooked Reports - MAIL to Christopher T. Greve/Sherwin-Williams@SWCBD 
+# Unbooked Reports - MAIL to Christopher T. Greve/Sherwin-Williams@SWCBD
 ##############################################################
 ./sd_gl_unbooked_report_mail.sh
 

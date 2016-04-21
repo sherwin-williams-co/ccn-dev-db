@@ -1,12 +1,12 @@
-#!/bin/sh 
+#!/bin/sh
 ###############################################################################################################################
 # Script Name : update_storedrft_param.sh
 #
 # Description : This shell script will update storedrft_param table.
 #               This shell script will also create param.lst file in Reports folder
-# 
+#
 # Created     : 04/22/2015 jxc517 Store Draft Project
-# Modified    : 04/24/2015 axk326 STore Draft Project 
+# Modified    : 04/24/2015 axk326 STore Draft Project
 #               Changed date field as per the column name change
 #               Adding date logic to populate columns based on sysdate
 #             : 11/18/2015 axk326 CCN Project Team.....
@@ -22,7 +22,7 @@
 # below command will invoke the check_file_ok_status shell script to check if the batch_dependency.ok file exists or not
 ./check_file_ok_status.sh batch_dependency.ok
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
@@ -48,15 +48,15 @@ BEGIN
 UPDATE storedrft_param
    SET DAILY_LOAD_RUNDATE = TRUNC(SYSDATE),
        QTLY_1099_RUNDATE = TRUNC(SYSDATE,'Q'),
-	   MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
-	   JV_MNTLY_RUNDATE = TRUNC(SYSDATE,'MM'),
-	   GAINLOSS_MNTLY_RUNDATE = TRUNC(SYSDATE,'MM'),
-	   PL_GAIN_RUNDATE = TRUNC(SYSDATE,'MM'),
-	   SD_REPORT_QRY_RUNDATE = TRUNC(SYSDATE,'MM'),
-	   MID_MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
-	   DAILY_PREV_RUNDATE = TRUNC(sysdate-1);
+       MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
+       JV_MNTLY_RUNDATE = TRUNC(SYSDATE,'MM'),
+       GAINLOSS_MNTLY_RUNDATE = TRUNC(SYSDATE,'MM'),
+       PL_GAIN_RUNDATE = TRUNC(SYSDATE,'MM'),
+       SD_REPORT_QRY_RUNDATE = TRUNC(SYSDATE,'MM'),
+       MID_MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
+       DAILY_PREV_RUNDATE = TRUNC(sysdate-1);
 COMMIT;
-Exception 
+Exception
  when others then
  :exitCode := 2;
  END;
@@ -65,14 +65,14 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-	 cd $HOME/dailyLoad
-	 ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
-	 ./rename_file_ok_to_notok.sh batch_dependency
+     cd $HOME/dailyLoad
+     ./send_err_status_email.sh UPD_STRDRFT_PARAM_ERROR
+     ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
 fi
 

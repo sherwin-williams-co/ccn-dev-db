@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : Archive_dailyLoad_Paid_Files.sh
 #
-# Description   : This shell program will Archive the dailyLoad files created 
+# Description   : This shell program will Archive the dailyLoad files created
 #                 for Suntrust & Royal paid Files once the process is finished
 #
 # Created  : 11/06/2014 axk326 CCN Project Team.....
@@ -34,7 +34,7 @@ fi
 
 cd $CUR_PATH
 #Archive file for suntrust.
-if 
+if
     ls STBD0101_SUNTRUST_PAID.TXT &> /dev/null; then
     echo " suntrust paid files exist "
     find -maxdepth 1 -name STBD0101_SUNTRUST_PAID.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
@@ -43,7 +43,7 @@ else
 fi
 
 #Archive file for royal.
-if 
+if
     ls STBD0601_ROYALBNK_PAID2.TXT &> /dev/null; then
     echo " royal paid files exist "
     find -maxdepth 1 -name STBD0601_ROYALBNK_PAID2.TXT -exec mv {} $ARCHIVE_PATH/"dailyLoad"_"$DATE" \; > /dev/null 2>&1
@@ -55,7 +55,7 @@ fi
 cd $HOME/dailyLoad
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

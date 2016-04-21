@@ -55,7 +55,7 @@ echo "DLY_DRAFT_CAN_AM has been archieved to $ARCHIVE path"
 cd $HOME/dailyLoad
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################

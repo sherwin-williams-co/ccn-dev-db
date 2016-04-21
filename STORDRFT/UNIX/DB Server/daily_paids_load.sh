@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : daily_paids_load.sh
 #
@@ -18,7 +18,7 @@
 proc="daily_paids_load"
 LOGDIR=$HOME/dailyLoad/logs
 TIME=`date +"%H:%M:%S"`
-DATE=${DAILY_LOAD_RUNDATE} 
+DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
@@ -33,7 +33,7 @@ BEGIN
 
 MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_START');
 SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SP1();
- Exception 
+ Exception
  when others then
  :exitCode := 2;
  END;
@@ -42,7 +42,7 @@ exit :exitCode
 END
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
 status=$?
 TIME=`date +"%H:%M:%S"`
@@ -59,7 +59,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_END');
- Exception 
+ Exception
  when others then
  :exitCode := 2;
  END;
@@ -67,7 +67,7 @@ MAIL_PKG.send_mail('SD_DAILY_PAIDS_LOAD_END');
 exit :exitCode
 END
 
-echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################
