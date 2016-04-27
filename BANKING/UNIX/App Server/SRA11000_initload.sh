@@ -4,7 +4,8 @@
 # Description   : This shell script will perform all the init load process
 #
 # Created  : 03/04/2016 dxv848/nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 04/27/2016 nxk927 CCN Project Team.....
+#            updated the error handling to take care of any errors being passed back from sqlplus
 #################################################################
 . /app/banking/dev/banking.config
 
@@ -24,18 +25,29 @@ sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<E
 set heading off;
 set serveroutput on;
 set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
 @$HOME/TRUNC_SRA11000TABLES.sql
 
-exit;
+Exception
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 EOF
-TIME=`date +"%H:%M:%S"`
 status=$?
          if test $status -ne 0
          then
+		     TIME=`date +"%H:%M:%S"`
              echo "processing FAILED to truncate the tables at ${TIME} on ${DATE}"
              exit 1;
          fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for truncate tables at  at $TIME on $DATE"
 
 
@@ -107,20 +119,30 @@ sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<E
 set heading off;
 set serveroutput on;
 set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+$HOME/TRUNC_SRA11000TABLES.sql
 @$HOME/SUMMARY.sql "to_date('$dt1','YYMMDD')"
 @$HOME/JV_EXTRCT.sql "to_date('$dt1','YYMMDD')"
 @$HOME/ACH_DRAFT.sql "to_date('$dt1','YYMMDD')"
-
-exit;
+Exception
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 EOF
-TIME=`date +"%H:%M:%S"`
 status=$?
          if test $status -ne 0
          then
+		     TIME=`date +"%H:%M:%S"`
              echo "processing FAILED to load SRA13510 , SRA10510 and SRA11060 at ${TIME} on ${DATE}"
              exit 1;
          fi
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for loading tables at $dt1 at $TIME on $DATE"
 
 #################################################################
@@ -147,10 +169,11 @@ echo "Processing Finished for loading tables at $dt1 at $TIME on $DATE"
 #################################################################
             $HOME/send_mail.sh "SRA11000_INITLOAD"
 
-            TIME=`date +"%H:%M:%S"`
+            
             status=$?
             if test $status -ne 0
             then
+			    TIME=`date +"%H:%M:%S"`
                 echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
                 exit 1;
             fi

@@ -1,10 +1,11 @@
 #!/bin/sh
 #################################################################
-# Script name   : SRA11000_initload.sh #
-# Description   : This shell script will perform all the init load process
+# Script name   : send_mail.sh
+# Description   : This shell script will send email  for the passed category as parameter
 #
 # Created  : 03/04/2016 dxv848/nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 04/27/2016 nxk97 CCN Project Team.....
+#            updated the comments and the updated the error handling to exit out if any error found
 #################################################################
 . /app/banking/dev/banking.config
 
@@ -19,19 +20,29 @@ echo "Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw << END
 set heading off;
+set serveroutput on;
 set verify off;
-execute MAIL_PKG.send_mail('$1');
-exit;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+:exitCode := 0;
+MAIL_PKG.send_mail('$1');
+Exception
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 END
 
 ############################################################################
 #                           ERROR STATUS CHECK
 ############################################################################
-
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
     exit 1;
 fi

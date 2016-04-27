@@ -21,7 +21,9 @@
 #            created separate scripts
 #            1.concatenate the input files then move only input files to archive folder-- SRA11000_Archinput_file.sh
 #            2. move the concatenate files to archive folder after the core process done -- SRA11000_Archconcat_file.sh
-#
+#          : 04/27/2016 nxk927 CCN Project Team.....
+#            pushed the time variable inside in teh error check so the error check can be handled properly
+#            updated the error check
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -51,13 +53,15 @@ fi
 #################################################################
 
 ./SRA11000_Rename_file.sh
-TIME=`date +"%H:%M:%S"`
+
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for SRA11000_Rename_file script at ${TIME} on ${DATE}"
     exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Rename_file script at ${TIME} on ${DATE}"
 
 #################################################################
@@ -65,13 +69,14 @@ echo "Processing finished for SRA11000_Rename_file script at ${TIME} on ${DATE}"
 #################################################################
 
 ./SRA11000_Archinput_file.sh
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
     exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
 
 #################################################################
@@ -80,18 +85,29 @@ echo "Processing finished for SRA11000_Archinput_file script at ${TIME} on ${DAT
 echo "Processing started for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
-set verify off;
 set serveroutput on;
-EXECUTE STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS(TRUNC(SYSDATE));
-exit
+set verify off;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS(TRUNC(SYSDATE));
+Exception
+ when others then
+ :exitCode := 2;
+ END;
+ /
+exit :exitCode
 END
-TIME=`date +"%H:%M:%S"`
+
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
     exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
 
 #################################################################
@@ -99,50 +115,54 @@ echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at 
 #################################################################
 
 ./SRA11000_Archconcat_file.sh
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for SRA11000_Archconcat_file script at ${TIME} on ${DATE}"
     exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Archconcat_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-./SRA11000_dailyRun_ftp.sh
-TIME=`date +"%H:%M:%S"`
+#./SRA11000_dailyRun_ftp.sh
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
      exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_dailyRun_ftp at ${TIME} on ${DATE}"
 
 #################################################################
 #         ARCHIVE files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
 ./SRA11000_Arch_Output_file.sh
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+    TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for SRA11000_Arch_Output_file script at ${TIME} on ${DATE}"
     exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Arch_Output_file script at ${TIME} on ${DATE}"
 
 #################################################################
 #                                              ERROR STATUS CHECK
 #################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 exit 0

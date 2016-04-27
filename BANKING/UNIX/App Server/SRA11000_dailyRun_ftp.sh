@@ -6,7 +6,8 @@
 #                 UAR.POS [SMIS1.SRA12060_*] files to stuar2hq.sw.sherwin.com server
 #
 # Created  : 10/16/2015 jxc517 CCN Project Team.....
-# Modified : 
+# Modified : 04/27/2016 nxk927 CCN Project Team.....
+#            pushed the time variable inside in teh error check so the error check can be handled properly
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -35,13 +36,14 @@ FTP_MF
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 
 exit 0

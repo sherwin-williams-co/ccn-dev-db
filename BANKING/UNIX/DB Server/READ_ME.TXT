@@ -1,0 +1,1 @@
+This folder contains shell script files for Banking Project
