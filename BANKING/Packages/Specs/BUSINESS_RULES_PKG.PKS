@@ -154,7 +154,7 @@ Changed :
 IN_ROW_DATA               IN  CLOB,
 IN_LEAD_FLAG              IN VARCHAR2);
 
-FUNCTION VALIDATE_CC_BNK_NBR(
+FUNCTION GET_SNZ_SAM_CODE(
 /******************************************************************************
   This function returns exception code defined by mainframe as CODE1(Exception code)
   for the cost center and bank account number passed
@@ -164,7 +164,8 @@ FUNCTION VALIDATE_CC_BNK_NBR(
   3) NULL := no issue
 
 Created : 02/08/2015 nxk927/dxv848 CCN Project....
-Changed :
+Changed : 04/28/2016 nxk927 CCN Project....
+          changed the function name from VALIDATE_CC_BNK_NBR to GET_SNZ_SAM_CODE
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2,
 IN_BANK_ACCT_NBR    IN VARCHAR2) RETURN VARCHAR2;
