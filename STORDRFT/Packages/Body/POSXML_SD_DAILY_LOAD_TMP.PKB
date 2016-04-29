@@ -1,6 +1,6 @@
 create or replace PACKAGE BODY POSXML_SD_DAILY_LOAD_TMP 
 /**************************************************************** 
-This package will load the POSXML store drafts new temp tables.
+This package will load the Temp CCN Store Drafts tables
 created : 03/22/2016 axk326 CCN Project....
 changed :
 *****************************************************************/
@@ -10,8 +10,8 @@ PROCEDURE TRUNCATE_TABLE(
 /*****************************************************************************
 	TRUNCATE_TABLE
 
-This procedure will truncate all loaded data for the table name that is 
-passed in.
+	This procedure will truncate all loaded data for the table name that is 
+  passed in.
 
 created : 04/01/2016 axk326 CCN Project....
 changed :
@@ -45,8 +45,8 @@ PROCEDURE TRUNCATE_POSXML_SD_TABLES
 /**************************************************************************************
 	TRUNCATE_POSXML_SD_TABLES
 
-This procedure will truncate all previous day data before loading current day data 
-into POSXML store drafts temp tables.
+	This procedure will truncate all previous day data before loading current day data 
+  into POSXML store drafts temp tables.
 
 created : 04/01/2016 axk326 CCN Project....
 changed : 
@@ -224,13 +224,14 @@ AS
                                            COLUMNS  
                                            storeNbr VARCHAR2(50) PATH 'storeNbr',
 									                         termNbr VARCHAR2(50) PATH 'termNbr',
-                                           tranNbr VARCHAR2(50) PATH 'tranNbr')X1,
+                                           tranNbr VARCHAR2(50) PATH 'tranNbr',
+                                           tranCode VARCHAR2(50) PATH 'tranCode')X1,
                  XMLTABLE('/CCN/draftLogs/draftLog'
     	                     PASSING PF.XML_DOCUMENT
                                           COLUMNS
                                           draftNbr VARCHAR2(50) PATH 'draftNbr')X2
            WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-             AND PF.KEY0 IN ('13');
+             AND X1.tranCode IN ('13');
 	 
 -- POSXML_CUST_LINE_ITEM_DATA_TMP
  CURSOR POSXML_CUST_LID IS 
@@ -261,7 +262,7 @@ AS
                                         draftAmt VARCHAR2(50) PATH 'draftAmt',
                                         draftAcctNbr VARCHAR2(50) PATH 'draftAcctNbr')X2
         WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-          AND PF.KEY0 IN ('19', '91');
+          AND X1.tranCode IN ('19', '91');
              
 	 
 -- POSXML_DISBRSMT_LINE_ITEM_TMP
@@ -296,7 +297,7 @@ AS
                                         miscAmt VARCHAR2(50) PATH 'miscAmt',
                                         primeSub VARCHAR2(50) PATH 'primeSub')X3
          WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-           AND PF.KEY0 IN ('82');
+           AND X1.tranCode IN ('82');
            
     V_COUNT  NUMBER := 0;
     V_TCOUNT NUMBER := 0;             
@@ -454,7 +455,7 @@ IS
     AND X1.storeNbr = POSX.COST_CENTER_CODE
     AND X1.termNbr = POSX.TERMINAL_NUMBER
     AND X1.tranNbr = POSX.TRANSACTION_NUMBER
-    AND PF.KEY0 IN ('11', '31', '85', '12', '22', '19', '10', '41');
+    AND X1.tranCode IN ('11', '31', '85', '12', '22', '19', '10', '41');
       
       V_COUNT  NUMBER := 0;
       V_TCOUNT NUMBER := 0;
@@ -576,7 +577,7 @@ IS
     AND X1.storeNbr = POSX.COST_CENTER_CODE
     AND X1.termNbr = POSX.TERMINAL_NUMBER
     AND X1.tranNbr = POSX.TRANSACTION_NUMBER
-    AND PF.KEY0 IN ('11', '31', '85', '12', '22', '19', '10', '41');
+    AND X1.tranCode IN ('11', '31', '85', '12', '22', '19', '10', '41');
     
       V_COUNT  NUMBER := 0;
       V_TCOUNT NUMBER := 0;
@@ -661,7 +662,7 @@ IS
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
     AND PF.KEY1 = PC.COST_CENTER_CODE
     AND PF.KEY2 = PC.TERMINAL_NUMBER
-    AND PF.KEY0 IN ('11', '10');
+    AND X1.tranCode IN ('11', '10');
       
       V_COUNT  NUMBER := 0;
       V_TCOUNT NUMBER := 0;
@@ -731,7 +732,8 @@ IS
                            COLUMNS  
                            storeNbr VARCHAR2(50) PATH 'storeNbr',
 						       			   termNbr VARCHAR2(50) PATH 'termNbr',
-									         tranNbr VARCHAR2(50) PATH 'tranNbr')X1,
+									         tranNbr VARCHAR2(50) PATH 'tranNbr',
+                           tranCode VARCHAR2(50) PATH 'tranCode')X1,
                 XMLTABLE('/CCN/bankCards/bankCard'
                           PASSING PF.XML_DOCUMENT
                           COLUMNS
@@ -743,7 +745,7 @@ IS
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
     AND PF.KEY1 = PC.COST_CENTER_CODE
     AND PF.KEY2 = PC.TERMINAL_NUMBER
-    AND PF.KEY0 IN ('11', '10');
+    AND X1.tranCode IN ('11', '10');
 
       V_COUNT  NUMBER := 0;
       V_TCOUNT NUMBER := 0;
@@ -818,7 +820,8 @@ IS
                                         storeNbr VARCHAR2(50) PATH 'storeNbr',
 									                      termNbr VARCHAR2(50) PATH 'termNbr',
 									                      tranNbr VARCHAR2(50) PATH 'tranNbr',
-                                        tranTotal VARCHAR2(50) PATH 'tranTotal')X1,
+                                        tranTotal VARCHAR2(50) PATH 'tranTotal',
+                                        tranCode VARCHAR2(50) PATH 'tranCode')X1,
               XMLTABLE('/CCN/salesLines/salesLine'
     	                  PASSING PF.XML_DOCUMENT
                                         COLUMNS
@@ -833,7 +836,7 @@ IS
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
     AND PF.KEY1 = PC.COST_CENTER_CODE
     AND PF.KEY2 = PC.TERMINAL_NUMBER
-    AND PF.KEY0 IN ('11', '10')
+    AND X1.tranCode IN ('11', '10')
     AND X3.seqNbr = '1';   
       
       V_COUNT  NUMBER := 0;
@@ -966,17 +969,7 @@ BEGIN
      
 -- STEP 2 
 -- Call to perform DailyLoad for POSXML SD temp tables from XML_DOCUMENT column of POS_XML_IFACE table
-    POSXML_DAILY_LOAD_SP(IN_DATE);
---    FOR rec IN (SELECT * FROM ERROR_LOG WHERE ERROR_DATE >= V_START_TIME_SD) LOOP
---        V_CLOB := V_CLOB || rec.COST_CENTER ||','|| rec.ERROR_TEXT || CHR(10);
---    END LOOP;
---        IF V_CLOB <> EMPTY_CLOB() THEN
---           MAIL_PKG.SEND_MAIL('POSXML_SD_DLY_LOAD',NULL, NULL, V_CLOB);
---        END IF;
---    EXCEPTION
---        WHEN OTHERS THEN
---            V_TRANS_STATUS := 'ERROR';
-        NULL;
+      POSXML_DAILY_LOAD_SP(IN_DATE);
     END;
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('POSXML_SD_DLY_LOAD', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
