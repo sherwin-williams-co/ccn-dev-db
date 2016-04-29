@@ -6,6 +6,7 @@
 # Created  : 03/04/2016 dxv848/nxk927 CCN Project Team.....
 # Modified : 04/27/2016 nxk97 CCN Project Team.....
 #            updated the comments and the updated the error handling to exit out if any error found
+#            removed variable TIMESTAMP
 #################################################################
 . /app/banking/dev/banking.config
 
@@ -14,9 +15,8 @@ proc_name=$1;
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo "Processing Started for $proc at $TIME on $DATE"
+echo "Processing Started for $proc_name at $TIME on $DATE"
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw << END
 set heading off;
@@ -32,7 +32,7 @@ Exception
  when others then
  :exitCode := 2;
  END;
- /
+/
 exit :exitCode
 END
 
@@ -48,7 +48,7 @@ then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing Finished for $proc at ${TIME} on ${DATE}"
+echo "Processing Finished for $proc_name at ${TIME} on ${DATE}"
 exit 0
 
 ############################################################################

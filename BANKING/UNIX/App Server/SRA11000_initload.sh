@@ -42,7 +42,7 @@ EOF
 status=$?
          if test $status -ne 0
          then
-		     TIME=`date +"%H:%M:%S"`
+             TIME=`date +"%H:%M:%S"`
              echo "processing FAILED to truncate the tables at ${TIME} on ${DATE}"
              exit 1;
          fi
@@ -137,7 +137,7 @@ EOF
 status=$?
          if test $status -ne 0
          then
-		     TIME=`date +"%H:%M:%S"`
+             TIME=`date +"%H:%M:%S"`
              echo "processing FAILED to load SRA13510 , SRA10510 and SRA11060 at ${TIME} on ${DATE}"
              exit 1;
          fi
@@ -172,7 +172,7 @@ echo "Processing Finished for loading tables at $dt1 at $TIME on $DATE"
             status=$?
             if test $status -ne 0
             then
-			    TIME=`date +"%H:%M:%S"`
+                TIME=`date +"%H:%M:%S"`
                 echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
                 exit 1;
             fi
