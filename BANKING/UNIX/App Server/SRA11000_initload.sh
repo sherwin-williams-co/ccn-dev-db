@@ -124,7 +124,6 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-$HOME/TRUNC_SRA11000TABLES.sql
 @$HOME/SUMMARY.sql "to_date('$dt1','YYMMDD')"
 @$HOME/JV_EXTRCT.sql "to_date('$dt1','YYMMDD')"
 @$HOME/ACH_DRAFT.sql "to_date('$dt1','YYMMDD')"
