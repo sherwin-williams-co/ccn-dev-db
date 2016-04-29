@@ -91,9 +91,9 @@ CURSOR POSXML_SD_CUR IS
 		      NULL FILLER,
 		      'O' TRANSACTION_SEGMENT_TYPE,  -- Unused column
 		      NULL NET_AMOUNT_SIGN,            
-		      FORMAT_INPUT_FOR_FILE(REPLACE(X2.draftAmt, '-', ''), '0', '9', '2') NET_AMOUNT,
+		      SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(X2.draftAmt, '-', ''), '0', '9', '2') NET_AMOUNT,
 		      NULL GROSS_AMOUNT_SIGN,          
-          FORMAT_INPUT_FOR_FILE(REPLACE(X3.tranGrs, '-', ''), '0', '9', '2') GROSS_AMOUNT,         
+          SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(X3.tranGrs, '-', ''), '0', '9', '2') GROSS_AMOUNT,
 		      NULL RETAINAGE_AMOUNT_SIGN,      
 		      'REQ' RETAINAGE_AMOUNT,            -- Required field, Need to change later after the xpath is available 
 		      '1'||TO_CHAR(TO_DATE(X1.ctlDate, 'yy-mm-dd'), 'yymmdd') ISSUE_DATE,
@@ -243,7 +243,7 @@ AS
 		           NULL FILLER,
 		           'O' TRANSACTION_SEGMENT_TYPE,  -- Unused column
 		           NULL EXT_AMOUNT_SIGN,
-		           FORMAT_INPUT_FOR_FILE(X2.draftAmt, '0', '9', '2') EXT_AMOUONT, 
+		           SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(X2.draftAmt, '0', '9', '2') EXT_AMOUONT,
                X2.draftAcctNbr ORGNL_CUSTOMER_ACCOUNT_NUMBER,
                X1.jobNbr ORGNL_JOB_NUMBER 			  
           FROM POS_XML_IFACE PF,
@@ -275,7 +275,7 @@ AS
 		           NULL FILLER,
 		           'O' TRANSACTION_SEGMENT_TYPE,       -- Unused column
 		           NULL EXT_AMOUNT_SIGN,
-		           FORMAT_INPUT_FOR_FILE(X2.draftAmt, '0', '9', '2'),
+		           SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(X2.draftAmt, '0', '9', '2'),
                SUBSTR(X3.primeSub, 1, 4) GL_PRIME_ACCOUNT_NUMBER,
                SUBSTR(X3.primeSub, 5, 3) GL_SUB_ACCOUNT_NUMBER 			  
           FROM POS_XML_IFACE PF,
@@ -517,9 +517,9 @@ IS
 			  DECODE(SUBSTR(X1.qty, 1), '-', '-', NULL) ITEM_QUANTITY_SIGN,                  -- NULL ITEM_QUANTITY_SIGN,
 			  X2.qty ITEM_QUANTITY,
 			  DECODE(SUBSTR(X1.price, 1), '-', '-', NULL) ITEM_PRICE_SIGN,                   -- NULL ITEM_PRICE_SIGN,
-			  FORMAT_INPUT_FOR_FILE(REPLACE(X2.price, '-', ''), 0, '7', '2') ITEM_PRICE,
+			  SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(X2.price, '-', ''), 0, '7', '2') ITEM_PRICE,
 			  DECODE(SUBSTR(X1.extendedPrice, 1), '-', '-', NULL) ITEM_EXTERNAL_AMOUNT_SIGN, -- NULL ITEM_EXTERNAL_AMOUNT_SIGN,
-			  FORMAT_INPUT_FOR_FILE(REPLACE(X2.extendedPrice, '-', ''), 0, '7', '2') ITEM_EXTERNAL_AMOUNT,        
+			  SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(X2.extendedPrice, '-', ''), 0, '7', '2') ITEM_EXTERNAL_AMOUNT,
 			  DECODE(SUBSTR(X1.floor, 1), '-', '-', NULL) ITEM_DISC_AMOUNT_SIGN,             -- NULL ITEM_DISC_AMOUNT_SIGN,
 			  X2.floorPrice ITEM_DISC_AMOUNT,                                                -- Need to change once xpath is confirmed
 			  'O' ITEM_SALES_TAX_INDICATOR,                                                  -- Need to change the boolean to 1, 0 to match daily file
@@ -636,7 +636,7 @@ IS
 			  NULL FILLER,
         'O' SALES_TAX_CORR_INDICATOR,        -- Unused Column
         DECODE(SUBSTR(X3.taxAmt , 1), '-', '-', NULL) SALES_TAX_COLL_AMOUNT_SIGN,
-        FORMAT_INPUT_FOR_FILE(REPLACE(X3.taxAmt, '-', ''), 0, '7', '2') SALES_TAX_COLL_AMOUNT,
+        SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(X3.taxAmt, '-', ''), 0, '7', '2') SALES_TAX_COLL_AMOUNT,
         X2.taxStatus SALES_TAX_INDICATOR,              -- Need to convert the boolean value 
         NULL SALES_TAX_RATE_SIGN,
         'REQ' SALES_TAX_RATE,                          -- Need to change when the xpath is available 
@@ -805,10 +805,10 @@ IS
 			  NULL FILLER,
         X2.payCd PAY_DISC_CODE,
         NULL TRANSACTION_TOTAL_AMOUNT_SIGN,
-        FORMAT_INPUT_FOR_FILE(X1.tranTotal, 0, '7', 2)TRANSACTION_TOTAL_AMOUNT,
+        SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(X1.tranTotal, 0, '7', 2)TRANSACTION_TOTAL_AMOUNT,
         X2.lineNbr POS_LINE_CNT,                -- Need to change it with the count for the total number of salesLine under salesLines tag
         NULL PAY_AMOUNT_SIGN,
-        FORMAT_INPUT_FOR_FILE(X1.tranTotal, 0, '7', 2) PAY_AMOUNT,          -- Need to change the xpath 
+        SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(X1.tranTotal, 0, '7', 2) PAY_AMOUNT,          -- Need to change the xpath
         NULL POS_DISC_SIGN,
         '0000000' POS_DISC,
         NULL SALES_DISC_AMOUNT_SIGN,
