@@ -11,9 +11,10 @@
 #            This is to prevent kicking off the process, as the bigger files are still 
 #            getting ftp'd even though they are available resulting in skipping data
 #            added exit 1 at the end which should never happen, but if happens should exit with 1
+#            added the absolute path while running the background process
 #################################################################
 #Run below command to make the process run in the background even after shutdown
-#nohup sh $HOME/SRA1100_bp.sh > $HOME/SRA1100_bp.log 2>&1 &
+#nohup sh /app/banking/dev/SRA1100_bp.sh > /app/banking/dev/SRA1100_bp.log 2>&1 &
 
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep SRA1100_bp.sh
