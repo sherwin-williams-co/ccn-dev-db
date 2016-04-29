@@ -47,7 +47,7 @@ BEGIN
     FOR REC IN (SELECT * 
                   FROM UAR_SUMMARY_EXTRCT_CNTRL_FL
                  WHERE LOAD_DATE >= (SELECT MAX(LOAD_DATE)
-                                       FROM SUMMARY_EXTRCT_CNTRL_FL
+                                       FROM UAR_SUMMARY_EXTRCT_CNTRL_FL
                                       WHERE LOAD_DATE < TRUNC(SYSDATE))) LOOP
         BEGIN
             GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
