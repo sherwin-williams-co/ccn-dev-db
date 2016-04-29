@@ -660,8 +660,8 @@ IS
                                         taxAmt VARCHAR2(50) PATH 'taxAmt')X3,
         POSXML_CSTMR_TMP PC
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-    AND PF.KEY1 = PC.COST_CENTER_CODE
-    AND PF.KEY2 = PC.TERMINAL_NUMBER
+    AND X1.storeNbr = PC.COST_CENTER_CODE
+    AND X1.termNbr = PC.TERMINAL_NUMBER
     AND X1.tranCode IN ('11', '10');
       
       V_COUNT  NUMBER := 0;
@@ -743,8 +743,8 @@ IS
                           cardType VARCHAR2(50) PATH 'cardType')X2,
         POSXML_CSTMR_TMP PC
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-    AND PF.KEY1 = PC.COST_CENTER_CODE
-    AND PF.KEY2 = PC.TERMINAL_NUMBER
+    AND X1.storeNbr = PC.COST_CENTER_CODE
+    AND X1.termNbr = PC.TERMINAL_NUMBER
     AND X1.tranCode IN ('11', '10');
 
       V_COUNT  NUMBER := 0;
@@ -834,8 +834,8 @@ IS
                                         seqNbr VARCHAR2(50) PATH 'seqNbr')X3,
         POSXML_CSTMR_TMP PC
   WHERE TRUNC(PF.CREATED_TS) = IN_DATE
-    AND PF.KEY1 = PC.COST_CENTER_CODE
-    AND PF.KEY2 = PC.TERMINAL_NUMBER
+    AND X1.storeNbr = PC.COST_CENTER_CODE
+    AND X1.termNbr = PC.TERMINAL_NUMBER
     AND X1.tranCode IN ('11', '10')
     AND X3.seqNbr = '1';   
       
