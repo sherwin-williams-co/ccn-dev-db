@@ -129,7 +129,7 @@ echo "Processing finished for SRA11000_Archconcat_file script at ${TIME} on ${DA
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-#./SRA11000_dailyRun_ftp.sh
+./SRA11000_dailyRun_ftp.sh
 status=$?
 if test $status -ne 0
 then
