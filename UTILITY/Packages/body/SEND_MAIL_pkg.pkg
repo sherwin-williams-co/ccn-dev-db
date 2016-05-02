@@ -1,0 +1,199 @@
+create or replace PACKAGE BODY SEND_MAIL_pkg AS
+/**************************************************************************
+This procedure will attched the multiple files in the mail and send it to the receipiants 
+
+created : 04/04/2016 AXD783 Send Mail Package
+changed :
+**************************************************************************/
+PROCEDURE FILE_ATTACHMENTS(in_DIR  IN VARCHAR2
+                          ,in_FILE_NAME IN VARCHAR2
+                          ,v_conn IN OUT utl_smtp.connection
+                           )
+IS
+
+  v_boundry                 VARCHAR2(200)        := '----boundary';
+  crlf                      VARCHAR2 (2) := CHR (13) || CHR (10);    
+  filehandler               UTL_FILE.FILE_TYPE;
+  vLine                     VARCHAR2(4000);
+  v_length                  NUMBER;
+  v_blocksize               NUMBER;
+  v_exists                  BOOLEAN;
+  file_not_found            EXCEPTION;
+  
+BEGIN 
+   
+    utl_file.fgetattr(in_DIR, in_FILE_NAME, v_exists, v_length,v_blocksize);
+        
+    IF NOT v_exists THEN
+        RAISE FILE_NOT_FOUND;
+    END IF;
+      
+    IF NOT v_length < 1024 THEN
+        
+        filehandler := utl_file.fopen(in_DIR, in_FILE_NAME, 'R');
+
+        utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || in_FILE_NAME || '"' || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, UTL_TCP.crlf);
+    
+        --Content for the file that is being sent         
+        LOOP
+            BEGIN
+                utl_file.get_line(filehandler, vLine); 
+                utl_smtp.write_data(v_conn, vLine || UTL_TCP.CRLF);	-- Content of attachment                    
+            EXCEPTION
+            WHEN OTHERS THEN
+                EXIT;
+            END;
+        END LOOP;
+        utl_file.fclose(filehandler);
+            
+    END IF;
+ 
+EXCEPTION
+    WHEN file_not_found THEN
+        DBMS_OUTPUT.PUT_LINE('File Name :'||in_FILE_NAME ||' Not Found');
+    
+    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error THEN
+        raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+             
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE(sqlerrm);  
+        
+END FILE_ATTACHMENTS;
+ 
+PROCEDURE SEND_MAIL (
+/**************************************************************** 
+This procedure is used to send the mail for the given 'MAIL_CATEGORY'
+
+created : 04/14/2016 AXD783 Send Mail Procedure
+changed :
+*****************************************************************/
+					  in_MAIL_CATEGORY IN  VARCHAR2
+				   ,in_MAIL_SET_NAME IN  VARCHAR2
+					)
+IS
+    
+  v_smtp_server             VARCHAR2(30)        := 'smtp.sherwin.com';
+  n_smtp_server_port        NUMBER              := 25;
+  v_conn                    utl_smtp.connection;
+  v_boundry                 VARCHAR2(200)        := '----boundary';
+  v_boundry1                VARCHAR2(200)        := '----boundary1';
+  v_num                     NUMBER              := 0;
+  v_environment             VARCHAR2(100);
+  v_file_name               VARCHAR2(100);
+  crlf                      VARCHAR2 (2) := CHR (13) || CHR (10);
+  v_subject                 MAILING_DETAILS.subject%type;
+  v_from                    MAILING_DETAILS.from_p%type;
+  v_message                 MAILING_DETAILS.message%type;
+  v_signature               MAILING_DETAILS.signature%type;
+  v_mail_id                 MAILING_GROUP.mail_id%type;
+  v_receipient              VARCHAR2(50);
+  v_to_list                 VARCHAR2(4000);
+  file_not_found            EXCEPTION;  
+  
+  
+BEGIN  
+   
+    SELECT sys_context('USERENV','DB_NAME') 
+	  INTO v_environment 
+	  FROM dual;
+	  
+    IF v_environment = 'STCCND' THEN
+        v_environment := 'Development : ';
+    ELSIF v_environment = 'STCCNT' THEN
+        v_environment := 'Test : ';
+    ELSIF v_environment = 'STCCNQ' THEN
+        v_environment := 'QA : ';
+    ELSIF v_environment = 'STCCNP' THEN
+        v_environment := 'Production : ';
+    ELSE
+        v_environment := 'Unknown : ';
+    END IF;
+    
+    -- Get the Email details
+    SELECT md.subject
+          ,md.from_p
+          ,md.message
+          ,md.signature
+          ,mg.mail_id
+      INTO v_subject
+          ,v_from
+          ,v_message
+          ,v_signature
+          ,v_mail_id    
+      FROM MAILING_DETAILS md
+          ,MAILING_GROUP mg 
+     WHERE md.MAIL_CATEGORY = IN_MAIL_CATEGORY     
+       AND md.GROUP_ID = mg.GROUP_ID;
+
+  
+    -- Close all connection before opening the connection
+    utl_tcp.close_all_connections();
+
+
+    -- Open the connection for email server
+    v_conn := utl_smtp.open_connection(v_smtp_server,n_smtp_server_port);
+    utl_smtp.helo(v_conn, v_smtp_server);
+    utl_smtp.mail(v_conn, v_from);
+        
+    -- Add all recipient 
+    LOOP
+        v_num := v_num + 1;
+        v_receipient := regexp_substr(v_mail_id, '[^;]+', 1, v_num);
+        EXIT WHEN v_receipient IS NULL;
+        utl_smtp.rcpt(v_conn, v_receipient);
+    END LOOP;
+    
+    v_to_list:= REGEXP_REPLACE (v_mail_id, ';', ', ');     
+    
+    -- Open data
+    utl_smtp.open_data(v_conn);
+    
+    -- Message info
+    utl_smtp.write_data(v_conn, 'To: ' || v_to_list || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'Date: ' || to_char(sysdate, 'Dy, DD Mon YYYY hh24:mi:ss') || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'From: ' || v_from || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'Subject: ' ||v_environment|| v_subject || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'Content-Type: multipart/mixed; boundary="' || v_boundry || '"' || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, UTL_TCP.crlf);
+    
+    -- Message body
+    utl_smtp.write_data(v_conn, '--' || v_boundry1 || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+    utl_smtp.write_data(v_conn, 'Hi All' || crlf || crlf
+                                    || v_message  || CRLF || CRLF
+                                    || 'Please let us know if there are any issues.' || CRLF || CRLF
+                                    || v_signature || CRLF);
+
+    FOR REC IN (SELECT fd.file_name
+                  FROM file_set_details fd
+                      ,file_set fs
+                 WHERE fd.file_set_id = fs.file_set_id
+                   AND fs.file_set_name = in_MAIL_SET_NAME
+                   AND UPPER(fs.is_active) = 'Y') LOOP
+                   
+        v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
+      
+        FILE_ATTACHMENTS('STORDRFT_DATAFILES',v_file_name,v_conn);
+     
+    END LOOP;
+
+    -- Close data  
+    utl_smtp.close_data(v_conn);
+    utl_smtp.quit(v_conn); 
+
+EXCEPTION
+   
+    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error THEN
+        raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+             
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE(sqlerrm);
+          
+END SEND_MAIL;
+ 
+ 
+END SEND_MAIL_pkg;
