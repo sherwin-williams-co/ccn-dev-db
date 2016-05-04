@@ -220,4 +220,15 @@ Modified:
 IN_CODE_HEADER_NAME      IN     VARCHAR2,
 IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION GET_DATAFILE_PATH_FNC(
+/**************************************************************** 
+  This Function is used to get the UTL_FILE Directory path for the 
+  Given Schema User.
+
+created : 05/02/2016 AXD783 
+changed :
+*****************************************************************/
+in_SCHEMA     IN   VARCHAR2)
+RETURN VARCHAR2;
+
 END CCN_COMMON_TOOLS;

@@ -8,16 +8,6 @@ changed :
 *****************************************************************/
 AS
 
-FUNCTION Get_Filepath_fnc RETURN VARCHAR2
-/**************************************************************** 
-          This Function is used to get the UTL_FILE path for the 
-          Current user.
-
-created : 04/14/2016 AXD783 POS XML Conversion
-changed :
-*****************************************************************/
-;
-
 PROCEDURE GEN_DELTA_FILES_sp
 /*********************************************************************** 
         This Procedure is Wrapper procedure, which is used to generate
@@ -26,7 +16,6 @@ PROCEDURE GEN_DELTA_FILES_sp
 created : 04/14/2016 AXD783 POS XML Conversion
 changed :
 ************************************************************************/
-
 ;
 
 PROCEDURE STORE_DRAFTS_DIFF_sp
