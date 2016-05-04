@@ -2,7 +2,8 @@
 ###############################################################################################################################
 # Script name   : EXEC_PROC_2PARAM.sh
 #
-# Description   : This script is to run the Database procedure with 2 input paramters
+# Description   : This script is to run the Database procedure with 2 input parameters and these parameters should be 
+#                  Characteer type only.                
 #
 # Created  : 05/02/2016 axd783 CCN Project Team.....
 # Modified : 
@@ -34,18 +35,19 @@ END;
 /
 exit :exitCode;
 END
-if [ 0 -ne "$?" ]; then
-    echo "FAILED at $proc_name" 
-    exit 1;
-fi
-				
-
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME}"  
-
-exit 0
 
 #############################################################
-# END of PROGRAM.  
-##############################################################
+# ERROR CHECK   
+#############################################################
+status=$?
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ];
+then
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+exit 0
+#############################################################
 
