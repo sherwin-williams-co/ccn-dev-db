@@ -31,7 +31,7 @@ fi
 
 echo "Processing finished for $proc_name1 at ${TIME} on ${DATE}"
 ############################################################################
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name2 at $TIME on $DATE"
 
 ## Below call works for Character input parameters only.
