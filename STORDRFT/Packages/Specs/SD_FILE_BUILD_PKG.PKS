@@ -162,6 +162,16 @@ PROCEDURE SD_1099_QRTLY_RPT(
   *******************************************************************************/
   IN_DATE IN DATE);
   
- 
+  PROCEDURE SD_90_DAY_STOP_PAY_RPT(
+/**********************************************************
+	This procedure is intended to generate the report for 
+  stop pay drafts that are outstanding for more than 90 days
 
-END SD_FILE_BUILD_PKG;
+IN_DATE - the date from which the 90 day period needs to be considered
+
+created : 04/27/2016 jxc517 CCN Project Team....
+changed : 
+**********************************************************/
+IN_DATE             IN     DATE);
+  
+  END SD_FILE_BUILD_PKG;

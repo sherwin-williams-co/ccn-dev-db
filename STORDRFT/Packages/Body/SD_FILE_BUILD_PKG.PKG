@@ -1604,4 +1604,137 @@ IS
   
 END SD_1099_QRTLY_RPT;
 
+PROCEDURE SD_90_DAY_STOP_PAY_RPT(
+/**********************************************************
+	This procedure is intended to generate the report for 
+  stop pay drafts that are outstanding for more than 90 days
+
+IN_DATE - the date from which the 90 day period needs to be considered
+
+created : 04/27/2016 jxc517 CCN Project Team....
+changed : 
+**********************************************************/
+IN_DATE             IN     DATE)
+IS
+    V_CLOB                      CLOB;
+    CURSOR sd_90_day_stop_pay_cur IS
+	      SELECT *
+          FROM STORE_DRAFTS A
+         WHERE (VOID_DATE IS NULL AND STOP_PAY_DATE IS NULL) --open
+           AND PAID_DATE IS NULL --not paid yet
+           AND EXISTS (SELECT 1
+                         FROM HIERARCHY_DETAIL_VIEW
+                        WHERE COST_CENTER_CODE = A.COST_CENTER_CODE
+                          AND DIVISION = 'A100') --considering only A1000 stores
+           AND ISSUE_DATE < (TRUNC(IN_DATE) - 90) --outstanding more than 90 days
+           AND STOP_PAY_MARKED_BY_CCN_IND IS NULL; --not marked yet
+
+BEGIN
+    V_CLOB := 'COST_CENTER_CODE, CHECK_SERIAL_NUMBER, TRANSACTION_DATE, TERMINAL_NUMBER, TRANSACTION_NUMBER, CUSTOMER_ACCOUNT_NUMBER, CUSTOMER_JOB_NUMBER, POS_TRANSACTION_CODE, POS_TRANSACTION_TIME, BANK_NUMBER, BANK_ACCOUNT_NUMBER, BANK_REFERENCE, PAYEE_NAME, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE_PREFIX, ZIP_CODE_SUFFIX, PHONE_AREA_CODE, PHONE_NUMBER, EMPLOYEE_NUMBER, ISSUE_DATE, PAID_DATE, STOP_PAY_DATE, STOP_PAY_REMOVE_DATE, VOID_DATE, AMOUNT_CHANGE_DATE, GROSS_AMOUNT, RETAIN_AMOUNT, NET_AMOUNT, ORIGINAL_NET_AMOUNT, BANK_PAID_AMOUNT, TRANSACTION_SOURCE, CHANGE_DATE, CHANGE_SOURCE, SLS_BOOK_DATE, CYCLE_RUN_NUMBER, BOOK_DATE_SEQUENCE, REASON_CODE' || CHR(10) ;
+    FOR rec IN sd_90_day_stop_pay_cur LOOP
+        DBMS_LOB.APPEND(V_CLOB,
+                        rec.COST_CENTER_CODE
+                        || ','
+                        || rec.CHECK_SERIAL_NUMBER
+                        || ','
+                        || rec.TRANSACTION_DATE
+                        || ','
+                        || rec.TERMINAL_NUMBER
+                        || ','
+                        || rec.TRANSACTION_NUMBER
+                        || ','
+                        || rec.CUSTOMER_ACCOUNT_NUMBER
+                        || ','
+                        || rec.CUSTOMER_JOB_NUMBER
+                        || ','
+                        || rec.POS_TRANSACTION_CODE
+                        || ','
+                        || rec.POS_TRANSACTION_TIME
+                        || ','
+                        || rec.BANK_NUMBER
+                        || ','
+                        || rec.BANK_ACCOUNT_NUMBER
+                        || ','
+                        || rec.BANK_REFERENCE
+                        || ','
+                        || REPLACE(rec.PAYEE_NAME, ',','')
+                        || ','
+                        || rec.ADDRESS_LINE_1
+                        || ','
+                        || rec.ADDRESS_LINE_2
+                        || ','
+                        || rec.CITY
+                        || ','
+                        || rec.STATE_CODE
+                        || ','
+                        || rec.ZIP_CODE_PREFIX
+                        || ','
+                        || rec.ZIP_CODE_SUFFIX
+                        || ','
+                        || rec.PHONE_AREA_CODE
+                        || ','
+                        || rec.PHONE_NUMBER
+                        || ','
+                        || rec.EMPLOYEE_NUMBER
+                        || ','
+                        || rec.ISSUE_DATE
+                        || ','
+                        || rec.PAID_DATE
+                        || ','
+                        || rec.STOP_PAY_DATE
+                        || ','
+                        || rec.STOP_PAY_REMOVE_DATE
+                        || ','
+                        || rec.VOID_DATE
+                        || ','
+                        || rec.AMOUNT_CHANGE_DATE
+                        || ','
+                        || rec.GROSS_AMOUNT
+                        || ','
+                        || rec.RETAIN_AMOUNT
+                        || ','
+                        || rec.NET_AMOUNT
+                        || ','
+                        || rec.ORIGINAL_NET_AMOUNT
+                        || ','
+                        || rec.BANK_PAID_AMOUNT
+                        || ','
+                        || rec.TRANSACTION_SOURCE
+                        || ','
+                        || rec.CHANGE_DATE
+                        || ','
+                        || rec.CHANGE_SOURCE
+                        || ','
+                        || rec.SLS_BOOK_DATE
+                        || ','
+                        || rec.CYCLE_RUN_NUMBER
+                        || ','
+                        || rec.BOOK_DATE_SEQUENCE
+                        || ','
+                        || rec.REASON_CODE
+                        || CHR(10));
+        BEGIN
+            UPDATE STORE_DRAFTS
+               SET STOP_PAY_MARKED_BY_CCN_IND = 'Y',
+                   STOP_PAY_DATE = TRUNC(IN_DATE),
+                   STOP_INDICATOR = 'Y',
+                   OPEN_INDICATOR = 'N'
+             WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'SD_90_DAY_STOP_PAY_RPT',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           rec.CHECK_SERIAL_NUMBER);
+        END;
+    END LOOP;
+    IF V_CLOB <> EMPTY_CLOB() THEN
+        MAIL_PKG.SEND_MAIL('SD_90_DAY_STOP_PAY_RPT', NULL, NULL, V_CLOB);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END SD_90_DAY_STOP_PAY_RPT;
+
 END SD_FILE_BUILD_PKG;
