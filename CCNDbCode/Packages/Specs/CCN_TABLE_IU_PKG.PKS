@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_TABLE_IU_PKG
+create or replace PACKAGE CCN_TABLE_IU_PKG
     AS
 -- PACKAGE SPEC
 /****************************************************************************** 
@@ -1981,5 +1981,59 @@ created:   12/13/2012 BLR  CCN Project....
 in_table_name          IN  varchar2 
 ,in_row_data            IN  varchar2  --sys.xmltype
 );  
+
+PROCEDURE ADDRESS_BRB_ROWTYPE_SP(
+ /******************************************************************************
+This procedure is intended to Insert new Barbados address records
+
+created : 05/16/2016 jxc517 CCN Project Team....
+changed : 
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_BRB.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_BRB.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_BRB.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type     OUT ADDRESS_BRB%ROWTYPE);
+
+PROCEDURE ADDRESS_BRB_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with data from ADDRESS_BRB table
+
+created : 05/16/2016 jxc517 CCN Project Team....
+changed : 
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_BRB.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_BRB.ADDRESS_TYPE%TYPE,
+    out_address_brb_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_BRB_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new ADDRESS_BRB records
+
+created : 05/16/2016 jxc517 CCN Project Team....
+changed : 
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_BRB.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_BRB.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_BRB.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_BRB_U_SP(
+/*******************************************************************************
+This procedure is intended to Update Barbados address records
+
+created : 05/16/2016 jxc517 CCN Project Team....
+changed : 
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_BRB.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_BRB.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_BRB.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
 
 END CCN_TABLE_IU_PKG;
