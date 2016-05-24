@@ -1,0 +1,453 @@
+create or replace PACKAGE BODY SD_COMPARE_DATA_pkg
+/**************************************************************** 
+Purpose : Comapre Data Package is Used to get the Difference records and 
+           Matching records between two table data.  
+created : 05/19/2016 AXD783 SD_COMPARE_DATA_pkg
+changed :
+*****************************************************************/
+AS
+
+g_char                  CONSTANT    VARCHAR2(1) := 'X';
+g_number                CONSTANT    NUMBER := 9999999999;
+g_date                  CONSTANT    DATE := TO_DATE('01-01-1000','MM-DD-YYYY');
+
+
+FUNCTION VALIDATE_TABLES_fnc(in_TABLE_NAME1 IN VARCHAR2
+                            ,in_TABLE_NAME2 IN VARCHAR2
+/**************************************************************** 
+Purpose : This Function is used to find the tables are Identical or not
+          If they are identical then it returns True and if they are not returns False
+created : 05/19/2016 AXD783 VALIDATE_TABLES_fnc
+changed :
+*****************************************************************/
+                            ) RETURN BOOLEAN
+IS
+
+v_diff_count                        NUMBER;
+v_exist_count                       NUMBER;
+table_error_excp                    EXCEPTION;
+
+BEGIN
+
+    SELECT COUNT(*) INTO v_exist_count
+      FROM ALL_TABLES
+     WHERE table_name IN (UPPER(in_TABLE_NAME1),UPPER(in_TABLE_NAME2));
+
+    IF v_exist_count != 2 THEN
+        RAISE table_error_excp;
+    ELSE
+        SELECT COUNT(*) INTO v_diff_count 
+          FROM 
+            (
+             SELECT  COLUMN_NAME
+                    ,DATA_TYPE
+                    ,DATA_LENGTH
+               FROM (
+                     SELECT  COLUMN_NAME
+                            ,DATA_TYPE
+                            ,DATA_LENGTH
+                       FROM all_tab_columns
+                      WHERE table_name = in_TABLE_NAME1
+                      MINUS
+                     SELECT COLUMN_NAME
+                           ,DATA_TYPE
+                           ,DATA_LENGTH
+                       FROM all_tab_columns
+                      WHERE table_name = in_TABLE_NAME2 
+                    ) 
+              UNION
+             SELECT  COLUMN_NAME
+                    ,DATA_TYPE
+                    ,DATA_LENGTH
+               FROM (
+                     SELECT  COLUMN_NAME
+                            ,DATA_TYPE
+                            ,DATA_LENGTH
+                       FROM all_tab_columns
+                      WHERE table_name = in_TABLE_NAME2
+                      MINUS
+                     SELECT COLUMN_NAME
+                           ,DATA_TYPE
+                           ,DATA_LENGTH
+                       FROM all_tab_columns
+                      WHERE table_name = in_TABLE_NAME1 
+                    )
+             );
+         IF v_diff_count = 0 THEN
+            RETURN TRUE;
+        ELSE
+            RETURN FALSE;
+        END IF;
+    END IF;    
+ 
+EXCEPTION
+    WHEN table_error_excp THEN
+        DBMS_OUTPUT.PUT_LINE('Either one or two given Tables are not Valid');
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'VALIDATE_TABLES_fnc'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+    WHEN NO_DATA_FOUND THEN
+        RETURN FALSE;
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'VALIDATE_TABLES_fnc'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+END VALIDATE_TABLES_fnc;                             
+
+PROCEDURE DIFF_DATA_sp(in_TABLE_NAME1 IN VARCHAR2
+                      ,in_TABLE_NAME2 IN VARCHAR2
+                      ,in_file_name IN VARCHAR2
+                      ,in_key  IN VARCHAR2 DEFAULT NULL
+/**************************************************************** 
+Purpose : This will create a Diff .CSV formatted file on the the server 
+          Input Parameters:
+          in_TABLE_NAME1,in_TABLE_NAME2 : tables to be compared
+          in_file_name : Name of the Diff file to be written on server
+          in_key : Key columns to compare two tables      
+created : 05/19/2016 AXD783 POS XML Conversion
+changed :
+*****************************************************************/
+)
+IS
+v_file_path                         VARCHAR2(50);
+diff_output_file                    utl_file.file_type;
+diff_filename                       VARCHAR2(100); 
+v_select_str1                       VARCHAR2(10000) := NULL;
+v_select_str2                       VARCHAR2(10000) := NULL; 
+v_diff_str                          VARCHAR2(10000) := NULL;
+v_where_str                         VARCHAR2(10000) := NULL;
+v_str1                              VARCHAR2(10000) := NULL;
+v_str2                              VARCHAR2(10000) := NULL;
+v_str3                              VARCHAR2(10000) := NULL;
+v_str4                              VARCHAR2(10000) := NULL;
+v_str5                              VARCHAR2(10000) := NULL;
+v_key_str1                          VARCHAR2(10000) := NULL;
+v_key_str2                          VARCHAR2(10000) := NULL;
+v_whr_str                           VARCHAR2(10000) := NULL;
+v_ref_cursor                        SYS_REFCURSOR;
+v_desc                              DBMS_SQL.DESC_TAB;
+v_cols                              BINARY_INTEGER;
+v_cursor                            BINARY_INTEGER;
+v_varchar2                          VARCHAR2(4000);
+v_number                            NUMBER;
+v_date                              DATE;
+v_data                              VARCHAR2(32767);
+v_data_rec1                         VARCHAR2(32767);
+v_data_rec2                         VARCHAR2(32767);
+v_header_rec                        VARCHAR2(32767);
+v_TABLE_NAME1                       VARCHAR2(50);       
+v_TABLE_NAME2                       VARCHAR2(50);  
+v_count                             NUMBER;
+table_structure_excp                EXCEPTION; 
+
+CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
+IS
+    SELECT COLUMN_NAME,DATA_TYPE,COLUMN_ID
+      FROM ALL_TAB_COLUMNS
+     WHERE TABLE_NAME = upper(in_TABLE_NAME)
+     ORDER BY COLUMN_ID asc ;
+
+CURSOR cur_col(in_TABLE_NAME IN VARCHAR2,in_COLUMN_ID In NUMBER)
+IS
+    SELECT COLUMN_NAME,DATA_TYPE
+      FROM ALL_TAB_COLUMNS
+     WHERE TABLE_NAME = in_TABLE_NAME
+       AND COLUMN_ID = in_COLUMN_ID ;
+  
+BEGIN
+     -- Call Validate Function to validate input paramters (in_TABLE_NAME1 and in_TABLE_NAME2) to see if they are having Identical structure 
+    IF NOT VALIDATE_TABLES_fnc(in_TABLE_NAME1,in_TABLE_NAME2) THEN
+        RAISE table_structure_excp;    
+    ELSE
+        v_file_path := ccn_common_tools.get_datafile_path_fnc('STORDRFT');
+        -- Output Diff File Name 
+        diff_filename:=    UPPER(in_file_name)||'_Diff_File_'||TO_CHAR(SYSDATE,'MMDDYY') ||'.csv';
+        diff_output_file := utl_file.fopen ( v_file_path
+                                            ,diff_filename 
+                                            ,'W' 
+                                            ,32767); 
+        FOR rec1 IN cur_tab( in_TABLE_NAME1)   LOOP
+           IF cur_tab%ROWCOUNT = 1   THEN    
+              v_str1   := 'T1.'||rec1.COLUMN_NAME||' '||rec1.COLUMN_NAME||'1'||CHR(10);  
+              CONTINUE;
+           END IF; 
+           v_str1   := v_str1 ||','|| 'T1.'||rec1.COLUMN_NAME||' '||rec1.COLUMN_NAME||'1'||CHR(10) ; 
+        END LOOP;
+        FOR rec2 IN  cur_tab( in_TABLE_NAME2)   LOOP   
+           IF cur_tab%ROWCOUNT = 1 THEN  
+              v_str2   := 'T2.'||rec2.COLUMN_NAME||' '||rec2.COLUMN_NAME||'2'||CHR(10);
+              CONTINUE;
+           END IF;   
+           v_str2   := v_str2 ||','|| 'T2.'||rec2.COLUMN_NAME||' '||rec2.COLUMN_NAME||'2'||CHR(10) ; 
+        END LOOP;
+        
+        FOR rec3 IN cur_tab(in_TABLE_NAME1)   LOOP
+           IF rec3.DATA_TYPE = 'VARCHAR2' THEN
+             v_str3 := 'NVL(T1.'||rec3.COLUMN_NAME||','||''''||g_char||''''||') <> ';   
+           ELSIF rec3.DATA_TYPE = 'DATE' THEN
+             v_str3 := 'NVL(T1.'||rec3.COLUMN_NAME||','||''''||g_date||''''||') <> ';
+           ELSIF rec3.DATA_TYPE = 'NUMBER' THEN
+             v_str3 :='NVL(T1.'||rec3.COLUMN_NAME||','||''''||g_number||''''||') <> ';
+           END IF;  
+           
+           v_str4 := null;
+           FOR rec4 IN cur_col(in_TABLE_NAME2,rec3.column_id)   LOOP 
+              IF rec4.DATA_TYPE = 'VARCHAR2' THEN
+                 v_str4 := v_str3||'NVL(T2.'||rec4.COLUMN_NAME||','||''''||g_char||''''||') OR';   
+              ELSIF rec4.DATA_TYPE = 'DATE' THEN
+                 v_str4 := v_str3||'NVL(T2.'||rec4.COLUMN_NAME||','||''''||g_date||''''||') OR';  
+              ELSIF rec4.DATA_TYPE = 'NUMBER' THEN
+                 v_str4 := v_str3||'NVL(T2.'||rec4.COLUMN_NAME||','||''''||g_number||''''||') OR'; 
+              END IF;
+           END LOOP;           
+          v_str5 := v_str5||v_str4 || CHR(10);     
+        END LOOP;
+        
+        v_whr_str := SUBSTR(v_str5,1,LENGTH(v_str5)-3);
+        FOR r_key IN (SELECT LEVEL, trim(regexp_substr(in_key, '[^,]+', 1, LEVEL)) str
+                      FROM dual
+                      CONNECT BY LEVEL <= regexp_count(in_key, '[^,]+', 1)
+                      )LOOP
+           IF r_key.level = 1 THEN
+              v_key_str1 := 'T1.'||r_key.str|| ' = ' || 'T2.'||r_key.str;
+              v_key_str2 := 'T1.'||r_key.str||' IS NULL OR'||CHR(10)||'T2.'||r_key.str||' IS NULL OR';
+           ELSE 
+              v_key_str1 := v_key_str1||CHR(10)||'AND '||'T1.'||r_key.str|| ' = ' || 'T2.'||r_key.str;
+              v_key_str2 := v_key_str2||CHR(10)||'T1.'||r_key.str||' IS NULL OR'||CHR(10)||'T2.'||r_key.str||' IS NULL OR';
+           END IF; 
+        END LOOP;
+    
+        v_diff_str         :=  'SELECT '||v_str1||','||v_str2
+                             ||'FROM ' ||in_TABLE_NAME1||' T1'||CHR(10)
+                             ||'FULL OUTER JOIN '||in_TABLE_NAME2 ||' T2'|| CHR(10) 
+                             || 'ON ' ||v_key_str1|| CHR(10) 
+                             || 'WHERE '||v_key_str2||CHR(10)||v_whr_str || CHR(10) 
+                              ;  
+        --DBMS_OUTPUT.PUT_LINE(v_diff_str);
+
+        OPEN  v_ref_cursor FOR v_diff_str;
+           -- Convert refcursor "parameter" to DBMS_SQL cursor.
+           v_cursor := DBMS_SQL.TO_CURSOR_NUMBER(v_ref_cursor);
+        
+           -- Describe the cursor.
+           DBMS_SQL.DESCRIBE_COLUMNS(v_cursor, v_cols, v_desc);
+    
+           --Define columns to be fetched.
+           FOR i IN 1 .. v_cols LOOP
+              IF v_desc(i).col_type = 2   THEN
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_number); 
+              ELSIF v_desc(i).col_type = 12   THEN
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_date);
+              ELSE
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_varchar2, 4000);
+              END IF; 
+           END LOOP; 
+ 
+        --Output the data header...
+        FOR i IN 1 .. v_cols LOOP 
+           IF  v_data IS NULL   THEN
+              v_data := v_desc(i).col_name;
+           ELSE
+              v_data := v_data ||','|| v_desc(i).col_name ;
+          END IF;
+        END LOOP;
+        v_count := regexp_count(v_data,',');
+        v_header_rec := SUBSTR(v_data,1,INSTR(v_data,',',1,(v_count/2)));
+        v_data := 'IN_TABLE'||','||v_header_rec;
+        
+        -- This writes Header
+        UTL_FILE.PUT_LINE(diff_output_file, v_data, TRUE); 
+      
+        -- Fetch all the Diff Records...      
+        WHILE DBMS_SQL.FETCH_ROWS(v_cursor) > 0 LOOP
+           v_data := NULL;         
+           FOR i IN 1 .. v_cols LOOP
+              IF v_desc(i).col_type = 1 THEN
+                 DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_varchar2);
+                 v_data := v_data ||'"'||v_varchar2||'"'||',';
+              ELSIF v_desc(i).col_type = 2 THEN         
+                 DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_number);
+                 v_data := v_data ||'"'||v_number||'"'||',';
+              ELSIF v_desc(i).col_type = 12 THEN
+                 DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_date);
+                 v_data := v_data ||'"'||v_date||'"'||',';
+              END IF;         
+           END LOOP;      
+           v_count := 0;        
+           v_count := regexp_count(v_data,'",');
+           v_data_rec1 := in_TABLE_NAME1||','||SUBSTR(v_data,1,INSTR(v_data,'",',1,(v_count/2))+1);
+           v_data_rec2 := in_TABLE_NAME2||','||SUBSTR(v_data,INSTR(v_data,'",',1,(v_count/2))+2);
+           
+           UTL_FILE.PUT_LINE(diff_output_file, v_data_rec1, TRUE);
+           UTL_FILE.PUT_LINE(diff_output_file, v_data_rec2, TRUE); 
+        END LOOP;
+        DBMS_SQL.CLOSE_CURSOR(v_cursor);
+    END IF;
+
+EXCEPTION
+    WHEN table_structure_excp THEN
+        DBMS_OUTPUT.PUT_LINE('Given table Structures are not Similar');
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'DIFF_DATA_sp'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'DIFF_DATA_sp'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+END  DIFF_DATA_sp;  
+
+
+PROCEDURE MATCH_DATA_sp(in_TABLE_NAME1 IN VARCHAR2
+                       ,in_TABLE_NAME2 IN VARCHAR2
+                       ,in_file_name IN VARCHAR2
+/**************************************************************** 
+Purpose : his will create a Diff .CSV formatted file on the the server 
+          Input Parameters:
+          in_TABLE_NAME1,in_TABLE_NAME2 : tables to be compared
+          in_file_name : Name of the Match file to be written on server           
+created : 05/19/2016 AXD783 MATCH_DATA_sp
+changed :
+*****************************************************************/
+)
+IS
+v_file_path                         VARCHAR2(50);
+match_output_file                   utl_file.file_type;
+match_filename                      VARCHAR2(100);
+v_select_str1                       VARCHAR2(10000) := NULL;  
+v_select_str2                       VARCHAR2(10000) := NULL; 
+v_match_str                         VARCHAR2(10000) := NULL;
+v_where_str                         VARCHAR2(10000) := NULL;
+v_ref_cursor                        SYS_REFCURSOR;
+v_desc                              DBMS_SQL.DESC_TAB;
+v_cols                              BINARY_INTEGER;
+v_cursor                            BINARY_INTEGER;
+v_varchar2                          VARCHAR2(4000);
+v_number                            NUMBER;
+v_date                              DATE;
+v_data                              VARCHAR2(32767);
+v_TABLE_NAME1                       VARCHAR2(50);       
+v_TABLE_NAME2                       VARCHAR2(50);  
+table_structure_excp                EXCEPTION; 
+
+CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
+IS
+   SELECT COLUMN_NAME
+     FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = upper(in_TABLE_NAME)
+ ORDER BY COLUMN_ID asc ;
+     
+BEGIN
+    -- Call Validate Function to validate input paramters (in_TABLE_NAME1 and in_TABLE_NAME2) to see if they are having Identical structure    
+    IF NOT VALIDATE_TABLES_fnc(in_TABLE_NAME1,in_TABLE_NAME2) THEN    
+        RAISE table_structure_excp;
+    
+    ELSE
+
+        v_file_path := ccn_common_tools.get_datafile_path_fnc('STORDRFT');
+        -- Output Match File Name 
+        match_filename:=    UPPER(in_file_name)||'_Match_File_'||TO_CHAR(SYSDATE,'MMDDYY') ||'.csv';
+        match_output_file := utl_file.fopen ( v_file_path
+                                             ,match_filename 
+                                             ,'W' 
+                                             ,32767);  
+        FOR rec1 IN cur_tab( in_TABLE_NAME1)   LOOP
+           IF cur_tab%ROWCOUNT = 1   THEN  
+              v_select_str1   := rec1.COLUMN_NAME;
+              CONTINUE;
+           END IF;    
+        v_select_str1   := v_select_str1 ||','|| rec1.COLUMN_NAME ;
+        END LOOP; 
+        FOR rec2 IN  cur_tab( in_TABLE_NAME2)   LOOP
+           IF cur_tab%ROWCOUNT = 1 THEN  
+              v_select_str2   := rec2.COLUMN_NAME;
+              CONTINUE;
+           END IF;   
+           v_select_str2   := v_select_str2 ||','|| rec2.COLUMN_NAME ;
+        END LOOP;
+      
+        v_match_str      := 'SELECT '||v_select_str1|| CHR(10)
+                            || CHR(9)|| 'FROM ' ||'('|| CHR(10)
+                            || CHR(9)|| 'SELECT COUNT(tab1) AS tab1' ||','||'COUNT(tab2) AS tab2'||','||v_select_str1 || CHR(10) 
+                            || CHR(9)|| 'FROM ' ||'('|| 'SELECT ' || v_select_str1 ||','||' 1 AS tab1' ||','||' TO_NUMBER(NULL) AS tab2 '|| 'FROM '||in_TABLE_NAME1|| CHR(10) 
+                            || CHR(9)|| CHR(9)|| CHR(9)|| CHR(9)|| 'UNION ALL' ||CHR(10)
+                            || CHR(9)|| CHR(9)|| CHR(9)|| CHR(9)||'SELECT '||v_select_str2||','||' TO_NUMBER(NULL) AS tab1' ||','|| '2 AS tab2 '||'FROM '||in_TABLE_NAME2|| CHR(10) 
+                            || CHR(9)|| CHR(9)|| CHR(9)|| CHR(9)||')'|| CHR(10) 
+                            ||'GROUP BY '|| v_select_str1 || CHR(10)       
+                            ||'HAVING COUNT(tab1)'||' = '||'COUNT(tab2)'|| CHR(10) 
+                            ||'ORDER BY '|| v_select_str1 || CHR(10)
+                            ||')'|| CHR(10) 
+                             ;
+
+        DBMS_OUTPUT.PUT_LINE( v_match_str);
+        OPEN  v_ref_cursor FOR v_match_str;      
+           -- Convert refcursor "parameter" to DBMS_SQL cursor... 
+           v_cursor := DBMS_SQL.TO_CURSOR_NUMBER(v_ref_cursor);
+           -- Describe the cursor... 
+           DBMS_SQL.DESCRIBE_COLUMNS(v_cursor, v_cols, v_desc);
+           --Define columns to be fetched. We're only using V2, NUM, DATE for example
+           FOR i IN 1 .. v_cols LOOP
+              IF v_desc(i).col_type = 2   THEN
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_number);
+              ELSIF v_desc(i).col_type = 12   THEN
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_date);
+              ELSE
+                 DBMS_SQL.DEFINE_COLUMN(v_cursor, i, v_varchar2, 4000);
+              END IF; 
+           END LOOP; 
+           --Now output the data, Start with header...    
+           DBMS_OUTPUT.NEW_LINE;      
+           FOR i IN 1 .. v_cols LOOP 
+           IF  v_data IS NULL   THEN
+              v_data := v_desc(i).col_name;
+           ELSE
+              v_data := v_data ||','|| v_desc(i).col_name ;
+           END IF;
+           END LOOP;           
+           -- This writes Header 
+           UTL_FILE.PUT_LINE(match_output_file, v_data, TRUE);
+           v_data := NULL;
+           
+           -- Fetch all data...
+           WHILE DBMS_SQL.FETCH_ROWS(v_cursor) > 0 LOOP
+              v_data := NULL;
+              FOR i IN 1 .. v_cols LOOP
+                 IF v_desc(i).col_type = 1 THEN
+                    DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_varchar2);
+                    v_data := v_data ||v_varchar2||','; 
+                 ELSIF v_desc(i).col_type = 2 THEN
+                    DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_number);
+                    v_data := v_data ||v_number||',';
+                 ELSIF v_desc(i).col_type = 12 THEN
+                    DBMS_SQL.COLUMN_VALUE(v_cursor, i, v_date);
+                    v_data := v_data ||v_date||',';
+                 END IF;
+              END LOOP;          
+              UTL_FILE.PUT_LINE(match_output_file, v_data, TRUE);
+           END LOOP; 
+        DBMS_SQL.CLOSE_CURSOR(v_cursor);   
+    END IF;
+
+EXCEPTION
+    WHEN table_structure_excp THEN   
+        DBMS_OUTPUT.PUT_LINE('Given table Structures are not Similar');   
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'MATCH_DATA_sp'
+                                  ,SQLERRM
+                                  ,'000000'
+                                 ,'0000000000');
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'MATCH_DATA_sp'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+END MATCH_DATA_sp;
+
+END SD_COMPARE_DATA_pkg;
