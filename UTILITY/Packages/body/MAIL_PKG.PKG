@@ -44,83 +44,6 @@ BEGIN
     END IF;   
 END WRITE_CLOB;
 
-PROCEDURE FILE_ATTACHMENTS(
-/**************************************************************** 
-   This Procedure is used Attach the list of files to the mail
-        
-created : 05/02/2016 AXD783 
-changed :
-*****************************************************************/
- in_MAIL_CATEGORY VARCHAR2
-,v_conn IN OUT utl_smtp.connection
-                          )
-IS
-
-  v_boundry                 VARCHAR2(200)        := '-----AABCDEFBBCCC0123456789DE';
-  crlf                      VARCHAR2 (2) := CHR (13) || CHR (10);    
-  filehandler               UTL_FILE.FILE_TYPE;
-  v_file_name               VARCHAR2(100);
-  vLine                     VARCHAR2(4000);
-  v_length                  NUMBER;
-  v_blocksize               NUMBER;
-  v_exists                  BOOLEAN;
-  file_not_found            EXCEPTION;
-  
-BEGIN 
-   
-    FOR REC IN (SELECT mf.file_name,mf.directory_name
-                  FROM mailing_file_details mf
-                      ,mailing_details md
-                 WHERE mf.group_id = md.group_id
-                   AND md.mail_category =UPPER(in_MAIL_CATEGORY)) LOOP
-                              
-    v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
-     
-    -- Check the file exists and if the size of the file.   
-    utl_file.fgetattr(rec.directory_name, v_file_name, v_exists, v_length,v_blocksize);
-        
-    IF NOT v_exists THEN
-        RAISE FILE_NOT_FOUND;
-    END IF;
-      
-    IF NOT v_length < 1024 THEN
-        
-        filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
-
-        utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
-        utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
-        utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || v_file_name || '"' || UTL_TCP.crlf);
-        utl_smtp.write_data(v_conn, UTL_TCP.crlf);
-    
-        --Content for the file that is being sent         
-        LOOP
-            BEGIN
-                utl_file.get_line(filehandler, vLine); 
-                utl_smtp.write_data(v_conn, vLine || UTL_TCP.CRLF);	-- Content of attachment                    
-            EXCEPTION
-            WHEN OTHERS THEN
-                EXIT;
-            END;
-        END LOOP;
-        utl_file.fclose(filehandler);
-            
-    END IF;
-    
-  END LOOP;
- 
-EXCEPTION
-    WHEN file_not_found THEN
-        DBMS_OUTPUT.PUT_LINE('File Name :'||v_file_name ||' Not Found');
-    
-    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error THEN
-        raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
-             
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE(sqlerrm);  
-        
-END FILE_ATTACHMENTS;
- 
-
 PROCEDURE SEND_MAIL( 
 /**********************************************************
 SEND_MAIL
@@ -179,6 +102,8 @@ Updated : 09/18/2014 nxk
                      for deposit ticket
         : 04/27/2016 jxc517 CCN Project Team....
                      Added SD_90_DAY_STOP_PAY_RPT for 90 day stop pay email
+        : 05/24/2016 nxk927 CCN Project Team...
+		             reverting the code to move SD_90_DAY_STOP_PAY_RPT ahead of other changes
 **********************************************************/
 IN_MAIL_CATEGORY VARCHAR2,
 IN_TERMINL_NUMBER IN NUMBER DEFAULT NULL,
@@ -275,9 +200,7 @@ BEGIN
       ELSIF IN_MAIL_CATEGORY = 'TAXWARE_WARNING_MESSAGE' THEN
          V_MESSAGE := REPLACE(REC.MESSAGE, 'CCCCC', IN_COST_CENTER_CD);
       ELSIF IN_MAIL_CATEGORY = 'DEPOSIT_TICKET_FILE' THEN
-         V_MESSAGE := REPLACE(REC.MESSAGE, 'CCCCC', REPLACE(IN_COST_CENTER_CD,'DEPOSIT_TICKET_',''));
-      ELSIF IN_MAIL_CATEGORY = 'PCI_POS_TERMINAL_MISMATCH' THEN
-         V_MESSAGE := REPLACE(REC.MESSAGE, 'CCCCCC' ,IN_COST_CENTER_CD);
+         V_MESSAGE := REPLACE(REC.MESSAGE, 'CCCCC', REPLACE(REPLACE(IN_COST_CENTER_CD,'.txt', ''),'DEPOSIT_TICKET_',''));
       ELSE
          V_MESSAGE := REC.MESSAGE;
       END IF;
@@ -440,18 +363,6 @@ BEGIN
          --Content for the excel that is being sent
          WRITE_CLOB(v_mail_conn, IN_CLOB);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
-      ELSIF IN_MAIL_CATEGORY IN ('PCI_POS_TERMINAL_MISMATCH') THEN
-         --Boundary should be set for this email to attach an excel
-         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
-         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
-         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
-
-         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
-         --Header fot the excel that is being sent
-         UTL_SMTP.write_data(v_mail_conn, 'COST CENTER,TERMINAL_NUMBER,PCI TERMINAL ID' ||  UTL_TCP.crlf);
-         --Content for the excel that is being sent
-         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
-         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);		 
       ELSIF IN_MAIL_CATEGORY IN ('NEWLY_CRTD_COST_CENTER') THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
@@ -463,9 +374,7 @@ BEGIN
          --Content for the excel that is being sent
          UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
-      ELSIF IN_MAIL_CATEGORY = 'POSXML_DELTA_FILES_GEN' THEN
-         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);      
-      END IF ;      
+      END IF ;
       UTL_SMTP.close_data(v_mail_conn);  
       UTL_SMTP.quit (v_mail_conn);
    END LOOP;
