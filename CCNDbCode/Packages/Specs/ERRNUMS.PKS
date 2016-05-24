@@ -2238,6 +2238,19 @@ PRAGMA EXCEPTION_INIT
 (exc_territory_typ_busines_rule , -20163);
 
 /*********************************************************** 
+The "invalid_addr_brb_err" passes a numerical error of -20164.
+An error occurs when address BRB cannot be found.
+
+created : 05/24/2016 jxc517 CCN Project Team....
+revisions: 
+
+************************************************************/
+en_invalid_addr_brb_err CONSTANT NUMBER := -20164;
+exc_invalid_addr_brb_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_addr_brb_err , -20164);
+
+/*********************************************************** 
 The "status_check_warning_wrn" passes a numerical error of -20500.
 This error will state a warning that the address line has been
 changed and that the status code may need to be changed for
