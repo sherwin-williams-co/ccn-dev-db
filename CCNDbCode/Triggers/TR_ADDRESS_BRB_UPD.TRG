@@ -64,7 +64,7 @@ BEGIN
     VALUES((SELECT NVL(MAX(LOG_ID), 0) + 1 FROM AUDIT_LOG),
            v_transaction_id
            ,SYSDATE
-           ,'ADDRESS_MEX'
+           ,'ADDRESS_BRB'
            ,v_primaryKey
            ,v_rowdata
            ,'TR_ADDRESS_BRB_UPD');
