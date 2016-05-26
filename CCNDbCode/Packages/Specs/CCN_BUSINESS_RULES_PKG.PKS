@@ -26,11 +26,14 @@ PROCEDURE Business_Rules_sp (
   individual business rules.    
 
 created : MDH 10/04//2012
+changed : 05/16/2016 jxc517 CCN Project Team....
+          Added new table ADDRESS_BRB
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_OTH_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype   
+   ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype
+   ,inADDRESS_BRB_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADMIN_XMLTYPE          VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE       VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE    VARCHAR2--sys.xmltype
@@ -45,10 +48,10 @@ created : MDH 10/04//2012
    ,inSTATUS_XMLTYPE         VARCHAR2--sys.xmltype
    ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
-   ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype 
+   ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
  );
-	
+
 PROCEDURE Business_Rules_sp (
 /*******************************************************************************
 	 BUSINESS_RULES_SP (rowtype)
@@ -71,7 +74,8 @@ created : MDH 9/25//2012
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
    ,inADDRESS_OTH_ROWTYPE    IN ADDRESS_OTHER%ROWTYPE
-   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
+   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE
+   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE
    ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
    ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
@@ -170,7 +174,8 @@ created : BLR 6/13/2012
   ,inADDRESS_CAN_ROWTYPE        IN ADDRESS_CAN%ROWTYPE
   ,inADDRESS_MEX_ROWTYPE        IN ADDRESS_MEX%ROWTYPE
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
-  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE  
+  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE
+  ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE
   );
 
 PROCEDURE QUALITY_CTRL_STATUS_CHKS_SP (
@@ -219,7 +224,8 @@ created : BLR 5/21/2012
   ,inADDRESS_CAN_ROWTYPE        IN ADDRESS_CAN%ROWTYPE
   ,inADDRESS_MEX_ROWTYPE        IN ADDRESS_MEX%ROWTYPE
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
-  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE  
+  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE
+  ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE
  );
 
 PROCEDURE REOPEN_CCNTR_SP  ( 
@@ -356,7 +362,8 @@ created : BLR 8/3/2012
   ,inaddress_can_rowtype            IN  address_can%ROWTYPE
   ,inaddress_mex_rowtype            IN  address_mex%ROWTYPE
   ,inaddress_oth_rowtype            IN  address_other%ROWTYPE
-  ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE  );
+  ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE
+  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE);
 
 /*******************************************************************************
 --PROCEDURE MARKETING_BR_SP (
