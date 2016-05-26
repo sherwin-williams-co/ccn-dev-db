@@ -3,6 +3,7 @@
 # Description     : Script to create CCN_GEMS_LOAD.TRG file and FTP to FLDPRRPT App server to run the reports
 #
 # Created    Date : DXV848 05/07/2015
+# modified        : nxk927 05/26/2016 Moved the time variable inside the error check
 #######################################################################################
 # below command will get the path for respective to the environment from which it runs from.
 . /app/ccn/host.sh
@@ -27,16 +28,18 @@ END_SCRIPT
 ##############################################
 #    ERROR STATUS CHECK FTP the CCN_GEMS_LOAD.TRG file
 ##############################################
- TIME=`date +"%H:%M:%S"`
 status=$?
 if test $status -ne 0
    then
+     TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for FTPing CCN_GEMS_LOAD.TRG at ${TIME} on ${DATE}"
      exit 1;
 else
+    TIME=`date +"%H:%M:%S"`
     echo "Processing Finished for FTPing CCN_GEMS_LOAD.TRG at ${TIME} on ${DATE}"
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo -e "\n End FTPing CCN_GEMS_LOAD.TRG file: Process Successful : Process finished at $TIME on $DATE"
 
 TIME=`date +"%H:%M:%S"`
