@@ -175,6 +175,18 @@ created : 09/11/2013 kdp CCN Project....
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2);
 
+PROCEDURE DELETE_COST_CENTER(
+/**********************************************************
+	DELETE_COST_CENTER
+
+	This procedure will delete the passed cost center
+
+IN_COST_CENTER - Input Cost Center to be removed
+
+created : 01/29/2013 jxc517 CCN Project....
+**********************************************************/
+          IN_COST_CENTER IN VARCHAR2);
+
 PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
 SELECT_HIERARCHY_AUDIT_LOG
@@ -318,4 +330,3 @@ Created by jxc517 02/19/2015
 IN_BLOB            IN       BLOB);
 
 END CCN_UI_INTERFACE_APP_PKG;
-

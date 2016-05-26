@@ -26,14 +26,11 @@ PROCEDURE Business_Rules_sp (
   individual business rules.    
 
 created : MDH 10/04//2012
-changed : 05/16/2016 jxc517 CCN Project Team....
-          Added new table ADDRESS_BRB
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_OTH_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype   
-   ,inADDRESS_BRB_XMLTYPE    VARCHAR2--sys.xmltype   
    ,inADMIN_XMLTYPE          VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE       VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE    VARCHAR2--sys.xmltype
@@ -75,7 +72,6 @@ created : MDH 9/25//2012
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
    ,inADDRESS_OTH_ROWTYPE    IN ADDRESS_OTHER%ROWTYPE
    ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
-   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE   
    ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
    ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
@@ -175,7 +171,6 @@ created : BLR 6/13/2012
   ,inADDRESS_MEX_ROWTYPE        IN ADDRESS_MEX%ROWTYPE
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
   ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE  
-  ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE  
   );
 
 PROCEDURE QUALITY_CTRL_STATUS_CHKS_SP (
@@ -225,7 +220,6 @@ created : BLR 5/21/2012
   ,inADDRESS_MEX_ROWTYPE        IN ADDRESS_MEX%ROWTYPE
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
   ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE  
-  ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE  
  );
 
 PROCEDURE REOPEN_CCNTR_SP  ( 
@@ -362,8 +356,7 @@ created : BLR 8/3/2012
   ,inaddress_can_rowtype            IN  address_can%ROWTYPE
   ,inaddress_mex_rowtype            IN  address_mex%ROWTYPE
   ,inaddress_oth_rowtype            IN  address_other%ROWTYPE
-  ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE
-  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE);
+  ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE  );
 
 /*******************************************************************************
 --PROCEDURE MARKETING_BR_SP (
@@ -513,16 +506,5 @@ revised :
 *******************************************************************************/
     IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
 ); 
-
-PROCEDURE PCI_TERMINAL_COUNT_CHECK(
-/*****************************************************************************
-    This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
-    matches. If it don't match then send the report in an email
-
-Created : 03/02/2016 nxk927 CCN Project Team...
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_ROW_DATA          IN  CLOB);
 
 END CCN_BUSINESS_RULES_PKG;
