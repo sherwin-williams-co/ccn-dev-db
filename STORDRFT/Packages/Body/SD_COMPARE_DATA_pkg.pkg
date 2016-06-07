@@ -1,10 +1,10 @@
 create or replace PACKAGE BODY SD_COMPARE_DATA_pkg
-/**************************************************************** 
+/****************************************************************************** 
 Purpose : Comapre Data Package is Used to get the Difference records and 
            Matching records between two table data.  
 Created : 05/19/2016 axd783 CCN Project Team...
 Changed :
-*****************************************************************/
+******************************************************************************/
 AS
 
 g_char                  CONSTANT    VARCHAR2(1) := 'X';
@@ -14,12 +14,12 @@ g_date                  CONSTANT    DATE := TO_DATE('01-01-1000','MM-DD-YYYY');
 
 FUNCTION VALIDATE_TABLES_fnc(in_TABLE_NAME1 IN VARCHAR2
                             ,in_TABLE_NAME2 IN VARCHAR2
-/**************************************************************** 
+/******************************************************************************
 Purpose : This Function is used to find the tables are Identical or not
           If they are identical then it returns True and if they are not returns False
 Created : 05/19/2016 axd783 CCN Project Team...
 Changed :
-*****************************************************************/
+*******************************************************************************/
                             ) RETURN BOOLEAN
 IS
 
@@ -101,8 +101,257 @@ EXCEPTION
                                   ,'000000'
                                   ,'0000000000');
         RETURN v_return;
-END VALIDATE_TABLES_fnc;                             
+END VALIDATE_TABLES_fnc;   
 
+PROCEDURE BUILD_SLCT_STRS(in_TABLE_NAME IN VARCHAR2
+                         ,out_T1_SLCT_STR OUT VARCHAR2
+                         ,out_T2_SLCT_STR OUT VARCHAR2
+                         ,out_HEADER_STR OUT VARCHAR2
+/******************************************************************************
+Purpose : This will build the out_T1_SLCT_STR,out_T2_SLCT_STR and out_HEADER_STR strings
+          based on in_TABLE_NAME table columns
+Created : 06/06/2016 axd783 CCN Project Team...
+Changed :
+*******************************************************************************/
+)
+IS
+
+/* Example :  For in_TABLE_NAME = POSXML_CSTMR_SLS_TAX_TMP Sample output Strings
+out_T1_SLCT_STR is
+   '"'|| T1.COST_CENTER_CODE||'"'
+||',"'|| T1.TERMINAL_NUMBER||'"'
+||',"'|| T1.TRANSACTION_NUMBER||'"'
+||',"'|| T1.SORT_FORCE||'"'
+||',"'|| T1.SEGMENT_CODE||'"'
+||',"'|| T1.SUB_SEGMENT_CODE||'"'
+||',"'|| T1.FILLER||'"'
+||',"'|| T1.SALES_TAX_CORR_INDICATOR||'"'
+||',"'|| T1.SALES_TAX_COLL_AMOUNT_SIGN||'"'
+||',"'|| T1.SALES_TAX_COLL_AMOUNT||'"'
+||',"'|| T1.SALES_TAX_INDICATOR||'"'
+||',"'|| T1.SALES_TAX_RATE_SIGN||'"'
+||',"'|| T1.SALES_TAX_RATE||'"'
+||',"'|| T1.SALES_TAX_CODE||'"
+
+out_T2_SLCT_STR is
+   '"'|| T2.COST_CENTER_CODE||'"'
+||',"'|| T2.TERMINAL_NUMBER||'"'
+||',"'|| T2.TRANSACTION_NUMBER||'"'
+||',"'|| T2.SORT_FORCE||'"'
+||',"'|| T2.SEGMENT_CODE||'"'
+||',"'|| T2.SUB_SEGMENT_CODE||'"'
+||',"'|| T2.FILLER||'"'
+||',"'|| T2.SALES_TAX_CORR_INDICATOR||'"'
+||',"'|| T2.SALES_TAX_COLL_AMOUNT_SIGN||'"'
+||',"'|| T2.SALES_TAX_COLL_AMOUNT||'"'
+||',"'|| T2.SALES_TAX_INDICATOR||'"'
+||',"'|| T2.SALES_TAX_RATE_SIGN||'"'
+||',"'|| T2.SALES_TAX_RATE||'"'
+||',"'|| T2.SALES_TAX_CODE||'"'
+
+out_HEADER_STR is
+COST_CENTER_CODE,TERMINAL_NUMBER,TRANSACTION_NUMBER,SORT_FORCE,SEGMENT_CODE,SUB_SEGMENT_CODE,FILLER,SALES_TAX_CORR_INDICATOR
+,SALES_TAX_COLL_AMOUNT_SIGN,SALES_TAX_COLL_AMOUNT,SALES_TAX_INDICATOR,SALES_TAX_RATE_SIGN,SALES_TAX_RATE,SALES_TAX_CODE
+*/
+
+CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
+IS
+    SELECT COLUMN_NAME
+      FROM USER_TAB_COLS
+     WHERE TABLE_NAME = upper(in_TABLE_NAME)
+     ORDER BY COLUMN_ID asc ;
+
+BEGIN
+
+        FOR rec IN cur_tab( in_TABLE_NAME)   LOOP
+           IF cur_tab%ROWCOUNT = 1   THEN    
+              out_HEADER_STR      := rec.COLUMN_NAME;
+              out_T1_SLCT_STR   := '''"''|| T1.'||rec.COLUMN_NAME||'||''"'''|| CHR(10);              
+              out_T2_SLCT_STR   := '''"''|| T2.'||rec.COLUMN_NAME||'||''"'''|| CHR(10);
+          
+           ELSE 
+              out_HEADER_STR    := out_HEADER_STR||','||rec.COLUMN_NAME;
+              out_T1_SLCT_STR   := out_T1_SLCT_STR ||'||'',"''|| T1.'||rec.COLUMN_NAME||'||''"'''|| CHR(10) ;           
+              out_T2_SLCT_STR   := out_T2_SLCT_STR ||'||'',"''|| T2.'||rec.COLUMN_NAME||'||''"'''|| CHR(10) ; 
+           END IF;
+            
+        END LOOP;
+        
+  EXCEPTION      
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'BUILD_SLCT_STRS'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+   END BUILD_SLCT_STRS;
+
+PROCEDURE BUILD_SLCT_STR(in_TABLE_NAME IN VARCHAR2
+                        ,out_SLCT_STR OUT VARCHAR2
+/****************************************************************************** 
+Purpose : This will build the out_SLCT_STR select strings based on in_TABLE_NAME tables columns   
+Created : 06/06/2016 axd783 CCN Project Team...
+Changed :
+*******************************************************************************/
+)
+IS
+
+/* Example : For in_TABLE_NAME = POSXML_CSTMR_SLS_TAX_TMP Sample output String
+out_SLCT_STR is
+COST_CENTER_CODE,TERMINAL_NUMBER,TRANSACTION_NUMBER,SORT_FORCE,SEGMENT_CODE,SUB_SEGMENT_CODE,FILLER,SALES_TAX_CORR_INDICATOR,SALES_TAX_COLL_AMOUNT_SIGN
+,SALES_TAX_COLL_AMOUNT,SALES_TAX_INDICATOR,SALES_TAX_RATE_SIGN,SALES_TAX_RATE,SALES_TAX_CODE
+*/
+
+
+CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
+IS
+    SELECT COLUMN_NAME
+      FROM USER_TAB_COLS
+     WHERE TABLE_NAME = upper(in_TABLE_NAME)
+     ORDER BY COLUMN_ID asc ;
+
+BEGIN
+
+    FOR rec IN cur_tab( in_TABLE_NAME)   LOOP
+        IF cur_tab%ROWCOUNT = 1   THEN             
+           out_SLCT_STR   := rec.COLUMN_NAME;              
+        ELSE
+           out_SLCT_STR   := out_SLCT_STR ||','||rec.COLUMN_NAME;           
+        END IF;    
+    END LOOP; 
+        
+  EXCEPTION      
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'BUILD_SLCT_STR'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+   END BUILD_SLCT_STR;
+
+PROCEDURE BUILD_KEY_COND_STR(in_KEY IN VARCHAR2
+                            ,out_KEY_COND_STR OUT VARCHAR2
+/**************************************************************** 
+Purpose : This will Build the out_KEY_COND_STR string Join condistion between tables 
+          and the part of where condition
+Created : 06/06/2016 axd783 CCN Project Team...
+Changed :
+*****************************************************************/
+)
+IS
+
+ /* Example : FOR in_KEY 'COST_CENTER_CODE,TRANSACTION_NUMBER,TERMINAL_NUMBER'
+ Sample Output String 
+T1.COST_CENTER_CODE = T2.COST_CENTER_CODE
+AND T1.TRANSACTION_NUMBER = T2.TRANSACTION_NUMBER
+AND T1.TERMINAL_NUMBER = T2.TERMINAL_NUMBER
+WHERE T1.COST_CENTER_CODE IS NULL OR
+T2.COST_CENTER_CODE IS NULL OR
+T1.TRANSACTION_NUMBER IS NULL OR
+T2.TRANSACTION_NUMBER IS NULL OR
+T1.TERMINAL_NUMBER IS NULL OR
+T2.TERMINAL_NUMBER IS NULL OR
+*/
+
+v_join_str                          VARCHAR2(10000) := NULL;
+v_null_cond_str                     VARCHAR2(10000) := NULL;
+v_keys                              DBMS_UTILITY.UNCL_ARRAY;
+v_num                               NUMBER;
+
+BEGIN
+
+    DBMS_UTILITY.COMMA_TO_TABLE (in_KEY, v_num, v_keys);
+
+    FOR i IN 1 .. v_num    LOOP
+    
+        IF i = 1 THEN
+           v_join_str := 'T1.'||v_keys(i)|| ' = ' || 'T2.'||v_keys(i);
+           v_null_cond_str := 'T1.'||v_keys(i)||' IS NULL OR'||CHR(10)||'T2.'||v_keys(i)||' IS NULL OR';
+    
+        ELSE
+    
+           v_join_str := v_join_str||CHR(10)||'AND '||'T1.'||v_keys(i)|| ' = ' || 'T2.'||v_keys(i);
+           v_null_cond_str := v_null_cond_str||CHR(10)||'T1.'||v_keys(i)||' IS NULL OR'||CHR(10)||'T2.'||v_keys(i)||' IS NULL OR';
+        END IF;
+    END LOOP;
+      
+    out_KEY_COND_STR := v_join_str||CHR(10)||'WHERE '||v_null_cond_str;
+      
+  EXCEPTION      
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'BUILD_KEY_COND_STR'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+   END BUILD_KEY_COND_STR;
+   
+PROCEDURE BUILD_WHR_COND_STR(in_TABLE_NAME IN VARCHAR2
+                            ,out_WHR_COND_STR OUT VARCHAR2
+/****************************************************************************** 
+Purpose : This will build the Where condition sting based on the 
+          in_TABLE_NAME columns This also handles Null values comparision by passing default values based on the Data_type
+Created : 06/06/2016 axd783 CCN Project Team...
+Changed :
+******************************************************************************/
+)
+IS
+
+/*  Example : For in_TABLE_NAME = POSXML_CSTMR_SLS_TAX_TMP Sample output String
+out_WHR_COND_STR is
+NVL(T1.COST_CENTER_CODE,'X') <> NVL(T2.COST_CENTER_CODE,'X') OR
+NVL(T1.TERMINAL_NUMBER,'X') <> NVL(T2.TERMINAL_NUMBER,'X') OR
+NVL(T1.TRANSACTION_NUMBER,'X') <> NVL(T2.TRANSACTION_NUMBER,'X') OR
+NVL(T1.SORT_FORCE,'X') <> NVL(T2.SORT_FORCE,'X') OR
+NVL(T1.SEGMENT_CODE,'X') <> NVL(T2.SEGMENT_CODE,'X') OR
+NVL(T1.SUB_SEGMENT_CODE,'X') <> NVL(T2.SUB_SEGMENT_CODE,'X') OR
+NVL(T1.FILLER,'X') <> NVL(T2.FILLER,'X') OR
+NVL(T1.SALES_TAX_CORR_INDICATOR,'X') <> NVL(T2.SALES_TAX_CORR_INDICATOR,'X') OR
+NVL(T1.SALES_TAX_COLL_AMOUNT_SIGN,'X') <> NVL(T2.SALES_TAX_COLL_AMOUNT_SIGN,'X') OR
+NVL(T1.SALES_TAX_COLL_AMOUNT,'X') <> NVL(T2.SALES_TAX_COLL_AMOUNT,'X') OR
+NVL(T1.SALES_TAX_INDICATOR,'X') <> NVL(T2.SALES_TAX_INDICATOR,'X') OR
+NVL(T1.SALES_TAX_RATE_SIGN,'X') <> NVL(T2.SALES_TAX_RATE_SIGN,'X') OR
+NVL(T1.SALES_TAX_RATE,'X') <> NVL(T2.SALES_TAX_RATE,'X') OR
+NVL(T1.SALES_TAX_CODE,'X') <> NVL(T2.SALES_TAX_CODE,'X') 
+*/
+
+v_nvl_str                           VARCHAR2(10000) := NULL;
+
+CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
+IS
+    SELECT COLUMN_NAME,DATA_TYPE
+      FROM USER_TAB_COLS
+     WHERE TABLE_NAME = upper(in_TABLE_NAME)
+     ORDER BY COLUMN_ID asc ;
+
+
+BEGIN
+    FOR rec IN cur_tab(in_TABLE_NAME)   LOOP
+        IF rec.DATA_TYPE = 'VARCHAR2' THEN
+           v_nvl_str := 'NVL(T1.'||rec.COLUMN_NAME||','''||g_char||''') <> NVL(T2.'||rec.COLUMN_NAME||','''||g_char||''') OR';   
+        ELSIF rec.DATA_TYPE = 'DATE' THEN
+           v_nvl_str := 'NVL(T1.'||rec.COLUMN_NAME||','''||g_date||''') <> NVL(T2.'||rec.COLUMN_NAME||','''||g_date||''') OR';
+        ELSIF rec.DATA_TYPE = 'NUMBER' THEN
+           v_nvl_str :='NVL(T1.'||rec.COLUMN_NAME||','''||g_number||''') <> NVL(T2.'||rec.COLUMN_NAME||','''||g_number||''') OR'; 
+        END IF;        
+        
+        out_whr_cond_str := out_whr_cond_str||v_nvl_str || CHR(10);     
+    END LOOP;    
+                
+    -- This will remove the last 3 characters ' OR' from the Where condition string
+    -- If any code changes to the string needs to consider Last 3 characters of the string.
+    out_whr_cond_str := SUBSTR(out_whr_cond_str,1,LENGTH(out_whr_cond_str)-3);
+      
+  EXCEPTION      
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                  ,'BUILD_WHR_COND_STR'
+                                  ,SQLERRM
+                                  ,'000000'
+                                  ,'0000000000');
+   END BUILD_WHR_COND_STR;
+   
+   
 PROCEDURE DIFF_DATA_sp(in_TABLE_NAME1 IN VARCHAR2
                       ,in_TABLE_NAME2 IN VARCHAR2
                       ,in_file_name IN VARCHAR2
@@ -124,16 +373,12 @@ diff_filename                       VARCHAR2(100);
 v_diff_str                          VARCHAR2(32767) := NULL;
 v_t1_select_str                     VARCHAR2(10000) := NULL;
 v_t2_select_str                     VARCHAR2(10000) := NULL;
-v_nvl_str                           VARCHAR2(10000) := NULL;
 v_whr_cond_str                      VARCHAR2(10000) := NULL;
-v_join_str                          VARCHAR2(10000) := NULL;
-v_null_cond_str                     VARCHAR2(10000) := NULL;
+v_key_cond_str                      VARCHAR2(10000) := NULL;
 v_ref_cursor                        SYS_REFCURSOR;
-v_data                              VARCHAR2(32767);
-v_data_rec1                         VARCHAR2(32767);
-v_data_rec2                         VARCHAR2(32767);
-v_header_rec                        VARCHAR2(32767);
-v_count                             NUMBER;
+v_t1_rec                            VARCHAR2(32767);
+v_t2_rec                            VARCHAR2(32767);
+v_header_str                        VARCHAR2(32767);
 table_structure_excp                EXCEPTION; 
 
 CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
@@ -157,80 +402,34 @@ BEGIN
                                             ,diff_filename 
                                             ,'W' 
                                             ,32767);
-        -- This will build the v_t1_select_str,v_t2_select_str and v_header_rec strings 
-        -- As we already verified two table structures which includes column names and the column sequence,So here we are looping through
-        -- once and building select strings.
-        FOR rec1 IN cur_tab( in_TABLE_NAME1)   LOOP
-           IF cur_tab%ROWCOUNT = 1   THEN    
-              v_header_rec      := rec1.COLUMN_NAME;
-              v_t1_select_str   := '''"'''||'|| T1.'||rec1.COLUMN_NAME||'||''"'''|| CHR(10);              
-              v_t2_select_str   := '||'',"'''||'|| T2.'||rec1.COLUMN_NAME||'||''"'''|| CHR(10);
-          
-           ELSE 
-            v_header_rec      := v_header_rec||','||rec1.COLUMN_NAME;
-            v_t1_select_str   := v_t1_select_str ||'||'',"'''||'|| T1.'||rec1.COLUMN_NAME||'||''"'''|| CHR(10) ;           
-            v_t2_select_str   := v_t2_select_str ||'||'',"'''||'|| T2.'||rec1.COLUMN_NAME||'||''"'''|| CHR(10) ; 
-           END IF;
-            
-        END LOOP;
-        
-        -- This will build the join condition string and null condition string based ont the passed key columns input
-        FOR r_key IN (SELECT LEVEL
-                            ,trim(regexp_substr(in_key, '[^,]+', 1, LEVEL)) str
-                        FROM dual
-                     CONNECT BY LEVEL <= regexp_count(in_key, '[^,]+', 1)
-                      )LOOP
-           IF r_key.level = 1 THEN
-              v_join_str := 'T1.'||r_key.str|| ' = ' || 'T2.'||r_key.str;
-              v_null_cond_str := 'T1.'||r_key.str||' IS NULL OR'||CHR(10)||'T2.'||r_key.str||' IS NULL OR';
-           ELSE 
-              v_join_str := v_join_str||CHR(10)||'AND '||'T1.'||r_key.str|| ' = ' || 'T2.'||r_key.str;
-              v_null_cond_str := v_null_cond_str||CHR(10)||'T1.'||r_key.str||' IS NULL OR'||CHR(10)||'T2.'||r_key.str||' IS NULL OR';
-           END IF; 
-        END LOOP;
-        
-        -- This will built the rest of the where condition string
-        -- This also handles Null values comparision by passing default values based on the Data_type
-        FOR rec2 IN cur_tab(in_TABLE_NAME1)   LOOP
-           IF rec2.DATA_TYPE = 'VARCHAR2' THEN
-             v_nvl_str := 'NVL(T1.'||rec2.COLUMN_NAME||','||''''||g_char||''''||') <> NVL(T2.'||rec2.COLUMN_NAME||','||''''||g_char||''''||') OR';   
-           ELSIF rec2.DATA_TYPE = 'DATE' THEN
-             v_nvl_str := 'NVL(T1.'||rec2.COLUMN_NAME||','||''''||g_date||''''||') <> NVL(T2.'||rec2.COLUMN_NAME||','||''''||g_date||''''||') OR';
-           ELSIF rec2.DATA_TYPE = 'NUMBER' THEN
-             v_nvl_str :='NVL(T1.'||rec2.COLUMN_NAME||','||''''||g_number||''''||') <> NVL(T2.'||rec2.COLUMN_NAME||','||''''||g_number||''''||') OR'; 
-           END IF;        
-        
-          v_whr_cond_str := v_whr_cond_str||v_nvl_str || CHR(10);     
-        END LOOP;        
-                
-        -- This will remove the ' OR' from the Where condition string
-        v_whr_cond_str := SUBSTR(v_whr_cond_str,1,LENGTH(v_whr_cond_str)-3);
 
+        -- Call BUILD_SLCT_STRS procedure to get Select Strings of two tables and the Header String
+        BUILD_SLCT_STRS(in_TABLE_NAME1,v_t1_select_str,v_t2_select_str,v_header_str);  
+        
+        -- Call BUILD_KEY_COND_STR procedure to Key Condition string
+        BUILD_KEY_COND_STR(in_KEY,v_key_cond_str);
+         
+        -- Call BUILD_WHR_COND_STR procedure to get the Where condition string
+        BUILD_WHR_COND_STR(in_TABLE_NAME1,v_whr_cond_str);     
+                
         -- This will built the whole Dynamic Diff Select string
-        v_diff_str         :=  'SELECT '|| v_t1_select_str || v_t2_select_str || CHR(10) ||
+        v_diff_str         :=  'SELECT '|| v_t1_select_str ||','|| v_t2_select_str || CHR(10) ||
                                '  FROM '|| in_TABLE_NAME1 ||' T1'|| CHR(10) ||
                                '  FULL OUTER JOIN '|| in_TABLE_NAME2 ||' T2'|| CHR(10) || 
-                               '    ON ' || v_join_str || CHR(10) ||
-                               ' WHERE '|| v_null_cond_str || CHR(10) || v_whr_cond_str || CHR(10) 
+                               '    ON ' || v_key_cond_str || CHR(10) || v_whr_cond_str || CHR(10) 
                                ;  
         --DBMS_OUTPUT.PUT_LINE(v_diff_str);
         -- This will Appened the IN_TABLE for the v_header_rec string.
-        v_header_rec := 'IN_TABLE'||','||v_header_rec;     
-        UTL_FILE.PUT_LINE(diff_output_file, v_header_rec, TRUE);
+        v_header_str := 'IN_TABLE'||','||v_header_str;     
+        UTL_FILE.PUT_LINE(diff_output_file, v_header_str, TRUE);
         
         -- Open the ref cursor for the Dynamic Diff Select string
         OPEN  v_ref_cursor FOR v_diff_str;
         LOOP
-        FETCH v_ref_cursor INTO v_data;
-        EXIT WHEN v_ref_cursor%NOTFOUND;
-        
-        -- v_count is the count of the ", pattern in the v_data record to cut in to the two records.
-        v_count := regexp_count(v_data,'",');
-        v_data_rec1 := UPPER(in_TABLE_NAME1)||','||SUBSTR(v_data,1,INSTR(v_data,'",',1,(v_count/2)));
-        v_data_rec2 := UPPER(in_TABLE_NAME2)||','||SUBSTR(v_data,INSTR(v_data,'",',1,(v_count/2))+2);
-
-        UTL_FILE.PUT_LINE(diff_output_file, v_data_rec1, TRUE);
-        UTL_FILE.PUT_LINE(diff_output_file, v_data_rec2, TRUE);
+            FETCH v_ref_cursor INTO v_t1_rec,v_t2_rec;
+            EXIT WHEN v_ref_cursor%NOTFOUND;
+            UTL_FILE.PUT_LINE(diff_output_file, v_t1_rec, TRUE);
+            UTL_FILE.PUT_LINE(diff_output_file, v_t2_rec, TRUE);
         END LOOP;
     END IF;
 
@@ -239,7 +438,7 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Given table Structures are not Similar');
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
                                   ,'DIFF_DATA_sp'
-                                  ,'Given table Structures are not Similar'
+                                  ,SQLERRM||'Given table Structures are not Similar'
                                   ,'000000'
                                   ,'0000000000');
     WHEN OTHERS THEN
@@ -267,22 +466,13 @@ IS
 v_file_path                         VARCHAR2(50);
 match_output_file                   utl_file.file_type;
 match_filename                      VARCHAR2(100);
-v_t1_select_str                     VARCHAR2(10000) := NULL;  
-v_t2_select_str                     VARCHAR2(10000) := NULL;
+v_select_str                        VARCHAR2(10000) := NULL;  
 v_header_rec                        VARCHAR2(10000) := NULL;
 v_match_str                         VARCHAR2(32767) := NULL;
 v_ref_cursor                        SYS_REFCURSOR;
 v_data                              VARCHAR2(32767);
-v_count                             NUMBER;
 table_structure_excp                EXCEPTION; 
 
-CURSOR cur_tab (in_TABLE_NAME IN VARCHAR2)
-IS
-   SELECT COLUMN_NAME
-     FROM USER_TAB_COLUMNS
-    WHERE TABLE_NAME = upper(in_TABLE_NAME)
- ORDER BY COLUMN_ID asc ;
-     
 BEGIN
     -- Call Validate Function to validate input paramters (in_TABLE_NAME1 and in_TABLE_NAME2) to see if they are having Identical structure    
     IF NOT VALIDATE_TABLES_fnc(in_TABLE_NAME1,in_TABLE_NAME2) THEN    
@@ -299,46 +489,40 @@ BEGIN
                                              ,32767); 
         -- This will build the select string which includes all the table columns,As we already validated the two tables structures 
         -- which includes column names,So in one loop building two tables select strings including all the columns in tables
-        FOR rec1 IN cur_tab( in_TABLE_NAME1)   LOOP
-           IF cur_tab%ROWCOUNT = 1   THEN             
-              v_t1_select_str   := rec1.COLUMN_NAME;              
-              v_t2_select_str   := rec1.COLUMN_NAME;
-           ELSE
-              v_t1_select_str   := v_t1_select_str ||','||rec1.COLUMN_NAME;           
-              v_t2_select_str   := v_t2_select_str ||','||rec1.COLUMN_NAME;
-           END IF;    
-        END LOOP; 
+ 
+        BUILD_SLCT_STR(in_TABLE_NAME1,v_select_str);
+        
        -- This will built the whole Dynamic Match Select string
-        v_match_str      := 'SELECT '||v_t1_select_str|| CHR(10) ||
-                            '  FROM (SELECT COUNT(tab1) AS tab1, COUNT(tab2) AS tab2, '||v_t1_select_str || CHR(10) || 
-                            '           FROM (SELECT ' || v_t1_select_str || CHR(10) ||
+        v_match_str      := 'SELECT '||v_select_str|| CHR(10) ||
+                            '  FROM (SELECT COUNT(tab1) AS tab1, COUNT(tab2) AS tab2, '||v_select_str || CHR(10) || 
+                            '           FROM (SELECT ' || v_select_str || CHR(10) ||
                             '                           , 1 AS tab1' || CHR(10) ||
-                            '                           , TO_NUMBER(NULL) AS tab2' || CHR(10) ||  -- To_number as this is there to match the data type with below select column
+                            '                           , TO_NUMBER(NULL) AS tab2' || CHR(10) ||  -- To_number is to match the data type with below select column
                             '                   FROM '|| in_TABLE_NAME1 || CHR(10) ||
                             '                 UNION ALL' || CHR(10) ||
-                            '                 SELECT '|| v_t2_select_str || CHR(10) ||
-                            '                          , TO_NUMBER(NULL) AS tab1' || CHR(10) ||   -- To_number as this is there to match the data type with above select column
+                            '                 SELECT '|| v_select_str || CHR(10) ||
+                            '                          , TO_NUMBER(NULL) AS tab1' || CHR(10) ||   -- To_number is to match the data type with above select column
                             '                          , 2 AS tab2 '|| CHR(10) ||
                             '                   FROM '|| in_TABLE_NAME2 || CHR(10) || 
-                            '         GROUP BY '|| v_t1_select_str || CHR(10) ||      
+                            '         GROUP BY '|| v_select_str || CHR(10) ||      
                             '         HAVING COUNT(tab1)'||' = '|| 'COUNT(tab2)' || CHR(10) ||
-                            '         ORDER BY '|| v_t1_select_str ||')'|| CHR(10) 
+                            '         ORDER BY '|| v_select_str ||')'|| CHR(10) 
                             ;
 
         --DBMS_OUTPUT.PUT_LINE( v_match_str);
         
         -- This will write the header String.
-        v_header_rec := v_t1_select_str;
+        v_header_rec := v_select_str;
         
         UTL_FILE.PUT_LINE(match_output_file, v_header_rec, TRUE);
         
-        -- Open the ref cursor for the Dynamic Match Select string        
+        -- Open the ref cursor for the Dynamic Match Select string 
         OPEN  v_ref_cursor FOR v_match_str;
-        LOOP
-        FETCH v_ref_cursor INTO v_data;
-        EXIT WHEN v_ref_cursor%NOTFOUND;      
-        UTL_FILE.PUT_LINE(match_output_file, v_data, TRUE); 
-        END LOOP;    
+           LOOP
+              FETCH v_ref_cursor INTO v_data;
+              EXIT WHEN v_ref_cursor%NOTFOUND;
+              UTL_FILE.PUT_LINE(match_output_file, v_data, TRUE); 
+           END LOOP;
           
     END IF;
 
@@ -347,7 +531,7 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Given table Structures are not Similar');   
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
                                   ,'MATCH_DATA_sp'
-                                  ,'Given table Structures are not Similar'
+                                  ,SQLERRM||'Given table Structures are not Similar'
                                   ,'000000'
                                   ,'0000000000');
     WHEN OTHERS THEN
