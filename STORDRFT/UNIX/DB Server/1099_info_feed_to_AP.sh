@@ -13,6 +13,8 @@
 #            Added Error handling calls
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            changed the error check to make it uniform
+#          : 06/15/2016 nxk927 CCN Project Team.....
+#            passing only one parameter instead of two since we will run the 1099 on demand report from different procedure
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -33,7 +35,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'), to_date('$DATE','MM/DD/YYYY'));
+SD_FILE_BUILD_PKG.SD_1099_CONSOLIDATED_RPT(to_date('$DATE','MM/DD/YYYY'));
 Exception
  when others then
  :exitCode := 2;

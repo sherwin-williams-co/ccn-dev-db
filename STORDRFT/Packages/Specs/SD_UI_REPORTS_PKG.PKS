@@ -58,46 +58,16 @@ IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
 ,OUT_REF_CUR     OUT SD_TABLE_IU_PKG.REF_CURSOR);
 
-PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT (
-/*******************************************************************************
-	This procedure is intended to select records from 
-  MATCHED PROCESSING REPORT #1 BY STORE NO. & DRAFT NO.
+PROCEDURE SD_1099_CONSOLIDATED_RPT(
+/******************************************************************************
+  This procedure is a wrapper for store draft 1099 info feed to ap report
 
-Created : 06/19/2015 jxc517 CCN Project....
-Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the FSS sent start date and end date as  parameter so this can be called from UI as well
-          on demand
+Created : 06/09/2015 jxc517 CCN Project....
+Changed : 06/16/2016 jxc517 CCN Project Team....
+          changed the parameters from IN_FSS_SENT_ST_DT and IN_FSS_SENT_END_DT
+          to IN_START_DATE and IN_END_DATE
 *******************************************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE,
-OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
-
-PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT (
-/*******************************************************************************
-	This procedure is intended to select records from 
-  NO MATCH FOUND ON VENDOR FILE BY STORE NO. & DRAFT NO.
-
-Created : 06/19/2015 jxc517 CCN Project....
-Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the FSS sent start date and end date parameter.
-          Currently not using but we might need in later.
-*******************************************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE,
-OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
-
-PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT (
-/*******************************************************************************
-	This procedure is intended to select records from 
-  NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
-
-Created : 06/19/2015 jxc517 CCN Project....
-Changed : 12/02/2015 nxk927 CCN Project Team....
-          passing the FSS sent start date and end date parameter.
-          Currently not using but we might need in later.
-*******************************************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE,
-OUT_REF_CUR    OUT SD_TABLE_IU_PKG.REF_CURSOR);
+IN_START_DATE       IN     DATE,
+IN_END_DATE         IN     DATE);
 
 END SD_UI_REPORTS_PKG;

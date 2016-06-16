@@ -7,6 +7,16 @@ changed :
 *****************************************************************/
 IS
 
+PROCEDURE LOAD_VENDOR_INFORMATION
+/*****************************************************************************
+	This procedure will load the VENDOR_INFO table used in FSS file generation process
+
+created : 04/07/2015 jxc517 CCN Project....
+changed : 06/16/2016 jxc517 CCN Project....
+          adding this procedure in specs to make it public
+*****************************************************************************/
+;
+
 FUNCTION GET_CUSTOMER_TAX_ID(
 /*****************************************************************************
 	This function will return the tax id for the customer id passed in
@@ -91,7 +101,7 @@ changed :
 (IN_DATE IN DATE,
 IN_DIV  IN VARCHAR2);
 
-PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT(
+PROCEDURE SD_1099_NO_MTCHD_VENDOR_RPRT
 /**********************************************************
 	This procedure is intended to select records from 
   NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
@@ -100,9 +110,10 @@ created : 7/29/2015 nxk927 CCN Project....
 changed : 12/02/2015 nxk927 CCN Project Team....
           passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
+        : 06/16/2016 jxc517 CCN Project..
+          removed the parameters as it is not needed here
 **********************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE);
+;
 
 PROCEDURE SD_1099_MTCHD_PRCSNG_RPRT(
 /**********************************************************
@@ -113,11 +124,13 @@ created : 7/29/2015 nxk927 CCN Project....
 changed : 12/02/2015 nxk927 CCN Project Team....
           passing the FSS start date and end date as  parameter so this can be called from UI as well
           on demand
+        : 06/16/2016 jxc517 CCN Project..
+          removed FSS start date and end date parameters and only passing only one in_date
+          parameter
 **********************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE);
+IN_DATE      IN     DATE);
 
-PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT(
+PROCEDURE SD_1099_NO_VNDR_ON_BNK_TP_RPRT
 /*******************************************************************************
 	This procedure is intended to select records from 
   NO MATCH FOUND ON BANK TAPE FILE BY STORE NO. & DRAFT NO.
@@ -126,9 +139,10 @@ Created : 7/29/2015 nxk927 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
           passing the FSS sent start date and end date parameter.
           Currently not using but we might need in later.
+        : 06/16/2016 jxc517 CCN Project..
+          removed the parameters as it is not needed here
 *******************************************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE);
+;
 
 PROCEDURE SD_1099_TXPYR_ID_AP_TRNS_CRT(
 /**********************************************************
@@ -139,19 +153,22 @@ Created : 7/29/2015 nxk927 CCN Project....
 Changed : 12/02/2015 nxk927 CCN Project Team....
           passing the FSS sent start date and end date as  parameter so this can be called from UI as well
           on demand
+        : 06/16/2016 jxc517 CCN Project..
+          removed FSS start date and end date parameters and only passing only one in_date
+          parameter
 **********************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE);
+IN_DATE      IN     DATE);
 
 PROCEDURE SD_1099_CONSOLIDATED_RPT(
 /******************************************************************************
   This procedure is a wrapper for store draft 1099 info feed to ap report
   
 Created : 12/02/2015 nxk927 CCN Project....
-Changed : 
+Changed : 06/16/2016 jxc517 CCN Project..
+          removed FSS start date and end date parameters and only passing only one in_date
+          parameter
 *******************************************************************************/
-IN_FSS_SENT_ST_DT      IN     DATE,
-IN_FSS_SENT_END_DT     IN     DATE);
+IN_DATE      IN     DATE);
 
 PROCEDURE SD_1099_QRTLY_RPT(
   /******************************************************************************
