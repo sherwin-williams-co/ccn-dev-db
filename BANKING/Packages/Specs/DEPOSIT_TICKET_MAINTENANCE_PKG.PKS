@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         DEPOSIT_TICKET_MAINTENANCE_PKG
+create or replace PACKAGE         DEPOSIT_TICKET_MAINTENANCE_PKG
 AS
 /**********************************************************
 This Package contains all the procedures used in
@@ -148,5 +148,16 @@ IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
-END DEPOSIT_TICKET_MAINTENANCE_PKG;
+PROCEDURE UPDATE_TICKORD_TRACK_NUM(p_load_date IN VARCHAR2)
+/*******************************************************************************
+This procedure is intended to update the tracing number information for an order id.
 
+Created : 06/21/2016 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/;
+
+
+END DEPOSIT_TICKET_MAINTENANCE_PKG;
+/
+
+SHOW ERRORS;

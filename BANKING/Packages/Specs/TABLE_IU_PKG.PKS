@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         TABLE_IU_PKG 
+create or replace PACKAGE         TABLE_IU_PKG 
 AS
 /**********************************************************
     This Package is intended to process the DMLs and DDLs on all the
@@ -619,7 +619,81 @@ PROCEDURE BANK_DEP_BAG_TICKORD_FTR_D_SP (
 Created : 10/20/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
+IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE); 
+
+PROCEDURE TEMP_TICKORD_TRACKING_T_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into TEMP_TICKORD_TRACKING_T table
+
+Created : 06/28/2016 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     TEMP_TICKORD_TRACKING_T%ROWTYPE);
+
+PROCEDURE BANK_TICKORD_TRACK_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into BANK_DEP_TICKORD table
+
+Created : 06/28/2016 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     BANK_DEP_TICKORD%ROWTYPE);
+
+PROCEDURE BANK_TICKORD_FUTURE_TRACK_U_SP(
+/*******************************************************************************
+    This procedure is intended to updates records in BANK_DEP_TICKORD_FUTURE table
+
+Created : 07/21/2015 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_TICKORD_HIST_TRACK_U_SP(
+/*******************************************************************************
+    This procedure is intended to updates records in BANK_DEP_TICKORD_HIST table
+
+Created : 07/21/2015 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_TICKORD_HIST%ROWTYPE);
+
+PROCEDURE TEMP_BAGORDER_TRACKING_T_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into TEMP_BAGORDER_TRACKING_T table
+
+Created : 06/28/2016 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW     IN     TEMP_BAGORDER_TRACKING_T%ROWTYPE);
+
+PROCEDURE BANK_BAG_TICKORD_U_SP(
+/*******************************************************************************
+    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD table
+
+Created : 07/21/2015 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
+
+PROCEDURE BANK_BAG_TICKORD_FUTURE_U_SP(
+/*******************************************************************************
+    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD_FUTURE table
+
+Created : 07/21/2015 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
+
+PROCEDURE BANK_BAG_TICKORD_HIST_U_SP(
+/*******************************************************************************
+    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD_HIST table
+
+Created : 07/21/2015 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_ROW IN     BANK_DEP_BAG_TICKORD_HIST%ROWTYPE);
 
 END TABLE_IU_PKG;
+/
 
+SHOW ERRORS;
