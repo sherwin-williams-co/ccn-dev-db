@@ -12,7 +12,7 @@
 
 LOGDIR=$HOME/logs
 THISSCRIPT="update_banking_param" 
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 proc="update_banking_param"
@@ -65,7 +65,7 @@ EOF
 status=$?
 
 TIME=`date +"%H:%M:%S"` 
-DATE=`date +"%m-%d-%Y"`
+
 
 echo "Begin Get Parameter: Processing Ended for $proc at $TIME on $DATE">>$LOGDIR/$LOG_NAME
 
@@ -79,7 +79,7 @@ then
 fi
 
 TIME=`date +"%H:%M:%S"` 
-DATE=`date +"%m-%d-%Y"`
+
 
 echo "End Get Parameter: Processing finished for $proc at ${TIME} on ${DATE}">>$LOGDIR/$LOG_NAME
 ############################################################################

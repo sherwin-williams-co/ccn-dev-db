@@ -621,15 +621,6 @@ Changed :
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE); 
 
-PROCEDURE TEMP_TICKORD_TRACKING_T_I_SP (
-/*******************************************************************************
-	This procedure is intended to insert records into TEMP_TICKORD_TRACKING_T table
-
-Created : 06/28/2016 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW     IN     TEMP_TICKORD_TRACKING_T%ROWTYPE);
-
 PROCEDURE BANK_TICKORD_TRACK_U_SP (
 /*******************************************************************************
 	This procedure is intended to update records into BANK_DEP_TICKORD table
@@ -656,15 +647,6 @@ Created : 07/21/2015 mxk766 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICKORD_HIST%ROWTYPE);
-
-PROCEDURE TEMP_BAGORDER_TRACKING_T_I_SP (
-/*******************************************************************************
-	This procedure is intended to insert records into TEMP_BAGORDER_TRACKING_T table
-
-Created : 06/28/2016 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW     IN     TEMP_BAGORDER_TRACKING_T%ROWTYPE);
 
 PROCEDURE BANK_BAG_TICKORD_U_SP(
 /*******************************************************************************

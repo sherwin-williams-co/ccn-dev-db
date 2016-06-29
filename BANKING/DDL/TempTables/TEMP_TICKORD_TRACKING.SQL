@@ -1,3 +1,9 @@
+/*******************************************************************************
+  The table is used to hold the tracking information of ticket orders. 
+		This is an external table and points tot he file ticketordertracking.txt.
+  CREATED : 06/21/2016 MXK766 CCN PROJECT....
+  CHANGED : 
+*******************************************************************************/
 CREATE TABLE TEMP_TICKORD_TRACKING
 (
 	ORDER_ID              VARCHAR2(100),

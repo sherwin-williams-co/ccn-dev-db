@@ -14,7 +14,7 @@ proc_name=check_bank_file_ok_status
 file_name=$1 
 LOGDIR=$HOME/logs
 THISSCRIPT="update_banking_param" 
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 

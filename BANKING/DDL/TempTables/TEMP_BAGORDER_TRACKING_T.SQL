@@ -1,3 +1,8 @@
+/*******************************************************************************
+  The table is used to hold the tracking information of bag orders
+  CREATED : 06/21/2016 MXK766 CCN PROJECT....
+  CHANGED : 
+*******************************************************************************/
 CREATE TABLE TEMP_BAGORDER_TRACKING_T
 (
 ORDER_ID              VARCHAR2(100),

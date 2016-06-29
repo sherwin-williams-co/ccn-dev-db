@@ -1,3 +1,9 @@
+/*******************************************************************************
+  The table is used to hold the tracking information of bag orders. 
+		This is an external table and points tot he file bagordertracking.txt.
+  CREATED : 06/21/2016 MXK766 CCN PROJECT....
+  CHANGED : 
+*******************************************************************************/
 CREATE TABLE TEMP_BAGORDER_TRACKING
 (
 	ORDER_ID              VARCHAR2(100),

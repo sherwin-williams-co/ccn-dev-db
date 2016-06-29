@@ -20,7 +20,7 @@ ARCHIVE_PATH="$HOME/datafiles/archieve"
 LOGDIR=$HOME/logs
 THISSCRIPT="ticketordering_tracking"
 TICKETORDER_TRACKING_FILE="ticketordertracking"
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 EQUAL_VAL=0
@@ -81,9 +81,18 @@ else
    
    #Moving the processed file to archive folder first before sending the success message.
    #This is done to make sure that we do not reprocess the same file again in case if the success email fails.
+   #Create an folder in the archive path for todays date and then move the file into that path.
 
-   mv $DATA_FILES_PATH/${TICKETORDER_TRACKING_FILE}.txt $ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE}_${TIME}.txt
-   echo "File moved to archive folder "$ARCHIVE_PATH " and renamed "${TICKETORDER_TRACKING_FILE}.txt" to  "${TICKETORDER_TRACKING_FILE}_${DATE}_${TIME}.txt>>$LOGDIR/${LOG_NAME}
+   if [ -d $ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE} ]
+   then
+       echo "Direcotry "$ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE} " Exists ">>$LOGDIR/${LOG_NAME}
+   else
+       echo "Creating directory "$ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE}>>$LOGDIR/${LOG_NAME}
+       mkdir $ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE}
+   fi
+
+   mv $DATA_FILES_PATH/${TICKETORDER_TRACKING_FILE}.txt $ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE}/${TICKETORDER_TRACKING_FILE}_${DATE}_${TIME}.txt
+   echo "File moved to archive folder "$ARCHIVE_PATH/${TICKETORDER_TRACKING_FILE}_${DATE} " and renamed "${TICKETORDER_TRACKING_FILE}.txt" to  "${TICKETORDER_TRACKING_FILE}_${DATE}_${TIME}.txt>>$LOGDIR/${LOG_NAME}
    
    $HOME/send_mail.sh "TICKETORDER_PROCESS_COMPLETE">>$LOGDIR/${LOG_NAME}
    status=$?

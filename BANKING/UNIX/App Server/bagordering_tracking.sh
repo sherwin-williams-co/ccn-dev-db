@@ -21,7 +21,7 @@ ARCHIVE_PATH="$HOME/datafiles/archieve"
 LOGDIR=$HOME/logs
 THISSCRIPT="bagordering_tracking"
 BAGORDER_TRACKING_FILE="bagordertracking"
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 EQUAL_VAL=0
@@ -76,8 +76,16 @@ else
     #Moving the processed file to archive folder first before sending the success message.
     #This is done to make sure that we do not reprocess the same file again in case if the success email fails.
     
-    mv $DATA_FILES_PATH/${BAGORDER_TRACKING_FILE}.txt $ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE}_${TIME}.txt
-    echo "File moved to archive folder "$ARCHIVE_PATH " and renamed "${BAGORDER_TRACKING_FILE}" to  "${BAGORDER_TRACKING_FILE}_${DATE}_${TIME}.txt>>$LOGDIR/${LOG_NAME}
+    if [ -d $ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE} ]
+    then
+        echo "Direcotry "$ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE} " Exists ">>$LOGDIR/${LOG_NAME}
+    else
+        echo "Creating directory "$ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE}>>$LOGDIR/${LOG_NAME}
+        mkdir $ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE}
+    fi
+
+    mv $DATA_FILES_PATH/${BAGORDER_TRACKING_FILE}.txt $ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE}/${BAGORDER_TRACKING_FILE}_${DATE}_${TIME}.txt
+    echo "File moved to archive folder "$ARCHIVE_PATH/${BAGORDER_TRACKING_FILE}_${DATE} " and renamed "${BAGORDER_TRACKING_FILE}.txt" to  "${BAGORDER_TRACKING_FILE}_${DATE}_${TIME}.txt>>$LOGDIR/${LOG_NAME}
 
     $HOME/send_mail.sh "BAGORDER_PROCESS_COMPLETE">>$LOGDIR/${LOG_NAME}
     status=$?

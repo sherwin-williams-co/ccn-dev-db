@@ -13,7 +13,7 @@
 proc_name=rename_file_ok_to_notok
 file_name=$1
 LOGDIR=$HOME/logs 
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${proc_name}_${DATE}_${TIME}.log
 

@@ -13,7 +13,7 @@
 proc="get_bank_dateparam"
 file_name=$1 
 LOGDIR=$HOME/logs 
-DATE=`date +"%m-%d-%Y"`
+DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"` 
 LOG_NAME=${proc}_${DATE}_${TIME}.log
 # below command will invoke the check_bank_file_ok_status shell script to check if the batch_dependency.ok file exists or not
