@@ -3,7 +3,7 @@
   CREATED : 06/21/2016 MXK766 CCN PROJECT....
   CHANGED : 
 *******************************************************************************/
-CREATE TABLE TEMP_TICKORD_TRACKING_T
+CREATE TABLE TICKORD_TRACKING_T
 (
 ORDER_ID              VARCHAR2(100),
 ORDER_TRACKING_NUMBER VARCHAR2(100),
