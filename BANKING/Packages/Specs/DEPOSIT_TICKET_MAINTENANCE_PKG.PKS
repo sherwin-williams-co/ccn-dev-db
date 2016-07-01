@@ -148,7 +148,7 @@ IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2);
 
-PROCEDURE UPDATE_TICKORD_TRACK_NUM(p_load_date IN VARCHAR2)
+PROCEDURE UPDATE_TICKORD_TRACK_NUM(IN_LOAD_DATE IN VARCHAR2)
 /*******************************************************************************
 This procedure is intended to update the tracing number information for an order id.
 
