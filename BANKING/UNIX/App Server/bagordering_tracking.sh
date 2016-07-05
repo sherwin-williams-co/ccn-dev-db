@@ -15,7 +15,7 @@
 
 #Read Variables 
 
-PROC_NAME="DEPOSIT_BAG_MAINTENANCE_PKG.UPDATE_BAGORDER_TRACK_NUM"
+PROC_NAME="DPST_BAGS_UPDATE_BATCH_PKG.UPDATE_BAGORDER_TRACK_NUM"
 DATA_FILES_PATH="$HOME/initLoad"
 ARCHIVE_PATH="$HOME/datafiles/archieve"
 LOGDIR=$HOME/logs
@@ -33,7 +33,7 @@ RUN_DATE=$BAG_TRACKING_RUNDATE
 
 touch $LOGDIR/$LOG_NAME
 
-echo "Processing Started for $proc_name at "$TIME "on "$DATE " for run date "$RUN_DATE >> $LOGDIR/${LOG_NAME}
+echo "Processing Started for "$PROC_NAME " at "$TIME "on "$DATE " for run date "$RUN_DATE >> $LOGDIR/${LOG_NAME}
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<EOF >> $LOGDIR/${LOG_NAME}
 set heading off;
@@ -44,7 +44,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-DEPOSIT_BAG_MAINTENANCE_PKG.UPDATE_BAGORDER_TRACK_NUM('$RUN_DATE');
+DPST_BAGS_UPDATE_BATCH_PKG.UPDATE_BAGORDER_TRACK_NUM('$RUN_DATE');
 Exception
 when others then
 if sqlcode = -20001 then

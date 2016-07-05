@@ -95,15 +95,7 @@ Changed :
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
-IN_USER_ID              IN     VARCHAR2);
-
-PROCEDURE UPDATE_BAGORDER_TRACK_NUM(IN_LOAD_DATE IN VARCHAR2)
-/*******************************************************************************
-This procedure is intended to update the tracing number information for an order id.
-
-Created : 06/21/2016 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/;
+IN_USER_ID              IN     VARCHAR2); 
 
 END DEPOSIT_BAG_MAINTENANCE_PKG;
 /

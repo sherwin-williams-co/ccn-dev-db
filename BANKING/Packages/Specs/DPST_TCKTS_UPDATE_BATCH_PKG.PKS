@@ -17,5 +17,13 @@ Changed :
 *******************************************************************************/
 ;
 
+PROCEDURE UPDATE_TICKORD_TRACK_NUM(IN_LOAD_DATE IN VARCHAR2)
+/*******************************************************************************
+This procedure is intended to update the tracing number information for an order id.
+
+Created : 06/21/2016 mxk766 CCN Project....
+Changed : 
+*******************************************************************************/;
+
 END DPST_TCKTS_UPDATE_BATCH_PKG;
 

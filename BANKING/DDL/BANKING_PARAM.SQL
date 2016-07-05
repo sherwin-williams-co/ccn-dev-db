@@ -5,7 +5,6 @@
 *******************************************************************************/
 CREATE TABLE BANKING_PARAM
 (
-DAILY_LOAD_RUNDATE      DATE,
-TICKET_TRACKING_RUNDATE DATE,
-BAG_TRACKING_RUNDATE    DATE
+BATCH_NAME      VARCHAR2(1000) NOT NULL,
+BATCH_DATE      DATE NOT NULL
 );
