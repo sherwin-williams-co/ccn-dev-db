@@ -1,5 +1,5 @@
 
-  CREATE OR REPLACE VIEW STATUS_VIEW (COST_CENTER_CODE, STATUS_CODE, STATUS_CODE_DESCRIPTION, EFFECTIVE_DATE, EXPIRATION_DATE) AS 
+  CREATE OR REPLACE VIEW STATUS_VIEW AS 
   SELECT
 /*******************************************************************************
 This View holds all the required data for a cost_center_code,status_code
