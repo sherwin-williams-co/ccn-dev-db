@@ -17,13 +17,14 @@ Changed :
 *******************************************************************************/
 ;
 
-PROCEDURE UPDATE_BAGORDER_TRACK_NUM(IN_LOAD_DATE IN VARCHAR2)
+PROCEDURE UPDATE_BAGORDER_TRACK_NUM(
 /*******************************************************************************
 This procedure is intended to update the tracing number information for an order id.
 
 Created : 06/21/2016 mxk766 CCN Project....
 Changed : 
-*******************************************************************************/;
+*******************************************************************************/
+IN_LOAD_DATE IN VARCHAR2);
 
 END DPST_BAGS_UPDATE_BATCH_PKG;
 
