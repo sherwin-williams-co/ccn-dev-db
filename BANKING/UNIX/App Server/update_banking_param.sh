@@ -54,8 +54,9 @@ UPDATE BANKING_PARAM
                     THEN TRUNC(SYSDATE)
                     WHEN UPPER(BATCH_NAME) = 'DAILY_LOAD_RUNDATE' 
                     THEN TRUNC(SYSDATE)
-                    END
-WHERE UPPER(BATCH_NAME) IN ('TICKET_TRACKING_RUNDATE','BAG_TRACKING_RUNDATE','DAILY_LOAD_RUNDATE');
+                    ELSE 
+                         TRUNC(SYSDATE)
+                    END;
 COMMIT;
 Exception
  when others then

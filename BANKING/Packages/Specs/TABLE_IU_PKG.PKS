@@ -621,7 +621,7 @@ Changed :
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE); 
 
-PROCEDURE BANK_TICKORD_HIST_TRACK_U_SP(
+PROCEDURE BANK_TICKORD_HIST_U_SP(
 /*******************************************************************************
     This procedure is intended to updates records in BANK_DEP_TICKORD_HIST table
 
@@ -638,24 +638,6 @@ Created : 07/21/2015 mxk766 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_BAG_TICKORD_HIST%ROWTYPE);
-
-PROCEDURE TICKORD_TRACKING_T_I_SP(
-/*******************************************************************************
-    This procedure is intended to insert records in TICKORD_TRACKING_T table
-
-Created : 07/21/2015 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     TICKORD_TRACKING_T%ROWTYPE);
-
-PROCEDURE BAGORDER_TRACKING_T_I_SP(
-/*******************************************************************************
-    This procedure is intended to updates records in BAGORDER_TRACKING_T table
-
-Created : 07/21/2015 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BAGORDER_TRACKING_T%ROWTYPE);
 
 PROCEDURE BANK_DEP_TICKORD_U_SP (
 /*******************************************************************************
@@ -676,8 +658,8 @@ PROCEDURE BANK_DEP_BAG_TICKORD_U_SP (
 Created : 10/19/2015 jxc517 CCN Project....
 Changed : 11/03/2015 jxc517 CCN Project....
           Added BANK_DEP_BAG_FTR_ID column to BANK_DEP_BAG_TICKORD table
-										07/05/2016 mxk766 CCN Project....
-										Added EXTERNAL_ORDER_ID_GUI column in the where condition.
+          07/05/2016 mxk766 CCN Project....
+          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
 
@@ -688,8 +670,8 @@ PROCEDURE BANK_DEP_TICKORD_FUTURE_U_SP (
 Created : 09/01/2015 jxc517 CCN Project....
 Changed : 11/03/2015 jxc517 CCN Project....
           Added BANK_DEP_TICK_FTR_ID column to BANK_DEP_TICKORD_FUTURE table
-										07/05/2016 mxk766 CCN Project....
-										Added EXTERNAL_ORDER_ID_GUI column in the where condition.
+          07/05/2016 mxk766 CCN Project....
+          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
 
@@ -700,8 +682,8 @@ PROCEDURE BANK_DEP_BAG_TICKORD_FTR_U_SP (
 Created : 10/19/2015 jxc517 CCN Project....
 Changed : 11/03/2015 jxc517 CCN Project....
           Added BANK_DEP_BAG_FTR_ID column to BANK_DEP_BAG_TICKORD_FUTURE table
-										07/05/2016 mxk766 CCN Project....
-										Added EXTERNAL_ORDER_ID_GUI column in the where condition.
+          07/05/2016 mxk766 CCN Project....
+          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
 
