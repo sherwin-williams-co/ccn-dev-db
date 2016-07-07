@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW COSTCNTR_ECOMM_V AS 
+  CREATE OR REPLACE VIEW COSTCNTR_ECOMM_V AS 
   SELECT
 /*******************************************************************************
 This view will provide details required for the e-commerce related to cost center tables
@@ -15,6 +15,8 @@ Modified : 08/18/2015 nxk927 CCN Project...
            Added new fields to pass active TYPE_CODE and description
          : 03/01/2016 mxr916 CCN Project.
            Added STATE_DESCRIPTION,COUNTRY_DESCRIPTION,MISSION_CODE_DESCRIPTION,POLLING_STATUS_CODE_DESCRIPTON columns.
+         : 07/07/2016 jxc517 CCN Project Team....
+           Added STORE MGR also as part of the cost center manager job title codes
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -123,12 +125,12 @@ Modified : 08/18/2015 nxk927 CCN Project...
         (SELECT * FROM HIERARCHY_DETAIL_VIEW WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY') H
         ,(SELECT E1.FIRST_NAME,E1.MIDDLE_INITIAL,E1.LAST_NAME, E1.COST_CENTER_CODE
             FROM EMPLOYEE_DETAILS E1
-           WHERE UPPER(E1.JOB_TITLE) ='MGR'
+           WHERE UPPER(E1.JOB_TITLE) IN ('MGR', 'STORE MGR')
              AND E1.EMP_PAYROLL_STATUS = 'Active'
              AND E1.HIRE_DATE = (SELECT MIN(HIRE_DATE)
                                    FROM EMPLOYEE_DETAILS E2
                                   WHERE UPPER(E2.COST_CENTER_CODE) = UPPER(E1.COST_CENTER_CODE)
-                                    AND UPPER(E2.JOB_TITLE) ='MGR'
+                                    AND UPPER(E2.JOB_TITLE) IN ('MGR', 'STORE MGR')
                                     AND E2.EMP_PAYROLL_STATUS = 'Active')) E
         ,TAXWARE TAX
         ,(SELECT *
