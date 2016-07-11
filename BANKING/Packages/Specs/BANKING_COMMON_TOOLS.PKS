@@ -39,16 +39,14 @@ Changed :
 IN_COST_CENTER_CODE       IN     VARCHAR2,
 OUT_PHONE_RECORD             OUT CCN_PHONE_INFO_VW%ROWTYPE);
 
-PROCEDURE GET_EMPLOYEE_RECORD(
+PROCEDURE GET_STORE_MANAGER_RECORD(
 /******************************************************************************
-  This procedure gets the employee details for the cost center and job title passed in
+  This procedure gets the Manager details for the cost center passed in
 
-Created : 06/22/2015 jxc517 CCN Project....
-Changed :
+Created : 08/07/2016 vxv339
 *******************************************************************************/
 IN_COST_CENTER_CODE       IN     VARCHAR2,
-IN_JOB_TITLE              IN     VARCHAR2,
-OUT_EMPLOYEE_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE);
+OUT_MANAGER_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE);
 
 PROCEDURE GET_DAD_FOR_COST_CENTER(
 /******************************************************************************
