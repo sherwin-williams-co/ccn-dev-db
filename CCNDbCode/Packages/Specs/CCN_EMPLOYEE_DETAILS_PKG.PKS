@@ -122,7 +122,7 @@ IN_EMP_NBR  IN   VARCHAR2
 )
 RETURN VARCHAR2;
 
-FUNCTION GET_MANAGER_NAME_FNC(
+FUNCTION GET_STORE_MANAGER_NAME_FNC(
 /*******************************************************************************
     This function will return the Manager name for given Cost Center as input
 
