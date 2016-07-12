@@ -1,8 +1,8 @@
 SET DEFINE OFF;
-Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('31','Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;durga.sowjanya.vanaparti@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com');
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('31','ccnoracle.team@sherwin.com');
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('POSXML_DELTA_FILES_GEN','31','POS XML Delta Files','Keith.D.Parker@sherwin.com','Please find the POSXML Delta Files.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+values ('POSXML_DELTA_FILES_GEN','31','POS XML Delta Files','ccnoracle.team@sherwin.com','Please find the POSXML Delta Files.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) values (1,'31','POSXML_STORE_DRAFTS_DIFF','STORDRFT_DATAFILES','A');
 Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) values (2,'31','POSXML_STORE_DRAFT_INSTLR_DIFF','STORDRFT_DATAFILES','A');
