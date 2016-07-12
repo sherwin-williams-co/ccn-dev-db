@@ -1,9 +1,9 @@
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(35,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(33,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(34,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(36,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(37,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
-INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(38,'Keith.D.Parker@sherwin.com;Shahla.Husain@sherwin.com;Nirajan.Karki@sherwin.com;Jaydeep.Cheruku@sherwin.com;Abhitej.Kasula@sherwin.com;amarender.reddy.devidi@sherwin.com;mahesh.repala@sherwin.com;madhu.kongara@sherwin.com;vijay.varada@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(35,'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(33,'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(34,'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(36,'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(37,'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES(38,'ccnoracle.team@sherwin.com');
 
 INSERT INTO MAILING_DETAILS(MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)VALUES('TICKETORDER_PROCESS_COMPLETE',34,'TICKETORDER TRACKING NUMBER PROCESS DONE.','ccnoracle.team@sherwin.com','Ticket order tracking number processing completed successfully.','Thanks,'||CHR(10)||'Sherwin Williams - Stores IT'||CHR(10)||'Primary Contact : Keith D Parker (216-566-3935)' ); 
 INSERT INTO MAILING_DETAILS(MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)VALUES('TICKETORDERTRACKING_ERROR',33,'TICKETORDER TRACKING NUMBER ERROR.','ccnoracle.team@sherwin.com','Ticket order tracking number processing failed. Please check the log file.','Thanks,'||CHR(10)||'Sherwin Williams - Stores IT'||CHR(10)||'Primary Contact : Keith D Parker (216-566-3935)' ); 
