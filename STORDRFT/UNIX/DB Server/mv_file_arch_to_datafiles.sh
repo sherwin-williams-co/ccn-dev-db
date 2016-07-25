@@ -12,24 +12,19 @@
 . /app/stordrft/host.sh
 
 proc_name="mv_file_arch_to_datafiles"
-ARCHIVE_PATH="$HOME/dailyLoad/archieve/drafts"
 FLDR_DATE=`date -d ${DAILY_LOAD_RUNDATE} +"%m%d%Y"`
 DATE=`date +"%m/%d/%Y"`
 CUR_PATH="$HOME/dailyLoad/archieve/drafts/dailyLoad_"$FLDR_DATE""
 DATAFILE_PATH="$HOME/datafiles"
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
-echo $DATE
-echo $FLDR_DATE
-# Control will output if $DIRECTORY exists.
-if [ -d "$ARCHIVE_PATH/"dailyLoad"_"$FLDR_DATE"" ]; then
-   echo " Directory exists "
+
    cd $CUR_PATH
    #Move STORE_DRAFT.TXT file from archive folder to datafiles folder.
    if 
       ls STORE_DRAFT.TXT &> /dev/null; then
       echo " store draft file exist "
-      find -maxdepth 1 -name STORE_DRAFT.TXT -exec mv {} $DATAFILE_PATH \; > /dev/null 2>&1
+      find -maxdepth 1 -name STORE_DRAFT.TXT -exec cp {} $DATAFILE_PATH/STORE_DRAFT_$FLDR_DATE.TXT \; > /dev/null 2>&1
       echo " STORE_DRAFT.TXT file is moved from archive folder to datafiles folder "
    else
       echo " STORE_DRAFT.TXT file doesn't exists "
@@ -38,14 +33,11 @@ if [ -d "$ARCHIVE_PATH/"dailyLoad"_"$FLDR_DATE"" ]; then
    if 
       ls CUSTOMER_LABOR.TXT &> /dev/null; then
       echo " customer labor file exist "
-      find -maxdepth 1 -name CUSTOMER_LABOR.TXT -exec mv {} $DATAFILE_PATH \; > /dev/null 2>&1
+      find -maxdepth 1 -name CUSTOMER_LABOR.TXT -exec cp {} $DATAFILE_PATH/CUSTOMER_LABOR_$FLDR_DATE.TXT \; > /dev/null 2>&1
       echo " CUSTOMER_LABOR.TXT file is moved from archive folder to datafiles folder "
    else
       echo " CUSTOMER_LABOR.TXT file doesn't exists "
    fi
-else
-   echo " Directory do not exists "
-fi
 
 #############################################################################
 ##                           ERROR STATUS CHECK 
