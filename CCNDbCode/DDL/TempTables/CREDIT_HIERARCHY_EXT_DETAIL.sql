@@ -32,7 +32,7 @@ CREATE TABLE CREDIT_HIERARCHY_EXT_DETAIL
              ) 
                            )
           LOCATION
-           ( 'credit_hierarchy.csv'
+           ( 'credit_hierarchy_20160630.csv'
            )
         );
     
