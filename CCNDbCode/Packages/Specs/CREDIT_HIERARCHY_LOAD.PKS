@@ -6,6 +6,17 @@ HIERARCHY tables
 created : 01/28/2016 sxh487927 CCN project
 modified:
 *******************************************************************************/
+
+PROCEDURE LOAD_CODE_DETAIL
+/*******************************************************************************
+  This procedure will insert data from the lookup tables into CODE_DETAIL table.
+  
+  
+created : 07/25/2016 vxv336 CCN Project
+          The REFCURSOR in this procedure gives it the potential to be used for 
+          other hierarchies as well.
+*******************************************************************************/
+ ( in_sourcetable  IN VARCHAR2 );
    
 PROCEDURE ALTER_HIER_TRIGGERS   
 /*******************************************************************************

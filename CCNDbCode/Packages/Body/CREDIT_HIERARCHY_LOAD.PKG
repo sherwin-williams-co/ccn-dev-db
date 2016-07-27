@@ -4,9 +4,77 @@ This package is intended to load Credit Hierarchy files from mainframe into the
 HIERARCHY tables
 
 created : 02/12/2016 sxh487927 CCN project
-modified:
+modified: 07/15/2016 vxv336 CCN project
+          Changed CREDIT_HIER_HDR_DESC_LOAD proc
 *******************************************************************************/
 AS
+
+PROCEDURE LOAD_CODE_DETAIL
+/*******************************************************************************
+  This procedure will insert data from the lookup tables into CODE_DETAIL table.
+  
+  
+created : 07/25/2016 vxv336 CCN Project
+          The REFCURSOR in this procedure gives it the potential to be used for 
+          other hierarchies as well.
+*******************************************************************************/
+ ( in_sourcetable  IN VARCHAR2 )
+ IS
+ 
+ V_CODE NUMBER;
+ v_errm varchar2(500);
+ c NUMBER := 0;
+ sqlgencur sys_refcursor;
+ insertsql VARCHAR2(1000);
+ TableName_Err exception;
+ 
+ BEGIN
+   IF upper(in_sourcetable) = 'CRDT_HIER_ACM_LOOKUP' THEN
+     OPEN sqlgencur FOR
+     SELECT q'[Insert into CODE_DETAIL (CODE_HEADER_NAME,CODE_HEADER_TYPE,CODE_DETAIL_VALUE,CODE_DETAIL_DESCRIPTION,CODE_DETAIL_EXPIRE_FLAG,CODE_DETAIL_EXPIRE_USER,CODE_DETAIL_EXPIRE_EFF_DATE,CODE_DETAIL_ID,CODE_DETAIL_CREATE_USER,CODE_DETAIL_EFF_DATE) 
+               values ('ACM','COD',']'|| acm_nbr||''','''|| acm_name|| q'[', 'N', null, null,]'|| acm_id||', null, null)'
+     FROM crdt_hier_acm_lookup;
+     
+   elsif upper(in_sourcetable) = 'CRDT_HIER_DCM_LOOKUP' THEN
+     OPEN sqlgencur FOR
+     SELECT q'[Insert into CODE_DETAIL (CODE_HEADER_NAME,CODE_HEADER_TYPE,CODE_DETAIL_VALUE,CODE_DETAIL_DESCRIPTION,CODE_DETAIL_EXPIRE_FLAG,CODE_DETAIL_EXPIRE_USER,CODE_DETAIL_EXPIRE_EFF_DATE,CODE_DETAIL_ID,CODE_DETAIL_CREATE_USER,CODE_DETAIL_EFF_DATE) 
+               values ('DCM','COD',']'|| dcm_nbr||''','''|| dcm_name|| q'[', 'N', null, null,]'|| dcm_id||', null, null)'
+     FROM crdt_hier_dcm_lookup;
+
+   elsif upper(in_sourcetable) = 'CRDT_HIER_RCM_LOOKUP' THEN
+     OPEN sqlgencur FOR
+     SELECT q'[Insert into CODE_DETAIL (CODE_HEADER_NAME,CODE_HEADER_TYPE,CODE_DETAIL_VALUE,CODE_DETAIL_DESCRIPTION,CODE_DETAIL_EXPIRE_FLAG,CODE_DETAIL_EXPIRE_USER,CODE_DETAIL_EXPIRE_EFF_DATE,CODE_DETAIL_ID,CODE_DETAIL_CREATE_USER,CODE_DETAIL_EFF_DATE) 
+               values ('RCM','COD',']'|| rcm||''','''|| title|| q'[', 'N', null, null,]'|| rcm_id||', null, null)'
+     FROM crdt_hier_rcm_lookup;
+  
+   ELSE
+     v_errm := 'Please check input table name';
+     raise tablename_err;
+   END IF;
+  
+   loop
+     fetch sqlgencur INTO insertsql;
+     exit WHEN sqlgencur%notfound;
+     EXECUTE IMMEDIATE insertsql;
+     c := c+1;
+     IF mod(c,100) = 0 THEN
+       COMMIT;
+     END IF;
+   END loop;
+   CLOSE sqlgencur;
+   
+   dbms_output.put_line('Inserted '||c||' rows into CODE_DETAIL');
+
+ EXCEPTION 
+   when TableName_Err then
+                 v_code  := SQLCODE;
+                 errpkg.raise_err(v_code, 'CREDIT_HIERARCHY_LOAD.LOAD_CODE_DETAIL' ||V_ERRM );
+   WHEN OTHERS THEN 
+                 v_code  := SQLCODE;
+                 v_errm  := substr(SQLERRM,1,200);
+                 errpkg.raise_err(v_code, 'CREDIT_HIERARCHY_LOAD.LOAD_CODE_DETAIL' ||V_ERRM );
+ END LOAD_CODE_DETAIL;
+
 
 PROCEDURE ALTER_HIER_TRIGGERS   
 /*******************************************************************************
@@ -49,7 +117,7 @@ DBMS_OUTPUT.PUT_LINE('Hier Triggers '||IN_STATUS);
                  errpkg.raise_err(v_code, 'HIERARCHY_LOADING_PKG.ALTER_HIER_TRIGGERS' ||
                  V_ERRM );
  END ALTER_HIER_TRIGGERS;
- 
+
 FUNCTION GET_CREDIT_HIERARCHY_REC(
 /***********************************************************
 	This function will get the credit hier row for the level passed
@@ -114,13 +182,13 @@ BEGIN
               select ACM_VAL into v_ACM_VAL from CRDT_HIER_ACM_LOOKUP where ACM_NBR = V_CREDIT_HIER_T_rec.ATTRIB1; 
           exception
              when NO_DATA_FOUND THEN
-                 DBMS_OUTPUT.PUT_LINE('No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
+                 DBMS_OUTPUT.PUT_LINE('ACM No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
           end;
            begin
                select DCM_VAL into v_DCM_VAL from CRDT_HIER_DCM_LOOKUP where DCM_NBR = V_CREDIT_HIER_T_rec.ATTRIB2;
            exception
              when NO_DATA_FOUND THEN
-                 DBMS_OUTPUT.PUT_LINE('No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
+                 DBMS_OUTPUT.PUT_LINE('DCM No Data for ' || V_CREDIT_HIER_T_rec.HRCHY_DTL_CURR_LVL_VAL);
           end;
           
           CASE WHEN v_ACM_VAL IS NULL AND v_DCM_VAL IS NULL THEN 
@@ -213,19 +281,6 @@ BEGIN
                                                         INTO V_UPPER_LVL_VER_VALUE
                                                         FROM DUAL;
            END CASE;
-          
-      WHEN IN_HRCHY_DTL_LEVEL = '5' THEN
-         
-           SELECT XMLELEMENT ( "attributes",
-                                    (XMLAGG (XMLELEMENT ("upper_lvl_ver_desc", 
-                                                XMLFOREST(
-                                                          'SYSOUT'  AS "Name"
-                                                         ,'Picklist Value' as "Description"
-                                                         ,V_CREDIT_HIER_T_rec.ATTRIB1 AS "Value"                                                     
-                                                          )))))
-                                                    INTO V_UPPER_LVL_VER_VALUE
-                                                    FROM DUAL;   
-      
       ELSE
           NULL;
       END CASE;
@@ -239,7 +294,8 @@ This Procedure Loads HIERARCHY_HEADER and HIERARCHY_DESCRIPTION for credit hiera
 before loading the files from Mainframe into hierarchy_detail table
 
 created : 02/12/2016 sxh487 CCN project
-modified:
+modified: 07/15/2016 vxv336 CCN project
+          Removed SYSOUT attribute for DCO as per new requirement
 *******************************************************************************/
 IS
  V_CODE NUMBER;
@@ -277,13 +333,7 @@ Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LV
   </upper_lvl_ver_desc>
 </attributes>
 ',null,3);
-Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','5','DCO','<attributes>
-  <upper_lvl_ver_desc>
-    <Name>SYSOUT</Name>
-    <Description>pkListValue</Description>
-  </upper_lvl_ver_desc>
-</attributes>
-',null,5);
+Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','5','DCO',null,null,5);
 Insert into HIERARCHY_DESCRIPTION (HRCHY_HDR_NAME,HRCHY_HDR_LVL_NBR,HRCHY_HDR_LVL_DESC,UPPER_LVL_VER_VALUE,HRCHY_GLOBAL_LVL_NBR,LVL_VALUE_SIZE) values ('CREDIT_HIERARCHY','6','Cost Center',null,null,6);
 
 EXCEPTION
@@ -329,6 +379,7 @@ IS
     V_CODE NUMBER;
     V_ERRM VARCHAR2(500);
     v_count integer := 0;
+    V_COST_CENTER_rec COST_CENTER%ROWTYPE;    
     
     CURSOR CREDIT_HIER_CUR is
             SELECT *
@@ -348,7 +399,7 @@ IS
                  WHEN EACH_REC.HRCHY_DTL_LEVEL = '4' THEN
                       V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -3, 3);
                  WHEN EACH_REC.HRCHY_DTL_LEVEL = '5' THEN
-                      V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -5, 5);
+                       V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -5, 5);
                  WHEN EACH_REC.HRCHY_DTL_LEVEL = '6' THEN
                       EACH_REC.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
                       V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(EACH_REC.HRCHY_DTL_CURR_LVL_VAL, -6, 6);
@@ -357,7 +408,7 @@ IS
                  END CASE;
 
                             V_UPPER_LVL_VER_VALUE := GET_CREDIT_HIER_ATTR_VAL( EACH_REC.HRCHY_DTL_LEVEL,EACH_REC.HRCHY_DTL_CURR_LVL_VAL);
-                                                  
+                                                                       
                             INSERT INTO HIERARCHY_DETAIL (  HRCHY_HDR_NAME,
                                                             HRCHY_DTL_LEVEL,
                                                             HRCHY_DTL_PREV_LVL_VAL,
