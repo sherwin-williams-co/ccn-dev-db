@@ -1,3 +1,4 @@
+SET DEFINE OFF;
 -- RCM
 insert into CRDT_HIER_RCM_LOOKUP values(1,'03','01 - EASTERN','EASTERN DIV');
 insert into CRDT_HIER_RCM_LOOKUP values(2,'04','04 - MID-WESTERN','MID-WESTERN DIV');
@@ -130,3 +131,5 @@ insert into CRDT_HIER_DCM_LOOKUP values(76,'92','BITZER - WEST LOS ANGELES','C. 
 insert into CRDT_HIER_DCM_LOOKUP values(77,'93','AMIDON - DALLAS N/FT WORTH','D.R. Amidon');
 insert into CRDT_HIER_DCM_LOOKUP values(78,'95','JOHNSON - CEDAR FALLS II','A.L. Johnson');
 insert into CRDT_HIER_DCM_LOOKUP values(79,'96','VIZCARRA-MORAN - S FLORIDA/PR','V.I. Vizcarra');
+
+COMMIT;
