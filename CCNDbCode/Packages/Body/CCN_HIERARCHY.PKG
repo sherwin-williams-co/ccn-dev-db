@@ -1118,23 +1118,24 @@ END HIERARCHY_STMNT_TYPE_PICKLIST;
 
 PROCEDURE HIERARCHY_HDR_DESC_PICKLIST(	
 /**********************************************************
- HIERARCHY_HDR_DESC_PICKLIST
+	HIERARCHY_HDR_DESC_PICKLIST
 
- This procedure will return the data in ref cursor
+	This procedure will return the data in ref cursor
         from HIERARCHY_HEADER and HIERARCHY_DESCRIPTION
         
 <HIERARCHY_DETAIL>
   <row_data>
       <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-						<COST_CENTER>COSTCENTER</COST_CENTER>
   </row_data>
 </HIERARCHY_DETAIL>
 created : 02/13/2013 SH CCN Project....
 modified: 07/27/2016 mxk766 CCN Project....
           Modified to identify the level basing upon the passed cost center.
 **********************************************************/
-    in_XML                IN     VARCHAR2, 
-    OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR)
+  in_XML                VARCHAR2,
+  OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
+  )
+ 
 IS
     SQ                    INTEGER;
     SE                    VARCHAR2(100);
@@ -1143,97 +1144,71 @@ IS
     
     V_CONTEXT             VARCHAR2(100);
     V_HRCHY_HDR_NAME      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
-
-    V_COSTCENTER          VARCHAR2(100);
-    V_COSTCENTER_FOUND    BOOLEAN := TRUE;
+				
+    V_COSTCENTER          VARCHAR2(100);    
     V_MAX_HRCHY_DTL_LEVEL NUMBER;
 BEGIN
 
   IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
-       V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();        
-       --V_COSTCENTER := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/COSTCENTER/text()').GETSTRINGVAL();        
+       V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
      SELECT 
         V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/COST_CENTER/text()').GETSTRINGVAL() 
-     INTO 
+     INTO
         V_COSTCENTER 
      FROM DUAL;
   END IF;
 
-  V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
+    V_HRCHY_HDR_NAME  := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_HRCHY_HDR_NAME);
  
   /*
   Identify the level if cost center is passed.
   */
-
+		
+  IF V_COSTCENTER IS NOT NULL THEN
   BEGIN
-      SELECT HRCHY_DTL_LEVEL 
-      INTO   V_MAX_HRCHY_DTL_LEVEL 
-      FROM   HIERARCHY_DETAIL
-      WHERE  HRCHY_HDR_NAME=UPPER(V_HRCHY_HDR_NAME) 
-      AND    HRCHY_DTL_CURR_ROW_VAL=TRIM(V_COSTCENTER)
-      AND    ROWNUM=1;
-  EXCEPTION
-  WHEN OTHERS THEN
-      V_COSTCENTER_FOUND := FALSE; 
-  END;
+     SELECT HRCHY_DTL_LEVEL 
+     INTO   V_MAX_HRCHY_DTL_LEVEL 
+     FROM   HIERARCHY_DETAIL
+     WHERE  HRCHY_HDR_NAME=UPPER(V_HRCHY_HDR_NAME) 
+     AND    HRCHY_DTL_CURR_ROW_VAL=UPPER(V_COSTCENTER)
+     AND    ROWNUM=1;
+  EXCEPTION 
+  WHEN OTHERS THEN 
+     NULL;
+		END;			
+  END IF;
   
-  /*
-  If an invalid cost center (or) an null cost center is passed then return the default level for that header. 
-  */  
-  IF NOT V_COSTCENTER_FOUND THEN   
-     OPEN OUT_HIERARCHY_REF_CUR FOR
-     SELECT  
-          HH.HRCHY_HDR_LEVELS,
-          HD.HRCHY_HDR_LVL_DESC,
-          HD.HRCHY_HDR_LVL_NBR,
-          HD.LVL_VALUE_SIZE
-     FROM HIERARCHY_HEADER HH,
-          HIERARCHY_DESCRIPTION HD
-     WHERE 
-          UPPER(HH.HRCHY_HDR_NAME) = UPPER(HD.HRCHY_HDR_NAME)
-     AND  UPPER(HH.HRCHY_HDR_NAME) = UPPER(V_HRCHY_HDR_NAME)
-     ORDER BY 
-          HD.HRCHY_HDR_LVL_NBR ASC;         
-  ELSE  
-  /*
-  If the cost center is a valid one, then identify the correct levels, description, header levels.
-  level value size. 
-  */
-     OPEN OUT_HIERARCHY_REF_CUR FOR
-     SELECT 
-          V_MAX_HRCHY_DTL_LEVEL AS HRCHY_HDR_LEVELS,
-          CASE 
-          WHEN HD.HRCHY_HDR_LVL_NBR = V_MAX_HRCHY_DTL_LEVEL 
-          THEN 'Cost Center' 
-          ELSE 
-               HD.HRCHY_HDR_LVL_DESC 
-          END AS HRCHY_HDR_LVL_DESC,               
-          HD.HRCHY_HDR_LVL_NBR, 
-          CASE 
-          WHEN HD.HRCHY_HDR_LVL_NBR = V_MAX_HRCHY_DTL_LEVEL 
-          THEN 
-          (
-             SELECT LVL_VALUE_SIZE FROM HIERARCHY_DESCRIPTION HDIQ 
-             WHERE UPPER(HDIQ.HRCHY_HDR_NAME) = UPPER(V_HRCHY_HDR_NAME)
-             AND UPPER(HDIQ.HRCHY_HDR_LVL_DESC)='COST CENTER'
-          )  
-          ELSE 
-             HD.LVL_VALUE_SIZE
-          END AS LVL_VALUE_SIZE 
-     FROM HIERARCHY_HEADER HH,
-          HIERARCHY_DESCRIPTION HD
-     WHERE 
-          UPPER(HH.HRCHY_HDR_NAME) = UPPER(HD.HRCHY_HDR_NAME)
-          AND UPPER(HH.HRCHY_HDR_NAME) = UPPER(V_HRCHY_HDR_NAME)
-          AND HRCHY_HDR_LVL_NBR<=V_MAX_HRCHY_DTL_LEVEL
-     ORDER BY 
-          HD.HRCHY_HDR_LVL_NBR ASC;         
-  END IF; 
-         
+  OPEN OUT_HIERARCHY_REF_CUR FOR
+  SELECT NVL(V_MAX_HRCHY_DTL_LEVEL, HH.HRCHY_HDR_LEVELS) AS HRCHY_HDR_LEVELS,
+  CASE 
+      WHEN HD.HRCHY_HDR_LVL_NBR = NVL(V_MAX_HRCHY_DTL_LEVEL, HH.HRCHY_HDR_LEVELS) 
+      THEN 
+          'Cost Center' 
+      ELSE 
+          HD.HRCHY_HDR_LVL_DESC
+  END AS HRCHY_HDR_LVL_DESC,               
+  HD.HRCHY_HDR_LVL_NBR, 
+  CASE 
+      WHEN HD.HRCHY_HDR_LVL_NBR = NVL(V_MAX_HRCHY_DTL_LEVEL, HH.HRCHY_HDR_LEVELS)
+      THEN (
+            SELECT LVL_VALUE_SIZE
+            FROM HIERARCHY_DESCRIPTION HDIQ
+            WHERE UPPER(HDIQ.HRCHY_HDR_NAME) = UPPER('ADMINORG_HIERARCHY')
+            AND UPPER(HDIQ.HRCHY_HDR_LVL_DESC)='COST CENTER'
+											)
+  ELSE HD.LVL_VALUE_SIZE
+  END AS LVL_VALUE_SIZE
+  FROM 
+     HIERARCHY_HEADER HH,
+     HIERARCHY_DESCRIPTION HD
+  WHERE UPPER(HH.HRCHY_HDR_NAME) = UPPER(HD.HRCHY_HDR_NAME)
+  AND   UPPER(HH.HRCHY_HDR_NAME) = UPPER(V_HRCHY_HDR_NAME)
+  AND HRCHY_HDR_LVL_NBR <= NVL(V_MAX_HRCHY_DTL_LEVEL, HD.HRCHY_HDR_LVL_NBR)
+  ORDER BY HD.HRCHY_HDR_LVL_NBR ASC;
+
 EXCEPTION WHEN OTHERS THEN
           SQ := SQLCODE;
-          SE := SQLERRM;
-          
+          SE := SQLERRM; 
           V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
           ERRPKG.RAISE_ERR(-20004,'HIERARCHY_HDR_DESC_PICKLIST',V_CONTEXT);  
 END HIERARCHY_HDR_DESC_PICKLIST;
