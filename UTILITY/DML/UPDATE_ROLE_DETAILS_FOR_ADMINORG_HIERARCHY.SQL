@@ -1,3 +1,8 @@
+/****************************************************************************************************************************************
+CREATED: 08/02/2016 mxk766
+DML TO UPDATE THE ROLE DETAILS TABLE FOR THE NEW ADMINORG_HIERARCHY FOR THE ROLES HWU AND HWD
+****************************************************************************************************************************************/
+
 UPDATE ROLE_DETAILS SET USER_RULES_DESCRIPTION =XMLTYPE('<USER_RULES_DESCRIPTION>
   <HIERARCHY_WINDOW>
     <HIERARCHY_NAME>
