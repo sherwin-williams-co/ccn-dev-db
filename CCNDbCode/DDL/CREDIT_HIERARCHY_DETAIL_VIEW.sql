@@ -5,7 +5,7 @@ AS
 This View will give all the credit hierarchy details for the cost center passed
 
 Created  : 03/23/2016 jxc517 CCN Project....
-Modified : 
+Modified : 08/03/2016 vxv336 Added grant to COSTCNTR_STARCPR_LU
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -100,3 +100,6 @@ Modified :
 --table in a join condition
  WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
  ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
+
+
+GRANT SELECT ON CREDIT_HIERARCHY_DETAIL_VIEW TO COSTCNTR_STARCPR_LU;
