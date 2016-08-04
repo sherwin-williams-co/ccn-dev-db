@@ -19,6 +19,8 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Removed columns PCC_STORE, PCL_STORE and added the column PCC_PCL_STORE from cost_center table
          : 03/01/2016 mxr916 CCN Project Team..
            Added Columns PRI_LOGO_GROUP_IND_DESCRIPTION,SCD_LOGO_GROUP_IND_DESCRIPTION,POLLING_STATUS_COD_DESC
+         : 08/04/2016 vxv336 CCN Project Team..
+           Added CURRENCY_CODE field
 ********************************************************************************/  
 COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -32,6 +34,7 @@ BEGIN_DATE,
 OPEN_DATE,
 MOVE_DATE,
 CLOSE_DATE,
+CURRENCY_CODE,
 MISSION_TYPE_CODE,
 NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('MISSION_TYPE_CODE','COD',MISSION_TYPE_CODE),'N/A') MISSION_TYPE_CODE_DESCRIPTION,
 DUNS_NUMBER,
