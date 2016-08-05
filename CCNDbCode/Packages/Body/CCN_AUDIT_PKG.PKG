@@ -233,6 +233,63 @@ EXCEPTION
       RETURN FALSE;
 END IS_COSTCNTR_IN_GLOBAL_HRCHY;
 
+FUNCTION IS_AUDIT_SUPPRESSED_HIERARCHY(
+/**********************************************************
+  This function returns true if the record maps to any of the
+  suppressed hierarchies like Price District, Credit Hierarchies
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 03/29/2016 jxc517 CCN Project Team....
+modified:
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_RETURN_VAL             BOOLEAN := FALSE;
+BEGIN
+   --By default we assume that the hierarchy passed in is not suppressed
+   --Based on below conditions, if INSTR returns > 0 => it is suppressed hierarchy
+   --so we return TRUE stating that this is audit suppressed hierarchy
+   IF in_TABLE_NAME = 'HIERARCHY_DETAIL'
+      AND (INSTR(in_TRANSACTION_ID, 'PRICE_DISTRICT|') > 0
+           OR INSTR(in_TRANSACTION_ID, 'CREDIT_HIERARCHY|') > 0) THEN
+      V_RETURN_VAL := TRUE;
+   END IF;
+   RETURN V_RETURN_VAL;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN V_RETURN_VAL;
+END IS_AUDIT_SUPPRESSED_HIERARCHY;
+
+FUNCTION IS_AUDIT_SUPPRESSED_FTR_ADDR(
+/**********************************************************
+  This function returns true if the record maps to a
+  future address type
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 04/19/2016 jxc517 CCN Project Team....
+modified:
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_RETURN_VAL             BOOLEAN := FALSE;
+BEGIN
+   --By default we assume that the address passed in is not future type
+   --Based on below conditions, if INSTR returns > 0 => it is suppressed hierarchy
+   --so we return TRUE stating that this is audit suppressed hierarchy
+   IF in_TABLE_NAME LIKE 'ADDRESS%'
+      AND (INSTR(in_TRANSACTION_ID, '|F|') > 0) THEN
+      V_RETURN_VAL := TRUE;
+   END IF;
+   RETURN V_RETURN_VAL;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN V_RETURN_VAL;
+END IS_AUDIT_SUPPRESSED_FTR_ADDR;
+
 FUNCTION IS_COLUMN_PART_OF_KEY(
 /**********************************************************
 	IS_COLUMN_DT_PART_OF_PK
@@ -1253,6 +1310,11 @@ This procedure is the core process that performs the required operations
 for the audit log processing
 
 created : 02/07/2014 jxc517 CCN Project Team . . .
+modified: 03/29/2016 jxc517 CCN Project Team....
+          Added condition not to send audit for suppressed hierarchies like
+          Price District Hierarchy, Credit Hierarchy
+modified: 04/19/2016 jxc517 CCN Project Team....
+          Added condition not to send audit for future addresses
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -1273,9 +1335,15 @@ BEGIN
         --Process the record only if cost center in the key is associated with global
         --or hierarchy_detail record that is NOT in last two levels of any hierarchy
         --NOTE: All details of other hierarchies also should be taken in to consideration 
-        IF (NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME))
+        IF ((NOT IS_IN_LAST_TWO_LVLS_OF_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME))
            OR IS_COSTCNTR_IN_GLOBAL_HRCHY(IN_TRANSACTION_ID, IN_TABLE_NAME) 
-           OR IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE') --Added 09/04/2014 
+           OR IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE')) --Added 09/04/2014 
+           AND
+           --Below condition is to stop sending credit and price district hierarchy to audit
+           (NOT IS_AUDIT_SUPPRESSED_HIERARCHY(IN_TRANSACTION_ID, IN_TABLE_NAME)) --Added 03/29/2016
+           AND
+           --Below condition is to stop sending future address details to audit
+           (NOT IS_AUDIT_SUPPRESSED_FTR_ADDR(IN_TRANSACTION_ID, IN_TABLE_NAME)) --Added 04/19/2016
         THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME

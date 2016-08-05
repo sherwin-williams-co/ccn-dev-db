@@ -1,0 +1,215 @@
+create or replace PACKAGE BODY CCN_ADDRESS_FUT_TO_CURR_PKG
+AS
+/**********************************************************
+  This Package contains procedured to move the future address records into
+  current
+
+created : 04/18/2016 jxc517 CCN Project....
+Changed :
+**********************************************************/
+PROCEDURE UPDATE_STATUS_TYPE_FOR_RELO_CC(
+/******************************************************************************
+  This procedure will update the status type code to "3" for future address types
+  moving to current mailing type
+
+created : 04/19/2016 jxc517 CCN Project....
+revised :
+*******************************************************************************/
+    in_cost_center_code    IN     VARCHAR2,
+    in_effective_date      IN     DATE)
+IS
+   v_xml_status_frag CLOB;
+   v_status_rowtype  STATUS%ROWTYPE;
+BEGIN
+    --build the status xml to be inserted/updated with status code "3" - RELO. COMP. CC
+    --Note that below insert/update will update cost center move_date as well (Existing logic)
+    SELECT XMLELEMENT("STATUS",
+                      XMLFOREST(in_cost_center_code AS COST_CENTER_CODE,
+                                '3' AS STATUS_CODE,
+                                TO_CHAR(in_effective_date,'MM-DD-YYYY') AS EFFECTIVE_DATE,
+                                NULL AS EXPIRATION_DATE)).getCLOBVAL()
+      INTO v_xml_status_frag
+      FROM DUAL;
+    BEGIN
+        CCN_TABLE_IU_PKG.STATUS_I_SP('STATUS',
+                                     v_xml_status_frag,
+                                     v_status_rowtype);
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+            BEGIN
+                CCN_TABLE_IU_PKG.STATUS_U_SP('STATUS',
+                                             v_xml_status_frag,
+                                             v_status_rowtype );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    ERRPKG.RAISE_ERR(SQLCODE, 'CCN_ADDRESS_FUT_TO_CURR_PKG.PROCESS ' || SQLERRM || ' Status Update Error ' );
+            END;
+    END;
+END UPDATE_STATUS_TYPE_FOR_RELO_CC;
+
+PROCEDURE BUILD_SELECT_CLASS_FOR_TABLE(
+/******************************************************************************
+  This procedure will build the select clause based on the input table for date formatting
+  to 'MM-DD-YYYY format
+
+created : 04/20/2016 jxc517 CCN Project....
+revised :
+*******************************************************************************/
+    in_table_name          IN     VARCHAR2,
+    o_select_clause           OUT CLOB)
+IS
+    CURSOR table_fields_cur IS
+        SELECT column_name,
+               data_type
+          FROM user_tab_columns
+          WHERE table_name = in_table_name
+          ORDER BY column_id ASC;
+BEGIN
+    FOR rec IN table_fields_cur LOOP
+        IF rec.data_type = 'DATE' THEN
+            o_select_clause := o_select_clause ||
+                 'TO_CHAR(' || rec.column_name || ', ''MM-DD-YYYY'') AS ' || rec.column_name || ',';
+        ELSE
+            o_select_clause := o_select_clause || rec.column_name || ',';
+        END IF;
+    END LOOP;
+    o_select_clause := RTRIM(o_select_clause, ',');
+END BUILD_SELECT_CLASS_FOR_TABLE;
+
+PROCEDURE PROCESS_ADDRESS(
+/******************************************************************************
+  This procedure will performs the core upsert process for the passed cost center
+
+created : 04/20/2016 jxc517 CCN Project....
+revised :
+*******************************************************************************/
+    in_cost_center_code    IN     VARCHAR2,
+    in_effective_date      IN     DATE,
+    in_table_name          IN     VARCHAR2)
+IS
+    v_context          DBMS_XMLGEN.ctxHandle;
+    v_clob             CLOB;
+    v_select_clause    CLOB;
+BEGIN
+    --build the select clause for date formatting
+    BUILD_SELECT_CLASS_FOR_TABLE(in_table_name, v_select_clause);
+    --build the xml context to be used with DBMS_XMLGEN
+    --The context will be bult form the result set of the dynamic sql query
+    v_context := DBMS_XMLGEN.NEWCONTEXT('SELECT ' || v_select_clause || '
+                                           FROM ' || in_table_name || '
+                                          WHERE ADDRESS_TYPE = ''F''
+                                            AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''');
+    --Set the rowset tag name as below, else default <ROWSET> tag will be used
+    DBMS_XMLGEN.SETROWSETTAG(v_context, 'ADDRESS_UI_UPSERT');
+    --Set the row tag name as below, else default <ROW> tag will be used
+    DBMS_XMLGEN.SETROWTAG(v_context, in_table_name);
+    --Convert the context into a clob xml
+    SELECT DBMS_XMLGEN.GETXML(v_context) INTO v_clob FROM DUAL;
+    --close the context
+    DBMS_XMLGEN.CLOSECONTEXT(v_context);
+
+    --Proceed further only if the XML is generated for upsert
+    IF v_clob <> EMPTY_CLOB() THEN
+        --Replace the future address type "F" to mailing address type "M"
+        v_clob := REPLACE(v_clob,
+                          '<ADDRESS_TYPE>F</ADDRESS_TYPE>',
+                          '<ADDRESS_TYPE>M</ADDRESS_TYPE>');
+        --DBMS_OUTPUT.PUT_LINE('XML : ' ||  v_clob);
+
+        --Call the upsert procedure to perform update/insert
+        CCN_UI_INTERFACE_APP_PKG.ADDRESS_UI_UPSERT_SP(v_clob);
+
+        --Now we need to update the status of the cost center to "3" and move date to address effective date
+        UPDATE_STATUS_TYPE_FOR_RELO_CC(in_cost_center_code,
+                                       in_effective_date);
+
+        --Finally delete the future address as it is no longer needed
+        EXECUTE IMMEDIATE
+            'UPDATE ' || in_table_name || '
+                SET EXPIRATION_DATE = EFFECTIVE_DATE
+              WHERE ADDRESS_TYPE = ''F''
+                AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''';
+    END IF;
+END PROCESS_ADDRESS;
+
+PROCEDURE PROCESS
+/******************************************************************************
+  This procedure will move the future address records into current mailing address
+
+created : 04/18/2016 jxc517 CCN Project....
+revised : 05/16/2016 jxc517 CCN Project Team....
+          Added new table ADDRESS_BRB
+*******************************************************************************/
+IS
+   v_batch_number    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+   v_trans_status    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+   v_clob            CLOB;
+
+   CURSOR add_info_cur IS
+       SELECT 'ADDRESS_USA' AS TABLE_NAME,
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
+         FROM ADDRESS_USA
+        WHERE ADDRESS_TYPE = 'F'
+          AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+          AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
+       UNION
+       SELECT 'ADDRESS_CAN' AS TABLE_NAME,
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
+         FROM ADDRESS_CAN
+        WHERE ADDRESS_TYPE = 'F'
+          AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+          AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
+        UNION
+       SELECT 'ADDRESS_MEX' AS TABLE_NAME,
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
+         FROM ADDRESS_MEX
+        WHERE ADDRESS_TYPE = 'F'
+          AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+          AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
+        UNION
+       SELECT 'ADDRESS_OTHER' AS TABLE_NAME,
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
+         FROM ADDRESS_OTHER
+        WHERE ADDRESS_TYPE = 'F'
+          AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+          AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
+        UNION
+       SELECT 'ADDRESS_BRB' AS TABLE_NAME,
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
+         FROM ADDRESS_BRB
+        WHERE ADDRESS_TYPE = 'F'
+          AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
+          AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE));
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('ADDR_FUTR_TO_MAIL', v_batch_number);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+        --Loop through all the records in the future table that are going effective today
+        --ADDRESS_USA
+        FOR rec IN add_info_cur LOOP
+            BEGIN
+                PROCESS_ADDRESS(rec.COST_CENTER_CODE, rec.EFFECTIVE_DATE, rec.TABLE_NAME);
+                COMMIT;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE, 'CCN_ADDRESS_FUT_TO_CURR_PKG.PROCESS - ' || rec.TABLE_NAME, SQLERRM, SQLCODE);
+            END;
+        END LOOP;
+    EXCEPTION
+        WHEN OTHERS THEN
+            v_trans_status := 'ERROR';
+            ROLLBACK;
+    END;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('ADDR_FUTR_TO_MAIL', v_batch_number, v_trans_status);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('OTHER', 'CCN_ADDRESS_FUT_TO_CURR_PKG.PROCESS', SQLERRM, SQLCODE);
+END PROCESS;
+
+END CCN_ADDRESS_FUT_TO_CURR_PKG;
