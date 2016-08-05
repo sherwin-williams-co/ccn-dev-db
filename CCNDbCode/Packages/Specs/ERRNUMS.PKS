@@ -2722,7 +2722,8 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
-This error will state that Bank Card PCI Merchant ID Size is wrong
+This error will state that the future address is having effective date 
+less than or equal to current date
 
 Created  : 04/20/2016 jxc517 CCN Project Team....
 Modified : 
