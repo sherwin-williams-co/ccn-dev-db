@@ -69,9 +69,6 @@ Insert into SECURITY_MATRIX values ('tadarr','tadarr','CCNUS3');
 Insert into SECURITY_MATRIX values ('wxn683','wxn683','CCNUS3');
 Insert into SECURITY_MATRIX values ('ydrpur','ydrpur','CCNUS3');
 Insert into SECURITY_MATRIX values ('yxz430','yxz430','CCNUS3');
-Insert into SECURITY_MATRIX values ('cmaarr','cmaarr','CCNUS3');
-Insert into SECURITY_MATRIX values ('pmm4br','pmm4br','CCNUS3');
-Insert into SECURITY_MATRIX values ('jep01r','jep01r','CCNUS3');
 
 --INSERTING into SECURITY_MATRIX - credit users select
 Insert into SECURITY_MATRIX values ('alwser','alwser','HWCUS');
