@@ -1,4 +1,4 @@
-  CREATE OR REPLACE VIEW COSTCNTR_ECOMM_V AS 
+CREATE OR REPLACE VIEW COSTCNTR_ECOMM_V AS 
   SELECT
 /*******************************************************************************
 This view will provide details required for the e-commerce related to cost center tables
@@ -17,6 +17,8 @@ Modified : 08/18/2015 nxk927 CCN Project...
            Added STORE MGR also as part of the cost center manager job title codes
          : 03/01/2016 mxr916 CCN Project.
            Added STATE_DESCRIPTION,COUNTRY_DESCRIPTION,MISSION_CODE_DESCRIPTION,POLLING_STATUS_CODE_DESCRIPTON columns.
+         : 08/09/2016 axd783 CCN Project Team....
+           Modified the filter condition on POLLING_STATUS_CODE to view Status codes 'Q'
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -113,7 +115,7 @@ Modified : 08/18/2015 nxk927 CCN Project...
         ) ADDRESS,
         (SELECT 'A' ACTIVE_CD, COST_CENTER_CODE, POLLING_STATUS_CODE
            FROM POLLING
-          WHERE  POLLING_STATUS_CODE = 'P'
+          WHERE  UPPER(POLLING_STATUS_CODE) IN ('P','Q')
             AND CURRENT_FLAG ='Y') PO,
         (WITH T AS (SELECT COST_CENTER_CODE,(PHONE_AREA_CODE||PHONE_NUMBER) VAL,PHONE_NUMBER_TYPE
                       FROM PHONE P)
