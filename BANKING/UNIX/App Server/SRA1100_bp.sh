@@ -12,6 +12,8 @@
 #            getting ftp'd even though they are available resulting in skipping data
 #            added exit 1 at the end which should never happen, but if happens should exit with 1
 #            added the absolute path while running the background process
+#          : 01/11/2016 nxk927 CCN Project Team.....
+#            background process to run only in weekdays
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh /app/banking/dev/SRA1100_bp.sh > /app/banking/dev/SRA1100_bp.log 2>&1 &
@@ -26,11 +28,14 @@
 cmd_path="$HOME/initLoad"
 # Search for the file named cmd_start.sh
 while true; do
-   if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/SRA13510_*.TXT ]  &&  [ -f $cmd_path/SRA11060_*.TXT ]
+   if [[ `date +"%a"` != 'Sat' && `date +"%a"` != 'Sun' ]]
    then
-      sleep 60
-	  #This above sleep command will prevent not to miss some records while ftp is still going on
-	  sh $HOME/SRA11000_dailyRun.sh
+      if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/SRA13510_*.TXT ]  &&  [ -f $cmd_path/SRA11060_*.TXT ]
+      then
+         sleep 60
+         #This above sleep command will prevent not to miss some records while ftp is still going on
+         sh $HOME/SRA11000_dailyRun.sh
+      fi
    fi
 done
 
