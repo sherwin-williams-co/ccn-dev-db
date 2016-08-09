@@ -2,7 +2,9 @@
 Below script will insert into ROLE_DETAILS for Credit Hierarchy
 
 Created : 03/14/2016 sxh487 CCN Project Team....
-Modified:
+Modified: 08/08/2016 vxv336 Removed 3 users for CCNUS3
+
+NOTE: This script is for TEST and QA only. Need to modify the user list when migrating to PROD. 
 ********************************************************************************/
 SET DEFINE OFF;
 Insert into ROLE_DETAILS (ROLE_CODE,ROLE_DESCRIPTION,ADMIN_FLAG,INSERT_FLAG,UPDATE_FLAG,SELECT_FLAG,USER_RULES,USER_RULES_DESCRIPTION) values ('CCNUS3','CCN User - Main Window Select for Credit User','N','N','N','Y','<USER_RULES>
