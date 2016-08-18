@@ -1,0 +1,114 @@
+create or replace PACKAGE BODY          CCN_HIERARCHY_FUTURE
+    AS
+
+/*********************************************************** 
+This package contains procedures/functions to deal with
+hierarchy future records
+
+Created : 03/24/2016 jxc517 CCN Project....
+Modified:
+************************************************************/
+
+FUNCTION IS_FUTURE_HIERARCHY_DETAIL_REC(
+/***********************************************************
+This function will check if the passed record is a future record
+A record is considered future, if it is at Cost Center level and 
+effective date is in future
+      
+Created : 03/31/2016 jxc517 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(1) := 'N';
+BEGIN
+    IF IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_EFF_DATE > TRUNC(SYSDATE) THEN
+        SELECT DECODE(COUNT(*), 0, 'N', 'Y')
+          INTO V_RETURN_VALUE
+          FROM HIERARCHY_DESCRIPTION
+         WHERE HRCHY_HDR_NAME     = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+           AND HRCHY_HDR_LVL_NBR  = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL
+           AND HRCHY_HDR_LVL_DESC = 'Cost Center';
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_FUTURE_HIERARCHY_DETAIL_REC;
+
+PROCEDURE INSERT_HIERARCHY_DETAIL_FUTURE(
+/***********************************************************
+This procedure will insert the record into future and expire the same record
+if it is linked to some other hierarchy in current tables
+      
+Created : 03/31/2016 jxc517 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+IS
+    V_HD_REC HIERARCHY_DETAIL%ROWTYPE;
+BEGIN
+    BEGIN
+        SELECT *
+          INTO V_HD_REC
+          FROM HIERARCHY_DETAIL
+         WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+           AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL
+           AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL;
+
+        V_HD_REC.HRCHY_DTL_EXP_DATE := IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_EFF_DATE;
+        CCN_HIERARCHY.HIERARCHY_UPDATE_WRAPPER(NULL, V_HD_REC);
+    EXCEPTION
+        WHEN OTHERS THEN
+            --Code will come here, if it is the first future for this cost center
+            --We should not throw any error, but skip the current record expiration process
+            NULL;
+    END;
+    V_HD_REC := IN_HIERARCHY_DETAIL_REC;
+    CCN_HIERARCHY.ELIMINATE_SPECIAL_CHRS(V_HD_REC);
+    INSERT INTO HIERARCHY_DETAIL_FUTURE VALUES V_HD_REC;
+EXCEPTION 
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CCN_HIERARCHY_FUTURE.INSERT_HIERARCHY_DETAIL_FUTURE -', SQLCODE || ' ' || SQLERRM);
+END INSERT_HIERARCHY_DETAIL_FUTURE;
+
+PROCEDURE DELETE_HIERARCHY_DETAIL_FUTURE(
+/***********************************************************
+This procedure will delete the fututre record passed in and un-expire the same record
+if it is linked to some other hierarchy in current tables
+      
+Created : 04/04/2016 jxc517 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+IS
+    V_HD_REC HIERARCHY_DETAIL%ROWTYPE;
+BEGIN
+    BEGIN
+        SELECT *
+          INTO V_HD_REC
+          FROM HIERARCHY_DETAIL
+         WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+           AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL
+           AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL;
+
+        V_HD_REC.HRCHY_DTL_EXP_DATE := NULL;
+        CCN_HIERARCHY.HIERARCHY_UPDATE_WRAPPER(NULL, V_HD_REC);
+    EXCEPTION
+        WHEN OTHERS THEN
+            --Code will come here, if it is the first future for this cost center
+            --We should not throw any error, but skip the current record un-expiration process
+            NULL;
+    END;
+    DELETE
+      FROM HIERARCHY_DETAIL_FUTURE
+     WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+       AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL
+       AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL;
+EXCEPTION 
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CCN_HIERARCHY_FUTURE.DELETE_HIERARCHY_DETAIL_FUTURE -', SQLCODE || ' ' || SQLERRM);
+END DELETE_HIERARCHY_DETAIL_FUTURE;
+
+END CCN_HIERARCHY_FUTURE;

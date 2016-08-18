@@ -2673,6 +2673,31 @@ PRAGMA EXCEPTION_INIT
 (exc_pci_terminal_id_err , -20530);
 
 /*********************************************************** 
+The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
+This error will state that the cost center being modifed
+has a future already in place
+
+Created  : 04/04/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_hrchy_cc_ftr_exists_err CONSTANT NUMBER := -20531;
+exc_hrchy_cc_ftr_exists_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hrchy_cc_ftr_exists_err , -20531);
+
+/*********************************************************** 
+The "hrchy_ftr_not_allowed_err" passes a numerical error of -20532
+This error will state that the hierarchy does not support future transactions
+
+Created  : 04/07/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_hrchy_ftr_not_allowed_err CONSTANT NUMBER := -20532;
+exc_hrchy_ftr_not_allowed_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hrchy_ftr_not_allowed_err , -20532);
+
+/*********************************************************** 
 The "invalid_dscvr_id_size_err" passes a numerical error of -20533
 This error will state that Bank Card Discover ID Size is wrong
 

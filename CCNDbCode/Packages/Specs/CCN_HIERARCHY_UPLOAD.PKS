@@ -14,6 +14,7 @@ created : 12/18/2013 JXC517 CCN Project....
                 IN_MANAGER_ID          IN        VARCHAR2,
                 IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
                 IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                IN_EFFECTIVE_DATE      IN        DATE,
                 OUT_XML_AS_CLOB        OUT       CLOB);
 
 PROCEDURE BUILD_HIERARCHY_TRNSFR_CLOB(
@@ -30,6 +31,7 @@ created : 1/14/2014 JXC517 CCN Project....
                 IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
                 IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
                 IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+                IN_EFFECTIVE_DATE           IN        DATE,
                 OUT_XML_AS_CLOB                OUT    CLOB);
 
 PROCEDURE HIERARCHY_BULK_TRNSFR_PROCESS
@@ -53,4 +55,3 @@ Created : SH 12/23/2013
 ;
 
 END CCN_HIERARCHY_UPLOAD;
-

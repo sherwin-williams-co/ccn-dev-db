@@ -1,0 +1,99 @@
+create or replace PACKAGE BODY CCN_HIERARCHY_FUT_TO_CURR_PKG
+AS
+/**********************************************************
+  This Package contains procedured to move the future hierarchy details records into
+  current
+
+created : 03/29/2016 jxc517 CCN Project....
+Changed :
+**********************************************************/
+PROCEDURE PROCESS
+/******************************************************************************
+  This procedure will move the future hierarchy details records into
+  current
+
+created : 03/29/2016 jxc517 CCN Project....
+revised :
+*******************************************************************************/
+IS
+   V_BATCH_NUMBER   BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+   V_TRANS_STATUS   BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+   V_HD_REC         HIERARCHY_DETAIL%ROWTYPE;
+   V_CLOB           CLOB;
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_FUTR_TO_CURR', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+        --Loop through all the records in the future table that are going effective today
+        FOR rec IN (SELECT *
+                      FROM HIERARCHY_DETAIL_FUTURE
+                     WHERE HRCHY_DTL_EFF_DATE <= TRUNC(SYSDATE)) LOOP
+            BEGIN
+                --get the corresponding record from current table
+                BEGIN
+                    SELECT *
+                      INTO V_HD_REC
+                      FROM HIERARCHY_DETAIL
+                     WHERE HRCHY_HDR_NAME         = rec.HRCHY_HDR_NAME
+                       AND HRCHY_DTL_LEVEL        = rec.HRCHY_DTL_LEVEL
+                       AND HRCHY_DTL_CURR_ROW_VAL = rec.HRCHY_DTL_CURR_ROW_VAL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                --If found we need to perform a transfer process
+                IF V_HD_REC.HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
+                    --Build the clob to invoke the existing transfer process
+                    CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_TRNSFR_CLOB(V_HD_REC.HRCHY_DTL_CURR_ROW_VAL,
+                                                                     NULL,
+                                                                     V_HD_REC.HRCHY_HDR_NAME,
+                                                                     V_HD_REC.HRCHY_DTL_PREV_LVL_VAL,
+                                                                     rec.HRCHY_DTL_PREV_LVL_VAL,
+                                                                     rec.HRCHY_DTL_EFF_DATE,
+                                                                     V_CLOB);
+                    CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB);
+                ELSE
+                --if not found, we need to perform an insert process
+                    --Build the clob to invoke the existing insert process
+                    CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.HRCHY_DTL_CURR_ROW_VAL,
+                                                                     NULL,
+                                                                     rec.HRCHY_HDR_NAME,
+                                                                     rec.HRCHY_DTL_PREV_LVL_VAL,
+                                                                     rec.HRCHY_DTL_EFF_DATE,
+                                                                     V_CLOB);
+                    CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+                END IF;
+                --check if record got transfered/inserted in current table before deleting from future table
+                BEGIN
+                    SELECT *
+                      INTO V_HD_REC
+                      FROM HIERARCHY_DETAIL
+                     WHERE HRCHY_HDR_NAME         = rec.HRCHY_HDR_NAME
+                       AND HRCHY_DTL_LEVEL        = rec.HRCHY_DTL_LEVEL
+                       AND HRCHY_DTL_CURR_LVL_VAL = rec.HRCHY_DTL_CURR_LVL_VAL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE;
+                END;
+                --deleting the future record, as the transfer/insert completed successfully
+                --NOTE: code should not come to this poing if anything fails
+                CCN_HIERARCHY_FUTURE.DELETE_HIERARCHY_DETAIL_FUTURE(rec);
+                COMMIT;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    COMMON_TOOLS.LOG_ERROR(rec.HRCHY_DTL_CURR_LVL_VAL, 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', SQLERRM, SQLCODE);
+            END;
+        END LOOP;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_TRANS_STATUS := 'ERROR';
+            ROLLBACK;
+    END;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('HRCHY_FUTR_TO_CURR', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('OTHER', 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', SQLERRM, SQLCODE);
+END PROCESS;
+
+END CCN_HIERARCHY_FUT_TO_CURR_PKG;

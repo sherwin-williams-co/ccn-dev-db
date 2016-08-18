@@ -249,4 +249,27 @@ PROCEDURE HIER_BUSINESS_RULES_MAIN(
 created : 06/27/2013 SH CCN
 ********************************************************************************/
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
+
+FUNCTION IS_HIERARCHY_FUTURE_ALLOWED(
+/***********************************************************
+This function will check if the passed record is valid to have
+future based on the hierarchy name
+      
+Created : 04/07/2016 jxc517 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+RETURN VARCHAR2;
+
+FUNCTION IS_FTR_HRCHY_DTL_EXSTS(
+/***********************************************************
+This function will check if the passed record has a future
+already existing or not
+      
+Created : 04/04/2016 jxc517 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+RETURN VARCHAR2;
+
 END CCN_HIER_BUSINESS_RULES_PKG;

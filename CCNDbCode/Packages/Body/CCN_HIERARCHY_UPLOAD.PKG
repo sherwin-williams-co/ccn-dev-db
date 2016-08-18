@@ -3,17 +3,18 @@ create or replace PACKAGE BODY CCN_HIERARCHY_UPLOAD
 
 PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
 /******************************************************************************
-BUILD_HIERARCHY_INSERT_CLOB
-
 This procedure builds the xml as clob for Hierarchy Insert Process based on 
 input parameters
-created : 12/18/2013 JXC517 CCN Project....
 
+Created : 12/18/2013 jxc517 CCN Project....
+Modified: 05/05/2016 jxc517 CCN Project....
+          Added effective date as input as it is hard coded at this point to SYSDATE
 ******************************************************************************/
                 IN_CC_CODE             IN        COST_CENTER.COST_CENTER_CODE%TYPE,
                 IN_MANAGER_ID          IN        VARCHAR2,
                 IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
                 IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+                IN_EFFECTIVE_DATE      IN        DATE,
                 OUT_XML_AS_CLOB        OUT       CLOB)
 AS
     V_CLOB                     CLOB;
@@ -71,7 +72,7 @@ BEGIN
        WHERE COST_CENTER_CODE = IN_CC_CODE;
       --Convert special characters as needed by XML
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_CC_RECORD.COST_CENTER_NAME), 'HRCHY_DTL_DESC');
-      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(IN_EFFECTIVE_DATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
       
       V_CLOB := V_CLOB || '     <attributes>';
@@ -99,18 +100,19 @@ END BUILD_HIERARCHY_INSERT_CLOB;
 
 PROCEDURE BUILD_HIERARCHY_TRNSFR_CLOB(
 /******************************************************************************
-BUILD_HIERARCHY_TRNSFR_CLOB
-
 This procedure builds the xml as clob for Hierarchy Transfer Process based on 
 input parameters
-created : 1/14/2014 JXC517 CCN Project....
 
+Created : 01/14/2014 jxc517 CCN Project....
+Modified: 05/05/2016 jxc517 CCN Project....
+          Added effective date as input as it is hard coded at this point to 01-Jan-2014
 ******************************************************************************/
                 IN_CC_CODE                  IN        COST_CENTER.COST_CENTER_CODE%TYPE,
                 IN_MANAGER_ID               IN        VARCHAR2,
                 IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
                 IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
                 IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+                IN_EFFECTIVE_DATE           IN        DATE,
                 OUT_XML_AS_CLOB                OUT    CLOB)
 AS
     V_CLOB                     CLOB;
@@ -175,9 +177,7 @@ BEGIN
        WHERE COST_CENTER_CODE = IN_CC_CODE;
       --Convert special characters as needed by XML
       V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_CC_RECORD.COST_CENTER_NAME), 'HRCHY_DTL_DESC');
-      --V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(SYSDATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
-      --Hard coding the date for this run <NEED TO CHANGE IN FUTURE>
-      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG('20140101', 'HRCHY_DTL_EFF_DATE', 'Y');
+      V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(TO_CHAR(IN_EFFECTIVE_DATE,'RRRRMMDD'), 'HRCHY_DTL_EFF_DATE', 'Y');
       V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(NULL, 'HRCHY_DTL_EXP_DATE', 'Y');
       
       V_TO_CLOB := V_TO_CLOB || '     <attributes>';
@@ -207,11 +207,13 @@ END BUILD_HIERARCHY_TRNSFR_CLOB;
 
 PROCEDURE HIERARCHY_BULK_TRNSFR_PROCESS
 /******************************************************************************
-HIERARCHY_BULK_TRNSFR_PROCESS
-
 This procedure is the for the Hierarchy bulk transfer process
 
-Created : JXC517 1/14/2014
+Created : 01/14/2014 jxc517 CCN Project Team....
+Modified: 03/23/2016 jxc517 CCN Project Team....
+          Modified the table name as per standards to include "TEMP_"
+Modified: 05/05/2016 jxc517 CCN Project....
+          Changes due to signature change
 ******************************************************************************/
 AS
    V_CLOB CLOB;
@@ -224,7 +226,7 @@ BEGIN
    CCN_BATCH_PKG.INSERT_BATCH_JOB('BULK_HIER_TRNSFR', V_BATCH_NUMBER);
    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
    
-   FOR rec IN (SELECT * FROM COST_CENTER_HIERARCHY_TRNSFR) LOOP
+   FOR rec IN (SELECT * FROM TEMP_CC_HIERARCHY_TRNSFR) LOOP
       BEGIN
          SAVEPOINT HIERARCHY_TRANSFER_LOAD;
          --Before starting the build process check if the cost center exists in the given from hierarchy/composite key value
@@ -241,7 +243,8 @@ BEGIN
                                                           rec.HIERARCHY_NAME,
                                                           rec.FROM_HIERARCHY,
                                                           rec.TO_HIERARCHY,
-                                                   V_CLOB);
+                                                          TRUNC(SYSDATE),
+                                                          V_CLOB);
          CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB);
          --DBMS_OUTPUT.PUT_LINE(V_CLOB);
          COMMIT;
@@ -274,50 +277,48 @@ END HIERARCHY_BULK_TRNSFR_PROCESS;
 
 PROCEDURE HIERARCHY_BULK_LOAD_PROCESS
 /******************************************************************************
-HIERARCHY_LOAD_PROCESS
-
 This procedure is the for the Hierarchy bulk upload process
 
-Created : SH 12/23/2013
+Created : 12/23/2013 jxc517 CCN Project Team....
+Modified: 03/23/2016 jxc517 CCN Project Team....
+          Modified the table name as per standards to include "TEMP_"
+          Added logic to include PRICE_DISTRICT Hierarchy
+Modified: 05/05/2016 jxc517 CCN Project....
+          Changes due to signature change
 ******************************************************************************/
 AS
-   V_CLOB CLOB;
-
+   V_CLOB               CLOB;
+   V_COUNT              NUMBER := 0;
+   NOT_A_VALID_HIERARCHY EXCEPTION;
 BEGIN
    
-   FOR rec IN (SELECT * FROM COST_CENTER_HIERARCHY) LOOP
+   FOR rec IN (SELECT * FROM TEMP_COST_CENTER_HIERARCHY) LOOP
       BEGIN
          SAVEPOINT HIERARCHY_LOAD;
-         IF rec.ADMIN_TO_SALES_AREA IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_AREA',rec.ADMIN_TO_SALES_AREA,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.ADMIN_TO_SALES_DISTRICT IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_DISTRICT',rec.ADMIN_TO_SALES_DISTRICT,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.ADMIN_TO_SALES_DIVISION IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ADMIN_TO_SALES_DIVISION',rec.ADMIN_TO_SALES_DIVISION,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.ALTERNATE_DAD IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'ALTERNATE_DAD',rec.ALTERNATE_DAD,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.FACTS_DIVISION IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'FACTS_DIVISION',rec.FACTS_DIVISION,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.LEGACY_GL_DIVISION IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'LEGACY_GL_DIVISION',rec.LEGACY_GL_DIVISION,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
-         IF rec.GLOBAL_HIERARCHY IS NOT NULL THEN
-             CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,rec.MANAGER_ID,'GLOBAL_HIERARCHY',rec.GLOBAL_HIERARCHY,V_CLOB);
-             CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-         END IF;
+         BEGIN
+             SELECT COUNT(*)
+               INTO V_COUNT
+               FROM HIERARCHY_HEADER
+              WHERE HRCHY_HDR_NAME = rec.HIERARCHY_NAME;
+             IF V_COUNT <> 1 THEN
+                RAISE NOT_A_VALID_HIERARCHY;
+             END IF;
+         END;
+         CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,
+                                                          rec.MANAGER_ID,
+                                                          rec.HIERARCHY_NAME,
+                                                          rec.HIERARCHY_VALUE,
+                                                          TRUNC(SYSDATE),
+                                                          V_CLOB);
+         CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
          COMMIT;
       EXCEPTION
+         WHEN NOT_A_VALID_HIERARCHY THEN
+            COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE,
+                                   'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_LOAD_PROCESS',
+                                   'hierarchy name provided is not a valid hierarchy',
+                                   ERRNUMS.EN_CURR_LVL_VAL_NOT_EXISTS);
+            ROLLBACK TO HIERARCHY_TRANSFER_LOAD;
          WHEN OTHERS THEN
             --Log the Cost Center # that failed to load
             --DBMS_OUTPUT.PUT_LINE(rec.COST_CENTER_CODE || ' failed to load due to ' || SQLCODE || ' - ' || SQLERRM);
@@ -335,4 +336,3 @@ EXCEPTION
 END HIERARCHY_BULK_LOAD_PROCESS;
 
 END CCN_HIERARCHY_UPLOAD;
-
