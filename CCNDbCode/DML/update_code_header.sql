@@ -2,7 +2,7 @@
 Below script will update code_header table for Credit Hierarchy
 
 Created : 04/07/2016 sxh487 CCN Project Team....
-Modified:
+Modified: 08/19/2016 vxv336 Removed SYSOUT
 ********************************************************************************/
 UPDATE CODE_HEADER
   SET CODE_HEADER_IDENTIFIER ='<ROLES>
@@ -16,6 +16,6 @@ UPDATE CODE_HEADER
       <VALUE>HWCUS</VALUE>
    </ROLE>
 </ROLES>'
-where CODE_HEADER_NAME IN ('RCM', 'ACM', 'DCM', 'SYSOUT');
+where CODE_HEADER_NAME IN ('RCM', 'ACM', 'DCM');
 
 COMMIT;
