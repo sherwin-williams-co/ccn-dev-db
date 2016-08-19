@@ -40,7 +40,7 @@ echo "Processing Started for Renaming deposit files at $TIME on $DATE"
 if [ -f $DATA_FILES_PATH/STE03062_DEPST_D*.TXT ] 
 then
     echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files exist to rename"
-    mv $DATA_FILES_PATH/STE03062_DEPST_D*.TXT $DATA_FILES_PATH/STE03062_DEPST.TXT
+    cat $DATA_FILES_PATH/STE03062_DEPST_D*.TXT >> $DATA_FILES_PATH/STE03062_DEPST.TXT
 else
     echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files does not exist to rename"
 fi
@@ -90,7 +90,7 @@ echo "Processing Started for archiving the files at $TIME on $DATE"
 if [ -f $DATA_FILES_PATH/STE03062_DEPST.TXT ]
 then
     echo "$DATA_FILES_PATH/STE03062_DEPST.TXT files exist to rename"
-    mv $DATA_FILES_PATH/STE03062_DEPST.TXT $ARCHIVE_PATH/$FOLDER
+    mv $DATA_FILES_PATH/STE03062_DEPST*.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/STE03062_DEPST.TXT files does not exist"
 fi
