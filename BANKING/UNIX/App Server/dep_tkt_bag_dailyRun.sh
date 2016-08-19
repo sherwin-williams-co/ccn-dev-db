@@ -8,6 +8,8 @@
 #                 3. archieve the files in it's corresponding folder
 #
 # Created  : 08/16/2016 nxk927 CCN Project Team.....
+# Modified : 08/19/2016 nxk927 CCN Project Team.....
+#             passing parameter logname and the servername to be inserted in batch_job table
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -20,6 +22,7 @@ DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
+export HOSTNAME=`hostname`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #################################################################
@@ -53,7 +56,8 @@ echo "Processing finished for Renaming deposit files at ${TIME} on ${DATE}"
 #                  DPST_BAGS_UPDATE_BATCH_PKG.PROCESS
 #################################################################
 echo "Processing started for Dep tickets and bags batch process at ${TIME} on ${DATE}"
-sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
+LOGNAME=$proc_name"_"$TimeStamp.log
+sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$LOGNAME <<END
 set heading off;
 set serveroutput on;
 set verify off;
@@ -62,8 +66,9 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS;
-DPST_BAGS_UPDATE_BATCH_PKG.PROCESS;
+DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS('$HOSTNAME','$LOGDIR/$LOGNAME');
+DPST_BAGS_UPDATE_BATCH_PKG.PROCESS('$HOSTNAME','$LOGDIR/$LOGNAME');
+
 Exception
  when others then
  :exitCode := 2;

@@ -15,9 +15,13 @@ PROCEDURE INSERT_BATCH_JOB (
         table with the details related to the batch run
 
 created : 04/10/2013 SH CCN project....
+Modified: 08/19/2016 nxk927 CCN project....
+          changed signature. Added servername and logfile name
 **********************************************************/
     IN_BATCH_JOB_NAME      IN BATCH_JOB.BATCH_JOB_NAME%TYPE,
-    OUT_BATCH_NUMBER       OUT BATCH_JOB.BATCH_JOB_NUMBER%TYPE
+    OUT_BATCH_NUMBER       OUT BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
+    IN_SERVER_NAME         IN  BATCH_JOB.SERVER%TYPE DEFAULT NULL,
+    IN_LOG_FILE_NAME       IN  BATCH_JOB.LOG_FILE_NAME%TYPE DEFAULT NULL
                           );
 
 PROCEDURE UPDATE_BATCH_JOB(
@@ -65,4 +69,3 @@ IN_FILE_NAME   IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
 END CCN_BATCH_PKG;
-
