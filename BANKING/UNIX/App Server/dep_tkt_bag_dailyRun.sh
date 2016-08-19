@@ -45,14 +45,6 @@ else
     echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files does not exist to rename"
 fi
 
-if [ -f $DATA_FILES_PATH/STE03064_DEPST_D*.TXT ]
-then
-    echo "$DATA_FILES_PATH/STE03064_DEPST_D*.TXT files exist to rename"
-    mv $DATA_FILES_PATH/STE03064_DEPST_D*.TXT $DATA_FILES_PATH/STE03064_DEPST.TXT
-else
-    echo "$DATA_FILES_PATH/STE03064_DEPST_D*.TXT files does not exist to rename"
-fi
-
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for Renaming deposit files at ${TIME} on ${DATE}"
 
@@ -101,14 +93,6 @@ then
     mv $DATA_FILES_PATH/STE03062_DEPST.TXT $ARCHIVE_PATH/$FOLDER
 else
     echo "$DATA_FILES_PATH/STE03062_DEPST.TXT files does not exist"
-fi
-
-if [ -f $DATA_FILES_PATH/STE03064_DEPST.TXT ]
-then
-    echo "$DATA_FILES_PATH/STE03064_DEPST.TXT files exist"
-    mv $DATA_FILES_PATH/STE03064_DEPST.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/STE03064_DEPST.TXT files does not exist"
 fi
 
 TIME=`date +"%H:%M:%S"`
