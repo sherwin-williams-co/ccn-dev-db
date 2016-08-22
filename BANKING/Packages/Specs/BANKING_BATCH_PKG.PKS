@@ -24,14 +24,5 @@ Changed :
 *******************************************************************************/
 ;
 
-PROCEDURE DPST_TCKTS_UPDATE_PROCESS
-/******************************************************************************
-  This procedure is a wrapper to call DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS
-
-Created : 07/21/2015 axk326/jxc517 CCN Project....
-Changed :
-*******************************************************************************/
-;
-
 END BANKING_BATCH_PKG;
 
