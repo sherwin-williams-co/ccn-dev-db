@@ -16,8 +16,8 @@ Created : 10/20/2015 jxc517 CCN Project....
 Changed : 08/19/2016 nxk927 CCN project....
           changed signature. Added servername and logfile name
 *******************************************************************************/
-IN_SERVER_NAME  IN VARCHAR2 DEFAULT NULL,
-IN_LOGFILE_NAME IN VARCHAR2 DEFAULT NULL);
+IN_SERVER_NAME  IN VARCHAR2,
+IN_LOGFILE_NAME IN VARCHAR2);
 
 PROCEDURE UPDATE_BAGORDER_TRACK_NUM(
 /*******************************************************************************
