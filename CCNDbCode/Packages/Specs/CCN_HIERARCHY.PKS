@@ -770,4 +770,16 @@ Created : 04/23/2015 jxc517 CCN Project
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION DCO_COSTCENTER_LOOKUP(
+/***********************************************************
+This function will validate the passed cost center code and 
+return the corresponding record from COST_CENTER table
+      
+Created : 08/23/2016 vxv336 CCN Project
+Modified: 
+************************************************************/
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
+)
+RETURN COST_CENTER%ROWTYPE;
+    
 END CCN_HIERARCHY;
