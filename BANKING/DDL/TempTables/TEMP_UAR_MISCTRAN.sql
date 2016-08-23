@@ -1,0 +1,36 @@
+CREATE TABLE TEMP_UAR_MISCTRAN
+   (COST_CENTER_CODE VARCHAR2(4),
+    AMOUNT           VARCHAR2(12),
+    TRANSACTION_DATE VARCHAR2(6),
+    TCODE            VARCHAR2(4),
+    DISTRICT         VARCHAR2(2),
+    AREA             VARCHAR2(2),
+    DIVISION         VARCHAR2(2),
+    TRAN_SEQNUM      VARCHAR2(9),
+    DB_CR_CODE       VARCHAR2(2),
+    SNZ_SAM_CODE     VARCHAR2(3)
+   )
+   ORGANIZATION EXTERNAL
+    ( TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "BANKING_LOAD_FILES"
+      ACCESS PARAMETERS
+      ( RECORDS DELIMITED BY NEWLINE
+        badfile BANKING_LOAD_FILES:'TEMP_UAR_MISCTRAN.bad'
+        logfile BANKING_LOAD_FILES:'TEMP_UAR_MISCTRAN.log'
+        discardfile BANKING_LOAD_FILES:'TEMP_UAR_MISCTRAN.dsc'
+        LOAD WHEN ((1:1) = '1')
+         FIELDS missing field values are null
+         ( COST_CENTER_CODE POSITION(20:23)   CHAR(4),
+           AMOUNT           POSITION(36:47)   CHAR(12),
+           TRANSACTION_DATE POSITION(48:53)   CHAR(6),
+           TCODE            POSITION(54:57)   CHAR(4),
+           DISTRICT         POSITION(62:63)   CHAR(2),
+           AREA             POSITION(79:80)   CHAR(2),
+           DIVISION         POSITION(96:97)   CHAR(2),
+           TRAN_SEQNUM      POSITION(176:184) CHAR(9),
+           DB_CR_CODE       POSITION(185:186) CHAR(2),
+           SNZ_SAM_CODE            POSITION(208:210) CHAR(3)))
+      LOCATION
+       ( 'UAR.MISCTRAN.TXT'
+       )
+    );

@@ -6,6 +6,8 @@
 # Created  : 03/03/2016 dxv848/nxk927 CCN Project Team.....
 # Modified : 04/27/2016 nxk927 CCN Project Team.....
 #            removed the error status check
+#          : 08/23/2016 nxk927 CCN Project Team.....
+#            changed the files that we consider for this process
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -25,18 +27,18 @@ else
     echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist to rename"
 fi
 
-if ls $DATA_FILES_PATH/SRA13510_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA13510_*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/SRA13510_*.TXT >> $DATA_FILES_PATH/SRA13510.TXT
+if ls $DATA_FILES_PATH/SRA10910_*.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA10910_*.TXT files exist to rename"
+    cat $DATA_FILES_PATH/SRA10910_*.TXT >> $DATA_FILES_PATH/SRA10910.TXT
 else
-    echo "$DATA_FILES_PATH/SRA13510_*.TXT files does not exist to rename"
+    echo "$DATA_FILES_PATH/SRA10910_*.TXT files does not exist to rename"
 fi
 
-if ls $DATA_FILES_PATH/SRA11060_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA11060_*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/SRA11060_*.TXT >> $DATA_FILES_PATH/SRA11060.TXT
+if ls $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/UAR.MISCTRAN_*.TXT files exist to rename"
+    cat $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT >> $DATA_FILES_PATH/UAR.MISCTRAN.TXT
 else
-    echo "$DATA_FILES_PATH/SRA11060_*.TXT files does not exist to rename"
+    echo "$DATA_FILES_PATH/UAR.MISCTRAN_*.TXT files does not exist to rename"
 fi
 
 TIME=`date +"%H:%M:%S"`
