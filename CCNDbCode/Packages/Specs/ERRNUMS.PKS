@@ -2787,4 +2787,17 @@ PRAGMA EXCEPTION_INIT
 (exc_unkown_error , -20999);
 
 max_error_used CONSTANT NUMBER := -20999;
+
+/***********************************************************
+The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
+The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
+if the standard price or primary price is null for non canada countries then
+throw a warning.
+created : 08/17/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+en_cc_strd_primry_price_err CONSTANT NUMBER := -20545;
+exc_cc_strd_primry_price_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_cc_strd_primry_price_err , -20545);
 END errnums;
