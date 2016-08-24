@@ -1,0 +1,28 @@
+CREATE TABLE TEMP_PCI_MID_DID_INFO
+   (COST_CENTER_CODE     VARCHAR2(6),
+    PCI_MERCHANT_ID      VARCHAR2(50),
+    PCI_DISCOVER_ID      VARCHAR2(50)
+    )
+   ORGANIZATION EXTERNAL
+    ( TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "CCN_DATAFILES"
+      ACCESS PARAMETERS
+      ( records delimited by newline skip 1
+        badfile CCN_LOAD_FILES:'TEMP_PCI_MID_DID_INFO.bad'
+        logfile CCN_LOAD_FILES:'TEMP_PCI_MID_DID_INFO.log'
+        discardfile CCN_LOAD_FILES:'TEMP_PCI_MID_DID_INFO.dsc'
+    FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+    LRTRIM
+    missing field values are null
+   REJECT ROWS WITH ALL NULL FIELDS
+       (
+         COST_CENTER_CODE,
+         PCI_MERCHANT_ID,
+         PCI_DISCOVER_ID
+        )
+      )
+      LOCATION
+       ( 'PCI_MID_DID_INFO.csv'
+        )
+    )
+    REJECT LIMIT UNLIMITED;
