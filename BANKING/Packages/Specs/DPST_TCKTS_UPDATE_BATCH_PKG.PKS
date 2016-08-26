@@ -19,13 +19,4 @@ Changed : 08/19/2016 nxk927 CCN project....
 IN_SERVER_NAME  IN VARCHAR2,
 IN_LOGFILE      IN VARCHAR2);
 
-PROCEDURE UPDATE_TICKORD_TRACK_NUM(
-/*******************************************************************************
-This procedure is intended to update the tracing number information for an order id.
-
-Created : 06/21/2016 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_LOAD_DATE IN VARCHAR2);
-
 END DPST_TCKTS_UPDATE_BATCH_PKG;
