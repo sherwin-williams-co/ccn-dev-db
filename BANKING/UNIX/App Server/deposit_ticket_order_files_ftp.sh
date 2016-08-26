@@ -4,7 +4,7 @@
 #
 # Description   : Use to ftp file to STSAPDV (DEV)
 #
-# Created  : 06/09/2016 jxc517 CCN Project Team.....
+# Created  : 08/25/2016 nxk927 CCN Project Team.....
 # Modified : 
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
@@ -17,25 +17,38 @@ file_path="$HOME/datafiles"
 
 TIME=`date +"%H:%M:%S"`
 echo "Process started for $proc_name at $TIME on $DATE"
-
 #move to the datafiles folder
-cd $HOME/datafiles
-
-file_name=DEPOSIT_TICKET_*.txt
-fname=$(echo $file_name | cut -f 1 -d '.')
+cd $file_path
+for file in DEPOSIT_TICKET_*.xml
+do
+  f1=${file:0:21}
+  file1=$f1.txt
+  if [ -e $file1 ]
+  then
 TIME=`date +"%H:%M:%S"`
-
+echo "FTP Process started for $proc_name at $TIME on $DATE"
 ftp -inv ${mainframe_host} <<FTP_MF
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
 cd /FTP/PrintServices/Deposits_Tickets
-mput $fname.txt
-mput $fname.xml
+mput $f1.*
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
+TIME=`date +"%H:%M:%S"`
+echo "bye the transfer is complete at ${TIME} on ${DATE}"
 
+TIME=`date +"%H:%M:%S"`
+echo "Archieving Process started for $proc_name at $TIME on $DATE"
+dt=$(date +%Y%m%d%H%M%S)
+mv $file $archieve_path/${f1}_${dt}.xml
+dt=$(date +%Y%m%d%H%M%S)
+mv $file1 $archieve_path/${f1}_${dt}.txt
+TIME=`date +"%H:%M:%S"`
+echo "Archieving Process finished for $proc_name at $TIME on $DATE"
+fi
+done
 ############################################################################
 #                           ERROR STATUS CHECK
 ############################################################################
@@ -48,20 +61,7 @@ then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "copying files from $file_path to $archieve_path at ${TIME} on ${DATE}"
-
-date=`date +"%m%d%Y%H%M%S"`
-# Copy all the deposit ticket files from $HOME/datafiles to $HOME/archieve_path
-cp -f $file_path/$fname.txt $archieve_path/$fname"_"$date.txt
-cp -f $file_path/$fname.xml $archieve_path/$fname"_"$date.xml
-     
-TIME=`date +"%H:%M:%S"` 
-echo "removing the files from $file_path at ${TIME} on ${DATE}"  
-rm -f $file_path/$fname.txt
-rm -f $file_path/$fname.xml
- 
-TIME=`date +"%H:%M:%S"` 
-echo "bye the transfer is complete at ${TIME} on ${DATE}"
+echo "Process completed for $proc_name at $TIME on $DATE"
 
 cd $HOME
 

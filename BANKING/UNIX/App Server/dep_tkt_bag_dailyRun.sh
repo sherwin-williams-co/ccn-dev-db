@@ -10,6 +10,8 @@
 # Created  : 08/16/2016 nxk927 CCN Project Team.....
 # Modified : 08/19/2016 nxk927 CCN Project Team.....
 #             passing parameter logname and the servername to be inserted in batch_job table
+#          : 08/25/2016 nxk927 CCN Project Team.....
+#            creating trigger file to stop deposits_order_bp.sh background process to kick off for this batch
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -50,6 +52,9 @@ fi
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for Renaming deposit files at ${TIME} on ${DATE}"
+
+# Generating a dep_tkt_bag_dailyRun.trigger file using the redirection command to make sure deposits_order_bp.sh background process will not kick off.
+printf "deposit ticket and bag batch Process started" > dep_tkt_bag_dailyRun.trigger
 
 #################################################################
 #                  DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS
@@ -100,6 +105,20 @@ else
     echo "$DATA_FILES_PATH/STE03062_DEPST.TXT files does not exist"
 fi
 
+#################################################################
+#                                   ftp the tickets and the files
+#################################################################
+TIME=`date +"%H:%M:%S"`
+echo "Processing Started for ftping the deposit ticket and bag at $TIME on $DATE"
+./deposit_bag_order_files_ftp.sh
+./deposit_ticket_order_files_ftp.sh
+TIME=`date +"%H:%M:%S"`
+echo "Processing Completed for ftping the deposit ticket and bag at $TIME on $DATE"
+
+TIME=`date +"%H:%M:%S"`
+echo "Removing the trigger file as the batch process completed at $TIME on $DATE"
+rm -f dep_tkt_bag_dailyRun.trigger
+
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for archiving the files at ${TIME} on ${DATE}"
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
@@ -108,3 +127,4 @@ exit 0
 #################################################################
 #                                              Process complete
 #################################################################
+
