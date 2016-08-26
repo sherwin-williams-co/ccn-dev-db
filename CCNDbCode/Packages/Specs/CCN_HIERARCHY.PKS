@@ -770,16 +770,17 @@ Created : 04/23/2015 jxc517 CCN Project
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
-FUNCTION DCO_COSTCENTER_LOOKUP(
+PROCEDURE DCO_COSTCENTER_LOOKUP(
 /***********************************************************
-This function will validate the passed cost center code and 
+This procedure will validate the passed cost center code and 
 return the corresponding record from COST_CENTER table
-      
+
 Created : 08/23/2016 vxv336 CCN Project
-Modified: 
+Modified: 08/25/2016 vxv336 
+          Return a ref cursor instead of rowtype
 ************************************************************/
-in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
-)
-RETURN COST_CENTER%ROWTYPE;
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE,
+OUT_COST_CENTER_REF_CUR OUT REF_CURSOR
+);
     
 END CCN_HIERARCHY;
