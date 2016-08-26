@@ -1,4 +1,4 @@
-create or replace PACKAGE CCN_HIERARCHY_UPLOAD
+CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIERARCHY_UPLOAD
     AS
 
 PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
@@ -53,5 +53,39 @@ This procedure is the for the Hierarchy bulk upload process
 Created : SH 12/23/2013
 ******************************************************************************/
 ;
+
+PROCEDURE BLD_ADMINORG_HIER_TRANSFR_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_TRNSFR_CLOB
+
+This procedure builds the xml as clob for Hierarchy Transfer Process based on
+input parameters
+created : 08/26/2016 MXK766 CCN Project....
+
+******************************************************************************/
+    IN_CC_CODE                  IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+    IN_MANAGER_ID               IN        VARCHAR2,
+    IN_HIERARCHY_NAME           IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+    IN_FROM_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+    IN_TO_COMPOSITE_KEYVALUE    IN        VARCHAR2,
+    IN_EFFECTIVE_DATE           IN        DATE,
+    OUT_XML_AS_CLOB             OUT       CLOB
+    );
+
+PROCEDURE BUILD_ADMINORG_HIER_INS_CLOB(
+/******************************************************************************
+BUILD_HIERARCHY_TRNSFR_CLOB
+
+This procedure builds the xml as clob for Hierarchy Transfer Process based on
+input parameters
+created : 08/26/2016 MXK766 CCN Project....
+
+******************************************************************************/
+    IN_CC_CODE             IN        COST_CENTER.COST_CENTER_CODE%TYPE,
+    IN_MANAGER_ID          IN        VARCHAR2,
+    IN_HIERARCHY_NAME      IN        HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+    IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
+    IN_EFFECTIVE_DATE      IN        DATE,
+    OUT_XML_AS_CLOB        OUT       CLOB);
 
 END CCN_HIERARCHY_UPLOAD;
