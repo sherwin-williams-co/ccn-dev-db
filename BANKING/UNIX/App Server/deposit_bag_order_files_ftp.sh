@@ -21,19 +21,28 @@ echo "Process started for $proc_name at $TIME on $DATE"
 #move to the datafiles folder
 cd $HOME/datafiles
 
-TIME=`date +"%H:%M:%S"`
-
+for file in DEPOSIT_BAG_*.xml
+do
+if [ -e DEPOSIT_BAG_*.xml ]
+then
 ftp -inv ${mainframe_host} <<FTP_MF
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
 cd /FTP/PrintServices/Deposit_Bags
-mput DEPOSIT_BAG_*
+put $file
 bye
 END_SCRIPT
 FTP_MF
 
 TIME=`date +"%H:%M:%S"`
 echo "bye the transfer is complete at ${TIME} on ${DATE}"
+
+f1=${file:0:18}
+dt=$(date +%Y%m%d%H%M%S)
+mv $file $archieve_path/${f1}_${dt}.xml
+fi
+done
+
 ############################################################################
 #                           ERROR STATUS CHECK
 ############################################################################
@@ -46,16 +55,7 @@ then
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "adding time stamp in all the deposit bag files at ${TIME} on ${DATE}"
-for file in DEPOSIT_BAG_*.xml
-do
-  if [ -e DEPOSIT_BAG_*.xml ]
-  then
-     name=${file%.*}
-     dt=$(date +%Y%m%d%H%M%S)
-     mv $file $archieve_path/${name}_${dt}.xml
-  fi
-done
+echo "Process started for $proc_name at $TIME on $DATE"
 
 cd $HOME
 

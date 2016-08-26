@@ -26,7 +26,7 @@ while true; do
    then
       if [ -s $file_path/DEPOSIT_TICKET_*.txt ] && [ -s $file_path/DEPOSIT_TICKET_*.xml ]
       then
-         sh $HOME/deposit_ticket_order_files_ftp.sh
+         sh deposit_ticket_order_files_ftp.sh
       fi
       if [ -s $file_path/DEPOSIT_BAG_*.xml ]
       then
