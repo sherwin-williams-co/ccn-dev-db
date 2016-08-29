@@ -216,7 +216,7 @@ This procedure is intended to update following tables used in the Account Mainte
 Created : 05/18/2015 jxc517 CCN Project....
 Changed : 12/12/2015 dxv848 added the flag for future checks.
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB;
+    IN_ROW_DATA  IN  CLOB);
 
 PROCEDURE MEMBER_MNTNC_UI_UPSERT_SP(
 /******************************************************************************
