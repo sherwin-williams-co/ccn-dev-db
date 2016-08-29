@@ -4,4 +4,4 @@
   CHANGED : 
 *******************************************************************************/
 
-ALTER TABLE COST_CENTER ADD CC_TEMP_CLOSED_CD VARCHAR2(100); 
+ALTER TABLE COST_CENTER ADD CC_TEMP_CLOSED_CD VARCHAR2(2); 
