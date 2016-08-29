@@ -7,9 +7,8 @@
 #                 2. rename the files as per the external tables
 #                 3. load the deposit ticket details on a daily basis from mainfrmae files
 #
-# Created  : 11/12/2015 jxc517 CCN Project Team.....
-# Modified : 08/29/2016 nxk927 CCN Project Team.....
-#          : changed the scrpipt name, file name changed as the new file name has changed
+# Created  : 08/29/2016 nxk927 CCN Project Team.....
+#
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -60,23 +59,17 @@ set serveroutput on;
 EXECUTE DEPOSITS_DAILY_LOAD.DEPOSITS_DAILY_LOAD_SP();
 exit
 END
-TIME=`date +"%H:%M:%S"`
 status=$?
-if test $status -ne 0
-then
-     echo "processing FAILED for DEPOSITS_DAILY_LOAD.DEPOSITS_DAILY_LOAD_SP at ${TIME} on ${DATE}"
-     exit 1;
-fi
-echo "Processing finished for DEPOSITS_DAILY_LOAD.DEPOSITS_DAILY_LOAD_SP at ${TIME} on ${DATE}"
 #################################################################
 #                                              ERROR STATUS CHECK
 #################################################################
-TIME=`date +"%H:%M:%S"`
-status=$?
 if test $status -ne 0
 then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for DEPOSITS_DAILY_LOAD.DEPOSITS_DAILY_LOAD_SP at ${TIME} on ${DATE}"
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 exit 0
