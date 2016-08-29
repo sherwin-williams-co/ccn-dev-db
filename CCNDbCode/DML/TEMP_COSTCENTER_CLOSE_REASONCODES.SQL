@@ -1,3 +1,8 @@
+/*******************************************************************************
+  Insert script to add the code header and code detail information
+  CREATED : 08/08/2016 mxk766 CCN Project
+  CHANGED : 
+*******************************************************************************/
 SET DEFINE OFF;
 
 INSERT INTO CODE_HEADER 
