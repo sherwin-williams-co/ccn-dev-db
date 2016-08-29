@@ -2759,19 +2759,6 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_ftr_adr_efctv_dt_err , -20537);
 
 /*********************************************************** 
-The "en_invld_dco_costcntr_err" passes a numerical error of -20546
-This error will state that the passed DCO cost center code does not 
-exist in the database.
-
-Created  : 08/23/2016 vxv336 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_dco_costcntr_err CONSTANT NUMBER := -20546;
-exc_invld_dco_costcntr_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_dco_costcntr_err , -20546);
-
-/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
