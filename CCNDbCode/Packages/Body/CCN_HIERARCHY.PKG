@@ -2986,437 +2986,82 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_INSERT ',V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM);
 END HIERARCHY_DETAIL_INSERT;
 
-FUNCTION VALIDATE_ADMINORG_LEVEL(
+PROCEDURE BUILD_FROM_COMP_KEYS_ADMINORG(
 /***********************************************************
-This procedure is used validate current level admin org hierarchy data
-Created : 08/23/2016 MXK766 CCN Project Team....
+This Procedure will build composite keys from part of tranfer process
+for adminorg hierarchy data.
+Created : 08/29/2016 mxk766 CCN Project
 ************************************************************/
-                              IN_HRCHY_HDR_NAME          IN VARCHAR2, 
-                              IN_HRCHY_DTL_LEVEL         IN VARCHAR2,
-                              IN_HRCHY_DTL_PREV_LVL_VAL  IN VARCHAR2,
-                              IN_HRCHY_DTL_CURR_LVL_VAL  IN VARCHAR2,
-                              IN_HRCHY_DTL_NEXT_LVL_VAL  IN VARCHAR2
-                            ) RETURN BOOLEAN
+    IN_XML                      IN     CLOB,
+    IN_COUNT                    IN     NUMBER,
+    IN_OUT_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE)
+
 IS
-V_CHECK PLS_INTEGER;
+    V_CONTEXT      VARCHAR2(3000);
+    V_NEXT_ROW_VAL VARCHAR2(100);
+    V_ROW_DATA     XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_FROM_COUNT_LVL      PLS_INTEGER;
+    V_TO_COUNT_LVL        PLS_INTEGER;
+    V_FROM_HRCHY_DTL_LEVEL PLS_INTEGER;
+    V_TO_HRCHY_DTL_LEVEL   PLS_INTEGER;
 BEGIN
-
-   SELECT 1 INTO V_CHECK FROM
-   (
-      SELECT 1
-      FROM HIERARCHY_DETAIL
-      WHERE HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
-      AND   HRCHY_DTL_LEVEL        = IN_HRCHY_DTL_LEVEL
-      AND   HRCHY_DTL_PREV_LVL_VAL = IN_HRCHY_DTL_PREV_LVL_VAL
-      AND   HRCHY_DTL_CURR_LVL_VAL = IN_HRCHY_DTL_CURR_LVL_VAL
-      AND HRCHY_DTL_NEXT_LVL_VAL = NVL(IN_HRCHY_DTL_NEXT_LVL_VAL,HRCHY_DTL_NEXT_LVL_VAL)
-   ) WHERE ROWNUM=1;
-
-   RETURN FALSE;
-
-EXCEPTION
-WHEN NO_DATA_FOUND THEN
-   RETURN TRUE;
-END VALIDATE_ADMINORG_LEVEL;
-
-PROCEDURE GET_ADMINORG_HIER_DATA(
-/*********************************************************** 
-This procedure is used return admin org hierarchy datra
-Created : 08/23/2016 MXK766 CCN Project Team....
-************************************************************/
-                                 IN_HRCHY_HDR_NAME          IN VARCHAR2,
-                                 IN_HRCHY_DTL_LEVEL         IN VARCHAR2,
-                                 IN_HRCHY_DTL_PREV_LVL_VAL  IN VARCHAR2,
-                                 IN_HRCHY_DTL_CURR_LVL_VAL  IN VARCHAR2,
-                                 IN_HRCHY_DTL_NEXT_LVL_VAL  IN VARCHAR2,
-                                 OUT_HRCHY_DTL_REC          OUT HIERARCHY_DETAIL%ROWTYPE
-                                 )
-IS
-BEGIN
-   SELECT
-          *
-   INTO   OUT_HRCHY_DTL_REC
-   FROM HIERARCHY_DETAIL
-   WHERE HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
-   AND   HRCHY_DTL_LEVEL        = IN_HRCHY_DTL_LEVEL
-   AND   NVL(HRCHY_DTL_PREV_LVL_VAL,'~~~') = IN_HRCHY_DTL_PREV_LVL_VAL
-   AND   HRCHY_DTL_CURR_LVL_VAL = IN_HRCHY_DTL_CURR_LVL_VAL
-   AND   HRCHY_DTL_NEXT_LVL_VAL = IN_HRCHY_DTL_NEXT_LVL_VAL
-   AND   ROWNUM=1;
-EXCEPTION
-WHEN NO_DATA_FOUND THEN 
-   NULL;
-END;
-
-PROCEDURE ADMINORG_HIER_INSERT_WRAPPER (
-/***********************************************************
-This procedure is used insert the HIERARCHY_DETAIL information.
-Created : 08/23/2016 MXK766 CCN Project Team....
-************************************************************/
-IN_HIERARCHY_DETAIL_ROW_TO IN HIERARCHY_DETAIL%ROWTYPE)
-
-    IS
-    V_HIERARCHY_DETAIL_ROW_PREV HIERARCHY_DETAIL%ROWTYPE;
-BEGIN
-    GET_PREVIOUS_LVL(NULL,
-                     IN_HIERARCHY_DETAIL_ROW_TO,
-                     V_HIERARCHY_DETAIL_ROW_PREV);
-    IF NVL(V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL,'~~~') = '~~~' THEN
-        --If previous level's Next Value is ~~~, we need to update that with current level value
-        V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL);
-        HIERARCHY_UPDATE_WRAPPER(NULL, V_HIERARCHY_DETAIL_ROW_PREV);
-    ELSIF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL <> IN_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL THEN
-        --If previous level's Next Value is NOT ~~~ and NOT current level value, insert one
-        V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_NEXT_LVL_VAL := IN_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL;
-        V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_EFF_DATE     := NVL(IN_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_EFF_DATE, SYSDATE);
-        HIERARCHY_INSERT_WRAPPER(NULL, V_HIERARCHY_DETAIL_ROW_PREV);
+    IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME  := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
+        SELECT
+           COUNT(EXTRACTVALUE(V_ROW_DATA,'/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL'||ROWNUM))+1
+           INTO V_FROM_HRCHY_DTL_LEVEL
+        FROM
+        DUAL CONNECT BY LEVEL <=8;
+        SELECT
+           COUNT(EXTRACTVALUE(V_ROW_DATA,'/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL'||ROWNUM))
+           INTO V_TO_HRCHY_DTL_LEVEL
+        FROM
+        DUAL CONNECT BY LEVEL <=8;
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL := NVL(IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL,
+                                                           V_FROM_HRCHY_DTL_LEVEL);
     END IF;
-    IF CURRENT_LVL_EXISTS(NULL, IN_HIERARCHY_DETAIL_ROW_TO) = 'N' THEN
-        HIERARCHY_INSERT_WRAPPER(NULL, IN_HIERARCHY_DETAIL_ROW_TO);
+
+    FOR i IN 1..IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL -1  LOOP
+        --Previous Level Value should extract values of all levels except current level
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL :=  IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || i ||'/text()').GETSTRINGVAL();
+    END LOOP;
+
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL  = V_FROM_HRCHY_DTL_LEVEL THEN 
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_LEVEL' || V_TO_HRCHY_DTL_LEVEL ||'/text()').GETSTRINGVAL(); 
+       IF (V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_DTL_EXP_DATE/text()') = 1) THEN
+           IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE   := TO_DATE(V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' ||'[' || IN_COUNT || ']'||'/HRCHY_DTL_EXP_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY');
+       END IF; 
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL := IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := '~~~'; 
+    ELSE 
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || (IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL) ||'/text()').GETSTRINGVAL();
+       V_NEXT_ROW_VAL := V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL' || ((IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL)) ||'/text()').GETSTRINGVAL();
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL := IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL || IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+       IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_NEXT_LVL_VAL := IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL || V_NEXT_ROW_VAL; 
     END IF;
-END ADMINORG_HIER_INSERT_WRAPPER;
 
-PROCEDURE ADMINORG_HIER_TRANSFER_PROCESS(
-/***********************************************************
-This procedure will be called from UI to transfer particular cost center
-from one hierarchy to another
+    --Assign Previous Level value for 1st Level as ~~~
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL = 1 THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_PREV_LVL_VAL := '~~~';
+    END IF;
+    --Getting descriptions for the corresponding level, if not present
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC IS NULL THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_DESC := HIERARCHY_DESC_RETURN(IN_OUT_HIERARCHY_DETAIL_ROW);
+    END IF;
+    ---Getting attribute value for the corresponding level, if not present
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE IS NULL THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.UPPER_LVL_VER_VALUE := HIERARCHY_ATTRIBUTE_RETURN(IN_OUT_HIERARCHY_DETAIL_ROW);
+    END IF;
+    ---Getting Effective Date value for the corresponding level, if not present
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE IS NULL THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EFF_DATE := HIERARCHY_EFF_DATE_RETURN(IN_OUT_HIERARCHY_DETAIL_ROW);
+    END IF;
+    ---Getting Expiration Date value for the corresponding level, if not present
+    IF IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE IS NULL THEN
+        IN_OUT_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE := HIERARCHY_EXP_DATE_RETURN(IN_OUT_HIERARCHY_DETAIL_ROW);
+    END IF;
 
-Example Input:
-<?xml version="1.0" encoding="UTF-8"?>
-<HIERARCHY_DETAIL>
-    <row_data>
-        <HRCHY_HDR_NAME>ADMIN_TO_SALES_AREA</HRCHY_HDR_NAME>
-        <HRCHY_DTL_LEVEL>5</HRCHY_DTL_LEVEL>
-        <FROM_HIERARCHY>
-            <HRCHY_LEVEL1>2301</HRCHY_LEVEL1>
-            <HRCHY_LEVEL2>2401</HRCHY_LEVEL2>
-            <HRCHY_LEVEL3>3401</HRCHY_LEVEL3>
-            <HRCHY_LEVEL4>3301</HRCHY_LEVEL4>
-        </FROM_HIERARCHY>
-        <TRANSFER_TO>
-            <TO_HIERARCHY>
-                <HRCHY_LEVEL1>1101</HRCHY_LEVEL1>
-                <HRCHY_LEVEL2>2101</HRCHY_LEVEL2>
-                <HRCHY_LEVEL3>2201</HRCHY_LEVEL3>
-                <HRCHY_LEVEL4>2306</HRCHY_LEVEL4>
-                <HRCHY_LEVEL5>800411</HRCHY_LEVEL5>
-                <HRCHY_DTL_EFF_DATE>07-29-2013</HRCHY_DTL_EFF_DATE>
-                <HRCHY_DTL_EXP_DATE></HRCHY_DTL_EXP_DATE>
-                <HRCHY_DTL_DESC>WAREHOUSING-25</HRCHY_DTL_DESC>
-                <attributes>
-                    <upper_lvl_ver_desc>
-                        <Name>statement_type</Name>
-                        <Description>pkListValue</Description>
-                        <Value>JM</Value>
-                    </upper_lvl_ver_desc>
-                </attributes>
-            </TO_HIERARCHY>
-            <TO_HIERARCHY>
-                <HRCHY_LEVEL1>01</HRCHY_LEVEL1>
-                <HRCHY_LEVEL2>01</HRCHY_LEVEL2>
-                <HRCHY_LEVEL3>01</HRCHY_LEVEL3>
-                <HRCHY_LEVEL4>06</HRCHY_LEVEL4>
-                <HRCHY_LEVEL5>800412</HRCHY_LEVEL5>
-                <HRCHY_DTL_EFF_DATE>07-29-2013</HRCHY_DTL_EFF_DATE>
-                <HRCHY_DTL_EXP_DATE></HRCHY_DTL_EXP_DATE>
-                <HRCHY_DTL_DESC>WAREHOUSING-26</HRCHY_DTL_DESC>
-                <attributes>
-                    <upper_lvl_ver_desc>
-                        <Name>statement_type</Name>
-                        <Description>pkListValue</Description>
-                        <Value>JM</Value>
-                    </upper_lvl_ver_desc>
-                </attributes>
-            </TO_HIERARCHY>
-        </TRANSFER_TO>
-    </row_data>
-</HIERARCHY_DETAIL>
-
-Created : 08/23/2016 MXK766 CCN Project Team....
-************************************************************/
-    IN_XML                IN     XMLTYPE,
-    IN_OVERWRITE_FLG      IN     VARCHAR2 DEFAULT 'N',
-    OUT_CLOB              OUT    CLOB)
-IS
-    FTR_EXISTS_EXCEPTION             EXCEPTION;
-    HRCHY_FTR_NOT_ALLOWED_EXC        EXCEPTION;
-    V_CONTEXT                        VARCHAR2(32767);
-    V_HIERARCHY_DETAIL_ROW_TO        HIERARCHY_DETAIL%ROWTYPE;
-    V_HIERARCHY_DTL_ROW_TO_PREV      HIERARCHY_DETAIL%ROWTYPE;
-    V_HIERARCHY_DETAIL_ROW_FROM      HIERARCHY_DETAIL%ROWTYPE;
-    V_HIERARCHY_DTL_ROW_FROM_PREV    HIERARCHY_DETAIL%ROWTYPE;
-    V_HIERARCHY_DETAIL_TEMP          HIERARCHY_DETAIL%ROWTYPE;
-    V_FUTURE_COST_CENTER_LIST        VARCHAR2(32767);
-    V_PREV_LVL_EXISTS                BOOLEAN; 
-    V_FROM_HRCHY_DTL_LEVEL           PLS_INTEGER;
-    V_FROM_LVL_DATA                  VARCHAR2(32767);
-    V_TO_LVL_DATA                    VARCHAR2(32767);
-    ERR_INVALID_FROM_LVL_DATA        EXCEPTION;
-    ERR_INVALID_PREV_LVL_DATA        EXCEPTION;
-    ERR_CC_ALREADY_ATTACHED_AT_LVL   EXCEPTION;
-    ERR_PREV_LVL_NOT_FOUND           EXCEPTION; 
-    V_CLOB                           CLOB;
-    V_LEVEL_SIZE                     PLS_INTEGER :=4;
-BEGIN
-   --Get the count of From hierarchy levels selected.
-   SELECT
-      COUNT(EXTRACTVALUE(IN_XML,'/HIERARCHY_DETAIL/row_data/FROM_HIERARCHY/HRCHY_LEVEL'||ROWNUM)) +1
-      INTO V_FROM_HRCHY_DTL_LEVEL
-   FROM
-   DUAL CONNECT BY LEVEL <=8;
-
-   FOR HIER_TRANSFER_REC IN
-   (
-             SELECT * FROM (
-             SELECT
-                    FROM_DATA.*,
-                    TO_DATA.*
-             FROM DUAL,
-             XMLTABLE ('/HIERARCHY_DETAIL/row_data'
-                       PASSING IN_XML
-                       COLUMNS HRCHY_HDR_NAME       VARCHAR2(30)  PATH 'HRCHY_HDR_NAME',
-                               HRCHY_DTL_LEVEL      NUMBER        PATH 'HRCHY_DTL_LEVEL',
-                               FROM_HRCHY_LEVEL1    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL1',
-                               FROM_HRCHY_LEVEL2    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL2',
-                               FROM_HRCHY_LEVEL3    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL3',
-                               FROM_HRCHY_LEVEL4    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL4',
-                               FROM_HRCHY_LEVEL5    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL5',
-                               FROM_HRCHY_LEVEL6    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL6',
-                               FROM_HRCHY_LEVEL7    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL7',
-                               FROM_HRCHY_LEVEL8    VARCHAR2(100) PATH 'FROM_HIERARCHY/HRCHY_LEVEL8',
-                               TRANSFER_TO_XML XMLTYPE PATH 'TRANSFER_TO')   FROM_DATA,
-                                 XMLTABLE (
-                                    'TRANSFER_TO'
-                                    PASSING FROM_DATA.TRANSFER_TO_XML
-                                    COLUMNS TO_HIERARCHY XMLTYPE
-                                                  PATH 'TO_HIERARCHY'
-                                                  ) t3,
-                                                   XMLTABLE (
-                                    'TO_HIERARCHY'
-                                    PASSING t3.TO_HIERARCHY
-                                    COLUMNS TO_HRCHY_LEVEL1 VARCHAR2(100)     PATH 'HRCHY_LEVEL1',
-                                            TO_HRCHY_LEVEL2 VARCHAR2(100)     PATH 'HRCHY_LEVEL2',
-                                            TO_HRCHY_LEVEL3 VARCHAR2(100)     PATH 'HRCHY_LEVEL3',
-                                            TO_HRCHY_LEVEL4 VARCHAR2(100)     PATH 'HRCHY_LEVEL4',
-                                            TO_HRCHY_LEVEL5 VARCHAR2(100)     PATH 'HRCHY_LEVEL5',
-                                            TO_HRCHY_LEVEL6 VARCHAR2(100)     PATH 'HRCHY_LEVEL6',
-                                            TO_HRCHY_LEVEL7 VARCHAR2(100)     PATH 'HRCHY_LEVEL7',
-                                            TO_HRCHY_LEVEL8 VARCHAR2(100)     PATH 'HRCHY_LEVEL8',
-                                            HRCHY_DTL_EFF_DATE VARCHAR2(100)  PATH 'HRCHY_DTL_EFF_DATE',
-                                            HRCHY_DTL_EXP_DATE VARCHAR2(100)  PATH 'HRCHY_DTL_EXP_DATE',
-                                            HRCHY_DTL_DESC VARCHAR2(100)      PATH 'HRCHY_DTL_DESC',
-                                            UPPER_LVL_VER_VALUE XMLTYPE       PATH 'attributes'
-                                                  ) TO_DATA )
-    )
-   LOOP
-
-      V_TO_LVL_DATA   := HIER_TRANSFER_REC.TO_HRCHY_LEVEL1||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL2||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL3||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL4||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL5||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL6||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL7||
-                         HIER_TRANSFER_REC.TO_HRCHY_LEVEL8;
-
-      -- Build the record type from the cursor.
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_HDR_NAME         := HIER_TRANSFER_REC.HRCHY_HDR_NAME;
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL        := HIER_TRANSFER_REC.HRCHY_DTL_LEVEL;
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL :=NVL(SUBSTR(V_TO_LVL_DATA,1,(HIER_TRANSFER_REC.HRCHY_DTL_LEVEL-1)*V_LEVEL_SIZE),'~~~');
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL := V_TO_LVL_DATA;
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL := '~~~';
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_EFF_DATE     := TO_DATE(HIER_TRANSFER_REC.HRCHY_DTL_EFF_DATE,'MM-DD-YYYY');
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_EXP_DATE     := HIER_TRANSFER_REC.HRCHY_DTL_EXP_DATE;
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_DESC         := HIER_TRANSFER_REC.HRCHY_DTL_DESC;
-      V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL := SUBSTR(V_TO_LVL_DATA,-6);
-      V_HIERARCHY_DETAIL_ROW_TO.UPPER_LVL_VER_VALUE    := HIER_TRANSFER_REC.UPPER_LVL_VER_VALUE;
-
-      --Check for To value. If it is there then raise an error that cost center is already attached at that level. 
-      IF NOT VALIDATE_ADMINORG_LEVEL(
-                                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_HDR_NAME,
-                                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL,
-                                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL,
-                                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL,
-                                 V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_NEXT_LVL_VAL
-                                 )
-      THEN
-         RAISE ERR_CC_ALREADY_ATTACHED_AT_LVL;
-      END IF;
-
-      IF NOT VALIDATE_ADMINORG_LEVEL  (
-                                   IN_HRCHY_HDR_NAME  => V_HIERARCHY_DETAIL_ROW_TO.HRCHY_HDR_NAME,
-                                   IN_HRCHY_DTL_LEVEL => V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL-1,
-                                   IN_HRCHY_DTL_PREV_LVL_VAL => SUBSTR(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL,1, (HIER_TRANSFER_REC.HRCHY_DTL_LEVEL-2)*V_LEVEL_SIZE),
-                                   IN_HRCHY_DTL_CURR_LVL_VAL => SUBSTR(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL,1, (HIER_TRANSFER_REC.HRCHY_DTL_LEVEL-1)*V_LEVEL_SIZE),
-                                   IN_HRCHY_DTL_NEXT_LVL_VAL=>NULL
-                                   )
-      THEN
-          RAISE ERR_PREV_LVL_NOT_FOUND;
-      END IF;
-
-      --Previous TO Value. 
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_HDR_NAME         := HIER_TRANSFER_REC.HRCHY_HDR_NAME;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_LEVEL        := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL-1;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_PREV_LVL_VAL :=NVL(SUBSTR(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL,
-                                                               1,
-                                                               (V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_LEVEL - 2)*V_LEVEL_SIZE
-                                                                      )
-                                                               ,'~~~'
-                                                               );
-
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_CURR_LVL_VAL := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_NEXT_LVL_VAL := V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_LVL_VAL;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_EFF_DATE     := TO_DATE(HIER_TRANSFER_REC.HRCHY_DTL_EFF_DATE,'MM-DD-YYYY');
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_EXP_DATE     := HIER_TRANSFER_REC.HRCHY_DTL_EXP_DATE;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_DESC         := HIER_TRANSFER_REC.HRCHY_DTL_DESC;
-      V_HIERARCHY_DTL_ROW_TO_PREV.HRCHY_DTL_CURR_ROW_VAL := SUBSTR(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL,-V_LEVEL_SIZE);
-      V_HIERARCHY_DTL_ROW_TO_PREV.UPPER_LVL_VER_VALUE    := HIER_TRANSFER_REC.UPPER_LVL_VER_VALUE;
-
-      --Building the FROM Data.
-      V_FROM_LVL_DATA := HIER_TRANSFER_REC.FROM_HRCHY_LEVEL1||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL2||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL3||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL4||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL5||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL6||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL7||
-                         HIER_TRANSFER_REC.FROM_HRCHY_LEVEL8||
-                         V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL; 
-
-      --Build the from value
-      V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME        := HIER_TRANSFER_REC.HRCHY_HDR_NAME;
-      V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL       := V_FROM_HRCHY_DTL_LEVEL;
-      V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL:= NVL(SUBSTR(V_FROM_LVL_DATA,
-                                                                       1, 
-                                                                      V_LEVEL_SIZE*(CASE WHEN V_FROM_HRCHY_DTL_LEVEL=1 THEN 
-                                                                                   0
-                                                                              ELSE V_FROM_HRCHY_DTL_LEVEL-1
-                                                                              END)
-                                                                      ),'~~~'
-                                                               );
-      V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL:= V_FROM_LVL_DATA;
-      V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL:= '~~~';
-
-      --Check whether the From is there. If it is there then go ahead with processing.
-
-      GET_ADMINORG_HIER_DATA(IN_HRCHY_HDR_NAME => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME, 
-                             IN_HRCHY_DTL_LEVEL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL,
-                             IN_HRCHY_DTL_PREV_LVL_VAL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL,
-                             IN_HRCHY_DTL_CURR_LVL_VAL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL,
-                             IN_HRCHY_DTL_NEXT_LVL_VAL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL,
-                             OUT_HRCHY_DTL_REC => V_HIERARCHY_DETAIL_ROW_FROM);
-
-      IF V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL IS NULL THEN
-         RAISE ERR_INVALID_FROM_LVL_DATA;
-      END IF;
-
-      --Get the previous record. 
-      GET_ADMINORG_HIER_DATA(IN_HRCHY_HDR_NAME => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME,
-                             IN_HRCHY_DTL_LEVEL => (V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL - 1) ,
-                             IN_HRCHY_DTL_PREV_LVL_VAL =>  NVL(SUBSTR(V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL,
-                                                           1, 
-                                                           (V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL - 2)*V_LEVEL_SIZE
-                                                                  )
-                                                           ,'~~~'
-                                                              ),
-                             IN_HRCHY_DTL_CURR_LVL_VAL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL,
-                             IN_HRCHY_DTL_NEXT_LVL_VAL => V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL,
-                             OUT_HRCHY_DTL_REC => V_HIERARCHY_DTL_ROW_FROM_PREV); 
-
-      IF V_HIERARCHY_DTL_ROW_FROM_PREV.HRCHY_DTL_CURR_LVL_VAL IS NULL THEN
-         RAISE ERR_INVALID_PREV_LVL_DATA;
-      END IF;
-
-      IF CCN_HIER_BUSINESS_RULES_PKG.IS_HIERARCHY_FUTURE_ALLOWED (V_HIERARCHY_DETAIL_ROW_TO) = 'N' THEN
-            RAISE HRCHY_FTR_NOT_ALLOWED_EXC;
-      END IF;
-
-      IF CCN_HIER_BUSINESS_RULES_PKG.IS_FTR_HRCHY_DTL_EXSTS(V_HIERARCHY_DETAIL_ROW_TO) = 'Y' THEN
-         --First time UI will pass "N" as flag and we throw error for user to confirm 
-         --Error should include list of all cost centers having futures
-         --If future exists and the user wants to proceed creating new future, we need to delete existing future. 
-         IF IN_OVERWRITE_FLG = 'Y' THEN 
-             CCN_HIERARCHY_FUTURE.DELETE_HIERARCHY_DETAIL_FUTURE(V_HIERARCHY_DETAIL_ROW_TO);
-         ELSE
-             V_FUTURE_COST_CENTER_LIST := V_FUTURE_COST_CENTER_LIST || ',' ||
-                                          V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL;
-         END IF;
-      END IF;
-
-      IF  V_FUTURE_COST_CENTER_LIST IS NOT NULL THEN
-          V_FUTURE_COST_CENTER_LIST := LTRIM(V_FUTURE_COST_CENTER_LIST, ',');
-          RAISE FTR_EXISTS_EXCEPTION;
-      END IF;
-
-      -- a future record is the one whose cost center has an effective date of future.
-      IF CCN_HIERARCHY_FUTURE.IS_FUTURE_HIERARCHY_DETAIL_REC(V_HIERARCHY_DETAIL_ROW_TO) ='Y'
-      THEN
-         CCN_HIERARCHY_FUTURE.INSERT_HIERARCHY_DETAIL_FUTURE(V_HIERARCHY_DETAIL_ROW_TO);
-      ELSE
-         VALIDATE_RULES_FOR_ADMINORG(V_HIERARCHY_DETAIL_ROW_FROM, NULL,V_HIERARCHY_DTL_ROW_TO_PREV);
-         INSERT_DETAIL_HIST_PROCESS(V_HIERARCHY_DETAIL_ROW_FROM,
-                                          V_PREV_LVL_EXISTS);
-         INSERT_DETAIL_HIST_PROCESS(V_HIERARCHY_DTL_ROW_FROM_PREV,
-                                          V_PREV_LVL_EXISTS);
-         ADMINORG_HIER_INSERT_WRAPPER(V_HIERARCHY_DETAIL_ROW_TO);
-         ADMINORG_HIER_INSERT_WRAPPER(V_HIERARCHY_DTL_ROW_TO_PREV); 
-
-         DELETE_DETAIL_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW_FROM);
-         DELETE_DETAIL_PROCESS(NULL, V_HIERARCHY_DTL_ROW_FROM_PREV);
-      END IF;
-
-      FOR rec IN (
-                  SELECT *
-                  FROM COST_CENTER
-                  WHERE UPPER(COST_CENTER_CODE) = UPPER(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL)
-                  AND CATEGORY = 'T'
-                 ) LOOP
-           --using v_clob to store the list of  cost centers and Hierarchy 'To' and 'From' from the cursor
-           V_CLOB := V_CLOB || V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL ||','||
-                               V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_PREV_LVL_VAL ||','||
-                               V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL || CHR(10);
-      END LOOP;
-  END LOOP;
-
-  OUT_CLOB := V_CLOB;
-
-EXCEPTION
-    WHEN ERR_INVALID_PREV_LVL_DATA THEN 
-        ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_ftr_not_allowed_err
-                        ,'ADMINORG_HIER_TRANSFER_PROCESS','Previous levl not found for From Hierarchy level data.'||CHR(10)||
-                         'HRCHY_HDR_NAME = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME||CHR(10)||
-                         'HRCHY_DTL_LEVEL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL-1||CHR(10)||
-                         'HRCHY_DTL_PREV_LVL_VAL = '||NVL(SUBSTR(V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL,
-                                                           1, 
-                                                           (V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL - 2)*4
-                                                                  )
-                                                           ,'~~~'
-                                                          ) ||CHR(10)||
-                         'HRCHY_DTL_CURR_LVL_VAL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL||CHR(10)||
-                         'HRCHY_DTL_NEXT_LVL_VAL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL
-                        );
-    WHEN ERR_INVALID_FROM_LVL_DATA THEN
-        ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_ftr_not_allowed_err
-                        ,'ADMINORG_HIER_TRANSFER_PROCESS','Invalid From Hierarchy level data present'||CHR(10)||
-                         'HRCHY_HDR_NAME = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME||CHR(10)||
-                         'HRCHY_DTL_LEVEL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_LEVEL||CHR(10)||
-                         'HRCHY_DTL_PREV_LVL_VAL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_PREV_LVL_VAL||CHR(10)||
-                         'HRCHY_DTL_CURR_LVL_VAL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_CURR_LVL_VAL||CHR(10)||
-                         'HRCHY_DTL_NEXT_LVL_VAL = '||V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_NEXT_LVL_VAL
-                        );
-
-    WHEN HRCHY_FTR_NOT_ALLOWED_EXC THEN 
-        ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_ftr_not_allowed_err
-                        ,'ADMINORG_HIER_TRANSFER_PROCESS','Future transactions are not allowed for this hierarchy');
-    WHEN FTR_EXISTS_EXCEPTION THEN 
-        ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_cc_ftr_exists_err
-                         ,'ADMINORG_HIER_TRANSFER_PROCESS','The cost centers has a future hierarchy already in place : '
-                             ||V_FUTURE_COST_CENTER_LIST
-                             );
-    WHEN OTHERS THEN 
-        V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM; 
-        ERRPKG.RAISE_ERR(-20004,'ADMINORG_HIER_TRANSFER_PROCESS',V_CONTEXT);
-END ADMINORG_HIER_TRANSFER_PROCESS;
+END BUILD_FROM_COMP_KEYS_ADMINORG;
 
 PROCEDURE HIERARCHY_TRANSFER_PROCESS(
 /***********************************************************
@@ -3502,13 +3147,8 @@ IS
     HRCHY_FTR_NOT_ALLOWED_EXC        EXCEPTION;
     V_FUTURE_COST_CENTER_LIST        VARCHAR2(1000);
     V_HEADER_NAME                    VARCHAR2(32767);
-BEGIN    
-    IF  V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL() = 'ADMINORG_HIERARCHY' THEN 
-       ADMINORG_HIER_TRANSFER_PROCESS(IN_XML=> V_ROW_DATA, 
-                                      IN_OVERWRITE_FLG=> IN_OVERWRITE_FLAG, 
-                                      OUT_CLOB=>V_CLOB
-                                      );
-    ELSE 
+BEGIN
+
     WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP
     
         BUILD_TO_COMPOSITE_KEYS(IN_XML,
@@ -3541,6 +3181,7 @@ BEGIN
 
     V_COUNT :=  1;
     --Extracting the TO_HIERARCHY
+				V_HEADER_NAME :=V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
     WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP 
         V_CONTEXT := 'Calling BUILD_TO_COMPOSITE_KEYS';
         BUILD_TO_COMPOSITE_KEYS(IN_XML,
@@ -3555,11 +3196,18 @@ BEGIN
             V_PREV_LVL_EXISTS       := FALSE;
             WHILE NOT V_PREV_LVL_EXISTS LOOP
                 V_HIERARCHY_DETAIL_ROW_FROM := V_HIERARCHY_DETAIL_TEMP;
-                V_CONTEXT := 'Calling BUILD_FROM_COMPOSITE_KEYS';             
-                V_HEADER_NAME :=V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_HDR_NAME; 
+                V_CONTEXT := 'Calling BUILD_FROM_COMPOSITE_KEYS';
+
+                IF V_HEADER_NAME ='ADMINORG_HIERARCHY' THEN
+                BUILD_FROM_COMP_KEYS_ADMINORG(IN_XML,
+                                          V_COUNT,
+                                          V_HIERARCHY_DETAIL_ROW_FROM);
+                ELSE
                 BUILD_FROM_COMPOSITE_KEYS(IN_XML,
                                           V_COUNT,
                                           V_HIERARCHY_DETAIL_ROW_FROM);
+                END IF;
+
                 V_CONTEXT := 'Calling INSERT_DETAIL_HIST_PROCESS';
                 V_HIERARCHY_DETAIL_ROW_FROM.HRCHY_DTL_EXP_DATE := TRUNC(SYSDATE);
                 INSERT_DETAIL_HIST_PROCESS(V_HIERARCHY_DETAIL_ROW_FROM,
@@ -3575,9 +3223,15 @@ BEGIN
                                   V_COUNT);
             V_HIERARCHY_DETAIL_ROW_FROM := NULL;
             V_CONTEXT := 'Calling BUILD_FROM_COMPOSITE_KEYS';
-            BUILD_FROM_COMPOSITE_KEYS(IN_XML,
-                                      V_COUNT,
-                                      V_HIERARCHY_DETAIL_ROW_FROM);
+            IF V_HEADER_NAME ='ADMINORG_HIERARCHY' THEN 
+                BUILD_FROM_COMP_KEYS_ADMINORG(IN_XML,
+                                          V_COUNT,
+                                          V_HIERARCHY_DETAIL_ROW_FROM);
+            ELSE
+                BUILD_FROM_COMPOSITE_KEYS(IN_XML,
+                                          V_COUNT,
+                                          V_HIERARCHY_DETAIL_ROW_FROM);
+            END IF;
             V_CONTEXT := 'Calling DELETE_PROCESS';
             DELETE_DETAIL_PROCESS(NULL, V_HIERARCHY_DETAIL_ROW_FROM);
             --looking for territory cost center when there is hierarchy transfer
@@ -3600,8 +3254,6 @@ BEGIN
         END IF;
         V_COUNT := V_COUNT + 1;
     END LOOP;
-
-    END IF;
 
     --Sending mail for the category 'HIER_TRNSFR_TERRITORY'
     IF V_CLOB <> EMPTY_CLOB() THEN
