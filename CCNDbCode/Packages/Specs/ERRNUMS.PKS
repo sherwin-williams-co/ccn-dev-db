@@ -2792,7 +2792,7 @@ max_error_used CONSTANT NUMBER := -20999;
 The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
 The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
 if the standard price or primary price is null for non canada countries then
-throw a warning.
+throw a warning.Made changes as per ASP-400 mxk766 -	Standard/Primary Cost indicators
 created : 08/17/2016 MXK766 CCN Project Team....
 revisions:
 ************************************************************/
