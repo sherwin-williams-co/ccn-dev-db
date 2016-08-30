@@ -6,7 +6,8 @@
 #                 created is missing its corresponding file
 #
 # Created  : 08/30/2016 nxk927 CCN Project Team.....
-# Modified :
+# Modified : 08/30/2016 nxk927 CCN Project Team.....
+#            passing the path as parameter
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
