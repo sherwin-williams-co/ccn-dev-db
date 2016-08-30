@@ -27,7 +27,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail('DEPOSIT_TICKET_FILE',null,'$CC');
+MAIL_PKG.send_mail('DEPOSIT_TICKET_FILE',null,'$CC','$HOME');
 Exception
  when others then
  :exitCode := 2;
