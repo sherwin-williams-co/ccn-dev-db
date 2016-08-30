@@ -5,7 +5,8 @@
 # Description   : Use to ftp file to STSAPDV (DEV)
 #
 # Created  : 08/25/2016 nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 08/30/2016 nxk927 CCN Project Team.....
+#            sending email and archieving the missing corresponding file
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -47,6 +48,14 @@ dt=$(date +%Y%m%d%H%M%S)
 mv $file1 $archieve_path/${f1}_${dt}.txt
 TIME=`date +"%H:%M:%S"`
 echo "Archieving Process finished for $proc_name at $TIME on $DATE"
+else
+CC=${file:15:6}
+echo "Corresponding deposit ticket file for cost center $CC not found for processing"
+TIME=`date +"%H:%M:%S"`
+echo "Sending email for $CC for corresponding file check at $TIME on $DATE"
+sh $HOME/dpst_tkt_send_mail.sh $f1
+TIME=`date +"%H:%M:%S"`
+echo "Sending email Process finished at $TIME on $DATE"
 fi
 done
 ############################################################################
