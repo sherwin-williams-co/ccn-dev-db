@@ -1,3 +1,9 @@
+/*******************************************************************************
+This external table is used to update the Cost Center Marketing Fields. 
+
+Created  : 09/01/2016 axd783 CCN Project....
+Modified : 
+*******************************************************************************/
 CREATE TABLE CCN_MARKETING_DETAILS
      (
        COST_CENTER_CODE      VARCHAR2(6),
