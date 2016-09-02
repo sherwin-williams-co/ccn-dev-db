@@ -2646,19 +2646,6 @@ PRAGMA EXCEPTION_INIT
 (exc_sales_manager_lvl_err , -20527);
 
 /*********************************************************** 
-The "INVALID_PCC_PCL_EXP" passes a numerical error of -20528.
-This error will state that cost center cannot have multiple pcc and pcl values.
-
-created  : 12/16/2015 AXK326 CCN Project....
-revisions: 
-
-************************************************************/
-en_invalid_pcc_pcl_exp CONSTANT NUMBER := -20528;
-exc_invalid_pcc_pcl_exp EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_pcc_pcl_exp , -20528);
-
-/*********************************************************** 
 The "invalid_pci_id_err" passes a numerical error of -20529.
 This error will state that the PCI_MERCHANT_ID and 
 PCI_DISCOVER_ID should not be null when the polling status is 'P'
