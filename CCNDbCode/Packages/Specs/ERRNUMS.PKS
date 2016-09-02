@@ -1,4 +1,4 @@
-create or replace PACKAGE errnums
+CREATE OR REPLACE PACKAGE COSTCNTR.errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -8,7 +8,7 @@ THIS PACKAGE CONTAINS ERROR NUMBERS FROM
                    -20500 ONWARDS FOR HIERARCHY
 
 created : 12/02/2011 blr CCN Project
-revisions: 
+revisions:
 
 ************************************************************/
 
@@ -2646,6 +2646,19 @@ PRAGMA EXCEPTION_INIT
 (exc_sales_manager_lvl_err , -20527);
 
 /*********************************************************** 
+The "INVALID_PCC_PCL_EXP" passes a numerical error of -20528.
+This error will state that cost center cannot have multiple pcc and pcl values.
+
+created  : 12/16/2015 AXK326 CCN Project....
+revisions: 
+
+************************************************************/
+en_invalid_pcc_pcl_exp CONSTANT NUMBER := -20528;
+exc_invalid_pcc_pcl_exp EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_pcc_pcl_exp , -20528);
+
+/*********************************************************** 
 The "invalid_pci_id_err" passes a numerical error of -20529.
 This error will state that the PCI_MERCHANT_ID and 
 PCI_DISCOVER_ID should not be null when the polling status is 'P'
@@ -2775,11 +2788,11 @@ PRAGMA EXCEPTION_INIT
 
 max_error_used CONSTANT NUMBER := -20999;
 
-/***********************************************************
+/*********************************************************** 
 The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
 The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
 if the standard price or primary price is null for non canada countries then
-throw a warning.Made changes as per ASP-400 mxk766 -	Standard/Primary Cost indicators
+throw a warning. 
 created : 08/17/2016 MXK766 CCN Project Team....
 revisions:
 ************************************************************/
@@ -2787,4 +2800,5 @@ en_cc_strd_primry_price_err CONSTANT NUMBER := -20545;
 exc_cc_strd_primry_price_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_cc_strd_primry_price_err , -20545);
-END errnums;
+
+END ERRNUMS;
