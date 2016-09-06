@@ -6,6 +6,7 @@ This View will give all the credit hierarchy details for the cost center passed
 
 Created  : 03/23/2016 jxc517 CCN Project....
 Modified : 08/19/2016 vxv336 Removed SYSOUT
+           09/06/2016 vxv336 Removed ACM, DCM, RCM and added DCO, DCO_DESC
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -17,39 +18,32 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
        ,H.DIVISION_VAL DIVISION
        ,H.AREA_VAL AREA
        ,H.DISTRICT_VAL DISTRICT
-       ,H.DCO_VAL DCO
        ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
        ,H.AREA_VAL_NAME AREA_NAME
        ,H.DISTRICT_VAL_NAME DISTRICT_NAME
-       ,H.DCO_VAL_NAME DCO_NAME
        ,CC.COST_CENTER_NAME
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL || H.AREA_VAL,
-                                                                                     H.GROUP_VAL ),
-                                                'RCM') RCM
-       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.DCO_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
-                                                'ACM') ACM
-       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.DCO_VAL,
+                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
                                                 'ACM_MGR') ACM_MGR
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.DCO_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
-                                                'DCM') DCM
-       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
-                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.DCO_VAL,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
                                                 'DCM_MGR') DCM_MGR
+       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
+                                                'DCO') DCO
+       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
+                                                                                     H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
+                                                'DCO_DESC') DCO_DESC
   FROM COST_CENTER CC,
         --inner sub query "T" gives all the hierarchy details with all the levels
         --present in the CCN system by joining the header, description and detail tables
@@ -89,8 +83,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
                      MAX(VAL_NAME) AS VAL_NAME FOR (DESCRIPTION) IN ('Group' AS "GROUP",
                                                                      'Division' AS DIVISION,
                                                                      'Area' AS AREA,
-                                                                     'District' AS DISTRICT,
-                                                                     'DCO' AS DCO))) H
+                                                                     'District' AS DISTRICT))) H
 --Finally result of the above two steps(WITH T and PIVOT) will be a new result set "H" which can be used as any other
 --table in a join condition
  WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
