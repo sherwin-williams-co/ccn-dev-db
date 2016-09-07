@@ -19,6 +19,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $HOME/$proc_name"_"$DATE.log <<END
 set heading off;
 set verify off;
+set serveroutput on;
 
 execute INITLOAD.UPDATE_MARKETING_FIELDS();
 
