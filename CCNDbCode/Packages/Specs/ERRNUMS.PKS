@@ -2788,4 +2788,17 @@ exc_cc_strd_primry_price_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_cc_strd_primry_price_err , -20545);
 
+/*********************************************************** 
+The "en_invld_dco_costcntr_err" passes a numerical error of -20546
+This error will state that the passed DCO cost center code does not 
+exist in the database.
+
+Created  : 08/23/2016 vxv336 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_dco_costcntr_err CONSTANT NUMBER := -20546;
+exc_invld_dco_costcntr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_dco_costcntr_err , -20546);
+
 END ERRNUMS;
