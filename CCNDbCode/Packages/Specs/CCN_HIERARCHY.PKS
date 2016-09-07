@@ -770,16 +770,6 @@ Created : 04/23/2015 jxc517 CCN Project
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
-PROCEDURE BUILD_FROM_COMPOSITE_KEYS(
-/***********************************************************
-This Procedure will build composite keys from part of tranfer process
-
-Created : 01/17/2014 jxc517 CCN Project
-************************************************************/
-    IN_XML                      IN     CLOB,
-    IN_COUNT                    IN     NUMBER,
-    IN_OUT_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE);
-
 PROCEDURE DCO_COSTCENTER_LOOKUP(
 /***********************************************************
 This procedure will validate the passed cost center code and 
@@ -792,16 +782,5 @@ Modified: 08/23/2016 vxv336
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE,
 OUT_COST_CENTER_REF_CUR OUT REF_CURSOR
 );
-
-PROCEDURE VALIDATE_RULES_FOR_ADMINORG(
-/*******************************************************************************
-This procedure will validate the business rules for ADMINORG_HIERARCHY
-
-created : MXK766 08/19/2016
-********************************************************************************/
-    IN_HIERARCHY_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE,
-    IN_FLAG                 IN     VARCHAR2,
-    IN_PREV_HIER_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE DEFAULT NULL );
-
 
 END CCN_HIERARCHY;
