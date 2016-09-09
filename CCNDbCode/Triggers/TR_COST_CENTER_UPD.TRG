@@ -43,8 +43,6 @@ begin
         v_cost_center_row.DEPOSIT_BAG_REORDER := :NEW.DEPOSIT_BAG_REORDER;
         v_cost_center_row.DEPOSIT_TICKET_REORDER := :NEW.DEPOSIT_TICKET_REORDER;
         v_cost_center_row.POP_KIT_CODE := :NEW.POP_KIT_CODE;
-        v_cost_center_row.SPRAY_EQP_RPR_IND := :NEW.SPRAY_EQP_RPR_IND;
-        v_cost_center_row.BOOK_PLN_PROFILE_CD := :NEW.BOOK_PLN_PROFILE_CD;
 
 
         SELECT XMLELEMENT ( "COST_CENTER",
@@ -78,8 +76,6 @@ begin
                         ,v_cost_center_row.DEPOSIT_BAG_REORDER DEPOSIT_BAG_REORDER
                         ,v_cost_center_row.DEPOSIT_TICKET_REORDER DEPOSIT_TICKET_REORDER
                         ,v_cost_center_row.POP_KIT_CODE POP_KIT_CODE
-                        ,v_cost_center_row.SPRAY_EQP_RPR_IND SPRAY_EQP_RPR_IND
-                        ,v_cost_center_row.BOOK_PLN_PROFILE_CD BOOK_PLN_PROFILE_CD
 
                         )) AS "result"
                           ,XMLELEMENT ( "PrimaryKey",

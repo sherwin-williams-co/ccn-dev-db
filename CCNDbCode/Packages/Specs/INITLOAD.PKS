@@ -729,16 +729,4 @@ in cost_center table
 Created: AXK326 06/25/2015 CCN Project Team....
 ******************************************************************/
 ;
-Procedure UPDATE_MARKETING_FIELDS
-/******************************************************************
-     UPDATE_MARKETING_FIELDS
-
-This Procedure is to update COST_CENTER Marketing Fields
-in cost_center table
-    * IWC_BOOK_PLN_PROF
-    * SPRAY_EQP_RPR_IND
-
-Created: axd783 08/30/2016 CCN Project Team....
-******************************************************************/
-;
 END initLoad;
