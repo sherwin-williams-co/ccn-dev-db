@@ -19,13 +19,15 @@ Changed : 08/19/2016 nxk927 CCN project....
 IN_SERVER_NAME  IN VARCHAR2,
 IN_LOGFILE      IN VARCHAR2);
 
-PROCEDURE UPDATE_TICKORD_TRACK_NUM(
-/*******************************************************************************
-This procedure is intended to update the tracing number information for an order id.
+PROCEDURE INTRM_DPST_TKT_PROCESS(
+/******************************************************************************
+  This procedure will update the deposit tickets on a daily
+  basis based on the files we recieve from POS
 
-Created : 06/21/2016 mxk766 CCN Project....
-Changed : 
+Created : 09/06/2016 nxk927 CCN Project....
+Changed :
 *******************************************************************************/
-IN_LOAD_DATE IN VARCHAR2);
+IN_SERVER_NAME  IN VARCHAR2,
+IN_LOGFILE      IN VARCHAR2);
 
 END DPST_TCKTS_UPDATE_BATCH_PKG;
