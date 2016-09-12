@@ -1,6 +1,7 @@
 #!/bin/sh
 #################################################################
 # Script name   : interim_dep_tkt_bag_dailyRun.sh
+#                 This script should be executed before our daily batch run (dep_tkt_bag_dailyRun.sh) for the deposit tickets and bag.
 #
 # Description   : This shell script will perform below tasks
 #                 1. rename the files accordingly
@@ -8,7 +9,7 @@
 #                 3. archieve the files in it's corresponding folder
 #
 # Created  : 09/09/2016 nxk927 CCN Project Team.....
-# Modified : 
+# Modified :
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -21,7 +22,7 @@ DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
-export HOSTNAME=`hostname`
+
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #################################################################

@@ -1,3 +1,9 @@
+/*
+This temp table will hold data for the interim deposit tickets/bag
+which will be substracted from the deposit tickets/bag we have on hand
+created : nxk927 09/12/2016
+*/
+
 CREATE TABLE TEMP_INTERIM_DEPST
     (REGION            VARCHAR2(2),
      CTLCLK            VARCHAR2(2),
@@ -39,3 +45,4 @@ CREATE TABLE TEMP_INTERIM_DEPST
        ('STE03064_DEPST.TXT'
        )
     );
+/
