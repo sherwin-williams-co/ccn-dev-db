@@ -48,7 +48,6 @@ then
     cat $DATA_FILES_PATH/STE03062_DEPST_D*.TXT >> $DATA_FILES_PATH/STE03062_DEPST.TXT
 else
     echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files does not exist to rename"
-    echo "Exiting the $proc_name process as the input file is not present"
 fi
 
 TIME=`date +"%H:%M:%S"`
