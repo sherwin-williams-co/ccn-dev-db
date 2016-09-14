@@ -12,6 +12,8 @@
 #             passing parameter logname and the servername to be inserted in batch_job table
 #          : 08/25/2016 nxk927 CCN Project Team.....
 #            creating trigger file to stop deposits_order_bp.sh background process to kick off for this batch
+#          : 09/14/2016 nxk927 CCN Project Team.....
+#            exiting if the input file is not present
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -28,16 +30,6 @@ export HOSTNAME=`hostname`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #################################################################
-#          Control will output if directory with that date exists
-#################################################################
-if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
-   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
-else
-  echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
-  mkdir $ARCHIVE_PATH/$FOLDER
-fi
-
-#################################################################
 #                                          Rename the input files
 #################################################################
 TIME=`date +"%H:%M:%S"`
@@ -48,6 +40,18 @@ then
     cat $DATA_FILES_PATH/STE03062_DEPST_D*.TXT >> $DATA_FILES_PATH/STE03062_DEPST.TXT
 else
     echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files does not exist to rename"
+    echo "Exiting the $proc_name process as the input file is not present"
+    exit 0
+fi
+
+#################################################################
+#          Control will output if directory with that date exists
+#################################################################
+if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
+   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
+else
+  echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
+  mkdir $ARCHIVE_PATH/$FOLDER
 fi
 
 TIME=`date +"%H:%M:%S"`
