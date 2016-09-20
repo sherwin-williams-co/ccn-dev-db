@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.errnums
+create or replace PACKAGE          errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -2800,5 +2800,31 @@ en_invld_dco_costcntr_err CONSTANT NUMBER := -20546;
 exc_invld_dco_costcntr_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_dco_costcntr_err , -20546);
+
+/*********************************************************** 
+The "en_cn_ac_prmry_stndrd_cc_ind" passes a numerical error of -20167
+This error will state that std_cost_identifier and prim_cost_identifier 
+can not be "08" for statement types other than CN/AC
+
+Created  : 09/19/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_cn_ac_prmry_stndrd_cc_ind CONSTANT NUMBER := -20167;
+exc_cn_ac_prmry_stndrd_cc_ind EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_cn_ac_prmry_stndrd_cc_ind , -20167);
+
+/*********************************************************** 
+The "en_non_cn_ac_prmry_std_cc_ind" passes a numerical error of -20168
+This error will state that std_cost_identifier and prim_cost_identifier 
+can only be "08" for statement types CN/AC
+
+Created  : 09/19/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_non_cn_ac_prmry_std_cc_ind CONSTANT NUMBER := -20168;
+exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_non_cn_ac_prmry_std_cc_ind , -20168);
 
 END ERRNUMS;
