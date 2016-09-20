@@ -2804,7 +2804,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "en_cn_ac_prmry_stndrd_cc_ind" passes a numerical error of -20167
 This error will state that std_cost_identifier and prim_cost_identifier 
-can not be "08" for statement types other than CN/AC
+can only be "08" for statement types CN/AC
 
 Created  : 09/19/2016 jxc517 CCN Project Team....
 Modified : 
@@ -2817,7 +2817,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "en_non_cn_ac_prmry_std_cc_ind" passes a numerical error of -20168
 This error will state that std_cost_identifier and prim_cost_identifier 
-can only be "08" for statement types CN/AC
+can not be "08" for statement types other than CN/AC
 
 Created  : 09/19/2016 jxc517 CCN Project Team....
 Modified : 
