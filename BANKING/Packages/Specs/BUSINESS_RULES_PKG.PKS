@@ -170,4 +170,14 @@ Changed : 04/28/2016 nxk927 CCN Project....
 IN_COST_CENTER_CODE IN VARCHAR2,
 IN_BANK_ACCT_NBR    IN VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION IS_PLACING_DPT_TKT_BAG_ORD_OK(
+/******************************************************************************
+   This function returns Y or N depending on the cost center closed date and open date
+   as of 01-Jan-2099
+
+Created : 09/27/2016 nxk927
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
+
 END BUSINESS_RULES_PKG;

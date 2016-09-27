@@ -48,15 +48,6 @@ Created : 08/07/2016 vxv339
 IN_COST_CENTER_CODE       IN     VARCHAR2,
 OUT_MANAGER_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE);
 
-PROCEDURE GET_COST_CENTER_RECORD(
-/******************************************************************************
-  This procedure gets the cost center details for the cost center passed in
-
-Created : 09/26/2016 nxk927
-*******************************************************************************/
-IN_COST_CENTER_CODE       IN     VARCHAR2,
-OUT_COST_CENTER_RECORD      OUT  COST_CENTER%ROWTYPE);
-
 PROCEDURE GET_DAD_FOR_COST_CENTER(
 /******************************************************************************
   This procedure gets the DAD details for the 4 digit store number passed in

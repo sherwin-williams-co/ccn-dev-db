@@ -444,4 +444,15 @@ en_future_del_wrn_accmain CONSTANT NUMBER := -20037;
 exc_future_del_wrn_accmain EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_future_del_wrn_accmain , -20037);
 
+/***********************************************************
+The "cc_open_close_dt" passes a numerical error of -20038
+This warning will be used if an order is placed for closed cost center or
+dummy cost center which has open dt of 01-JAN-2099
+Created : 09/27/2016 nxk927 CCN Project....
+Changed :
+************************************************************/
+en_cc_open_close_dt_err CONSTANT NUMBER := -20038;
+exc_cc_open_close_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_cc_open_close_dt_err , -20038);
+
 END ERRNUMS;
