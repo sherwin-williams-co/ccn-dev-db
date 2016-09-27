@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BANKING_COMMON_TOOLS
+create or replace PACKAGE BANKING_COMMON_TOOLS
 AS
 /**************************************************************** 
 This package will have store drafts specific tools
@@ -47,6 +47,15 @@ Created : 08/07/2016 vxv339
 *******************************************************************************/
 IN_COST_CENTER_CODE       IN     VARCHAR2,
 OUT_MANAGER_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE);
+
+PROCEDURE GET_COST_CENTER_RECORD(
+/******************************************************************************
+  This procedure gets the cost center details for the cost center passed in
+
+Created : 09/26/2016 nxk927
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_COST_CENTER_RECORD      OUT  COST_CENTER%ROWTYPE);
 
 PROCEDURE GET_DAD_FOR_COST_CENTER(
 /******************************************************************************
@@ -335,22 +344,22 @@ Changed :
 ************************************************************/
     IN_COST_CENTER           IN     VARCHAR2,
     IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2;
-
+     
 FUNCTION GET_MBR_STORE_NBR_FOR_LEAD_STR(
 /*******************************************************************************
   This function will get the all the member store details for the passed member store
 
 Created : 12/19/2015 dxv848 CCN Project....
-Changed :
+Changed : 
 *******************************************************************************/
   IN_LEAD_STORE_NBR   IN MEMBER_BANK_CC.LEAD_STORE_NBR%TYPE) RETURN MEMBER_BANK_CC%ROWTYPE;
-
+  
   FUNCTION GET_LEADBANK_FOR_BANKACC_NBR(
 /*******************************************************************************
-  This function will get the lead_store info for the bank account
+  This function will get the lead_store info for the bank account.
 
 Created : 01/21/2015 dxv848 CCN Project....
-Changed :
+Changed : 
 *******************************************************************************/
   IN_BANK_ACCOUNT_NBR   IN LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE) RETURN LEAD_BANK_CC%ROWTYPE;
 
