@@ -102,7 +102,7 @@ BEGIN
     FOR rec1 IN master_cur LOOP
         --build history parent levels as needed
         FOR rec IN cur(rec1) LOOP
-            IF CURRENT_LVL_EXISTS('H', rec) = 'N' THEN        
+            IF CCN_HIERARCHY.CURRENT_LVL_EXISTS('H', rec) = 'N' THEN        
                 CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', rec);
             END IF;
         END LOOP;
