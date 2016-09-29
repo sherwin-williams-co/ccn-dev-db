@@ -493,11 +493,15 @@ This procedure is intended to build all the table types from input xml
 for this process
 
 Created : 07/17/2015 jxc517 CCN Project....
-Changed : 
+Changed : 09/20/2016 nxk927 CCN Project....
+          Building table type for store micr details as well and passing back
+          same to the upsert process
 *******************************************************************************/
     IN_XML                         IN     CLOB,
     O_BANK_DEP_TICK_REC               OUT BANK_DEP_TICK%ROWTYPE,
     O_BANK_DEP_TICK_FUTURE_REC        OUT BANK_DEP_TICK_FUTURE%ROWTYPE,
+    O_ST_MICR_FORMAT                  OUT STORE_MICR_FORMAT_DTLS%ROWTYPE,
+    O_ST_MICR_FORMAT_FTR              OUT STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE,
     O_MICR_FORMAT_ID                  OUT NUMBER)
 IS
     V_XML_BANK_DEP_TICK_FRAG        CLOB;
@@ -511,10 +515,18 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_TICK_FTR_ROWTYPE_SP('BANK_DEP_TICK_FUTURE',
                                                       REPLACE(V_XML_BANK_DEP_TICK_FRAG,'BANK_DEP_TICK>','BANK_DEP_TICK_FUTURE>'),
                                                       O_BANK_DEP_TICK_FUTURE_REC);
+            TABLE_IU_PKG.ST_MICR_FORMAT_FTR_ROWTYPE_SP('STORE_MICR_FORMAT_DTLS_FUTURE',
+                                                      REPLACE(V_XML_BANK_DEP_TICK_FRAG,'BANK_DEP_TICK>','STORE_MICR_FORMAT_DTLS_FUTURE>'),
+                                                      O_ST_MICR_FORMAT_FTR);
         ELSE
             TABLE_IU_PKG.BANK_DEP_TICK_ROWTYPE_SP('BANK_DEP_TICK',
                                                   V_XML_BANK_DEP_TICK_FRAG,
                                                   O_BANK_DEP_TICK_REC);
+            TABLE_IU_PKG.ST_MICR_FORMAT_ROWTYPE_SP('STORE_MICR_FORMAT_DTLS',
+                                                   REPLACE(REPLACE(V_XML_BANK_DEP_TICK_FRAG,'BANK_DEP_TICK>','STORE_MICR_FORMAT_DTLS>'), 
+                                                   'MICR_FORMAT_ACTNBR',
+                                                   'MICR_FORMAT_ACCT_NBR'),
+                                                   O_ST_MICR_FORMAT);
         END IF;
         IF (V_ROW_DATA.EXISTSNODE('/BANK_DEP_TICK_UI/BANK_DEP_TICK/MICR_FORMAT_ID/text()') = 1) THEN
             O_MICR_FORMAT_ID := TO_NUMBER(V_ROW_DATA.EXTRACT('/BANK_DEP_TICK_UI/BANK_DEP_TICK/MICR_FORMAT_ID/text()').GETCLOBVAL());
@@ -599,6 +611,43 @@ EXCEPTION
         NULL;
 END VALIDATE_AND_GET_FORMAT_VALUES;
 
+PROCEDURE VALIDATE_FORMAT_VALUES(
+/******************************************************************************
+This procedure will check if the format passed and the actual values support
+each other and throw error
+
+Created : 09/20/2016 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
+IN_ROUTING_NBR        IN     VARCHAR2,
+IN_COST_CENTER_CODE   IN     VARCHAR2,
+IN_MICR_FORMAT_ACTNBR IN     VARCHAR2,
+IN_MICR_ROUTING_NBR   IN     VARCHAR2,
+IN_MICR_COST_CNTR     IN     VARCHAR2,
+OUT_MICR_FORMAT_ACTNBR   OUT VARCHAR2,
+OUT_MICR_ROUTING_NBR     OUT VARCHAR2,
+OUT_MICR_COST_CNTR       OUT VARCHAR2)
+IS
+    micr_format_conversion         EXCEPTION;
+BEGIN
+    IF (IN_ROUTING_NBR IS NOT NULL AND LENGTH(REGEXP_REPLACE(IN_ROUTING_NBR, '[^0-9X]+')) <> LENGTH(REGEXP_REPLACE(IN_MICR_ROUTING_NBR, '[^0-9X]+')))
+       OR LENGTH(REGEXP_REPLACE(IN_BANK_ACCOUNT_NBR, '[^0-9X]+')) <> LENGTH(REGEXP_REPLACE(IN_MICR_FORMAT_ACTNBR, '[^0-9X]+'))
+       OR LENGTH(REGEXP_REPLACE(IN_MICR_COST_CNTR, '[^X]+')) <> 4 THEN
+        RAISE micr_format_conversion;
+    END IF;
+    OUT_MICR_FORMAT_ACTNBR := CONVERT_FORMAT_TO_VALUE(IN_MICR_FORMAT_ACTNBR, REGEXP_REPLACE(IN_BANK_ACCOUNT_NBR, '[^0-9]+'));
+    OUT_MICR_ROUTING_NBR   := CONVERT_FORMAT_TO_VALUE(IN_MICR_ROUTING_NBR, REGEXP_REPLACE(IN_ROUTING_NBR, '[^0-9]+'));
+    OUT_MICR_COST_CNTR     := CONVERT_FORMAT_TO_VALUE(IN_MICR_COST_CNTR, SUBSTR(IN_COST_CENTER_CODE, 3));
+EXCEPTION
+    WHEN micr_format_conversion THEN
+        ERRPKG.RAISE_ERR(errnums.en_micr_format_conversion,
+                         'VALIDATE_FORMAT_VALUES',
+                         'Format selected does not support the actual bank account/routing number values');
+    WHEN OTHERS THEN
+        NULL;
+END VALIDATE_FORMAT_VALUES;
+
 PROCEDURE DEPOSIT_TKT_CURRENT_UPSERT_SP( 
 /******************************************************************************
 This procedure is intended to update following table used in the
@@ -609,11 +658,16 @@ Deposit Ticket Maintenance Window that are current records
 Created : 08/21/2015 jxc517 CCN Project....
 Changed : 11/05/2015 jxc517 CCN Project....
           If the store MICR format change, we need to recalculate (if needed) the number of deposit tickets per book
+Changed : 09/20/2016 nxk927 CCN Project....
+          If the store is a member, then micr details can be changed.
+          Passing store micr details as well for the change
 *******************************************************************************/
-    IN_BANK_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
-    IN_MICR_FORMAT_ID     IN     NUMBER)
+    IN_BANK_DEP_TICK_REC     IN     BANK_DEP_TICK%ROWTYPE,
+    IN_ST_MICR_FORMAT_FT_REC IN     STORE_MICR_FORMAT_DTLS%ROWTYPE,
+    IN_MICR_FORMAT_ID        IN     NUMBER)
 IS
     V_STORE_MICR_FORMAT_DTLS_REC STORE_MICR_FORMAT_DTLS%ROWTYPE;
+    V_MBR_ST_MICR_FORMAT_REC     STORE_MICR_FORMAT_DTLS%ROWTYPE := IN_ST_MICR_FORMAT_FT_REC;
     V_BANK_MICR_FORMAT_REC       BANK_MICR_FORMAT%ROWTYPE;
     V_BANK_DEP_TICK_HIST_REC     BANK_DEP_TICK%ROWTYPE;
     V_BANK_DEP_TICK_REC          BANK_DEP_TICK%ROWTYPE := IN_BANK_DEP_TICK_REC;    
@@ -633,40 +687,48 @@ BEGIN
     END;
     V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_REC.EXPIRATION_DATE, SYSDATE), SYSDATE);
     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
-    IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
-                         V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
-                         NULL,
-                         IN_MICR_FORMAT_ID) = 'Y' THEN
-        BEGIN
-            SELECT *
-              INTO V_STORE_MICR_FORMAT_DTLS_REC
-              FROM STORE_MICR_FORMAT_DTLS
-             WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
-            V_EXPIRATION_DATE := V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE;
-            TABLE_IU_PKG.STR_MICR_FRMT_DTLS_HIST_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-        IF IN_MICR_FORMAT_ID IS NOT NULL THEN --there is no new format, expire the old record and don't update anything else
-            V_BANK_MICR_FORMAT_REC := BANKING_COMMON_TOOLS.GET_STORE_BANK_MICR_FORMAT_REC(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
-                                                                                          IN_MICR_FORMAT_ID);
-            V_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR);
-            V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
-            V_STORE_MICR_FORMAT_DTLS_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR;
-            VALIDATE_AND_GET_FORMAT_VALUES(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
-                                           V_BANK_ACCOUNT_REC.ROUTING_NBR,
-                                           V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
-                                           V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR,
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR); --out
-            V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID  := IN_MICR_FORMAT_ID;
-            V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE  := SYSDATE;
-            V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE := V_EXPIRATION_DATE;
-            TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
+    BEGIN
+      SELECT *
+        INTO V_STORE_MICR_FORMAT_DTLS_REC
+        FROM STORE_MICR_FORMAT_DTLS
+        WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
+      V_EXPIRATION_DATE := V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE;
+      TABLE_IU_PKG.STR_MICR_FRMT_DTLS_HIST_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
+      EXCEPTION
+          WHEN OTHERS THEN
+             NULL;
+      END;
+      IF IN_MICR_FORMAT_ID IS NOT NULL THEN --there is no new format, expire the old record and don't update anything else
+         V_BANK_MICR_FORMAT_REC := BANKING_COMMON_TOOLS.GET_STORE_BANK_MICR_FORMAT_REC(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
+                                                                                       IN_MICR_FORMAT_ID);
+         V_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR);
+         V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
+         V_STORE_MICR_FORMAT_DTLS_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR;
+
+         VALIDATE_FORMAT_VALUES(V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR,
+                                V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR,
+                                V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
+                                NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_FORMAT_ACCT_NBR, V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR),
+                                NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_ROUTING_NBR,V_BANK_ACCOUNT_REC.ROUTING_NBR),
+                                NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_COST_CNTR,V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR),
+                                V_MBR_ST_MICR_FORMAT_REC.MICR_FORMAT_ACCT_NBR, --out
+                                V_MBR_ST_MICR_FORMAT_REC.MICR_ROUTING_NBR, --out
+                                V_MBR_ST_MICR_FORMAT_REC.MICR_COST_CNTR); --out
+         V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID  := IN_MICR_FORMAT_ID;
+         V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE  := SYSDATE;
+         V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE := V_EXPIRATION_DATE;
+
+         IF BUSINESS_RULES_PKG.IS_STR_A_MBR_EVER_FROM_DT_PASD(V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE,
+                                                              V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE) = 'Y' THEN
+            V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR := NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_FORMAT_ACCT_NBR,V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR);
+            V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR     := NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_ROUTING_NBR,V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR) ;
+            V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR       := NVL(V_MBR_ST_MICR_FORMAT_REC.MICR_COST_CNTR,V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR) ;
+         END IF;
+
+         IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
+                              V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
+                              NULL,
+                              IN_MICR_FORMAT_ID) = 'Y' THEN
             --If the store MICR format change, we need to verify if the part paper per form changed or not
             --if it changes, we need to recalculate the number of deposit tickets per book
             --Example : PART2 => 324/2 = 162, PART3 => 324/3 = 108, PART4 => 324/4 = 81
@@ -678,12 +740,13 @@ BEGIN
                                          V_BANK_DEP_TICK_REC.NBR_DEP_TICKETS_PER_BK);
                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
             END IF;
-        ELSE
-            IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
-                TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_D_SP(V_STORE_MICR_FORMAT_DTLS_REC);
-            END IF;
-        END IF;
-    END IF;
+         END IF;
+         TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
+      ELSE
+         IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
+            TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_D_SP(V_STORE_MICR_FORMAT_DTLS_REC);
+         END IF;
+      END IF;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, V_PROC_NAME || ' ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
@@ -820,11 +883,16 @@ Changed : 10/29/2015 nxk927 CCN Project....
           YTD_DEP_TKTS_ORDERED_QTY start with 0
 Changed : 11/05/2015 jxc517 CCN Project....
           If the store MICR format change, we need to recalculate (if needed) the number of deposit tickets per book
+Changed : 09/20/2016 nxk927 CCN Project....
+          If the store is a member, then micr details can be changed.
+          Passing store micr details as well for the change
 *******************************************************************************/
     IN_BANK_DEP_TICK_FUTURE_REC  IN     BANK_DEP_TICK_FUTURE%ROWTYPE,
+    IN_STR_MICR_FORMAT_FTR_REC   IN     STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE,
     IN_MICR_FORMAT_ID            IN     NUMBER)
 IS
     V_STR_MICR_FORMAT_DTLS_FTR_REC STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
+    V_MBR_MICR_FORMAT_FTR_REC      STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE := IN_STR_MICR_FORMAT_FTR_REC;
     V_BANK_MICR_FORMAT_FUTURE_REC  BANK_MICR_FORMAT_FUTURE%ROWTYPE;
     V_BANK_ACCOUNT_FUTURE_REC      BANK_ACCOUNT_FUTURE%ROWTYPE;
     V_BANK_DEP_TICK_FUTURE_REC     BANK_DEP_TICK_FUTURE%ROWTYPE := IN_BANK_DEP_TICK_FUTURE_REC;
@@ -835,66 +903,75 @@ BEGIN
     V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := 0; 
     V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := 0;
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
-    IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
-                         V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                         V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID,
-                         IN_MICR_FORMAT_ID) = 'Y' THEN
-        IF IN_MICR_FORMAT_ID IS NOT NULL THEN
-            V_BANK_MICR_FORMAT_FUTURE_REC := BANKING_COMMON_TOOLS.GET_STR_BANK_MICR_FRMT_FTR_REC(V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                                                                                                 IN_MICR_FORMAT_ID,
-                                                                                                 V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID);
-            BEGIN
-                SELECT *
-                  INTO V_BANK_ACCOUNT_FUTURE_REC
-                  FROM BANK_ACCOUNT_FUTURE
-                 WHERE BANK_ACCOUNT_NBR = V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR
-                   AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE;
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR;
-            VALIDATE_AND_GET_FORMAT_VALUES(V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                                           V_BANK_ACCOUNT_FUTURE_REC.ROUTING_NBR,
-                                           V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
-                                           V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ACTNBR,
-                                           V_BANK_MICR_FORMAT_FUTURE_REC.MICR_ROUTING_NBR,
-                                           V_BANK_MICR_FORMAT_FUTURE_REC.MICR_COST_CNTR,
-                                           V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ACCT_NBR, --out
-                                           V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_ROUTING_NBR, --out
-                                           V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_COST_CNTR); --out
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.EFFECTIVE_DATE   := V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE;
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.EXPIRATION_DATE  := V_BANK_DEP_TICK_FUTURE_REC.EXPIRATION_DATE;
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ID   := IN_MICR_FORMAT_ID;
-            V_STR_MICR_FORMAT_DTLS_FTR_REC.FUTURE_ID        := V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
-            TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
-            --If the store MICR format change, we need to verify if the part paper per form changed or not
-            --if it changes, we need to recalculate the number of deposit tickets per book
-            --Example : PART2 => 324/2 = 162, PART3 => 324/3 = 108, PART4 => 324/4 = 81
-            --Then we need to update the data accordingly in BANK_DEP_TICK_* table
-            IF SUBSTR(TRIM(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM), -1, 1) <>
-                V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM THEN
-                CALCULATE_DEPOSIT_TICKET(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM,
-                                         V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM,
-                                         V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK);
-                TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
-            END IF;
-        ELSE
-            BEGIN
-                SELECT *
-                  INTO V_STR_MICR_FORMAT_DTLS_FTR_REC
-                  FROM STORE_MICR_FORMAT_DTLS_FUTURE
-                 WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
-                   AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            IF V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE IS NOT NULL THEN
-                TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
-            END IF;
-        END IF;
+    IF IN_MICR_FORMAT_ID IS NOT NULL THEN
+       V_BANK_MICR_FORMAT_FUTURE_REC := BANKING_COMMON_TOOLS.GET_STR_BANK_MICR_FRMT_FTR_REC(V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                                                                                            IN_MICR_FORMAT_ID,
+                                                                                            V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID);
+       BEGIN
+          SELECT *
+            INTO V_BANK_ACCOUNT_FUTURE_REC
+            FROM BANK_ACCOUNT_FUTURE
+           WHERE BANK_ACCOUNT_NBR = V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR
+             AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
+       EXCEPTION
+             WHEN OTHERS THEN
+                 NULL;
+       END;
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE;
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR;
+       VALIDATE_FORMAT_VALUES(V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ACTNBR,
+                              V_BANK_MICR_FORMAT_FUTURE_REC.MICR_ROUTING_NBR,
+                              V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                              NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_FORMAT_ACCT_NBR, V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR),
+                              NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_ROUTING_NBR,V_BANK_ACCOUNT_FUTURE_REC.ROUTING_NBR),
+                              NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_COST_CNTR,V_BANK_MICR_FORMAT_FUTURE_REC.MICR_COST_CNTR),
+                              V_MBR_MICR_FORMAT_FTR_REC.MICR_FORMAT_ACCT_NBR, --out
+                              V_MBR_MICR_FORMAT_FTR_REC.MICR_ROUTING_NBR, --out
+                              V_MBR_MICR_FORMAT_FTR_REC.MICR_COST_CNTR); --out
+
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.EFFECTIVE_DATE   := V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE;
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.EXPIRATION_DATE  := V_BANK_DEP_TICK_FUTURE_REC.EXPIRATION_DATE;
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ID   := IN_MICR_FORMAT_ID;
+       V_STR_MICR_FORMAT_DTLS_FTR_REC.FUTURE_ID        := V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
+
+       IF BUSINESS_RULES_PKG.IS_STR_A_MBR_EVER_FROM_DT_PASD(V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE,
+                                                            V_STR_MICR_FORMAT_DTLS_FTR_REC.EFFECTIVE_DATE) = 'Y' THEN
+          V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ACCT_NBR := NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_FORMAT_ACCT_NBR,V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ACCT_NBR);
+          V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_ROUTING_NBR     := NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_ROUTING_NBR,V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_ROUTING_NBR);
+          V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_COST_CNTR       := NVL(V_MBR_MICR_FORMAT_FTR_REC.MICR_COST_CNTR,V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_COST_CNTR);
+       END IF;
+
+       IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                            V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                            V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID,
+                            IN_MICR_FORMAT_ID) = 'Y' THEN
+          --If the store MICR format change, we need to verify if the part paper per form changed or not
+          --if it changes, we need to recalculate the number of deposit tickets per book
+          --Example : PART2 => 324/2 = 162, PART3 => 324/3 = 108, PART4 => 324/4 = 81
+          --Then we need to update the data accordingly in BANK_DEP_TICK_* table
+          IF SUBSTR(TRIM(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM), -1, 1) <>
+             V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM THEN
+             CALCULATE_DEPOSIT_TICKET(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM,
+                                      V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM,
+                                      V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK);
+             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
+          END IF;
+       END IF;
+       TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_I_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
+    ELSE
+       BEGIN
+          SELECT *
+            INTO V_STR_MICR_FORMAT_DTLS_FTR_REC
+            FROM STORE_MICR_FORMAT_DTLS_FUTURE
+           WHERE COST_CENTER_CODE = V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
+             AND FUTURE_ID        = V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID;
+       EXCEPTION
+           WHEN OTHERS THEN
+               NULL;
+       END;
+       IF V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE IS NOT NULL THEN
+          TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
+       END IF;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -912,26 +989,33 @@ Changed : 10/27/2015 jxc517 CCN Project....
           For current records we need to push current into history and insert a new
           record with SYSDATE
           For future records we need to use the data that is passed back from UI
+Changed : 09/20/2016 nxk927 CCN Project....
+          Building table type for store micr details as well and passing back
+          same to the upsert process
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB)
 IS
     V_BANK_DEP_TICK_FUTURE_REC      BANK_DEP_TICK_FUTURE%ROWTYPE;
     V_BANK_DEP_TICK_REC             BANK_DEP_TICK%ROWTYPE;
+    V_ST_MICR_FORMAT_REC            STORE_MICR_FORMAT_DTLS%ROWTYPE;
+    V_ST_MICR_FORMAT_FTR_REC        STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
     V_MICR_FORMAT_ID                NUMBER := NULL;
 BEGIN
     
     BUILD_TABLE_TYPES(IN_ROW_DATA,
                       V_BANK_DEP_TICK_REC,
                       V_BANK_DEP_TICK_FUTURE_REC,
+                      V_ST_MICR_FORMAT_REC,
+                      V_ST_MICR_FORMAT_FTR_REC,
                       V_MICR_FORMAT_ID);
     V_BANK_DEP_TICK_REC.EFFECTIVE_DATE := SYSDATE;
     BUSINESS_RULES_PKG.DEPOSIT_TICKET_MNTNC_BR_SP(V_BANK_DEP_TICK_REC,
                                                   V_BANK_DEP_TICK_FUTURE_REC);
     IF V_BANK_DEP_TICK_REC.COST_CENTER_CODE IS NOT NULL THEN --Current Details
-        DEPOSIT_TKT_CURRENT_UPSERT_SP(V_BANK_DEP_TICK_REC, V_MICR_FORMAT_ID);
+        DEPOSIT_TKT_CURRENT_UPSERT_SP(V_BANK_DEP_TICK_REC,V_ST_MICR_FORMAT_REC, V_MICR_FORMAT_ID);
     END IF;
     IF V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE IS NOT NULL THEN --Future Details
-        DEPOSIT_TKT_FUTURE_UPSERT_SP(V_BANK_DEP_TICK_FUTURE_REC, V_MICR_FORMAT_ID);
+        DEPOSIT_TKT_FUTURE_UPSERT_SP(V_BANK_DEP_TICK_FUTURE_REC,V_ST_MICR_FORMAT_FTR_REC, V_MICR_FORMAT_ID);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -1255,12 +1339,12 @@ IS
            AND A.EXPIRATION_DATE IS NULL;    
         
        
-    PATH                     VARCHAR2(50) := 'BANKING_DATA_FILES';
+    PATH        	           VARCHAR2(50) := 'BANKING_DATA_FILES';
     BANK_DEPOSIT_IP_FILE_NM  VARCHAR2(50) := 'DEPOSIT_TICKET_';
                                              --||TO_CHAR(IN_DATE,'DDMONRRRR');--|| '_' ||TO_CHAR(SYSDATE,'HH24MISS');
     BANK_DEPOSIT_INPUT_FILE  UTL_FILE.FILE_TYPE;
 
-    V_OUT_CLOB         CLOB;
+	  V_OUT_CLOB         CLOB;
     V_COUNT            NUMBER := 0;
 BEGIN
   IF IN_FUTURE_ID IS NULL THEN
@@ -1530,7 +1614,4 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END PLACE_DEPOSIT_TICKET_ORDER;
 
-
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-/
-SHOW ERRORS;

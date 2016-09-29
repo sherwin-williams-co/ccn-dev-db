@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BUSINESS_RULES_PKG
+create or replace PACKAGE BUSINESS_RULES_PKG
 AS
 /**********************************************************
   This Package performs all the business rules that are applicable
@@ -19,6 +19,17 @@ Changed :
 IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
 IN_EXPIRATION_DATE    IN     DATE,
 IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
+
+FUNCTION IS_STR_A_MBR_EVER_FROM_DT_PASD(
+/*******************************************************************************
+  This function will return "Y" if the passed store is a member as of input date or in future
+
+Created : 11/12/2015 jxc517 CCN Project....
+Changed : 09/20/2016 nxk927 CCN Project....
+          Making this proc public to use in deposit ticket maintenance pkg
+*******************************************************************************/
+IN_COST_CENTER_CODE   IN     VARCHAR2,
+IN_EFFECTIVE_DATE     IN     DATE) RETURN VARCHAR2;
 
 FUNCTION IS_MICR_EXPIRATION_INVALID(
 /*******************************************************************************

@@ -35,6 +35,17 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT%ROWTYPE);
 
+PROCEDURE ST_MICR_FORMAT_ROWTYPE_SP (
+/*******************************************************************************
+    This procedure is intended to build the STORE_MICR_FORMAT_DTLS record type
+
+Created : 09/22/2016 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT STORE_MICR_FORMAT_DTLS%ROWTYPE);
+
 PROCEDURE LEAD_BANK_CC_ROWTYPE_SP (
 /*******************************************************************************
     This procedure is intended to build the LEAD_BANK_CC record type
@@ -156,6 +167,17 @@ Changed :
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT_FUTURE%ROWTYPE);
+
+PROCEDURE ST_MICR_FORMAT_FTR_ROWTYPE_SP (
+/*******************************************************************************
+    This procedure is intended to build the ST_MICR_FORMAT_FTR record type
+
+Created : 09/22/2016 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE);
 
 PROCEDURE LEAD_BANK_CC_FUTURE_ROWTYPE_SP (
 /*******************************************************************************
