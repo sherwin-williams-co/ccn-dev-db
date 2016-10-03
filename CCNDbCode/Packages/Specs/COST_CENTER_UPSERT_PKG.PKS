@@ -13,11 +13,14 @@ PROCEDURE CC_UPSERT_PROCESS(
             , MARKETING
             , PHONE
             , TAXWARE
-            , ADDRESS tables.  
+            , ADDRESS tables.
+Changed: 10/03/2016 MXR916 CCN Project
+         Added Input Parameter IN_OVERWRITE_FLAG with default value as N 
 
 *******************************************************************************/
 
- IN_ROW_DATA  IN VARCHAR2);
+ IN_ROW_DATA         IN VARCHAR2,
+ IN_OVERWRITE_FLAG   IN varchar2 default 'N');
 
  END COST_CENTER_UPSERT_PKG;
  
