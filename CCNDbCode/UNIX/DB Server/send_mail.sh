@@ -9,7 +9,7 @@
 . /app/ccn/host.sh
 
 
-proc_name=$1;
+proc_name="send_mail.sh";
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
