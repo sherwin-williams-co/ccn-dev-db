@@ -26,21 +26,6 @@ touch $LOGDIR/$LOG_NAME
 
 echo "Processing Started for "$THISSCRIPT " at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
 
-##############################################
-#  ERROR STATUS CHECK
-##############################################
-StatusCheck()
-{
-if test $1 -ne 0
-   then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing of "$THISSCRIPT " failed at ${TIME} on ${DATE}">> $LOGDIR/${LOG_NAME}
-     exit 1;
-else
-   echo $2 >> $LOGDIR/${LOG_NAME}
-fi
-}
-
 #######################################
 #  Start of background process check  #
 #######################################
@@ -67,8 +52,15 @@ MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in "$USER@$HOSTNA
 ./send_mail.sh BG_PROCESSES_FAILURE "$MAIL_MESSAGE"
 fi
 
-status=$?
-StatusCheck $status "Mailing process status is "$status
+status=$? 
+if test $status -ne 0
+   then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing of "$THISSCRIPT " failed at ${TIME} on ${DATE}">> $LOGDIR/${LOG_NAME}
+     exit 1;
+else
+   echo "Mailing process status is "$status >> $LOGDIR/${LOG_NAME}
+fi
 
 echo "ending check_costcenter_bg_process.sh script" >> $LOGDIR/${LOG_NAME}
 
