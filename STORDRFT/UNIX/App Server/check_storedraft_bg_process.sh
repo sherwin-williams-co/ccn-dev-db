@@ -65,6 +65,7 @@ fi
 
 echo "ending check_storedraft_bg_process.sh script" >> $LOGDIR/${LOG_NAME}
 
+exit 0
 ##############################
 #  end of script             #
 ##############################

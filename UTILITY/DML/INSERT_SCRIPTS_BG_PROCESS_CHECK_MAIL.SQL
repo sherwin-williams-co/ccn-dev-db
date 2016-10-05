@@ -19,7 +19,7 @@ VALUES('BG_PROCESSES_FAILURE'
 ,43
 ,'Background processes are not executing.'
 ,'ccnoracle.team@sherwin.com'
-,'Background processe are not executing. Please check the log file and the email message.'
+,'Background processes are not executing. Please check the log file and the email message.'
 ,'Thanks'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT'
 );
 
