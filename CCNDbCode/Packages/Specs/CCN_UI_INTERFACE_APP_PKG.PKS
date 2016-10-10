@@ -136,12 +136,9 @@ PROCEDURE COST_CENTER_UI_UPSERT_SP (
 
 created : 10/26/2012 KDP CCN Project....
 revised:   12/03/2012 BLR  CCN Project....
-           10/03/2016 MXR916 CCN Project
-           Added Input Parameter IN_OVERWRITE_FLAG with default value as N
 *******************************************************************************/
 
- in_row_data            IN varchar2,
- IN_OVERWRITE_FLAG      IN varchar2 default 'N');
+ in_row_data  IN varchar2);
  
  PROCEDURE VALIDATE_BUSINESS_RULES(
  /******************************************************************************
@@ -151,12 +148,9 @@ revised:   12/03/2012 BLR  CCN Project....
   the input XML fragment.
 
 created : 08/26/2013 CCN Project....
-changed : 10/03/2016 CCN Project..
-          Added Input Parameter IN_OVERWRITE_FLAG with default value as N
 *******************************************************************************/
-IN_FLAG              IN VARCHAR2,
-IN_ROW_DATA          IN VARCHAR2,
-IN_OVERWRITE_FLAG    IN varchar2 default 'N');
+IN_FLAG      IN VARCHAR2,
+IN_ROW_DATA  IN VARCHAR2);
 
 FUNCTION TERMINAL_NUMBER_S
 /*********************************************************************
@@ -336,4 +330,3 @@ Created by jxc517 02/19/2015
 IN_BLOB            IN       BLOB);
 
 END CCN_UI_INTERFACE_APP_PKG;
-

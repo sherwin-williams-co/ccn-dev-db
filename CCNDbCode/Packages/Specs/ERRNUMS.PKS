@@ -2827,16 +2827,4 @@ exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
 
-/*********************************************************** 
-The "en_mismatch_std_prim_identifier" passes a numerical error of -20166
-This error will state that std_cost_identifier and prim_cost_identifier does not match.
-
-Created  : 08/29/2016 mxr916 CCN Project Team....
-Modified : 
-************************************************************/
-en_mismatch_std_prim_idntfr CONSTANT NUMBER := -20166;
-exc_mismatch_std_prim_idntfr EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_mismatch_std_prim_idntfr , -20166);
-
 END ERRNUMS;

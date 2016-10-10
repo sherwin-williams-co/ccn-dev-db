@@ -28,8 +28,6 @@ PROCEDURE Business_Rules_sp (
 created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
-          10/03/2016 MXR916 CCN PROJECT...
-          Added IN_OVERWRITE_FLAG with default value 'N'
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE    VARCHAR2--sys.xmltype
@@ -52,7 +50,6 @@ changed : 05/16/2016 jxc517 CCN Project Team....
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
-   ,IN_OVERWRITE_FLAG        VARCHAR2 DEFAULT 'N'
  );
 
 PROCEDURE Business_Rules_sp (
@@ -73,8 +70,6 @@ PROCEDURE Business_Rules_sp (
   specific columns of specific tables.
 
 created : MDH 9/25//2012
-Changed : 10/03/2016 MXR916 CCN PROJECT...
-          Added IN_OVERWRITE_FLAG with default value 'N'
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
@@ -97,7 +92,6 @@ Changed : 10/03/2016 MXR916 CCN PROJECT...
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
-   ,IN_OVERWRITE_FLAG        VARCHAR2 DEFAULT 'N'
  );
 
 /*****************************************************************************/
@@ -363,16 +357,13 @@ PROCEDURE COST_CENTER_BR_SP (
 	TRD  Section: 3.3.17 
 
 created : BLR 8/3/2012
-Changed : 10/03/2016 MXR916 CCN PROJECT...
-          Added IN_OVERWRITE_FLAG with default value 'N'
 *******************************************************************************/	
    inCost_Center_rowtype            IN  COST_CENTER%ROWTYPE
   ,inaddress_can_rowtype            IN  address_can%ROWTYPE
   ,inaddress_mex_rowtype            IN  address_mex%ROWTYPE
   ,inaddress_oth_rowtype            IN  address_other%ROWTYPE
   ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE
-  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE
-  ,IN_OVERWRITE_FLAG                IN  VARCHAR2 DEFAULT 'N');
+  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE);
 
 /*******************************************************************************
 --PROCEDURE MARKETING_BR_SP (

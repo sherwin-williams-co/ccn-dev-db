@@ -17,11 +17,9 @@ PROCEDURE CALL_BUSINESS_RULES_SP  (
   	Cost Center table entries returned from the Database.
   
 created : 02/26/2013 TAL CCN Project....
-revised : 10/04/2016 MXR916 CCN Project Team...
-          Added IN_OVERWRITE_FLAG Parameter with default value 'N'
+revised :
 *******************************************************************************/
-   in_Cost_Center_Code      IN   COST_CENTER.Cost_Center_Code%type,
-   in_overwrite_flag        IN   VARCHAR2 DEFAULT 'N'  
+   in_Cost_Center_Code      IN   COST_CENTER.Cost_Center_Code%type  
   );
 
 
