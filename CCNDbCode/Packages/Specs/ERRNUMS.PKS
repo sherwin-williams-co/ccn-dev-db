@@ -1,4 +1,4 @@
-create or replace PACKAGE          errnums
+create or replace PACKAGE errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -8,7 +8,7 @@ THIS PACKAGE CONTAINS ERROR NUMBERS FROM
                    -20500 ONWARDS FOR HIERARCHY
 
 created : 12/02/2011 blr CCN Project
-revisions:
+revisions: 
 
 ************************************************************/
 
@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999Â¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `yÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -2673,31 +2673,6 @@ PRAGMA EXCEPTION_INIT
 (exc_pci_terminal_id_err , -20530);
 
 /*********************************************************** 
-The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
-This error will state that the cost center being modifed
-has a future already in place
-
-Created  : 04/04/2016 jxc517 CCN Project Team....
-Modified : 
-************************************************************/
-en_hrchy_cc_ftr_exists_err CONSTANT NUMBER := -20531;
-exc_hrchy_cc_ftr_exists_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_hrchy_cc_ftr_exists_err , -20531);
-
-/*********************************************************** 
-The "hrchy_ftr_not_allowed_err" passes a numerical error of -20532
-This error will state that the hierarchy does not support future transactions
-
-Created  : 04/07/2016 jxc517 CCN Project Team....
-Modified : 
-************************************************************/
-en_hrchy_ftr_not_allowed_err CONSTANT NUMBER := -20532;
-exc_hrchy_ftr_not_allowed_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_hrchy_ftr_not_allowed_err , -20532);
-
-/*********************************************************** 
 The "invalid_dscvr_id_size_err" passes a numerical error of -20533
 This error will state that Bank Card Discover ID Size is wrong
 
@@ -2746,19 +2721,6 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
 /*********************************************************** 
-The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
-This error will state that the future address is having effective date 
-less than or equal to current date
-
-Created  : 04/20/2016 jxc517 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_ftr_adr_efctv_dt_err CONSTANT NUMBER := -20537;
-exc_invld_ftr_adr_efctv_dt_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_ftr_adr_efctv_dt_err , -20537);
-
-/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2773,8 +2735,6 @@ exc_unkown_error EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_unkown_error , -20999);
 
-max_error_used CONSTANT NUMBER := -20999;
-
 /*********************************************************** 
 The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
 The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
@@ -2787,19 +2747,6 @@ en_cc_strd_primry_price_err CONSTANT NUMBER := -20545;
 exc_cc_strd_primry_price_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_cc_strd_primry_price_err , -20545);
-
-/*********************************************************** 
-The "en_invld_dco_costcntr_err" passes a numerical error of -20546
-This error will state that the passed DCO cost center code does not 
-exist in the database.
-
-Created  : 08/23/2016 vxv336 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_dco_costcntr_err CONSTANT NUMBER := -20546;
-exc_invld_dco_costcntr_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_dco_costcntr_err , -20546);
 
 /*********************************************************** 
 The "en_cn_ac_prmry_stndrd_cc_ind" passes a numerical error of -20167
@@ -2827,4 +2774,5 @@ exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
 
-END ERRNUMS;
+max_error_used CONSTANT NUMBER := -20999;
+END errnums;
