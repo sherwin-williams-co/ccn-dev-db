@@ -7,7 +7,8 @@
 #                 the STOREDrafts job. If it is not executing then send an email.
 #
 # Created  : 09/30/2016 mxk766 CCN Project Team.....
-# Modified :
+# Modified : 10/14/2016 mxk766 CCN Project Team.....
+#                              Replaced elf with eaf and hardcoding the user
 #################################################################
 
 # link to parameter file
@@ -34,7 +35,7 @@ MAIL_MESSAGE=""
 bg_process_name=`cat $HOMEPATH/background_processname.txt`
 for bg_name in $bg_process_name
 do
-FIND=`ps -elf | grep $bg_name | grep -v grep`
+FIND=`ps -eaf | grep $bg_name | grep -v grep`
 if [ "$FIND" == "" ]
 then
 BG_PROCESSES_EXECUTING=FALSE
@@ -44,12 +45,12 @@ done
 
 if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
-./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in "$USER@$HOSTNAME
+./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in strdrft"@$HOSTNAME
 else
 MESSAGELENGTH=${#MAIL_MESSAGE}
 MESSAGELENGTH=`expr $MESSAGELENGTH - 1`
 MAIL_MESSAGE=`echo $MAIL_MESSAGE | cut -c1-$MESSAGELENGTH`
-MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in "$USER@$HOSTNAME
+MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in strdrft"@$HOSTNAME
 ./send_mail.sh BG_PROCESSES_FAILURE "$MAIL_MESSAGE"
 fi
 

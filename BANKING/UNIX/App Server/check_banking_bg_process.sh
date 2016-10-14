@@ -6,7 +6,8 @@
 #                 the banking job. If it is not executing then send an email.
 #
 # Created  : 09/30/2016 mxk766 CCN Project Team.....
-# Modified :
+# Modified : 10/14/2016 mxk766 CCN Project Team.....
+#                              Replaced elf with eaf and hardcoding the user
 #################################################################
 
 . /app/banking/dev/banking.config
@@ -18,6 +19,7 @@ DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"`
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 BG_PROCESSES_EXECUTING=TRUE
+HOSTNAME=`hostname`
 
 touch $LOGDIR/$LOG_NAME
 
@@ -30,7 +32,7 @@ MAIL_MESSAGE=""
 bg_process_name=`cat $HOME/background_processname.txt`
 for bg_name in $bg_process_name
 do
-FIND=`ps -elf | grep $bg_name | grep -v grep`
+FIND=`ps -eaf | grep $bg_name | grep -v grep`
 if [ "$FIND" == "" ]
 then
 BG_PROCESSES_EXECUTING=FALSE
@@ -40,12 +42,12 @@ done
 
 if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
-./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in "$USER@$HOSTNAME
+./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in banking"@$HOSTNAME
 else
 MESSAGELENGTH=${#MAIL_MESSAGE}
 MESSAGELENGTH=`expr $MESSAGELENGTH - 1`
 MAIL_MESSAGE=`echo $MAIL_MESSAGE | cut -c1-$MESSAGELENGTH`
-MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in "$USER@$HOSTNAME
+MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in banking"@$HOSTNAME
 echo $MAIL_MESSAGE
 ./send_mail.sh BG_PROCESSES_FAILURE "$MAIL_MESSAGE"
 fi
