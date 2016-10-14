@@ -2646,6 +2646,19 @@ PRAGMA EXCEPTION_INIT
 (exc_sales_manager_lvl_err , -20527);
 
 /*********************************************************** 
+The "INVALID_PCC_PCL_EXP" passes a numerical error of -20528.
+This error will state that cost center cannot have multiple pcc and pcl values.
+
+created  : 12/16/2015 AXK326 CCN Project....
+revisions: 
+
+************************************************************/
+en_invalid_pcc_pcl_exp CONSTANT NUMBER := -20528;
+exc_invalid_pcc_pcl_exp EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_pcc_pcl_exp , -20528);
+
+/*********************************************************** 
 The "invalid_pci_id_err" passes a numerical error of -20529.
 This error will state that the PCI_MERCHANT_ID and 
 PCI_DISCOVER_ID should not be null when the polling status is 'P'
@@ -2759,6 +2772,104 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_ftr_adr_efctv_dt_err , -20537);
 
 /*********************************************************** 
+The "en_invalid_addr_arg_err" passes a numerical error of -20165.
+An error occurs when address ARG cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_arg_err CONSTANT NUMBER := -20165;
+exc_invalid_addr_arg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_arg_err , -20165);
+
+/*********************************************************** 
+The "en_invalid_addr_bra_err" passes a numerical error of -20178.
+An error occurs when address BRA cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_bra_err CONSTANT NUMBER := -20178;
+exc_invalid_addr_bra_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_bra_err , -20178);
+
+/*********************************************************** 
+The "en_invalid_addr_chl_err" passes a numerical error of -20167.
+An error occurs when address CHL cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_chl_err CONSTANT NUMBER := -20167;
+exc_invalid_addr_chl_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_chl_err , -20167);
+
+/*********************************************************** 
+The "en_invalid_addr_col_err" passes a numerical error of -20168.
+An error occurs when address COL cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_col_err CONSTANT NUMBER := -20168;
+exc_invalid_addr_col_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_col_err , -20168);
+
+/*********************************************************** 
+The "en_invalid_addr_ecu_err" passes a numerical error of -20169.
+An error occurs when address ECU cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_ecu_err CONSTANT NUMBER := -20169;
+exc_invalid_addr_ecu_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_ecu_err , -20169);
+
+/*********************************************************** 
+The "en_invalid_addr_per_err" passes a numerical error of -20170.
+An error occurs when address PER cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_per_err CONSTANT NUMBER := -20170;
+exc_invalid_addr_per_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_per_err , -20170);
+
+
+/*********************************************************** 
+The "en_invalid_addr_URU_err" passes a numerical error of -20171.
+An error occurs when address URU cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+
+en_invalid_addr_uru_err CONSTANT NUMBER := -20171;
+exc_invalid_addr_uru_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_addr_uru_err , -20544);
+
+/*********************************************************** 
+The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
+The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
+if the standard price or primary price is null for non canada countries then
+throw a warning. 
+created : 08/17/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+en_cc_strd_primry_price_err CONSTANT NUMBER := -20545;
+exc_cc_strd_primry_price_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_cc_strd_primry_price_err , -20545);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2776,19 +2887,6 @@ PRAGMA EXCEPTION_INIT
 max_error_used CONSTANT NUMBER := -20999;
 
 /*********************************************************** 
-The "en_cc_strd_primry_price_err" passes a numerical error of -20545.
-The en_cc_strd_primry_price_err execption is generataed by our Business Rules process
-if the standard price or primary price is null for non canada countries then
-throw a warning. 
-created : 08/17/2016 MXK766 CCN Project Team....
-revisions:
-************************************************************/
-en_cc_strd_primry_price_err CONSTANT NUMBER := -20545;
-exc_cc_strd_primry_price_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_cc_strd_primry_price_err , -20545);
-
-/*********************************************************** 
 The "en_invld_dco_costcntr_err" passes a numerical error of -20546
 This error will state that the passed DCO cost center code does not 
 exist in the database.
@@ -2804,7 +2902,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "en_cn_ac_prmry_stndrd_cc_ind" passes a numerical error of -20167
 This error will state that std_cost_identifier and prim_cost_identifier 
-can only be "08" for statement types CN/AC
+can not be "08" for statement types other than CN/AC
 
 Created  : 09/19/2016 jxc517 CCN Project Team....
 Modified : 
@@ -2817,7 +2915,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "en_non_cn_ac_prmry_std_cc_ind" passes a numerical error of -20168
 This error will state that std_cost_identifier and prim_cost_identifier 
-can not be "08" for statement types other than CN/AC
+can only be "08" for statement types CN/AC
 
 Created  : 09/19/2016 jxc517 CCN Project Team....
 Modified : 
@@ -2826,5 +2924,17 @@ en_non_cn_ac_prmry_std_cc_ind CONSTANT NUMBER := -20168;
 exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
+
+/*********************************************************** 
+The "en_mismatch_std_prim_identifier" passes a numerical error of -20166
+This error will state that std_cost_identifier and prim_cost_identifier does not match.
+
+Created  : 08/29/2016 mxr916 CCN Project Team....
+Modified : 
+************************************************************/
+en_mismatch_std_prim_idntfr CONSTANT NUMBER := -20166;
+exc_mismatch_std_prim_idntfr EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_mismatch_std_prim_idntfr , -20166);
 
 END ERRNUMS;

@@ -28,12 +28,17 @@ PROCEDURE Business_Rules_sp (
 created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+changed : 08/11/2016 MXK766 CCN Project Team....
+          Added new table ADDRESS_ARG,ADDRESS_BRA, ADDRESS_CHL , ADDRESS_COL,
+          ADDRESS_ECU, ADDRESS_PER, ADDRESS_URU
+          10/03/2016 MXR916 CCN PROJECT...
+          Added IN_OVERWRITE_FLAG with default value 'N'
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE    VARCHAR2--sys.xmltype
    ,inADDRESS_OTH_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_BRB_XMLTYPE    VARCHAR2--sys.xmltype
+   ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype   
+   ,inADDRESS_BRB_XMLTYPE    VARCHAR2--sys.xmltype   
    ,inADMIN_XMLTYPE          VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE       VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE    VARCHAR2--sys.xmltype
@@ -48,10 +53,18 @@ changed : 05/16/2016 jxc517 CCN Project Team....
    ,inSTATUS_XMLTYPE         VARCHAR2--sys.xmltype
    ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
-   ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype
+   ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype 
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
+   ,inADDRESS_ARG_XMLTYPE    VARCHAR2
+   ,inADDRESS_BRA_XMLTYPE    VARCHAR2
+   ,inADDRESS_CHL_XMLTYPE    VARCHAR2
+   ,inADDRESS_COL_XMLTYPE    VARCHAR2
+   ,inADDRESS_ECU_XMLTYPE    VARCHAR2
+   ,inADDRESS_PER_XMLTYPE    VARCHAR2
+   ,inADDRESS_URU_XMLTYPE    VARCHAR2
+   --,IN_OVERWRITE_FLAG        VARCHAR2 DEFAULT 'N'
  );
-
+	
 PROCEDURE Business_Rules_sp (
 /*******************************************************************************
 	 BUSINESS_RULES_SP (rowtype)
@@ -70,12 +83,17 @@ PROCEDURE Business_Rules_sp (
   specific columns of specific tables.
 
 created : MDH 9/25//2012
+changed : 08/11/2016 MXK766 CCN Project Team....
+          Added new table ADDRESS_ARG,ADDRESS_BRA,ADDRESS_CHL,ADDRESS_COL,
+          ADDRESS_ECU, ADDRESS_PER, ADDRESS_URU
+          10/03/2016 MXR916 CCN PROJECT...
+           Added IN_OVERWRITE_FLAG with default value 'N'
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
    ,inADDRESS_OTH_ROWTYPE    IN ADDRESS_OTHER%ROWTYPE
-   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE
-   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE
+   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
+   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE   
    ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
    ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
@@ -91,9 +109,17 @@ created : MDH 9/25//2012
    ,inSTORE_ROWTYPE          IN STORE%ROWTYPE
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
-   ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
+   ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE 
+   ,inADDRESS_ARG_ROWTYPE    IN ADDRESS_ARG%ROWTYPE
+   ,inADDRESS_BRA_ROWTYPE    IN ADDRESS_BRA%ROWTYPE
+   ,inADDRESS_CHL_ROWTYPE    IN ADDRESS_CHL%ROWTYPE
+   ,inADDRESS_COL_ROWTYPE    IN ADDRESS_COL%ROWTYPE
+   ,inADDRESS_ECU_ROWTYPE    IN ADDRESS_ECU%ROWTYPE
+   ,inADDRESS_PER_ROWTYPE    IN ADDRESS_PER%ROWTYPE
+   ,inADDRESS_URU_ROWTYPE    IN ADDRESS_URU%ROWTYPE
+   --,IN_OVERWRITE_FLAG        VARCHAR2 DEFAULT 'N'
  );
-
+	
 /*****************************************************************************/
 PROCEDURE MERCHANT_ID_SP (
 /******************************************************************************
@@ -159,6 +185,9 @@ PROCEDURE POLLING_STATUS_HIST_SP (
 	TRD  Section: 3.3.6
 
 created : BLR 6/13/2012
+changed : 08/11/2016 MXK766 CCN Project Team....
+          Added new table ADDRESS_ARG,ADDRESS_BRA,ADDRESS_CHL
+          ADDRESS_ECU, ADDRESS_PER, ADDRESS_URU
 *******************************************************************************/	
    inCOST_CENTER_ROWTYPE        IN COST_CENTER%ROWTYPE 
   ,inPOLLING_ROWTYPE            IN POLLING%ROWTYPE
@@ -174,8 +203,15 @@ created : BLR 6/13/2012
   ,inADDRESS_CAN_ROWTYPE        IN ADDRESS_CAN%ROWTYPE
   ,inADDRESS_MEX_ROWTYPE        IN ADDRESS_MEX%ROWTYPE
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
-  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE
+  ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE  
   ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE
+  ,inADDRESS_ARG_ROWTYPE        IN ADDRESS_ARG%ROWTYPE
+  ,inADDRESS_BRA_ROWTYPE        IN ADDRESS_BRA%ROWTYPE
+  ,inADDRESS_CHL_ROWTYPE        IN ADDRESS_CHL%ROWTYPE
+  ,inADDRESS_COL_ROWTYPE        IN ADDRESS_COL%ROWTYPE
+  ,inADDRESS_ECU_ROWTYPE        IN ADDRESS_ECU%ROWTYPE
+  ,inADDRESS_PER_ROWTYPE        IN ADDRESS_PER%ROWTYPE
+  ,inADDRESS_URU_ROWTYPE        IN ADDRESS_URU%ROWTYPE
   );
 
 PROCEDURE QUALITY_CTRL_STATUS_CHKS_SP (
@@ -209,6 +245,9 @@ PROCEDURE POLLING_CTRL_STATUS_CHKS_SP (
 	TRD  Section: 3.3.8 
 
 created : BLR 5/21/2012
+changed : 08/11/2016 MXK766 CCN Project Team....
+          Added new table ADDRESS_ARG,ADDRESS_BRA, ADDRESS_CHL
+          ADDRESS_ECU, ADDRESS_PER, ADDRESS_URU
 *******************************************************************************/	
    inCOST_CENTER_ROWTYPE        IN COST_CENTER%ROWTYPE 
   ,inPOLLING_ROWTYPE            IN POLLING%ROWTYPE
@@ -226,6 +265,13 @@ created : BLR 5/21/2012
   ,inADDRESS_OTH_ROWTYPE        IN ADDRESS_OTHER%ROWTYPE
   ,inADDRESS_USA_ROWTYPE        IN ADDRESS_USA%ROWTYPE
   ,inADDRESS_BRB_ROWTYPE        IN ADDRESS_BRB%ROWTYPE
+  ,inADDRESS_ARG_ROWTYPE        IN ADDRESS_ARG%ROWTYPE
+  ,inADDRESS_BRA_ROWTYPE        IN ADDRESS_BRA%ROWTYPE
+  ,inADDRESS_CHL_ROWTYPE        IN ADDRESS_CHL%ROWTYPE
+  ,inADDRESS_COL_ROWTYPE        IN ADDRESS_COL%ROWTYPE
+  ,inADDRESS_ECU_ROWTYPE        IN ADDRESS_ECU%ROWTYPE
+  ,inADDRESS_PER_ROWTYPE        IN ADDRESS_PER%ROWTYPE
+  ,inADDRESS_URU_ROWTYPE        IN ADDRESS_URU%ROWTYPE
  );
 
 PROCEDURE REOPEN_CCNTR_SP  ( 
@@ -357,13 +403,27 @@ PROCEDURE COST_CENTER_BR_SP (
 	TRD  Section: 3.3.17 
 
 created : BLR 8/3/2012
+changed : 08/11/2016 MXK766 CCN Project Team....
+          Added new table ADDRESS_ARG,ADDRESS_BRA,ADDRESS_CHL
+          ADDRESS_ECU, ADDRESS_PER, ADDRESS_URU
+          10/03/2016 MXR916 CCN PROJECT...
+          Added IN_OVERWRITE_FLAG with default value 'N'
 *******************************************************************************/	
    inCost_Center_rowtype            IN  COST_CENTER%ROWTYPE
   ,inaddress_can_rowtype            IN  address_can%ROWTYPE
   ,inaddress_mex_rowtype            IN  address_mex%ROWTYPE
   ,inaddress_oth_rowtype            IN  address_other%ROWTYPE
   ,inaddress_usa_rowtype            IN  address_usa%ROWTYPE
-  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE);
+  ,inaddress_brb_rowtype            IN  address_brb%ROWTYPE
+  ,inaddress_arg_rowtype            IN  address_arg%ROWTYPE
+  ,inaddress_bra_rowtype            IN  address_bra%ROWTYPE
+  ,inaddress_chl_rowtype            IN  address_chl%ROWTYPE
+  ,inaddress_col_rowtype            IN  address_col%ROWTYPE
+  ,inaddress_ecu_rowtype            IN  address_ecu%ROWTYPE
+  ,inaddress_per_rowtype            IN  address_per%ROWTYPE
+  ,inaddress_uru_rowtype            IN  address_uru%ROWTYPE
+  --,IN_OVERWRITE_FLAG                IN  VARCHAR2 DEFAULT 'N'
+);
 
 /*******************************************************************************
 --PROCEDURE MARKETING_BR_SP (
@@ -520,9 +580,108 @@ PROCEDURE PCI_TERMINAL_COUNT_CHECK(
     matches. If it don't match then send the report in an email
 
 Created : 03/02/2016 nxk927 CCN Project Team...
-Changed :
+Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_ROW_DATA          IN  CLOB);
 
+PROCEDURE ADDRESS_ARG_BR_SP (
+/*******************************************************************************
+	 ADDRESS_ARG_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_ARG Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_arg_rowtype          IN  ADDRESS_ARG%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+PROCEDURE ADDRESS_BRA_BR_SP (
+/*******************************************************************************
+	 ADDRESS_BRA_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_BRA Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_bra_rowtype          IN  ADDRESS_BRA%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+  
+  PROCEDURE ADDRESS_CHL_BR_SP (
+/*******************************************************************************
+	 ADDRESS_CHL_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_CHL Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_chl_rowtype          IN  ADDRESS_CHL%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+  PROCEDURE ADDRESS_COL_BR_SP (
+/*******************************************************************************
+	 ADDRESS_COL_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_COL Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_col_rowtype          IN  ADDRESS_COL%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+  PROCEDURE ADDRESS_ECU_BR_SP (
+/*******************************************************************************
+	 ADDRESS_ECU_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_ECU Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_ecu_rowtype          IN  ADDRESS_ECU%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+ PROCEDURE ADDRESS_PER_BR_SP (
+/*******************************************************************************
+	 ADDRESS_PER_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_PER Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_per_rowtype          IN  ADDRESS_PER%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
+  PROCEDURE ADDRESS_URU_BR_SP (
+/*******************************************************************************
+	 ADDRESS_URU_BR_SP
+
+	This procedure is intended enforce the Business Rules for verifying the
+	columns on the ADDRESS_URU Table 
+
+created : MXK766 08/11/2016 CCN Project Team...
+Changed : 
+*******************************************************************************/	
+  
+   inaddress_uru_rowtype          IN  ADDRESS_URU%ROWTYPE
+  ,inCOST_CENTER_ROWTYPE          IN  COST_CENTER%ROWTYPE);
+  
 END CCN_BUSINESS_RULES_PKG;
