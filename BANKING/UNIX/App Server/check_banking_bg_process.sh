@@ -20,7 +20,7 @@ TIME=`date +"%H%M%S"`
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 BG_PROCESSES_EXECUTING=TRUE
 HOSTNAME=`hostname`
-
+USERNAME=`stat -c %U check_banking_bg_process.sh`
 touch $LOGDIR/$LOG_NAME
 
 echo "Processing Started for "$THISSCRIPT " at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
@@ -42,12 +42,12 @@ done
 
 if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
-./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in banking"@$HOSTNAME
+./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in "$USERNAME@$HOSTNAME
 else
 MESSAGELENGTH=${#MAIL_MESSAGE}
 MESSAGELENGTH=`expr $MESSAGELENGTH - 1`
 MAIL_MESSAGE=`echo $MAIL_MESSAGE | cut -c1-$MESSAGELENGTH`
-MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in banking"@$HOSTNAME
+MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in "$USERNAME@$HOSTNAME
 echo $MAIL_MESSAGE
 ./send_mail.sh BG_PROCESSES_FAILURE "$MAIL_MESSAGE"
 fi

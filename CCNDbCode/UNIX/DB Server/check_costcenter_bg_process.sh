@@ -22,6 +22,7 @@ TIME=`date +"%H%M%S"`
 LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 BG_PROCESSES_EXECUTING=TRUE
 HOSTNAME=`hostname`
+USERNAME=`stat -c %U check_costcenter_bg_process.sh`
 
 touch $LOGDIR/$LOG_NAME
 
@@ -44,12 +45,12 @@ done
 
 if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
-./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in ccn"@$HOSTNAME
+./send_mail.sh ALL_BG_PROCESSES_EXECUTING "All Background Processes are running in "$USERNAME@$HOSTNAME
 else
 MESSAGELENGTH=${#MAIL_MESSAGE}
 MESSAGELENGTH=`expr $MESSAGELENGTH - 1`
 MAIL_MESSAGE=`echo $MAIL_MESSAGE | cut -c1-$MESSAGELENGTH`
-MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in ccn"@$HOSTNAME
+MAIL_MESSAGE="Background Processes "$MAIL_MESSAGE" not running in "$USERNAME@$HOSTNAME
 ./send_mail.sh BG_PROCESSES_FAILURE "$MAIL_MESSAGE"
 fi
 
