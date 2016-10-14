@@ -329,4 +329,44 @@ Created by jxc517 02/19/2015
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
 
+PROCEDURE PROCESSOR_UI_SP (
+/******************************************************************************
+This procedure is intended to return a ref cursor with data from 
+from the PROCESSORS and PROCESSOR_STATES tables.  
+
+Created : 04/08/2016 jxc517 CCN Project....
+Changed : 
+********************************************************************************/
+    O_PROCESSORS           OUT      SYS_REFCURSOR,
+    O_PROCESSOR_STATES     OUT      SYS_REFCURSOR);
+
+PROCEDURE PROCESSOR_UI_UPSERT_SP (
+/******************************************************************************
+This procedure is intended to insert/update/delete data from 
+from the PROCESSORS and PROCESSOR_STATES tables.
+
+<PROCESSORS_UI_UPSERT>
+    <PROCESSORS>
+        <PROCESSOR_ID>xx</PROCESSOR_ID>
+        <PROCESSOR_NAME>xx</PROCESSOR_NAME>
+        <PHONE_NUMBER>xx</PHONE_NUMBER>
+        <PROCESSOR_STATES_TABLE>
+            <PROCESSOR_STATES>
+                <PROCESSOR_ID>xx</PROCESSOR_ID>
+                <STATE_CODE>xx</STATE_CODE>
+            </PROCESSOR_STATES>
+            <PROCESSOR_STATES>
+                <PROCESSOR_ID>xx</PROCESSOR_ID>
+                <STATE_CODE>xx</STATE_CODE>
+                <DELETE_FLAG>Y</DELETE_FLAG>
+            </PROCESSOR_STATES>
+        </PROCESSOR_STATES_TABLE>
+    </PROCESSORS>
+</PROCESSORS_UI_UPSERT>
+
+Created : 04/08/2016 jxc517 CCN Project....
+Changed : 
+********************************************************************************/
+    IN_XML         IN            CLOB);
+
 END CCN_UI_INTERFACE_APP_PKG;
