@@ -8,7 +8,7 @@
 #
 # Created  : 09/30/2016 mxk766 CCN Project Team.....
 # Modified : 10/14/2016 mxk766 CCN Project Team.....
-#                              Replaced elf with eaf and hardcoding the user and added hostname
+#            Replaced elf with eaf and generating username using stat method.
 #################################################################
 
 # link to parameter file
