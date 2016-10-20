@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE         BANKING_UI_INTERFACE_APP_PKG
+create or replace PACKAGE         BANKING_UI_INTERFACE_APP_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -52,6 +52,10 @@ Changed : 08/21/2015 jxc517 CCN Project....
           Modified signature to pass future details also to allow future maintenance
 Changed : 10/22/2015 sxt410 CCN Project....
           Modified Signature To Pass Current Order Date And Future Order Date.
+        : 10/18/2016 nxk927 CCN Project....
+          Modified Signature to pass member bank details to UI. It will be used to populate the 
+          sub account number in the deposit ticket window. This is added to support the micr details 
+          changes for the member bank cost center. 
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
@@ -62,7 +66,8 @@ IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR
 ,OUT_BANK_DEP_TICKORD_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_DEP_TKORD_FTR_REF_CUR  OUT REF_CURSOR
-);
+,OUT_MBR_BANK_CC_REF_CUR         OUT REF_CURSOR
+,OUT_MBR_BANK_CC_FTR_REF_CUR     OUT REF_CURSOR);
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 /*******************************************************************************
@@ -306,10 +311,14 @@ This procedure is intended to update following tables used in the Deposit Ticket
     </BANK_DEP_TICK>
 </BANK_DEP_TICK_UI>
 
-created : 05/21/2015 jxc517 CCN Project....
-revised : 
+Created : 05/21/2015 jxc517 CCN Project....
+Changed : 10/17/2016 nxk927 CCN Project....
+          Signature changed to Add sub account number. 
+          IN_MBR_BNK_ACCT_NBR be passed back to database as an input parameter which will be stored in the member bank cc table 
+          and store micr details table with the desired format.
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
+    IN_ROW_DATA         IN  CLOB,
+    IN_MBR_BNK_ACCT_NBR IN  VARCHAR2 DEFAULT NULL);
 
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************

@@ -79,7 +79,15 @@ tables based on passed input cost center code
 
 Created : 08/21/2015 jxc517 CCN Project....
 Changed : 10/22/2015 sxt410 CCN Project....
-          Modified Signature To Pass Current Order Date And Future Order Date.
+          Modified Signature To Pass Current Order Date And Future Order Date. 
+Changed : 10/29/2015 jxc517 CCN Project....
+          Modified code to include order by clause for bank MICR formats based on FORMAT_NAME
+        : 11/16/2015 axk326 CCN Project....
+          Added code to retreive the latest order details for the deposit ticket order when placed for current and future tabs
+        : 10/18/2016 nxk927 CCN Project....
+          Modified Signature to pass member bank details to UI. It will be used to populate the 
+          sub account number in the deposit ticket window. This is added to support the micr details 
+          changes for the member bank cost center. 
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -89,7 +97,9 @@ IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR         OUT REF_CURSOR
 ,OUT_BANK_MICR_FRMT_FTR_REF_CUR       OUT REF_CURSOR
 ,OUT_BANK_DEP_TICKORD_REF_CUR         OUT REF_CURSOR
-,OUT_BANK_DEP_TKORD_FTR_REF_CUR       OUT REF_CURSOR);
+,OUT_BANK_DEP_TKORD_FTR_REF_CUR       OUT REF_CURSOR
+,OUT_MBR_BANK_CC_REF_CUR              OUT REF_CURSOR
+,OUT_MBR_BANK_CC_FTR_REF_CUR          OUT REF_CURSOR);
 
 PROCEDURE DEPOSIT_TKT_MNTNC_UI_UPSERT_SP( 
 /******************************************************************************
@@ -98,7 +108,8 @@ PROCEDURE DEPOSIT_TKT_MNTNC_UI_UPSERT_SP(
 Created : 07/14/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-IN_ROW_DATA  IN  CLOB);
+IN_ROW_DATA         IN  CLOB,
+IN_MBR_BNK_ACCT_NBR IN VARCHAR2 DEFAULT NULL);
 
 PROCEDURE INSERT_BANK_DEPOSIT_DTLS_FTR(
 /*******************************************************************************
@@ -148,8 +159,4 @@ IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2); 
 
-
 END DEPOSIT_TICKET_MAINTENANCE_PKG;
-/
-
-SHOW ERRORS;
