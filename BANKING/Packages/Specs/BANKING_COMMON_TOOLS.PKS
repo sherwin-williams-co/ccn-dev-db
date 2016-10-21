@@ -354,4 +354,26 @@ Changed :
 *******************************************************************************/
   IN_BANK_ACCOUNT_NBR   IN LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE) RETURN LEAD_BANK_CC%ROWTYPE;
 
+FUNCTION GET_MBR_BANK_CC_REC(
+/***********************************************************
+	This function will get the member bank record for passed member
+  store number
+  
+Created : 10/20/2016 nxk927
+Changed : 
+************************************************************/
+    IN_MEMBER_STORE_NBR           IN     VARCHAR2) RETURN MEMBER_BANK_CC%ROWTYPE;
+    
+FUNCTION GET_MBR_BANK_CC_FUTURE_REC(
+/***********************************************************
+	This function will return the Member bank future record
+  based on bank account number, member store number and future id
+  
+Created : 10/20/2016 nxk927 CCN Project....
+Changed  : 
+************************************************************/
+    IN_MEMBER_STORE_NBR      IN     VARCHAR2,
+    IN_LEAD_BANK_ACCT_NBR    IN     VARCHAR2,
+    IN_FUTURE_ID             IN     NUMBER) RETURN MEMBER_BANK_CC_FUTURE%ROWTYPE;
+    
 END BANKING_COMMON_TOOLS;

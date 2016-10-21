@@ -49,12 +49,43 @@ IN_MICR_FORMAT_ID       IN    NUMBER,
 IN_FUTURE_ID            IN    NUMBER,
 IN_EXPIRATION_DATE      IN    DATE);
 
-FUNCTION CONVERT_FORMAT_TO_VALUE(
+FUNCTION CONVERT_BNK_MICR_FRMT_TO_VALUE(
+/*******************************************************************************
+This function converts the format into actual value to be stored in STORE_MICR_FORMAT_DTLS
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 10/17/2016 nxk927 CCN Project....
+          The IN_FORMAT can have numbers as well as X's. So considering both
+          numbers and the X's for micr bank account number.
+        : 10/17/2016 nxk927 CCN Project....
+          Changed the signature to add the in_ind as parameter that will be used to decide
+          how the format needs to be handled.
+          For micr bank account, the X's or the number has to be replaced but for
+          routing number, only if X's are there, that needs to be converted to the
+          desired format.
+*******************************************************************************/
+IN_FORMAT     IN     VARCHAR2,
+IN_VALUE      IN     VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION CNVRT_MCR_RTNGNBR_FRMT_TO_VAL(
 /*******************************************************************************
 This function converts the format into actual value to be stored in STORE_MICR_FORMAT_DTLS
 
 Created : 08/18/2015 jxc517 CCN Project....
 Changed : 
+*******************************************************************************/
+IN_FORMAT     IN     VARCHAR2,
+IN_VALUE      IN     VARCHAR2) RETURN VARCHAR2;
+
+FUNCTION CONVERT_MICR_CC_FORMAT(
+/*******************************************************************************
+This function converts the micr cost center format into actual value to be 
+stored in STORE_MICR_FORMAT_DTLS
+
+Created : 08/18/2015 jxc517 CCN Project....
+Changed : 10/17/2016 nxk927 CCN Project....
+          function name changed as his will be only used for micr cost center.
+          Added the else conditions to consider numbers as well.
 *******************************************************************************/
 IN_FORMAT     IN     VARCHAR2,
 IN_VALUE      IN     VARCHAR2) RETURN VARCHAR2;
@@ -84,6 +115,8 @@ Changed : 10/29/2015 jxc517 CCN Project....
           Modified code to include order by clause for bank MICR formats based on FORMAT_NAME
         : 11/16/2015 axk326 CCN Project....
           Added code to retreive the latest order details for the deposit ticket order when placed for current and future tabs
+        : 11/23/2015 nxk927 CCN Project...
+          For future tab only displaying if the record is a real not the virtual
         : 10/18/2016 nxk927 CCN Project....
           Modified Signature to pass member bank details to UI. It will be used to populate the 
           sub account number in the deposit ticket window. This is added to support the micr details 
