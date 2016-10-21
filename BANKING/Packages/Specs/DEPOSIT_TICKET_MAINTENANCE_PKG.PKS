@@ -72,7 +72,16 @@ FUNCTION CNVRT_MCR_RTNGNBR_FRMT_TO_VAL(
 This function converts the format into actual value to be stored in STORE_MICR_FORMAT_DTLS
 
 Created : 08/18/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/17/2016 nxk927 CCN Project....
+          The IN_FORMAT can have numbers as well as X's. So considering both
+          numbers and the X's for micr bank account number.
+        : 10/17/2016 nxk927 CCN Project....
+          Changed the signature to add the in_ind as parameter that will be used to decide
+          how the format needs to be handled.
+        : 10/17/2016 nxk927 CCN Project....
+          FUNCTION name changed
+          For micr routing number, if X's are there, that needs to be converted to the
+          desired format lese left alone
 *******************************************************************************/
 IN_FORMAT     IN     VARCHAR2,
 IN_VALUE      IN     VARCHAR2) RETURN VARCHAR2;
