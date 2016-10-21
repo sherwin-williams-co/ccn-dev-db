@@ -1,6 +1,14 @@
-create or replace PACKAGE          CCN_HIERARCHY
+CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIERARCHY
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
+
+PROCEDURE ELIMINATE_SPECIAL_CHRS(
+/**********************************************************
+This procedure will elminate special characters
+
+Created : 06/23/2013 jxc517 CCN Project....
+**********************************************************/
+    IO_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE);
 
 PROCEDURE update_cc_global_hrchy_ind(
 /***********************************************************
@@ -475,14 +483,9 @@ IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 
 PROCEDURE HIERARCHY_TRANSFER_PROCESS(
 /***********************************************************
-      HIERARCHY_TRANSFER_PROCESS 
+This procedure will be called from UI to transfer particular cost center
+from one hierarchy to another
 
-	This procedure will be called from UI to transfer particular cost center
-  from one hierarchy to another
-
-Inputs:
-IN_XML - XML that contains the details of the cost center to be transfered
-         and the from and hierarchies
 Example Input:
 <?xml version="1.0" encoding="UTF-8"?>
 <HIERARCHY_DETAIL>
@@ -534,19 +537,24 @@ Example Input:
     </row_data>
 </HIERARCHY_DETAIL>
 
-Created : 01/17/2014 JXC517
-
+Created : 01/17/2014 jxc517 CCN Project Team....
+update  : 09/18/2014 NXK927  -- Hier territory cost center tranfer(mail) 
+modified: 02/02/2015 axk326 CCN Project Team...
+          Added Upper() function while selecting from any table 
+          based on COST_CENTER_CODE
+Modified: 10/14/2015 SXT410 CCN Project Team...
+          Adding HRCHY_DTL_EXP_DATE As Sysdate For Expired Hierarchy Level.
+Modified: 03/31/2016 jxc517 CCN Project....
+          Added parameter to deal with futures
+          Added code to push the record into future tables, if it is a future record
+          Added business rule to stop creating a future if a future already exists
 ************************************************************/
-IN_XML IN CLOB);
+    IN_XML                IN     CLOB,
+    IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N');
 
 PROCEDURE HIERARCHY_DETAIL_INSERT(
 /**********************************************************
-	HIERARCHY_DETAIL_INSERT
-
-	This procedure will be called from UI to insert particular hierarchy
-
-Inputs:
-IN_XML - XML that contains the details of the hierarchy to be inserted
+This procedure will be called from UI to insert particular hierarchy
 
 Example Input:
 <?xml version="1.0" encoding="UTF-8"?>
@@ -577,10 +585,14 @@ Example Input:
     </row_data>
 </HIERARCHY_DETAIL>
 
-Created : 01/17/2014 JXC517
-
+Created : 01/17/2014 jxc517 CCN Project Team....
+Modified: 03/31/2016 jxc517 CCN Project....
+          Added parameter to deal with futures
+          Added code to push the record into future tables, if it is a future record
+          Added business rule to stop creating a future if a future already exists
 **********************************************************/
-    IN_XML                CLOB);
+    IN_XML                IN     CLOB,
+    IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N');
 
 PROCEDURE HIERARCHY_HDR_PICKLIST(	
 /**********************************************************
@@ -770,6 +782,5 @@ Modified: 08/23/2016 vxv336
 in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE,
 OUT_COST_CENTER_REF_CUR OUT REF_CURSOR
 );
-
 
 END CCN_HIERARCHY;
