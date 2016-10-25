@@ -9,3 +9,5 @@ NOTE: This script applies only to TEST and QA. Need to modify the user list when
 SET DEFINE OFF;
 
 UPDATE SECURITY_MATRIX SET ROLE_CODE = 'HWCU' WHERE USER_ID IN ('gxm577', 'kaftzr') AND ROLE_CODE = 'HWCUS';
+
+COMMIT;
