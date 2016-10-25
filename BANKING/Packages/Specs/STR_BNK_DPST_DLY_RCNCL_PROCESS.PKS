@@ -32,7 +32,8 @@ IN_DATE            IN         DATE);
 
 PROCEDURE PRIME_SUB_LOAD_PROCESS
 /******************************************************************************
-  This procedure will load the prime sub header and details from SRA1300 file
+  This procedure will load the intermediate table 
+  from MISCTRAN with prime sub and banking JV/IDI details
 
 Created : 10/10/2016 jxc517 CCN Project Team....
 Changed : 
