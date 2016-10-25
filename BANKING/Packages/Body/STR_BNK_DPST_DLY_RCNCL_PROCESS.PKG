@@ -1,5 +1,4 @@
-CREATE OR REPLACE
-PACKAGE BODY STR_BNK_DPST_DLY_RCNCL_PROCESS
+create or replace PACKAGE BODY STR_BNK_DPST_DLY_RCNCL_PROCESS
 AS
 /**********************************************************
   This Package contains procedure to perform the "Store Bank
@@ -350,7 +349,7 @@ END GENERATE_TRAILER;
 
 FUNCTION RETURN_REFEED_CODE(
 /*****************************************************************************
-	This function will return the refeed code from the Refeed_lookup_tb for the
+	This function will return the refeed code from the Refeed_lookup_tb for the 
   passed Tcode
 
 Created : 08/23/2016 nxk927 CCN Project....
@@ -632,7 +631,7 @@ Changed : 10/07/2015 nxk927 CCN Project....
         : 08/23/2016 nxk927 CCN Project....
           passing the bank account number from the misctran table instead of JV table
           using ACH_DRFTS_EXT_CTRL instead of ACH_DRFTS_EXTRCT_CNTRL_FL
-          and considering only those with BANK_AUTO_RECON_IND as 'Y'
+          and considering only those with BANK_AUTO_RECON_IND as 'Y'          
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -791,7 +790,7 @@ PROCEDURE LOAD_ACH_DRFTS_EXTRCT
   TEMP_LOAD_ACH_DRFTS_EXTRCT [using SRA10910 file]
 
 Created : 08/23/2016 nxk927 CCN Project....
-Changed :
+Changed : 
 *****************************************************************************/
 IS
     CURSOR ACH_INS_CUR IS
@@ -909,11 +908,11 @@ END LOAD_JV_EXTRCT_CNTRL_FL;
 
 PROCEDURE LOAD_MISCTRAN
 /*****************************************************************************
-  This procedure will load the data into UAR_MISCTRAN, MISCTRAN table from
+	This procedure will load the data into UAR_MISCTRAN, MISCTRAN table from
   TEMP_UAR_MISCTRAN [using UAR.MISCTRAN file]
 
 Created : 08/23/2016 nxk927 CCN Project....
-Changed :
+Changed : 
 *****************************************************************************/
 IS
     CURSOR JV_MISCTRAN IS
@@ -925,9 +924,9 @@ IS
                AREA,
                DIVISION,
                TRAN_SEQNUM,
-               DB_CR_CODE,
+               DB_CR_CODE,    
                SNZ_SAM_CODE,
-               TRUNC(SYSDATE) LOAD_DATE
+               TRUNC(SYSDATE) LOAD_DATE   
           FROM TEMP_UAR_MISCTRAN MT
           ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
           ---Usually they are sending the same data with the new data for a certain time
@@ -1008,6 +1007,7 @@ BEGIN
         --load the current MISCTRAN file for use in next run
         LOAD_MISCTRAN();
         DBMS_OUTPUT.PUT_LINE('LOAD_MISCTRAN : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+        
 
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --Load STR_BNK_DPST_DLY_RCNCL_TBL [Mark IV SRA10001 table]
@@ -1039,5 +1039,65 @@ EXCEPTION
                                    '222222',
                                    'OTHER');
 END EXECUTE_PROCESS;
+
+PROCEDURE PRIME_SUB_LOAD_PROCESS
+/******************************************************************************
+  This procedure will load the prime sub header and details from SRA1300 file
+
+Created : 10/10/2016 jxc517 CCN Project Team....
+Changed : 
+*******************************************************************************/
+IS
+    CURSOR main_cursor IS
+        SELECT MT.BANK_ACCOUNT_NBR,
+               (SELECT COST_CENTER_CODE
+                  FROM COST_CENTER
+                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(MT.COST_CENTER_CODE)
+                   AND ROWNUM < 2) AS COST_CENTER_CODE,
+               MT.AMOUNT,
+               MT.TRANSACTION_DATE,
+               MT.TCODE,
+               (SELECT NAME
+                  FROM PRIME_SUB_HEADER
+                 WHERE TCODE = MT.TCODE) TCODE_DESCRIPTION,
+               MT.TRAN_SEQNUM,
+               PSD.DB_CR_CODE AS DB_CR_CODE, --MT.DB_CR_CODE,
+               MT.SNZ_SAM_CODE,
+               MT.LOAD_DATE,
+               --prime sub will be different for OC/OD
+               PSD.PRIME_SUB || NVL(PSD.PRIME_SUB_COST_CENTER, MT.COST_CENTER_CODE) AS PRIME_SUB, 
+               BA.JV_BOOK_KEEPER_REF,
+               BA.JV_BANK_SHORT_NAME,
+               BA.IDI_BOOKKEEPER_REF,
+               BA.IDI_BANK_SHORT_NAME
+          FROM MISCTRAN MT,
+               PRIME_SUB_DETAIL PSD,
+               BANK_ACCOUNT BA
+         WHERE MT.TCODE            = PSD.TCODE(+)
+           AND MT.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
+           AND MT.LOAD_DATE        = TRUNC(SYSDATE);
+
+    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('PRIME_SUB_LOAD_PRCS', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP();
+    DELETE FROM MISCTRAN_DETAILS WHERE LOAD_DATE = TRUNC(SYSDATE);
+    FOR rec IN main_cursor LOOP
+        INSERT INTO MISCTRAN_DETAILS VALUES rec;
+    END LOOP;
+    COMMIT;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('PRIME_SUB_LOAD_PRCS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP();
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.PRIME_SUB_LOAD_PROCESS',
+                                   SQLERRM,
+                                   '2222222222',
+                                   '222222',
+                                   'OTHER');
+END PRIME_SUB_LOAD_PROCESS;
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
