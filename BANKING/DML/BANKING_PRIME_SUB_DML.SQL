@@ -58,7 +58,7 @@ DECLARE
          WHERE MT.TCODE            = PSD.TCODE(+)
            AND MT.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0);
 BEGIN
-    FOR rec IN LOOP
+    FOR rec IN main_cursor LOOP
         INSERT INTO MISCTRAN_DETAILS VALUES rec;
     END LOOP;
 END;
