@@ -754,7 +754,7 @@ revised : kdp 11/21/2013 Changed to return y/n
           MXK766 8/23/2016 Added logic to validate ADMINORG Hierarchy.
 ********************************************************************************/
     IN_HRCHY_HDR_NAME         VARCHAR2,
-    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR2
 IS
     V_HRCHY_DTL_CURR_ROW_VAL    VARCHAR2(100);
     V_START_POSITION            NUMBER := 1;
@@ -763,43 +763,34 @@ IS
     CC_HIERARCHY_MISSING  EXCEPTION;
     V_CODE                NUMBER;
     V_ERRTEXT             VARCHAR2(500);
-    V_ADMINORG_LVL_SIZE   PLS_INTEGER:=4;
     V_CHK                 PLS_INTEGER;
-    V_END_COUNTER         PLS_INTEGER;
 BEGIN
    --Loop through all the levels for the passed hierarchy header name excluding cost center level
    IF IN_HRCHY_HDR_NAME ='ADMINORG_HIERARCHY' THEN
-      V_END_COUNTER  :=  FLOOR(LENGTH(IN_HRCHY_DTL_CURR_LVL_VAL)/V_ADMINORG_LVL_SIZE);
-      FOR HRCHY_DTL_LEVEL_REC IN 1 .. V_END_COUNTER LOOP 
-        IF HRCHY_DTL_LEVEL_REC = V_END_COUNTER THEN
-           V_ADMINORG_LVL_SIZE := V_ADMINORG_LVL_SIZE+2;
-        END IF; 
-
-        V_HRCHY_DTL_CURR_ROW_VAL := SUBSTR(IN_HRCHY_DTL_CURR_LVL_VAL,
-                                           V_START_POSITION,
-                                           V_ADMINORG_LVL_SIZE); 
-
-        IF V_HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
+       --pass the input string to split the string into rows.
+       FOR REC IN (SELECT * FROM TABLE(COMMON_TOOLS.SPLIT_STRING_DATA(IN_HRCHY_HDR_NAME,IN_HRCHY_DTL_CURR_LVL_VAL)))
+       LOOP
+       --check for the existence of the level exception for the cost center.
+       IF LENGTH(REC.STR)<>6 THEN
            BEGIN
-                SELECT 1 INTO V_CHK
-                 FROM HIERARCHY_DETAIL
-                WHERE HRCHY_DTL_CURR_ROW_VAL = V_HRCHY_DTL_CURR_ROW_VAL
-                  AND HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
-                  AND HRCHY_DTL_LEVEL        = HRCHY_DTL_LEVEL_REC
-                  AND ROWNUM < 2;
+            SELECT 1 INTO V_CHK
+             FROM HIERARCHY_DETAIL
+            WHERE HRCHY_DTL_CURR_ROW_VAL = REC.STR
+              AND HRCHY_HDR_NAME         = IN_HRCHY_HDR_NAME
+              AND HRCHY_DTL_LEVEL        = REC.LVL
+              AND ROWNUM < 2;
            EXCEPTION
            WHEN NO_DATA_FOUND THEN
                 V_ERRTEXT := 'The hierarchy Data '''  ||
-                             ''' with value of '''    || V_HRCHY_DTL_CURR_ROW_VAL ||
+                             ''' with value of '''    || REC.STR ||
                              ''' doesn''t exists in ' || IN_HRCHY_HDR_NAME ||
-                             ' Structure at level '   || HRCHY_DTL_LEVEL_REC;
+                             ' Structure at level '   || REC.LVL;
                 RAISE CC_HIERARCHY_MISSING;
            END;
-        END IF;
-          V_START_POSITION := V_START_POSITION + V_ADMINORG_LVL_SIZE;
-       END LOOP; 
+       END IF;
+       END LOOP;
     ELSE
-    FOR rec IN (SELECT * 
+    FOR rec IN (SELECT *
                   FROM HIERARCHY_DESCRIPTION
                  WHERE HRCHY_HDR_NAME = IN_HRCHY_HDR_NAME
                    AND HRCHY_HDR_LVL_DESC <> 'Cost Center'
@@ -812,8 +803,7 @@ BEGIN
         
         --check if the record exists with the current row value and level in given hierarchy
         --if record doesn't exists, meaning the hierarchy is broken at that level
-        --corresponding error description is build here, if fails 
-        
+        --corresponding error description is build here, if fails
         BEGIN
             SELECT * INTO V_HIERARCHY_DETAIL_REC
               FROM HIERARCHY_DETAIL
@@ -829,7 +819,6 @@ BEGIN
                              ' Structure at level '   || rec.HRCHY_HDR_LVL_NBR;
                 RAISE CC_HIERARCHY_MISSING;
         END;
-
         --This starting position will be the one that is used in next iteration to calculate the current row value
         V_START_POSITION := V_START_POSITION + rec.LVL_VALUE_SIZE;
     END LOOP;
@@ -846,7 +835,6 @@ END VALIDATE_HIERARCHY;
 PROCEDURE VALIDATE_CC_SALES_MANAGER_LVL(
 /*******************************************************************************
  VALIDATE_CC_SALES_MANAGER_LVL
-
   This procedure will validate if the sales manager level is valid or not for
   the cost center that is being attached
 
@@ -1045,6 +1033,17 @@ RETURN VARCHAR2
 IS
     V_RETURN_VALUE VARCHAR2(1) := 'N';
 BEGIN
+
+    IF IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME='ADMINORG_HIERARCHY' THEN
+
+    SELECT DECODE(COUNT(*), 0, 'N', 'Y')
+      INTO V_RETURN_VALUE
+      FROM HIERARCHY_DETAIL_FUTURE
+     WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+       AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL
+       AND HRCHY_DTL_EFF_DATE     > TRUNC(SYSDATE);
+    ELSE
+
     SELECT DECODE(COUNT(*), 0, 'N', 'Y')
       INTO V_RETURN_VALUE
       FROM HIERARCHY_DETAIL_FUTURE
@@ -1053,10 +1052,43 @@ BEGIN
        AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL
        AND HRCHY_DTL_EFF_DATE     > TRUNC(SYSDATE);
 
+    END IF;
+
     RETURN V_RETURN_VALUE;
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VALUE;
 END IS_FTR_HRCHY_DTL_EXSTS;
+
+PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
+/*******************************************************************************
+  This procedure will validate the business rules for adminorg Hierarchy,
+  where duplication of a Cost Center in the same hierarchy is not allowed
+  created : 09/01/2016 MXK766 CCN Project....
+********************************************************************************/
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
+IN_COSTCENTER_YN        IN VARCHAR2)
+IS
+   V_COUNT         PLS_INTEGER := 0;
+   V_CC_EXISTS_ERR EXCEPTION;
+BEGIN
+   IF IN_COSTCENTER_YN ='Y' THEN
+      SELECT COUNT(1)
+      INTO  V_COUNT
+      FROM  HIERARCHY_DETAIL
+      WHERE HRCHY_HDR_NAME           = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND   HRCHY_DTL_CURR_ROW_VAL   = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+   ELSIF IN_COSTCENTER_YN='N' THEN
+      SELECT COUNT(1)
+      INTO V_COUNT
+      FROM  HIERARCHY_DETAIL
+      WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND   HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
+      AND   HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
+   END IF;
+   IF V_COUNT>0 THEN
+      RAISE V_CC_EXISTS_ERR;
+   END IF;
+END DUP_ADMINORG_LVL_VALIDATION;
 
 END CCN_HIER_BUSINESS_RULES_PKG;
