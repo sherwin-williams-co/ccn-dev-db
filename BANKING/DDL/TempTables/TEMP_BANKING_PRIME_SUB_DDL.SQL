@@ -2,6 +2,8 @@
 This script contains the DDLs for loading the prime sub header/details reference data
 
 Created : 10/10/2016 jxc517 CCN Project Team....
+Changed : 10/26/2016 jxc517 CCN Project Team....
+          Modified the names for the log/err/dsc files
 */
 BEGIN
   EXECUTE IMMEDIATE 'DROP TABLE TEMP_PRIME_SUB_HEADER_SRA13003';
@@ -25,9 +27,9 @@ END;
       DEFAULT DIRECTORY "BANKING_LOAD_FILES"
       ACCESS PARAMETERS
       ( RECORDS DELIMITED BY NEWLINE
-        badfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.bad'
-        logfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.log'
-        discardfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.dsc'
+        badfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_HEADER_SRA13003.bad'
+        logfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_HEADER_SRA13003.log'
+        discardfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_HEADER_SRA13003.dsc'
         LOAD WHEN ((43:44) = 'JV' OR (43:45) = 'IDI')
         FIELDS(
       A         CHAR(10),
@@ -69,9 +71,9 @@ END;
       DEFAULT DIRECTORY "BANKING_LOAD_FILES"
       ACCESS PARAMETERS
       ( RECORDS DELIMITED BY NEWLINE
-        badfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.bad'
-        logfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.log'
-        discardfile BANKING_LOAD_FILES:'HEADER_TESTING_SRA.dsc'
+        badfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_DETAIL_SRA13003.bad'
+        logfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_DETAIL_SRA13003.log'
+        discardfile BANKING_LOAD_FILES:'TEMP_PRIME_SUB_DETAIL_SRA13003.dsc'
         LOAD WHEN ((22:23) = 'CR' OR (22:23) = 'DR')
         FIELDS(
       A            CHAR(10),
