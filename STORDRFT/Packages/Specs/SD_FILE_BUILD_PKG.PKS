@@ -190,5 +190,14 @@ created : 04/27/2016 jxc517 CCN Project Team....
 changed : 
 **********************************************************/
 IN_DATE             IN     DATE);
-  
+
+PROCEDURE SD_INSTLLR_RETNGE_RFND_RPT(
+/******************************************************************************
+   This procedure will generate SD_INSTALLER_RETAINAGE_REFUND_RPT for every month
+   and send an email.
+Created : 10/25/2016 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_DATE             IN     DATE);
+
   END SD_FILE_BUILD_PKG;
