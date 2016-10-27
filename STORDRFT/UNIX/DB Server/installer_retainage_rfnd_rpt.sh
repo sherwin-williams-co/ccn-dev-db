@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################################################
-# Script name   : installer_retainage_rfnd.sh
+# Script name   : installer_retainage_rfnd_rpt.sh
 #
 # Description   : This shell program will generate installer retainage refund report
 #
@@ -10,7 +10,7 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc="installer_retainage_rfnd"
+proc="installer_retainage_rfnd_rpt"
 LOGDIR="$HOME/initLoad/logs"
 TIME=`date +"%H:%M:%S"`
 DATE=${JV_MNTLY_RUNDATE}
