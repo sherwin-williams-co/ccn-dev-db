@@ -1,4 +1,4 @@
-  CREATE OR REPLACE VIEW COST_CENTER_VW1
+  CREATE OR REPLACE VIEW COST_CENTER_VW
   AS
   SELECT
 /*******************************************************************************
