@@ -35,6 +35,15 @@ changed :
 *****************************************************************************/
 IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2;
 
+FUNCTION GET_CUSTOMER_VENDOR_NAME(
+/*****************************************************************************
+	This function will return the vendor name for the customer id passed in
+
+created : 10/28/2016 nxk927 CCN Project....
+changed :
+*****************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2;
+
 FUNCTION FORMAT_INPUT_FOR_FILE(
 /*****************************************************************************
 	FORMAT_INPUT_FOR_FILE
