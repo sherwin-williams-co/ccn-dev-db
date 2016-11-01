@@ -1,5 +1,43 @@
 CREATE OR REPLACE PACKAGE BODY COSTCNTR.CCN_HIERARCHY_UPLOAD
     AS
+PROCEDURE BUILD_HIERARCHY_XML_DATA_SP(
+/******************************************************************************
+This procedure builds the xml as clob for Hierarchy Insert Process based on
+input parameters
+
+Created : 10/31/2016 MXK766 CCN Project....
+Modified:
+******************************************************************************/
+                                      IN_STRING IN VARCHAR2,
+                                      OUT_XMLDATA OUT VARCHAR2,
+                                      OUT_TOTAL_LVL_SIZE OUT NUMBER
+                                      )
+IS
+V_LVL_SIZE       NUMBER;
+V_END_COUNTER    NUMBER;
+V_START_POSITION PLS_INTEGER :=1;
+V_OUTPUT_STRING  VARCHAR2(100);
+V_OUT_XMLDATA    VARCHAR2(32767);
+BEGIN
+
+     V_LVL_SIZE    := CCN_HIERARCHY.RETURN_LVL_VALUE_SIZE('ADMINORG_HIERARCHY','N');
+     V_END_COUNTER :=  FLOOR(LENGTH(IN_STRING)/V_LVL_SIZE);
+
+     FOR REC_COUNTER IN 1 .. V_END_COUNTER LOOP
+        IF REC_COUNTER = V_END_COUNTER THEN
+           V_LVL_SIZE := V_LVL_SIZE+2;
+        END IF;
+        --split logic
+        V_OUTPUT_STRING := SUBSTR(IN_STRING,V_START_POSITION,V_LVL_SIZE);
+        V_OUT_XMLDATA := V_OUT_XMLDATA || COMMON_TOOLS.BUILD_TAG(V_OUTPUT_STRING, 'HRCHY_LEVEL'||REC_COUNTER);
+        --increment the start position
+        V_START_POSITION := V_START_POSITION + V_LVL_SIZE;
+     END LOOP;
+
+     OUT_XMLDATA :=  V_OUT_XMLDATA;
+     OUT_TOTAL_LVL_SIZE := V_END_COUNTER;
+END BUILD_HIERARCHY_XML_DATA_SP;
+
 
 PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
 /******************************************************************************
@@ -185,7 +223,7 @@ BEGIN
 '         <upper_lvl_ver_desc>
          <Name>statement_type</Name> 
          <Description>pkListValue</Description> 
-         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value> 
+         <Value>'||NVL(V_CC_RECORD.STATEMENT_TYPE,'**')||'</Value>
          </upper_lvl_ver_desc>';
       IF IN_HIERARCHY_NAME IN ('ADMIN_TO_SALES_AREA','ADMIN_TO_SALES_DISTRICT','ADMIN_TO_SALES_DIVISION') THEN
           V_TO_CLOB := V_TO_CLOB ||
@@ -258,16 +296,14 @@ BEGIN
       --Get the Header Levels
        --Identify the number of to levels are there in the to level.
        --Adding 1 to include cost center as cost center is not included in the to comp key.
-      SELECT COUNT(1)+1
-      INTO   V_TO_LVL_SIZE
-      FROM   TABLE(COMMON_TOOLS.SPLIT_STRING_DATA('ADMINORG_HIERARCHY',IN_COMPOSITE_KEYVALUE));
-
+      BUILD_HIERARCHY_XML_DATA_SP(IN_COMPOSITE_KEYVALUE,V_TO_CLOB, V_TO_LVL_SIZE);
+      V_TO_LVL_SIZE := V_TO_LVL_SIZE+1;
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_TO_LVL_SIZE, 'HRCHY_DTL_LEVEL');
       --Building To Clob
       V_TO_CLOB := '';
-      FOR REC IN (SELECT * FROM TABLE(COMMON_TOOLS.SPLIT_STRING_DATA('ADMINORG_HIERARCHY',IN_COMPOSITE_KEYVALUE))) LOOP
-         V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(REC.STR, 'HRCHY_LEVEL'||REC.LVL);
-      END LOOP;
+      BUILD_HIERARCHY_XML_DATA_SP(IN_COMPOSITE_KEYVALUE,V_TO_CLOB, V_TO_LVL_SIZE);
+      V_TO_LVL_SIZE := V_TO_LVL_SIZE+1;
+
       V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_TO_LVL_SIZE);
 
       --get COST_CENTER_NAME from COST_CENTER table
@@ -354,32 +390,31 @@ AS
     V_TO_CLOB                  CLOB;
     V_CC_RECORD                COST_CENTER%ROWTYPE;
     V_TO_LVL_SIZE              PLS_INTEGER;
+    V_FROM_LVL_SIZE            PLS_INTEGER;
 BEGIN
       V_CLOB := '<HIERARCHY_DETAIL>';
       V_CLOB := V_CLOB || '<row_data>';
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(IN_HIERARCHY_NAME, 'HRCHY_HDR_NAME');
       --Identify the number of to levels are there in the to level.
       --Adding 1 to include cost center as cost center is not included in the to comp key.
-      SELECT COUNT(1) + 1
-      INTO   V_TO_LVL_SIZE
-      FROM   TABLE(COMMON_TOOLS.SPLIT_STRING_DATA('ADMINORG_HIERARCHY',IN_TO_COMPOSITE_KEYVALUE));
+
+      BUILD_HIERARCHY_XML_DATA_SP(IN_TO_COMPOSITE_KEYVALUE,V_TO_CLOB, V_TO_LVL_SIZE);
+      V_TO_LVL_SIZE := V_TO_LVL_SIZE+1;
 
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_TO_LVL_SIZE, 'HRCHY_DTL_LEVEL');
       --Build the FROM Tags.
       V_FROM_CLOB := '';
-      FOR REC IN (SELECT * FROM TABLE(COMMON_TOOLS.SPLIT_STRING_DATA('ADMINORG_HIERARCHY',IN_FROM_COMPOSITE_KEYVALUE))) LOOP
-         V_FROM_CLOB := V_FROM_CLOB || COMMON_TOOLS.BUILD_TAG(REC.STR, 'HRCHY_LEVEL'||REC.LVL);
-      END LOOP;
+
+      BUILD_HIERARCHY_XML_DATA_SP(IN_FROM_COMPOSITE_KEYVALUE,V_FROM_CLOB, V_FROM_LVL_SIZE);
 
       V_CLOB := V_CLOB || COMMON_TOOLS.BUILD_TAG(V_FROM_CLOB, 'FROM_HIERARCHY');
 
       V_CLOB := V_CLOB || '<TRANSFER_TO>';
       --Building To Clob
       V_TO_CLOB := '';
-      FOR REC IN (SELECT * FROM TABLE(COMMON_TOOLS.SPLIT_STRING_DATA('ADMINORG_HIERARCHY',IN_TO_COMPOSITE_KEYVALUE))) LOOP
-         V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(REC.STR, 'HRCHY_LEVEL'||REC.LVL);
-      END LOOP;
+      BUILD_HIERARCHY_XML_DATA_SP(IN_TO_COMPOSITE_KEYVALUE,V_TO_CLOB, V_TO_LVL_SIZE);
 
+      V_TO_LVL_SIZE := V_TO_LVL_SIZE+1;
       V_TO_CLOB := V_TO_CLOB || COMMON_TOOLS.BUILD_TAG(IN_CC_CODE, 'HRCHY_LEVEL'||V_TO_LVL_SIZE);
       --get COST_CENTER_NAME from COST_CENTER table
       SELECT * INTO V_CC_RECORD
