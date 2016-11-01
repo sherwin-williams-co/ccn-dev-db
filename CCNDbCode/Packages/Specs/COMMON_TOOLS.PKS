@@ -399,4 +399,18 @@ Modified:
     IN_ZIP_CODE        IN    VARCHAR2)
 RETURN VARCHAR2;
 
+FUNCTION IS_CC_SELLING_STORE(
+/**********************************************************
+This function will return true if passed cost center is a 
+selling store
+
+parameters:
+IN  IN_COST_CENTER
+
+created : 10/31/2016 sxh487 CCN Project
+modified: 
+**********************************************************/
+IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
+RETURN VARCHAR2;
+
 END COMMON_TOOLS;
