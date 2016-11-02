@@ -375,17 +375,6 @@ IN_PREV_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
 )
 RETURN XMLTYPE;
 
-FUNCTION SPLIT_STRING_DATA (
-/***********************************************************
-This function is used to split the string that is passed to it
-basing upon the delimiter.
-
-Created : 09/01/2016 MXK766 CCN Project
-Modified:
-************************************************************/
-IN_HIERARCHY_NAME  IN VARCHAR2,
-IN_STRING          IN VARCHAR2) RETURN TABLE_VARCHAR2 ;
-
 FUNCTION GET_FIPS_CODE(
 /*******************************************************************************
     This function will get the FIPS code based on state 
