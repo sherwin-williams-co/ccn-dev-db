@@ -4,17 +4,74 @@ create or replace PACKAGE BODY          CCN_PROCESSORS_PKG
 /*********************************************************** 
 This package contains procedures/functions to deal with processors
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Modified:
 ************************************************************/
 
-G_PROCESSOR_ID        NUMBER;
+FUNCTION IS_PROCESSOR_DELETE_ALLOWED(
+/*******************************************************************************
+	This function will check if a processor deletion is allowed or not
+  If a processor is linked with any group, deletion of that processor is not allowed
 
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_PROCESSOR_ID      IN       NUMBER)
+RETURN VARCHAR2
+IS
+    V_COUNT             NUMBER := 0;
+    V_RETURN_VALUE      VARCHAR2(1) := 'N';
+BEGIN
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM PROCESSOR_GROUPS
+         WHERE GROUP_ID IN (SELECT GROUP_ID
+                              FROM PRCSR_STR_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                             UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_STR_ADMN_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                             UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_CANADA_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                             UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_HEADQRTS_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                             UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_RETIREES_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                             UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_AUTO_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID
+                              UNION
+                            SELECT GROUP_ID
+                              FROM PRCSR_INTRNTL_GRP_DTLS
+                             WHERE PROCESSOR_ID = IN_PROCESSOR_ID);
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF V_COUNT = 0 THEN
+        V_RETURN_VALUE := 'Y';
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_PROCESSOR_DELETE_ALLOWED;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PROCESSORS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 PROCEDURE PROCESSORS_ROWTYPE_SP (
 /*******************************************************************************
 	This procedure is intended to build the PROCESSORS record type
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_TABLE_NAME  IN     VARCHAR2,
@@ -44,6 +101,10 @@ BEGIN
                     V_TEMP_ROW.PROCESSOR_NAME                        :=  V_ROW_VALUE;
                 WHEN 'PHONE_NUMBER' THEN
                     V_TEMP_ROW.PHONE_NUMBER                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
                 ELSE NULL;
             END CASE;
         END IF;
@@ -52,7 +113,6 @@ BEGIN
         SELECT NVL(MAX(PROCESSOR_ID), 0) +1
           INTO V_TEMP_ROW.PROCESSOR_ID
           FROM PROCESSORS;
-        G_PROCESSOR_ID := V_TEMP_ROW.PROCESSOR_ID;
     END IF;
     OUT_ROW_TYPE  := V_TEMP_ROW;
 EXCEPTION
@@ -60,57 +120,12 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
 END PROCESSORS_ROWTYPE_SP;
 
-PROCEDURE PROCESSOR_STATES_ROWTYPE_SP (
-/*******************************************************************************
-	This procedure is intended to build the PROCESSOR_STATES record type
-
-Created : 04/08/2016 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_TABLE_NAME  IN     VARCHAR2,
-    IN_ROW_DATA    IN     CLOB,
-    OUT_ROW_TYPE      OUT PROCESSOR_STATES%ROWTYPE)
-IS
-    CURSOR TABLE_FIELDS_CUR IS
-        SELECT COLUMN_NAME
-               ,DATA_LENGTH COLUMN_SIZE
-               ,DATA_TYPE
-          FROM ALL_TAB_COLUMNS
-         WHERE TABLE_NAME = IN_TABLE_NAME
-         ORDER BY COLUMN_ID ASC;
-
-    V_TEMP_ROW         PROCESSOR_STATES%ROWTYPE;
-    V_ROW_VALUE        VARCHAR2(500);
-    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
-BEGIN
-    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
-            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
-            CASE TABLE_FIELDS_REC.COLUMN_NAME
-                WHEN 'STATE_CODE' THEN
-                    V_TEMP_ROW.STATE_CODE                            :=  V_ROW_VALUE;
-                WHEN 'PROCESSOR_ID' THEN
-                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
-                ELSE NULL;
-            END CASE;
-        END IF;
-    END LOOP;
-    IF V_TEMP_ROW.PROCESSOR_ID IS NULL THEN
-       V_TEMP_ROW.PROCESSOR_ID := G_PROCESSOR_ID;
-    END IF;
-    OUT_ROW_TYPE  := V_TEMP_ROW;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_STATES_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
-END PROCESSOR_STATES_ROWTYPE_SP;
-
 PROCEDURE PROCESSORS_U_SP (
 /*******************************************************************************
 	This procedure is intended to update records into PROCESSORS table
   and push the current record into HIST_PROCESSORS table
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_ROW_DATA   IN     PROCESSORS%ROWTYPE)
@@ -122,8 +137,8 @@ BEGIN
       FROM PROCESSORS A
      WHERE PROCESSOR_ID = IN_ROW_DATA.PROCESSOR_ID;
 
-    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1)
-      OR NVL(V_HIST_ROW.PROCESSOR_NAME, 'X') <> NVL(IN_ROW_DATA.PROCESSOR_NAME, 'X')
+    --comes here only if processor name/phone number is updated
+    IF NVL(V_HIST_ROW.PROCESSOR_NAME, 'X') <> NVL(IN_ROW_DATA.PROCESSOR_NAME, 'X')
       OR NVL(V_HIST_ROW.PHONE_NUMBER, 'X') <> NVL(IN_ROW_DATA.PHONE_NUMBER, 'X')THEN
         UPDATE PROCESSORS
            SET ROW = IN_ROW_DATA
@@ -140,7 +155,7 @@ PROCEDURE PROCESSORS_I_SP (
 /*******************************************************************************
 	This procedure is intended to insert records into PROCESSORS table
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
@@ -159,132 +174,1297 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
 END PROCESSORS_I_SP;
 
-PROCEDURE PROCESSOR_STATES_U_SP (
+PROCEDURE PROCESSORS_D_SP (
 /*******************************************************************************
-	This procedure is intended to update records into PROCESSOR_STATES table
-  and push the current record into HIST_PROCESSOR_STATES table
+	This procedure is intended to delete records from PROCESSORS table
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_ROW_DATA   IN     PROCESSOR_STATES%ROWTYPE)
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
 IS
-    V_HIST_ROW      HIST_PROCESSOR_STATES%ROWTYPE;
+    V_TEMP_ROW            PROCESSORS%ROWTYPE;
+    V_HIST_ROW            HIST_PROCESSORS%ROWTYPE;
+    prcr_actv_in_group    EXCEPTION;
 BEGIN
-    SELECT A.*, SYSDATE
+    PROCESSORS_ROWTYPE_SP(IN_TABLE_NAME,
+                          IN_ROW_DATA,
+                          V_TEMP_ROW);
+
+    IF IS_PROCESSOR_DELETE_ALLOWED(V_TEMP_ROW.PROCESSOR_ID) = 'Y' THEN
+        SELECT A.*,
+               SYSDATE
+          INTO V_HIST_ROW
+          FROM PROCESSORS A
+         WHERE PROCESSOR_ID = V_TEMP_ROW.PROCESSOR_ID;
+
+        DELETE FROM PROCESSORS WHERE PROCESSOR_ID = V_TEMP_ROW.PROCESSOR_ID;
+
+        INSERT INTO HIST_PROCESSORS VALUES V_HIST_ROW;
+    ELSE
+        RAISE prcr_actv_in_group;
+    END IF;
+EXCEPTION
+    WHEN prcr_actv_in_group THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.en_prcr_actv_in_group,
+                         'CCN_PROCESSORS_PKG.PROCESSORS_D_SP',
+                         'Processor that is assigned within a group can not be deleted');
+        NULL;
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PROCESSORS_D_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_STR_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_STR_GRP_DTLS_ROWTYPE_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_STR_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_STR_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_STR_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                WHEN 'STATE_CODE' THEN
+                    V_TEMP_ROW.STATE_CODE                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_GRP_DTLS_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_GRP_DTLS_ROWTYPE_SP;
+
+PROCEDURE PRCSR_STR_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_STR_GRP_DTLS table
+  and push the current record into HIST_PRCSR_STR_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_STR_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_STR_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
       INTO V_HIST_ROW
-      FROM PROCESSOR_STATES A
-     WHERE STATE_CODE = IN_ROW_DATA.STATE_CODE;
+      FROM PRCSR_STR_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID
+       AND STATE_CODE    = IN_ROW_DATA.STATE_CODE;
 
-    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1)
-      OR NVL(V_HIST_ROW.STATE_CODE, 'X') <> NVL(IN_ROW_DATA.STATE_CODE, 'X') THEN
-        UPDATE PROCESSOR_STATES
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_STR_GRP_DTLS
            SET ROW = IN_ROW_DATA
-         WHERE STATE_CODE = IN_ROW_DATA.STATE_CODE;
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID
+           AND STATE_CODE    = IN_ROW_DATA.STATE_CODE;
 
-        INSERT INTO HIST_PROCESSOR_STATES VALUES V_HIST_ROW;
+        INSERT INTO HIST_PRCSR_STR_GRP_DTLS VALUES V_HIST_ROW;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_STATES_U_SP', SQLERRM);
-END PROCESSOR_STATES_U_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_STR_GRP_DTLS_U_SP;
 
-PROCEDURE PROCESSOR_STATES_I_SP (
+PROCEDURE PRCSR_STR_GRP_DTLS_I_SP (
 /*******************************************************************************
-	This procedure is intended to insert records into PROCESSOR_STATES table
+	This procedure is intended to insert records into PRCSR_STR_GRP_DTLS table
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
     IN_ROW_DATA   IN     CLOB)
 IS
-    V_TEMP_ROW       PROCESSOR_STATES%ROWTYPE;
+    V_TEMP_ROW       PRCSR_STR_GRP_DTLS%ROWTYPE;
 BEGIN
-    PROCESSOR_STATES_ROWTYPE_SP(IN_TABLE_NAME,
-                                IN_ROW_DATA,
-                                V_TEMP_ROW);
-    INSERT INTO PROCESSOR_STATES VALUES V_TEMP_ROW;
+    PRCSR_STR_GRP_DTLS_ROWTYPE_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+    INSERT INTO PRCSR_STR_GRP_DTLS VALUES V_TEMP_ROW;
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
-        PROCESSOR_STATES_U_SP(V_TEMP_ROW);
+        PRCSR_STR_GRP_DTLS_U_SP(V_TEMP_ROW);
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_STATES_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
-END PROCESSOR_STATES_I_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_GRP_DTLS_I_SP;
 
-PROCEDURE PROCESSOR_STATES_D_SP (
+PROCEDURE PRCSR_STR_GRP_DTLS_D_SP (
 /*******************************************************************************
-	This procedure is intended to insert records into PROCESSOR_STATES table
+	This procedure is intended to delete records from PRCSR_STR_GRP_DTLS table
 
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
     IN_ROW_DATA   IN     CLOB)
 IS
-    V_TEMP_ROW       PROCESSOR_STATES%ROWTYPE;
-    V_HIST_ROW       HIST_PROCESSOR_STATES%ROWTYPE;
+    V_TEMP_ROW       PRCSR_STR_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_STR_GRP_DTLS%ROWTYPE;
 BEGIN
-    PROCESSOR_STATES_ROWTYPE_SP(IN_TABLE_NAME,
-                                IN_ROW_DATA,
-                                V_TEMP_ROW);
+    PRCSR_STR_GRP_DTLS_ROWTYPE_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
 
-    SELECT A.*, SYSDATE
+    SELECT A.*,
+           SYSDATE
       INTO V_HIST_ROW
-      FROM PROCESSOR_STATES A
-     WHERE STATE_CODE = V_TEMP_ROW.STATE_CODE;
+      FROM PRCSR_STR_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID
+       AND STATE_CODE     = V_TEMP_ROW.STATE_CODE;
 
     DELETE
-      FROM PROCESSOR_STATES
-     WHERE STATE_CODE = V_TEMP_ROW.STATE_CODE;
+      FROM PRCSR_STR_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID
+       AND STATE_CODE    = V_TEMP_ROW.STATE_CODE;
+
+    INSERT INTO HIST_PRCSR_STR_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_STR_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_STR_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_STR_GRP_DTLS_TBL/PRCSR_STR_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_STR_GRP_DTLS_I_SP('PRCSR_STR_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_STR_GRP_DTLS_D_SP('PRCSR_STR_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_STR_GRP_DTLS_TBL/PRCSR_STR_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_STR_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_STR_ADMN_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_STR_ADMN_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_STR_ADMN_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_ADMN_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_ADMN_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_STR_ADMN_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_STR_ADMN_GRP_DTLS table
+  and push the current record into HIST_PRCSR_STR_ADMN_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_STR_ADMN_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_STR_ADMN_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_STR_ADMN_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_ADMN_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_STR_ADMN_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_STR_ADMN_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_STR_ADMN_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_STR_ADMN_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+    INSERT INTO PRCSR_STR_ADMN_GRP_DTLS VALUES V_TEMP_ROW;
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
-        PROCESSOR_STATES_U_SP(V_TEMP_ROW);
+        PRCSR_STR_ADMN_GRP_DTLS_U_SP(V_TEMP_ROW);
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_STATES_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
-END PROCESSOR_STATES_D_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_ADMN_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_ADMN_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_STR_ADMN_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_STR_ADMN_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_STR_ADMN_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_STR_ADMN_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_STR_ADMN_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_STR_ADMN_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_STR_ADMN_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_ADMN_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_STR_ADMN_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_STR_ADMN_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_STR_ADMN_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_STR_ADMN_GRP_DTLS_TBL/PRCSR_STR_ADMN_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_STR_ADMN_GRP_DTLS_I_SP('PRCSR_STR_ADMN_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_STR_ADMN_GRP_DTLS_D_SP('PRCSR_STR_ADMN_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_STR_ADMN_GRP_DTLS_TBL/PRCSR_STR_ADMN_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_STR_ADMN_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_STR_ADMN_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_CANADA_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_CANADA_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_CANADA_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_CANADA_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_CANADA_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_CANADA_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_CANADA_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_CANADA_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_CANADA_GRP_DTLS table
+  and push the current record into HIST_PRCSR_CANADA_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_CANADA_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_CANADA_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_CANADA_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_CANADA_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_CANADA_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_CANADA_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_CANADA_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_CANADA_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_CANADA_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_CANADA_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_CANADA_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                IN_ROW_DATA,
+                                V_TEMP_ROW);
+    INSERT INTO PRCSR_CANADA_GRP_DTLS VALUES V_TEMP_ROW;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        PRCSR_CANADA_GRP_DTLS_U_SP(V_TEMP_ROW);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_CANADA_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_CANADA_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_CANADA_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_CANADA_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_CANADA_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_CANADA_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_CANADA_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                IN_ROW_DATA,
+                                V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_CANADA_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_CANADA_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_CANADA_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_CANADA_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_CANADA_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_CANADA_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_CANADA_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_CANADA_GRP_DTLS_TBL/PRCSR_CANADA_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_CANADA_GRP_DTLS_I_SP('PRCSR_CANADA_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_CANADA_GRP_DTLS_D_SP('PRCSR_CANADA_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_CANADA_GRP_DTLS_TBL/PRCSR_CANADA_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_CANADA_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_CANADA_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_HEADQRTS_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_HEADQRTS_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_HEADQRTS_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_HEADQRTS_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_HEADQRTS_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_HEADQRTS_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_HEADQRTS_GRP_DTLS table
+  and push the current record into HIST_PRCSR_HEADQRTS_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_HEADQRTS_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_HEADQRTS_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_HEADQRTS_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_HEADQRTS_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_HEADQRTS_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_HEADQRTS_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_HEADQRTS_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_HEADQRTS_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+    INSERT INTO PRCSR_HEADQRTS_GRP_DTLS VALUES V_TEMP_ROW;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        PRCSR_HEADQRTS_GRP_DTLS_U_SP(V_TEMP_ROW);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_HEADQRTS_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_HEADQRTS_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_HEADQRTS_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_HEADQRTS_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_HEADQRTS_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_HEADQRTS_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_HEADQRTS_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_HEADQRTS_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_HEADQRTS_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_HEADQRTS_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_HEADQRTS_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_HEADQRTS_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_HEADQRTS_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_HEADQRTS_GRP_DTLS_TBL/PRCSR_HEADQRTS_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_HEADQRTS_GRP_DTLS_I_SP('PRCSR_HEADQRTS_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_HEADQRTS_GRP_DTLS_D_SP('PRCSR_HEADQRTS_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_HEADQRTS_GRP_DTLS_TBL/PRCSR_HEADQRTS_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_HEADQRTS_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_HEADQRTS_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_RETIREES_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_RETIREES_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_RETIREES_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_RETIREES_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_RETIREES_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_RETIREES_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_RETIREES_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_RETIREES_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_RETIREES_GRP_DTLS table
+  and push the current record into HIST_PRCSR_RETIREES_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_RETIREES_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_RETIREES_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_RETIREES_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_RETIREES_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_RETIREES_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_RETIREES_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_RETIREES_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_RETIREES_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_RETIREES_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_RETIREES_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_RETIREES_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+    INSERT INTO PRCSR_RETIREES_GRP_DTLS VALUES V_TEMP_ROW;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        PRCSR_RETIREES_GRP_DTLS_U_SP(V_TEMP_ROW);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_RETIREES_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_RETIREES_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_RETIREES_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_RETIREES_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_RETIREES_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_RETIREES_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_RETIREES_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                  IN_ROW_DATA,
+                                  V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_RETIREES_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_RETIREES_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_RETIREES_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_RETIREES_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_RETIREES_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_RETIREES_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_RETIREES_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_RETIREES_GRP_DTLS_TBL/PRCSR_RETIREES_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_RETIREES_GRP_DTLS_I_SP('PRCSR_RETIREES_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_RETIREES_GRP_DTLS_D_SP('PRCSR_RETIREES_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_RETIREES_GRP_DTLS_TBL/PRCSR_RETIREES_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_RETIREES_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_RETIREES_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_AUTO_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_AUTO_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_AUTO_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_AUTO_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_AUTO_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_AUTO_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_AUTO_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_AUTO_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_AUTO_GRP_DTLS table
+  and push the current record into HIST_PRCSR_AUTO_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_AUTO_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_AUTO_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_AUTO_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_AUTO_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_AUTO_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_AUTO_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_AUTO_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_AUTO_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_AUTO_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_AUTO_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_AUTO_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                              IN_ROW_DATA,
+                              V_TEMP_ROW);
+    INSERT INTO PRCSR_AUTO_GRP_DTLS VALUES V_TEMP_ROW;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        PRCSR_AUTO_GRP_DTLS_U_SP(V_TEMP_ROW);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_AUTO_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_AUTO_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_AUTO_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_AUTO_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_AUTO_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_AUTO_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_AUTO_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                              IN_ROW_DATA,
+                              V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_AUTO_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_AUTO_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_AUTO_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_AUTO_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_AUTO_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_AUTO_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_AUTO_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_AUTO_GRP_DTLS_TBL/PRCSR_AUTO_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_AUTO_GRP_DTLS_I_SP('PRCSR_AUTO_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_AUTO_GRP_DTLS_D_SP('PRCSR_AUTO_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_AUTO_GRP_DTLS_TBL/PRCSR_AUTO_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_AUTO_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_AUTO_GRP_DTLS_IU_SP;
+
+-->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>PRCSR_INTRNTL_GRP_DTLS table<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+PROCEDURE PRCSR_INTRNTL_GRP_DTLS_RT_SP (
+/*******************************************************************************
+	This procedure is intended to build the PRCSR_INTRNTL_GRP_DTLS record type
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME  IN     VARCHAR2,
+    IN_ROW_DATA    IN     CLOB,
+    OUT_ROW_TYPE      OUT PRCSR_INTRNTL_GRP_DTLS%ROWTYPE)
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME
+               ,DATA_LENGTH COLUMN_SIZE
+               ,DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TEMP_ROW         PRCSR_INTRNTL_GRP_DTLS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
+    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
+            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+            CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'GROUP_ID' THEN
+                    V_TEMP_ROW.GROUP_ID                              :=  V_ROW_VALUE;
+                WHEN 'PROCESSOR_ID' THEN
+                    V_TEMP_ROW.PROCESSOR_ID                          :=  V_ROW_VALUE;
+                WHEN 'EFFECTIVE_DATE' THEN
+                    V_TEMP_ROW.EFFECTIVE_DATE                        :=  TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
+                WHEN 'CREATED_BY' THEN
+                    V_TEMP_ROW.CREATED_BY                            :=  V_ROW_VALUE;
+                ELSE NULL;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_ROW_TYPE  := V_TEMP_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_INTRNTL_GRP_DTLS_RT_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_INTRNTL_GRP_DTLS_RT_SP;
+
+PROCEDURE PRCSR_INTRNTL_GRP_DTLS_U_SP (
+/*******************************************************************************
+	This procedure is intended to update records into PRCSR_INTRNTL_GRP_DTLS table
+  and push the current record into HIST_PRCSR_INTRNTL_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     PRCSR_INTRNTL_GRP_DTLS%ROWTYPE)
+IS
+    V_HIST_ROW      HIST_PRCSR_INTRNTL_GRP_DTLS%ROWTYPE;
+BEGIN
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_INTRNTL_GRP_DTLS A
+     WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+    IF NVL(V_HIST_ROW.PROCESSOR_ID, -1) <> NVL(IN_ROW_DATA.PROCESSOR_ID, -1) THEN
+        UPDATE PRCSR_INTRNTL_GRP_DTLS
+           SET ROW = IN_ROW_DATA
+         WHERE GROUP_ID      = IN_ROW_DATA.GROUP_ID;
+
+        INSERT INTO HIST_PRCSR_INTRNTL_GRP_DTLS VALUES V_HIST_ROW;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_INTRNTL_GRP_DTLS_U_SP', SQLERRM);
+END PRCSR_INTRNTL_GRP_DTLS_U_SP;
+
+PROCEDURE PRCSR_INTRNTL_GRP_DTLS_I_SP (
+/*******************************************************************************
+	This procedure is intended to insert records into PRCSR_INTRNTL_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_INTRNTL_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_INTRNTL_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                 IN_ROW_DATA,
+                                 V_TEMP_ROW);
+    INSERT INTO PRCSR_INTRNTL_GRP_DTLS VALUES V_TEMP_ROW;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        PRCSR_INTRNTL_GRP_DTLS_U_SP(V_TEMP_ROW);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_INTRNTL_GRP_DTLS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_INTRNTL_GRP_DTLS_I_SP;
+
+PROCEDURE PRCSR_INTRNTL_GRP_DTLS_D_SP (
+/*******************************************************************************
+	This procedure is intended to delete records from PRCSR_INTRNTL_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_TABLE_NAME IN     VARCHAR2,
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_TEMP_ROW       PRCSR_INTRNTL_GRP_DTLS%ROWTYPE;
+    V_HIST_ROW       HIST_PRCSR_INTRNTL_GRP_DTLS%ROWTYPE;
+BEGIN
+    PRCSR_INTRNTL_GRP_DTLS_RT_SP(IN_TABLE_NAME,
+                                 IN_ROW_DATA,
+                                 V_TEMP_ROW);
+
+    SELECT A.*,
+           SYSDATE
+      INTO V_HIST_ROW
+      FROM PRCSR_INTRNTL_GRP_DTLS A
+     WHERE GROUP_ID       = V_TEMP_ROW.GROUP_ID;
+
+    DELETE
+      FROM PRCSR_INTRNTL_GRP_DTLS
+     WHERE GROUP_ID      = V_TEMP_ROW.GROUP_ID;
+
+    INSERT INTO HIST_PRCSR_INTRNTL_GRP_DTLS VALUES V_HIST_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_INTRNTL_GRP_DTLS_D_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
+END PRCSR_INTRNTL_GRP_DTLS_D_SP;
+
+PROCEDURE PRCSR_INTRNTL_GRP_DTLS_IU_SP (
+/*******************************************************************************
+	This procedure is intended to insert/update/delete records from PRCSR_INTRNTL_GRP_DTLS table
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ROW_DATA   IN     CLOB)
+IS
+    V_ROW_DATA                XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_PROCESSOR_DETAILS_FRAG  CLOB;
+    V_PROCESSOR_DETAILS_COUNT NUMBER := 1;
+    V_EXTRACT_STRING          VARCHAR2(1000);
+    V_DELETE_FLAG             VARCHAR2(1);
+BEGIN
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_INTRNTL_GRP_DTLS_TBL/PRCSR_INTRNTL_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSOR_DETAILS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
+        --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PRCSR_INTRNTL_GRP_DTLS_I_SP('PRCSR_INTRNTL_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        ELSE
+            PRCSR_INTRNTL_GRP_DTLS_D_SP('PRCSR_INTRNTL_GRP_DTLS', V_PROCESSOR_DETAILS_FRAG);
+        END IF;
+        V_PROCESSOR_DETAILS_COUNT := V_PROCESSOR_DETAILS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PRCSR_INTRNTL_GRP_DTLS_TBL/PRCSR_INTRNTL_GRP_DTLS[' || V_PROCESSOR_DETAILS_COUNT || ']';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_INTRNTL_GRP_DTLS_IU_SP Error : ' || SQLERRM);
+END PRCSR_INTRNTL_GRP_DTLS_IU_SP;
 
 PROCEDURE ALL_PROCESSOR_DTLS_S_SP (
 /******************************************************************************
 This procedure is intended to return a ref cursor with data from 
-from the PROCESSORS and PROCESSOR_STATES tables.  
+from the PROCESSORS, PROCESSOR_PHONE, and PROCESSOR_STATES tables.  
 
 Created : 04/08/2016 jxc517 CCN Project....
-Changed : 
+Changed : 10/18/2016 jxc517 CCN Project....
+          Added/Modified the parameters as per new model
 ********************************************************************************/
-    O_PROCESSORS           OUT      SYS_REFCURSOR,
-    O_PROCESSOR_STATES     OUT      SYS_REFCURSOR)
+    O_PROCESSORS                  OUT      SYS_REFCURSOR,
+    O_PROCESSOR_GROUPS            OUT      SYS_REFCURSOR,
+    O_PRCSR_STR_GRP_DTLS          OUT      SYS_REFCURSOR,
+    O_PRCSR_STR_ADMN_GRP_DTLS     OUT      SYS_REFCURSOR,
+    O_PRCSR_CANADA_GRP_DTLS       OUT      SYS_REFCURSOR,
+    O_PRCSR_HEADQRTS_GRP_DTLS     OUT      SYS_REFCURSOR,
+    O_PRCSR_RETIREES_GRP_DTLS     OUT      SYS_REFCURSOR,
+    O_PRCSR_AUTO_GRP_DTLS         OUT      SYS_REFCURSOR,
+    O_PRCSR_INTRNTL_GRP_DTLS      OUT      SYS_REFCURSOR)
 IS
 BEGIN
-    /**  Call PROCESSORS Reference Cursor  ***/
     OPEN O_PROCESSORS FOR
-        SELECT *
-          FROM PROCESSORS
-         ORDER BY PROCESSOR_ID;  
+        SELECT * FROM PROCESSORS ORDER BY PROCESSOR_ID;  
 
-    /**  Call PROCESSOR_STATES Reference Cursor  ***/
-    OPEN O_PROCESSOR_STATES FOR
-        SELECT *
-          FROM PROCESSOR_STATES
-         ORDER BY PROCESSOR_ID, STATE_CODE;
+    OPEN O_PROCESSOR_GROUPS FOR
+        SELECT * FROM PROCESSOR_GROUPS ORDER BY GROUP_ID;
+
+    OPEN O_PRCSR_STR_GRP_DTLS FOR
+        SELECT * FROM PRCSR_STR_GRP_DTLS ORDER BY GROUP_ID, PROCESSOR_ID;         
+
+    OPEN O_PRCSR_STR_ADMN_GRP_DTLS FOR
+        SELECT * FROM PRCSR_STR_ADMN_GRP_DTLS ORDER BY GROUP_ID;
+
+    OPEN O_PRCSR_CANADA_GRP_DTLS FOR
+        SELECT * FROM PRCSR_CANADA_GRP_DTLS ORDER BY GROUP_ID;
+
+    OPEN O_PRCSR_HEADQRTS_GRP_DTLS FOR
+        SELECT * FROM PRCSR_HEADQRTS_GRP_DTLS ORDER BY GROUP_ID;
+
+    OPEN O_PRCSR_RETIREES_GRP_DTLS FOR
+        SELECT * FROM PRCSR_RETIREES_GRP_DTLS ORDER BY GROUP_ID;
+
+    OPEN O_PRCSR_INTRNTL_GRP_DTLS FOR
+        SELECT * FROM PRCSR_INTRNTL_GRP_DTLS ORDER BY GROUP_ID;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'ALL_PROCESSOR_DTLS_S_SP Error : ' || SQLERRM);   
+        ERRPKG.RAISE_ERR(SQLCODE, 'ALL_PROCESSOR_DTLS_S_SP Error : ' || SQLERRM);
 END ALL_PROCESSOR_DTLS_S_SP;
 
-PROCEDURE PROCESSOR_UI_UPSERT_SP (
+PROCEDURE PROCESSORS_UI_UPSERT_SP (
 /******************************************************************************
 This procedure is intended to insert/update/delete data from 
-from the PROCESSORS and PROCESSOR_STATES tables.
+from the PROCESSORS tables
 
-1. New record
-    need to pass the newly created processor_id to states table as UI won't know te value then
-2. Update record
-    need to pass the existing record into history before update
-3. Delete record
-    need to pass the existing record into history before delete
-
-Created : 04/08/2016 jxc517 CCN Project....
+Created : 10/18/2016 jxc517 CCN Project....
 Changed : 
 ********************************************************************************/
     IN_XML         IN            CLOB)
@@ -295,34 +1475,72 @@ IS
     V_PROCESSORS_COUNT       NUMBER := 1;
     V_PROCESSOR_STATES_COUNT NUMBER := 1;
     V_DELETE_FLAG            VARCHAR2(1);
+    V_EXTRACT_STRING         VARCHAR2(1000);
 BEGIN
     --Loop through and insert/update the data accordingly
-    WHILE V_ROW_DATA.EXISTSNODE('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']') = 1 LOOP
-        V_PROCESSORS_FRAG := V_ROW_DATA.EXTRACT('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']').GETCLOBVAL();
+    V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']';
+    WHILE V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING) = 1 LOOP
+        V_PROCESSORS_FRAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING).GETCLOBVAL();
         --DBMS_OUTPUT.PUT_LINE(V_PROCESSORS_FRAG);
-        PROCESSORS_I_SP('PROCESSORS', V_PROCESSORS_FRAG);
-
-        WHILE V_ROW_DATA.EXISTSNODE('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']/PROCESSOR_STATES_TABLE/PROCESSOR_STATES[' || V_PROCESSOR_STATES_COUNT || ']') = 1 LOOP
-            V_PROCESSOR_STATES_FRAG := V_ROW_DATA.EXTRACT('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']/PROCESSOR_STATES_TABLE/PROCESSOR_STATES[' || V_PROCESSOR_STATES_COUNT || ']').GETCLOBVAL();
-            IF V_ROW_DATA.EXISTSNODE('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']/PROCESSOR_STATES_TABLE/PROCESSOR_STATES[' || V_PROCESSOR_STATES_COUNT || ']/DELETE_FLAG//text()') = 1 THEN
-                V_DELETE_FLAG := V_ROW_DATA.EXTRACT('/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']/PROCESSOR_STATES_TABLE/PROCESSOR_STATES[' || V_PROCESSOR_STATES_COUNT || ']/DELETE_FLAG//text()').GETSTRINGVAL();
-            ELSE
-                V_DELETE_FLAG := 'N';
-            END IF;
-            --DBMS_OUTPUT.PUT_LINE(V_PROCESSOR_STATES_FRAG);
-            IF TRIM(V_DELETE_FLAG) = 'N' THEN
-                PROCESSOR_STATES_I_SP('PROCESSOR_STATES', V_PROCESSOR_STATES_FRAG);
-            ELSE
-                PROCESSOR_STATES_D_SP('PROCESSOR_STATES', V_PROCESSOR_STATES_FRAG);
-            END IF;
-            V_PROCESSOR_STATES_COUNT := V_PROCESSOR_STATES_COUNT + 1;
-        END LOOP;
+        IF V_ROW_DATA.EXISTSNODE(V_EXTRACT_STRING || '/DELETE_FLAG//text()') = 1 THEN
+            V_DELETE_FLAG := V_ROW_DATA.EXTRACT(V_EXTRACT_STRING || '/DELETE_FLAG//text()').GETSTRINGVAL();
+        ELSE
+            V_DELETE_FLAG := 'N';
+        END IF;
+        IF TRIM(V_DELETE_FLAG) = 'N' THEN
+            PROCESSORS_I_SP('PROCESSORS', V_PROCESSORS_FRAG);
+        ELSE
+            PROCESSORS_D_SP('PROCESSORS', V_PROCESSORS_FRAG);
+        END IF;
         V_PROCESSORS_COUNT := V_PROCESSORS_COUNT + 1;
+        V_EXTRACT_STRING := '/PROCESSORS_UI_UPSERT/PROCESSORS[' || V_PROCESSORS_COUNT || ']';
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_UI_UPSERT_SP Error : ' || SQLERRM);
-END PROCESSOR_UI_UPSERT_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_UI_UPSERT_SP Error : ' || SQLERRM);
+END PROCESSORS_UI_UPSERT_SP;
+
+PROCEDURE PRCSR_GRP_DTLS_UI_UPSERT_SP (
+/******************************************************************************
+This procedure is intended to insert/update/delete data from 
+from the below group detail tables.
+
+PRCSR_STR_ADMN_GRP_DTLS
+PRCSR_CANADA_GRP_DTLS
+PRCSR_HEADQRTS_GRP_DTLS
+PRCSR_RETIREES_GRP_DTLS
+PRCSR_AUTO_GRP_DTLS
+PRCSR_INTRNTL_GRP_DTLS
+
+Created : 10/18/2016 jxc517 CCN Project....
+Changed : 
+********************************************************************************/
+    IN_XML         IN            CLOB)
+IS
+BEGIN
+    --PRCSR_STR_GRP_DTLS records processing
+    PRCSR_STR_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_STR_ADMN_GRP_DTLS records processing
+    PRCSR_STR_ADMN_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_CANADA_GRP_DTLS records processing
+    PRCSR_CANADA_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_HEADQRTS_GRP_DTLS records processing
+    PRCSR_HEADQRTS_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_RETIREES_GRP_DTLS records processing
+    PRCSR_RETIREES_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_AUTO_GRP_DTLS records processing
+    PRCSR_AUTO_GRP_DTLS_IU_SP(IN_XML);
+
+    --PRCSR_INTRNTL_GRP_DTLS records processing
+    PRCSR_INTRNTL_GRP_DTLS_IU_SP(IN_XML);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRCSR_GRP_DTLS_UI_UPSERT_SP Error : ' || SQLERRM);
+END PRCSR_GRP_DTLS_UI_UPSERT_SP;
 
 END CCN_PROCESSORS_PKG;
-
