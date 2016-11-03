@@ -31,10 +31,12 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Git reversion just to move the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
            ahead of other code
          : 10/28/2016 nxk927 CCN Project Team..
-		   GIT reversion after moving the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
-		 : 11/03/2016 axk326 CCN Project Team..
-		   Git reversion just to move the TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC fields
+           GIT reversion after moving the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
+         : 11/03/2016 axk326 CCN Project Team..
+           Git reversion just to move the TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC fields
            ahead of other code
+         : 11/03/2016 axk326 CCN Project Team..
+           GIT reversion after moving TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC
 ********************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -60,6 +62,11 @@ NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('SCD_LOGO_GROUP_IND','COD',S
 COLOR_CONSULTANT_TYPE,
 PCC_PCL_STORE,
 COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
+CCN_HIERARCHY.GET_TYPE_FNC(C.COST_CENTER_CODE) TYPE_CODE,
+(SELECT STATUS_CODE
+   FROM STATUS
+  WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+    AND EXPIRATION_DATE IS NULL) STATUS_CODE,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
