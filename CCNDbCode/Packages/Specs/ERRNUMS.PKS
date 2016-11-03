@@ -2746,6 +2746,19 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
 /*********************************************************** 
+The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
+This error will state that the future address is having effective date 
+less than or equal to current date
+
+Created  : 04/20/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_ftr_adr_efctv_dt_err CONSTANT NUMBER := -20537;
+exc_invld_ftr_adr_efctv_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_ftr_adr_efctv_dt_err , -20537);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2813,5 +2826,18 @@ en_non_cn_ac_prmry_std_cc_ind CONSTANT NUMBER := -20168;
 exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
+
+/*********************************************************** 
+The "en_prcr_actv_in_group" passes a numerical error of -20169
+This error will state that a processor is active for a group and 
+can not be deleted
+
+Created  : 10/19/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_prcr_actv_in_group CONSTANT NUMBER := -20169;
+exc_prcr_actv_in_group EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_prcr_actv_in_group , -20169);
 
 END ERRNUMS;
