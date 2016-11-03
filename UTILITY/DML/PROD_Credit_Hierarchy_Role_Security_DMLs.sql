@@ -104,9 +104,9 @@ Insert into SECURITY_MATRIX values ('jxc517','jxc517','HWCUS');
 Insert into SECURITY_MATRIX values ('sxh487','sxh487','HWCUS');
 Insert into SECURITY_MATRIX values ('nxk927','nxk927','HWCUS');
 Insert into SECURITY_MATRIX values ('axk326','axk326','HWCUS');
-Insert into SECURITY_MATRIX values ('dxv848','dxv848','HWCUS');
-Insert into SECURITY_MATRIX values ('axd783','axd783','HWCUS');
-Insert into SECURITY_MATRIX values ('mxr916','mxr916','HWCUS');
+Insert into SECURITY_MATRIX values ('vxv336','vxv336','HWCUS');
+Insert into SECURITY_MATRIX values ('mxk766','mxk766','HWCUS');
+Insert into SECURITY_MATRIX values ('gxg192','gxg192','HWCUS');
 
 Insert into SECURITY_MATRIX values ('sxk696','sxk696','HWCUS');
 Insert into SECURITY_MATRIX values ('axc415','what','HWCUS');
