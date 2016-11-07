@@ -1008,7 +1008,6 @@ BEGIN
         LOAD_MISCTRAN();
         DBMS_OUTPUT.PUT_LINE('LOAD_MISCTRAN : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
         
-
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --Load STR_BNK_DPST_DLY_RCNCL_TBL [Mark IV SRA10001 table]
         LOAD_STR_BNK_DPST_DLY_RCNCL_TB(IN_DATE);
@@ -1039,6 +1038,178 @@ EXCEPTION
                                    '222222',
                                    'OTHER');
 END EXECUTE_PROCESS;
+
+PROCEDURE LOAD_OVERSHRT
+/*****************************************************************************
+	This procedure will load the data into UAR_OVERSHRT, OVERSHRT table from
+  TEMP_UAR_OVERSHRT [using UAR.OVERSHRT file]
+
+Created : 10/27/2016 jxc517 CCN Project....
+Changed : 
+*****************************************************************************/
+IS
+    CURSOR CFA_OVERSHRT IS
+        SELECT COST_CENTER_CODE,
+               AMOUNT,
+               TO_DATE(TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
+               TCODE,
+               DISTRICT,
+               AREA,
+               DIVISION,
+               TRAN_SEQNUM,
+               TRAN_CODE,    
+               TO_DATE(TRAN_DATE1,'YYMMDD') TRAN_DATE1,
+               UNKNOWN_FIELD,
+               CODE1,
+               TRUNC(SYSDATE) LOAD_DATE   
+          FROM TEMP_UAR_OVERSHRT MT
+          ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
+          ---Usually they are sending the same data with the new data for a certain time
+          ---this should not be sent
+         WHERE NOT EXISTS (SELECT 1
+                             FROM UAR_OVERSHRT
+                            WHERE COST_CENTER_CODE        = MT.COST_CENTER_CODE
+                              AND TRAN_SEQNUM             = MT.TRAN_SEQNUM
+                              AND NVL(TCODE, 'AAA')       = NVL(MT.TCODE,'AAA')
+                              AND AMOUNT                  = MT.AMOUNT
+                              AND TRANSACTION_DATE        = TO_DATE(MT.TRANSACTION_DATE,'YYMMDD')
+                              AND NVL(TRAN_CODE,'X')      = NVL(MT.TRAN_CODE,'X')
+                              AND NVL(UNKNOWN_FIELD,'X')  = NVL(MT.UNKNOWN_FIELD,'X')
+                              AND NVL(CODE1,'A')          = NVL(MT.CODE1,'A'));
+    V_COUNT NUMBER := 0;
+    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
+    V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+BEGIN
+    FOR rec IN CFA_OVERSHRT LOOP
+        INSERT INTO UAR_OVERSHRT VALUES rec;
+        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
+                             V_LEAD_BANK_CC_REC);
+        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
+        INSERT INTO OVERSHRT VALUES (V_BANK_ACCOUNT_NBR,
+                                     rec.COST_CENTER_CODE,
+                                     rec.AMOUNT,
+                                     rec.TRANSACTION_DATE,
+                                     rec.TCODE,
+                                     rec.TRAN_SEQNUM,
+                                     rec.TRAN_CODE,
+                                     rec.TRAN_DATE1,
+                                     rec.UNKNOWN_FIELD,
+                                     rec.CODE1,
+                                     rec.LOAD_DATE);
+        V_COUNT := V_COUNT +1;
+        IF V_COUNT = 1000 THEN
+            COMMIT;
+            V_COUNT := 0;
+        END IF;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+   WHEN OTHERS THEN
+       RAISE;
+END LOAD_OVERSHRT;
+
+PROCEDURE GENERATE_BNK_DRFT_CRRCTN_FILE(
+/******************************************************************************
+  This procedure will generate UAR BANK DRAFT CORRECTION FILE [SRA12060] file using
+  MISCTRAN and OVERSHRT files we receive from Corporate Treasurers Department
+
+as per requirements document:
+SRA13513 [CFA TRANS] --> SRA15010 [CFA TRANS] --> SWSD.BANK.DRAFT.CORRECTS
+CFA => Cash Flow Adjustments
+
+Created : 10/27/2016 jxc517 CCN Project....
+Changed :          
+*******************************************************************************/
+IN_DATE            IN         DATE)
+IS
+    CURSOR main_cur IS
+        SELECT COST_CENTER_CODE,
+               DECODE(DB_CR_CODE, 'OD', '-', '+') AMOUNT_SIGN,
+               SUBSTR(AMOUNT, 4) AS AMOUNT
+          FROM MISCTRAN
+         WHERE LOAD_DATE = IN_DATE
+         UNION
+        SELECT COST_CENTER_CODE,
+               DECODE(SUBSTR(TRAN_CODE, 1, 2), 'OD', '-', '+') AMOUNT_SIGN,
+               SUBSTR(AMOUNT, 4) AS AMOUNT
+          FROM OVERSHRT
+         WHERE LOAD_DATE = IN_DATE
+         ORDER BY 1;
+
+    PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
+    UAR_BNK_DRFT_CRRCTN_FL_NM    VARCHAR2(50) := 'stores_cashflowadj_' ||
+                                                 --'SWSD.BANK.DRAFT.CORRECTS_' ||
+                                         TO_CHAR(IN_DATE,'RRRRMMDD') ||
+                                         TO_CHAR(SYSDATE,'HH24MISS') || '.TXT';
+    UAR_BNK_DRFT_CRRCTN_FL       UTL_FILE.FILE_TYPE;
+    V_OUT_CLOB                   CLOB;
+BEGIN
+    UAR_BNK_DRFT_CRRCTN_FL := UTL_FILE.FOPEN (PATH
+                                           ,UAR_BNK_DRFT_CRRCTN_FL_NM
+                                           ,'W' --BINARY
+                                           ,32767);
+    FOR rec IN main_cur LOOP
+        V_OUT_CLOB := V_OUT_CLOB ||
+                          rec.COST_CENTER_CODE ||                   --STORE-NO (4)
+                          'C' ||                                    --ACTN-CD (1)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 18) ||    --FILLER (18 spaces)
+                          rec.AMOUNT_SIGN ||                        --AMT-SIGN (1)
+                          rec.AMOUNT ||                             --AMT (7 + 2 decimals = 9)
+                          FORMAT_INPUT_FOR_FILE(' ', ' ', 38) ||    --FILLER (38 spaces)
+                          'YGC000001' ||                            --PGM-ID (9)
+                          CHR(13);
+        IF V_OUT_CLOB <> EMPTY_CLOB() THEN
+            UTL_FILE.PUT_LINE(UAR_BNK_DRFT_CRRCTN_FL, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
+        END IF;
+    END LOOP;
+
+    UTL_FILE.FCLOSE(UAR_BNK_DRFT_CRRCTN_FL);
+END GENERATE_BNK_DRFT_CRRCTN_FILE;
+
+PROCEDURE EXECUTE_CORRECTS_PROCESS(
+/******************************************************************************
+  This procedure is the core procedure for performing the "Store Bank
+  Deposit Daily Reconciliation" process for the date passed in
+
+Created : 11/07/2016 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_DATE            IN         DATE)
+IS
+    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_REF_CUR           REF_CURSOR;
+    V_START_TIME        NUMBER;
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('BDP_DLY_RCNCL_PRCSS1', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP();
+    BEGIN
+        V_START_TIME := DBMS_UTILITY.GET_TIME;
+        --load the current OVERSHRT file for use in next run
+        LOAD_OVERSHRT();
+        DBMS_OUTPUT.PUT_LINE('LOAD_OVERSHRT : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+        V_START_TIME := DBMS_UTILITY.GET_TIME;
+        --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
+        GENERATE_BNK_DRFT_CRRCTN_FILE(IN_DATE);
+        DBMS_OUTPUT.PUT_LINE('GENERATE_BNK_DRFT_CRRCTN_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_TRANS_STATUS := 'ERROR';
+    END;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('BDP_DLY_RCNCL_PRCSS1', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP();
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS',
+                                   SQLERRM,
+                                   '2222222222',
+                                   '222222',
+                                   'OTHER');
+END EXECUTE_CORRECTS_PROCESS;
 
 PROCEDURE PRIME_SUB_LOAD_PROCESS
 /******************************************************************************
@@ -1076,7 +1247,35 @@ IS
                BANK_ACCOUNT BA
          WHERE MT.TCODE            = PSD.TCODE(+)
            AND MT.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
-           AND MT.LOAD_DATE        = TRUNC(SYSDATE);
+           AND MT.LOAD_DATE        = TRUNC(SYSDATE)
+         UNION
+        SELECT OS.BANK_ACCOUNT_NBR,
+               (SELECT COST_CENTER_CODE
+                  FROM COST_CENTER
+                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(OS.COST_CENTER_CODE)
+                   AND ROWNUM < 2) AS COST_CENTER_CODE,
+               OS.AMOUNT,
+               OS.TRANSACTION_DATE,
+               OS.TCODE,
+               (SELECT NAME
+                  FROM PRIME_SUB_HEADER
+                 WHERE TCODE = OS.TCODE) TCODE_DESCRIPTION,
+               OS.TRAN_SEQNUM,
+               PSD.DB_CR_CODE AS DB_CR_CODE, --MT.DB_CR_CODE,
+               OS.TRAN_CODE,
+               OS.LOAD_DATE,
+               --prime sub will be different for OC/OD
+               PSD.PRIME_SUB || NVL(PSD.PRIME_SUB_COST_CENTER, OS.COST_CENTER_CODE) AS PRIME_SUB, 
+               BA.JV_BOOK_KEEPER_REF,
+               BA.JV_BANK_SHORT_NAME,
+               BA.IDI_BOOKKEEPER_REF,
+               BA.IDI_BANK_SHORT_NAME
+          FROM OVERSHRT OS,
+               PRIME_SUB_DETAIL PSD,
+               BANK_ACCOUNT BA
+         WHERE OS.TCODE            = PSD.TCODE(+)
+           AND OS.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
+           AND OS.LOAD_DATE        = TRUNC(SYSDATE);
 
     V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';

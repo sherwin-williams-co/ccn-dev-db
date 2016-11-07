@@ -40,4 +40,14 @@ Changed :
 *******************************************************************************/
 ;
 
+PROCEDURE EXECUTE_CORRECTS_PROCESS(
+/******************************************************************************
+  This procedure is the core procedure for performing the "Store Bank
+  Deposit Daily Reconciliation" process for the date passed in
+
+Created : 11/07/2016 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+IN_DATE            IN         DATE);
+
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
