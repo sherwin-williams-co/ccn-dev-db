@@ -129,23 +129,32 @@ PROCEDURE PROCESSORS_U_SP (
   and push the current record into HIST_PROCESSORS table
 
 Created : 10/18/2016 jxc517 CCN Project....
-Changed : 10/03/2016 nxk927 CCN Project....
-          removed all the conditions to check if phone numner or
-          the processor name change.
+Changed :
 *******************************************************************************/
     IN_ROW_DATA   IN     PROCESSORS%ROWTYPE)
 IS
-  BEGIN
-     --comes here only if processor name/phone number is updated
-     UPDATE PROCESSORS
-        SET ROW = IN_ROW_DATA
-      WHERE PROCESSOR_ID = IN_ROW_DATA.PROCESSOR_ID;
+    V_HIST_ROW      HIST_PROCESSORS%ROWTYPE;
+BEGIN
+    SELECT A.*, SYSDATE
+      INTO V_HIST_ROW
+      FROM PROCESSORS A
+     WHERE PROCESSOR_ID = IN_ROW_DATA.PROCESSOR_ID;
+
+    --comes here only if processor name/phone number is updated
+    IF NVL(V_HIST_ROW.PROCESSOR_NAME, 'X') <> NVL(IN_ROW_DATA.PROCESSOR_NAME, 'X')
+      OR NVL(V_HIST_ROW.PHONE_NUMBER, 'X') <> NVL(IN_ROW_DATA.PHONE_NUMBER, 'X')THEN
+        UPDATE PROCESSORS
+           SET ROW = IN_ROW_DATA
+         WHERE PROCESSOR_ID = IN_ROW_DATA.PROCESSOR_ID;
+
+        INSERT INTO HIST_PROCESSORS VALUES V_HIST_ROW;
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
         NULL;
 END PROCESSORS_U_SP;
 
-PROCEDURE PROCESSOR_UPDATE_CHECK(
+PROCEDURE PROCESSOR_BR_SP(
 /*******************************************************************************
   This procedure will check if processor name/phone number is updated.
   If there is the change, calll the update proc else raise the error
@@ -155,20 +164,17 @@ Changed :
 *******************************************************************************/
     IN_ROW_DATA   IN     PROCESSORS%ROWTYPE)
 IS
-    V_HIST_ROW         HIST_PROCESSORS%ROWTYPE;
+    V_COUNT            VARCHAR2(2);
     dup_processor_err  EXCEPTION;
 BEGIN
-    SELECT A.*, SYSDATE
-      INTO V_HIST_ROW
-      FROM PROCESSORS A
-     WHERE GEMS_ID = IN_ROW_DATA.GEMS_ID;
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM PROCESSORS
+     WHERE GEMS_ID      = IN_ROW_DATA.GEMS_ID
+       AND PROCESSOR_ID <> IN_ROW_DATA.PROCESSOR_ID;
 
-    IF NVL(V_HIST_ROW.PROCESSOR_NAME, 'X') <> NVL(IN_ROW_DATA.PROCESSOR_NAME, 'X')
-      OR NVL(V_HIST_ROW.PHONE_NUMBER, '9') <> NVL(IN_ROW_DATA.PHONE_NUMBER, '9')THEN
-      INSERT INTO HIST_PROCESSORS VALUES V_HIST_ROW;
-      PROCESSORS_U_SP(IN_ROW_DATA);
-    ELSE
-      RAISE dup_processor_err;
+    IF V_COUNT > 0 THEN
+       RAISE dup_processor_err;
     END IF;
 EXCEPTION
     WHEN dup_processor_err THEN
@@ -176,8 +182,8 @@ EXCEPTION
                          'CCN_PROCESSORS_PKG.PROCESSOR_UPDATE_CHECK:',
                          'THE DESIRED PROCESSOR ALREADY EXISTS IN THE SYSTEM');
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_UPDATE_CHECK,', SQLERRM);
-END PROCESSOR_UPDATE_CHECK;
+        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSOR_BR_SP,', SQLERRM);
+END PROCESSOR_BR_SP;
 
 PROCEDURE PROCESSORS_I_SP (
 /*******************************************************************************
@@ -196,12 +202,15 @@ BEGIN
     PROCESSORS_ROWTYPE_SP(IN_TABLE_NAME,
                           IN_ROW_DATA,
                           V_TEMP_ROW);
+
+    PROCESSOR_BR_SP(V_TEMP_ROW);
+
     INSERT INTO PROCESSORS VALUES V_TEMP_ROW;
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
-        PROCESSOR_UPDATE_CHECK(V_TEMP_ROW);
+        PROCESSORS_U_SP(V_TEMP_ROW);
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);*/
+        ERRPKG.RAISE_ERR(SQLCODE, 'PROCESSORS_I_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SQLERRM);
 END PROCESSORS_I_SP;
 
 PROCEDURE PROCESSORS_D_SP (
