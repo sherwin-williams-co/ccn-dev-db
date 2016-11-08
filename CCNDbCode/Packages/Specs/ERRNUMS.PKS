@@ -7,7 +7,8 @@ THIS PACKAGE CONTAINS ERROR NUMBERS FROM
                    -20000 TILL -20500 FOR COSTCNTR
                    -20500 ONWARDS FOR HIERARCHY
 
-created : 12/02/2011 blr CCN Projectrevisions:
+created : 12/02/2011 blr CCN Project
+revisions:
 
 ************************************************************/
 
@@ -2745,19 +2746,6 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
 /*********************************************************** 
-The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
-This error will state that the future address is having effective date
-less than or equal to current date
-
-Created  : 04/20/2016 jxc517 CCN Project Team....
-Modified :
-************************************************************/
-en_invld_ftr_adr_efctv_dt_err CONSTANT NUMBER := -20537;
-exc_invld_ftr_adr_efctv_dt_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_ftr_adr_efctv_dt_err , -20537);
-
-/***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2825,29 +2813,4 @@ en_non_cn_ac_prmry_std_cc_ind CONSTANT NUMBER := -20168;
 exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
-
-/***********************************************************
-The "en_prcr_actv_in_group" passes a numerical error of -20169
-This error will state that a processor is active for a group and
-can not be deleted
-
-Created  : 10/19/2016 jxc517 CCN Project Team....
-Modified :
-************************************************************/
-en_prcr_actv_in_group CONSTANT NUMBER := -20169;
-exc_prcr_actv_in_group EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_prcr_actv_in_group , -20169);
-
-/***********************************************************
-The "en_dup_processor_err" passes a numerical error of -20177.
-An error occurs when the passed processor already exists.
-
-created : 11/02/2016 nxk927 CCN Project Team....
-revisions:
-************************************************************/
-en_dup_processor_err CONSTANT NUMBER := -20177;
-exc_dup_processor_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_dup_processor_err , -20177);
-
 END ERRNUMS;
