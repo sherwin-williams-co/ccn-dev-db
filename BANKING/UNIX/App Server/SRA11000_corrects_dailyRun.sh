@@ -8,7 +8,8 @@
 #                 3. archieve the files in it's corresponding folder
 #
 # Created  : 11/07/2016 jxc517 CCN Project Team.....
-# Modified : 
+# Modified : 11/09/2016 jxc517 CCN Project Team.....
+             Moved the FTP portion separately by itself
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -104,27 +105,7 @@ echo "Archiving input concatenated files finished at ${TIME} on ${DATE}"
 #################################################################
 #         FTP files stores_cashflowadj_*
 #################################################################
-echo "Processing started for FTP at ${TIME} on ${DATE}"
-cd /app/banking/dev/initLoad
-ftp -inv ${uar_host} <<FTP_MF
-quote user ${uar_user}
-quote pass ${uar_pw}
-cd "/reconnet/uardata/rt1/TEST INPUT"
-put stores_cashflowadj_*
-bye
-END_SCRIPT
-echo "bye the transfer is complete"
-FTP_MF
-
-status=$?
-if test $status -ne 0
-then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for FTP at ${TIME} on ${DATE}"
-     exit 1;
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for FTP at ${TIME} on ${DATE}"
+./SRA11000_corrects_FTP.sh
 
 #################################################################
 #         ARCHIVE files stores_cashflowadj_*
