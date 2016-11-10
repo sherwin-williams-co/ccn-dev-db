@@ -3,6 +3,8 @@
    from the SWC_HR_GENERIC_V
    
    created : 10/18/2016  SXH487
+           : 11/10/2016  sxh487 Removed the two columns EMRG_CONTACT_NAME and EMRG_CONTACT_PHONE
+             as they have been dropped from swc_hr_generic_v
 *********************************************************************************/
 declare
 
@@ -120,8 +122,6 @@ BEGIN
              v_Row_Data.SUPERVISOR_COST_CENTER      := SWC_HR_GEMS_INFO_rec.SUPERVISOR_COST_CENTER;
              v_Row_Data.SUPERVISOR_DIVISION_CC      := SWC_HR_GEMS_INFO_rec.SUPERVISOR_DIVISION_CC;
              v_Row_Data.SUPERVISOR_PRIME_SUB        := SWC_HR_GEMS_INFO_rec.SUPERVISOR_PRIME_SUB;
-             v_Row_Data.EMRG_CONTACT_NAME           := SWC_HR_GEMS_INFO_rec.EMRG_CONTACT_NAME;
-             v_Row_Data.EMRG_CONTACT_PHONE          := SWC_HR_GEMS_INFO_rec.EMRG_CONTACT_PHONE;
              v_Row_Data.PAY_RATE_HOURLY_OR_BIWEEKLY := SWC_HR_GEMS_INFO_rec.PAY_RATE_HOURLY_OR_BIWEEKLY;
              v_Row_Data.ANNUAL_SALARY_HYP           := SWC_HR_GEMS_INFO_rec.ANNUAL_SALARY_HYP;
                   
