@@ -375,6 +375,19 @@ IN_PREV_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
 )
 RETURN XMLTYPE;
 
+FUNCTION GET_FIPS_CODE(
+/*******************************************************************************
+    This function will get the FIPS code based on state 
+
+Created : 09/07/2016 jxc517 CCN Project Team....
+Modified:
+*******************************************************************************/
+    IN_STATE_CODE      IN    VARCHAR2,
+    IN_COUNTY          IN    VARCHAR2,
+    IN_CITY            IN    VARCHAR2,
+    IN_ZIP_CODE        IN    VARCHAR2)
+RETURN VARCHAR2;
+
 FUNCTION IS_CC_SELLING_STORE(
 /**********************************************************
 This function will return true if passed cost center is a 
