@@ -262,6 +262,34 @@ EXCEPTION
       RETURN V_RETURN_VAL;
 END IS_AUDIT_SUPPRESSED_HIERARCHY;
 
+FUNCTION IS_AUDIT_SUPPRESSED_FTR_ADDR(
+/**********************************************************
+  This function returns true if the record maps to a
+  future address type
+
+in_TRANSACTION_ID - inpupt Key Value
+in_TABLE_NAME     - Input Table Name
+
+created : 04/19/2016 jxc517 CCN Project Team....
+modified:
+**********************************************************/
+in_TRANSACTION_ID    IN     VARCHAR2,
+in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
+   V_RETURN_VAL             BOOLEAN := FALSE;
+BEGIN
+   --By default we assume that the address passed in is not future type
+   --Based on below conditions, if INSTR returns > 0 => it is suppressed hierarchy
+   --so we return TRUE stating that this is audit suppressed hierarchy
+   IF in_TABLE_NAME LIKE 'ADDRESS%'
+      AND (INSTR(in_TRANSACTION_ID, '|F|') > 0) THEN
+      V_RETURN_VAL := TRUE;
+   END IF;
+   RETURN V_RETURN_VAL;
+EXCEPTION
+   WHEN OTHERS THEN
+      RETURN V_RETURN_VAL;
+END IS_AUDIT_SUPPRESSED_FTR_ADDR;
+
 FUNCTION IS_COLUMN_PART_OF_KEY(
 /**********************************************************
 	IS_COLUMN_DT_PART_OF_PK
@@ -876,6 +904,36 @@ BEGIN
     END IF;
 END EMP_MGR_TERRITORY_AUDIT_SP;
 
+FUNCTION IS_AUDIT_EXCLUDED_FIELD(
+/*******************************************************
+This function will return "N" if an audit field is not suppressed for
+the table/column combination. Else it will return "Y"
+
+Created : 11/14/2016 jxc517 CCN Project Team. . . .
+Changed :
+*******************************************************/
+IN_TABLE_NAME     IN     VARCHAR2,
+IN_COLUMN_NAME    IN     VARCHAR2)
+RETURN VARCHAR2
+IS
+    V_RETURN_VAL     VARCHAR2(1) := 'N';
+    V_COUNT          NUMBER      := 0;
+BEGIN
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM CCN_AUDIT_EXCLUDED_FIELDS
+     WHERE TABLE_NAME         = IN_TABLE_NAME
+       AND COLUMN_NAME        = IN_COLUMN_NAME
+       AND EXCLUDED_INDICATOR = 'Y';
+    IF V_COUNT > 0 THEN
+        V_RETURN_VAL := 'Y';
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_AUDIT_EXCLUDED_FIELD;
+
 PROCEDURE PARSE_DIFFERENCE_XML
 /*******************************************************
 Procedure to Parse xmls from the audit_log table and 
@@ -889,6 +947,9 @@ modified : 03/06/2015 nxk927 CCN Project Team . . .
            (sending zero's for closed date in audit if cc reopened)
 modified : 08/05/2015 nxk927 CCN Project Team . . . 
            (sending job_type no matter what changes from the employee_admin_details)
+modified : 11/14/2016 jxc517 CCN Project Team . . . 
+           added code to check if a field with in a table is excluded from audit or not
+           if it is excluded, we should not build the diff tag fragment for that column
 *******************************************************/
 
 ( IN_TABLE_NAME IN VARCHAR2
@@ -927,7 +988,11 @@ V_PREV_REC             VARCHAR2(1000);
 V_CURR_REC             VARCHAR2(1000); 
 
 CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
-    SELECT COLUMN_NAME, COLUMN_ID FROM ALL_TAB_COLUMNS WHERE TABLE_NAME = IN_TABLE;
+    SELECT COLUMN_NAME,
+           COLUMN_ID
+      FROM ALL_TAB_COLUMNS
+     WHERE TABLE_NAME = IN_TABLE
+     ORDER BY COLUMN_ID;
 
 BEGIN
 
@@ -977,55 +1042,57 @@ BEGIN
     --Start building the XML string
     XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
     FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
-        /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
-        p_xml.extract(p_xpath || '/text()').getstringval() */
-        IF V_CHANGE_TYPE = 'C' THEN
-            COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
-        END IF; 
-        COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
-           
-        IF IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE'  THEN
-           IF V_CHANGE_TYPE = 'C' THEN        
-              V_PREV_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || 'CLOSE_DATE'), 'ZZ');
-           END IF;
-           V_CURR_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || 'CLOSE_DATE'), 'YY');
-           IF V_PREV_REC <> 'ZZ'
-              AND V_CURR_REC = 'YY'  THEN 
-            COMP_CURR := '00000000';
-           END IF;
-        END IF;
+        --Added below condition to suppress audit for excluded fields
+        IF IS_AUDIT_EXCLUDED_FIELD(IN_TABLE_NAME, GET_COLS_REC.COLUMN_NAME) = 'N' THEN
+            /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
+            p_xml.extract(p_xpath || '/text()').getstringval() */
+            IF V_CHANGE_TYPE = 'C' THEN
+                COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
+            END IF; 
+            COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
+
+            IF IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE'  THEN
+               IF V_CHANGE_TYPE = 'C' THEN        
+                   V_PREV_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || 'CLOSE_DATE'), 'ZZ');
+               END IF;
+               V_CURR_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || 'CLOSE_DATE'), 'YY');
+               IF V_PREV_REC <> 'ZZ' AND V_CURR_REC = 'YY'  THEN 
+                   COMP_CURR := '00000000';
+               END IF;
+            END IF;
    
-        --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
-        GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
+            --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
+            GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
 
-        IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
-            --CCN 2.0 release changes to extract attributes dynamically
-            --PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
-            IF ROW_CURR IS NOT NULL THEN
-                V_ROW_CURR := SYS.XMLTYPE(REPLACE(ROW_CURR.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>')); 
+            IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
+                --CCN 2.0 release changes to extract attributes dynamically
+                --PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
+                IF ROW_CURR IS NOT NULL THEN
+                    V_ROW_CURR := SYS.XMLTYPE(REPLACE(ROW_CURR.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>')); 
+                END IF;
+                IF ROW_PREV IS NOT NULL THEN
+                    V_ROW_PREV := SYS.XMLTYPE(REPLACE(ROW_PREV.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>'));
+                END IF;
+                PARSE_DIFFERENCE_ATTRBTS_XML(V_ROW_CURR,
+                                             V_ROW_PREV,
+                                             XMLSTRING);
             END IF;
-            IF ROW_PREV IS NOT NULL THEN
-                V_ROW_PREV := SYS.XMLTYPE(REPLACE(ROW_PREV.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>'));
-            END IF;
-            PARSE_DIFFERENCE_ATTRBTS_XML(V_ROW_CURR,
-                                         V_ROW_PREV,
-                                         XMLSTRING);
-        END IF;
 
-        --If the elements have changed OR new row, append them to the XML string
-        IF v_change_type = 'A' THEN
-            XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-        ELSE
-            --Populate the XML String only if the value is changed or if particular column is part of primary key
-            --Also for Bank_Card table we should always populate below fields with current records value if it's a change
-            IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
-               OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL
-               OR  (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
-                                                                            'BANK_CARD - QUALITY_CODE',
-                                                                            'BANK_CARD - AMEX_SE_ID',
-                                                                            'BANK_CARD - DISCOVER_ID',
-                                                                            'EMPLOYEE_ADMIN_DETAILS - JOB_TYPE') THEN  
+            --If the elements have changed OR new row, append them to the XML string
+            IF v_change_type = 'A' THEN
                 XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+            ELSE
+                --Populate the XML String only if the value is changed or if particular column is part of primary key
+                --Also for Bank_Card table we should always populate below fields with current records value if it's a change
+                IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
+                   OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL
+                   OR  (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
+                                                                                'BANK_CARD - QUALITY_CODE',
+                                                                                'BANK_CARD - AMEX_SE_ID',
+                                                                                'BANK_CARD - DISCOVER_ID',
+                                                                                'EMPLOYEE_ADMIN_DETAILS - JOB_TYPE') THEN  
+                    XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
+                END IF;
             END IF;
         END IF;
     END LOOP;
@@ -1073,6 +1140,9 @@ Modified: 07/28/2015 dxv848 added the condition to remove the space going into t
         : 11/03/2015 axk326 CCN Project Team
           Replaced call to COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS with HANDLE_SPECIAL_CHRCTRS to handle 
           special characters while writing into audit backfeed file
+modified : 11/14/2016 jxc517 CCN Project Team . . . 
+           added code to check if a field with in a table is excluded from audit or not
+           if it is excluded, we should not build the diff tag fragment for that column
 **********************************************************/
 IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
@@ -1179,84 +1249,86 @@ BEGIN
                  V_CHANGE_TYPE; --IN_CHANGE_TYPE;
 
    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
- 
-      IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-         V_CONTEXT := 'Building by extracting the Existing Data';
-         v_extracted_value := HANDLE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
-         IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('COST_CENTER - POS_PROG_VER_NBR',
-                                                                      'HIERARCHY_DETAIL - EMPLOYEE_NAME'))) THEN
-            V_OUT_CLOB := V_OUT_CLOB ||
-                          UPPER(LPAD(v_extracted_value,
-                                     NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value)), '0'));
-         ELSE
-            v_value := UPPER(RPAD(v_extracted_value,
-                                  NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value))));
-            --If there is a change and if the changed value is null then it comes here as '~'
-            --We need to capture these ~'s and convert into proper formatting
-            --like we do for null values for specific fields
-            IF TRIM(v_value) = '~' THEN
-               --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
-               IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
-            
-                  V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
-                  --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
-                  --which have null values so that we can pass it to main frame
-                  --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
-               ELSE
-                  IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
-                                                                               'BANK_CARD - QUALITY_CODE',
-                                                                               'BANK_CARD - AMEX_SE_ID',
-                                                                               'BANK_CARD - DISCOVER_ID',
-                                                                               'PHONE - PHONE_NUMBER',
-                                                                               'PHONE - PHONE_AREA_CODE',
-                                                                               'ADDRESS_USA - DESTINATION_POINT',
-                                                                               'ADDRESS_USA - CHECK_DIGIT'))) THEN
-                     V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
+      --Added below condition to suppress audit for excluded fields
+      IF IS_AUDIT_EXCLUDED_FIELD(IN_TABLE_NAME, TABLE_FIELDS_REC.COLUMN_NAME) = 'N' THEN
+         IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_CONTEXT := 'Building by extracting the Existing Data';
+            v_extracted_value := HANDLE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
+            IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('COST_CENTER - POS_PROG_VER_NBR',
+                                                                         'HIERARCHY_DETAIL - EMPLOYEE_NAME'))) THEN
+               V_OUT_CLOB := V_OUT_CLOB ||
+                             UPPER(LPAD(v_extracted_value,
+                                        NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value)), '0'));
+            ELSE
+               v_value := UPPER(RPAD(v_extracted_value,
+                                     NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value))));
+               --If there is a change and if the changed value is null then it comes here as '~'
+               --We need to capture these ~'s and convert into proper formatting
+               --like we do for null values for specific fields
+               IF TRIM(v_value) = '~' THEN
+                  --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
+                  IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
+               
+                     V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
+                     --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
+                     --which have null values so that we can pass it to main frame
+                     --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
                   ELSE
-                     --Below two fields should not go as ~ in audit field rather should go as spaces
-                     --Should be removed once we start populating these fields on the server
-                     IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('TERMINAL - POS_LAST_TRAN_DATE',
-                                                                                'TERMINAL - POS_LAST_TRAN_NUMBER') THEN
-                        V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
+                     IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
+                                                                                  'BANK_CARD - QUALITY_CODE',
+                                                                                  'BANK_CARD - AMEX_SE_ID',
+                                                                                  'BANK_CARD - DISCOVER_ID',
+                                                                                  'PHONE - PHONE_NUMBER',
+                                                                                  'PHONE - PHONE_AREA_CODE',
+                                                                                  'ADDRESS_USA - DESTINATION_POINT',
+                                                                                  'ADDRESS_USA - CHECK_DIGIT'))) THEN
+                        V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
                      ELSE
-                        V_OUT_CLOB := V_OUT_CLOB || v_value;
+                        --Below two fields should not go as ~ in audit field rather should go as spaces
+                        --Should be removed once we start populating these fields on the server
+                        IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('TERMINAL - POS_LAST_TRAN_DATE',
+                                                                                   'TERMINAL - POS_LAST_TRAN_NUMBER') THEN
+                           V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
+                        ELSE
+                           V_OUT_CLOB := V_OUT_CLOB || v_value;
+                        END IF;
                      END IF;
                   END IF;
-               END IF;
-            ELSE
-               --For global hierarchy, sales manager records alone, we hard coded <SPACE> with # for data to work
-               --We need to replace those to spaces when we send them back to backfeed
-               IF (IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL',
-                                                                           'HIERARCHY_DETAIL - HRCHY_DTL_PREV_LVL_VAL',
-                                                                           'HIERARCHY_DETAIL - HRCHY_DTL_CURR_LVL_VAL',
-                                                                           'HIERARCHY_DETAIL - HRCHY_DTL_NEXT_LVL_VAL')) THEN
-                  --the below replacements are applicable only for 6th level of GLOBAL_HIERARCHY
-                  IF NVL(V_HRCHY_HDR_NAME,'XXX') = 'GLOBAL_HIERARCHY' THEN
-                      --if it is 6th level, replace YY with @@
-                      IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL'
-                         AND NVL(V_HRCHY_DTL_LEVEL,'X') = '06' THEN
-                          v_value := REPLACE(v_value,'YY','@@');
-                      END IF;
-                      --if it has 6th level value in its composite key and it is YY replace it with @@
-                      IF LENGTH(v_value) > 10 AND SUBSTR(v_value,11,2) = 'YY' THEN
-                          v_value := SUBSTR(v_value,1,10)||'@@'||SUBSTR(v_value,13);
-                      END IF;
-                  END IF;
-                  V_OUT_CLOB := V_OUT_CLOB || REPLACE(v_value,'#',' ');
                ELSE
-                  --below 2 variables are used to replace YY in global hierarchy 6th level with @@
-                  IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_HDR_NAME' THEN
-                      V_HRCHY_HDR_NAME := TRIM(v_value);
-                  ELSIF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_LEVEL' THEN
-                      V_HRCHY_DTL_LEVEL := TRIM(v_value);
+                  --For global hierarchy, sales manager records alone, we hard coded <SPACE> with # for data to work
+                  --We need to replace those to spaces when we send them back to backfeed
+                  IF (IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL',
+                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_PREV_LVL_VAL',
+                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_CURR_LVL_VAL',
+                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_NEXT_LVL_VAL')) THEN
+                     --the below replacements are applicable only for 6th level of GLOBAL_HIERARCHY
+                     IF NVL(V_HRCHY_HDR_NAME,'XXX') = 'GLOBAL_HIERARCHY' THEN
+                         --if it is 6th level, replace YY with @@
+                         IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL'
+                            AND NVL(V_HRCHY_DTL_LEVEL,'X') = '06' THEN
+                             v_value := REPLACE(v_value,'YY','@@');
+                         END IF;
+                         --if it has 6th level value in its composite key and it is YY replace it with @@
+                         IF LENGTH(v_value) > 10 AND SUBSTR(v_value,11,2) = 'YY' THEN
+                             v_value := SUBSTR(v_value,1,10)||'@@'||SUBSTR(v_value,13);
+                         END IF;
+                     END IF;
+                     V_OUT_CLOB := V_OUT_CLOB || REPLACE(v_value,'#',' ');
+                  ELSE
+                     --below 2 variables are used to replace YY in global hierarchy 6th level with @@
+                     IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_HDR_NAME' THEN
+                         V_HRCHY_HDR_NAME := TRIM(v_value);
+                     ELSIF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_LEVEL' THEN
+                         V_HRCHY_DTL_LEVEL := TRIM(v_value);
+                     END IF;
+                     V_OUT_CLOB := V_OUT_CLOB || v_value;
                   END IF;
-                  V_OUT_CLOB := V_OUT_CLOB || v_value;
-               END IF;
-            END IF;   
+               END IF;   
+            END IF;
+         ELSE
+            V_CONTEXT := 'Building by extracting the Non-Existing Data';
+            V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
          END IF;
-      ELSE
-         V_CONTEXT := 'Building by extracting the Non-Existing Data';
-         V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
       END IF;
    END LOOP;
  END IF;
@@ -1285,6 +1357,8 @@ created : 02/07/2014 jxc517 CCN Project Team . . .
 modified: 03/29/2016 jxc517 CCN Project Team....
           Added condition not to send audit for suppressed hierarchies like
           Price District Hierarchy, Credit Hierarchy
+modified: 04/19/2016 jxc517 CCN Project Team....
+          Added condition not to send audit for future addresses
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -1311,6 +1385,9 @@ BEGIN
            AND
            --Below condition is to stop sending credit and price district hierarchy to audit
            (NOT IS_AUDIT_SUPPRESSED_HIERARCHY(IN_TRANSACTION_ID, IN_TABLE_NAME)) --Added 03/29/2016
+           AND
+           --Below condition is to stop sending future address details to audit
+           (NOT IS_AUDIT_SUPPRESSED_FTR_ADDR(IN_TRANSACTION_ID, IN_TABLE_NAME)) --Added 04/19/2016
         THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME
@@ -1559,3 +1636,4 @@ BEGIN
 END AUDIT_FIELDS_IU;
 
 END CCN_AUDIT_PKG;
+
