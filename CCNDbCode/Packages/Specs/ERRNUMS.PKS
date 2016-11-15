@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999ï¿½.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `yï¿½.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `Yï¿½ or `Nï¿½.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -2738,7 +2738,7 @@ The "invld_pci_mrchnt_id_sz_err" passes a numerical error of -20536
 This error will state that Bank Card PCI Merchant ID Size is wrong
 
 Created  : 04/11/2016 jxc517 CCN Project Team....
-Modified :
+Modified : 
 ************************************************************/
 en_invld_pci_mrchnt_id_sz_err CONSTANT NUMBER := -20536;
 exc_invld_pci_mrchnt_id_sz_err EXCEPTION;
@@ -2813,4 +2813,29 @@ en_non_cn_ac_prmry_std_cc_ind CONSTANT NUMBER := -20168;
 exc_non_cn_ac_prmry_std_cc_ind EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_cn_ac_prmry_std_cc_ind , -20168);
+
+/***********************************************************
+The "en_prcr_actv_in_group" passes a numerical error of -20169
+This error will state that a processor is active for a group and
+can not be deleted
+
+Created  : 10/19/2016 jxc517 CCN Project Team....
+Modified :
+************************************************************/
+en_prcr_actv_in_group CONSTANT NUMBER := -20169;
+exc_prcr_actv_in_group EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_prcr_actv_in_group , -20169);
+
+/***********************************************************
+The "en_dup_processor_err" passes a numerical error of -20177.
+An error occurs when the passed processor already exists.
+
+created : 11/02/2016 nxk927 CCN Project Team....
+revisions:
+************************************************************/
+en_dup_processor_err CONSTANT NUMBER := -20177;
+exc_dup_processor_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_dup_processor_err , -20177);
+
 END ERRNUMS;
