@@ -1,4 +1,4 @@
-create or replace PACKAGE         BANKING_UI_INTERFACE_APP_PKG
+create or replace PACKAGE BODY         BANKING_UI_INTERFACE_APP_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -7,9 +7,6 @@ AS
 Created : 03/30/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
-
-TYPE REF_CURSOR IS REF CURSOR;
-
 FUNCTION GET_FUTURE_ID(
 /***********************************************************
 	This procedure will be called from UI to get the future id 
@@ -17,28 +14,61 @@ FUNCTION GET_FUTURE_ID(
 Created : 07/23/2015 jxc517 CCN Project Team....
 Changed : 
 ************************************************************/
-IN_BANK_ACCOUNT_NBR IN VARCHAR2) RETURN NUMBER;
+IN_BANK_ACCOUNT_NBR IN VARCHAR2) RETURN NUMBER
+IS
+BEGIN
+    RETURN BANKING_COMMON_TOOLS.GET_FUTURE_ID(IN_BANK_ACCOUNT_NBR);
+END GET_FUTURE_ID;
 
 PROCEDURE ACCOUNT_MAINTENACE_UI_SP (
 /*******************************************************************************
 	This procedure is intended to RETURN a ref cursor with data from banking
-  account maintenance related table
+  account maintenance related tables
 
 Inputs:
     IN_BANK_ACCOUNT_NBR
     IN_COST_CENTER_CODE
 
 Created : 03/30/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/19/2015 jxc517 CCN Project....
+          If a store contains future but not current, throw a different error asking
+          user to search based on the bank account number instead of store number
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR           IN     VARCHAR2
-,IN_COST_CENTER_CODE           IN     VARCHAR2
+,IN_COST_CENTER_CODE          IN     VARCHAR2
 ,OUT_BANK_ACCOUNT_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_ACCOUNT_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_REF_CUR        OUT REF_CURSOR
 ,OUT_BANK_LEAD_CC_FTR_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_MICR_FORMAT_REF_CUR    OUT REF_CURSOR
-,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR);
+,OUT_BANK_MICR_FRMT_FTR_REF_CUR  OUT REF_CURSOR)
+IS
+    V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE := IN_BANK_ACCOUNT_NBR;
+BEGIN
+    IF V_BANK_ACCOUNT_NBR IS NULL THEN
+        V_BANK_ACCOUNT_NBR := BANKING_COMMON_TOOLS.GET_BNK_ACCNT_NBR_FOR_CC(IN_COST_CENTER_CODE);
+        --Raise error as no where found
+        IF V_BANK_ACCOUNT_NBR IS NULL THEN
+            V_BANK_ACCOUNT_NBR := BANKING_COMMON_TOOLS.GET_FTR_BNK_ACCNT_NBR_FOR_CC(IN_COST_CENTER_CODE);
+            IF V_BANK_ACCOUNT_NBR IS NULL THEN
+                ERRPKG.RAISE_ERR(errnums.en_accnt_nbr_not_avlbl_for_cc,
+                                 'ACCOUNT_MAINTENACE_UI_SP',
+                                 'Bank Account Number not found for the cost center provided');
+            ELSE
+                ERRPKG.RAISE_ERR(errnums.en_accnt_nbr_not_avlbl_for_cc,
+                                 'ACCOUNT_MAINTENACE_UI_SP',
+                                 'Current Bank Account Number not found for the cost center provided, Please search using bank account number ');            
+            END IF;
+        END IF;
+    END IF;
+    ACCOUNT_MAINTENANCE_PKG.ACCOUNT_MAINTENACE_UI_SP(V_BANK_ACCOUNT_NBR,
+                                                     OUT_BANK_ACCOUNT_REF_CUR,
+                                                     OUT_BANK_ACCOUNT_FTR_REF_CUR,
+                                                     OUT_BANK_LEAD_CC_REF_CUR,
+                                                     OUT_BANK_LEAD_CC_FTR_REF_CUR,
+                                                     OUT_BANK_MICR_FORMAT_REF_CUR,
+                                                     OUT_BANK_MICR_FRMT_FTR_REF_CUR);
+END ACCOUNT_MAINTENACE_UI_SP;
 
 PROCEDURE BANK_DEP_TICK_UI_SP (
 /*******************************************************************************
@@ -49,13 +79,13 @@ Inputs:
 
 Created : 05/20/2015 jxc517 CCN Project....
 Changed : 08/21/2015 jxc517 CCN Project....
-          Modified signature to pass future details also to allow future maintenance
+          Modified signature to pass future details also to allow future maintenance   
 Changed : 10/22/2015 sxt410 CCN Project....
           Modified Signature To Pass Current Order Date And Future Order Date.
         : 10/18/2016 nxk927 CCN Project....
           Modified Signature to pass member bank details to UI. It will be used to populate the 
           sub account number in the deposit ticket window. This is added to support the micr details 
-          changes for the member bank cost center. 
+          changes for the member bank cost center.    
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
@@ -67,7 +97,21 @@ IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICKORD_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_DEP_TKORD_FTR_REF_CUR  OUT REF_CURSOR
 ,OUT_MBR_BANK_CC_REF_CUR         OUT REF_CURSOR
-,OUT_MBR_BANK_CC_FTR_REF_CUR     OUT REF_CURSOR);
+,OUT_MBR_BANK_CC_FTR_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+    DEPOSIT_TICKET_MAINTENANCE_PKG.DEPOSIT_TICKET_MNTNC_UI_SP(IN_COST_CENTER_CODE,
+                                                              OUT_BANK_DEP_TICK_REF_CUR,
+                                                              OUT_BANK_ACCOUNT_REF_CUR,
+                                                              OUT_BANK_MICR_FORMAT_REF_CUR,
+                                                              OUT_BANK_DEP_TICK_FTR_REF_CUR,
+                                                              OUT_BANK_ACCOUNT_FTR_REF_CUR,
+                                                              OUT_BANK_MICR_FRMT_FTR_REF_CUR,
+                                                              OUT_BANK_DEP_TICKORD_REF_CUR,
+                                                              OUT_BANK_DEP_TKORD_FTR_REF_CUR,
+                                                              OUT_MBR_BANK_CC_REF_CUR,
+                                                              OUT_MBR_BANK_CC_FTR_REF_CUR);
+END BANK_DEP_TICK_UI_SP;
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 /*******************************************************************************
@@ -79,13 +123,22 @@ Inputs:
 Created : 05/20/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Changes made to support future tabs
-Changed : 10/22/2015 sxt410 
+Changed : 10/22/2015 sxt410 CCN Project....
+          Modified Signature To Pass Current Order Date And Future Order Date. 
 *******************************************************************************/
 IN_COST_CENTER_CODE               IN     VARCHAR2
 ,OUT_BANK_DEP_BAG_TICK_CUR           OUT REF_CURSOR
 ,OUT_BANK_DEP_BAG_TICK_FTR_CUR       OUT REF_CURSOR
 ,OUT_BANK_DEP_BAG_TICKORD_CUR        OUT REF_CURSOR
-,OUT_BANK_DEP_BAG_TKORD_FTR_CUR      OUT REF_CURSOR);
+,OUT_BANK_DEP_BAG_TKORD_FTR_CUR      OUT REF_CURSOR)
+IS
+BEGIN
+    DEPOSIT_BAG_MAINTENANCE_PKG.BANK_DEP_BAG_TICK_UI_SP(IN_COST_CENTER_CODE,
+                                                        OUT_BANK_DEP_BAG_TICK_CUR,
+                                                        OUT_BANK_DEP_BAG_TICK_FTR_CUR,
+                                                        OUT_BANK_DEP_BAG_TICKORD_CUR,
+                                                        OUT_BANK_DEP_BAG_TKORD_FTR_CUR);
+END BANK_DEP_BAG_TICK_UI_SP;
 
 PROCEDURE MEMBER_CC_MAINTENACE_UI_SP (
 /*******************************************************************************
@@ -100,7 +153,13 @@ Changed :
 *******************************************************************************/
 IN_COST_CENTER_CODE          IN     VARCHAR2
 ,OUT_BANK_MBR_CC_REF_CUR         OUT REF_CURSOR
-,OUT_BANK_MBR_CC_FTR_REF_CUR     OUT REF_CURSOR);
+,OUT_BANK_MBR_CC_FTR_REF_CUR     OUT REF_CURSOR)
+IS
+BEGIN
+    MEMBER_MAINTENANCE_PKG.MEMBER_CC_MAINTENACE_UI_SP(IN_COST_CENTER_CODE,
+                                                      OUT_BANK_MBR_CC_REF_CUR,
+                                                      OUT_BANK_MBR_CC_FTR_REF_CUR);
+END MEMBER_CC_MAINTENACE_UI_SP;
 
 PROCEDURE BANK_HISTORY_UI_SP (
 /*******************************************************************************
@@ -114,16 +173,138 @@ Created : 06/05/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE IN     VARCHAR2
-,OUT_REF_CUR           OUT REF_CURSOR);
+,OUT_REF_CUR           OUT REF_CURSOR)
+IS
+BEGIN
+    --Testing : '799807' Lead, '708225' Member
+    OPEN OUT_REF_CUR FOR
+        --History Bank Account Details joined with history tables
+        SELECT B.BANK_ACCOUNT_NBR,
+               T.MEMBER_BANK_ACCOUNT_NBR,
+               T.BANK_BRANCH_NBR,
+               T.BANK_TYPE_CODE,
+               T.EFFECTIVE_DATE,
+               T.EXPIRATION_DATE,
+               B.EFFECTIVE_DATE BANK_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE BANK_EXPIRATION_DATE,
+               B.BANK_NAME,
+               B.BOOK_KEEPER_NBR,
+               B.BANK_AUTO_RECON_IND
+          FROM BANK_ACCOUNT_HIST B,
+               --history LEAD union history MEMBER
+               (SELECT LEAD_BANK_ACCOUNT_NBR,
+                       NULL MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE,
+                       NULL FUTURE_ID
+                  FROM LEAD_BANK_CC_HIST
+                 WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+                 UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR,
+                       MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE,
+                       NULL FUTURE_ID
+                  FROM MEMBER_BANK_CC_HIST
+                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE) T
+         WHERE T.LEAD_BANK_ACCOUNT_NBR = B.BANK_ACCOUNT_NBR
+           AND NVL(T.EFFECTIVE_DATE,TRUNC(SYSDATE)) BETWEEN B.EFFECTIVE_DATE AND NVL(B.EXPIRATION_DATE,TRUNC(SYSDATE))
+         UNION
+        --Current Bank Account Details joined with current tables
+        SELECT B.BANK_ACCOUNT_NBR,
+               T.MEMBER_BANK_ACCOUNT_NBR,
+               T.BANK_BRANCH_NBR,
+               T.BANK_TYPE_CODE,
+               T.EFFECTIVE_DATE,
+               T.EXPIRATION_DATE,
+               B.EFFECTIVE_DATE BANK_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE BANK_EXPIRATION_DATE,
+               B.BANK_NAME,
+               B.BOOK_KEEPER_NBR,
+               B.BANK_AUTO_RECON_IND
+          FROM BANK_ACCOUNT B,
+               --current LEAD union current MEMBER
+               (SELECT LEAD_BANK_ACCOUNT_NBR,
+                       NULL MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE,
+                       NULL FUTURE_ID
+                  FROM LEAD_BANK_CC
+                 WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+                  UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR,
+                       MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE,
+                       NULL FUTURE_ID
+                  FROM MEMBER_BANK_CC
+                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE) T
+         WHERE T.LEAD_BANK_ACCOUNT_NBR = B.BANK_ACCOUNT_NBR
+         UNION
+        --Future Bank Account Details joined with future tables
+        SELECT B.BANK_ACCOUNT_NBR,
+               T.MEMBER_BANK_ACCOUNT_NBR,
+               T.BANK_BRANCH_NBR,
+               T.BANK_TYPE_CODE,
+               T.EFFECTIVE_DATE,
+               T.EXPIRATION_DATE,
+               B.EFFECTIVE_DATE BANK_EFFECTIVE_DATE,
+               B.EXPIRATION_DATE BANK_EXPIRATION_DATE,
+               B.BANK_NAME,
+               B.BOOK_KEEPER_NBR,
+               B.BANK_AUTO_RECON_IND
+          FROM BANK_ACCOUNT_FUTURE B,
+               --future LEAD union future MEMBER
+               (SELECT LEAD_BANK_ACCOUNT_NBR,
+                       NULL MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       BANK_TYPE_CODE,
+                       FUTURE_ID
+                  FROM LEAD_BANK_CC_FUTURE
+                 WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+                  UNION
+                SELECT LEAD_BANK_ACCOUNT_NBR,
+                       MEMBER_BANK_ACCOUNT_NBR,
+                       BANK_BRANCH_NBR,
+                       EFFECTIVE_DATE,
+                       EXPIRATION_DATE,
+                       'M' BANK_TYPE_CODE,
+                       FUTURE_ID
+                  FROM MEMBER_BANK_CC_FUTURE
+                 WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE) T
+         WHERE T.LEAD_BANK_ACCOUNT_NBR = B.BANK_ACCOUNT_NBR
+           AND B.FUTURE_ID             = T.FUTURE_ID
+         ORDER BY EFFECTIVE_DATE;
+END BANK_HISTORY_UI_SP;
 
 PROCEDURE BANK_DEP_TICK_OAK_UI_SP (
 /*******************************************************************************
     This procedure is intended to RETURN a ref cursor with data from BANK_DEP_TICKOAK table
 
 Created : 07/31/2015 sxt410 CCN Project....
-Changed : 
+Changed : 10/30/2015 jxc517 CCN Project....
+          Added comments before the call
 *******************************************************************************/
-OUT_BANK_DEP_TICKOAK_REF_CUR    OUT REF_CURSOR);
+OUT_BANK_DEP_TICKOAK_REF_CUR    OUT REF_CURSOR)
+IS
+BEGIN
+    --the below call will return the reference data record used for
+    --bank deposit tickets and bank deposit bags
+    BANK_DEP_TICKOAK_PKG.BANK_DEP_TICKOAK_UI_SP(OUT_BANK_DEP_TICKOAK_REF_CUR);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BANK_DEP_TICK_OAK_UI_SP ' || SUBSTR(SQLERRM,1,500));
+END BANK_DEP_TICK_OAK_UI_SP;
 
 PROCEDURE ACCNT_MNTNC_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -219,14 +400,23 @@ This procedure is intended to update following tables used in the Account Mainte
 </ACCOUNT_MAINTENANCE_UI>
 
 Created : 05/18/2015 jxc517 CCN Project....
-Changed : 12/12/2015 dxv848 added the flag for future checks.
+Changed : 12/12/2015 dxv848 added the IN_FLAG for future checks to bypass the
+          Warning message which states that "this process will delete
+          all Futures". This Needs to be a 'Y' if the user hits the 'OK' button
+          to proceed with the process
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB,
-    IN_FLAG      IN VARCHAR2);
+    IN_ROW_DATA  IN  CLOB)
+IS
+BEGIN
+   ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_UI_UPSERT_SP;
 
 PROCEDURE MEMBER_MNTNC_UI_UPSERT_SP(
 /******************************************************************************
-This procedure is intended to update following tables used in the Mamber Maintenance Window
+This procedure is intended to update following tables used in the Member Maintenance Window
     Tables: 
        MEMBER_BANK_CC
        MEMBER_BANK_CC_FUTURE
@@ -276,8 +466,20 @@ This procedure is intended to update following tables used in the Mamber Mainten
 Created : 07/10/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
-    
+    IN_ROW_DATA  IN  CLOB)
+IS
+    V_COUNT                         INTEGER;
+    V_XML_MEMBER_BANK_CC_FRAG       CLOB;
+    V_ROW_DATA                      XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_TEMP_ROW                      MEMBER_BANK_CC%ROWTYPE;
+BEGIN
+
+    MEMBER_MAINTENANCE_PKG.MEMBER_MNTNC_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_MNTNC_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500));
+END MEMBER_MNTNC_UI_UPSERT_SP;
+
 PROCEDURE DEPOSIT_TICKET_UI_UPSERT_SP ( 
 /******************************************************************************
 This procedure is intended to update following tables used in the Deposit Ticket Window
@@ -317,8 +519,16 @@ Changed : 10/17/2016 nxk927 CCN Project....
           IN_MBR_BNK_ACCT_NBR be passed back to database as an input parameter which will be stored in the member bank cc table 
           and store micr details table with the desired format.
 *******************************************************************************/
-    IN_ROW_DATA         IN  CLOB,
-    IN_MBR_BNK_ACCT_NBR IN  VARCHAR2 DEFAULT NULL);
+    IN_ROW_DATA  IN  CLOB,
+    IN_MBR_BNK_ACCT_NBR IN VARCHAR2)
+IS
+BEGIN
+
+    DEPOSIT_TICKET_MAINTENANCE_PKG.DEPOSIT_TKT_MNTNC_UI_UPSERT_SP(IN_ROW_DATA,IN_MBR_BNK_ACCT_NBR);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'DEPOSIT_TICKET_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END DEPOSIT_TICKET_UI_UPSERT_SP;
 
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
@@ -330,7 +540,19 @@ Changed :
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
-IN_USER_ID              IN     VARCHAR2);
+IN_USER_ID              IN     VARCHAR2)
+IS
+BEGIN
+
+
+    DEPOSIT_TICKET_MAINTENANCE_PKG.PLACE_DEPOSIT_TICKET_ORDER(IN_COST_CENTER_CODE,
+                                                              IN_ORDERED_DATE,
+                                                              IN_FUTURE_ID,
+                                                              IN_USER_ID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PLACE_DEPOSIT_TICKET_ORDER;
 
 PROCEDURE DEPOSIT_BAG_UPDT_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -355,13 +577,22 @@ This procedure is intended to update following tables used in the Deposit Bag Up
         <DEP_BAG_REORDER_SWITCH>X</DEP_BAG_REORDER_SWITCH>
         <EFFECTIVE_DATE>MM-DD-RRRR</EFFECTIVE_DATE>
         <EXPIRATION_DATE>MM-DD-RRRR</EXPIRATION_DATE>
+        <FUTURE_ID>X</FUTURE_ID>
     </BANK_DEP_BAG_TICK>
 </BANK_DEP_BAG_TICK_UI>
 
 Created : 05/21/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/20/2015 jxc517 CCN Project....
+          changed to support future tabs
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
+    IN_ROW_DATA  IN  CLOB)
+IS
+BEGIN
+    DEPOSIT_BAG_MAINTENANCE_PKG.DEPOSIT_BAG_UPDT_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'DEPOSIT_BAG_UPDT_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END DEPOSIT_BAG_UPDT_UI_UPSERT_SP;
 
 PROCEDURE PLACE_DEPOSIT_BAG_TICKET_ORDER(
 /*******************************************************************************
@@ -373,7 +604,17 @@ Changed :
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
-IN_USER_ID              IN     VARCHAR2);
+IN_USER_ID              IN     VARCHAR2)
+IS
+BEGIN
+    DEPOSIT_BAG_MAINTENANCE_PKG.PLACE_DEPOSIT_BAG_TICKET_ORDER(IN_COST_CENTER_CODE,
+                                                               IN_ORDERED_DATE,
+                                                               IN_FUTURE_ID,
+                                                               IN_USER_ID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PLACE_DEPOSIT_BAG_TICKET_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PLACE_DEPOSIT_BAG_TICKET_ORDER;
 
 PROCEDURE BANK_DEP_TICK_OAK_UI_UPSERT_SP ( 
 /******************************************************************************
@@ -383,56 +624,65 @@ Bank Deposit Ticket Oak Window.
        BANK_DEP_TICKOAK
 
 Created : 07/31/2015 sxt410 CCN Project....
-Changed : 
+Changed : 10/30/2015 jxc517 CCN Project....
+          Added comments before the call
 *******************************************************************************/
-    IN_ROW_DATA  IN  CLOB);
+    IN_ROW_DATA  IN  CLOB)
+IS
+BEGIN
+    --Below call is used to update the reference data in BANK_DEP_TICKOAK
+    --This data will be used in deposit tickets and deposit bags for calculations
+    BANK_DEP_TICKOAK_PKG.BANK_DEP_TICKOAK_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BANK_DEP_TICK_OAK_UI_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BANK_DEP_TICK_OAK_UI_UPSERT_SP;
 
-PROCEDURE LEAD_BANK_FROM_SP 
+PROCEDURE LEAD_BANK_FROM_SP(
 /*******************************************************************************
-    This procedure is intended to select records from Lead bank table including the 
-    members from the member bank table that we will be tranferred from.  
+This procedure is intended to select records from Lead bank table including the 
+members from the member bank table that we will be tranferred from.
 
 Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-(IN_COST_CENTER_CODE IN     VARCHAR2
-,OUT_REF_CUR   OUT  REF_CURSOR
-,OUT_REF_CUR1   OUT  REF_CURSOR
-);
+IN_COST_CENTER_CODE    IN     VARCHAR2,
+OUT_REF_CUR            OUT REF_CURSOR,
+OUT_REF_CUR1           OUT REF_CURSOR)
+IS
+BEGIN
+    CONCENTRATION_TRANSFER_PKG.LEAD_BANK_FROM_SP(IN_COST_CENTER_CODE,
+                                                 OUT_REF_CUR,
+                                                 OUT_REF_CUR1);
+END LEAD_BANK_FROM_SP;
 
-PROCEDURE LEAD_BANK_TO_SP 
+PROCEDURE LEAD_BANK_TO_SP(
 /*******************************************************************************
-    This procedure is intended to select records from Lead bank table and the
-    member bank table that we will tranfer the records to.
+This procedure is intended to select records from Lead bank table and the
+member bank table that we will tranfer the records to.
 
 Created : 07/08/2015 nxk927/jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
-(IN_COST_CENTER_CODE IN     VARCHAR2
-,OUT_REF_CUR   OUT  REF_CURSOR);
-
-
-PROCEDURE MAKE_LEAD_PROCESS
-/*******************************************************************************
-    This procedure is the shortcut proc to make the member bank as the lead 
-    and transfer all the other member to the new lead.
-
-Created : 07/08/2015 nxk927/jxc517 CCN Project....
-Changed : 09/29/2015 sxh487 Added an IN_MAKE_LEAD_FLAG to bypass the
-          Warning message which states that "this process will delete 
-          all Futures". This Needs to be a 'Y' if the user hits the 'OK' button
-          to proceed with the process 
-*******************************************************************************/
-(IN_MAKE_LEAD_FLAG           IN     VARCHAR2
-,IN_NEW_LEAD_CC              IN     VARCHAR2
-,IN_USER_ID                  IN     VARCHAR2
-,IN_EFFECTIVE_DATE           IN     DATE);
+IN_COST_CENTER_CODE    IN     VARCHAR2,
+OUT_REF_CUR            OUT REF_CURSOR)
+IS
+BEGIN
+   CONCENTRATION_TRANSFER_PKG.LEAD_BANK_TO_SP(IN_COST_CENTER_CODE,
+                                              OUT_REF_CUR);
+END LEAD_BANK_TO_SP;
 
 PROCEDURE LEAD_TRANSFER_PROCESS(
 /***********************************************************
-	This procedure will be called from ui to transfer particular cost center
-    from one lead to another
-        
+This procedure is used to transfer member from one lead to another
+
+This Procdedure does the following
+1) Makes the new lead selected in the UI as the LEAD
+2) Deletes the current lead from the Lead table and pushes to history
+3) Deletes all the members from the Old Lead and pushes to history
+4) Inserts the new cost center as the New Lead
+5) Inserts all the members from the old Lead under the New lead
+
 EXAMPLE INPUT:
 <?XML VERSION="1.0" ENCODING="UTF-8"?>
 <MEMBER_TRANSFER_UI>
@@ -440,8 +690,13 @@ EXAMPLE INPUT:
     <FROM_LEAD_CC>701234</FROM_LEAD_CC>
     <TO_LEAD_CC>705678</TO_LEAD_CC>
     <MEMBER_STORES>
-      <MEMBER><MEMBER_STORE_NBR>701451</MEMBER_STORE_NBR><EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE></MEMBER>
-      <MEMBER><MEMBER_STORE_NBR>702000</MEMBER_STORE_NBR><EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE></MEMBER>
+      <MEMBER>
+         <MEMBER_STORE_NBR>701451</MEMBER_STORE_NBR>
+         <EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE>
+      </MEMBER>
+      <MEMBER>
+         <MEMBER_STORE_NBR>702000</MEMBER_STORE_NBR>
+         <EFFECTIVE_DATE>MM-DD-RRRR HH:MI:SS AM</EFFECTIVE_DATE></MEMBER>
     </MEMBER_STORE>
 </MEMBER_TRANSFER_UI>
 
@@ -454,7 +709,47 @@ Changed : 09/29/2015 sxh487 Added an IN_TRANSFER_FLAG to bypass the
           to proceed with the process 
 ************************************************************/
 IN_TRANSFER_FLAG          IN VARCHAR2,
-IN_XML                    CLOB);
+IN_XML                    CLOB)
+IS
+BEGIN
+    CONCENTRATION_TRANSFER_PKG.LEAD_TRANSFER_PROCESS(IN_TRANSFER_FLAG,IN_XML);
+EXCEPTION
+   WHEN OTHERS THEN
+     ERRPKG.RAISE_ERR(SQLCODE, 'LEAD_TRANSFER_PROCESS, ' || ' ' || 'FAILED TO TRANSFER TO NEW LEAD - ' || SQLERRM);
+END LEAD_TRANSFER_PROCESS;
+
+PROCEDURE MAKE_LEAD_PROCESS(
+/***********************************************************
+This procedure is used to make a member with in a lead as "L" for
+all the members under that lead
+
+This Procdedure does the following
+1) Makes the Member selected in the UI as the LEAD
+2) Deletes the current lead from the Lead table and pushes to history
+3) Deletes all the members from the Old Lead and pushes to history
+4) Inserts the Member as the New Lead
+5) Inserts all the members from the old Lead under the New lead
+
+Created : 07/08/2015 nxk927/jxc517 CCN Project....
+Changed : 09/29/2015 sxh487 Added an IN_MAKE_LEAD_FLAG to bypass the
+          Warning message which states that "this process will delete 
+          all Futures". This Needs to be a 'Y' if the user hits the 'OK' button
+          to proceed with the process 
+************************************************************/
+IN_MAKE_LEAD_FLAG           IN     VARCHAR2,
+IN_NEW_LEAD_CC              IN     VARCHAR2,
+IN_USER_ID                  IN     VARCHAR2,
+IN_EFFECTIVE_DATE           IN     DATE)
+IS
+BEGIN
+   CONCENTRATION_TRANSFER_PKG.MAKE_LEAD_PROCESS(IN_MAKE_LEAD_FLAG,
+                                                IN_NEW_LEAD_CC,
+                                                IN_USER_ID,
+                                                IN_EFFECTIVE_DATE);
+EXCEPTION
+  WHEN OTHERS THEN
+    ERRPKG.RAISE_ERR(SQLCODE, 'MAKE_LEAD_PROCESS, ' || ' ' || 'FAILED TO MAKE LEAD - ' || SQLERRM);
+END MAKE_LEAD_PROCESS;
 
 PROCEDURE ACCNT_MNTNC_UI_DELETE_SP(
 /***********************************************************
@@ -465,9 +760,19 @@ Created : 07/13/2015 jxc517 CCN Project....
 Changed :
 ************************************************************/
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2,
-    IN_FUTURE_ID            IN  NUMBER);
+    IN_FUTURE_ID            IN  NUMBER)
+IS
+BEGIN
+    NULL;
+    /*ACCOUNT_MAINTENANCE_PKG.ACCNT_MNTNC_UI_DELETE_SP(IN_BANK_ACCOUNT_NUMBER,
+                                                     IN_FUTURE_ID);*/
+EXCEPTION
+  WHEN OTHERS THEN
+    ERRPKG.RAISE_ERR(SQLCODE, 'ACCNT_MNTNC_UI_DELETE_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ACCNT_MNTNC_UI_DELETE_SP;
 
-PROCEDURE CODE_HEADER_S_SP (
+
+PROCEDURE CODE_HEADER_S_SP(
 /**********************************************************
 This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_HEADER_S_SP
 Procedure
@@ -475,10 +780,17 @@ Procedure
 created : 11/24/2015 dxv848 CCN Project....
 changed :
 **********************************************************/
-IN_HEADER_NAME          IN CODE_HEADER.CODE_HEADER_NAME%TYPE
-,IN_HEADER_TYPE         IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
-,OUT_CODE_HEADER_CUR    OUT REF_CURSOR)
-;
+IN_HEADER_NAME        IN CODE_HEADER.CODE_HEADER_NAME%TYPE
+,IN_HEADER_TYPE       IN CODE_HEADER.CODE_HEADER_TYPE%TYPE
+,OUT_CODE_HEADER_CUR  OUT REF_CURSOR)
+
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_HEADER_S_SP(IN_HEADER_NAME,
+                                          IN_HEADER_TYPE,
+                                          OUT_CODE_HEADER_CUR);
+
+END CODE_HEADER_S_SP;
 
 PROCEDURE CODE_DETAIL_S_SP (
 /**********************************************************
@@ -491,25 +803,38 @@ changed :
 IN_HEADER_NAME        IN CODE_DETAIL.CODE_HEADER_NAME%TYPE
 ,IN_HEADER_TYPE       IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 ,OUT_CODE_DETAIL_CUR  OUT REF_CURSOR)
-;
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_DETAIL_S_SP(IN_HEADER_NAME,
+                                          IN_HEADER_TYPE,
+                                          OUT_CODE_DETAIL_CUR);
+
+END CODE_DETAIL_S_SP;
 
 PROCEDURE CODE_DETAIL_DESC_SP (
 /**********************************************************
-	This procedure is Wrapper to BANKING_PICK_LIST_PKG.CODE_DETAIL_DESC_SP
+This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_DETAIL_S_SP
 Procedure
 
-created : 11/21/2015 dxv848 CCN Project....
+created : 11/24/2015 dxv848 CCN Project....
 changed :
 **********************************************************/
 IN_HEADER_NAME       IN CODE_DETAIL.CODE_HEADER_NAME%TYPE
 ,IN_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 ,IN_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 ,OUT_CODE_DETAIL_CUR OUT REF_CURSOR)
-;
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_DETAIL_DESC_SP(IN_HEADER_NAME,
+                                          IN_HEADER_TYPE,
+                                          IN_DETAIL_VALUE,
+                                          OUT_CODE_DETAIL_CUR);
+
+END CODE_DETAIL_DESC_SP;
 
 PROCEDURE CODE_DETAIL_INSERT(
 /**********************************************************
-  This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_DETAIL_INSERT
+ This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_DETAIL_INSERT
 Procedure
  This procedure will insert into the CODE_DETAIL table
 <CODE_DETAIL_UI>
@@ -554,7 +879,12 @@ Procedure
 created : 01/06/2016 dxv848 CCN Project....
 changed :
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_XML                VARCHAR2)
+ IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_DETAIL_INSERT(IN_XML);
+
+END CODE_DETAIL_INSERT;
 
 PROCEDURE CODE_DETAIL_UPDATE(
 /**********************************************************
@@ -579,11 +909,16 @@ Procedure
 created : 01/06/2016 dxv848 CCN Project....
 changed :
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_XML                VARCHAR2)
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_DETAIL_UPDATE(IN_XML);
+
+END CODE_DETAIL_UPDATE;
 
 PROCEDURE CODE_HEADER_INSERT(
 /**********************************************************
-		This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_HEADER_INSERT
+	This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_HEADER_INSERT
 Procedure
 	This procedure will insert into the table CODE_HEADER
 <CODE_HEADER_UI>
@@ -604,11 +939,16 @@ Procedure
 created : 01/06/2016 dxv848 CCN Project....
 changed :
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_XML                VARCHAR2)
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_HEADER_INSERT(IN_XML);
+
+END CODE_HEADER_INSERT;
 
 PROCEDURE CODE_HEADER_UPDATE(
 /**********************************************************
-   This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_HEADER_UPDATE
+ This procedure is a Wrapper to BANKING_PICK_LIST_PKG.CODE_HEADER_UPDATE
 Procedure
  This procedure will UPDATE into the table CODE_HEADER
 <CODE_HEADER_UI>
@@ -629,6 +969,11 @@ Procedure
 created : 01/06/2016 dxv848 CCN Project....
 changed :
 **********************************************************/
-    IN_XML                VARCHAR2);
+    IN_XML                VARCHAR2)
+IS
+BEGIN
+   BANKING_PICK_LIST_PKG.CODE_HEADER_UPDATE(IN_XML);
+
+END CODE_HEADER_UPDATE;
 
 END BANKING_UI_INTERFACE_APP_PKG;
