@@ -433,18 +433,18 @@ exc_invalid_code_hdr_size_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_code_hdr_size_err , -20036);
 
-/***********************************************************
+/*********************************************************** 
 The "future_del_wrn" passes a numerical error of -20037
-This warning will be used if an expired member with future
-is transferred again
-Created : 11/30/2015 dxv848 CCN Project....
+This warning will be used if an expired member with future 
+is transferred again. 
+Created : 09/30/2015 dxv848 CCN Project....
 Changed :
 ************************************************************/
 en_future_del_wrn_accmain CONSTANT NUMBER := -20037;
 exc_future_del_wrn_accmain EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_future_del_wrn_accmain , -20037);
 
-/***********************************************************
+/*********************************************************** 
 The "cc_open_close_dt" passes a numerical error of -20038
 This warning will be used if an order is placed for closed cost center or
 dummy cost center which has open dt of 01-JAN-2099
@@ -454,5 +454,27 @@ Changed :
 en_cc_open_close_dt_err CONSTANT NUMBER := -20038;
 exc_cc_open_close_dt_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_cc_open_close_dt_err , -20038);
+
+/*********************************************************** 
+The "dep_tick_reordr_swtc_err" passes a numerical error of -20038
+This error is to stop placing ticket order on stores with reorder switch as "L"
+
+Created : 11/16/2016 jxc517 CCN Project Team....
+Changed :
+************************************************************/
+en_dep_tick_reordr_swtc_err CONSTANT NUMBER := -20038;
+exc_dep_tick_reordr_swtc_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_dep_tick_reordr_swtc_err , -20038);
+
+/*********************************************************** 
+The "dep_bag_reordr_swtc_err" passes a numerical error of -20039
+This error is to stop placing bag order on stores with reorder switch as "L"
+
+Created : 11/16/2016 jxc517 CCN Project Team....
+Changed :
+************************************************************/
+en_dep_bag_reordr_swtc_err CONSTANT NUMBER := -20039;
+exc_dep_bag_reordr_swtc_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_dep_bag_reordr_swtc_err , -20039);
 
 END ERRNUMS;
