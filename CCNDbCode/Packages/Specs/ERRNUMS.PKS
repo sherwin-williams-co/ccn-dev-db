@@ -2746,6 +2746,19 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
 /*********************************************************** 
+The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
+This error will state that the future address is having effective date 
+less than or equal to current date
+
+Created  : 04/20/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_ftr_adr_efctv_dt_err CONSTANT NUMBER := -20537;
+exc_invld_ftr_adr_efctv_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_ftr_adr_efctv_dt_err , -20537);
+
+/*********************************************************** 
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
