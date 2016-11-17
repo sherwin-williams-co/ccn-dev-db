@@ -456,25 +456,25 @@ exc_cc_open_close_dt_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_cc_open_close_dt_err , -20038);
 
 /*********************************************************** 
-The "dep_tick_reordr_swtc_err" passes a numerical error of -20038
+The "dep_tick_reordr_swtc_err" passes a numerical error of -20039
 This error is to stop placing ticket order on stores with reorder switch as "L"
 
 Created : 11/16/2016 jxc517 CCN Project Team....
 Changed :
 ************************************************************/
-en_dep_tick_reordr_swtc_err CONSTANT NUMBER := -20038;
+en_dep_tick_reordr_swtc_err CONSTANT NUMBER := -20039;
 exc_dep_tick_reordr_swtc_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_dep_tick_reordr_swtc_err , -20038);
+PRAGMA EXCEPTION_INIT(exc_dep_tick_reordr_swtc_err , -20039);
 
 /*********************************************************** 
-The "dep_bag_reordr_swtc_err" passes a numerical error of -20039
+The "dep_bag_reordr_swtc_err" passes a numerical error of -20040
 This error is to stop placing bag order on stores with reorder switch as "L"
 
 Created : 11/16/2016 jxc517 CCN Project Team....
 Changed :
 ************************************************************/
-en_dep_bag_reordr_swtc_err CONSTANT NUMBER := -20039;
+en_dep_bag_reordr_swtc_err CONSTANT NUMBER := -20040;
 exc_dep_bag_reordr_swtc_err EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_dep_bag_reordr_swtc_err , -20039);
+PRAGMA EXCEPTION_INIT(exc_dep_bag_reordr_swtc_err , -20040);
 
 END ERRNUMS;
