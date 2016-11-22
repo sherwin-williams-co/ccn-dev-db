@@ -1,4 +1,4 @@
-  CREATE OR REPLACE VIEW COST_CENTER_VW AS
+ CREATE OR REPLACE VIEW COST_CENTER_VW AS
   SELECT
 /*******************************************************************************
 This View holds all the required data for a cost_center its country_code, Mission_type_code along with their descriptions
