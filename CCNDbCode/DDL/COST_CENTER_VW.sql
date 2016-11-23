@@ -1,9 +1,8 @@
- CREATE OR REPLACE VIEW COST_CENTER_VW AS
+  CREATE OR REPLACE VIEW COST_CENTER_VW AS
   SELECT
 /*******************************************************************************
 This View holds all the required data for a cost_center its country_code, Mission_type_code along with their descriptions
 and also Acquisition_code from COST_CENTER table.
-
 created  : 03/18/2014 for CCN project and 
 Modified : 07/18/14 Added ACQUISITION_CODE column.
 Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
@@ -30,13 +29,19 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Git reversion just to move the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
            ahead of other code
          : 10/28/2016 nxk927 CCN Project Team..
-		   GIT reversion after moving the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
-		 : 11/03/2016 axk326 CCN Project Team..
-		   Git reversion just to move the TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC fields
+           GIT reversion after moving the STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER field
+         : 11/03/2016 axk326 CCN Project Team..
+           Git reversion just to move the TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC fields
            ahead of other code
+         : 11/03/2016 axk326 CCN Project Team..
+           GIT reversion after moving TERRITORY_TYPE_BUSN_CODE and TERRITORY_TYPE_BUSN_CODE_DESC
+         : 11/04/2016 MXK766 CCN Project Team..
+           Adding INVENTORY_INDICATOR columm from the store table.
+         : 11/10/2016 AXK326 CCN Project Team..
+           Adding POLLING_IND column from polling table.
          : 11/22/2016 rxs349 CCN Project Team..
            Adding CASE expressions to STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER columns.
-********************************************************************************/  
+********************************************************************************/
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
 C.CATEGORY,
@@ -61,10 +66,19 @@ NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('SCD_LOGO_GROUP_IND','COD',S
 COLOR_CONSULTANT_TYPE,
 PCC_PCL_STORE,
 COMMON_TOOLS.GET_PHONE_NUMBER (C.COST_CENTER_CODE, 'FAX') FAX_PHONE_NUMBER,
+CCN_HIERARCHY.GET_TYPE_FNC(C.COST_CENTER_CODE) TYPE_CODE,
+(SELECT STATUS_CODE
+   FROM STATUS
+  WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
+    AND EXPIRATION_DATE IS NULL) STATUS_CODE,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
     AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_STATUS_CODE,
+(SELECT POLLING_IND
+   FROM POLLING
+  WHERE CURRENT_FLAG = 'Y'
+    AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_IND,
  NVL((SELECT CD.CODE_DETAIL_DESCRIPTION
         FROM CODE_DETAIL CD,
              POLLING P
@@ -99,7 +113,8 @@ CASE WHEN C.STD_COST_IDENTIFIER IS NULL AND C.STATEMENT_TYPE IN ('CN','AC') AND 
      ELSE C.STD_COST_IDENTIFIER END AS STD_COST_IDENTIFIER,
 CASE WHEN C.PRIM_COST_IDENTIFIER IS NULL AND C.STATEMENT_TYPE IN ('CN','AC') AND NVL(COMMON_TOOLS.IS_CC_SELLING_STORE(C.COST_CENTER_CODE), 'N') = 'Y' THEN
          '08'
-     ELSE C.PRIM_COST_IDENTIFIER END AS PRIM_COST_IDENTIFIER
+     ELSE C.PRIM_COST_IDENTIFIER END AS PRIM_COST_IDENTIFIER,    
+(SELECT ST.INVENTORY_INDICATOR  FROM STORE ST WHERE ST.COST_CENTER_CODE = C.COST_CENTER_CODE) AS INVENTORY_INDICATOR
 FROM COST_CENTER C LEFT JOIN
 (SELECT COST_CENTER_CODE,CATEGORY,TERRITORY_TYPE_BUSN_CODE FROM TERRITORY ) T
 ON (T.COST_CENTER_CODE=C.COST_CENTER_CODE AND  T.CATEGORY='T');
