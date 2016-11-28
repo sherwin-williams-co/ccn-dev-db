@@ -9,7 +9,7 @@
 #
 # Created  : 11/07/2016 jxc517 CCN Project Team.....
 # Modified : 11/09/2016 jxc517 CCN Project Team.....
-             Moved the FTP portion separately by itself
+#            Moved the FTP portion separately by itself
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
