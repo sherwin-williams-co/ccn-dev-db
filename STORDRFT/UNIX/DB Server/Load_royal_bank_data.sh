@@ -46,17 +46,50 @@ END
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
+   
    TIME=`date +"%H:%M:%S"`
-   echo "PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
+   echo "\n PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
+   
+   echo "\n Sending email about process failure to concerned mailing group.."
+   
    cd $HOME/dailyLoad
    ./send_err_status_email.sh ROYAL_BANK_REPORT_ERROR
+   
+   emailstatus=$?
+   TIME=`date +"%H:%M:%S"`
+    
+   if test $emailstatus -ne 0
+   then
+      echo "\n Processing FAILED while sending email for ROYAL_BANK_REPORT_ERROR at $TIME on $DATE"
+   fi
+      echo "\n Email script executed at $TIME on $DATE "
+   
    exit 1;
+   
 else
+
+   ############################################################################
+   #                 FTP the trigger file on application server
+   ############################################################################
    ./ftp_royal_bank_rpt_trg.sh
+   
+   trgftpstatus=$?
+   TIME=`date +"%H:%M:%S"`
+    
+   if test $trgftpstatus -ne 0
+   then
+      echo "\n Processing FAILED for ftp_royal_bank_rpt_trg.sh at $TIME on $DATE"
+      exit 1;
+   fi
+      echo "\n Completed execution of ftp_royal_bank_rpt_trg.sh at $TIME on $DATE "
+   
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "PROCESSING FINISHED FOR $proc_name AT ${TIME} ON ${DATE}"
+echo "\n PROCESSING FINISHED FOR $proc_name AT $TIME ON $DATE"
 
 exit 0
-############################################################################
+
+#############################################################
+# END of PROGRAM.
+#############################################################

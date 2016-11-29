@@ -17,7 +17,7 @@ echo -n "RUN" > $File
 
 printf " Starting FTP Process for RUN_ROYAL_BANK_REPORT.TRG to App server on $DATE at $TIME \n"
 
-# ftp to app server
+# ftp to application server
 ftp -n ${appserver_host} <<END_SCRIPT
 quote USER ${appserver_user}
 quote PASS ${appserver_pw}
@@ -32,11 +32,15 @@ END_SCRIPT
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $File at ${TIME} on ${DATE}"
+     echo "\n processing FAILED for $File at $TIME on $DATE"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished successfully for $File at ${TIME} on ${DATE}"
+echo "\n Processing finished successfully for $File at ${TIME} on ${DATE}"
 
 exit 0
+
+#############################################################
+# END of PROGRAM.
+#############################################################

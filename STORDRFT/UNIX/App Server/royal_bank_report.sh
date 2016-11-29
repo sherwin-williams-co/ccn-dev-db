@@ -8,12 +8,19 @@
 
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-echo "\nStarted running files at $TIME on $DATE "
+echo "\n Started running files at $TIME on $DATE "
 
 ./royal_bank_rpt.sh /app/strdrft/sdReport/data/run2.txt
 
-DATE=`date +"%m/%d/%Y"`
+status=$?
 TIME=`date +"%H:%M:%S"`
+    
+if test $status -ne 0
+then
+   echo "\n Processing FAILED for royal_bank_rpt.sh at ${TIME} on ${DATE}"
+   exit 1;
+fi
+   echo "\n Completed execution of royal_bank_rpt.sh at $TIME on $DATE "
 
 ###############################################
 # Description:  
@@ -21,29 +28,31 @@ TIME=`date +"%H:%M:%S"`
 ###############################################
 FPATH="/app/strdrft/sdReport/reports/final"
 
-DATE=`date +"%m%d%Y"`
-TIME=`date +"%H%M%S"`
+DT=`date +"%m%d%Y"`
+TM=`date +"%H%M%S"`
 echo "\n Copying file to tmp folder as a backup"
-cp $FPATH/Royal_Bank_Report.txt $FPATH/tmp/Royal_Bank_Report"_"$DATE"_"$TIME.txt
-
-echo "\n Done Copying file to tmp folder as a backup"
-
-DATE=`date +"%m/%d/%Y"`
-TIME=`date +"%H:%M:%S"`
-echo "\nCompleted running files at $TIME on $DATE "
+cp $FPATH/Royal_Bank_Report.txt $FPATH/tmp/Royal_Bank_Report"_"$DT"_"$TM.txt
+echo "\n Copying file to tmp folder as a backup completed."
 
 ###############################################
 # Description:  
 # Process to FTP the Royal_Bank_Report.txt file to Mainframe
 ###############################################
 
-echo "\nStarting FTP Process of Royal_Bank_Report.txt to Mainframe on $DATE at $TIME"
+echo "\n Starting FTP Process of Royal_Bank_Report.txt to Mainframe on $DATE at $TIME"
 
 ./royal_bank_rpt_ftp.sh
 
+status=$?
 TIME=`date +"%H:%M:%S"`
-
-echo "\n FTP process completed at $TIME on $DATE "
+    
+if test $status -ne 0
+then
+   echo "\n Processing FAILED for royal_bank_rpt_ftp.sh at ${TIME} on ${DATE}"
+   exit 1;
+fi
+   echo "\n FTP process completed at $TIME on $DATE "
+   exit 0;
 
 ############################################################################
 # End of Program

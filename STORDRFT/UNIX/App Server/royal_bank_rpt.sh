@@ -11,7 +11,6 @@
 . /app/strdrft/dataloadInfo.txt
 
 dt=`date`
-DATE=`date +"%m-%d-%Y-%H%M%S"`
 echo "START ROYAL BANK REPORT : $dt\n"
 
 user=$sqlplus_user
@@ -41,3 +40,7 @@ done
 dt1=`date`
 
 echo "END ROYAL BANK REPORT  : $dt1\n"
+
+#############################################################
+# END of PROGRAM.
+#############################################################
