@@ -48,9 +48,9 @@ status=$?
 if [ $status -ne 0 ]; then
    
    TIME=`date +"%H:%M:%S"`
-   echo "\n PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
+   echo "PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
    
-   echo "\n Sending email about process failure to concerned mailing group.."
+   echo "Sending email about process failure to concerned mailing group.."
    
    cd $HOME/dailyLoad
    ./send_err_status_email.sh ROYAL_BANK_REPORT_ERROR
@@ -60,9 +60,9 @@ if [ $status -ne 0 ]; then
     
    if test $emailstatus -ne 0
    then
-      echo "\n Processing FAILED while sending email for ROYAL_BANK_REPORT_ERROR at $TIME on $DATE"
+      echo "Processing FAILED while sending email for ROYAL_BANK_REPORT_ERROR at $TIME on $DATE"
    fi
-      echo "\n Email script executed at $TIME on $DATE "
+      echo "Email script executed at $TIME on $DATE "
    
    exit 1;
    
@@ -78,15 +78,15 @@ else
     
    if test $trgftpstatus -ne 0
    then
-      echo "\n Processing FAILED for ftp_royal_bank_rpt_trg.sh at $TIME on $DATE"
+      echo "Processing FAILED for ftp_royal_bank_rpt_trg.sh at $TIME on $DATE"
       exit 1;
    fi
-      echo "\n Completed execution of ftp_royal_bank_rpt_trg.sh at $TIME on $DATE "
+      echo "Completed execution of ftp_royal_bank_rpt_trg.sh at $TIME on $DATE "
    
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "\n PROCESSING FINISHED FOR $proc_name AT $TIME ON $DATE"
+echo "PROCESSING FINISHED FOR $proc_name AT $TIME ON $DATE"
 
 exit 0
 
