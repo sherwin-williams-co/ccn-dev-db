@@ -32,12 +32,12 @@ END_SCRIPT
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "\n processing FAILED for $File at $TIME on $DATE"
+     echo "processing FAILED for $File at $TIME on $DATE"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "\n Processing finished successfully for $File at ${TIME} on ${DATE}"
+echo "Processing finished successfully for $File at ${TIME} on ${DATE}"
 
 exit 0
 
