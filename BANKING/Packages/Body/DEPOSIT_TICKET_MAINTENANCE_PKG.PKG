@@ -598,40 +598,33 @@ This function will check if the format is changed or not and return Y/N accordin
 Created : 08/21/2015 jxc517 CCN Project....
 Changed : 10/20/2016 nxk927 CCN Project....
           Added a check to see if the member sub account changed
+        : 11/29/2016 nxk927 CCN Project....
+          Removed the member sub account change check
 *******************************************************************************/
 IN_COST_CENTER_CODE      IN     VARCHAR2,
 IN_BANK_ACCOUNT_NBR      IN     VARCHAR2,
-IN_MBR_BNK_ACCT_NBR      IN     VARCHAR2 DEFAULT NULL,
 IN_FUTURE_ID             IN     NUMBER,
 IN_MICR_FORMAT_ID        IN     NUMBER) RETURN VARCHAR2
 IS
     V_STORE_MICR_FORMAT_DTLS_REC   STORE_MICR_FORMAT_DTLS%ROWTYPE;
     V_STR_MICR_FORMAT_DTLS_FTR_REC STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE;
-    V_MEMBER_BANK_CC_REC           MEMBER_BANK_CC%ROWTYPE;
-    V_MEMBER_BANK_CC_FUTURE_REC    MEMBER_BANK_CC_FUTURE%ROWTYPE;
-    V_SUB_ACCOUNT_NBR              VARCHAR2(25);
     V_MICR_FORMAT_ID               NUMBER;
     V_BANK_ACCOUNT_NBR             VARCHAR2(20);
     V_RETURN_VAL                   VARCHAR2(1) := 'N';
 BEGIN
     IF IN_FUTURE_ID IS NULL THEN
         V_STORE_MICR_FORMAT_DTLS_REC   := BANKING_COMMON_TOOLS.GET_STORE_MICR_FORMAT_DTLS_REC(IN_COST_CENTER_CODE);
-        V_MEMBER_BANK_CC_REC           := BANKING_COMMON_TOOLS.GET_MBR_BANK_CC_REC(IN_COST_CENTER_CODE);
         V_BANK_ACCOUNT_NBR             := V_STORE_MICR_FORMAT_DTLS_REC.BANK_ACCOUNT_NBR;
         V_MICR_FORMAT_ID               := NVL(V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID, 0);
-        V_SUB_ACCOUNT_NBR              := NVL(V_MEMBER_BANK_CC_REC.MEMBER_BANK_ACCOUNT_NBR,'YYYY');
     ELSE
         V_STR_MICR_FORMAT_DTLS_FTR_REC := BANKING_COMMON_TOOLS.GET_STR_MICR_FRMT_DTLS_FTR_REC(IN_COST_CENTER_CODE, IN_FUTURE_ID);
         V_BANK_ACCOUNT_NBR             := V_STR_MICR_FORMAT_DTLS_FTR_REC.BANK_ACCOUNT_NBR;
-        V_MEMBER_BANK_CC_FUTURE_REC    := BANKING_COMMON_TOOLS.GET_MBR_BANK_CC_FUTURE_REC(IN_COST_CENTER_CODE,V_BANK_ACCOUNT_NBR,IN_FUTURE_ID);
         V_MICR_FORMAT_ID               := NVL(V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ID, 0);
-        V_SUB_ACCOUNT_NBR              := NVL(V_MEMBER_BANK_CC_FUTURE_REC.MEMBER_BANK_ACCOUNT_NBR,'YYYY');
     END IF;
     --Allowing user to make any changes to the deposit Ticket through UI
     --for the existing Sub Accounts that do not match the micr format
     IF NVL(IN_MICR_FORMAT_ID, -1) <> V_MICR_FORMAT_ID
-       OR IN_BANK_ACCOUNT_NBR <> V_BANK_ACCOUNT_NBR 
-       OR NVL(IN_MBR_BNK_ACCT_NBR,'YYYY') <> V_SUB_ACCOUNT_NBR THEN
+       OR IN_BANK_ACCOUNT_NBR <> V_BANK_ACCOUNT_NBR THEN
         V_RETURN_VAL := 'Y';
     END IF;
     RETURN V_RETURN_VAL;
@@ -701,7 +694,8 @@ This procedure is intended to update member_bank_cc/member bank_cc_future table
 with the passed member bank account number
 
 Created : 10/20/2016 nxk927 CCN Project....
-Changed :
+Changed : 11/29/2016 nxk927 CCN Project...
+          update only when the member account number changes
 ********************************************************************************/
   IN_COST_CENTER_CODE    IN     VARCHAR2,
   IN_MBR_BANK_ACCT_NBR   IN     VARCHAR2,
@@ -712,18 +706,20 @@ IS
   BEGIN
     IF IN_FUTURE_ID IS NULL THEN
        UPDATE MEMBER_BANK_CC
-          SET MEMBER_BANK_ACCOUNT_NBR = IN_MBR_BANK_ACCT_NBR,
-              UPDATE_DATE             = SYSDATE,
-              LAST_UPD_USER_ID        = IN_USER_ID
-        WHERE MEMBER_STORE_NBR        = IN_COST_CENTER_CODE;
+          SET MEMBER_BANK_ACCOUNT_NBR           = IN_MBR_BANK_ACCT_NBR,
+              UPDATE_DATE                       = SYSDATE,
+              LAST_UPD_USER_ID                  = IN_USER_ID
+        WHERE MEMBER_STORE_NBR                  = IN_COST_CENTER_CODE
+          AND NVL(MEMBER_BANK_ACCOUNT_NBR, 'X') <> IN_MBR_BANK_ACCT_NBR;
     ELSE
         UPDATE MEMBER_BANK_CC_FUTURE
-          SET MEMBER_BANK_ACCOUNT_NBR = IN_MBR_BANK_ACCT_NBR,
-              UPDATE_DATE             = SYSDATE,
-              LAST_UPD_USER_ID        = IN_USER_ID
-        WHERE MEMBER_STORE_NBR        = IN_COST_CENTER_CODE
-          AND LEAD_BANK_ACCOUNT_NBR   = IN_LEAD_BANK_ACCT_NBR
-          AND FUTURE_ID               = IN_FUTURE_ID;
+          SET MEMBER_BANK_ACCOUNT_NBR           = IN_MBR_BANK_ACCT_NBR,
+              UPDATE_DATE                       = SYSDATE,
+              LAST_UPD_USER_ID                  = IN_USER_ID
+        WHERE MEMBER_STORE_NBR                  = IN_COST_CENTER_CODE
+          AND LEAD_BANK_ACCOUNT_NBR             = IN_LEAD_BANK_ACCT_NBR
+          AND FUTURE_ID                         = IN_FUTURE_ID
+          AND NVL(MEMBER_BANK_ACCOUNT_NBR, 'X') <> IN_MBR_BANK_ACCT_NBR;
     END IF;
   EXCEPTION
      WHEN OTHERS THEN
@@ -747,6 +743,8 @@ Changed : 11/05/2015 jxc517 CCN Project....
           Calling the update procedure directly for the member bank account number
           Signature changed for IS_FORMAT_CHANGED procedure
           Passing the parameter IN_MBR_BANK_ACCT_NBR as parameter
+        : 11/29/2016 nxk927 CCN Project...
+          Validating the micr format only when the IN_MBR_BANK_ACCT_NBR is null.
 *******************************************************************************/
     IN_BANK_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
     IN_MICR_FORMAT_ID     IN     NUMBER,
@@ -774,7 +772,6 @@ BEGIN
     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
-                         IN_MBR_BANK_ACCT_NBR,
                          NULL,
                          IN_MICR_FORMAT_ID) = 'Y' THEN
         BEGIN
@@ -794,15 +791,21 @@ BEGIN
             V_BANK_ACCOUNT_REC := BANKING_COMMON_TOOLS.GET_BANK_ACCOUNT_REC(V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR);
             V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_REC.COST_CENTER_CODE;
             V_STORE_MICR_FORMAT_DTLS_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR;
-            VALIDATE_AND_GET_FORMAT_VALUES(NVL(IN_MBR_BANK_ACCT_NBR,V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR),
-                                           V_BANK_ACCOUNT_REC.ROUTING_NBR,
-                                           V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
-                                           V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR,
-                                           V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR,
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR, --out
-                                           V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR); --out
+            IF IN_MBR_BANK_ACCT_NBR IS NULL THEN
+                VALIDATE_AND_GET_FORMAT_VALUES(NVL(IN_MBR_BANK_ACCT_NBR,V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR),
+                                               V_BANK_ACCOUNT_REC.ROUTING_NBR,
+                                               V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
+                                               V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR,
+                                               V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR,
+                                               V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR,
+                                               V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR, --out
+                                               V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR, --out
+                                               V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR); --out
+            ELSE
+                V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR := V_BANK_MICR_FORMAT_REC.MICR_FORMAT_ACTNBR;
+                V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR     := V_BANK_MICR_FORMAT_REC.MICR_ROUTING_NBR;
+                V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR       := V_BANK_MICR_FORMAT_REC.MICR_COST_CNTR;
+            END IF;
             V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID  := IN_MICR_FORMAT_ID;
             V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE  := SYSDATE;
             V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE := V_EXPIRATION_DATE;
@@ -818,14 +821,16 @@ BEGIN
                                          V_BANK_DEP_TICK_REC.NBR_DEP_TICKETS_PER_BK);
                 TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
             END IF;
-            MEMBER_BANK_ACCT_UPDATE(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
-                                    IN_MBR_BANK_ACCT_NBR,
-                                    V_BANK_DEP_TICK_REC.LAST_MAINT_USER_ID);
         ELSE
             IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
                 TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_D_SP(V_STORE_MICR_FORMAT_DTLS_REC);
             END IF;
         END IF;
+    END IF;
+    IF IN_MBR_BANK_ACCT_NBR IS NOT NULL THEN
+        MEMBER_BANK_ACCT_UPDATE(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
+                                IN_MBR_BANK_ACCT_NBR,
+                                V_BANK_DEP_TICK_REC.LAST_MAINT_USER_ID);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -970,6 +975,8 @@ Changed : 11/05/2015 jxc517 CCN Project....
           Calling the update procedure directly for the member bank account number
           Signature changed for IS_FORMAT_CHANGED procedure
           Passing the parameter IN_MBR_BANK_ACCT_NBR as parameter
+        : 11/29/2016 nxk927 CCN Project...
+          Validating the micr format only when the IN_MBR_BANK_ACCT_NBR is null.
 *******************************************************************************/
     IN_BANK_DEP_TICK_FUTURE_REC  IN     BANK_DEP_TICK_FUTURE%ROWTYPE,
     IN_MICR_FORMAT_ID            IN     NUMBER,
@@ -988,7 +995,6 @@ BEGIN
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                         IN_MBR_FTR_BNK_ACCT_NBR,
                          V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID,
                          IN_MICR_FORMAT_ID) = 'Y' THEN
         IF IN_MICR_FORMAT_ID IS NOT NULL THEN
@@ -1007,7 +1013,8 @@ BEGIN
             END;
             V_STR_MICR_FORMAT_DTLS_FTR_REC.COST_CENTER_CODE := V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE;
             V_STR_MICR_FORMAT_DTLS_FTR_REC.BANK_ACCOUNT_NBR := V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR;
-            VALIDATE_AND_GET_FORMAT_VALUES(NVL(IN_MBR_FTR_BNK_ACCT_NBR,V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR),
+            IF IN_MBR_FTR_BNK_ACCT_NBR IS NULL THEN
+                VALIDATE_AND_GET_FORMAT_VALUES(NVL(IN_MBR_FTR_BNK_ACCT_NBR,V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR),
                                            V_BANK_ACCOUNT_FUTURE_REC.ROUTING_NBR,
                                            V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
                                            V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ACTNBR,
@@ -1016,6 +1023,11 @@ BEGIN
                                            V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ACCT_NBR, --out
                                            V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_ROUTING_NBR, --out
                                            V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_COST_CNTR); --out
+            ELSE
+                V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ACCT_NBR := V_BANK_MICR_FORMAT_FUTURE_REC.MICR_FORMAT_ACTNBR;
+                V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_ROUTING_NBR     := V_BANK_MICR_FORMAT_FUTURE_REC.MICR_ROUTING_NBR;
+                V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_COST_CNTR       := V_BANK_MICR_FORMAT_FUTURE_REC.MICR_COST_CNTR;
+            END IF;
             V_STR_MICR_FORMAT_DTLS_FTR_REC.EFFECTIVE_DATE   := V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE;
             V_STR_MICR_FORMAT_DTLS_FTR_REC.EXPIRATION_DATE  := V_BANK_DEP_TICK_FUTURE_REC.EXPIRATION_DATE;
             V_STR_MICR_FORMAT_DTLS_FTR_REC.MICR_FORMAT_ID   := IN_MICR_FORMAT_ID;
@@ -1032,11 +1044,6 @@ BEGIN
                                          V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK);
                 TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
             END IF;
-            MEMBER_BANK_ACCT_UPDATE(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
-                                    IN_MBR_FTR_BNK_ACCT_NBR,
-                                    V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINT_USER_ID,
-                                    V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                                    V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID);
         ELSE
             BEGIN
                 SELECT *
@@ -1052,6 +1059,13 @@ BEGIN
                 TABLE_IU_PKG.STR_MICR_FORMAT_DTLS_FTR_D_SP(V_STR_MICR_FORMAT_DTLS_FTR_REC);
             END IF;
         END IF;
+    END IF;
+    IF IN_MBR_FTR_BNK_ACCT_NBR IS NOT NULL THEN
+        MEMBER_BANK_ACCT_UPDATE(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                                IN_MBR_FTR_BNK_ACCT_NBR,
+                                V_BANK_DEP_TICK_FUTURE_REC.LAST_MAINT_USER_ID,
+                                V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                                V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
