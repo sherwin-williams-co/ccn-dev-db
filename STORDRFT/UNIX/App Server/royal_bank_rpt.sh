@@ -5,7 +5,7 @@
 #               for royal banking and converts pdf file to
 #               text file.
 # Created     : 10/18/2016 MXR916
-# Modified    : 
+# Modified    : 11/29/2016 gxg192 $DATE variable as it was not used in the script
 ##########################################################
 
 . /app/strdrft/dataloadInfo.txt
@@ -41,6 +41,6 @@ dt1=`date`
 
 echo "END ROYAL BANK REPORT  : $dt1\n"
 
-#############################################################
-# END of PROGRAM.
-#############################################################
+############################################################################
+# End of Program
+############################################################################
