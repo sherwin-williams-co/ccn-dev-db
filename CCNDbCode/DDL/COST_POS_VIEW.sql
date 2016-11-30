@@ -9,6 +9,7 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
          : 01/29/2015 SXT410 Added Effective_date Column from Polling table.
          : 08/14/2015 NXK927 Only including current polling status
          : 03/01/2016 MXR916 Added STATE_CODE_DESCRIPTION,POLLING_STATUS_COD_DESCRIPTION,STATEMENT_TYPE_DESCRIPTION,TYPE_CODE_DESCRIPTION Columns.
+         : 11/30/2016 vxv336 Added CURRENCY_CODE column
 *******************************************************************************/ 
        CC.COST_CENTER_CODE,
        CC.CATEGORY,
@@ -43,7 +44,8 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
               AND  T.COST_CENTER_CODE=CC.COST_CENTER_CODE
               AND  T.EXPIRATION_DATE IS NULL),'N/A') TYPE_CODE_DESCRIPTION,
        CC.OPEN_DATE,
-       CC.CLOSE_DATE
+       CC.CLOSE_DATE,
+       CC.CURRENCY_CODE
        FROM COST_CENTER CC,
         (SELECT ADDRESS_LINE_1, ADDRESS_LINE_2, ADDRESS_LINE_3, CITY, STATE_CODE, ZIP_CODE, COST_CENTER_CODE FROM ADDRESS_USA WHERE ADDRESS_TYPE = 'M' AND EXPIRATION_DATE IS NULL
              UNION ALL
