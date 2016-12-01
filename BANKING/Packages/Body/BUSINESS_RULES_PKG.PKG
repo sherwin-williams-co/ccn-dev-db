@@ -1987,41 +1987,52 @@ Changed : 11/30/2016 nxk927
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
 IS
-  V_RETURN VARCHAR2(1) := 'Y';
+  V_COST_CENTER_REC       COST_CENTER%ROWTYPE;
+  V_PLACING_ORDER_OK      VARCHAR2(1) := 'Y';
 BEGIN
-   --CHECKING IF THE COST CENTER IS CLOSED
-   SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END --RETURNS 'N' IF THE COST CENTER IS CLOSED
-     INTO V_RETURN
-     FROM COST_CENTER
-    WHERE UPPER(COST_CENTER_CODE)            = UPPER(IN_COST_CENTER_CODE)
-      AND NVL(CLOSE_DATE, TRUNC(SYSDATE)+1)  >= TRUNC(SYSDATE);
 
-   IF V_RETURN = 'Y' THEN--COMES HERE IF THE COST CENTER IS NOT CLOSED
-      --CHECKING IF THE PASSED COST CENTER IS DUMMY COST CENTER
-      SELECT CASE WHEN COUNT(*) > 0 THEN 'N' ELSE 'Y' END--RETURNS 'N' IF THE COST CENTER IS A DUMMY/NOT_OPEN COST CENTER
-        INTO V_RETURN
-        FROM COST_CENTER
-       WHERE UPPER(COST_CENTER_CODE)                             = UPPER(IN_COST_CENTER_CODE)
-         AND NVL(OPEN_DATE,TO_DATE('01-JAN-2099','DD-MON-YYYY')) = TO_DATE('01-JAN-2099','DD-MON-YYYY');
+   BEGIN
+       SELECT *
+         INTO V_COST_CENTER_REC
+         FROM COST_CENTER
+        WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE);
+   EXCEPTION
+       WHEN OTHERS THEN
+           NULL;
+   END;
+
+   --checking if cost center is present or not in CCN
+   IF V_COST_CENTER_REC.COST_CENTER_CODE IS NOT NULL THEN
+       --checking if the cost center is closed
+       IF NVL(V_COST_CENTER_REC.CLOSE_DATE, TRUNC(SYSDATE)+1) >= TRUNC(SYSDATE) THEN
+           --checking if the cost center has null open date but status as '2'
+           IF V_COST_CENTER_REC.OPEN_DATE IS NULL THEN
+               SELECT CASE
+                          WHEN COUNT(*) > 0 THEN 'Y'
+                          ELSE 'N'
+                      END
+                 INTO V_PLACING_ORDER_OK
+                 FROM STATUS
+                WHERE STATUS_CODE = '2'
+                  AND EXPIRATION_DATE IS NULL
+                  AND COST_CENTER_CODE = V_COST_CENTER_REC.COST_CENTER_CODE;
+           ELSE
+               --checking if the cost center has dummy open date
+               IF V_COST_CENTER_REC.OPEN_DATE = TO_DATE('01-JAN-2099','DD-MON-YYYY') THEN
+                   V_PLACING_ORDER_OK := 'N';
+               END IF;
+           END IF;
+       ELSE
+           V_PLACING_ORDER_OK := 'N';
+       END IF;
+   ELSE
+       V_PLACING_ORDER_OK := 'N';
    END IF;
 
-   IF V_RETURN = 'N' THEN--COMES HERE IF THE COST CENTER IS A DUMMY COST CENTER/NOT_OPEN COST CENTER
-      --CHECKING IF THE PASSED COST CENTER IS NOT OPEN BUT HAS THE STATUS_CODE OF '2'
-      SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END--RETURNS 'N' IF THE COST CENTER IS A NOT OPEN AND THE STATUS CODE IS NOT 2
-        INTO V_RETURN
-        FROM COST_CENTER
-       WHERE UPPER(COST_CENTER_CODE)  = UPPER(IN_COST_CENTER_CODE)
-         AND OPEN_DATE IS NULL
-         AND COST_CENTER_CODE = (SELECT COST_CENTER_CODE
-                                   FROM STATUS
-                                  WHERE STATUS_CODE = '2'
-                                    AND EXPIRATION_DATE IS NULL
-                                    AND COST_CENTER_CODE = UPPER(IN_COST_CENTER_CODE));
-   END IF;
-   RETURN V_RETURN;
+   RETURN V_PLACING_ORDER_OK;
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN V_RETURN;
+        RETURN V_PLACING_ORDER_OK;
 END IS_PLACING_DPT_TKT_BAG_ORD_OK;
 
 END BUSINESS_RULES_PKG;
