@@ -35,6 +35,8 @@ END;
 	DEPOSIT_TICKET_REORDER VARCHAR2(1), 
 	POP_KIT_CODE VARCHAR2(1), 
 	GLOBAL_HIERARCHY_IND VARCHAR2(1), 
+    STD_COST_IDENTIFIER VARCHAR2(1)
+	PRIM_COST_IDENTIFIER VARCHAR2(1)
 	STATUS_CODE VARCHAR2(1), 
 	STATUS_EFFECTIVE_DATE VARCHAR2(8), 
 	STATUS_EXPIRATION_DATE VARCHAR2(8), 
@@ -160,6 +162,8 @@ END;
                                         DEPOSIT_TICKET_REORDER,
                                         POP_KIT_CODE,
                                         GLOBAL_HIERARCHY_IND,
+                                        STD_COST_IDENTIFIER,
+                                        PRIM_COST_IDENTIFIER,
                                         STATUS_CODE,
                                         STATUS_EFFECTIVE_DATE,
                                         STATUS_EXPIRATION_DATE,
