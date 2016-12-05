@@ -4,9 +4,10 @@
   to the SMIS group
 
 created : sxh487 11/21/2016
+modified: rxs349 12/05/2016  Corrected cursor name
 **********************************************************/
 declare
-CURSOR dep_tick_cur IS
+CURSOR dep_bag_cur IS
         SELECT *
           FROM BANK_DEP_BAG_TICKORD BDBTO
          WHERE ORDER_DATE = TRUNC(SYSDATE)
@@ -21,7 +22,7 @@ BEGIN
    --Building the header
    V_CLOB := 'BANK_ACCOUNT_NBR,COST_CENTER_CODE,DEPOSIT_BAG_ORDER_PRIORITY,DEPOSIT_BAG_ORDER_STATUS,DEPOSIT_BAG_ORDER_SEQ_NBR,EFFECTIVE_DATE,EXPIRATION_DATE,LAST_MAINTENANCE_DATE,LAST_MAINT_USER_ID,ORDER_DATE,EXTRACTED_USER_ID '||  UTL_TCP.crlf;
 
-   FOR REC IN dep_tick_cur LOOP        
+   FOR REC IN dep_bag_cur LOOP    
             V_CLOB := V_CLOB 
                       ||REC.BANK_ACCOUNT_NBR ||',' || CHR(9)
                       ||REC.COST_CENTER_CODE ||',' || CHR(9)
