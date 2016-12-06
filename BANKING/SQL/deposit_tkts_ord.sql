@@ -4,6 +4,8 @@
   to the SMIS group
 
 created : sxh487 11/18/2016
+modified: rxs349 12/05/2016  Corrected cursor name
+          sxh487 12/06/2016  corrected bank num display in .csv
 **********************************************************/
 declare
 CURSOR dep_tick_cur IS
@@ -23,17 +25,17 @@ BEGIN
    
    FOR REC IN dep_tick_cur LOOP        
             V_CLOB := V_CLOB 
-                      ||REC.BANK_ACCOUNT_NBR ||',' || CHR(9)
-                      ||REC.COST_CENTER_CODE ||',' || CHR(9) 
+   		      ||'"'||REC.BANK_ACCOUNT_NBR ||'"'|| CHR(9)|| ','
+                      ||'"'||REC.COST_CENTER_CODE ||'"'|| CHR(9)|| ','
                       ||REC.DEPOSIT_ORDER_PRIORITY ||','           
                       ||REC.DEPOSIT_ORDER_STATUS ||','           
                       ||REC.DEPOSIT_ORDER_SEQ_NBR ||','              
                       ||REC.EFFECTIVE_DATE ||','                
                       ||REC.EXPIRATION_DATE ||','                         
                       ||REC.LAST_MAINTENANCE_DATE ||','          
-                      ||REC.LAST_MAINT_USER_ID ||',' || CHR(9)     
+                      ||'"'||REC.LAST_MAINT_USER_ID ||'"'|| CHR(9)|| ','     
                       ||REC.ORDER_DATE ||','                           
-                      ||REC.EXTRACTED_USER_ID || CHR(9) ||CHR(10);
+                      ||'"'||REC.EXTRACTED_USER_ID ||'"'|| CHR(9) ||CHR(10);
         END LOOP;
     IF V_CLOB <> EMPTY_CLOB() THEN
        MAIL_PKG.SEND_MAIL('DEP_TICKORD_EXC_RPT', NULL, NULL, V_CLOB);
