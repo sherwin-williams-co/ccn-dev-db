@@ -14,11 +14,15 @@ based on the MICR formats part per page value and reference sheets per book valu
 as sheets per book value/MICR formats part per page
 
 Created : 08/18/2015 jxc517 CCN Project....
-Changed : 
+Changed : 12/08/2016 nxk927 CCN Project....
+          Signature changed to pass IMAGES_PER_PAGE,NBR_FORMS_PER_BK and SHEETS_OF_PAPER_PER_BK from reference table
 *******************************************************************************/
     IN_DJDE_FEED_PARM              IN     VARCHAR2,
     IN_OUT_PART_PAPER_PER_FORM     IN OUT NUMBER,
-    IN_OUT_NBR_DEP_TICKETS_PER_BK  IN OUT NUMBER)
+    IN_OUT_NBR_DEP_TICKETS_PER_BK  IN OUT NUMBER,
+    IN_OUT_IMAGES_PER_PAGE         IN OUT NUMBER,
+    IN_OUT_NBR_FORMS_PER_BK        IN OUT NUMBER,
+    IN_OUT_SHEETS_OF_PAPER_PER_BK  IN OUT NUMBER)
 IS
     V_DJDE_FEED_PARM VARCHAR2(10) := IN_DJDE_FEED_PARM;
 BEGIN
@@ -27,6 +31,13 @@ BEGIN
     IN_OUT_PART_PAPER_PER_FORM := SUBSTR(TRIM(V_DJDE_FEED_PARM), -1, 1);
     IN_OUT_NBR_DEP_TICKETS_PER_BK :=
        BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('SHEETS_OF_PAPER_PER_BK')/IN_OUT_PART_PAPER_PER_FORM;
+    --below 3 fields remain same always : validated with production data
+    /*IN_OUT_IMAGES_PER_PAGE        := 3;
+    IN_OUT_NBR_FORMS_PER_BK       := 108;
+    IN_OUT_SHEETS_OF_PAPER_PER_BK := 324;*/
+    IN_OUT_IMAGES_PER_PAGE        := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('IMAGES_PER_PAGE');
+    IN_OUT_NBR_FORMS_PER_BK       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_FORMS_PER_BK');
+    IN_OUT_SHEETS_OF_PAPER_PER_BK := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('SHEETS_OF_PAPER_PER_BK');
 END CALCULATE_DEPOSIT_TICKET;
 
 PROCEDURE DELETE_STORE_MICR_FORMAT_DTLS(
@@ -748,9 +759,11 @@ Changed : 11/05/2015 jxc517 CCN Project....
           Passing the parameter IN_MBR_BANK_ACCT_NBR as parameter
         : 11/29/2016 nxk927/jxc517 CCN Project...
           Validating the micr format only when the IN_MBR_BANK_ACCT_NBR is null.
-          added the nvl condition to calculate the tickets correctly
           Member bank account can be passed as null. Removing the check condition for the update even
           if the member bank account is passed back as null.
+        : 12/08/2016 nxk927 CCN Project...
+          if the effective date is passed, used the same date if there is no change,
+          else sysdate.
 *******************************************************************************/
     IN_BANK_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
     IN_MICR_FORMAT_ID     IN     NUMBER,
@@ -774,7 +787,8 @@ BEGIN
         WHEN OTHERS THEN
             NULL;
     END;
-    V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_REC.EXPIRATION_DATE, SYSDATE), SYSDATE);
+    V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := NVL(V_BANK_DEP_TICK_REC.EFFECTIVE_DATE,
+                                           LEAST(NVL(V_BANK_DEP_TICK_REC.EXPIRATION_DATE, SYSDATE), SYSDATE));
     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR,
@@ -815,6 +829,7 @@ BEGIN
             V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ID  := IN_MICR_FORMAT_ID;
             V_STORE_MICR_FORMAT_DTLS_REC.EFFECTIVE_DATE  := SYSDATE;
             V_STORE_MICR_FORMAT_DTLS_REC.EXPIRATION_DATE := V_EXPIRATION_DATE;
+            V_BANK_DEP_TICK_REC.EFFECTIVE_DATE           := LEAST(NVL(V_BANK_DEP_TICK_REC.EXPIRATION_DATE, SYSDATE), SYSDATE);
             TABLE_IU_PKG.STORE_MICR_FORMAT_DTLS_I_SP(V_STORE_MICR_FORMAT_DTLS_REC);
             --If the store MICR format change, we need to verify if the part paper per form changed or not
             --if it changes, we need to recalculate the number of deposit tickets per book
@@ -822,7 +837,10 @@ BEGIN
             --Then we need to update the data accordingly in BANK_DEP_TICK_* table
             CALCULATE_DEPOSIT_TICKET(V_BANK_MICR_FORMAT_REC.DJDE_FEED_PARM,
                                      V_BANK_DEP_TICK_REC.PART_PAPER_PER_FORM,
-                                     V_BANK_DEP_TICK_REC.NBR_DEP_TICKETS_PER_BK);
+                                     V_BANK_DEP_TICK_REC.NBR_DEP_TICKETS_PER_BK,
+                                     V_BANK_DEP_TICK_REC.IMAGES_PER_PAGE,
+                                     V_BANK_DEP_TICK_REC.NBR_FORMS_PER_BK,
+                                     V_BANK_DEP_TICK_REC.SHEETS_OF_PAPER_PER_BK);
             TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
         ELSE
             IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
@@ -1043,7 +1061,10 @@ BEGIN
             --Then we need to update the data accordingly in BANK_DEP_TICK_* table
             CALCULATE_DEPOSIT_TICKET(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM,
                                      V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM,
-                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK);
+                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.IMAGES_PER_PAGE,
+                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_FORMS_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
         ELSE
             BEGIN
@@ -1085,6 +1106,8 @@ Changed : 10/27/2015 jxc517 CCN Project....
         : 10/17/2016 nxk927 CCN Project....
           Signature changed to include the member bank account number as parameter
           which will be used in the current and future upsert procedure
+        : 12/08/2016 nxk927 CCN Project....
+          Effective date to be taken as being passed.
 *******************************************************************************/
     IN_ROW_DATA         IN  CLOB,
     IN_MBR_BNK_ACCT_NBR IN VARCHAR2 DEFAULT NULL)
@@ -1098,7 +1121,7 @@ BEGIN
                       V_BANK_DEP_TICK_REC,
                       V_BANK_DEP_TICK_FUTURE_REC,
                       V_MICR_FORMAT_ID);
-    V_BANK_DEP_TICK_REC.EFFECTIVE_DATE := SYSDATE;
+    --V_BANK_DEP_TICK_REC.EFFECTIVE_DATE := SYSDATE;
     BUSINESS_RULES_PKG.DEPOSIT_TICKET_MNTNC_BR_SP(V_BANK_DEP_TICK_REC,
                                                   V_BANK_DEP_TICK_FUTURE_REC);
     IF V_BANK_DEP_TICK_REC.COST_CENTER_CODE IS NOT NULL THEN --Current Details
@@ -1205,8 +1228,6 @@ Changed : 11/05/2015 jxc517 CCN Project....
           This is for the virtual future
         : 10/24/2015 nxk927 CCN Project....
           removing the Store MICR format re-validation while creating lead future details as part of transfer process
-        : 11/29/2016 nxk927/jxc517 CCN Project...
-          added the nvl condition to calculate the tickets correctly
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
 IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
@@ -1274,7 +1295,10 @@ BEGIN
             --Then we need to update the data accordingly in BANK_DEP_TICK_* table
             CALCULATE_DEPOSIT_TICKET(V_BANK_MICR_FORMAT_FUTURE_REC.DJDE_FEED_PARM,
                                      V_BANK_DEP_TICK_FUTURE_REC.PART_PAPER_PER_FORM,
-                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK);
+                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.IMAGES_PER_PAGE,
+                                     V_BANK_DEP_TICK_FUTURE_REC.NBR_FORMS_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
         END IF;
     END IF;
@@ -1526,6 +1550,9 @@ Changed : 10/21/2015 jxc517 CCN Project....
 Changed : 11/30/2016 nxk972 CCN Project....
           Passing order date to the procedure CREATE_DEPOSIT_TICKET_ORDER to have the order date in the xml
           rather than the deposit ticket effective date
+Changed : 12/07/2016 nxk972 CCN Project....
+          Updating LAST_VW_ORDER_DATE with the order date and LAST_MAINTENANCE_DATE
+          with sysdate, effective date not to be changed
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1562,39 +1589,41 @@ BEGIN
         END;
        
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
-            V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
-            V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
-            V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_PRIORITY  := 100;
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_STATUS    := 'P';
-            V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE),0) + 1;
-            V_BANK_DEP_TICKORD.EFFECTIVE_DATE          := V_BANK_DEP_TICK.EFFECTIVE_DATE;
-            V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
-            V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
-            V_BANK_DEP_TICKORD.LAST_MAINT_USER_ID      := IN_USER_ID;
-            V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
-            V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
-            TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
-            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL,V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID);
-            RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
-                                                             IN_ORDERED_DATE);
+           V_BANK_DEP_TICK.LAST_MAINTENANCE_DATE      := SYSDATE;
+           V_BANK_DEP_TICK.LAST_VW_ORDER_DATE         := IN_ORDERED_DATE;
+           TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
+           V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
+           V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
+           V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
+           V_BANK_DEP_TICKORD.DEPOSIT_ORDER_PRIORITY  := 100;
+           V_BANK_DEP_TICKORD.DEPOSIT_ORDER_STATUS    := 'P';
+           V_BANK_DEP_TICKORD.DEPOSIT_ORDER_SEQ_NBR   := NVL(GET_DEPOSIT_ORDER_SEQ_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE),0) + 1;
+           V_BANK_DEP_TICKORD.EFFECTIVE_DATE          := V_BANK_DEP_TICK.EFFECTIVE_DATE;
+           V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
+           V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
+           V_BANK_DEP_TICKORD.LAST_MAINT_USER_ID      := IN_USER_ID;
+           V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
+           V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
+           TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
+           CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL,V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID);
+           RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
+                                                            IN_ORDERED_DATE);
             
-            --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
-            IF IN_ORDERED_DATE = TRUNC(SYSDATE) THEN 
-               --record should be only moved from current to history if there are changes in current
-               --the following process should only run if the order date is current
-               TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
-               --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
-               --if not the batch process will update the qauntity when it hits the date
-               V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
-               V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
-               V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
-               V_BANK_DEP_TICK.REORDER_NUMBER_BKS         := NVL(V_BANK_DEP_TICK.REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
-               V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY        := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
-               V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY   := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
-               V_BANK_DEP_TICK.EFFECTIVE_DATE             := LEAST(NVL(V_BANK_DEP_TICK.EXPIRATION_DATE, SYSDATE), SYSDATE);
-               TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
-            END IF;
+           --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
+           IF IN_ORDERED_DATE = TRUNC(SYSDATE) THEN 
+              --record should be only moved from current to history if there are changes in current
+              --the following process should only run if the order date is current
+              TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
+              --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+              --if not the batch process will update the qauntity when it hits the date
+              V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
+              V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
+              V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
+              V_BANK_DEP_TICK.REORDER_NUMBER_BKS         := NVL(V_BANK_DEP_TICK.REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
+              V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY        := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+              V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY   := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+              TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
+           END IF;
         END IF;
     ELSE
         BEGIN
@@ -1627,7 +1656,7 @@ BEGIN
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
             V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := 0;
             V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := 0;
-            V_BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE  := LEAST(NVL(V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE, SYSDATE), SYSDATE);
+            V_BANK_DEP_TICK_FUTURE.LAST_VW_ORDER_DATE         := IN_ORDERED_DATE;
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
             CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID,V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID);
             BEGIN
