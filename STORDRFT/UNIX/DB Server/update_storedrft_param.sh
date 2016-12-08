@@ -14,6 +14,8 @@
 #             : 01/12/2016 axk326 CCN Project Team.....
 #               Added shell script call to check if the ok file exists or not before proceeding further
 #               Added call to rename the .ok file to .not_ok file when there is some kind of error.
+#             : 12/01/2016 gxg192 CCN Project Team.....
+#               Added Parameter for ROYAL_BANK_RPT_RUNDATE
 ##############################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -54,7 +56,9 @@ UPDATE storedrft_param
        PL_GAIN_RUNDATE = TRUNC(SYSDATE,'MM'),
        SD_REPORT_QRY_RUNDATE = TRUNC(SYSDATE,'MM'),
        MID_MNTLY_1099_RUNDATE = TRUNC(ADD_MONTHS(SYSDATE,-1),'MM'),
-       DAILY_PREV_RUNDATE = TRUNC(sysdate-1);
+       DAILY_PREV_RUNDATE = TRUNC(sysdate-1),
+       ROYAL_BANK_RPT_RUNDATE = TRUNC(sysdate)
+       ;
 COMMIT;
 Exception
  when others then

@@ -1,27 +1,28 @@
 #!/bin/sh
-###########################################################
+#######################################################################
 # Script Name : royal_bank_rpt.sh
 # Description : This Shell Script Runs the crystal report
 #               for royal banking and converts pdf file to
 #               text file.
 # Created     : 10/18/2016 MXR916
-# Modified    : 11/29/2016 gxg192 
-#               removed $DATE variable as it was not used in the script
-##########################################################
-
+# Modified    : 12/08/2016 gxg192 report name is fetched in this script
+#                          instead of passing as parameter
+########################################################################
 . /app/strdrft/dataloadInfo.txt
-
-dt=`date`
-echo "START ROYAL BANK REPORT : $dt\n"
 
 user=$sqlplus_user
 passw=$sqlplus_pw
-run=`cat $1`
+
+dt=`date`
+echo "START Royal Bank Report : $dt\n"
+
+rep1=`cat /app/strdrft/sdReport/data/run2.txt` 
 fl1="1"
+
 P1=`cat /app/strdrft/sdReport/data/param.lst|cut -d"|" -f1`
 P2=`cat /app/strdrft/sdReport/data/param.lst|cut -d"|" -f2`
 
-for file in $run
+for file in $rep1
 do
 
 echo "Running $file"
@@ -40,8 +41,4 @@ sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdRep
 done
 dt1=`date`
 
-echo "END ROYAL BANK REPORT  : $dt1\n"
-
-############################################################################
-# End of Program
-############################################################################
+echo "END Royal Bank Report : $dt1\n"

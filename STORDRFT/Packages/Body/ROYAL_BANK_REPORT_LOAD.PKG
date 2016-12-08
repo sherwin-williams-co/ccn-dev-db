@@ -3,126 +3,61 @@ create or replace PACKAGE BODY ROYAL_BANK_REPORT_LOAD
 This package is intended to load Royal Bank Report files from mainframe into the 
 Royal Bank Report Main tables
 
-created  : 10/20/2016 MXR916 CCN PROJECT..
-modified : 
+created : 10/20/2016 MXR916 CCN PROJECT..
+modified: 12/01/2016 gxg192 CCN PROJECT..
+          Removed below procedures from the package
+          i.   LOAD_ROYAL_BNK_INTRMDT_TABLES
+          ii.  LOAD_DEBIT_TTL_DATA
+          iii. LOAD_TRANSIT_TYPS_DATA
 *******************************************************************************/
 AS
-PROCEDURE LOAD_ROYAL_BNK_INTRMDT_TABLES
-/*******************************************************************************
-This Procedure Loads the intermediate table ROYAL_BANK_REPORT_INT and 
-for royal bank report before loading the files from Mainframe into royal bank report main table
+
+PROCEDURE ROYAL_BANK_REPORT_LOAD_MAIN_SP
+/******************************************************************************
+This Procedure loads Royal bank report data into ROYAL_BANK_RPT_MAIN table.
 
 created : 10/20/2016 MXR916 CCN PROJECT..
-modified: 
-*******************************************************************************/
- IS
- V_CODE NUMBER;
- V_ERRM VARCHAR2(500);
-BEGIN
-      EXECUTE IMMEDIATE 'TRUNCATE TABLE ROYAL_BANK_REPORT_INT';
-      EXECUTE IMMEDIATE 'TRUNCATE TABLE ROYAL_DEBIT_TTL_RPT';
-      EXECUTE IMMEDIATE 'TRUNCATE TABLE ROYAL_BANK_RPT_MAIN';
-      
-      INSERT INTO ROYAL_BANK_REPORT_INT
-         SELECT * FROM ROYAL_BANK_REPORT_EXT_TBL;
-
-EXCEPTION
-  WHEN OTHERS THEN
-       V_CODE  := SQLCODE;
-       V_ERRM  := SUBSTR(SQLERRM,1,200);
-       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.LOAD_ROYAL_BNK_INTRMDT_TABLES' || V_ERRM );
-END LOAD_ROYAL_BNK_INTRMDT_TABLES;
-
-PROCEDURE LOAD_DEBIT_TTL_DATA
-/******************************************************************************
-This Procedure loads Royal bank report data into respective transit types tables.
-
-created  : 10/20/2016 MXR916 CCN PROJECT..
-modified : 11/18/2016 gxg192 CCN PROJECT.. Added exception block in For loop
-*******************************************************************************/
-IS
-    V_CODE NUMBER;
-    V_ERRM VARCHAR2(500);
-    V_ROYAL_DEBIT_TTL_RPT ROYAL_DEBIT_TTL_RPT%ROWTYPE;    
-    
-    CURSOR ROYAL_DEBIT_TTL is
-            SELECT  TRANSIT_TYPE,
-                    TRANSIT_NUMBER,
-                    ACCOUNT_NUMBER,
-                    DESCRIPTION,
-                    DB_AMOUNT
-            FROM ROYAL_BANK_REPORT_INT
-            WHERE TRANSIT_TYPE='05';
-              
-    
-V_COMMIT INTEGER := 0;
-    
-BEGIN
-   FOR EACH_REC IN ROYAL_DEBIT_TTL 
-   LOOP
-      BEGIN
-         V_ROYAL_DEBIT_TTL_RPT.TRANSIT_TYPE      := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(EACH_REC.TRANSIT_TYPE);
-         V_ROYAL_DEBIT_TTL_RPT.TRANSIT_NUMBER    := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(EACH_REC.TRANSIT_NUMBER);
-         V_ROYAL_DEBIT_TTL_RPT.ACCOUNT_NUMBER    := TRIM(SUBSTR(EACH_REC.ACCOUNT_NUMBER,1,3)||'-'||SUBSTR(EACH_REC.ACCOUNT_NUMBER,4,3)||'-'||SUBSTR(EACH_REC.ACCOUNT_NUMBER,7));
-         V_ROYAL_DEBIT_TTL_RPT.DESCRIPTION       := TRIM(EACH_REC.DESCRIPTION);
-         V_ROYAL_DEBIT_TTL_RPT.DB_AMOUNT         := TRIM(EACH_REC.DB_AMOUNT);
-         
-         INSERT INTO ROYAL_DEBIT_TTL_RPT VALUES V_ROYAL_DEBIT_TTL_RPT;
-         IF V_COMMIT > 100 THEN 
-            COMMIT;
-            V_COMMIT := 0;
-         ELSE
-            V_COMMIT := V_COMMIT + 1;
-         END IF;
-      EXCEPTION
-         WHEN OTHERS THEN
-            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'LOAD_DEBIT_TTL_DATA',SQLERRM,'000000','0000000000');
-      END;
-   END LOOP;
-   COMMIT;
-EXCEPTION
-  when OTHERS then
-       V_CODE  := SQLCODE;
-       V_ERRM  := SUBSTR(SQLERRM,1,200);
-       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.LOAD_DEBIT_TTL_DATA' || V_ERRM );
-END LOAD_DEBIT_TTL_DATA; 
-
-PROCEDURE LOAD_TRANSIT_TYPS_DATA
-/******************************************************************************
-This Procedure loads Royal bank report data into respective transit types tables.
-
-created  : 10/20/2016 MXR916 CCN PROJECT..
-modified : 11/18/2016 gxg192 CCN PROJECT.. Added exception block in For loop
+modified: 12/05/2016 gxg192 CCN PROJECT..
+          Changes to insert data into ROYAL_BANK_RPT_MAIN from external table
+          for all transit types
 *******************************************************************************/
 IS  
     V_CODE NUMBER;
     V_ERRM VARCHAR2(500);
-    V_COMMIT number := 0;
+    V_COMMIT NUMBER := 0;
     V_ROYAL_RPT_MAIN   ROYAL_BANK_RPT_MAIN%ROWTYPE;    
     
-    CURSOR ROYAL_BANK_RPT is
+    CURSOR ROYAL_BANK_RPT_CUR is
             SELECT  TRANSIT_NUMBER,    
                     ACCOUNT_NUMBER,     
                     TRANSIT_TYPE,      
                     SUB_CODE,           
                     SERIAL_NUMBER,    
-                    AMOUNT,           
+                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,AMOUNT) AMOUNT,           
                     STATUS_FLAG,         
-                    ISSUE_DATE,         
-                    PAID_DATE,          
+                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,ISSUE_DATE) ISSUE_DATE,
+                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,PAID_DATE) PAID_DATE,
                     TRANS_CODE,       
                     CHECK_NUMBER,        
                     STATUS,           
-                    TOLRNC_AMOUNT          
-            FROM ROYAL_BANK_REPORT_INT
-            WHERE TRANSIT_TYPE NOT IN ('00','05','99');
+                    TOLRNC_AMOUNT,
+                    DESCRIPTION,
+                    DB_AMOUNT
+            FROM ROYAL_BANK_REPORT_EXT_TBL;
 BEGIN   
-   FOR REC IN ROYAL_BANK_RPT 
+
+/*
+Removing records for current date to make sure no duplicate data is inserted on single day.
+*/
+   DELETE ROYAL_BANK_RPT_MAIN 
+   WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
+   
+   FOR REC IN ROYAL_BANK_RPT_CUR 
    LOOP
       BEGIN
          V_ROYAL_RPT_MAIN.TRANSIT_NUMBER := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_NUMBER);
          V_ROYAL_RPT_MAIN.ACCOUNT_NUMBER := TRIM(SUBSTR(rec.ACCOUNT_NUMBER,1,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,4,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,7));
-         V_ROYAL_RPT_MAIN.TRANSIT_TYPE   := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_TYPE);
+         V_ROYAL_RPT_MAIN.TRANSIT_TYPE   := CASE WHEN rec.TRANSIT_TYPE = '00' THEN '00' ELSE CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_TYPE) END;
          V_ROYAL_RPT_MAIN.SUB_CODE       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SUB_CODE);
          V_ROYAL_RPT_MAIN.SERIAL_NUMBER  := substr(REC.SERIAL_NUMBER,1,4)||'-'||substr(REC.SERIAL_NUMBER,5);
          V_ROYAL_RPT_MAIN.AMOUNT         := TRIM(CCN_COMMON_TOOLS.RETURN_NUMBER(REC.AMOUNT,11,2));
@@ -137,7 +72,13 @@ BEGIN
                                             END;
          V_ROYAL_RPT_MAIN.STATUS         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.STATUS);
          V_ROYAL_RPT_MAIN.TOLRNC_AMOUNT  := REC.TOLRNC_AMOUNT;
-         INSERT INTO ROYAL_BANK_RPT_MAIN VALUES V_ROYAL_RPT_MAIN;
+         V_ROYAL_RPT_MAIN.DESCRIPTION       := TRIM(REC.DESCRIPTION);
+         V_ROYAL_RPT_MAIN.DB_AMOUNT         := TRIM(REC.DB_AMOUNT);
+         V_ROYAL_RPT_MAIN.LOAD_DATE         := SYSDATE;
+         
+         INSERT INTO ROYAL_BANK_RPT_MAIN
+              VALUES V_ROYAL_RPT_MAIN;
+         
          IF V_COMMIT > 100 THEN 
             COMMIT;
             V_COMMIT := 0;
@@ -146,46 +87,15 @@ BEGIN
          END IF;
       EXCEPTION
          WHEN OTHERS THEN
-            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'LOAD_TRANSIT_TYPS_DATA',SQLERRM,'000000','0000000000');
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'ROYAL_BANK_REPORT_LOAD_MAIN_SP',SQLERRM,'000000','0000000000');
       END;
    END LOOP;
         COMMIT;
 EXCEPTION
-  when OTHERS then
-       V_CODE  := SQLCODE;
-       V_ERRM  := SUBSTR(SQLERRM,1,200);
-       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.LOAD_TRANSIT_TYPS_DATA' || V_ERRM );
-END LOAD_TRANSIT_TYPS_DATA;
-PROCEDURE ROYAL_BANK_REPORT_LOAD_MAIN_SP
-/******************************************************************************
-This Procedure loads Royal bank report data into respective transit types tables.
-
-created : 10/20/2016 MXR916 CCN PROJECT..
-modified: 
-*******************************************************************************/
-IS
-    V_CONTEXT     VARCHAR2(200);
-    V_CODE        NUMBER;
-    V_ERRM        VARCHAR2(500);
-BEGIN
-      
-      
-       V_CONTEXT := ' Load Intermediate table ';
-       LOAD_ROYAL_BNK_INTRMDT_TABLES();
-      
-       V_CONTEXT := ' Load Debit Total table ';
-       LOAD_DEBIT_TTL_DATA();
-       
-       V_CONTEXT := ' Load Royal bank main table ';
-       LOAD_TRANSIT_TYPS_DATA();
-       
-EXCEPTION
-   WHEN OTHERS THEN
+  WHEN OTHERS THEN
        V_CODE  := SQLCODE;
        V_ERRM  := SUBSTR(SQLERRM,1,200);
        errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_LOAD_MAIN_SP' || V_ERRM );
-      
-      
 END ROYAL_BANK_REPORT_LOAD_MAIN_SP;
 
 END ROYAL_BANK_REPORT_LOAD;

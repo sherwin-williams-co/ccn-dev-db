@@ -17,6 +17,8 @@
 
 proc_name="Royal_Bank_Report"
 LOGDIR=$HOME/initLoad/logs
+ARCHIVDIR=$HOME/datafiles/archieve/royal_bank_files
+DATA_FILE="DAREPORT.567"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
@@ -82,7 +84,21 @@ else
       exit 1;
    fi
       echo "Completed execution of ftp_royal_bank_rpt_trg.sh at $TIME on $DATE "
+
+   ############################################################################
+   #                           ARCHIVING THE DATA FILE
+   ############################################################################
    
+   mv $HOME/datafiles/$DATA_FILE.txt "$ARCHIVDIR/$DATA_FILE"_$TimeStamp.txt
+   status=$?
+   TIME=`date +"%H:%M:%S"`
+
+   if test $status -ne 0
+   then
+      echo "Processing FAILED while archiving the data file at $TIME on $DATE"
+      exit 1;
+   fi
+      echo "Data file $DATA_FILE.txt archived successfully at $TIME on $DATE "
 fi
 
 TIME=`date +"%H:%M:%S"`
