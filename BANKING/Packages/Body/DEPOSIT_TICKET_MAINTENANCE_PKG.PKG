@@ -22,7 +22,8 @@ Changed : 12/08/2016 nxk927 CCN Project....
     IN_OUT_NBR_DEP_TICKETS_PER_BK  IN OUT NUMBER,
     IN_OUT_IMAGES_PER_PAGE         IN OUT NUMBER,
     IN_OUT_NBR_FORMS_PER_BK        IN OUT NUMBER,
-    IN_OUT_SHEETS_OF_PAPER_PER_BK  IN OUT NUMBER)
+    IN_OUT_SHEETS_OF_PAPER_PER_BK  IN OUT NUMBER,
+    IN_OUT_REORDER_NUMBER_BKS      IN OUT NUMBER)
 IS
     V_DJDE_FEED_PARM VARCHAR2(10) := IN_DJDE_FEED_PARM;
 BEGIN
@@ -32,12 +33,10 @@ BEGIN
     IN_OUT_NBR_DEP_TICKETS_PER_BK :=
        BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('SHEETS_OF_PAPER_PER_BK')/IN_OUT_PART_PAPER_PER_FORM;
     --below 3 fields remain same always : validated with production data
-    /*IN_OUT_IMAGES_PER_PAGE        := 3;
-    IN_OUT_NBR_FORMS_PER_BK       := 108;
-    IN_OUT_SHEETS_OF_PAPER_PER_BK := 324;*/
-    IN_OUT_IMAGES_PER_PAGE        := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('IMAGES_PER_PAGE');
-    IN_OUT_NBR_FORMS_PER_BK       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_FORMS_PER_BK');
-    IN_OUT_SHEETS_OF_PAPER_PER_BK := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('SHEETS_OF_PAPER_PER_BK');
+    IN_OUT_IMAGES_PER_PAGE        := NVL(IN_OUT_IMAGES_PER_PAGE,BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('IMAGES_PER_PAGE'));
+    IN_OUT_NBR_FORMS_PER_BK       := NVL(IN_OUT_NBR_FORMS_PER_BK,BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_FORMS_PER_BK'));
+    IN_OUT_SHEETS_OF_PAPER_PER_BK := NVL(IN_OUT_SHEETS_OF_PAPER_PER_BK,BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('SHEETS_OF_PAPER_PER_BK'));
+    IN_OUT_REORDER_NUMBER_BKS     := NVL(IN_OUT_REORDER_NUMBER_BKS,BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS'));
 END CALCULATE_DEPOSIT_TICKET;
 
 PROCEDURE DELETE_STORE_MICR_FORMAT_DTLS(
@@ -346,7 +345,10 @@ Changed : 10/29/2015 jxc517 CCN Project....
         : 10/18/2016 nxk927 CCN Project....
           Modified Signature to pass member bank details to UI. It will be used to populate the 
           sub account number in the deposit ticket window. This is added to support the micr details 
-          changes for the member bank cost center. 
+          changes for the member bank cost center.
+        : 12/09/2016 nxk927 CCN Project....
+          Cursor changed for the deposit ticket order table to pass everything as to pass the maintenance date as order date, and
+          order date as desired arrival date. This needs to be here until this column is updated
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -446,7 +448,21 @@ BEGIN
      WHERE ROWNUM < 2;
     --Below cursor will provide all the current bank deposit ticket order details for the store number passed
     OPEN OUT_BANK_DEP_TICKORD_REF_CUR FOR 
-        SELECT *
+        SELECT BANK_ACCOUNT_NBR,
+               COST_CENTER_CODE,
+               BANK_DEP_TICK_FTR_ID,
+               DEPOSIT_ORDER_PRIORITY,
+               DEPOSIT_ORDER_STATUS,
+               DEPOSIT_ORDER_SEQ_NBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINTENANCE_DATE ORDER_DATE,--Need this changed later on, LAST_MAINTENANCE_DATE as desired arrival date
+               LAST_MAINT_USER_ID,
+               ORDER_DATE DESIRED_ARRIVAL_DATE, --Need this changed later on, order date as desired arrival date
+               EXTRACTED_USER_ID,
+               EXTERNAL_ORDER_ID_GUI,
+               ORDER_TRACKING_NUMBER
           FROM BANK_DEP_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BANK_ACCOUNT_NBR = V_LEAD_BANK_ACCOUNT_NBR
@@ -550,7 +566,22 @@ BEGIN
     --ordered by FUTURE_ID
     --Added cost_center_code to the where clause as it has to give the future details for the store that the user is trying to look into 
     OPEN OUT_BANK_DEP_TKORD_FTR_REF_CUR FOR
-        SELECT BDTF.*
+        SELECT BANK_ACCOUNT_NBR,
+               COST_CENTER_CODE,
+               BANK_DEP_TICK_FTR_ID,
+               DEPOSIT_ORDER_PRIORITY,
+               DEPOSIT_ORDER_STATUS,
+               DEPOSIT_ORDER_SEQ_NBR,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               LAST_MAINTENANCE_DATE,
+               LAST_MAINTENANCE_DATE ORDER_DATE, --Need this changed later on, maintenance date as order date
+               LAST_MAINT_USER_ID,
+               ORDER_DATE DESIRED_ARRIVAL_DATE,  --Need this changed later on, order date as desired arrival date
+               EXTRACTED_USER_ID,
+               FUTURE_ID,
+               EXTERNAL_ORDER_ID_GUI,
+               ORDER_TRACKING_NUMBER
           FROM BANK_DEP_TICKORD_FUTURE BDTF
          WHERE BDTF.COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BDTF.BANK_DEP_TICK_FTR_ID = GET_DEPOSIT_TKT_FUT_ID_NBR(IN_COST_CENTER_CODE, BDTF.BANK_ACCOUNT_NBR, BDTF.FUTURE_ID);
@@ -764,6 +795,7 @@ Changed : 11/05/2015 jxc517 CCN Project....
         : 12/08/2016 nxk927 CCN Project...
           if the effective date is passed, used the same date if there is no change,
           else sysdate.
+          Signature changed to get the standard ticket fields from the reference table
 *******************************************************************************/
     IN_BANK_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
     IN_MICR_FORMAT_ID     IN     NUMBER,
@@ -838,7 +870,8 @@ BEGIN
                                      V_BANK_DEP_TICK_REC.NBR_DEP_TICKETS_PER_BK,
                                      V_BANK_DEP_TICK_REC.IMAGES_PER_PAGE,
                                      V_BANK_DEP_TICK_REC.NBR_FORMS_PER_BK,
-                                     V_BANK_DEP_TICK_REC.SHEETS_OF_PAPER_PER_BK);
+                                     V_BANK_DEP_TICK_REC.SHEETS_OF_PAPER_PER_BK,
+                                     V_BANK_DEP_TICK_REC.REORDER_NUMBER_BKS);
             TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
         ELSE
             IF V_STORE_MICR_FORMAT_DTLS_REC.COST_CENTER_CODE IS NOT NULL THEN
@@ -997,6 +1030,8 @@ Changed : 11/05/2015 jxc517 CCN Project....
           added the nvl condition to calculate the tickets correctly
           Member bank account can be passed as null. Removing the check condition for the update even
           if the member bank account is passed back as null.
+        : 12/08/2016 nxk927 CCN Project...
+          Signature changed to get the standard ticket fields from the reference table
 *******************************************************************************/
     IN_BANK_DEP_TICK_FUTURE_REC  IN     BANK_DEP_TICK_FUTURE%ROWTYPE,
     IN_MICR_FORMAT_ID            IN     NUMBER,
@@ -1062,7 +1097,8 @@ BEGIN
                                      V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK,
                                      V_BANK_DEP_TICK_FUTURE_REC.IMAGES_PER_PAGE,
                                      V_BANK_DEP_TICK_FUTURE_REC.NBR_FORMS_PER_BK,
-                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK);
+                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.REORDER_NUMBER_BKS);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
         ELSE
             BEGIN
@@ -1226,6 +1262,8 @@ Changed : 11/05/2015 jxc517 CCN Project....
           This is for the virtual future
         : 10/24/2015 nxk927 CCN Project....
           removing the Store MICR format re-validation while creating lead future details as part of transfer process
+        : 12/08/2016 nxk927 CCN Project....
+          signature changed to get the deposit ticket standard fields from the reference table
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN    VARCHAR2,
 IN_BANK_ACCOUNT_NBR     IN    VARCHAR2,
@@ -1296,7 +1334,8 @@ BEGIN
                                      V_BANK_DEP_TICK_FUTURE_REC.NBR_DEP_TICKETS_PER_BK,
                                      V_BANK_DEP_TICK_FUTURE_REC.IMAGES_PER_PAGE,
                                      V_BANK_DEP_TICK_FUTURE_REC.NBR_FORMS_PER_BK,
-                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK);
+                                     V_BANK_DEP_TICK_FUTURE_REC.SHEETS_OF_PAPER_PER_BK,
+                                     V_BANK_DEP_TICK_FUTURE_REC.REORDER_NUMBER_BKS);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
         END IF;
     END IF;
@@ -1549,8 +1588,8 @@ Changed : 11/30/2016 nxk972 CCN Project....
           Passing order date to the procedure CREATE_DEPOSIT_TICKET_ORDER to have the order date in the xml
           rather than the deposit ticket effective date
 Changed : 12/07/2016 nxk972 CCN Project....
-          Updating LAST_VW_ORDER_DATE with the order date and LAST_MAINTENANCE_DATE
-          with sysdate, effective date not to be changed
+          Updating LAST_VW_ORDER_DATE and LAST_MAINTENANCE_DATE with the date the order was placed 
+          , effective date not to be changed
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ORDERED_DATE         IN     DATE,
@@ -1588,7 +1627,7 @@ BEGIN
        
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
            V_BANK_DEP_TICK.LAST_MAINTENANCE_DATE      := SYSDATE;
-           V_BANK_DEP_TICK.LAST_VW_ORDER_DATE         := IN_ORDERED_DATE;
+           V_BANK_DEP_TICK.LAST_VW_ORDER_DATE         := TRUNC(SYSDATE);
            TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
            V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
            V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
@@ -1654,7 +1693,7 @@ BEGIN
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
             V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := 0;
             V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := 0;
-            V_BANK_DEP_TICK_FUTURE.LAST_VW_ORDER_DATE         := IN_ORDERED_DATE;
+            V_BANK_DEP_TICK_FUTURE.LAST_VW_ORDER_DATE         := TRUNC(SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
             CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID,V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID);
             BEGIN
