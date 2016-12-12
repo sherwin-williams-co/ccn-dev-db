@@ -90,14 +90,12 @@ PROCEDURE PLACE_DEPOSIT_BAG_TICKET_ORDER(
 This procedure is intended to place a deposit bag ticket order for the store passed in
 
 Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
+Changed : 12/12/2016 nxk927 CCN Project....
+          Changed the parameter name from order date to in_arrival_date
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_ORDERED_DATE         IN     DATE,
+IN_ARRIVAL_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2); 
 
 END DEPOSIT_BAG_MAINTENANCE_PKG;
-/
-
-SHOW ERROR;

@@ -160,7 +160,7 @@ BEGIN
                DEPOSIT_BAG_ORDER_SEQ_NBR,
                EFFECTIVE_DATE,
                EXPIRATION_DATE,
-               LAST_MAINTENANCE_DATE ORDER_DATE,--Need this changed later on, LAST_MAINTENANCE_DATE as desired arrival date
+               ORDER_DATE,
                LAST_MAINTENANCE_DATE,
                LAST_MAINT_USER_ID,
                EXTRACTED_USER_ID,
@@ -181,7 +181,7 @@ BEGIN
                DEPOSIT_BAG_ORDER_SEQ_NBR,
                EFFECTIVE_DATE,
                EXPIRATION_DATE,
-               LAST_MAINTENANCE_DATE ORDER_DATE,--Need this changed later on, LAST_MAINTENANCE_DATE as desired arrival date
+               ORDER_DATE,
                LAST_MAINTENANCE_DATE,
                LAST_MAINT_USER_ID,
                EXTRACTED_USER_ID,
@@ -612,9 +612,12 @@ Changed : 11/30/2016 nxk927 CCN Project....
           Added order date as parameter to replace effective date in the order placed
 Changed : 12/08/2016 nxk927 CCN Project....
           Updating the deposit bag last order date in bag table as well
+Changed : 12/12/2016 nxk927 CCN Project....
+          Changed the parameter name from order date to in_arrival_date
+          Passing the DEPBAG_REORDER_QTY from the reference table itself.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_ORDERED_DATE         IN     DATE,
+IN_ARRIVAL_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2)
 IS
@@ -631,7 +634,7 @@ IS
 BEGIN
     --business rule that will validate the order placed regarding the order date
     BUSINESS_RULES_PKG.PLACE_BAG_ORDER_BR_SP(IN_COST_CENTER_CODE,
-                                             IN_ORDERED_DATE,
+                                             TRUNC(SYSDATE),
                                              IN_FUTURE_ID);
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
@@ -657,31 +660,28 @@ BEGIN
             V_BANK_DEP_BAG_TICKORD.EXPIRATION_DATE             := V_BANK_DEP_BAG_TICK.EXPIRATION_DATE;
             V_BANK_DEP_BAG_TICKORD.LAST_MAINTENANCE_DATE       := TRUNC(SYSDATE);
             V_BANK_DEP_BAG_TICKORD.LAST_MAINT_USER_ID          := IN_USER_ID;
-            V_BANK_DEP_BAG_TICKORD.ORDER_DATE                  := IN_ORDERED_DATE;
+            V_BANK_DEP_BAG_TICKORD.ORDER_DATE                  := TRUNC(SYSDATE);
+            V_BANK_DEP_BAG_TICKORD.ARRIVAL_DATE                := IN_ARRIVAL_DATE;
             V_BANK_DEP_BAG_TICKORD.EXTRACTED_USER_ID           := IN_USER_ID;
-            V_BANK_DEP_BAG_TICKORD.EXTERNAL_ORDER_ID_GUI       := GET_DEPOSIT_BAG_ORDER_GUI();
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(V_BANK_DEP_BAG_TICKORD);
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_BAG_ORDER(V_BANK_DEP_BAG_TICK,
                                                           IN_USER_ID,
-                                                          IN_ORDERED_DATE,
-                                                          V_BANK_DEP_BAG_TICKORD.EXTERNAL_ORDER_ID_GUI);
+                                                          IN_ARRIVAL_DATE);
             
             --DEPBAG_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
-            IF IN_ORDERED_DATE = TRUNC(SYSDATE) THEN
-               --record should be only moved from current to history if there are changes in current
-               --the following process should only run if the order date is current
-               --if the order date is future then the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY should not be accounted
-               --it will be done when the batch job runs as the date becomes current
-               V_DEPBAG_REORDER_QTY                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
-               V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY     := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY,V_DEPBAG_REORDER_QTY);
-               V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
-               V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
-               V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
-               --record should be only moved to history if there are changes in current or else the record should not be changed
-               --this process below will do both the insert in history and current
+            --record should be only moved from current to history if there are changes in current
+            --the following process should only run if the order date is current
+            --if the order date is future then the DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY should not be accounted
+            --it will be done when the batch job runs as the date becomes current
+            V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY     := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
+            V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_ONHAND_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+            V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK.DEPBAG_YTD_ORDERED_QTY,0) + V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+            V_BANK_DEP_BAG_TICK.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK.DEPBAG_REORDER_QTY;
+            --record should be only moved to history if there are changes in current or else the record should not be changed
+            --this process below will do both the insert in history and current
 
-               DEPOSIT_BAG_CURRENT_UPSERT_SP(V_BANK_DEP_BAG_TICK);
-            END IF;
+            DEPOSIT_BAG_CURRENT_UPSERT_SP(V_BANK_DEP_BAG_TICK);
+
         END IF;
     ELSE
         BEGIN
@@ -706,13 +706,14 @@ BEGIN
             V_BANK_DEP_BAG_TICKORD_FUTURE.EXPIRATION_DATE             := V_BANK_DEP_BAG_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_BAG_TICKORD_FUTURE.LAST_MAINTENANCE_DATE       := TRUNC(SYSDATE);
             V_BANK_DEP_BAG_TICKORD_FUTURE.LAST_MAINT_USER_ID          := IN_USER_ID;
-            V_BANK_DEP_BAG_TICKORD_FUTURE.ORDER_DATE                  := IN_ORDERED_DATE;
+            V_BANK_DEP_BAG_TICKORD_FUTURE.ORDER_DATE                  := TRUNC(SYSDATE);
+            V_BANK_DEP_BAG_TICKORD_FUTURE.ARRIVAL_DATE                := IN_ARRIVAL_DATE;
             V_BANK_DEP_BAG_TICKORD_FUTURE.EXTRACTED_USER_ID           := IN_USER_ID;
             V_BANK_DEP_BAG_TICKORD_FUTURE.FUTURE_ID                   := V_BANK_DEP_BAG_TICK_FUTURE.FUTURE_ID;
-            V_BANK_DEP_BAG_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI       := GET_DEPOSIT_BAG_ORDER_GUI();
             TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_I_SP(V_BANK_DEP_BAG_TICKORD_FUTURE);
             /***DEPBAG_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY***/
+            V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_REORDER_QTY     := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_ONHAND_QTY      := 0;
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_YTD_ORDERED_QTY := 0;
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_LAST_ORDER_DATE := TRUNC(SYSDATE);
@@ -743,8 +744,7 @@ BEGIN
             END;
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_BAG_ORDER(V_BANK_DEP_BAG_TICK,
                                                           IN_USER_ID,
-                                                          IN_ORDERED_DATE,
-                                                          V_BANK_DEP_BAG_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI);
+                                                          IN_ARRIVAL_DATE);
         END IF;
     END IF;
 EXCEPTION

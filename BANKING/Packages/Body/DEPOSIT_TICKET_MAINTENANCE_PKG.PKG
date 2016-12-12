@@ -459,11 +459,9 @@ BEGIN
                EFFECTIVE_DATE,
                EXPIRATION_DATE,
                LAST_MAINTENANCE_DATE,
-               LAST_MAINTENANCE_DATE ORDER_DATE,--Need this changed later on, LAST_MAINTENANCE_DATE as desired arrival date
+               ORDER_DATE,
                LAST_MAINT_USER_ID,
-               EXTRACTED_USER_ID,
-               EXTERNAL_ORDER_ID_GUI,
-               ORDER_TRACKING_NUMBER
+               EXTRACTED_USER_ID
           FROM BANK_DEP_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BANK_ACCOUNT_NBR = V_LEAD_BANK_ACCOUNT_NBR
@@ -576,12 +574,10 @@ BEGIN
                EFFECTIVE_DATE,
                EXPIRATION_DATE,
                LAST_MAINTENANCE_DATE,
-               LAST_MAINTENANCE_DATE ORDER_DATE, --Need this changed later on, maintenance date as order date
+               ORDER_DATE,
                LAST_MAINT_USER_ID,
                EXTRACTED_USER_ID,
-               FUTURE_ID,
-               EXTERNAL_ORDER_ID_GUI,
-               ORDER_TRACKING_NUMBER
+               FUTURE_ID
           FROM BANK_DEP_TICKORD_FUTURE BDTF
          WHERE BDTF.COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BDTF.BANK_DEP_TICK_FTR_ID = GET_DEPOSIT_TKT_FUT_ID_NBR(IN_COST_CENTER_CODE, BDTF.BANK_ACCOUNT_NBR, BDTF.FUTURE_ID);
@@ -1399,6 +1395,8 @@ Changed : 11/11/2015 nxk927 CCN Project...
           passing the passed cost center in the filename
         : 08/30/2016 nxk927 CCN Project...
           getting the details for the cost center passed besides the micr details if not present for the passed cost center
+Changed : 12/12/2016 jxc517 CCN Project...
+          Passing member bank account number instead of bank account number for member store
 *******************************************************************************/
     IN_COST_CENTER          IN VARCHAR2,
     IN_FUTURE_ID            IN VARCHAR2,
@@ -1499,10 +1497,19 @@ IS
 
     V_OUT_CLOB         CLOB;
     V_COUNT            NUMBER := 0;
+    V_SUB_ACCOUNT      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
 BEGIN
   IF IN_FUTURE_ID IS NULL THEN
     FOR rec IN main_cur LOOP
        IF rec.COST_CENTER_CODE is not null then
+          V_SUB_ACCOUNT := NULL;
+          BEGIN
+             SELECT MEMBER_BANK_ACCOUNT_NBR
+               INTO V_SUB_ACCOUNT
+               FROM MEMBER_BANK_CC
+              WHERE MEMBER_STORE_NBR = IN_COST_CENTER;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
         BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
                                             ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
                                             ,'W' --BINARY
@@ -1518,7 +1525,7 @@ BEGIN
                     RPAD(NVL(rec.STATE_CODE, ' '), 2, ' ') ||                  --STATE_CODE (2)
                     RPAD(NVL(rec.ZIP, ' '), 10, ' ') ||                        --ZIP (10)
                     RPAD(NVL(rec.ROUTING_NUMBER, ' '), 11, ' ') ||             --ROUTING_NUMBER (11)
-                    RPAD(NVL(rec.ACCOUNT_NUMBER, ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
+                    RPAD(NVL(NVL(V_SUB_ACCOUNT,rec.ACCOUNT_NUMBER), ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
                     RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ')                   --HTML_NAME (50)
                     ;
        UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
@@ -1529,6 +1536,15 @@ BEGIN
   ELSE
     FOR rec IN main_cur_future LOOP
        IF rec.COST_CENTER_CODE is not null then
+          V_SUB_ACCOUNT := NULL;
+          BEGIN
+             SELECT MEMBER_BANK_ACCOUNT_NBR
+               INTO V_SUB_ACCOUNT
+               FROM MEMBER_BANK_CC_FUTURE
+              WHERE MEMBER_STORE_NBR = IN_COST_CENTER
+                AND FUTURE_ID        = IN_FUTURE_ID;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
         BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
                                             ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
                                             ,'W' --BINARY
@@ -1544,7 +1560,7 @@ BEGIN
                     RPAD(NVL(rec.STATE_CODE, ' '), 2, ' ') ||                  --STATE_CODE (2)
                     RPAD(NVL(rec.ZIP, ' '), 10, ' ') ||                        --ZIP (10)
                     RPAD(NVL(rec.ROUTING_NUMBER, ' '), 11, ' ') ||             --ROUTING_NUMBER (11)
-                    RPAD(NVL(rec.ACCOUNT_NUMBER, ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
+                    RPAD(NVL(NVL(V_SUB_ACCOUNT,rec.ACCOUNT_NUMBER), ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
                     RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ')                   --HTML_NAME (50)
                     ;
        UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
@@ -1630,9 +1646,12 @@ Changed : 11/30/2016 nxk972 CCN Project....
 Changed : 12/07/2016 nxk972 CCN Project....
           Updating LAST_VW_ORDER_DATE and LAST_MAINTENANCE_DATE with the date the order was placed 
           , effective date not to be changed
+Changed : 12/12/2016 nxk927 CCN Project....
+          Changed the parameter name from order date to in_arrival_date
+          order date will always be sysdate, so removed the calculation where calculation happens on sysdate
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
-IN_ORDERED_DATE         IN     DATE,
+IN_ARRIVAL_DATE         IN     DATE,
 IN_FUTURE_ID            IN     NUMBER,
 IN_USER_ID              IN     VARCHAR2)
 IS
@@ -1652,7 +1671,7 @@ BEGIN
     --business rule to check if micr detail is present
     -- check the order place date is valid or not
     BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,
-                                              IN_ORDERED_DATE,
+                                              TRUNC(SYSDATE),
                                               IN_FUTURE_ID);
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
@@ -1666,9 +1685,6 @@ BEGIN
         END;
        
         IF V_BANK_DEP_TICK.COST_CENTER_CODE IS NOT NULL THEN
-           V_BANK_DEP_TICK.LAST_MAINTENANCE_DATE      := SYSDATE;
-           V_BANK_DEP_TICK.LAST_VW_ORDER_DATE         := TRUNC(SYSDATE);
-           TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
            V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR        := V_BANK_DEP_TICK.BANK_ACCOUNT_NBR;
            V_BANK_DEP_TICKORD.COST_CENTER_CODE        := V_BANK_DEP_TICK.COST_CENTER_CODE;
            V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID    := NVL(GET_DEPOSIT_TKT_FUT_ID_NBR(V_BANK_DEP_TICK.COST_CENTER_CODE, V_BANK_DEP_TICKORD.BANK_ACCOUNT_NBR, IN_FUTURE_ID),0) + 1;
@@ -1679,30 +1695,29 @@ BEGIN
            V_BANK_DEP_TICKORD.EXPIRATION_DATE         := V_BANK_DEP_TICK.EXPIRATION_DATE;
            V_BANK_DEP_TICKORD.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
            V_BANK_DEP_TICKORD.LAST_MAINT_USER_ID      := IN_USER_ID;
-           V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
+           V_BANK_DEP_TICKORD.ORDER_DATE              := TRUNC(SYSDATE);
+           V_BANK_DEP_TICKORD.ARRIVAL_DATE            := IN_ARRIVAL_DATE;
            V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
-           V_BANK_DEP_TICKORD.EXTERNAL_ORDER_ID_GUI   := GET_DEPOSIT_TICKET_ORDER_GUI();
            TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL,V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID);
            RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
-                                                            IN_ORDERED_DATE,
-                                                            V_BANK_DEP_TICKORD.EXTERNAL_ORDER_ID_GUI);
+                                                            IN_ARRIVAL_DATE);
             
            --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
-           IF IN_ORDERED_DATE = TRUNC(SYSDATE) THEN 
-              --record should be only moved from current to history if there are changes in current
-              --the following process should only run if the order date is current
-              TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
-              --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
-              --if not the batch process will update the qauntity when it hits the date
-              V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
-              V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
-              V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
-              V_BANK_DEP_TICK.REORDER_NUMBER_BKS         := NVL(V_BANK_DEP_TICK.REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
-              V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY        := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
-              V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY   := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
-              TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
-           END IF;
+           --record should be only moved from current to history if there are changes in current
+           --the following process should only run if the order date is current
+           TABLE_IU_PKG.BANK_DEP_TICK_HIST_I_SP(V_BANK_DEP_TICK);
+           --if the order date is current then we will update the DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY
+           --if not the batch process will update the qauntity when it hits the date
+           V_NBR_DEP_TICKETS_PER_BK                   := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('NBR_DEP_TICKETS_PER_BK');
+           V_REORDER_NUMBER_BKS                       := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('REORDER_NUMBER_BKS');
+           V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK     := NVL(V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK,V_NBR_DEP_TICKETS_PER_BK);
+           V_BANK_DEP_TICK.REORDER_NUMBER_BKS         := NVL(V_BANK_DEP_TICK.REORDER_NUMBER_BKS,V_REORDER_NUMBER_BKS);
+           V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY        := NVL(V_BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+           V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY   := NVL(V_BANK_DEP_TICK.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK.REORDER_NUMBER_BKS;
+           V_BANK_DEP_TICK.LAST_MAINTENANCE_DATE      := SYSDATE;
+           V_BANK_DEP_TICK.LAST_VW_ORDER_DATE         := TRUNC(SYSDATE);
+           TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK);
         END IF;
     ELSE
         BEGIN
@@ -1727,10 +1742,10 @@ BEGIN
             V_BANK_DEP_TICKORD_FUTURE.EXPIRATION_DATE         := V_BANK_DEP_TICK_FUTURE.EXPIRATION_DATE;
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINTENANCE_DATE   := TRUNC(SYSDATE);
             V_BANK_DEP_TICKORD_FUTURE.LAST_MAINT_USER_ID      := IN_USER_ID;
-            V_BANK_DEP_TICKORD_FUTURE.ORDER_DATE              := IN_ORDERED_DATE;
+            V_BANK_DEP_TICKORD_FUTURE.ORDER_DATE              := TRUNC(SYSDATE);
+            V_BANK_DEP_TICKORD_FUTURE.ARRIVAL_DATE            := IN_ARRIVAL_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXTRACTED_USER_ID       := IN_USER_ID;
             V_BANK_DEP_TICKORD_FUTURE.FUTURE_ID               := V_BANK_DEP_TICK_FUTURE.FUTURE_ID;
-            V_BANK_DEP_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI   := GET_DEPOSIT_TICKET_ORDER_GUI();
             TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_I_SP(V_BANK_DEP_TICKORD_FUTURE);
             /***DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
@@ -1768,8 +1783,7 @@ BEGIN
                   NULL;
             END;
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
-                                                             IN_ORDERED_DATE,
-                                                             V_BANK_DEP_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI);
+                                                             IN_ARRIVAL_DATE);
         END IF;
     END IF;
 EXCEPTION

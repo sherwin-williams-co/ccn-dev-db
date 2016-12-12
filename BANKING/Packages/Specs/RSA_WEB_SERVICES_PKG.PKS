@@ -20,8 +20,7 @@ Changed : 11/30/2016 nxk927 CCN Project....
           Addded parameter to pass order date instead of effective date in the orders
 *******************************************************************************/
     IN_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
-    IN_ORDER_DATE    IN     DATE,
-    IN_ORDER_GUID    IN     VARCHAR2);
+    IN_ARRIVAL_DATE  IN     DATE);
 
 PROCEDURE CREATE_DEPOSIT_BAG_ORDER( 
 /******************************************************************************
@@ -35,7 +34,6 @@ Changed : 11/30/2016 nxk927 CCN Project....
 *******************************************************************************/
     IN_DEP_BAG_TICK_REC  IN     BANK_DEP_BAG_TICK%ROWTYPE,
     IN_USER_ID           IN     VARCHAR2,
-    IN_ORDER_DATE        IN     DATE,
-    IN_ORDER_GUID        IN     VARCHAR2);
+    IN_ARRIVAL_DATE      IN     DATE);
 
 END RSA_WEB_SERVICES_PKG;
