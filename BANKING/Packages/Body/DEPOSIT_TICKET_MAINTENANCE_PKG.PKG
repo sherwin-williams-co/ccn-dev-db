@@ -461,7 +461,9 @@ BEGIN
                LAST_MAINTENANCE_DATE,
                LAST_MAINTENANCE_DATE ORDER_DATE,--Need this changed later on, LAST_MAINTENANCE_DATE as desired arrival date
                LAST_MAINT_USER_ID,
-               EXTRACTED_USER_ID
+               EXTRACTED_USER_ID,
+               EXTERNAL_ORDER_ID_GUI,
+               ORDER_TRACKING_NUMBER
           FROM BANK_DEP_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BANK_ACCOUNT_NBR = V_LEAD_BANK_ACCOUNT_NBR
@@ -577,7 +579,9 @@ BEGIN
                LAST_MAINTENANCE_DATE ORDER_DATE, --Need this changed later on, maintenance date as order date
                LAST_MAINT_USER_ID,
                EXTRACTED_USER_ID,
-               FUTURE_ID
+               FUTURE_ID,
+               EXTERNAL_ORDER_ID_GUI,
+               ORDER_TRACKING_NUMBER
           FROM BANK_DEP_TICKORD_FUTURE BDTF
          WHERE BDTF.COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND BDTF.BANK_DEP_TICK_FTR_ID = GET_DEPOSIT_TKT_FUT_ID_NBR(IN_COST_CENTER_CODE, BDTF.BANK_ACCOUNT_NBR, BDTF.FUTURE_ID);
@@ -1554,6 +1558,41 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_DEPOSIT_TKT_INPUT_FILE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END CREATE_DEPOSIT_TKT_INPUT_FILE;
 
+FUNCTION GET_DEPOSIT_TICKET_ORDER_GUI
+/*******************************************************************************
+This fucntion is intended to return the guid for order being placed
+
+Created : 06/10/2016 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+RETURN VARCHAR2
+IS
+    V_RETURN_VAL     VARCHAR2(20);
+    V_COUNT          NUMBER := 0;
+BEGIN
+   SELECT DBMS_RANDOM.STRING('A', 16) INTO V_RETURN_VAL FROM DUAL;
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM (SELECT COST_CENTER_CODE
+              FROM BANK_DEP_TICKORD_HIST
+             WHERE EXTERNAL_ORDER_ID_GUI = V_RETURN_VAL
+             UNION
+            SELECT COST_CENTER_CODE
+              FROM BANK_DEP_TICKORD
+             WHERE EXTERNAL_ORDER_ID_GUI = V_RETURN_VAL
+             UNION
+            SELECT COST_CENTER_CODE
+              FROM BANK_DEP_TICKORD_FUTURE
+             WHERE EXTERNAL_ORDER_ID_GUI = V_RETURN_VAL);
+    IF V_COUNT > 0 THEN
+        V_RETURN_VAL := GET_DEPOSIT_TICKET_ORDER_GUI();
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_DEPOSIT_TICKET_ORDER_GUI;
+
 PROCEDURE PLACE_DEPOSIT_TICKET_ORDER(
 /*******************************************************************************
 This procedure is intended to place a deposit ticket order for the store passed in
@@ -1583,6 +1622,8 @@ Changed : 10/21/2015 jxc517 CCN Project....
           added the business rule for current and future for order date and check to see if 
           store micr detail moved inside the business rule call.
           passing the bank account number to get the deposit ticket fut_id 
+Changed : 06/10/2015 jxc517 CCN Project....
+          Added EXTERNAL_ORDER_ID_GUI, ORDER_TRACKING_NUMBER to deposit order tables
 Changed : 11/30/2016 nxk972 CCN Project....
           Passing order date to the procedure CREATE_DEPOSIT_TICKET_ORDER to have the order date in the xml
           rather than the deposit ticket effective date
@@ -1640,10 +1681,12 @@ BEGIN
            V_BANK_DEP_TICKORD.LAST_MAINT_USER_ID      := IN_USER_ID;
            V_BANK_DEP_TICKORD.ORDER_DATE              := IN_ORDERED_DATE;
            V_BANK_DEP_TICKORD.EXTRACTED_USER_ID       := IN_USER_ID;
+           V_BANK_DEP_TICKORD.EXTERNAL_ORDER_ID_GUI   := GET_DEPOSIT_TICKET_ORDER_GUI();
            TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(V_BANK_DEP_TICKORD);
            CREATE_DEPOSIT_TKT_INPUT_FILE(IN_COST_CENTER_CODE,NULL,V_BANK_DEP_TICKORD.BANK_DEP_TICK_FTR_ID);
            RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
-                                                            IN_ORDERED_DATE);
+                                                            IN_ORDERED_DATE,
+                                                            V_BANK_DEP_TICKORD.EXTERNAL_ORDER_ID_GUI);
             
            --DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
            IF IN_ORDERED_DATE = TRUNC(SYSDATE) THEN 
@@ -1687,6 +1730,7 @@ BEGIN
             V_BANK_DEP_TICKORD_FUTURE.ORDER_DATE              := IN_ORDERED_DATE;
             V_BANK_DEP_TICKORD_FUTURE.EXTRACTED_USER_ID       := IN_USER_ID;
             V_BANK_DEP_TICKORD_FUTURE.FUTURE_ID               := V_BANK_DEP_TICK_FUTURE.FUTURE_ID;
+            V_BANK_DEP_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI   := GET_DEPOSIT_TICKET_ORDER_GUI();
             TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_I_SP(V_BANK_DEP_TICKORD_FUTURE);
             /***DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
@@ -1724,7 +1768,8 @@ BEGIN
                   NULL;
             END;
             RSA_WEB_SERVICES_PKG.CREATE_DEPOSIT_TICKET_ORDER(V_BANK_DEP_TICK,
-                                                             IN_ORDERED_DATE);
+                                                             IN_ORDERED_DATE,
+                                                             V_BANK_DEP_TICKORD_FUTURE.EXTERNAL_ORDER_ID_GUI);
         END IF;
     END IF;
 EXCEPTION
