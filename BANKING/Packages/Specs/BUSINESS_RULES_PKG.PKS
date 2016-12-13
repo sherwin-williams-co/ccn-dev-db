@@ -25,7 +25,7 @@ FUNCTION IS_STR_A_MBR_EVER_FROM_DT_PASD(
   This function will return "Y" if the passed store is a member as of input date or in future
 
 Created : 11/12/2015 jxc517 CCN Project....
-Changed : 09/20/2016 nxk927 CCN Project....
+Changed : 09/19/2016 nxk927 CCN Project....
           Making this proc public to use in deposit ticket maintenance pkg
 *******************************************************************************/
 IN_COST_CENTER_CODE   IN     VARCHAR2,
@@ -138,10 +138,10 @@ PROCEDURE PLACE_TCKT_ORDER_BR_SP(
     This procedure validates the business rules for placing order from Deposit Bag TIcket Window
 
 Created : 11/19/2015 nxk927 CCN Project Team....
-Changed :
+Changed : 12/13/2016 nxk927 CCN Project Team....
+          Signature changed to removed order date as it is not needed anymore
 *******************************************************************************/
    IN_COST_CENTER        IN VARCHAR2,
-   IN_ORDER_DATE         IN DATE,
    IN_FUTURE_ID          IN NUMBER);
 
 PROCEDURE PLACE_BAG_ORDER_BR_SP(
@@ -149,10 +149,10 @@ PROCEDURE PLACE_BAG_ORDER_BR_SP(
     This procedure validates the business rules for placing order from Deposit Bag TIcket Window
 
 Created : 11/19/2015 nxk927 CCN Project Team....
-Changed :
+Changed : 12/13/2016 nxk927 CCN Project Team....
+          Signature changed to removed order date as it is not needed anymore
 *******************************************************************************/
    IN_COST_CENTER        IN VARCHAR2,
-   IN_ORDER_DATE         IN DATE,
    IN_FUTURE_ID          IN NUMBER);
 
 PROCEDURE ACCOUNT_MAINTEN_CHECK_FUTURE(
@@ -185,9 +185,9 @@ FUNCTION IS_PLACING_DPT_TKT_BAG_ORD_OK(
 /******************************************************************************
    This function returns Y or N depending on the cost center closed date and open date
    as of 01-Jan-2099
-
-Created : 09/27/2016 nxk927
-Changed :
+   
+Created : 09/27/2016 nxk927 
+Changed : 
 *******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
 

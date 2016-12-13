@@ -6,6 +6,7 @@
 created : sxh487 11/18/2016
 modified: rxs349 12/05/2016  Corrected cursor name
           sxh487 12/06/2016  corrected bank num display in .csv
+		  nxk922 12/13/2016  added arrival date
 **********************************************************/
 declare
 CURSOR dep_tick_cur IS
@@ -21,7 +22,7 @@ CURSOR dep_tick_cur IS
 V_CLOB     CLOB;    
 BEGIN
    --Building the header
-   V_CLOB  := 'BANK_ACCOUNT_NBR,COST_CENTER_CODE,DEPOSIT_ORDER_PRIORITY,DEPOSIT_ORDER_STATUS,DEPOSIT_ORDER_SEQ_NBR,EFFECTIVE_DATE,EXPIRATION_DATE,LAST_MAINTENANCE_DATE,LAST_MAINT_USER_ID,ORDER_DATE,EXTRACTED_USER_ID '||  UTL_TCP.crlf;
+   V_CLOB  := 'BANK_ACCOUNT_NBR,COST_CENTER_CODE,DEPOSIT_ORDER_PRIORITY,DEPOSIT_ORDER_STATUS,DEPOSIT_ORDER_SEQ_NBR,EFFECTIVE_DATE,EXPIRATION_DATE,LAST_MAINTENANCE_DATE,LAST_MAINT_USER_ID,ORDER_DATE,ARRIVAL_DATE,EXTRACTED_USER_ID '||  UTL_TCP.crlf;
    
    FOR REC IN dep_tick_cur LOOP        
             V_CLOB := V_CLOB 
@@ -34,7 +35,8 @@ BEGIN
                       ||REC.EXPIRATION_DATE ||','                         
                       ||REC.LAST_MAINTENANCE_DATE ||','          
                       ||'"'||REC.LAST_MAINT_USER_ID ||'"'|| CHR(9)|| ','     
-                      ||REC.ORDER_DATE ||','                           
+                      ||REC.ORDER_DATE ||','
+                      ||REC.ARRIVAL_DATE ||','					  
                       ||'"'||REC.EXTRACTED_USER_ID ||'"'|| CHR(9) ||CHR(10);
         END LOOP;
     IF V_CLOB <> EMPTY_CLOB() THEN

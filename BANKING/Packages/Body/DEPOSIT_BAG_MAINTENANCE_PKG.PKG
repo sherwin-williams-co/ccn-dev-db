@@ -226,6 +226,39 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_TABLE_TYPES ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END BUILD_TABLE_TYPES;
 
+FUNCTION GET_LAST_VW_ORDER_DT(
+/********************************************************************************
+This function is intended to get last order date for the deposit tickets
+
+Created : 12/13/2016 nxk927 CCN Project....
+Changed : 
+********************************************************************************/
+  IN_COST_CENTER_CODE    IN     VARCHAR2,
+  IN_BANK_ACCT_NBR       IN     VARCHAR2,
+  IN_FUTURE_ID           IN     VARCHAR2 DEFAULT NULL) RETURN DATE
+IS
+  V_LAST_DATE  DATE;
+  BEGIN
+    IF IN_FUTURE_ID IS NULL THEN
+       SELECT MAX(ORDER_DATE)
+         INTO V_LAST_DATE
+         FROM BANK_DEP_BAG_TICKORD
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+          AND BANK_ACCOUNT_NBR = IN_BANK_ACCT_NBR;
+    ELSE
+       SELECT MAX(ORDER_DATE)
+         INTO V_LAST_DATE
+         FROM BANK_DEP_BAG_TICKORD_FUTURE
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+          AND BANK_ACCOUNT_NBR   = IN_BANK_ACCT_NBR
+          AND FUTURE_ID          = IN_FUTURE_ID;
+    END IF;
+    RETURN V_LAST_DATE;
+  EXCEPTION
+     WHEN OTHERS THEN
+         RETURN NULL;
+END GET_LAST_VW_ORDER_DT;
+
 PROCEDURE DEPOSIT_BAG_CURRENT_UPSERT_SP( 
 /******************************************************************************
 This procedure is intended to update following table used in the
@@ -236,6 +269,8 @@ Deposit Bag Maintenance Window that are current records
 Created : 08/21/2015 jxc517 CCN Project....
 Changed : 12/08/2016 nxk927 CCN Project....
           Effective date should not be updated in all the condition
+        : 12/13/2016 nxk927 CCN Project....
+          getting max order date from the dep_bag_ticord table
 *******************************************************************************/
     IN_BANK_DEP_BAG_TICK_REC  IN     BANK_DEP_BAG_TICK%ROWTYPE)
 IS
@@ -253,7 +288,8 @@ BEGIN
         WHEN OTHERS THEN
             NULL;
     END;
-    V_BANK_DEP_BAG_TICK_REC.EFFECTIVE_DATE   := NVL(V_BANK_DEP_BAG_TICK_REC.EFFECTIVE_DATE,SYSDATE);
+    V_BANK_DEP_BAG_TICK_REC.EFFECTIVE_DATE         := NVL(V_BANK_DEP_BAG_TICK_REC.EFFECTIVE_DATE,SYSDATE);
+    V_BANK_DEP_BAG_TICK_REC.DEPBAG_LAST_ORDER_DATE := GET_LAST_VW_ORDER_DT(V_BANK_DEP_BAG_TICK_REC.COST_CENTER_CODE,V_BANK_DEP_BAG_TICK_REC.BANK_ACCOUNT_NBR, NULL);
     TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(V_BANK_DEP_BAG_TICK_REC);
 EXCEPTION
     WHEN OTHERS THEN
@@ -370,6 +406,9 @@ Deposit Bag Maintenance Window that are future records
 Created : 08/24/2015 jxc517 CCN Project....
 Changed : 11/02/2015 nxk927 CCN Project.... 
           Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
+        : 12/13/2016 nxk927 CCN Project....
+          getting max order date from the dep_bag_ticord table
+          Future onhand quantity and ytd quantity not to be reset to 0.
 *******************************************************************************/
     IN_BANK_DEP_BAG_TICK_FTR_REC IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE)
 IS
@@ -377,9 +416,7 @@ IS
     V_PROC_NAME                    VARCHAR2(30) := 'DEPOSIT_BAG_FUTURE_UPSERT_SP';
 BEGIN
     EXPIRE_PREVIOUS_DEP_BAG_DTLS(V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE, V_BANK_DEP_BAG_TICK_FTR_REC.EFFECTIVE_DATE);
-    --Future DEPBAG_ONHAND_QTY and DEPBAG_YTD_ORDERED_QTY to reset to 0
-    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_ONHAND_QTY      := 0;
-    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_YTD_ORDERED_QTY := 0;
+    V_BANK_DEP_BAG_TICK_FTR_REC.DEPBAG_LAST_ORDER_DATE := GET_LAST_VW_ORDER_DT(V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE,V_BANK_DEP_BAG_TICK_FTR_REC.BANK_ACCOUNT_NBR, V_BANK_DEP_BAG_TICK_FTR_REC.FUTURE_ID);
     TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(V_BANK_DEP_BAG_TICK_FTR_REC);
 EXCEPTION
     WHEN OTHERS THEN
@@ -576,6 +613,9 @@ Changed : 12/08/2016 nxk927 CCN Project....
 Changed : 12/12/2016 nxk927 CCN Project....
           Changed the parameter name from order date to in_arrival_date
           Passing the DEPBAG_REORDER_QTY from the reference table itself.
+        : 12/13/2016 nxk927 CCN Project Team....
+          Order date validation not needed any more
+          Future calculation need to happen as the orders are placed.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ARRIVAL_DATE         IN     DATE,
@@ -595,7 +635,6 @@ IS
 BEGIN
     --business rule that will validate the order placed regarding the order date
     BUSINESS_RULES_PKG.PLACE_BAG_ORDER_BR_SP(IN_COST_CENTER_CODE,
-                                             TRUNC(SYSDATE),
                                              IN_FUTURE_ID);
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
@@ -675,8 +714,8 @@ BEGIN
             /***DEPBAG_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY***/
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_REORDER_QTY     := BANKING_COMMON_TOOLS.GET_STANDARD_VAL_DEPOSIT_ORD('DEPBAG_REORDER_QTY');
-            V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_ONHAND_QTY      := 0;
-            V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_YTD_ORDERED_QTY := 0;
+            V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_ONHAND_QTY      := NVL(V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_ONHAND_QTY,0) + V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_REORDER_QTY;
+            V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_YTD_ORDERED_QTY := NVL(V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_YTD_ORDERED_QTY,0) + V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_REORDER_QTY;
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_LAST_ORDER_DATE := TRUNC(SYSDATE);
             V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_LAST_ORDER_QTY  := V_BANK_DEP_BAG_TICK_FUTURE.DEPBAG_REORDER_QTY;
             TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_I_SP(V_BANK_DEP_BAG_TICK_FUTURE);

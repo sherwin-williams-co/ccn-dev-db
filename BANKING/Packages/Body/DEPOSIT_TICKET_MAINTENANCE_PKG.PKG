@@ -767,6 +767,39 @@ IS
          ERRPKG.RAISE_ERR(SQLCODE, 'MEMBER_BANK_ACCT_UPDATE', SUBSTR(SQLERRM,1,500));
 END MEMBER_BANK_ACCT_UPDATE;
 
+FUNCTION GET_LAST_VW_ORDER_DT(
+/********************************************************************************
+This function is intended to get last order date for the deposit tickets
+
+Created : 12/13/2016 nxk927 CCN Project....
+Changed : 
+********************************************************************************/
+  IN_COST_CENTER_CODE    IN     VARCHAR2,
+  IN_BANK_ACCT_NBR       IN     VARCHAR2,
+  IN_FUTURE_ID           IN     VARCHAR2 DEFAULT NULL) RETURN DATE
+IS
+  V_LAST_DATE  DATE;
+  BEGIN
+    IF IN_FUTURE_ID IS NULL THEN
+       SELECT MAX(ORDER_DATE)
+         INTO V_LAST_DATE
+         FROM BANK_DEP_TICKORD
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+        AND BANK_ACCOUNT_NBR = IN_BANK_ACCT_NBR;
+    ELSE
+       SELECT MAX(ORDER_DATE)
+         INTO V_LAST_DATE
+         FROM BANK_DEP_TICKORD_FUTURE
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+        AND BANK_ACCOUNT_NBR   = IN_BANK_ACCT_NBR
+        AND FUTURE_ID          = IN_FUTURE_ID;
+    END IF;
+    RETURN V_LAST_DATE;
+  EXCEPTION
+     WHEN OTHERS THEN
+         RETURN NULL;
+END GET_LAST_VW_ORDER_DT;
+
 PROCEDURE DEPOSIT_TKT_CURRENT_UPSERT_SP( 
 /******************************************************************************
 This procedure is intended to update following table used in the
@@ -792,6 +825,8 @@ Changed : 11/05/2015 jxc517 CCN Project....
           if the effective date is passed, used the same date if there is no change,
           else sysdate.
           Signature changed to get the standard ticket fields from the reference table
+        : 12/13/2016 nxk927 CCN Project...
+          calling the function to get the last order date
 *******************************************************************************/
     IN_BANK_DEP_TICK_REC  IN     BANK_DEP_TICK%ROWTYPE,
     IN_MICR_FORMAT_ID     IN     NUMBER,
@@ -815,6 +850,7 @@ BEGIN
         WHEN OTHERS THEN
             NULL;
     END;
+    V_BANK_DEP_TICK_REC.LAST_VW_ORDER_DATE := GET_LAST_VW_ORDER_DT(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,V_BANK_DEP_TICK_REC.BANK_ACCOUNT_NBR, NULL);
     V_BANK_DEP_TICK_REC.EFFECTIVE_DATE  := NVL(V_BANK_DEP_TICK_REC.EFFECTIVE_DATE, SYSDATE);
     TABLE_IU_PKG.BANK_DEP_TICK_I_SP(V_BANK_DEP_TICK_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_REC.COST_CENTER_CODE,
@@ -1029,6 +1065,9 @@ Changed : 11/05/2015 jxc517 CCN Project....
           if the member bank account is passed back as null.
         : 12/08/2016 nxk927 CCN Project...
           Signature changed to get the standard ticket fields from the reference table
+        : 12/13/2016 nxk927 CCN Project...
+          calling the function to get the last order date
+          Future onhand quantity and ytd quantity not to be overwritten as 0. should take as it is.
 *******************************************************************************/
     IN_BANK_DEP_TICK_FUTURE_REC  IN     BANK_DEP_TICK_FUTURE%ROWTYPE,
     IN_MICR_FORMAT_ID            IN     NUMBER,
@@ -1041,9 +1080,7 @@ IS
     V_PROC_NAME                    VARCHAR2(30) := 'DEPOSIT_TKT_FUTURE_UPSERT_SP';
 BEGIN
     EXPIRE_PREVIOUS_DEP_TICK_DTLS(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE, V_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
-    --Future DEP_TKTS_ONHAND_QTY and YTD_DEP_TKTS_ORDERED_QTY always reset to zero.
-    V_BANK_DEP_TICK_FUTURE_REC.DEP_TKTS_ONHAND_QTY       := 0; 
-    V_BANK_DEP_TICK_FUTURE_REC.YTD_DEP_TKTS_ORDERED_QTY  := 0;
+    V_BANK_DEP_TICK_FUTURE_REC.LAST_VW_ORDER_DATE := GET_LAST_VW_ORDER_DT(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR, V_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID);
     TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE_REC);
     IF IS_FORMAT_CHANGED(V_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
                          V_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
@@ -1614,7 +1651,9 @@ Changed : 12/07/2016 nxk972 CCN Project....
           , effective date not to be changed
 Changed : 12/12/2016 nxk927 CCN Project....
           Changed the parameter name from order date to in_arrival_date
-          order date will always be sysdate, so removed the calculation where calculation happens on sysdate
+        : 12/13/2016 nxk927 CCN Project Team....
+          Order date validation not needed any more
+          Future calculation need to happen as the orders are placed.
 *******************************************************************************/
 IN_COST_CENTER_CODE     IN     VARCHAR2,
 IN_ARRIVAL_DATE         IN     DATE,
@@ -1637,7 +1676,6 @@ BEGIN
     --business rule to check if micr detail is present
     -- check the order place date is valid or not
     BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(IN_COST_CENTER_CODE,
-                                              TRUNC(SYSDATE),
                                               IN_FUTURE_ID);
     IF IN_FUTURE_ID IS NULL THEN
         BEGIN
@@ -1715,8 +1753,8 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_I_SP(V_BANK_DEP_TICKORD_FUTURE);
             /***DEP_TKTS_ONHAND_QTY will depend on book quantity. If we need different quantity we have to update the book quantity first and save it. Then place the order.
             For future this will start with new order as if there was "0" DEP_TKTS_ONHAND_QTY ***/
-            V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := 0;
-            V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := 0;
+            V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY        := NVL(V_BANK_DEP_TICK_FUTURE.DEP_TKTS_ONHAND_QTY,0) + V_BANK_DEP_TICK_FUTURE.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK_FUTURE.REORDER_NUMBER_BKS;
+            V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY   := NVL(V_BANK_DEP_TICK_FUTURE.YTD_DEP_TKTS_ORDERED_QTY,0) + V_BANK_DEP_TICK_FUTURE.NBR_DEP_TICKETS_PER_BK * V_BANK_DEP_TICK_FUTURE.REORDER_NUMBER_BKS;
             V_BANK_DEP_TICK_FUTURE.LAST_VW_ORDER_DATE         := TRUNC(SYSDATE);
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_I_SP(V_BANK_DEP_TICK_FUTURE);
             CREATE_DEPOSIT_TKT_INPUT_FILE(V_BANK_DEP_TICK_FUTURE.COST_CENTER_CODE,IN_FUTURE_ID,V_BANK_DEP_TICKORD_FUTURE.BANK_DEP_TICK_FTR_ID);
