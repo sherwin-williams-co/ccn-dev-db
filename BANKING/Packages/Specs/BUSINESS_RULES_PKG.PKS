@@ -46,18 +46,6 @@ IN_BANK_ACCOUNT_NBR   IN     VARCHAR2,
 IN_EXPIRATION_DATE    IN     DATE,
 IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
 
-FUNCTION IS_MEMBER_EXPIRATION_INVALID(
-/*******************************************************************************
-  This function will return "Y" if the passed member-bank account combination
-  contains active members as of the date it is being expired
-
-Created : 08/24/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE   IN     VARCHAR2,
-IN_EXPIRATION_DATE    IN     DATE,
-IN_FUTURE_ID          IN     NUMBER) RETURN VARCHAR2;
-
 PROCEDURE ACCOUNT_MAINTENANCE_BR_SP(
 /******************************************************************************
     This procedure validates the business rules for Account Maintenance Window 

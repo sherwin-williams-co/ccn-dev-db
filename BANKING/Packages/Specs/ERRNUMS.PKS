@@ -230,18 +230,6 @@ exc_micr_format_conversion EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_micr_format_conversion , -20018);
 
 /*********************************************************** 
-The "mbr_exprd_with_actv_dptks" passes a numerical error of -20019
-This error will be used when a member is expired with atleast 
-one deposit ticket active under it
-
-Created : 08/18/2015 jxc517 CCN Project....
-Changed :
-************************************************************/
-en_mbr_exprd_with_actv_dptks CONSTANT NUMBER := -20019;
-exc_mbr_exprd_with_actv_dptks EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_mbr_exprd_with_actv_dptks , -20019);
-
-/*********************************************************** 
 The "accnt_nbr_not_avlbl_for_cc" passes a numerical error of -20020
 This error will be used when there is no bank account number found for the
 store entered
