@@ -1456,6 +1456,10 @@ Changed : 11/11/2015 nxk927 CCN Project...
 Changed : 12/12/2016 jxc517 CCN Project...
           Irrespective of what ever the MICR account number is for that MICR format selected
           always pass the members sub account number if present
+Changed : 12/19/2016 jxc517 CCN Project...
+          Use the conversion logic if the sub account supports the formats number of X's
+          Else use the value directly {This needs to be discussed further once Keith is back}
+          If the format doesn't have any X's we will send the format as it is instead of sub account
 *******************************************************************************/
     IN_COST_CENTER          IN VARCHAR2,
     IN_FUTURE_ID            IN VARCHAR2,
@@ -1558,22 +1562,36 @@ IS
     V_COUNT            NUMBER := 0;
     V_SUB_ACCOUNT      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
 BEGIN
-  IF IN_FUTURE_ID IS NULL THEN
-    FOR rec IN main_cur LOOP
-       IF rec.COST_CENTER_CODE is not null then
-          V_SUB_ACCOUNT := NULL;
-          BEGIN
-             SELECT MEMBER_BANK_ACCOUNT_NBR
-               INTO V_SUB_ACCOUNT
-               FROM MEMBER_BANK_CC
-              WHERE MEMBER_STORE_NBR = IN_COST_CENTER;
-          EXCEPTION WHEN OTHERS THEN NULL;
-          END;
-        BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
-                                            ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
-                                            ,'W' --BINARY
-                                            ,32767);
-        V_OUT_CLOB := V_OUT_CLOB ||
+    IF IN_FUTURE_ID IS NULL THEN
+        FOR rec IN main_cur LOOP
+            IF rec.COST_CENTER_CODE IS NOT NULL THEN
+                V_SUB_ACCOUNT := NULL;
+                BEGIN
+                    SELECT MEMBER_BANK_ACCOUNT_NBR
+                      INTO V_SUB_ACCOUNT
+                      FROM MEMBER_BANK_CC
+                     WHERE MEMBER_STORE_NBR = IN_COST_CENTER;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                --If format account number contains X's send the sub account by replacing it, if possible, else send it as is
+                IF V_SUB_ACCOUNT IS NOT NULL THEN
+                   IF REGEXP_LIKE(rec.ACCOUNT_NUMBER, '[X]+') THEN
+                        IF LENGTH(REGEXP_REPLACE(V_SUB_ACCOUNT, '[^0-9]+')) = LENGTH(REGEXP_REPLACE(rec.ACCOUNT_NUMBER, '[^X]+')) THEN
+                            V_SUB_ACCOUNT := CONVERT_FORMAT_TO_VALUE(rec.ACCOUNT_NUMBER, V_SUB_ACCOUNT);
+                        END IF;
+                    ELSE
+                        IF REGEXP_REPLACE(V_SUB_ACCOUNT, '[^0-9]+') = REGEXP_REPLACE(rec.ACCOUNT_NUMBER, '[^0-9]+') THEN
+                            V_SUB_ACCOUNT := NULL;
+                        END IF;
+                    END IF;
+                END IF;
+                BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN(PATH
+                                                          ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
+                                                          ,'W' --BINARY
+                                                          ,32767);
+                V_OUT_CLOB := V_OUT_CLOB ||
                     RPAD(NVL(SUBSTR(rec.COST_CENTER_CODE, 3), ' '), 4, ' ') || --STORE-NBR (4)
                     RPAD(NVL(rec.FORM_COVER, ' '), 6, ' ') ||                  --FORM_COVER (6)
                     RPAD(NVL(rec.FORM_TICKET, ' '), 6, ' ') ||                 --FORM_TICKET (6)
@@ -1587,28 +1605,42 @@ BEGIN
                     RPAD(NVL(NVL(V_SUB_ACCOUNT,rec.ACCOUNT_NUMBER), ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
                     RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ')                   --HTML_NAME (50)
                     ;
-       UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
-       UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
-       V_OUT_CLOB := NULL;
-       END IF;
-    END LOOP;
-  ELSE
-    FOR rec IN main_cur_future LOOP
-       IF rec.COST_CENTER_CODE is not null then
-          V_SUB_ACCOUNT := NULL;
-          BEGIN
-             SELECT MEMBER_BANK_ACCOUNT_NBR
-               INTO V_SUB_ACCOUNT
-               FROM MEMBER_BANK_CC_FUTURE
-              WHERE MEMBER_STORE_NBR = IN_COST_CENTER
-                AND FUTURE_ID        = IN_FUTURE_ID;
-          EXCEPTION WHEN OTHERS THEN NULL;
-          END;
-        BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN (PATH
-                                            ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
-                                            ,'W' --BINARY
-                                            ,32767);
-        V_OUT_CLOB := V_OUT_CLOB ||
+                UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
+                UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
+                V_OUT_CLOB := NULL;
+            END IF;
+        END LOOP;
+    ELSE
+        FOR rec IN main_cur_future LOOP
+            IF rec.COST_CENTER_CODE IS NOT NULL THEN
+                V_SUB_ACCOUNT := NULL;
+                BEGIN
+                    SELECT MEMBER_BANK_ACCOUNT_NBR
+                      INTO V_SUB_ACCOUNT
+                      FROM MEMBER_BANK_CC_FUTURE
+                     WHERE MEMBER_STORE_NBR = IN_COST_CENTER
+                       AND FUTURE_ID        = IN_FUTURE_ID;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                --If format account number contains X's send the sub account by replacing it, if possible, else send it as is
+                IF V_SUB_ACCOUNT IS NOT NULL THEN
+                   IF REGEXP_LIKE(rec.ACCOUNT_NUMBER, '[X]+') THEN
+                        IF LENGTH(REGEXP_REPLACE(V_SUB_ACCOUNT, '[^0-9]+')) = LENGTH(REGEXP_REPLACE(rec.ACCOUNT_NUMBER, '[^X]+')) THEN
+                            V_SUB_ACCOUNT := CONVERT_FORMAT_TO_VALUE(rec.ACCOUNT_NUMBER, V_SUB_ACCOUNT);
+                        END IF;
+                    ELSE
+                        IF REGEXP_REPLACE(V_SUB_ACCOUNT, '[^0-9]+') = REGEXP_REPLACE(rec.ACCOUNT_NUMBER, '[^0-9]+') THEN
+                            V_SUB_ACCOUNT := NULL;
+                        END IF;
+                    END IF;
+                END IF;
+                BANK_DEPOSIT_INPUT_FILE := UTL_FILE.FOPEN(PATH
+                                                          ,BANK_DEPOSIT_IP_FILE_NM ||IN_COST_CENTER||'.txt'
+                                                          ,'W' --BINARY
+                                                          ,32767);
+                V_OUT_CLOB := V_OUT_CLOB ||
                     RPAD(NVL(SUBSTR(rec.COST_CENTER_CODE, 3), ' '), 4, ' ') || --STORE-NBR (4)
                     RPAD(NVL(rec.FORM_COVER, ' '), 6, ' ') ||                  --FORM_COVER (6)
                     RPAD(NVL(rec.FORM_TICKET, ' '), 6, ' ') ||                 --FORM_TICKET (6)
@@ -1622,12 +1654,12 @@ BEGIN
                     RPAD(NVL(NVL(V_SUB_ACCOUNT,rec.ACCOUNT_NUMBER), ' '), 19, ' ') ||             --ACCOUNT_NUMBER (15)
                     RPAD(NVL(rec.HTML_NAME, ' '), 50, ' ')                   --HTML_NAME (50)
                     ;
-       UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
-       UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
-       V_OUT_CLOB := NULL;
-       END IF;
-    END LOOP;
-END IF;    
+                UTL_FILE.PUT_LINE(BANK_DEPOSIT_INPUT_FILE, V_OUT_CLOB, TRUE);
+                UTL_FILE.FCLOSE(BANK_DEPOSIT_INPUT_FILE);
+                V_OUT_CLOB := NULL;
+            END IF;
+        END LOOP;
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_DEPOSIT_TKT_INPUT_FILE ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
