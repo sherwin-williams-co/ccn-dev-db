@@ -15,11 +15,11 @@ DECLARE
                            THEN 'Deposit ticket can not be ordered on reorder switch of L'
                      WHEN ERROR_TEXT like '%cost center%do not have%Store Micr Format Details%'
                            THEN 'The cost center retrieved do not have any Store Micr Format Details Attached.'
-                     ELSE ERROR_TEXT end as ERROR_TEXT
+                     ELSE 'Researching the failure' end as ERROR_TEXT
        FROM ERROR_LOG EL
       WHERE MODULE = 'DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS'
         AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
-        AND ERROR_TEXT IS NOT NULL;
+      ORDER BY COST_CENTER_CODE;
  
    V_CLOB   CLOB;
 BEGIN

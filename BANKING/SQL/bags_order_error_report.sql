@@ -13,11 +13,11 @@ DECLARE
                       THEN 'The cost center is either closed or a dummy cost center.'
                    WHEN ERROR_TEXT like '%Deposit bag can not be ordered on reorder switch of L%'
                       THEN 'Deposit bag can not be ordered on reorder switch of L'
-                   ELSE ERROR_TEXT end as ERROR_TEXT
+                   ELSE 'Researching the failure' END as ERROR_TEXT
        FROM ERROR_LOG EL
       WHERE MODULE = 'DPST_BAGS_UPDATE_BATCH_PKG.PROCESS'
         AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
-        AND ERROR_TEXT IS NOT NULL;
+      ORDER BY COST_CENTER_CODE;
  
    V_CLOB   CLOB;    
 BEGIN
