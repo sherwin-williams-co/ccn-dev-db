@@ -4,15 +4,16 @@ Ticket & Bag Error report
 
 created : 12/20/2016 gxg192 CCN Project....
 changed : 12/21/2016 gxg192 Added CCN Oracle team's email id and Message
+        : 12/21/2016 gxg192 Changed mail_id field
 *****************************************************************************/
 
 SET DEFINE OFF;
 
 INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('48', 'smis@sherwin.com; ccnoracle.team@sherwin.com');
+   VALUES ('48', 'ccnoracle.team@sherwin.com; smis@sherwin.com');
    
 INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('49', 'smis@sherwin.com; ccnoracle.team@sherwin.com');
+   VALUES ('49', 'ccnoracle.team@sherwin.com; smis@sherwin.com');
 
 /***************************************************************************** 
 Below script is created to store mailing details for Ticket & Bag Error report
