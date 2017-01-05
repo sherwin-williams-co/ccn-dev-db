@@ -14,6 +14,8 @@
 #               the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #             : 03/24/2016 nxk927 CCN Project Team.....
 #               Added error message for errors
+#             : 12/01/2016 gxg192 CCN Project Team.....
+#               Added Parameter for ROYAL_BANK_RPT_RUNDATE
 ##############################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -59,7 +61,8 @@ SELECT 'DAILY_LOAD_RUNDATE='|| To_char(DAILY_LOAD_RUNDATE, 'mm/dd/yyyy'),
        'QTLY_1099_RUNDATE='||To_char(QTLY_1099_RUNDATE, 'mm/dd/yyyy'),
        'MNTLY_1099_RUNDATE='||To_char(MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
        'MID_MNTLY_1099_RUNDATE='||To_char(MID_MNTLY_1099_RUNDATE, 'mm/dd/yyyy'),
-       'DAILY_PREV_RUNDATE='||TO_char(DAILY_PREV_RUNDATE, 'mm/dd/yyyy')
+       'DAILY_PREV_RUNDATE='||TO_char(DAILY_PREV_RUNDATE, 'mm/dd/yyyy'),
+       'ROYAL_BANK_RPT_RUNDATE='||TO_char(ROYAL_BANK_RPT_RUNDATE, 'mm/dd/yyyy')
   FROM STOREDRFT_PARAM;
 
 spool off
