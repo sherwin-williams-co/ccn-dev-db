@@ -1,16 +1,18 @@
 create or replace PACKAGE SD_AUDITFILES_PKG
-/******************************************************************************************* 
-THIS PACKAGE BODY WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO 
-CREATE AND BUILD THE DAILY STORE DRAFT AUDITS, ISSUES, VOIDS, STOP PAYS, 
+/*******************************************************************************************
+THIS PACKAGE BODY WILL HOLD ALL PL/SQL OBJECTS THAT ARE NEEDED TO
+CREATE AND BUILD THE DAILY STORE DRAFT AUDITS, ISSUES, VOIDS, STOP PAYS,
 AND REMOVE STOP PAYS FOR U.S.,CAN, AUTOMOTIVE CAN AND AUTOMOTIVE U.S. STORES.
 
 CREATED : 08/12/2014 AXK326
 
-REVISIONS: 11/13/2014 AXK326 
-           Made changes to cursor and also procedures name for automotive and non automotive 
-
-REVISIONS: 05/20/2015 NXK927 
-                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
+REVISIONS: 11/13/2014 AXK326
+           Made changes to cursor and also procedures name for automotive and non automotive
+REVISIONS: 05/20/2015 NXK927
+           added condition to take the records for transaction type 15 if only there is change in the amount for that date.
+         : 01/11/2017 AXK326
+           Removed PROCEDURE that builds US AUDIT RECORDS DAILY STORE DRAFT ISSUES, VOIDS, STOP PAYS AND REMOVE STOP PAYS
+           for SUNTRUST as it will be maintained online.
 ********************************************************************************************/
 AS
 
@@ -38,13 +40,13 @@ TYPE SD_CURSOR_AU_NAU_REC_TYPE IS RECORD(
 
 PROCEDURE CREATE_US_AUDITRECORDS_FILE
 /*****************************************************************************
-	CREATE AUDITRECORDS_FILE  FILE
+    CREATE AUDITRECORDS_FILE  FILE
 
-THIS PROCEDURE WILL BUILD THE US  AUTOMOTIVE DAILY STORE DRAFT AUDITS, ISSUES, 
-VOIDS, STOP PAYS AND REMOVE STOP PAYS 
+THIS PROCEDURE WILL BUILD THE US  AUTOMOTIVE DAILY STORE DRAFT AUDITS, ISSUES,
+VOIDS, STOP PAYS AND REMOVE STOP PAYS
 
-CREATED : 08/12/2014 AXK326 
-REVISION: 
+CREATED : 08/12/2014 AXK326
+REVISION:
 
 *****************************************************************************/
 (IN_DATE IN DATE)
@@ -52,16 +54,16 @@ REVISION:
 
 PROCEDURE CREATE_US_AUTO_BANK_FILE
 /*****************************************************************************
-	CREATE_US_AUTO_BANK_FILE  FILE
+    CREATE_US_AUTO_BANK_FILE  FILE
 
-THIS PROCEDURE WILL BUILD THE US AUDIT DAILY STORE DRAFT AUDITS, ISSUES, 
-VOIDS, STOP PAYS AND REMOVE STOP PAYS 
+THIS PROCEDURE WILL BUILD THE US AUDIT DAILY STORE DRAFT AUDITS, ISSUES,
+VOIDS, STOP PAYS AND REMOVE STOP PAYS
 
-CREATED : 08/12/2014 AXK326 
-REVISIONS: 11/13/2014 AXK326 
-           Made changes to cursor and also procedures name for automotive and non automotive 
-REVISIONS: 05/20/2015 NXK927 
-                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
+CREATED  : 08/12/2014 AXK326
+REVISIONS: 11/13/2014 AXK326
+           Made changes to cursor and also procedures name for automotive and non automotive
+REVISIONS: 05/20/2015 NXK927
+           added condition to take the records for transaction type 15 if only there is change in the amount for that date.
 
 *****************************************************************************/
 (IN_DATE IN DATE)
@@ -69,44 +71,16 @@ REVISIONS: 05/20/2015 NXK927
 
 PROCEDURE CREATE_US_NONAUTO_BANK_FILE
 /*****************************************************************************
-	CREATE_US_NONAUTO_BANK_FILE  FILE
+    CREATE_US_NONAUTO_BANK_FILE  FILE
 
-THIS PROCEDURE WILL BUILD THE NAS AUDIT DAILY STORE DRAFT AUDITS, ISSUES, 
-VOIDS, STOP PAYS AND REMOVE STOP PAYS 
+THIS PROCEDURE WILL BUILD THE NAS AUDIT DAILY STORE DRAFT AUDITS, ISSUES,
+VOIDS, STOP PAYS AND REMOVE STOP PAYS
 
-CREATED : 08/12/2014 AXK326 
-REVISIONS: 11/13/2014 AXK326 
-           Made changes to cursor and also procedures name for automotive and non automotive 
-REVISIONS: 05/20/2015 NXK927 
-                     added condition to take the records for transaction type 15 if only there is change in the amount for that date.              
-
-*****************************************************************************/
-(IN_DATE IN DATE)
-;
-
-PROCEDURE CREATE_US_SUNTRUST_FILE
-/*****************************************************************************
-	CREATE US_SUNTRUST FILE
-
-THIS PROCEDURE WILL BUILD THE US AUDIT RECORDS DAILY STORE DRAFT ISSUES, VOIDS, 
-STOP PAYS AND REMOVE STOP PAYS 
-
-CREATED : 09/10/2014 AXK326 
-REVISION: 
-
-*****************************************************************************/
-(IN_DATE IN DATE)
-;
-
-PROCEDURE CREATE_US_SUNTRUST_AUTO_FILE
-/*****************************************************************************
-	CREATE US_SUNTRUST_AUTOMOTIVE FILE
-
-THIS PROCEDURE WILL BUILD THE US AUDIT RECORDS DAILY STORE DRAFT ISSUES, VOIDS, 
-STOP PAYS AND REMOVE STOP PAYS 
-
-CREATED : 09/10/2014 AXK326 
-REVISION: 
+CREATED  : 08/12/2014 AXK326
+REVISIONS: 11/13/2014 AXK326
+           Made changes to cursor and also procedures name for automotive and non automotive
+REVISIONS: 05/20/2015 NXK927
+           added condition to take the records for transaction type 15 if only there is change in the amount for that date.
 
 *****************************************************************************/
 (IN_DATE IN DATE)
