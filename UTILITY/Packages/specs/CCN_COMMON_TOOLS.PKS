@@ -231,4 +231,14 @@ changed :
 in_SCHEMA     IN   VARCHAR2)
 RETURN VARCHAR2;
 
+FUNCTION RETURN_FIRST_WKDAY_OF_MNTH(
+/******************************************************************
+This procedure will return the first week day of the month for the date
+passed
+
+Created : 01/13/2017 nxk927 CCN Project....
+Changed :
+******************************************************************/
+    IN_DATE      IN    DATE) RETURN DATE;
+
 END CCN_COMMON_TOOLS;
