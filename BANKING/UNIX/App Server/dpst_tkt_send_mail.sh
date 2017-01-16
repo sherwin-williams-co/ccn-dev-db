@@ -8,6 +8,7 @@
 # Created  : 08/30/2016 nxk927 CCN Project Team.....
 # Modified : 08/30/2016 nxk927 CCN Project Team.....
 #            passing the path as parameter
+#          : 01/16/2017 gxg192 Passing category as parameter
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -15,7 +16,8 @@
 proc_name="deposit_tkt_send_mail"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
-file=$1
+category=$1
+file=$2
 CC=${file:15:6}
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
@@ -28,7 +30,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail('DEPOSIT_TICKET_FILE',null,'$CC','$HOME');
+MAIL_PKG.send_mail('$category',null,'$CC','$HOME');
 Exception
  when others then
  :exitCode := 2;
@@ -46,12 +48,11 @@ if [ $status -ne 0 ]; then
     exit 1;
 fi
 
-echo "$CC don't have its correspong deposit ticket file already"
-
 ############################################################################
 echo "DEPOSIT TICKET FILES for cost center $CC is being moved to recovered folder."
 date=`date +"%m%d%Y%H%M%S"`
-mv $HOME/datafiles/$file.* $HOME/datafiles/recovered_file/$file"_"$date.xml
+mv $HOME/datafiles/$file.xml $HOME/datafiles/recovered_file/$file"_"$date.xml
+mv $HOME/datafiles/$file.txt $HOME/datafiles/recovered_file/$file"_"$date.txt
 TIME=`date +"%H:%M:%S"`
 echo "DEPOSIT TICKET FILES for cost center $CC has been placed in recovered_file folder at ${TIME} on ${DATE}"
 

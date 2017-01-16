@@ -24,6 +24,7 @@
 #          : 04/27/2016 nxk927 CCN Project Team.....
 #            pushed the time variable inside in teh error check so the error check can be handled properly
 #            updated the error check
+#          : 01/11/2017 gxg192 The status check at the end of the file is removed as it is not required
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -154,16 +155,6 @@ fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Arch_Output_file script at ${TIME} on ${DATE}"
 
-#################################################################
-#                                              ERROR STATUS CHECK
-#################################################################
-status=$?
-if test $status -ne 0
-then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-     exit 1;
-fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 exit 0
