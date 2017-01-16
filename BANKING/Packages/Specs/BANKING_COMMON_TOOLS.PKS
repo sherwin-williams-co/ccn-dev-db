@@ -333,5 +333,14 @@ Changed  :
     IN_MEMBER_STORE_NBR      IN     VARCHAR2,
     IN_LEAD_BANK_ACCT_NBR    IN     VARCHAR2,
     IN_FUTURE_ID             IN     NUMBER) RETURN MEMBER_BANK_CC_FUTURE%ROWTYPE;
-    
+
+FUNCTION GENERATE_FIRST_WEEKDAY(
+/******************************************************************
+This procedure will return the first week day of the month
+
+Created : 01/13/2017 nxk927 CCN Project....
+Changed :
+******************************************************************/
+IN_DATE DATE) RETURN DATE;
+
 END BANKING_COMMON_TOOLS;
