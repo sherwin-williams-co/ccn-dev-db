@@ -6,7 +6,7 @@
 #               at Daily base.
 #
 # Date Created: 10/02/2015 SXT410
-# Date Updated: 
+# Date Updated: 01/13/2017 gxg192 Changes for exception handling
 ##########################################################################################
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
@@ -23,12 +23,15 @@ echo "Processing Started for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')
 sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
 set heading off;
 set verify off;
-
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+exec :exitCode := 0;
 execute HIERARCHY_BATCH_PKG.HIERARCHY_BATCH_PROCESS();
 
 execute MAIL_PKG.SEND_MAIL('HIERARCHY_BATCH_END', null, null, null);
 
-exit;
+exit :exitCode;
 END
 
 #############################################################################
