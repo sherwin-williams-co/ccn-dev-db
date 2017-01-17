@@ -5,6 +5,9 @@ This package BODY will do the business rules validations:
 created : 06/30/2014 
 changed : 04/16/2015 jxc517 CCN Project
           Added global variables to store statement types based on their category
+          01/17/2017 vxv336
+          Removed GET_OPEN_FLAG, GET_STOP_FLAG, GET_VOID_FLAG, GET_PAY_FLAG functions
+          as they are being handled by SET_STORE_DRAFT_FLAGS
 ******************************************************************************/
 AS
 
@@ -25,50 +28,6 @@ changed :
 *****************************************************************************/
     IN_ROW_TYPE     IN OUT    STORE_DRAFTS%ROWTYPE);
 
-FUNCTION GET_OPEN_FLAG(
-/*****************************************************************************
-	GET_OPEN_FLAG
-
-	This function will get the flag value for open store drafts  
-
-created : 06/30/2014 
-changed :
-*****************************************************************************/
-    IN_ROW_TYPE     IN    STORE_DRAFTS%ROWTYPE) RETURN VARCHAR2;
-
-FUNCTION GET_STOP_FLAG(
-/*****************************************************************************
-	GET_STOP_FLAG
-
-	This function will get the flag value for stop store drafts  
-
-created : 06/30/2014 
-changed :
-*****************************************************************************/
-    IN_ROW_TYPE     IN    STORE_DRAFTS%ROWTYPE) RETURN VARCHAR2;
-
-FUNCTION GET_VOID_FLAG(
-/*****************************************************************************
-	GET_VOID_FLAG
-
-	This function will get the flag value for void store drafts  
-
-created : 06/30/2014 
-changed :
-*****************************************************************************/
-    IN_ROW_TYPE     IN    STORE_DRAFTS%ROWTYPE) RETURN VARCHAR2;
-
-FUNCTION GET_PAY_FLAG(
-/*****************************************************************************
-	GET_PAY_FLAG
-
-	This function will get the flag value for pay store drafts  
-
-created : 06/30/2014 
-changed :
-*****************************************************************************/
-    IN_ROW_TYPE     IN    STORE_DRAFTS%ROWTYPE) RETURN VARCHAR2;
-    
 
 FUNCTION IS_UNATTACHED_STORE_DRAFT(
 /*****************************************************************************
@@ -150,4 +109,3 @@ changed :
     IN_CHECK_SERIAL_NUMBER IN    STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE);
 
 END SD_BUSINESS_RULES_PKG;
-
