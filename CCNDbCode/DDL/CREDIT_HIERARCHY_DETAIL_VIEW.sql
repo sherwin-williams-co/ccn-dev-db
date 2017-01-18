@@ -7,6 +7,7 @@ This View will give all the credit hierarchy details for the cost center passed
 Created  : 03/23/2016 jxc517 CCN Project....
 Modified : 08/19/2016 vxv336 Removed SYSOUT
            09/06/2016 vxv336 Removed ACM, DCM, RCM and added DCO, DCO_DESC
+           01/18/2016 gxg192 Changes for fetching DCO_DESC value.
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -39,11 +40,13 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
                                                 'DCO') DCO
-       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
+       ,CCN_HIERARCHY.COST_CENTER_DESCRIPTION(
+                              CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(
+                                                                                     H.HRCHY_HDR_NAME,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
-                                                'DCO_DESC') DCO_DESC
+                                                'DCO')) DCO_DESC
   FROM COST_CENTER CC,
         --inner sub query "T" gives all the hierarchy details with all the levels
         --present in the CCN system by joining the header, description and detail tables
