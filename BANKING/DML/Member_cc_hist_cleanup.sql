@@ -11,10 +11,7 @@ BEGIN
    FOR REC IN (SELECT *
                  FROM MEMBER_BANK_CC_HIST
                 WHERE SUBSTR(MEMBER_STORE_NBR,3) NOT IN (SELECT SUBSTR(COST_CENTER_CODE,3)
-                                                           FROM COST_CENTER
-                                                         UNION 
-                                                         SELECT SUBSTR(ARCHIVE_COST_CENTER_CODE,3)
-                                                           FROM COSTCNTR.CC_DELETION_GUIDS)) LOOP
+                                                           FROM COST_CENTER) LOOP
        DELETE FROM STORE_MICR_FORMAT_DTLS_HIST WHERE COST_CENTER_CODE = REC.MEMBER_STORE_NBR;
        DELETE FROM BANK_DEP_TICKORD_HIST WHERE COST_CENTER_CODE = REC.MEMBER_STORE_NBR;
        DELETE FROM BANK_DEP_BAG_TICKORD_HIST WHERE COST_CENTER_CODE = REC.MEMBER_STORE_NBR;
@@ -24,3 +21,4 @@ BEGIN
    END LOOP;
 COMMIT;
 END;
+/
