@@ -1,6 +1,6 @@
 /*******************************************************************
   This script will load data in LEAD_STORE_AUTO_RCNCLTN_DATA table.
-  The script will load the leads/independent stores that are having 
+  The script will load the data for leads/independent stores that are having 
   auto-reconciliation set to "Y".
 
 Created : gxg192 01/23/2017

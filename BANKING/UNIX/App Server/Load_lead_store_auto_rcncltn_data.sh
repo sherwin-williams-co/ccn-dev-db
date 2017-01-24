@@ -3,7 +3,7 @@
 # Script name   : Load_lead_store_auto_rcncltn_data.sh
 #
 # Description   : This shell program will execute a SQL script to load data in LEAD_STORE_AUTO_RCNCLTN_DATA table.
-#                 The script will load the leads/independent stores that are having auto-reconciliation set to "Y".
+#                 The script will load the data for leads/independent stores that are having auto-reconciliation set to "Y".
 #                 
 # Created       : 01/23/2017 gxg192 CCN Project Team.....
 # Modified      : 
@@ -22,7 +22,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ########################################################################
 #               Loading LEAD_STORE_AUTO_RCNCLTN_DATA table
 ########################################################################
-echo "Processing Started to load LEAD_STORE_AUTO_RCNCLTN_DATA table  at $TIME on $DATE"
+echo "Processing Started to load LEAD_STORE_AUTO_RCNCLTN_DATA table at $TIME on $DATE"
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<END > $LOGDIR/$proc_name"_"$TimeStamp.log
 set serveroutput on;
