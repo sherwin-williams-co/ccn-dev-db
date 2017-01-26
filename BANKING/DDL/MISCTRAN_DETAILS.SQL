@@ -2,7 +2,8 @@
 /*******************************************************************************   
 This table holds the details about the misc transaction file along with prime sub and JV/IDE details 
 Created : 01/23/2017 vxv336 CCN Project Team.... 
-Changed : 
+Changed : 01/26/2017 vxv336
+          Modified AMOUNT field to NUMBER
 *******************************************************************************/
 
    (BANK_ACCOUNT_NBR VARCHAR2(20), 
@@ -23,5 +24,34 @@ Changed :
     BOOKING_COST_CENTER VARCHAR2(6)
    );
 
-ALTER TABLE MISCTRAN_DETAILS
-ADD BOOKING_COST_CENTER VARCHAR2(6);
+  ALTER TABLE MISCTRAN_DETAILS
+  ADD BOOKING_COST_CENTER VARCHAR2(6);
+
+  CREATE TABLE MISCTRAN_DETAILS_COPY AS SELECT * FROM MISCTRAN_DETAILS WHERE 1=2;
+
+  ALTER TABLE MISCTRAN_DETAILS_COPY MODIFY AMOUNT NUMBER(10,2);
+
+  INSERT INTO MISCTRAN_DETAILS_COPY
+  SELECT BANK_ACCOUNT_NBR,
+         COST_CENTER_CODE,
+         AMOUNT/100,
+         TRANSACTION_DATE,
+         TCODE,
+         TCODE_DESCRIPTION,
+         TRAN_SEQNUM,
+         DB_CR_CODE,
+         SNZ_SAM_CODE,
+         LOAD_DATE,
+         PRIME_SUB,
+         JV_BOOK_KEEPER_REF,
+         JV_BANK_SHORT_NAME,
+         IDI_BOOKKEEPER_REF,
+         IDI_BANK_SHORT_NAME,
+         BOOKING_COST_CENTER
+    FROM MISCTRAN_DETAILS;
+
+  COMMIT;
+
+  DROP TABLE MISCTRAN_DETAILS;
+
+  ALTER TABLE MISCTRAN_DETAILS_COPY RENAME TO MISCTRAN_DETAILS;
