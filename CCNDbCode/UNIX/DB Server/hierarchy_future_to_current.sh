@@ -6,7 +6,10 @@
 #                  performs the future to current hierarchy process
 #
 # Created       :  jxc517 05/05/2016
-# Modified      :  gxg192 01/16/2017 Added exitCode variable to handle exception
+# Modified      :  gxg192 01/16/2017 1. Added exitCode variable to handle exception
+#                                    2. Added WHENEVER clauses
+#               :  gxg192 01/26/2017 1. Removed exitCode variable
+#                                    2. Changes to send email if process fails
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -22,13 +25,11 @@ echo "Processing Started for $proc at $TIME on $DATE"
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
-var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
-:exitCode := 0;
 execute CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS();
 
-exit :exitCode;
+exit
 END
 
 ############################################################################
@@ -39,6 +40,16 @@ if test $status -ne 0
 then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+
+     cd $HOME
+     ./send_mail.sh HIERARCHY_FUT_TO_CURR_ERROR
+     status=$?
+     TIME=`date +"%H:%M:%S"`
+     if test $status -ne 0
+     then
+        echo "Sending email for $proc FAILED at $TIME on $DATE"
+     fi
+
      exit 1;
 fi
 

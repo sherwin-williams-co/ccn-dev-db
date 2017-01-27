@@ -20,17 +20,19 @@ revised : 08/19/2016 jxc517 CCN Project....
           01/16/2017 gxg192 CCN Project....
           Changes to Raise the exception so that the process which is calling this procedure
           can take necessary action.
+          01/26/2017 gxg192 CCN Project....
+          Changes to define error number and call ERRPKG.RAISE_ERR to raise the exception
 *******************************************************************************/
 IS
    V_BATCH_NUMBER   BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
    V_TRANS_STATUS   BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
    V_HD_REC         HIERARCHY_DETAIL%ROWTYPE;
    V_CLOB           CLOB;
-   V_ERROR_FLAG     VARCHAR2(1) := 'N';
+   V_ERROR_MESSAGE  VARCHAR2(500);
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_FUTR_TO_CURR', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    BEGIN
+    
         --Loop through all the records in the future table that are going effective today
         FOR rec IN (SELECT *
                       FROM HIERARCHY_DETAIL_FUTURE
@@ -122,26 +124,24 @@ BEGIN
             EXCEPTION
                 WHEN OTHERS THEN
                     ROLLBACK;
-                    COMMON_TOOLS.LOG_ERROR(rec.HRCHY_DTL_CURR_LVL_VAL, 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', SQLERRM, SQLCODE);
-                    V_ERROR_FLAG := 'Y';
+                    V_ERROR_MESSAGE := 'Error in HIERARCHY_DETAIL_FUTURE Loop: '||SUBSTR(SQLERRM,1,450);
+                    COMMON_TOOLS.LOG_ERROR(rec.HRCHY_DTL_CURR_LVL_VAL, 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', V_ERROR_MESSAGE, SQLCODE);
+                    V_TRANS_STATUS := 'ERROR';
             END;
         END LOOP;
-    EXCEPTION
-        WHEN OTHERS THEN
-            V_TRANS_STATUS := 'ERROR';
-            ROLLBACK;
-    END;
+
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('HRCHY_FUTR_TO_CURR', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
 
-    IF V_ERROR_FLAG = 'Y' OR V_TRANS_STATUS = 'ERROR'
+    IF V_TRANS_STATUS = 'ERROR'
     THEN
-           raise_application_error(-20001, 'Error occurred in CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS.');
+        ERRPKG.RAISE_ERR(errnums.en_hier_fut_to_curr_err, V_ERROR_MESSAGE);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        COMMON_TOOLS.LOG_ERROR('OTHER', 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', SQLERRM, SQLCODE);
-        RAISE;
+        V_ERROR_MESSAGE := SUBSTR(SQLERRM,1,500);
+        COMMON_TOOLS.LOG_ERROR('OTHER', 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS', V_ERROR_MESSAGE, SQLCODE);
+        ERRPKG.RAISE_ERR(errnums.en_hier_fut_to_curr_err, 'CCN_HIERARCHY_FUT_TO_CURR_PKG.PROCESS',V_ERROR_MESSAGE);
 END PROCESS;
 
 END CCN_HIERARCHY_FUT_TO_CURR_PKG;

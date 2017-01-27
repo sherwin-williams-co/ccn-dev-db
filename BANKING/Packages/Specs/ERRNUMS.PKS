@@ -219,7 +219,7 @@ exc_lead_indpdt_with_actv_mbr EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_lead_indpdt_with_actv_mbr , -20010);
 
 /*********************************************************** 
-The "micr_format_conversion" passes a numerical error of -20019
+The "micr_format_conversion" passes a numerical error of -20018
 This error will be used when format selected is not supported for actual values
 
 Created : 08/21/2015 jxc517 CCN Project....
@@ -228,6 +228,17 @@ Changed :
 en_micr_format_conversion CONSTANT NUMBER := -20018;
 exc_micr_format_conversion EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_micr_format_conversion , -20018);
+
+/***********************************************************
+The "curr_to_hist_process_err" passes a numerical error of -20019
+This warning will be used if an error occurs in current_to_history process
+which is used to move the current table records into history tables
+Created : 01/26/2017 gxg192 CCN Project....
+Changed :
+************************************************************/
+en_curr_to_hist_process_err CONSTANT NUMBER := -20019;
+exc_curr_to_hist_process_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_curr_to_hist_process_err , -20019);
 
 /*********************************************************** 
 The "accnt_nbr_not_avlbl_for_cc" passes a numerical error of -20020
@@ -240,6 +251,18 @@ Changed :
 en_accnt_nbr_not_avlbl_for_cc CONSTANT NUMBER := -20020;
 exc_accnt_nbr_not_avlbl_for_cc EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_accnt_nbr_not_avlbl_for_cc , -20020);
+
+/***********************************************************
+The "fut_to_curr_process_err" passes a numerical error of -20021
+This warning will be used if an error occurs in future to current process
+which is used to move the future table records into current tables
+
+Created : 01/26/2017 gxg192 CCN Project....
+Changed :
+************************************************************/
+en_fut_to_curr_process_err CONSTANT NUMBER := -20021;
+exc_fut_to_curr_process_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_fut_to_curr_process_err , -20021);
 
 /*********************************************************** 
 The "to_lead_not_provided_err" passes a numerical error of -20022
