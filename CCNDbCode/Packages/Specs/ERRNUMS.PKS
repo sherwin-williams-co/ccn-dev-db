@@ -2851,4 +2851,15 @@ en_dup_processor_err CONSTANT NUMBER := -20177;
 exc_dup_processor_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_dup_processor_err , -20177);
 
+/***********************************************************
+The "invalid_terminal_counts_exp" passes a numerical error of -20178.
+An error occurs when address COL cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_terminal_counts_exp CONSTANT NUMBER := -20178;
+ex_invalid_terminal_counts_exp EXCEPTION;
+PRAGMA EXCEPTION_INIT(ex_invalid_terminal_counts_exp , -20178);
+
 END ERRNUMS;
