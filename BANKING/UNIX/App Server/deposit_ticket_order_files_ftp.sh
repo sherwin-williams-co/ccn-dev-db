@@ -12,6 +12,8 @@
 #          : 01/11/2017 gxg192 CCN Project Team.....
 #            1. Added logic to check Error status after FTP process
 #            2. Added logic to send email if FTP process fails
+#          : 01/24/2017 gxg192 CCN Project Team.....
+#            1. Changes to call check_ftp_status.sh for checking status of FTP process
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -36,30 +38,24 @@ do
      TIME=`date +"%H:%M:%S"`
      echo "FTP Process started for $proc_name at $TIME on $DATE"
 
-ftp -inv <<! > $FTPLOG
-open ${mainframe_host}
+ftp -inv ${mainframe_host} <<FTP_MF > $FTPLOG
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
 cd /FTP/PrintServices/Deposits_Tickets
 mput $f1.*
-close
-quit
-!
+bye
+END_SCRIPT
+FTP_MF
 
+     ############################################################################
+     #                           ERROR STATUS CHECK
+     ############################################################################
      TIME=`date +"%H:%M:%S"`
-     FTP_SUCCESS_MSG="226 Transfer complete"
+     sh $HOME/check_ftp_status.sh $FTPLOG
 
-     if fgrep "$FTP_SUCCESS_MSG" $FTPLOG ;
+     status=$?
+     if test $status -ne 0
      then
-        echo "The transfer of $f1 completed successfully at ${TIME} on ${DATE}"
-        echo "Archieving Process started for $proc_name at $TIME on $DATE"
-        dt=$(date +%Y%m%d%H%M%S)
-        mv $file $archieve_path/${f1}_${dt}.xml
-        dt=$(date +%Y%m%d%H%M%S)
-        mv $file1 $archieve_path/${f1}_${dt}.txt
-        TIME=`date +"%H:%M:%S"`
-        echo "Archieving Process finished for $proc_name at $TIME on $DATE"
-     else
         echo "The transfer of $f1 to mainframe FAILED at ${TIME} on ${DATE}"
         sh $HOME/dpst_tkt_send_mail.sh 'DEPOSIT_TCKT_FTP_FAILED' $f1
 
@@ -69,6 +65,15 @@ quit
         then
            echo "Sending email for $CC for $f1 FAILED at $TIME on $DATE"
         fi
+     else
+        echo "The transfer of $f1 completed successfully at ${TIME} on ${DATE}"
+        echo "Archieving Process started for $proc_name at $TIME on $DATE"
+        dt=$(date +%Y%m%d%H%M%S)
+        mv $file $archieve_path/${f1}_${dt}.xml
+        dt=$(date +%Y%m%d%H%M%S)
+        mv $file1 $archieve_path/${f1}_${dt}.txt
+        TIME=`date +"%H:%M:%S"`
+        echo "Archieving Process finished for $proc_name at $TIME on $DATE"
      fi
 
   else

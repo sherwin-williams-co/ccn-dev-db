@@ -7,6 +7,8 @@
 # Created  : 07/10/2015 nxk927 CCN Project Team.....
 # Modified : 01/09/2017 gxg192 1. Added exitCode variable for exception handling
 #                              2. Changes to fetch time after status for previous process is retrieved
+#          : 01/26/2017 gxg192 1. Removed exitCode variable
+#                              2. Added logic to send email if process fails
 #########################################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -22,12 +24,10 @@ sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> 
 set heading off;
 set verify off;
 set serveroutput on;
-var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
-exec :exitCode := 0;
 EXECUTE BANKING_BATCH_PKG.CURRENT_TO_HISTORY_PROCESS();
-exit :exitCode;
+exit
 END
 
 ############################################################################
@@ -38,6 +38,15 @@ TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
      echo "processing FAILED for $proc_name - BANKING_BATCH_PKG.CURRENT_TO_HISTORY_PROCESS at ${TIME} on ${DATE}"
+
+     ./send_mail.sh CURRENT_TO_HISTORY_BATCH_ERROR
+     status=$?
+     TIME=`date +"%H:%M:%S"`
+     if test $status -ne 0
+     then
+        echo "Sending email for $proc_name FAILED at $TIME on $DATE"
+     fi
+
      exit 1;
 fi
 
