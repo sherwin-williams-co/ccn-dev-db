@@ -38,6 +38,16 @@ status=$?
 if test $status -ne 0
 then
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+
+     cd $HOME
+     ./send_mail.sh RLS_TIMED_OUT_OBJ_ERROR
+     status=$?
+     TIME=`date +"%H:%M:%S"`
+     if test $status -ne 0
+     then
+        echo "Sending email for $proc FAILED at $TIME on $DATE"
+     fi
+
      exit 1;
 fi
 

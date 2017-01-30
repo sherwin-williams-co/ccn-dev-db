@@ -6,7 +6,10 @@ Below script is created to store mailing setup below:
     4. Hierarchy batch process
     5. Future to current hierarchy batch
 
-created : 01/25/2017 gxg192 CCN Project....
+Created  : 01/25/2017 gxg192 CCN Project....
+Modified : 01/30/2017 gxg192 CCN Project....
+           1. Added commit statement at the end.
+           2. Added mailing setup for release_timed_out_objects
 *****************************************************************************/
 
 SET DEFINE OFF;
@@ -87,3 +90,20 @@ VALUES ('HIERARCHY_FUT_TO_CURR_ERROR',
         'ccnoracle.team@sherwin.com',
         'Hierarchy Future to Current batch processing failed. Please check the log files.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+
+/* ------------------------------
+    5. Future to current hierarchy batch
+   ------------------------------ */
+INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
+   VALUES ('62', 'ccnoracle.team@sherwin.com');
+
+
+INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
+VALUES ('RLS_TIMED_OUT_OBJ_ERROR',
+        '62',
+        'Release Timed Out Objects Batch Error',
+        'ccnoracle.team@sherwin.com',
+        'Release Timed Out Objects Batch processing failed. Please check the log files.',
+        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+
+COMMIT;
