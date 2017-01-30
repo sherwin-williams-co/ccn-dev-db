@@ -525,6 +525,19 @@ Changed :
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_ROW_DATA          IN  CLOB);
 
-G_TERMINAL_COUNTER NUMBER :=0;
+PROCEDURE XMLFRAGMENT_COUNTER_BR_SP(
+/*****************************************************************************
+	XMLFRAGMENT_COUNTER_BR_SP
+
+	This procedure is intended to check for the number of XML Fragmentns in a given xpath
+created : 01/27/2017 mxk766 CN Project....
+Modified:
+******************************************************************************/
+   IN_ROW_DATA        IN XMLTYPE,
+   IN_FRAGMENT_HEADER IN VARCHAR2,
+   IN_TABLE_NAME      IN VARCHAR2,
+   IN_CHECK_COUNTER   IN NUMBER,
+   IN_APPLICATION     IN VARCHAR2
+);
 
 END CCN_BUSINESS_RULES_PKG;
