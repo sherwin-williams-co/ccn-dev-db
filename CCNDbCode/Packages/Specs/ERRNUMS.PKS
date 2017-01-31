@@ -2759,6 +2759,30 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_ftr_adr_efctv_dt_err , -20537);
 
 /*********************************************************** 
+The "hier_batch_process_err" passes a numerical error of -20538.
+This error will state that error occured in process to move the future hierarchy
+details records into current
+Created  : 01/26/2017 gxg192 CCN Project....
+Modified :
+************************************************************/
+en_hier_batch_process_err CONSTANT NUMBER := -20538;
+exc_hier_batch_process_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hier_batch_process_err , -20538);
+
+/***********************************************************
+The "hier_fut_to_curr_err" passes a numerical error of -20539.
+This error will state that error occured in process to move the future hierarchy
+details records into current
+Created  : 01/26/2017 gxg192 CCN Project....
+Modified :
+************************************************************/
+en_hier_fut_to_curr_err CONSTANT NUMBER := -20539;
+exc_hier_fut_to_curr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hier_fut_to_curr_err , -20539);
+
+/***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
