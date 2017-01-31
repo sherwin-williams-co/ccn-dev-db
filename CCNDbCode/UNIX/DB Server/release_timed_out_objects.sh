@@ -9,6 +9,7 @@
 # Date Updated: 01/16/2017 gxg192 1. Added :exitCode variable to handle exception
 #                                 2. Added WHENEVER clauses
 #             : 01/26/2017 gxg192 Removed :exitCode variable
+#             : 01/31/2017 gxg192 Removed exit command in error status check
 ##########################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -28,7 +29,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 execute CCN_RESTRICTION_PKG.RELEASE_TIMED_OUT_OBJECTS(15);
 
-exit;
+exit
 END
 
 ############################################################################
@@ -48,7 +49,6 @@ then
         echo "Sending email for $proc FAILED at $TIME on $DATE"
      fi
 
-     exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`

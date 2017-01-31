@@ -9,6 +9,7 @@
 # Date Updated: 01/13/2017 gxg192 Changes for exception handling
 #             : 01/26/2017 gxg192 1. Removed exitCode variable
 #                                 2. Changes to send email if process fails
+#             : 01/31/2017 gxg192 Removed ; after exit command
 ##########################################################################################
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
@@ -31,7 +32,7 @@ execute HIERARCHY_BATCH_PKG.HIERARCHY_BATCH_PROCESS();
 
 execute MAIL_PKG.SEND_MAIL('HIERARCHY_BATCH_END', null, null, null);
 
-exit;
+exit
 END
 
 #############################################################################
@@ -51,7 +52,7 @@ then
         echo "Sending email for $proc FAILED at $TIME on $DATE"
      fi
 
-     exit 1;
+     exit 1
 fi
 
 echo "Processing finished for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')" 
