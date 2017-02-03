@@ -282,4 +282,16 @@ PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
 IN_COSTCENTER_YN        IN VARCHAR2);
 
+FUNCTION IS_HRCHY_TO_EQUAL_HRCHY_FROM(
+/***********************************************************
+This function will check if Destination hierarchy ("TO")
+is equal to the Source hierarchy ("FROM").
+
+Created : 02/02/2017 gxg192 CCN Project Team....
+Modified:
+************************************************************/
+    IN_HIERARCHY_FROM_REC   IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE,
+    IN_HIERARCHY_TO_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
+RETURN VARCHAR2;
+
 END CCN_HIER_BUSINESS_RULES_PKG;

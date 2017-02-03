@@ -2783,6 +2783,17 @@ PRAGMA EXCEPTION_INIT
 (exc_hier_fut_to_curr_err , -20539);
 
 /***********************************************************
+The "hrchy_to_eql_hrchy_frm_err" passes a numerical error of -20540.
+This error will state that Hierarchy TO cannot be same as Hierarchy FROM.
+Created  : 02/02/2017 gxg192 CCN Project....
+Modified :
+************************************************************/
+en_hrchy_to_eql_hrchy_frm_err CONSTANT NUMBER := -20540;
+exc_hrchy_to_eql_hrchy_frm_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hrchy_to_eql_hrchy_frm_err , -20540);
+
+/***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says

@@ -3097,6 +3097,9 @@ Modified: 03/31/2016 jxc517 CCN Project....
           Added parameter to deal with futures
           Added code to push the record into future tables, if it is a future record
           Added business rule to stop creating a future if a future already exists
+Modified: 02/02/2017 gxg192 CCN Project....
+          Added logic to stop the Hierarchy Transfer process if Destination hierarchy ("TO")
+          is equal to Source hierarchy ("FROM")
 ************************************************************/
     IN_XML                IN     CLOB,
     IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N')
@@ -3112,13 +3115,24 @@ IS
     V_CONTEXT                        VARCHAR2(3000);
     FTR_EXISTS_EXCEPTION             EXCEPTION;
     HRCHY_FTR_NOT_ALLOWED_EXC        EXCEPTION;
+    HRCHY_TO_AND_FROM_EQUAL_EXC      EXCEPTION;
     V_FUTURE_COST_CENTER_LIST        VARCHAR2(1000);
     V_HEADER_NAME                    HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
 BEGIN
-    --Loop through all the TO cost centers
 
     V_HEADER_NAME :=V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
 
+    IF V_HEADER_NAME ='ADMINORG_HIERARCHY' THEN
+        BUILD_FROM_COMP_KEYS_ADMINORG(IN_XML,
+                                      V_COUNT,
+                                      V_HIERARCHY_DETAIL_ROW_FROM);
+    ELSE
+        BUILD_FROM_COMPOSITE_KEYS(IN_XML,
+                                  V_COUNT,
+                                  V_HIERARCHY_DETAIL_ROW_FROM);
+    END IF;
+
+    --Loop through all the TO cost centers
     WHILE V_ROW_DATA.EXISTSNODE('/HIERARCHY_DETAIL/row_data/TRANSFER_TO/TO_HIERARCHY' || '[' || V_COUNT || ']') = 1 LOOP
 
         IF V_HEADER_NAME ='ADMINORG_HIERARCHY' THEN
@@ -3130,6 +3144,13 @@ BEGIN
                                 V_COUNT,
                                 V_HIERARCHY_DETAIL_ROW_TO);
         END IF;
+
+         --Check if Hierarchy "TO" is equal to Hierarchy "FROM" (i.e. Source and Destination are same), before proceeding further.
+        IF CCN_HIER_BUSINESS_RULES_PKG.IS_HRCHY_TO_EQUAL_HRCHY_FROM(V_HIERARCHY_DETAIL_ROW_FROM, V_HIERARCHY_DETAIL_ROW_TO) = 'Y'
+        THEN
+            RAISE HRCHY_TO_AND_FROM_EQUAL_EXC;
+        END IF;
+
         --Check if futures are allowed for the hierarchy, before proceeding further
         IF CCN_HIER_BUSINESS_RULES_PKG.IS_HIERARCHY_FUTURE_ALLOWED(V_HIERARCHY_DETAIL_ROW_TO) = 'N' THEN
             RAISE HRCHY_FTR_NOT_ALLOWED_EXC;
@@ -3241,6 +3262,9 @@ BEGIN
     END IF;
 
 EXCEPTION
+    WHEN HRCHY_TO_AND_FROM_EQUAL_EXC THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_to_eql_hrchy_frm_err
+                        ,'HIERARCHY_TRANSFER_PROCESS','Hierarchy TO cannot be same as Hierarchy FROM. Please check.');
     WHEN HRCHY_FTR_NOT_ALLOWED_EXC THEN
         ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_ftr_not_allowed_err
                         ,'HIERARCHY_TRANSFER_PROCESS','Future transactions are not allowed for this hierarchy');
