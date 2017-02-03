@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIER_BUSINESS_RULES_PKG AS
+create or replace PACKAGE CCN_HIER_BUSINESS_RULES_PKG AS
 /******************************************************************************
 	CCN_HIER_BUSINESS_RULES_PKG
 
@@ -202,7 +202,7 @@ FUNCTION VALIDATE_HIERARCHY(
 created : JXC517 11/14/2013
 ********************************************************************************/
     IN_HRCHY_HDR_NAME         VARCHAR2,
-    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR2;
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR;
 
 PROCEDURE SGL_DIVISION_VALIDATION(
 /*******************************************************************************
@@ -271,16 +271,6 @@ Modified:
 ************************************************************/
     IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
 RETURN VARCHAR2;
-
-PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
-/*******************************************************************************
-  This procedure will validate the business rules for adminorg Hierarchy,
-  where duplication of a Cost Center in the same hierarchy is not allowed
-  created : 09/01/2016 MXK766 CCN Project Team....
-  Modified:
-********************************************************************************/
-IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
-IN_COSTCENTER_YN        IN VARCHAR2);
 
 FUNCTION IS_HRCHY_TO_EQUAL_HRCHY_FROM(
 /***********************************************************
