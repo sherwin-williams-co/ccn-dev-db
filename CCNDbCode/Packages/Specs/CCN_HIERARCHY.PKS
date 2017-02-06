@@ -618,9 +618,10 @@ FUNCTION VALIDATE_HIERARCHY(
 
 created : JXC517 11/14/2013
 revised : kdp 11/21/2013 Changed to return y/n
+        : gxg192 02/06/2017 Changed Return datatype from varchar to varchar2
 ********************************************************************************/
     IN_HRCHY_HDR_NAME         VARCHAR2,
-    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR;
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE HIERARCHY_DETAIL_DELETE(
 /**********************************************************

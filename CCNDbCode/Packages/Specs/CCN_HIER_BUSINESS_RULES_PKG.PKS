@@ -199,10 +199,11 @@ FUNCTION VALIDATE_HIERARCHY(
   This procedure will validate the hierarchy from bottom to top and raise 
   corresponding error if particular level value doesn't exist
 
-created : JXC517 11/14/2013
+Created : JXC517 11/14/2013
+Modified: gxg192 02/06/2017 Changed Return datatype from varchar to varchar2
 ********************************************************************************/
     IN_HRCHY_HDR_NAME         VARCHAR2,
-    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR;
+    IN_HRCHY_DTL_CURR_LVL_VAL VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE SGL_DIVISION_VALIDATION(
 /*******************************************************************************
