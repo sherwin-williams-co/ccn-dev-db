@@ -2746,6 +2746,32 @@ PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
 /***********************************************************
+The "hier_batch_process_err" passes a numerical error of -20538.
+This error will state that error occured in process to move the future hierarchy
+details records into current
+Created  : 01/26/2017 gxg192 CCN Project....
+Modified :
+************************************************************/
+en_hier_batch_process_err CONSTANT NUMBER := -20538;
+exc_hier_batch_process_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hier_batch_process_err , -20538);
+
+/***********************************************************
+The "hier_fut_to_curr_err" passes a numerical error of -20539.
+This error will state that error occured in process to move the future hierarchy
+details records into current
+Created  : 01/26/2017 gxg192 CCN Project....
+Modified :
+************************************************************/
+en_hier_fut_to_curr_err CONSTANT NUMBER := -20539;
+exc_hier_fut_to_curr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_hier_fut_to_curr_err , -20539);
+
+/***********************************************************
+
+/***********************************************************
 The "hrchy_to_eql_hrchy_frm_err" passes a numerical error of -20540.
 This error will state that Hierarchy TO cannot be same as Hierarchy FROM.
 Created  : 02/02/2017 gxg192 CCN Project....
@@ -2849,5 +2875,16 @@ en_dup_processor_err CONSTANT NUMBER := -20177;
 exc_dup_processor_err EXCEPTION;
 
 PRAGMA EXCEPTION_INIT(exc_dup_processor_err , -20177);
+
+/***********************************************************
+The "invalid_terminal_counts_exp" passes a numerical error of -20178.
+An error occurs when address COL cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_terminal_count_err  CONSTANT NUMBER := -20178;
+exc_invalid_terminal_count_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 END ERRNUMS;
