@@ -2770,8 +2770,6 @@ PRAGMA EXCEPTION_INIT
 (exc_hier_fut_to_curr_err , -20539);
 
 /***********************************************************
-
-/***********************************************************
 The "hrchy_to_eql_hrchy_frm_err" passes a numerical error of -20540.
 This error will state that Hierarchy TO cannot be same as Hierarchy FROM.
 Created  : 02/02/2017 gxg192 CCN Project....
