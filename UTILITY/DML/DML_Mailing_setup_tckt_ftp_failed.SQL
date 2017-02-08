@@ -2,13 +2,14 @@
 Below script is created to store mailing groups email id for 
 Deposit Ticket FTP Failure reporting
 
-created : 01/16/2017 gxg192 CCN Project....
+Created  : 01/16/2017 gxg192 CCN Project....
+Modified : 02/08/2017 gxg192 Changed group id from 50 to 57
 *****************************************************************************/
 
 SET DEFINE OFF;
 
 INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('50', 'ccnoracle.team@sherwin.com');
+   VALUES ('57', 'ccnoracle.team@sherwin.com');
    
 /***************************************************************************** 
 Below script is created to store mailing details for Deposit Ticket FTP Failure reporting
@@ -16,7 +17,7 @@ Below script is created to store mailing details for Deposit Ticket FTP Failure 
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 VALUES ('DEPOSIT_TCKT_FTP_FAILED',
-        '50',
+        '57',
         'Deposit Ticket File Needs to be checked for error occurred in FTP process',
         'ccnoracle.team@sherwin.com',
         'FTP for Deposit ticket for Cost Center CCCCCC failed. The file is archieved into folder named recovered_file on app server.'||CHR(10)||
