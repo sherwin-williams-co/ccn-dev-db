@@ -89,17 +89,21 @@ IF UPDATING THEN
       NVL(:OLD.TWJ_COMPANY,'XXX') <> NVL(:NEW.TWJ_COMPANY,'XXX')
       )
       THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_taxware_row.COST_CENTER_CODE,
-                                            IN_DATA_SOURCE     =>'TAXWARE',
-                                            IN_DATA_OPERATION  =>'CHANGE',
-                                            IN_FILE_TYPE       =>'POS_STORE_UPDATE'
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_taxware_row.COST_CENTER_CODE,
+                                            'TAXWARE',
+                                            'CHANGE',
+                                            'POS_STORE_UPDATE'
                                             );
       END IF;
 
    END IF;
 
-END IF;      
+END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_TAXWARE_UPD', SQLERRM, v_taxware_row.COST_CENTER_CODE);   
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_TAXWARE_UPD',
+                           SQLERRM,
+                           v_taxware_row.COST_CENTER_CODE
+                           );
 END TR_TAXWARE_UPD;

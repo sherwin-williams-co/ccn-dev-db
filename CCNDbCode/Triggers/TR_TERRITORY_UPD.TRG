@@ -69,16 +69,28 @@ BEGIN
      --END IF;      
 IF V_TERRITORY_ROW.CATEGORY='T' THEN
 IF INSERTING THEN
-         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_territory_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'TERRITORY',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_TERRITORY_UPDATE');      
+         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
+                                               'TERRITORY',
+                                               'ADD',
+                                               'POS_TERRITORY_UPDATE'
+                                               );
 ELSIF UPDATING THEN
    IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE,'XXX') <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE,'XXX') THEN      
       POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_territory_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'TERRITORY',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
 			ELSIF NVL(:OLD.HOME_STORE,'XXX') <> NVL(:NEW.HOME_STORE,'XXX') THEN      
-         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_territory_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'TERRITORY',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_TERRITORY_UPDATE');
+         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
+                                               'TERRITORY',
+                                               'CHANGE',
+                                               'POS_TERRITORY_UPDATE'
+                                               );
    END IF;
 END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_TERRITORY_UPD', SQLERRM, v_territory_row.COST_CENTER_CODE);   
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_TERRITORY_UPD',
+                           SQLERRM,
+                           v_territory_row.COST_CENTER_CODE
+                           );
 END TR_TERRITORY_UPD;

@@ -71,17 +71,27 @@ BEGIN
 IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_phone_row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN
    IF :NEW.PHONE_NUMBER IS NOT NULL THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_phone_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'PHONE',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_phone_row.COST_CENTER_CODE,
+                                            'PHONE',
+                                            'ADD',
+                                            'POS_STORE_UPDATE');
    END IF;
 ELSIF UPDATING THEN
    IF NVL(:OLD.PHONE_NUMBER,'XXX') <> NVL(:NEW.PHONE_NUMBER,'XXX') OR
       NVL(:OLD.PHONE_AREA_CODE,'XXX') <> NVL(:NEW.PHONE_AREA_CODE,'XXX')
    THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_phone_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'PHONE',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_phone_row.COST_CENTER_CODE,
+                                            'PHONE',
+                                            'CHANGE',
+                                            'POS_STORE_UPDATE');
    END IF;
 END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_PHONE_UPD', SQLERRM, v_phone_row.COST_CENTER_CODE);
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_PHONE_UPD',
+                           SQLERRM,
+                           v_phone_row.COST_CENTER_CODE
+                           );
 END  TR_PHONE_UPD;

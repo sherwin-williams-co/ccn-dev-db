@@ -88,9 +88,13 @@ IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
                 ,v_rowdata
                 ,'TR_BANK_CARD_UPD');
      --END IF;
-     
+
     IF INSERTING THEN
-        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>V_BANK_CARD_ROW.COST_CENTER_CODE,IN_DATA_SOURCE=>'BANK_CARD',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_PARAM_UPDATE');    
+        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_BANK_CARD_ROW.COST_CENTER_CODE,
+                                              'BANK_CARD',
+                                              'ADD',
+                                              'POS_PARAM_UPDATE'
+                                              );
     ELSIF UPDATING THEN
     IF (
        NVL(:OLD.MERCHANT_ID,'XXX')     <> NVL(:NEW.MERCHANT_ID,'XXX') OR
@@ -98,13 +102,21 @@ IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
        NVL(:OLD.AMEX_SE_ID,'XXX')      <> NVL(:NEW.AMEX_SE_ID,'XXX')  OR
        NVL(:OLD.QUALITY_CODE,'XXX')    <> NVL(:NEW.QUALITY_CODE,'XXX')OR
        NVL(:OLD.PCI_MERCHANT_ID,'XXX') <> NVL(:NEW.PCI_MERCHANT_ID,'XXX')
-       ) THEN       
-        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>V_BANK_CARD_ROW.COST_CENTER_CODE,IN_DATA_SOURCE=>'BANK_CARD',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_PARAM_UPDATE');
+       ) THEN
+        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_BANK_CARD_ROW.COST_CENTER_CODE,
+                                              'BANK_CARD',
+                                              'CHANGE',
+                                              'POS_PARAM_UPDATE'
+                                              );
     END IF;
     END IF;
-     
+
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_BANK_CARD_UPD', SQLERRM, V_BANK_CARD_ROW.COST_CENTER_CODE);
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_BANK_CARD_UPD',
+                           SQLERRM,
+                           V_BANK_CARD_ROW.COST_CENTER_CODE
+                           );
 END  TR_BANK_CARD_UPD;

@@ -85,7 +85,11 @@ IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN
    IF INSERTING THEN
       IF LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND
                 V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,IN_DATA_SOURCE=>'HIERARCHY_DETAIL',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
+                                            'HIERARCHY_DETAIL',
+                                            'ADD',
+                                            'POS_STORE_UPDATE'
+                                            );
       END IF;
    ELSIF UPDATING THEN
       IF 
@@ -96,11 +100,19 @@ IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN
       )
       AND LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~'
       THEN
-         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,IN_DATA_SOURCE=>'HIERARCHY_DETAIL',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
+                                               'HIERARCHY_DETAIL',
+                                               'CHANGE',
+                                               'POS_STORE_UPDATE'
+                                               );
       END IF;
    END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_HIER_DETAIL_UPD', SQLERRM, V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL);
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_HIER_DETAIL_UPD',
+                           SQLERRM,
+                           V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL
+                           );
 END TR_HIER_DETAIL_UPD;

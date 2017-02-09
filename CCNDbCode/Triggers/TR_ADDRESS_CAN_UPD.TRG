@@ -79,9 +79,13 @@ begin
                 ,V_ROWDATA
                 ,'TR_ADDRESS_CAN_UPD');
      --END IF;
-IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_can_row.COST_CENTER_CODE)='S' THEN     
+IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_can_row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN
-        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_address_can_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'ADDRESS_CAN',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_STORE_UPDATE');    
+        POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_address_can_row.COST_CENTER_CODE,
+                                              'ADDRESS_CAN',
+                                              'ADD',
+                                              'POS_STORE_UPDATE'
+                                              );
 ELSIF UPDATING THEN
    IF NVL(:OLD.ADDRESS_LINE_1,'XXX') <> NVL(:NEW.ADDRESS_LINE_1,'XXX') OR
       NVL(:OLD.ADDRESS_LINE_2,'XXX') <> NVL(:NEW.ADDRESS_LINE_2,'XXX') OR
@@ -89,11 +93,19 @@ ELSIF UPDATING THEN
       NVL(:OLD.CITY,'XXX')           <> NVL(:NEW.CITY,'XXX')           OR
       NVL(:OLD.POSTAL_CODE,'XXX')    <> NVL(:NEW.POSTAL_CODE,'XXX')
    THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_address_can_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'ADDRESS_CAN',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_address_can_row.COST_CENTER_CODE,
+                                            'ADDRESS_CAN',
+                                            'CHANGE',
+                                            'POS_STORE_UPDATE'
+                                            );
    END IF;
 END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_ADDRESS_CAN_UPD', SQLERRM, v_address_can_row.COST_CENTER_CODE);
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_ADDRESS_CAN_UPD',
+                           SQLERRM,
+                           v_address_can_row.COST_CENTER_CODE
+                           );
 END TR_ADDRESS_CAN_UPD;

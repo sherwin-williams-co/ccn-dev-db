@@ -69,13 +69,27 @@ begin
                 ,'TR_MEMBER_BANK_CC_UPD');
 
 IF INSERTING THEN
-   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_member_bank_cc_row.MEMBER_STORE_NBR,IN_DATA_SOURCE=>'MEMBER_BANK_CC',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_PARAM_UPDATE');
+   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_member_bank_cc_row.MEMBER_STORE_NBR,
+                                         'MEMBER_BANK_CC',
+                                         'ADD',
+                                         'POS_PARAM_UPDATE'
+                                         );
 ELSIF UPDATING THEN
    IF NVL(:OLD.MEMBER_BANK_ACCOUNT_NBR,'XXX') <> NVL(:NEW.MEMBER_BANK_ACCOUNT_NBR,'XXX') THEN
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_member_bank_cc_row.MEMBER_STORE_NBR,IN_DATA_SOURCE=>'MEMBER_BANK_CC',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_PARAM_UPDATE');
-			END IF;
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_member_bank_cc_row.MEMBER_STORE_NBR,
+                                            'MEMBER_BANK_CC',
+                                            'CHANGE',
+                                            'POS_PARAM_UPDATE'
+                                            );
+   END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_MEMBER_BANK_CC_UPD', SQLERRM, v_member_bank_cc_row.LEAD_BANK_ACCOUNT_NBR, v_member_bank_cc_row.MEMBER_STORE_NBR, 'MEMBER_BANK_CC');
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_MEMBER_BANK_CC_UPD',
+                           SQLERRM,
+                           v_member_bank_cc_row.LEAD_BANK_ACCOUNT_NBR,
+                           v_member_bank_cc_row.MEMBER_STORE_NBR,
+                           'MEMBER_BANK_CC'
+                           );
 END TR_MEMBER_BANK_CC_UPD;

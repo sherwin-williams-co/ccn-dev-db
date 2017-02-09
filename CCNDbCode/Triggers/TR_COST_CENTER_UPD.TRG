@@ -117,18 +117,30 @@ begin
      --END IF;
 IF v_cost_center_row.CATEGORY IN ('S','T') THEN
 IF INSERTING THEN
-   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_cost_center_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'COST_CENTER',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE,
+                                         'COST_CENTER',
+                                         'ADD',
+                                         'POS_STORE_UPDATE'
+                                         );
 ELSIF UPDATING THEN
    IF  NVL(:OLD.COST_CENTER_NAME,'XXX') <> NVL(:NEW.COST_CENTER_NAME,'XXX') OR
        NVL(:OLD.CURRENCY_CODE,'XXX')    <> NVL(:NEW.CURRENCY_CODE,'XXX')    OR
        NVL(:OLD.COUNTRY_CODE,'XXX')     <> NVL(:NEW.COUNTRY_CODE,'XXX')     OR
        NVL(:OLD.STATEMENT_TYPE,'XXX')   <> NVL(:NEW.STATEMENT_TYPE,'XXX') THEN
       POS_DATA_GENERATION.G_POS_ID:=CCN_UTILITY.SEQ_POS_DOWNLOADS.NEXTVAL;
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_cost_center_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'COST_CENTER',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE,
+                                            'COST_CENTER',
+                                            'CHANGE',
+                                            'POS_STORE_UPDATE'
+                                            );
    END IF;
 END IF;
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_COST_CENTER_UPD', SQLERRM, v_cost_center_row.COST_CENTER_CODE);
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_COST_CENTER_UPD',
+                           SQLERRM,
+                           v_cost_center_row.COST_CENTER_CODE
+                           );
 END TR_COST_CENTER_UPD;

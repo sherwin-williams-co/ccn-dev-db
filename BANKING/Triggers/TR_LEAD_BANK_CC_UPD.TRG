@@ -69,9 +69,19 @@ begin
 
 
 IF INSERTING THEN
-   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_lead_bank_cc_row.LEAD_STORE_NBR,IN_DATA_SOURCE=>'LEAD_BANK_CC',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_PARAM_UPDATE');
+   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_lead_bank_cc_row.LEAD_STORE_NBR,
+                                         'LEAD_BANK_CC',
+                                         'ADD',
+                                         'POS_PARAM_UPDATE'
+                                         );
 END IF;
 EXCEPTION
 WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_LEAD_BANK_CC_UPD', SQLERRM, v_lead_bank_cc_row.LEAD_BANK_ACCOUNT_NBR, v_lead_bank_cc_row.LEAD_STORE_NBR, 'LEAD_BANK_CC');
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                           'TR_LEAD_BANK_CC_UPD',
+                           SQLERRM,
+                           v_lead_bank_cc_row.LEAD_BANK_ACCOUNT_NBR,
+                           v_lead_bank_cc_row.LEAD_STORE_NBR,
+                           'LEAD_BANK_CC'
+                           );
 END TR_LEAD_BANK_CC_UPD;
