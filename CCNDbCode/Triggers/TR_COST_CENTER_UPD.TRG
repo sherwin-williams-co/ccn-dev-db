@@ -115,6 +115,7 @@ begin
                 ,v_rowdata
                 ,'TR_COST_CENTER_UPD');
      --END IF;
+BEGIN
 IF v_cost_center_row.CATEGORY IN ('S','T') THEN
 IF INSERTING THEN
    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE,
@@ -143,4 +144,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            v_cost_center_row.COST_CENTER_CODE
                            );
+END;
 END TR_COST_CENTER_UPD;

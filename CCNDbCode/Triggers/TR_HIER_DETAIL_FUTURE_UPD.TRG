@@ -8,6 +8,7 @@ DECLARE
 
 BEGIN
 
+BEGIN
     V_HI_DET_ROW.HRCHY_HDR_NAME             := :NEW.HRCHY_HDR_NAME;
     V_HI_DET_ROW.HRCHY_DTL_LEVEL            := :NEW.HRCHY_DTL_LEVEL;
     V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL     := :NEW.HRCHY_DTL_PREV_LVL_VAL;
@@ -37,4 +38,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL
                            );
+END;
 END TR_HIER_DETAIL_FUTURE_UPD;

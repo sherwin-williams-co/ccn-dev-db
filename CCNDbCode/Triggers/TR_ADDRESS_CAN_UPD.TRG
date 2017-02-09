@@ -79,6 +79,7 @@ begin
                 ,V_ROWDATA
                 ,'TR_ADDRESS_CAN_UPD');
      --END IF;
+BEGIN
 IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_can_row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN
         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_address_can_row.COST_CENTER_CODE,
@@ -108,4 +109,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            v_address_can_row.COST_CENTER_CODE
                            );
+END;
 END TR_ADDRESS_CAN_UPD;

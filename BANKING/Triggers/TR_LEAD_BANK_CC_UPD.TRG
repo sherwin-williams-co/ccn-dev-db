@@ -67,7 +67,7 @@ begin
                 ,v_rowdata
                 ,'TR_LEAD_BANK_CC_UPD');
 
-
+BEGIN
 IF INSERTING THEN
    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_lead_bank_cc_row.LEAD_STORE_NBR,
                                          'LEAD_BANK_CC',
@@ -84,4 +84,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            v_lead_bank_cc_row.LEAD_STORE_NBR,
                            'LEAD_BANK_CC'
                            );
+END;
 END TR_LEAD_BANK_CC_UPD;

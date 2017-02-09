@@ -75,7 +75,7 @@ BEGIN
                 ,v_rowdata
                 ,'TR_TAXWARE_UPD');
      --END IF;     
-     
+BEGIN
 IF UPDATING THEN
    
    IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_taxware_row.COST_CENTER_CODE)='S' THEN
@@ -106,4 +106,6 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            v_taxware_row.COST_CENTER_CODE
                            );
+
+END;
 END TR_TAXWARE_UPD;

@@ -68,6 +68,7 @@ BEGIN
                 ,v_rowdata
                 ,'TR_PHONE_UPD');
      --END IF;      
+BEGIN
 IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_phone_row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN
    IF :NEW.PHONE_NUMBER IS NOT NULL THEN
@@ -94,4 +95,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            v_phone_row.COST_CENTER_CODE
                            );
+END;
 END  TR_PHONE_UPD;

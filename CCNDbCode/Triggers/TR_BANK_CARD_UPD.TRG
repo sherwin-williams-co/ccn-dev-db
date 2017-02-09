@@ -88,7 +88,7 @@ IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
                 ,v_rowdata
                 ,'TR_BANK_CARD_UPD');
      --END IF;
-
+BEGIN
     IF INSERTING THEN
         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_BANK_CARD_ROW.COST_CENTER_CODE,
                                               'BANK_CARD',
@@ -110,8 +110,6 @@ IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
                                               );
     END IF;
     END IF;
-
-END IF;
 EXCEPTION
 WHEN OTHERS THEN
 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
@@ -119,4 +117,7 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            V_BANK_CARD_ROW.COST_CENTER_CODE
                            );
+END;
+END IF;
+
 END  TR_BANK_CARD_UPD;

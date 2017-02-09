@@ -66,7 +66,8 @@ BEGIN
                 ,v_primaryKey
                 ,v_rowdata
                 ,'TR_TERRITORY_UPD');
-     --END IF;      
+     --END IF;
+BEGIN
 IF V_TERRITORY_ROW.CATEGORY='T' THEN
 IF INSERTING THEN
          POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
@@ -93,4 +94,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            SQLERRM,
                            v_territory_row.COST_CENTER_CODE
                            );
+END;
 END TR_TERRITORY_UPD;

@@ -67,7 +67,7 @@ begin
                 ,v_primaryKey
                 ,v_rowdata
                 ,'TR_MEMBER_BANK_CC_UPD');
-
+BEGIN
 IF INSERTING THEN
    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_member_bank_cc_row.MEMBER_STORE_NBR,
                                          'MEMBER_BANK_CC',
@@ -92,4 +92,5 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            v_member_bank_cc_row.MEMBER_STORE_NBR,
                            'MEMBER_BANK_CC'
                            );
+END;
 END TR_MEMBER_BANK_CC_UPD;
