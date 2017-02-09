@@ -1,8 +1,5 @@
-CREATE OR REPLACE TRIGGER "COSTCNTR".TR_TAXWARE_UPD
-BEFORE INSERT OR UPDATE ON TAXWARE 
-REFERENCING OLD AS OLD NEW AS NEW
-FOR EACH ROW
-
+CREATE OR REPLACE TRIGGER COSTCNTR.TR_TAXWARE_UPD 
+BEFORE INSERT OR UPDATE ON COSTCNTR.TAXWARE REFERENCING FOR EACH ROW
 DECLARE
 
 	  v_transaction_id varchar2(500);
@@ -77,7 +74,32 @@ BEGIN
                 ,v_primaryKey
                 ,v_rowdata
                 ,'TR_TAXWARE_UPD');
-     --END IF;      
-      
-END TR_TAXWARE_UPD;
+     --END IF;     
+     
+IF UPDATING THEN
+   
+   IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_taxware_row.COST_CENTER_CODE)='S' THEN
 
+      IF
+      (
+      NVL(:OLD.TWJ_STATE,'XXX')   <> NVL(:NEW.TWJ_STATE,'XXX')   OR
+      NVL(:OLD.TWJ_ZIP,'XXX')     <> NVL(:NEW.TWJ_ZIP,'XXX')     OR
+      NVL(:OLD.TWJ_GEO,'XXX')     <> NVL(:NEW.TWJ_GEO,'XXX')     OR
+      NVL(:OLD.TWJ_COUNTRY,'XXX') <> NVL(:NEW.TWJ_COUNTRY,'XXX') OR
+      NVL(:OLD.TWJ_COMPANY,'XXX') <> NVL(:NEW.TWJ_COMPANY,'XXX')
+      )
+      THEN
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_taxware_row.COST_CENTER_CODE,
+                                            IN_DATA_SOURCE     =>'TAXWARE',
+                                            IN_DATA_OPERATION  =>'CHANGE',
+                                            IN_FILE_TYPE       =>'POS_STORE_UPDATE'
+                                            );
+      END IF;
+
+   END IF;
+
+END IF;      
+EXCEPTION
+WHEN OTHERS THEN
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_TAXWARE_UPD', SQLERRM, v_taxware_row.COST_CENTER_CODE);   
+END TR_TAXWARE_UPD;

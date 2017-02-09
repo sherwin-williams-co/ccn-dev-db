@@ -1,21 +1,20 @@
-CREATE OR REPLACE TRIGGER "COSTCNTR".tr_cost_center_upd
-before insert or update on cost_center
+CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
+before insert or update ON COSTCNTR.COST_CENTER
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
-
 DECLARE
 
-  v_transaction_id     varchar2(500);
-  v_rowdata            sys.xmltype;
-  v_primaryKey         sys.xmltype;
-  v_cost_center_row    COST_CENTER%ROWTYPE;
-
-
+	v_transaction_id varchar2(500);
+    v_rowdata sys.xmltype;
+    v_primaryKey sys.xmltype;
+    v_cost_center_row COST_CENTER%ROWTYPE;
+     
+    
 begin
 /*
-    SELECT NVL(MAX(TRANSACTION_ID), 0) + 1
+	SELECT NVL(MAX(TRANSACTION_ID), 0) + 1 
       INTO v_transaction_id 
-      FROM AUDIT_LOG;
+      FROM AUDIT_LOG;             
 */
         v_cost_center_row.COST_CENTER_CODE := :NEW.cost_center_code;
         v_cost_center_row.COST_CENTER_NAME := :NEW.COST_CENTER_NAME;
@@ -47,7 +46,7 @@ begin
         v_cost_center_row.BOOK_PLN_PROFILE_CD := :NEW.BOOK_PLN_PROFILE_CD;
 
 
-        SELECT XMLELEMENT ( "COST_CENTER",
+        SELECT XMLELEMENT ( "COST_CENTER",               
             XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                            'http://www.oracle.com/Employee.xsd' AS
                            "xsi:nonamespaceSchemaLocation" ),
@@ -73,7 +72,7 @@ begin
                         ,v_cost_center_row.MISSION_TYPE_CODE MISSION_TYPE_CODE
                         ,v_cost_center_row.DUNS_NUMBER DUNS_NUMBER
                         ,v_cost_center_row.PRI_LOGO_GROUP_IND PRI_LOGO_GROUP_IND
-                        ,v_cost_center_row.SCD_LOGO_GROUP_IND SCD_LOGO_GROUP_IND
+                        ,v_cost_center_row.SCD_LOGO_GROUP_IND SCD_LOGO_GROUP_IND 
                         ,v_cost_center_row.BANKING_TYPE BANKING_TYPE
                         ,v_cost_center_row.DEPOSIT_BAG_REORDER DEPOSIT_BAG_REORDER
                         ,v_cost_center_row.DEPOSIT_TICKET_REORDER DEPOSIT_TICKET_REORDER
@@ -81,8 +80,8 @@ begin
                         ,v_cost_center_row.SPRAY_EQP_RPR_IND SPRAY_EQP_RPR_IND
                         ,v_cost_center_row.BOOK_PLN_PROFILE_CD BOOK_PLN_PROFILE_CD
 
-                        )) AS "result"
-                          ,XMLELEMENT ( "PrimaryKey",
+                        )) AS "result" 
+                          ,XMLELEMENT ( "PrimaryKey",               
                                XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                                                'http://www.oracle.com/Employee.xsd' AS
                                                 "xsi:nonamespaceSchemaLocation" ),
@@ -94,7 +93,7 @@ begin
                      INTO v_rowdata
                          ,v_primaryKey
                          ,v_transaction_id
-                     FROM DUAL;
+                     FROM DUAL;	
 
      /* -- for   Column -- */
      --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
@@ -115,7 +114,21 @@ begin
                 ,v_primaryKey
                 ,v_rowdata
                 ,'TR_COST_CENTER_UPD');
-     --END IF;      
-      
+     --END IF;
+IF v_cost_center_row.CATEGORY IN ('S','T') THEN
+IF INSERTING THEN
+   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_cost_center_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'COST_CENTER',IN_DATA_OPERATION=>'ADD',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+ELSIF UPDATING THEN
+   IF  NVL(:OLD.COST_CENTER_NAME,'XXX') <> NVL(:NEW.COST_CENTER_NAME,'XXX') OR
+       NVL(:OLD.CURRENCY_CODE,'XXX')    <> NVL(:NEW.CURRENCY_CODE,'XXX')    OR
+       NVL(:OLD.COUNTRY_CODE,'XXX')     <> NVL(:NEW.COUNTRY_CODE,'XXX')     OR
+       NVL(:OLD.STATEMENT_TYPE,'XXX')   <> NVL(:NEW.STATEMENT_TYPE,'XXX') THEN
+      POS_DATA_GENERATION.G_POS_ID:=CCN_UTILITY.SEQ_POS_DOWNLOADS.NEXTVAL;
+      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_cost_center_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'COST_CENTER',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
+   END IF;
+END IF;
+END IF;
+EXCEPTION
+WHEN OTHERS THEN
+ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_COST_CENTER_UPD', SQLERRM, v_cost_center_row.COST_CENTER_CODE);
 END TR_COST_CENTER_UPD;
-
