@@ -4,13 +4,11 @@ Deposit Ticket FTP Failure reporting
 
 Created  : 01/16/2017 gxg192 CCN Project....
 Modified : 02/08/2017 gxg192 Changed group id from 50 to 57
+         : 02/09/2017 gxg192 Removed insert into mailing group
 *****************************************************************************/
 
 SET DEFINE OFF;
 
-INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('57', 'ccnoracle.team@sherwin.com');
-   
 /***************************************************************************** 
 Below script is created to store mailing details for Deposit Ticket FTP Failure reporting
 *****************************************************************************/
