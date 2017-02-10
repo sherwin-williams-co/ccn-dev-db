@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE POS_DATA_GENERATION
+CREATE OR REPLACE PACKAGE CCN_UTILITY.POS_DATA_GENERATION
 IS
 /*******************************************************************************
 POS_DATA_GENERATION
