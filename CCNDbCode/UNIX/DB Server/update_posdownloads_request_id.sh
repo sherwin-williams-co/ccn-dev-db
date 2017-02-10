@@ -51,7 +51,7 @@ then
          mv "$files" "$ERRORDIR"
 
          ./send_mail.sh "POLLING_FAILURE_MAIL" "Failure of procedure POS_DATA_GENERATION.RETURN_POS_DOWNLOADS while processing file $FILENAME and file is moved to the error folder $ERRORDIR".
-         exit 1;
+
       else
          echo "Successfully processed the file $files and moving the file to the archive folder $ARCHIVEDIR ">> "$LOGDIR/$LOGFILE"
          mv "$files" "$ARCHIVEDIR"

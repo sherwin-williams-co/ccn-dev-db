@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_UTILITY.POS_DATA_GENERATION
+CREATE OR REPLACE PACKAGE BODY POS_DATA_GENERATION
 /*******************************************************************************
 POS_DATA_GENERATION
 
@@ -9,6 +9,48 @@ changed :
 *******************************************************************************/
 IS
 G_QUOTES VARCHAR2(10) :='"';
+
+FUNCTION RETURN_COST_CENTER_CODE(
+/*******************************************************************************
+RETURN_COST_CENTER_CODE
+
+This function is used to return the COST_CENTER information
+
+created : 10/17/2016 MXK766 CCN Project....
+changed :
+*******************************************************************************/
+    IN_APPLICATION IN VARCHAR2,
+    IN_DATA        IN XMLTYPE, 
+    IN_XPATH       IN VARCHAR2
+)
+RETURN VARCHAR2
+IS
+    V_COST_CENTER_CODE COST_CENTER.COST_CENTER_CODE%TYPE;
+BEGIN
+    CASE 
+    WHEN IN_APPLICATION  IN ('COST_CENTER','POLLING-BANKCARD') THEN
+    SELECT COST_CENTER_CODE INTO V_COST_CENTER_CODE
+      FROM DUAL t,
+           XMLTABLE (IN_XPATH
+                     PASSING IN_DATA
+                     COLUMNS COST_CENTER_CODE VARCHAR2(6) PATH 'COST_CENTER_CODE') x;
+    WHEN IN_APPLICATION  IN ('LEAD-BANKING') THEN
+    SELECT COST_CENTER_CODE INTO V_COST_CENTER_CODE
+      FROM DUAL t,
+           XMLTABLE (IN_XPATH
+                     PASSING IN_DATA
+                     COLUMNS COST_CENTER_CODE VARCHAR2(6) PATH 'LEAD_STORE_NBR') x;
+    END CASE;
+
+    RETURN V_COST_CENTER_CODE;
+EXCEPTION
+WHEN OTHERS THEN
+    CCN_ERRPKG.insert_error_log_sp(SQLCODE,'RETURN_COST_CENTER_CODE',SQLERRM,'000000');
+    RETURN NULL;
+END RETURN_COST_CENTER_CODE;
+
+
+
 FUNCTION RETURN_COST_CENTER_INFO (
 /*******************************************************************************
 RETURN_COST_CENTER_INFO
@@ -51,8 +93,8 @@ IS
     V_ADDRESS_USA_REC    ADDRESS_USA%ROWTYPE;
 BEGIN
 
-     SELECT * 
-       INTO V_ADDRESS_USA_REC 
+     SELECT *
+       INTO V_ADDRESS_USA_REC
        FROM ADDRESS_USA
       WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
         AND ADDRESS_TYPE     = 'M'
@@ -109,20 +151,20 @@ changed :
     IN_POS_ID    IN NUMBER,
     IN_FILE_NAME IN VARCHAR2) RETURN POS_DOWNLOADS%ROWTYPE
 IS
-    V_POS_DOWNLOADS CCN_UTILITY.POS_DOWNLOADS%ROWTYPE; 
-BEGIN 
+    V_POS_DOWNLOADS CCN_UTILITY.POS_DOWNLOADS%ROWTYPE;
+BEGIN
 
     IF IN_POS_ID IS NOT NULL THEN
-        SELECT * 
-          INTO V_POS_DOWNLOADS  
-          FROM CCN_UTILITY.POS_DOWNLOADS 
+        SELECT *
+          INTO V_POS_DOWNLOADS
+          FROM CCN_UTILITY.POS_DOWNLOADS
          WHERE POS_ID = IN_POS_ID;
      ELSIF IN_FILE_NAME IS NOT NULL THEN
-        SELECT * 
-          INTO V_POS_DOWNLOADS  
-          FROM CCN_UTILITY.POS_DOWNLOADS 
+        SELECT *
+          INTO V_POS_DOWNLOADS
+          FROM CCN_UTILITY.POS_DOWNLOADS
          WHERE FILE_NAME = IN_FILE_NAME
-           AND ROWNUM=1; 
+           AND ROWNUM=1;
      END IF;
 
     RETURN V_POS_DOWNLOADS;
@@ -140,9 +182,9 @@ This Function is used to return the header information
 created : 11/09/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
-    IN_APLFILE_NAME  IN VARCHAR2, 
-    IN_MIC_FILE_NAME IN VARCHAR2, 
-    IN_REC_COUNT     IN NUMBER, 
+    IN_APLFILE_NAME  IN VARCHAR2,
+    IN_MIC_FILE_NAME IN VARCHAR2,
+    IN_REC_COUNT     IN NUMBER,
     IN_UPD_DEL       IN VARCHAR2) RETURN VARCHAR2
 IS
 BEGIN
@@ -168,18 +210,18 @@ This function is used to return the taxware information for a cost center code
 
 created : 01/11/2017 MXK766 CCN Project....
 changed :
-*******************************************************************************/                                    
+*******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2) RETURN TAXWARE%ROWTYPE
 IS
     V_TAXWARE TAXWARE%ROWTYPE;
-BEGIN 
-    
-    SELECT * INTO V_TAXWARE 
+BEGIN
+
+    SELECT * INTO V_TAXWARE
     FROM   TAXWARE
     WHERE  COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    
+
     RETURN V_TAXWARE;
-    
+
 EXCEPTION
 WHEN NO_DATA_FOUND THEN
     RETURN V_TAXWARE;
@@ -195,11 +237,11 @@ created : 10/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2) RETURN EMPLOYEE_DETAILS%ROWTYPE
-IS 
+IS
 V_EMPLOYEE_DETAILS            EMPLOYEE_DETAILS%ROWTYPE;
 BEGIN
-       
-    FOR EMP_REC IN ( SELECT 
+
+    FOR EMP_REC IN ( SELECT
                       EMPLOYEE_NUMBER,
                       COST_CENTER_CODE,
                       EMPLOYEE_NAME,
@@ -228,47 +270,49 @@ BEGIN
                       JOB_TYPE 
                    FROM (
                            SELECT EMP.*, 
-                                  ROW_NUMBER() 
-                                  OVER(PARTITION BY COST_CENTER_CODE 
-                                  ORDER BY HIRE_DATE DESC
-                                       ) AS RNO_FILTER
-                           FROM   EMPLOYEE_DETAILS EMP
-                           WHERE  1=1
-                           AND    UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
-                           AND    UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE'
-                                 ) 
-                           WHERE  RNO_FILTER=1 
+                                  ROWNUM AS RNO_FILTER 
+                           FROM (
+                                 SELECT EMP.*
+                                 FROM   EMPLOYEE_DETAILS EMP
+                                 WHERE  1=1
+                                 AND    UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
+                                 AND    UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE'
+                                 AND    UPPER(JOB_TITLE) IN ('SALES REP')
+                                 ORDER BY HIRE_DATE DESC
+                                 ) EMP
+                                 )
+                           WHERE  RNO_FILTER=1
                          ) LOOP
-    V_EMPLOYEE_DETAILS.EMPLOYEE_NUMBER := EMP_REC.EMPLOYEE_NUMBER; 
-    V_EMPLOYEE_DETAILS.COST_CENTER_CODE:= EMP_REC.COST_CENTER_CODE;
-    V_EMPLOYEE_DETAILS.EMPLOYEE_NAME:= EMP_REC.EMPLOYEE_NAME;
-    V_EMPLOYEE_DETAILS.LAST_NAME:= EMP_REC.LAST_NAME;
-    V_EMPLOYEE_DETAILS.FIRST_NAME:= EMP_REC.FIRST_NAME;
-    V_EMPLOYEE_DETAILS.MIDDLE_INITIAL:= EMP_REC.MIDDLE_INITIAL;
-    V_EMPLOYEE_DETAILS.HOME_ADDRESS_LINE1:= EMP_REC.HOME_ADDRESS_LINE1;
-    V_EMPLOYEE_DETAILS.HOME_ADDRESS_LINE2:= EMP_REC.HOME_ADDRESS_LINE2;
-    V_EMPLOYEE_DETAILS.HOME_CITY_STATE:= EMP_REC.HOME_CITY_STATE;
-    V_EMPLOYEE_DETAILS.HOME_CITY:= EMP_REC.HOME_CITY;
-    V_EMPLOYEE_DETAILS.HOME_STATE:= EMP_REC.HOME_STATE;
-    V_EMPLOYEE_DETAILS.HOME_POSTAL_CODE:= EMP_REC.HOME_POSTAL_CODE;
-    V_EMPLOYEE_DETAILS.HOME_PHONE:= EMP_REC.HOME_PHONE;
-    V_EMPLOYEE_DETAILS.COMPANY_CODE:= EMP_REC.COMPANY_CODE;
-    V_EMPLOYEE_DETAILS.SEX:= EMP_REC.SEX;
-    V_EMPLOYEE_DETAILS.EMP_PAYROLL_STATUS:= EMP_REC.EMP_PAYROLL_STATUS;
-    V_EMPLOYEE_DETAILS.EMP_ASSIGNMENT_STATUS:= EMP_REC.EMP_ASSIGNMENT_STATUS;
-    V_EMPLOYEE_DETAILS.EMP_DIVISION:= EMP_REC.EMP_DIVISION;
-    V_EMPLOYEE_DETAILS.HIRE_DATE:= EMP_REC.HIRE_DATE;
-    V_EMPLOYEE_DETAILS.TERM_DATE:= EMP_REC.TERM_DATE;
-    V_EMPLOYEE_DETAILS.ADJUSTED_SERVICE_DATE:= EMP_REC.ADJUSTED_SERVICE_DATE;
-    V_EMPLOYEE_DETAILS.JOB_CODE:= EMP_REC.JOB_CODE;
-    V_EMPLOYEE_DETAILS.JOB_DIVISION:= EMP_REC.JOB_DIVISION;
-    V_EMPLOYEE_DETAILS.JOB_FAMILY:= EMP_REC.JOB_FAMILY;
-    V_EMPLOYEE_DETAILS.JOB_TITLE:= EMP_REC.JOB_TITLE;
-    V_EMPLOYEE_DETAILS.JOB_TYPE:= EMP_REC.JOB_TYPE;
+        V_EMPLOYEE_DETAILS.EMPLOYEE_NUMBER := EMP_REC.EMPLOYEE_NUMBER;
+        V_EMPLOYEE_DETAILS.COST_CENTER_CODE:= EMP_REC.COST_CENTER_CODE;
+        V_EMPLOYEE_DETAILS.EMPLOYEE_NAME:= EMP_REC.EMPLOYEE_NAME;
+        V_EMPLOYEE_DETAILS.LAST_NAME:= EMP_REC.LAST_NAME;
+        V_EMPLOYEE_DETAILS.FIRST_NAME:= EMP_REC.FIRST_NAME;
+        V_EMPLOYEE_DETAILS.MIDDLE_INITIAL:= EMP_REC.MIDDLE_INITIAL;
+        V_EMPLOYEE_DETAILS.HOME_ADDRESS_LINE1:= EMP_REC.HOME_ADDRESS_LINE1;
+        V_EMPLOYEE_DETAILS.HOME_ADDRESS_LINE2:= EMP_REC.HOME_ADDRESS_LINE2;
+        V_EMPLOYEE_DETAILS.HOME_CITY_STATE:= EMP_REC.HOME_CITY_STATE;
+        V_EMPLOYEE_DETAILS.HOME_CITY:= EMP_REC.HOME_CITY;
+        V_EMPLOYEE_DETAILS.HOME_STATE:= EMP_REC.HOME_STATE;
+        V_EMPLOYEE_DETAILS.HOME_POSTAL_CODE:= EMP_REC.HOME_POSTAL_CODE;
+        V_EMPLOYEE_DETAILS.HOME_PHONE:= EMP_REC.HOME_PHONE;
+        V_EMPLOYEE_DETAILS.COMPANY_CODE:= EMP_REC.COMPANY_CODE;
+        V_EMPLOYEE_DETAILS.SEX:= EMP_REC.SEX;
+        V_EMPLOYEE_DETAILS.EMP_PAYROLL_STATUS:= EMP_REC.EMP_PAYROLL_STATUS;
+        V_EMPLOYEE_DETAILS.EMP_ASSIGNMENT_STATUS:= EMP_REC.EMP_ASSIGNMENT_STATUS;
+        V_EMPLOYEE_DETAILS.EMP_DIVISION:= EMP_REC.EMP_DIVISION;
+        V_EMPLOYEE_DETAILS.HIRE_DATE:= EMP_REC.HIRE_DATE;
+        V_EMPLOYEE_DETAILS.TERM_DATE:= EMP_REC.TERM_DATE;
+        V_EMPLOYEE_DETAILS.ADJUSTED_SERVICE_DATE:= EMP_REC.ADJUSTED_SERVICE_DATE;
+        V_EMPLOYEE_DETAILS.JOB_CODE:= EMP_REC.JOB_CODE;
+        V_EMPLOYEE_DETAILS.JOB_DIVISION:= EMP_REC.JOB_DIVISION;
+        V_EMPLOYEE_DETAILS.JOB_FAMILY:= EMP_REC.JOB_FAMILY;
+        V_EMPLOYEE_DETAILS.JOB_TITLE:= EMP_REC.JOB_TITLE;
+        V_EMPLOYEE_DETAILS.JOB_TYPE:= EMP_REC.JOB_TYPE;
     END LOOP;
 
-    RETURN V_EMPLOYEE_DETAILS; 
-       
+    RETURN V_EMPLOYEE_DETAILS;
+
 EXCEPTION
 WHEN OTHERS THEN
     V_EMPLOYEE_DETAILS := NULL;
@@ -292,35 +336,37 @@ BEGIN
 
     --GET THE DATA FROM THE LEAD_BANK_CC. IF not get the data from Member bank cc. If nothing then we cannot process this record.
     BEGIN
-    
+
     SELECT * 
-      INTO V_MEMBER_BANK_CC 
-      FROM MEMBER_BANK_CC 
+      INTO V_MEMBER_BANK_CC
+      FROM MEMBER_BANK_CC
      WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
        AND ROWNUM=1;
-        
-    EXCEPTION
-    WHEN OTHERS THEN
-        NULL;
-    END;
-     
-     BEGIN
-
-     SELECT * 
-       INTO V_LEAD_BANK_CC 
-       FROM LEAD_BANK_CC 
-      WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
-        AND ROWNUM=1;
 
     EXCEPTION
     WHEN OTHERS THEN
         NULL;
     END;
-    
+
+    IF V_MEMBER_BANK_CC.MEMBER_STORE_NBR IS NULL THEN
+        BEGIN
+
+         SELECT *
+           INTO V_LEAD_BANK_CC
+           FROM LEAD_BANK_CC
+          WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+            AND ROWNUM=1;
+
+        EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+        END;
+    END IF;
+
     V_LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR := NVL(V_LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR,V_MEMBER_BANK_CC.LEAD_BANK_ACCOUNT_NBR);
-    
+
     RETURN V_LEAD_BANK_CC;
-    
+
 EXCEPTION
 WHEN OTHERS THEN
 RETURN V_LEAD_BANK_CC;
@@ -367,10 +413,10 @@ changed :
 IS
     V_BANK_CARD_REC  BANK_CARD%ROWTYPE;
 BEGIN
- 
-    SELECT * 
-      INTO V_BANK_CARD_REC 
-      FROM BANK_CARD 
+
+    SELECT *
+      INTO V_BANK_CARD_REC
+      FROM BANK_CARD
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
        AND EXPIRATION_DATE IS NULL
        AND ROWNUM=1;
@@ -398,27 +444,27 @@ IS
     V_USA_ADDRESS_REC ADDRESS_USA%ROWTYPE;
 BEGIN 
     --get the statecode information for the cost center table.
-    
+
     V_COSTCENTER_REC := RETURN_COST_CENTER_INFO(IN_COST_CENTER_CODE);
-    
+
     IF V_COSTCENTER_REC.COUNTRY_CODE='USA' THEN
        V_USA_ADDRESS_REC := RETURN_USA_ADDRESS_INFO(IN_COST_CENTER_CODE);
-       
-       SELECT P2.* 
-         INTO V_PROCESSORS_REC 
+
+       SELECT P2.*
+         INTO V_PROCESSORS_REC
          FROM
-              PRCSR_STR_GRP_DTLS P1, 
+              PRCSR_STR_GRP_DTLS P1,
               PROCESSORS P2
         WHERE P1.PROCESSOR_ID = P2.PROCESSOR_ID
           AND P1.STATE_CODE = V_USA_ADDRESS_REC.STATE_CODE
           AND ROWNUM=1;
-          
-    ELSIF V_COSTCENTER_REC.COUNTRY_CODE='CAN' THEN       
-       
-       SELECT P2.* 
-         INTO V_PROCESSORS_REC 
+
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE='CAN' THEN
+
+       SELECT P2.*
+         INTO V_PROCESSORS_REC
          FROM
-              PRCSR_CANADA_GRP_DTLS P1, 
+              PRCSR_CANADA_GRP_DTLS P1,
               PROCESSORS P2
         WHERE P1.PROCESSOR_ID = P2.PROCESSOR_ID
           AND ROWNUM=1;
@@ -430,8 +476,8 @@ BEGIN
 EXCEPTION
 WHEN OTHERS THEN
     RETURN V_PROCESSORS_REC;
-END RETURN_PROCESSORS_INFO; 
- 
+END RETURN_PROCESSORS_INFO;
+
 FUNCTION RETURN_TERRITORY_INFO (
 /*******************************************************************************
 RETURN_TERRITORY_INFO
@@ -443,10 +489,10 @@ changed :
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2) RETURN TERRITORY%ROWTYPE
 IS
-    V_TERRITORY                   TERRITORY%ROWTYPE; 
-BEGIN 
-    SELECT  * 
-      INTO  V_TERRITORY 
+    V_TERRITORY                   TERRITORY%ROWTYPE;
+BEGIN
+    SELECT  *
+      INTO  V_TERRITORY
       FROM  TERRITORY
      WHERE  COST_CENTER_CODE = IN_COST_CENTER_CODE;
      RETURN V_TERRITORY;
@@ -455,7 +501,7 @@ WHEN NO_DATA_FOUND THEN
      V_TERRITORY := NULL;
      RETURN V_TERRITORY;
 END RETURN_TERRITORY_INFO;
-                          
+
 FUNCTION RETURN_PHONE_INFO (
 /*******************************************************************************
 RETURN_PHONE_INFO
@@ -469,13 +515,13 @@ changed :
     IN_PHONE_NUMBER_TYPE IN VARCHAR2) RETURN PHONE%ROWTYPE
 IS
     V_PHONE_REC                   PHONE%ROWTYPE;
-BEGIN 
-    SELECT  * 
-      INTO  V_PHONE_REC 
+BEGIN
+    SELECT  *
+      INTO  V_PHONE_REC
       FROM  PHONE PH
      WHERE  COST_CENTER_CODE    = IN_COST_CENTER_CODE
        AND  PH.PHONE_NUMBER_TYPE=IN_PHONE_NUMBER_TYPE;
- 
+
     RETURN V_PHONE_REC;
 EXCEPTION
 WHEN NO_DATA_FOUND THEN
@@ -484,43 +530,45 @@ WHEN NO_DATA_FOUND THEN
 END RETURN_PHONE_INFO; 
 
 
-FUNCTION RETURN_PARAM_FILE_CREATION_YN (
+FUNCTION CREATE_PARAM_FILE (
 /*******************************************************************************
-RETURN_PARAM_FILE_CREATION_YN
+CREATE_PARAM_FILE
 
 This function is used to Check for the availability of cost center in the tables.
 
 created : 10/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
-    IN_COST_CENTER_CODE IN VARCHAR2) RETURN BOOLEAN
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
 IS
     V_COUNT NUMBER :=0;
-    V_TRUE_FALSE BOOLEAN;
+    V_FILE_CREATE_YN VARCHAR2(1) := 'Y';
 BEGIN
-   
-   SELECT SUM(CNT) INTO V_COUNT FROM (
-   SELECT COUNT(1)   CNT
-     FROM LEAD_BANK_CC
-    WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
-    UNION ALL
-   SELECT COUNT(1)  
-     FROM MEMBER_BANK_CC
-    WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
-    );
+
+   SELECT SUM(CNT) 
+     INTO V_COUNT FROM 
+     (
+         SELECT COUNT(1)   CNT
+           FROM LEAD_BANK_CC
+          WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
+          UNION ALL
+         SELECT COUNT(1)  
+           FROM MEMBER_BANK_CC
+          WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+     );
     
     IF V_COUNT=0 THEN
-       V_TRUE_FALSE := FALSE;
+       V_FILE_CREATE_YN := 'N';
     ELSE
-       V_TRUE_FALSE := TRUE;            
+       V_FILE_CREATE_YN := 'Y';
     END IF;
-    
-    RETURN V_TRUE_FALSE;
-    
+
+    RETURN V_FILE_CREATE_YN;
+
 EXCEPTION
-WHEN OTHERS THEN     
-     RETURN FALSE;
-END RETURN_PARAM_FILE_CREATION_YN;
+WHEN OTHERS THEN
+     RETURN 'N';
+END CREATE_PARAM_FILE;
 
 FUNCTION CHECK_COST_CENTER_CATEGORY(
 /*******************************************************************************
@@ -536,9 +584,9 @@ IS
     V_CATEGORY COST_CENTER.CATEGORY%TYPE;
 BEGIN
 
-    SELECT CATEGORY 
-      INTO V_CATEGORY 
-      FROM COST_CENTER 
+    SELECT CATEGORY
+      INTO V_CATEGORY
+      FROM COST_CENTER
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
 
     RETURN V_CATEGORY;
@@ -560,8 +608,8 @@ IS
    V_ERROR VARCHAR2(1000);
 BEGIN
 
-    UPDATE POS_DOWNLOADS 
-       SET 
+    UPDATE POS_DOWNLOADS
+       SET
            COST_CENTER_CODE   = IN_POS_DOWNLOADS.COST_CENTER_CODE,
            DATA_SOURCE        = IN_POS_DOWNLOADS.DATA_SOURCE,
            DATA_OPERATION     = IN_POS_DOWNLOADS.DATA_OPERATION, 
@@ -581,6 +629,38 @@ WHEN OTHERS THEN
     CCN_ERRPKG.insert_error_log_sp(SQLCODE,'POS_DOWNLOADS_UPD_SP',V_ERROR,'000000');
 END POS_DOWNLOADS_UPD_SP;
           
+FUNCTION RETURN_POS_DOWNLOADS_INSERT_YN(
+/*******************************************************************************
+POS_DOWNLOADS_UPD_SP
+
+This procedure is used do update on the table POS_DOWNLOADS 
+
+created : 10/17/2016 MXK766 CCN Project....
+changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2, 
+    IN_FILE_TYPE IN VARCHAR2) RETURN VARCHAR2
+IS
+V_CHECK NUMBER :=0;
+V_RETURN VARCHAR2(1):='Y';
+BEGIN
+
+    SELECT COUNT(1)
+      INTO V_CHECK
+      FROM POS_DOWNLOADS
+     WHERE COST_CENTER_CODE=IN_COST_CENTER_CODE
+       AND FILE_TYPE = IN_FILE_TYPE;
+
+
+    CASE WHEN V_CHECK =0 THEN 
+    V_RETURN := 'Y';
+    ELSE
+    V_RETURN := 'N';
+    END CASE;
+
+    RETURN V_RETURN;
+
+END RETURN_POS_DOWNLOADS_INSERT_YN;
 
 PROCEDURE POS_TRG_EVENT_LOG(
 /*******************************************************************************
@@ -600,30 +680,40 @@ changed :
 IS
     V_ERROR VARCHAR2(500);
 BEGIN
-     
-     POS_DATA_GENERATION.G_POS_ID:=CCN_UTILITY.SEQ_POS_DOWNLOADS.NEXTVAL;
 
-     INSERT INTO POS_DOWNLOADS
-     (
-      POS_ID
-     ,COST_CENTER_CODE
-     ,DATA_SOURCE
-     ,DATA_OPERATION
-     ,FILE_TYPE
-     ,FILE_PROCESSED
-     ,COMMENTS
-     ,CREATE_DT
-     )
-     VALUES
-     (POS_DATA_GENERATION.G_POS_ID
-     ,IN_COST_CENTER_CODE
-     ,IN_DATA_SOURCE
-     ,IN_DATA_OPERATION
-     ,IN_FILE_TYPE
-     ,'N'
-     ,NULL
-     ,SYSDATE
-     );
+
+     --Check for cost center and file type operation exists and not yet processed.
+     --If exists then do not insert. Else Insert.
+
+     IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_COST_CENTER_CODE, 
+                                       IN_FILE_TYPE
+                                      )='Y' THEN
+
+
+
+         INSERT INTO POS_DOWNLOADS
+         (
+          POS_ID
+         ,COST_CENTER_CODE
+         ,DATA_SOURCE
+         ,DATA_OPERATION
+         ,FILE_TYPE
+         ,FILE_PROCESSED
+         ,COMMENTS
+         ,CREATE_DT
+         )
+         VALUES
+         (CCN_UTILITY.SEQ_POS_DOWNLOADS.NEXTVAL
+         ,IN_COST_CENTER_CODE
+         ,IN_DATA_SOURCE
+         ,IN_DATA_OPERATION
+         ,IN_FILE_TYPE
+         ,'N'
+         ,NULL
+         ,SYSDATE
+         );
+     END IF;
+
 
 EXCEPTION
 WHEN OTHERS THEN
@@ -670,7 +760,7 @@ BEGIN
             FROM  HIERARCHY_DETAIL_VIEW HD
             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
             AND   HRCHY_HDR_NAME   = 'GLOBAL_HIERARCHY';    
-        EXCEPTION    
+        EXCEPTION
         WHEN OTHERS THEN
             OUT_DISTRICT := NULL;
             OUT_AREA := NULL;
@@ -694,22 +784,7 @@ WHEN OTHERS THEN
    OUT_DIST_EFF_DT    := NULL;
 END RETURN_PRICE_DISTRICT_SP;
 
-PROCEDURE POS_FILE_GEN_INFO_I_SP(
-/*******************************************************************************
-POS_FILE_GEN_INFO_I_SP
-
-This procedure is used to Insert data into POS_FILE_GEN_INFO table.
-
-created : 10/17/2016 MXK766 CCN Project....
-changed :
-*******************************************************************************/
-    IN_POS_FILE_GEN_INFO POS_FILE_GEN_INFO%ROWTYPE)
-IS
-BEGIN
-    INSERT INTO POS_FILE_GEN_INFO VALUES IN_POS_FILE_GEN_INFO ;
-END POS_FILE_GEN_INFO_I_SP;
-
-FUNCTION GENERATE_POS_STORE_UPD_SP(
+PROCEDURE GENERATE_POS_STORE_UPD_SP(
 /*******************************************************************************
 GENERATE_POS_STORE_UPD_SP
 
@@ -796,7 +871,7 @@ created : 10/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE 
-)RETURN VARCHAR2
+)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLDATA              CLOB;
@@ -939,24 +1014,22 @@ BEGIN
     V_DONE_FILE := REPLACE(V_FILE_NAME,'.XML','.POLLINGDONE');
     DBMS_XSLPROCESSOR.CLOB2FILE('Done', 'CCN_DATAFILES', V_DONE_FILE);
     V_COMMENTS := V_COMMENTS||'File  '|| V_FILE_NAME ||' creation ended at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);
-    
+
     V_REC_POSDATA.FILE_NAME := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
     V_REC_POSDATA.COMMENTS := V_COMMENTS;
-     
+
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-    
-    RETURN V_FILE_NAME;
 
 EXCEPTION
 WHEN OTHERS THEN
     V_ERROR  := 'SQLCODE->'||SQLCODE||CHR(10)||'SQLERRM->'||SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
     ROLLBACK;
     CCN_ERRPKG.insert_error_log_sp(SQLCODE,'GENERATE_POS_STORE_UPD_SP',V_ERROR,'000000');
-    RETURN NULL;
+    
 END GENERATE_POS_STORE_UPD_SP;
 
-FUNCTION GEN_POS_TERRITORY_UPD_SP(
+PROCEDURE GEN_POS_TERRITORY_UPD_SP(
 /*******************************************************************************
 GEN_POS_TERRITORY_UPD_SP
 
@@ -1015,7 +1088,7 @@ created : 10/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE 
-)  RETURN VARCHAR2
+)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLDATA              CLOB;
@@ -1033,7 +1106,7 @@ IS
     V_REC_COUNT            PLS_INTEGER :=0;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
 BEGIN
-    
+
     V_COMMENTS := 'GEN_POS_TERRITORY_DATA_SP Procedure started at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);
     V_FILE_NAME := V_FILE_NAME||'_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
 
@@ -1045,9 +1118,9 @@ BEGIN
 
     V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_COSTCENTER_REC.COST_CENTER_CODE,'terr-nbr')||CHR(10);
     V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_TERRITORY.HOME_STORE,'home-store')||CHR(10);
-    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.FIRST_NAME),'first-nm')||CHR(10);
-    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.MIDDLE_INITIAL),'mid-nm')||CHR(10);
-    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.LAST_NAME),'last-nm')||CHR(10);
+    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_COSTCENTER_REC.FIRST_NAME),'first-nm')||CHR(10);
+    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_COSTCENTER_REC.MIDDLE_INITIAL),'mid-nm')||CHR(10);
+    V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_COSTCENTER_REC.LAST_NAME),'last-nm')||CHR(10);
     V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_COSTCENTER_REC.COUNTRY_CODE,'geo-country')||CHR(10);
 
     V_XMLDATA       := '<terrUpdtRcd dtl_trans_type='||G_QUOTES
@@ -1079,20 +1152,19 @@ BEGIN
     V_REC_POSDATA.FILE_NAME := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
     V_REC_POSDATA.COMMENTS := V_COMMENTS;
-     
+
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-   
-    RETURN V_FILE_NAME;
-    
+
+
 EXCEPTION
 WHEN OTHERS THEN
     V_ERROR  := 'SQLCODE->'||SQLCODE||CHR(10)||'SQLERRM->'||SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
     ROLLBACK;
     CCN_ERRPKG.insert_error_log_sp(SQLCODE,'GEN_POS_TERRITORY_UPD_SP',V_ERROR,'000000');
-    RETURN NULL;
+
 END GEN_POS_TERRITORY_UPD_SP;
 
-FUNCTION GEN_PARAM_UPD_SP(
+PROCEDURE GEN_PARAM_UPD_SP(
 /*******************************************************************************
 GEN_PARAM_UPD_SP
 
@@ -1162,8 +1234,7 @@ created : 01/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE 
-) 
-RETURN VARCHAR2
+)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLDATA              CLOB;
@@ -1183,7 +1254,7 @@ IS
     V_ADDRESS_USA_REC      ADDRESS_USA%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
     V_DONE_FILE            VARCHAR2(100);
-    V_GOAHEAD              BOOLEAN :=TRUE;
+    V_GOAHEAD              VARCHAR2(1) :='Y';
 BEGIN
 
     V_COMMENTS  := 'GEN_PARAM_UPD_SP Procedure started at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);    
@@ -1194,10 +1265,10 @@ BEGIN
     --IF IT IS BANK CARD THEN CHECK FOR LEAD BANK CC OR MEMBER BANK CC. IF NOT THERE THEN IGNORE THIS CHANGE.
     
     IF V_REC_POSDATA.DATA_SOURCE IN ('BANK_CARD') THEN
-       V_GOAHEAD := RETURN_PARAM_FILE_CREATION_YN(V_REC_POSDATA.COST_CENTER_CODE);
+       V_GOAHEAD := CREATE_PARAM_FILE(V_REC_POSDATA.COST_CENTER_CODE);
     END IF;
     
-    IF V_GOAHEAD THEN
+    IF V_GOAHEAD ='Y' THEN
         V_FILE_NAME := V_FILE_NAME||'_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
         --step 1
         --<xsd:element name="P-cval" type="xsd:string" nillable="true" minOccurs="2" maxOccurs="2"/>
@@ -1281,161 +1352,58 @@ BEGIN
         V_REC_POSDATA.FILE_NAME := V_FILE_NAME;
         V_REC_POSDATA.FILE_PROCESSED := 'Y';
         V_REC_POSDATA.COMMENTS := V_COMMENTS;
-         
+
         POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-    
+
     ELSE
-    
+
         V_COMMENTS := 'No Lead or Member bank information to process. So ignore this change.';
         V_REC_POSDATA.FILE_PROCESSED := 'Y';
         V_REC_POSDATA.COMMENTS := V_COMMENTS;
         POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-    
+
     END IF;
-    
-    RETURN V_FILE_NAME;
-    
+
 EXCEPTION
 WHEN OTHERS THEN
     V_ERROR  := 'SQLCODE->'||SQLCODE||CHR(10)||'SQLERRM->'||SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
     ROLLBACK;
     CCN_ERRPKG.insert_error_log_sp(SQLCODE,'GEN_PARAM_UPD_SP',V_ERROR,'000000');
-    RETURN NULL;
+    
 END GEN_PARAM_UPD_SP;
 
-
-PROCEDURE POS_MASTER_CALL(
-/*******************************************************************************
-POS_MASTER_CALL
-
-This procedure is used to read the POS_ID and identify which files should be called for the POS_ID
-
-created : 10/17/2016 MXK766 CCN Project....
-changed :
-*******************************************************************************/
-   IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE,
-   OUT_FILENAME         OUT  POS_DOWNLOADS.FILE_NAME%TYPE
-) 
-IS
-    V_ERROR    VARCHAR2(1000);
-BEGIN
-    
-    FOR POS_REC IN (SELECT * FROM POS_DOWNLOADS WHERE POS_ID=IN_POS_ID) LOOP
-    
-    CASE WHEN POS_REC.FILE_TYPE='POS_TERRITORY_UPDATE' THEN    
-              OUT_FILENAME := GEN_POS_TERRITORY_UPD_SP(IN_POS_ID);    
-         WHEN POS_REC.FILE_TYPE='POS_STORE_UPDATE' THEN 
-              OUT_FILENAME := GENERATE_POS_STORE_UPD_SP(IN_POS_ID);
-         WHEN POS_REC.FILE_TYPE='POS_PARAM_UPDATE' THEN 
-              OUT_FILENAME := GEN_PARAM_UPD_SP(IN_POS_ID);    
-    END CASE;
-
-    END LOOP;
-EXCEPTION
-WHEN OTHERS THEN    
-    V_ERROR  := 'SQLCODE->'||SQLCODE||CHR(10)||'SQLERRM->'||SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-    CCN_ERRPKG.insert_error_log_sp(SQLCODE,'POS_MASTER_SP',V_ERROR,'000000');
-END POS_MASTER_CALL; 
-
-PROCEDURE POS_MASTER_UPDATE_SP(
-/*******************************************************************************
-POS_MASTER_SP
-
-This procedure is used to read the POS_ID and identify which files should be called for the POS_ID
-
-created : 10/17/2016 MXK766 CCN Project....
-changed :
-*******************************************************************************/
-   IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE,
-   IN_FILE_NAME          IN  POS_DOWNLOADS.FILE_NAME%TYPE 
-) 
-IS
-BEGIN
-
-/*
-Check for the filetype for the file name and the posid passed. If they are same then update else call the POS_MASTER_SP to generate a new file.
-*/
-
-    UPDATE POS_DOWNLOADS 
-       SET FILE_NAME=IN_FILE_NAME,
-           FILE_PROCESSED='Y',
-           COMMENTS='File generated for the transaction is '||IN_FILE_NAME,
-           UPDATE_DT=SYSDATE
-    WHERE POS_ID = IN_POS_ID;
-
-END POS_MASTER_UPDATE_SP;
 
 PROCEDURE POS_MASTER_SP(
 /*******************************************************************************
 POS_MASTER_SP
 
-This procedure is used to read the POS_ID and identify which files should be called for the POS_ID
+This procedure is used to generate file based upon the costcentercode and filetype.
 
 created : 10/17/2016 MXK766 CCN Project....
 changed :
 *******************************************************************************/
-   IN_POS_ID             IN  POS_DATA_GENERATION.TYP_POS_ID
+   IN_COST_CENTER_CODE             IN  POS_DOWNLOADS.COST_CENTER_CODE%TYPE
 )IS
-    V_STRFILENAME  VARCHAR2(250);
-    V_TERFILENAME  VARCHAR2(100);
-    V_PARFILENAME  VARCHAR2(100);
-    V_ERROR        VARCHAR2(1000);
-    V_POSDOWNLOADS POS_DOWNLOADS%ROWTYPE;
-    V_POS_FILE_GEN_INFO  POS_FILE_GEN_INFO%ROWTYPE;
-    V_BATCH_ID     NUMBER;
-BEGIN
-    V_BATCH_ID := SEQ_POS_DOWNLOADS.NEXTVAL;
-    --Identify the FILETYPES and populate THE Nested table with posid and filetype.
-    FOR REC IN 1 .. IN_POS_ID.COUNT LOOP     
-       V_POSDOWNLOADS := RETURN_POS_DOWNLOADS(IN_POS_ID(REC),NULL);
-       
-       IF V_POSDOWNLOADS.POS_ID IS NOT NULL THEN         
-         V_POS_FILE_GEN_INFO.BATCH_ID         := V_BATCH_ID;
-         V_POS_FILE_GEN_INFO.POS_ID           := IN_POS_ID(REC);
-         V_POS_FILE_GEN_INFO.FILE_TYPE        := V_POSDOWNLOADS.FILE_TYPE;
-         V_POS_FILE_GEN_INFO.COST_CENTER_CODE := V_POSDOWNLOADS.COST_CENTER_CODE;
-         V_POS_FILE_GEN_INFO.CREATE_DT        := SYSDATE;
-         POS_FILE_GEN_INFO_I_SP(V_POS_FILE_GEN_INFO);
 
-       END IF;
-    END LOOP;
-    
-    FOR REC IN (SELECT DISTINCT COST_CENTER_CODE FROM POS_FILE_GEN_INFO WHERE BATCH_ID=V_BATCH_ID) LOOP
-       
-       FOR FILE IN (SELECT * FROM POS_FILE_GEN_INFO WHERE BATCH_ID=V_BATCH_ID AND COST_CENTER_CODE = REC.COST_CENTER_CODE) LOOP
-        
-           CASE WHEN FILE.FILE_TYPE='POS_STORE_UPDATE' THEN  
-           
-              IF V_STRFILENAME IS NULL THEN
-                 POS_MASTER_CALL(FILE.POS_ID,V_STRFILENAME);
-              ELSE
-                 POS_MASTER_UPDATE_SP(FILE.POS_ID,V_STRFILENAME);
-              END IF;
-            WHEN FILE.FILE_TYPE='POS_TERRITORY_UPDATE' THEN
-           
-              IF V_TERFILENAME IS NULL THEN   
-               
-                 POS_MASTER_CALL(FILE.POS_ID,V_TERFILENAME);  
-                    
-              ELSE    
-                 POS_MASTER_UPDATE_SP(FILE.POS_ID,V_TERFILENAME);   
-              END IF;       
-           WHEN FILE.FILE_TYPE='POS_PARAM_UPDATE' THEN
-               IF V_PARFILENAME IS NULL THEN           
-                 POS_MASTER_CALL(FILE.POS_ID,V_PARFILENAME);
-              ELSE          
-                 POS_MASTER_UPDATE_SP(FILE.POS_ID,V_PARFILENAME);
-              END IF;             
+    V_ERROR        VARCHAR2(1000);
+BEGIN
+
+       FOR FILE IN (SELECT *
+                      FROM POS_DOWNLOADS
+                     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                       AND FILE_PROCESSED   = 'N'
+                    ) LOOP
+
+           CASE WHEN FILE.FILE_TYPE='POS_STORE_UPDATE' THEN
+                     GENERATE_POS_STORE_UPD_SP(FILE.POS_ID);
+                WHEN FILE.FILE_TYPE='POS_TERRITORY_UPDATE' THEN
+                     GEN_POS_TERRITORY_UPD_SP(FILE.POS_ID);
+                WHEN FILE.FILE_TYPE='POS_PARAM_UPDATE' THEN
+                     GEN_PARAM_UPD_SP(FILE.POS_ID);
            END CASE;
-           
+
        END LOOP;
- 
-       V_STRFILENAME :=NULL;
-       V_TERFILENAME :=NULL;
-       V_PARFILENAME :=NULL;
-        
-    END LOOP;
-    
+
 EXCEPTION
 WHEN OTHERS THEN
 
