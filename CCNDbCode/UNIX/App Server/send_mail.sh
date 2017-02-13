@@ -25,7 +25,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail(IN_MAIL_CATEGORY=>'$1',IN_CLOB=>'$2');
+MAIL_PKG.send_mail('$1','$2');
 Exception
  when others then
  :exitCode := 2;
