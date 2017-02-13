@@ -39,9 +39,6 @@ created : 02/10/2017 nxk927
                AND CHECK_SERIAL_NUMBER NOT IN (SELECT CHECK_SERIAL_NUMBER
                                                  FROM SD_BANK_FILE_SENT_DETAILS
                                                 WHERE SEND_INDICATOR        = 'Y'
-                                                  AND PROCESS_DATE          = (SELECT MAX(PROCESS_DATE) 
-                                                                                 FROM SD_BANK_FILE_SENT_DETAILS 
-                                                                                WHERE CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER)
                                                   AND PROCESS_DATE          >=  NVL(SD.STOP_PAY_DATE, PROCESS_DATE))
 
            212 ROWS SELECTED
@@ -52,9 +49,6 @@ created : 02/10/2017 nxk927
                AND CHECK_SERIAL_NUMBER NOT IN (SELECT CHECK_SERIAL_NUMBER
                                                  FROM SD_BANK_FILE_SENT_DETAILS
                                                 WHERE SEND_INDICATOR        = 'Y'
-                                                  AND PROCESS_DATE          = (SELECT MAX(PROCESS_DATE) 
-                                                                                 FROM SD_BANK_FILE_SENT_DETAILS 
-                                                                                WHERE CHECK_SERIAL_NUMBER = SD.CHECK_SERIAL_NUMBER)
                                                   AND PROCESS_DATE          >=  NVL(SD.STOP_PAY_DATE, PROCESS_DATE))
            7 ROWS SELECTED
 */
