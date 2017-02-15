@@ -88,4 +88,16 @@ changed :
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE
 );
 
+PROCEDURE INIT_LOAD_TERR_SP
+/*******************************************************************************
+INIT_LOAD_TERR_SP
+
+This procedure is used to create a territory Init load file.
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for
+the order of the XML elements.
+*********************************************************************************/
+;
+
 END POS_DATA_GENERATION;

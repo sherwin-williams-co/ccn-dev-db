@@ -1397,4 +1397,186 @@ WHEN OTHERS THEN
     CCN_ERRPKG.insert_error_log_sp(SQLCODE,'POS_MASTER_SP',V_ERROR,'000000');
 END POS_MASTER_SP;
 
+FUNCTION INS_POS_DOWNLOADS_FN(
+/*******************************************************************************
+INS_POS_DOWNLOADS_FN
+
+This function is used to insert into POS_DOWNLOADS table.
+
+created : 02/15/2017 MXK766 CCN Project....
+changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2
+    ) RETURN NUMBER
+IS
+    V_POS_ID POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN
+
+    INSERT INTO POS_DOWNLOADS
+        (
+         POS_ID
+        ,COST_CENTER_CODE
+        ,DATA_SOURCE
+        ,DATA_OPERATION
+        ,FILE_TYPE
+        ,FILE_PROCESSED
+        ,COMMENTS
+        ,CREATE_DT
+        )
+        VALUES
+        (SEQ_POS_DOWNLOADS.NEXTVAL
+        ,IN_COST_CENTER_CODE
+        ,IN_DATA_SOURCE
+        ,IN_DATA_OPERATION
+        ,IN_FILE_TYPE
+        ,'N'
+        ,NULL
+        ,SYSDATE
+        ) RETURNING POS_ID INTO V_POS_ID;
+
+RETURN V_POS_ID;
+
+END INS_POS_DOWNLOADS_FN;
+
+PROCEDURE INIT_LOAD_TERR_SP
+/*******************************************************************************
+INIT_LOAD_TERR_SP
+
+This procedure is used to create a territory Init load file.
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for
+the order of the XML elements.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="" xmlns:prodata="urn:schemas-progress-com:xml-prodata:0001">
+  <xsd:element name="terrUpdtMsg" prodata:proDataSet="true">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="dlHeaderRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="aplfile_name" type="xsd:string"/>
+              <xsd:element name="micfile_name" type="xsd:string"/>
+              <xsd:element name="rec_cnt" type="xsd:int"/>
+              <xsd:element name="cre_date" type="xsd:date"/>
+              <xsd:element name="cre_time" type="xsd:string"/>
+              <xsd:element name="r_u_flag" type="xsd:string"/>
+              <xsd:element name="wfd" type="xsd:string"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="terrUpdtRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="terr-nbr" type="xsd:string"/>
+              <xsd:element name="home-store" type="xsd:string"/>
+              <xsd:element name="first-nm" type="xsd:string"/>
+              <xsd:element name="mid-nm" type="xsd:string"/>
+              <xsd:element name="last-nm" type="xsd:string"/>
+              <xsd:element name="geo-country" type="xsd:string"/>
+            </xsd:sequence>
+            <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//dlHeaderRcd"/>
+      <xsd:field xpath="aplfile_name"/>
+    </xsd:unique>
+    <xsd:unique name="terrUpdtRcd_main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//terrUpdtRcd"/>
+      <xsd:field xpath="terr-nbr"/>
+    </xsd:unique>
+  </xsd:element>
+</xsd:schema>
+
+created : 10/17/2016 MXK766 CCN Project....
+changed :
+*******************************************************************************/
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLDATA              CLOB;
+
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="terr-updt.xsd"';
+    V_FILE_NAME            VARCHAR2(100) := 'TerritoryUpdate';
+    V_DONE_FILE            VARCHAR2(100);
+    V_ERROR                VARCHAR2(1000);
+    V_COMMENTS             VARCHAR2(4000);
+    V_COSTCENTER_REC       COST_CENTER%ROWTYPE;
+    V_TERRITORY            TERRITORY%ROWTYPE;
+    V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE;
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+    V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
+    G_QUOTES               VARCHAR2(10) :='"';
+
+BEGIN
+
+    V_COMMENTS := 'GEN_POS_TERRITORY_DATA_SP Procedure started at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);
+    V_FILE_NAME := V_FILE_NAME||'_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
+
+    --Insert one entry into the POS_DOWNLOADS table.
+    V_POS_ID := INS_POS_DOWNLOADS_FN('TERRIL','MANUAL_LOAD','TERR_INIT_LOAD','POS_TERRITORY_UPDATE');
+
+    V_REC_POSDATA := POS_DATA_GENERATION.RETURN_POS_DOWNLOADS(V_POS_ID,NULL);
+
+    FOR TERR_REC IN (SELECT COST_CENTER_CODE FROM COST_CENTER WHERE CATEGORY='T' AND CLOSE_DATE IS NULL) LOOP
+        V_TERRITORY        := RETURN_TERRITORY_INFO  (TERR_REC.COST_CENTER_CODE);
+        V_COSTCENTER_REC   := RETURN_COST_CENTER_INFO(TERR_REC.COST_CENTER_CODE);
+        V_EMPLOYEE_DETAILS := RETURN_EMPLOYEE_DETAILS(TERR_REC.COST_CENTER_CODE,'SALES-REP');
+
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_COSTCENTER_REC.COST_CENTER_CODE,'terr-nbr')||CHR(10);
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_TERRITORY.HOME_STORE,'home-store')||CHR(10);
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.FIRST_NAME),'first-nm')||CHR(10);
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.MIDDLE_INITIAL),'mid-nm')||CHR(10);
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG((V_EMPLOYEE_DETAILS.LAST_NAME),'last-nm')||CHR(10);
+        V_XMLDATA       := V_XMLDATA||CCN_COMMON_TOOLS.BUILD_TAG(V_COSTCENTER_REC.COUNTRY_CODE,'geo-country')||CHR(10);
+
+        V_XMLDATA       := '<terrUpdtRcd dtl_trans_type='||G_QUOTES
+                                                         ||'R'
+                                                         ||'">'
+                                                         ||CHR(10)
+                                                         ||V_XMLDATA
+                                                         ||'</terrUpdtRcd>'
+                                                         ||CHR(10);
+        V_XMLOUTPUT     := V_XMLOUTPUT||V_XMLDATA;
+        V_XMLDATA       := NULL;
+        V_REC_COUNT     := V_REC_COUNT+1;
+
+
+
+    END LOOP;
+
+    V_XMLOUTPUT := V_XMLVERSION||CHR(10)||'<terrUpdtMsg '||CHR(10)||V_XMLNAMESPACE||CHR(10)||V_XMLXSDPATH||' >'||
+                                   CHR(10)||RETURN_HEADER_RECORD('TER1','TERR',V_REC_COUNT,'U')||
+                                   CHR(10)||V_XMLOUTPUT||'</terrUpdtMsg>';
+
+     --Generate the output as a file.
+    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
+    V_DONE_FILE := REPLACE(V_FILE_NAME,'.XML','.POLLINGDONE');
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done', 'CCN_DATAFILES', V_DONE_FILE);
+
+    V_REC_POSDATA.FILE_NAME := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.COMMENTS := 'Init load for territory file done. The file name is '||V_FILE_NAME;
+
+    POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
+    COMMIT;
+
+EXCEPTION
+WHEN OTHERS THEN
+    V_ERROR  := 'SQLCODE->'||SQLCODE||CHR(10)||'SQLERRM->'||SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+    ROLLBACK;
+    CCN_ERRPKG.insert_error_log_sp(SQLCODE,'GEN_POS_TERRITORY_UPD_SP',V_ERROR,'000000');
+
+END INIT_LOAD_TERR_SP;
+
 END POS_DATA_GENERATION;
