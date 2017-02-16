@@ -7,6 +7,11 @@
 # Created  : 01/10/2017 mxk766 CCN Project Team.....
 # Modified :
 ###############################################################################################################################
+#Run below command to make the process run in the background even after shutdown
+#nohup sh /app/ccn/update_posdownloads_request_id.sh > /app/ccn/datafiles/log/update_posdownloads_request_id.log 2>&1 &
+
+#Below statement will be used to check if the process is running in the background
+#ps -eaf | grep update_posdownloads_request_id.sh
 
 . /app/ccn/host.sh
 

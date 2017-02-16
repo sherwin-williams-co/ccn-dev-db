@@ -8,6 +8,12 @@
 # Modified :
 ###############################################################################################################################
 # shellcheck disable=SC1091
+#Run below command to make the process run in the background even after shutdown
+#nohup sh /app/ccn/mv_posfiles_from_dbserver_to_appserver.sh > /app/ccn/datafiles/log/mv_posfiles_from_dbserver_to_appserver.log 2>&1 &
+
+#Below statement will be used to check if the process is running in the background
+#ps -eaf | grep mv_posfiles_from_dbserver_to_appserver.sh
+
 . /app/ccn/host.sh
 PROC_NAME=mv_posfiles_from_dbserver_to_appserver.sh
 DATADIR="$HOME"/datafiles
