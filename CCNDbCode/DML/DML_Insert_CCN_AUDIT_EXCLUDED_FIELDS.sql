@@ -3,6 +3,7 @@ Below script is created to insert data into CCN_AUDIT_EXCLUDED_FIELDS table.
 This table holds the table names and fields that are not part of the CCN audit.
 
 Created : 02/16/2017 gxg192 CCN Project....
+Modified: 02/21/2017 gxg192 Changes for Store
 
 *****************************************************************************/
 
@@ -37,7 +38,7 @@ VALUES ('POLLING','CURRENT_FLAG','Y');
 
 --STORE
 INSERT INTO CCN_AUDIT_EXCLUDED_FIELDS (TABLE_NAME,COLUMN_NAME,EXCLUDED_INDICATOR) 
-VALUES ('STORE','EFFECTIVE_DATE','Y');
+VALUES ('STORE','SALES_VOL_CLASS_CODE','Y');
 
 --TERMINAL
 INSERT INTO CCN_AUDIT_EXCLUDED_FIELDS (TABLE_NAME,COLUMN_NAME,EXCLUDED_INDICATOR) 

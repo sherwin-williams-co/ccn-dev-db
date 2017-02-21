@@ -4,8 +4,8 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
    TR_BANK_CARD_UPD.TRG
    This trigger will insert records into audit_log table for logging changes
    happened on BANK_CARD table.
-   Modified : 02/17/2017 gxg192 Added 2 new fields, PCI_MERCHANT_ID and
-   PCI_DISCOVER_ID
+   Modified : 02/17/2017 gxg192 Added 2 new fields, PCI_MERCHANT_ID and PCI_DISCOVER_ID
+            : 02/21/2017 gxg192 Added , to rectify compilation error
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.BANK_CARD
@@ -134,7 +134,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
          EXCEPTION
          WHEN OTHERS THEN
             ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                       'TR_BANK_CARD_UPD'
+                                       'TR_BANK_CARD_UPD',
                                        SQLERRM,
                                        V_BANK_CARD_ROW.COST_CENTER_CODE );
          END;
