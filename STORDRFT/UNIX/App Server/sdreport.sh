@@ -3,6 +3,8 @@
 #
 # Created:  nxk927
 # modified: nxk927 2/24/2015
+# modified: nxk927 2/27/2017
+#           added the new summary report in the run1.txt file and concaneting the summary report in the final report
 ##########################################################
 
 DATE=`date +"%m/%d/%Y"`
@@ -22,7 +24,7 @@ FPATH="/app/strdrft/sdReport/reports/final"
 
 echo "\n Concatenating files"
 
-cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt > $FPATH/glreport.txt 
+cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt $FPATH/Store_gl_report.txt > $FPATH/glreport.txt
 echo "\n Done Concatenating files"
 
 DATE=`date +"%m%d%Y"`
