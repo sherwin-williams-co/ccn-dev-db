@@ -21,7 +21,7 @@ PROCEDURE SNTRST_STRE_DRAFTS_MNTN_AMT_ST(
 	SNTRST_STRE_DRAFTS_MNTN_AMT_ST
 	This procedure will display the suntrust bank daily drafts maintenance records
 	for given transaction date.
-  SUNTRUST DRAFT MAINT RECORDS WRITTEN (8) - STBD1300
+  SUNTRUST DRAFT MAINT RECORDS WRITTEN (8a) - STBD1300
 
 created : 02/23/2017 axt754 CCN Project....
 
@@ -33,7 +33,7 @@ PROCEDURE SD_AUDIT_REC_READ_AMT_SPLT(
 	SD_AUDIT_REC_READ_AMT_SPLT
 	This Procedure will display records of the daily drafts with amount change date,
 	void date and stop pay date as passed date
-  SUNTRUST DRAFT AUDIT RECORDS READ (9) - STBD1300
+  SUNTRUST DRAFT AUDIT RECORDS READ (9a) - STBD1300
 
 created : 02/23/2017 axt754 CCN Project....
 
