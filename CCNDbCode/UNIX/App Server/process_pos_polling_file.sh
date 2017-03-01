@@ -9,6 +9,12 @@
 ###############################################################################################################################
 # shellcheck disable=SC1091
 
+#Run below command to make the process run in the background even after shutdown
+#nohup sh /app/ccn/process_pos_polling_file.sh > /app/ccn/polling/log/process_pos_polling_file.log 2>&1 &
+
+#Below statement will be used to check if the process is running in the background
+#ps -eaf | grep process_pos_polling_file.sh
+
 . /app/ccn/dev/ccn.config
 
 DATADIR="$HOME/polling/datafiles"
