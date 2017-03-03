@@ -24,7 +24,7 @@ FPATH="/app/strdrft/sdReport/reports/final"
 
 echo "\n Concatenating files"
 
-cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt $FPATH/Store_gl_report.txt > $FPATH/glreport.txt
+cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt $FPATH/Store_gl_report.txt $FPATH/Unbooked_Store_gl_report.txt > $FPATH/glreport.txt
 echo "\n Done Concatenating files"
 
 DATE=`date +"%m%d%Y"`
