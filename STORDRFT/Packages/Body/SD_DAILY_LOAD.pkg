@@ -1,4 +1,4 @@
-create or replace PACKAGE body SD_DAILY_LOAD
+CREATE OR REPLACE PACKAGE BODY SD_DAILY_LOAD
 /****************************************************************************** 
 This package BODY will load:
   
@@ -423,7 +423,6 @@ IS
         SELECT *
         FROM DLY_ISSUE_CHANGE_DATA;
 
-
     V_COMMIT                      NUMBER := 0;
     V_COUNT                       NUMBER := 0;
     V_STOREDRAFT_TEMP_ROW         STORE_DRAFTS%ROWTYPE;
@@ -493,8 +492,7 @@ BEGIN
             SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_STOREDRAFT_TEMP_ROW);
 
             V_STOREDRAFT_TEMP_ROW.LOAD_DATE      := TRUNC(SYSDATE);
-                 
-                   
+
             IF SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(V_STOREDRAFT_TEMP_ROW) THEN
                 INSERT INTO UNATTACHED_MNL_DRFT_DTL VALUES V_STOREDRAFT_TEMP_ROW;
             ELSE
@@ -548,8 +546,7 @@ BEGIN
                                            NVL(rec.TRANSACTION_DATE,'')||':'||
                                            NVL(rec.TERMINAL_NUMBER,'')||':'||
                                            NVL(rec.TRANSACTION_NUMBER,''));
-                                           
-                                           
+
         END;
     END LOOP;
     COMMIT;
@@ -775,29 +772,48 @@ This Procedure will check the data from UNATTACHED_MNL_DRFT_DTL and if parent fo
 in STORE_DRAFTS table pushes that records to STORE_DRAFTS_DETAIL as well as 
 UNATTACHED_MNL_DRFT_DTL_HST table
 
-created : 08/25/2014 jxc517 CCN Project....
-changed : 09/15/2014 jxc517 CCN Project....Modified IF condition to include "NOT"
+Created : 08/25/2014 jxc517 CCN Project....
+Changed : 09/15/2014 jxc517 CCN Project....Modified IF condition to include "NOT"
+        : 02/27/2017 gxg192 Changes to load data into STORE_DRAFTS only after POS is received
 ******************************************************************/
 AS
     V_CONTEXT    VARCHAR2(200);
+    V_COUNT      NUMBER := 0;
 BEGIN
 
       FOR rec IN (SELECT * FROM UNATTACHED_MNL_DRFT_DTL) LOOP
           IF NOT SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(rec) THEN
-              INSERT INTO STORE_DRAFTS VALUES rec;
-              INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
-              DELETE
-                FROM UNATTACHED_MNL_DRFT_DTL
+
+              SELECT COUNT(*)
+                INTO V_COUNT
+                FROM STORE_DRAFTS
                WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
-                 AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                 AND TRANSACTION_DATE    = rec.TRANSACTION_DATE;
+                 AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+
+              IF V_COUNT <> 0 THEN
+
+                  UPDATE STORE_DRAFTS
+                     SET BANK_PAID_AMOUNT     = rec.BANK_PAID_AMOUNT,
+                         PAID_DATE            = rec.PAID_DATE
+                   WHERE NVL(COST_CENTER_CODE,'XXX')           = rec.COST_CENTER_CODE
+                     AND NVL(CHECK_SERIAL_NUMBER,'XXX')        = rec.CHECK_SERIAL_NUMBER
+                     AND NVL(TRANSACTION_DATE,TRUNC(SYSDATE))  = rec.TRANSACTION_DATE;
+
+                  INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
+                  DELETE
+                    FROM UNATTACHED_MNL_DRFT_DTL
+                   WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
+                     AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                     AND TRANSACTION_DATE    = rec.TRANSACTION_DATE;
+
+              END IF;
           END IF;
       END LOOP;
        
 EXCEPTION
     WHEN OTHERS THEN
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'CCN_SD_DAILY_HST_LOAD_SP',
+                                    'CCN_SD_ATTACH_MNL_DRFT_DTL_SP',
                                     SQLERRM,
                                     '000000',
                                     '0000000000'); 
@@ -810,8 +826,9 @@ PROCEDURE DAILY_LOAD_SP
    This Procedure is a wrapper for the daily Load of the store drafts tables
     * Loads all the store drafts tables
 
-created : 06/11/2014 jxc517 CCN Project....
-changed :
+Created : 06/11/2014 jxc517 CCN Project....
+Changed : 02/27/2017 gxg192 Changes to call CCN_SD_ATTACH_MNL_DRFT_DTL_SP after STORE_DRAFTS
+                     and STORE_DRAFTS_DETAIL are loaded
 ******************************************************************/
 AS
     V_CONTEXT    VARCHAR2(200);
@@ -844,11 +861,6 @@ BEGIN
       DBMS_OUTPUT.PUT_LINE('CUSTOMER_SALES_TAX loaded in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST Table ';
-      SD_DAILY_LOAD.CCN_SD_ATTACH_MNL_DRFT_DTL_SP();
-      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load STORE_DRAFTS Table ';
       LOAD_DLY_STORE_DRAFTS();
       DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
@@ -857,12 +869,16 @@ BEGIN
       V_CONTEXT := 'Load STORE_DRAFTS_DETAIL Table ';
       LOAD_DLY_STORE_DRAFTS_DETAIL();
       DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS_DETAIL loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST Table ';
+      SD_DAILY_LOAD.CCN_SD_ATTACH_MNL_DRFT_DTL_SP();
+      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load HST_STORE_DRAFTS and HST_STORE_DRAFTS_DETAIL Table ';
       SD_DAILY_LOAD.CCN_SD_DAILY_HST_LOAD_SP();
       DBMS_OUTPUT.PUT_LINE('HST_STORE_DRAFTS and HST_STORE_DRAFTS_DETAIL loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
 
 EXCEPTION
     WHEN OTHERS THEN
