@@ -5,9 +5,11 @@
 # Description   : This script is to process polling files that moved from db server to app server and send it to polling.
 #
 # Created  : 01/10/2017 mxk766 CCN Project Team.....
-# Modified :
+# Modified : 03/06/2017 rxv940 CCN Project Team ....
+#            Changes to reflect the new directory structures. Changes done in path computation variables
 ###############################################################################################################################
 # shellcheck disable=SC1091
+
 
 #Run below command to make the process run in the background even after shutdown
 #nohup sh /app/ccn/process_pos_polling_file.sh > /app/ccn/polling/log/process_pos_polling_file.log 2>&1 &
@@ -15,15 +17,15 @@
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep process_pos_polling_file.sh
 
-. /app/ccn/dev/ccn.config
+. /app/ccn/ccn.config
 
-DATADIR="$HOME/polling/datafiles"
-ERRORDIR="$HOME/polling/error"
-ARCHIVEDIR="$HOME/polling/archivefiles"
-LOGDIR="$HOME/polling/log"
+DATADIR="$HOME/POSdownloads/POSxmls"
+ERRORDIR="$HOME/POSdownloads/error"
+ARCHIVEDIR="$HOME/POSdownloads/POSxmls/archivefiles"
+LOGDIR="$HOME/POSdownloads/log"
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
-CLASSHOME="$HOME/polling/java"
+CLASSHOME="$HOME/POSdownloads/java"
 
 while(true)
 do

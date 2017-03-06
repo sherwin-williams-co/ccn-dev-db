@@ -5,21 +5,19 @@
 # Description   : This script is to transfer files from db server to app server.
 #
 # Created  : 01/10/2017 mxk766 CCN Project Team.....
-# Modified :
+# Modified : 03/10/2017 rxv940 CCN Project Team.....
+#            changes to ccn.config path, changes to variables that compute the directory paths
 ###############################################################################################################################
 # shellcheck disable=SC1091
-
 #Run below command to make the process run in the background even after shutdown
 #nohup sh /app/ccn/mv_polling_requests_to_dbserver.sh > /app/ccn/polling/log/mv_polling_requests_to_dbserver.log 2>&1 &
-
-#Below statement will be used to check if the process is running in the background
 #ps -eaf | grep mv_polling_requests_to_dbserver.sh
 
-. /app/ccn/dev/ccn.config
+. /app/ccn/ccn.config
 
-DATADIR="$HOME/polling/datafiles"
-ARCHIVEDIR="$HOME/polling/archivefiles"
-LOGDIR="$HOME/polling/log"
+DATADIR="$HOME/POSdownloads/POSxmls"
+ARCHIVEDIR="$HOME/POSdownloads/archivefiles"
+LOGDIR="$HOME/POSdownloads/log"
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
 

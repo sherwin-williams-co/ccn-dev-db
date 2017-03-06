@@ -4,9 +4,10 @@
 # Description   : This shell script will send email  for the passed category as parameter
 #
 # Created  : 01/26/2016 mxk766 CCN Project Team.....
-# Modified : 
+# Modified : 03/06/2017 rxv940 CCN Project Team..... 
+#            Changes to the path of ccn.config
 #################################################################
-. /app/ccn/dev/ccn.config
+. /app/ccn/ccn.config
 
 
 proc_name="send_mail.sh";
