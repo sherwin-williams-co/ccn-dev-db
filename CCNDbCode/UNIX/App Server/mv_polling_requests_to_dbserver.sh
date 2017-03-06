@@ -10,7 +10,7 @@
 ###############################################################################################################################
 # shellcheck disable=SC1091
 #Run below command to make the process run in the background even after shutdown
-#nohup sh /app/ccn/mv_polling_requests_to_dbserver.sh > /app/ccn/polling/log/mv_polling_requests_to_dbserver.log 2>&1 &
+#nohup sh /app/ccn/scripts/mv_polling_requests_to_dbserver.sh > /app/ccn/POSdownloads/log/mv_polling_requests_to_dbserver.log 2>&1 &
 #ps -eaf | grep mv_polling_requests_to_dbserver.sh
 
 . /app/ccn/ccn.config
