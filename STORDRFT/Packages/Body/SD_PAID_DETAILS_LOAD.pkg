@@ -1,5 +1,5 @@
-create or replace 
-PACKAGE body SD_PAID_DETAILS_LOAD
+CREATE OR REPLACE
+PACKAGE BODY SD_PAID_DETAILS_LOAD
 /**************************************************************** 
 This package will update paid details in the existing CCN Store Drafts Oracle Database
 created : 07/23/2014 jxc517 CCN Project....
@@ -17,78 +17,85 @@ Changed : 02/28/2015 nxk927 (update all the drafts excluding void and stopped dr
                      if paid details are received before POS is received
         : 03/06/2017 gxg192 Changes to update UNATTACHED_MNL_DRFT_DTL table
                      only if record is not found in store drafts table.
+        : 03/07/2017 gxg192 Changes to load paid details if paid date is not null
 ******************************************************************/
 AS
     CURSOR TEMP_CUR is
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE_PAID, 'MMDDYY') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(PAID_AMONUT_ITEMS,10,2) AMOUNT,
-               PAID_CHECK_SERIAL_NUMBER CHECK_SERIAL_NUMBER
+               CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PAID_CHECK_SERIAL_NUMBER) CHECK_SERIAL_NUMBER
           FROM TEMP_PAID_DETAILS_SUNTRUST;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
 BEGIN
     FOR rec IN TEMP_CUR LOOP
-        BEGIN
-            rec.CHECK_SERIAL_NUMBER := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
-
-            /*If POS is not yet received for a draft then there will be no record in store_drafts table for it;
-              so below query will throw no data found exception and CHECK_SERIAL_NUMBER will be Null.*/
-            SELECT *
-              INTO V_TEMP_ROW
-              FROM STORE_DRAFTS
-             WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
-
-            V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
-            V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
-            SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
-
-            UPDATE STORE_DRAFTS
-               SET ROW = V_TEMP_ROW
-             WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-               AND VOID_DATE IS NULL
-               AND STOP_PAY_DATE IS NULL;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                V_TEMP_ROW := NULL;
-                ERRPKG.INSERT_ERROR_LOG_SP(200,
-                                           'CCN_SD_PAID_LOAD_SUNTRUST_SP',
-                                           'Error occurred while updating data in STORE_DRAFTS table is '||SUBSTR(SQLERRM,1,400),
-                                           NULL, --cost_center_code
-                                           NVL(rec.CHECK_SERIAL_NUMBER,''));
-        END;
-
-        /*If POS is not yet received for a draft, Updating the unattached draft if unattached draft is available.*/
-        IF V_TEMP_ROW.CHECK_SERIAL_NUMBER IS NULL THEN
+        IF rec.PAID_DATE IS NOT NULL THEN
             BEGIN
+                /*If POS is not yet received for a draft then there will be no record in store_drafts table for it;
+                  so below query will throw no data found exception and CHECK_SERIAL_NUMBER will be Null.*/
                 SELECT *
                   INTO V_TEMP_ROW
-                  FROM UNATTACHED_MNL_DRFT_DTL
+                  FROM STORE_DRAFTS
                  WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
 
                 V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
                 V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
                 SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
 
-                UPDATE UNATTACHED_MNL_DRFT_DTL
+                UPDATE STORE_DRAFTS
                    SET ROW = V_TEMP_ROW
-                 WHERE CHECK_SERIAL_NUMBER = V_TEMP_ROW.CHECK_SERIAL_NUMBER
+                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
                    AND VOID_DATE IS NULL
                    AND STOP_PAY_DATE IS NULL;
 
             EXCEPTION
                 WHEN OTHERS THEN
+                    V_TEMP_ROW := NULL;
                     ERRPKG.INSERT_ERROR_LOG_SP(200,
                                                'CCN_SD_PAID_LOAD_SUNTRUST_SP',
-                                               'Error occurred while updating data in UNATTACHED_MNL_DRFT_DTL table is '||SUBSTR(SQLERRM,1,400),
+                                               'Error occurred while updating data in STORE_DRAFTS table is '||SUBSTR(SQLERRM,1,400),
                                                NULL, --cost_center_code
                                                NVL(rec.CHECK_SERIAL_NUMBER,''));
             END;
+
+            /*If POS is not yet received for a draft, Updating the unattached draft if unattached draft is available.*/
+            IF V_TEMP_ROW.CHECK_SERIAL_NUMBER IS NULL THEN
+                BEGIN
+                    SELECT *
+                      INTO V_TEMP_ROW
+                      FROM UNATTACHED_MNL_DRFT_DTL
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+
+                    V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
+                    V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
+                    SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
+
+                    UPDATE UNATTACHED_MNL_DRFT_DTL
+                       SET ROW = V_TEMP_ROW
+                     WHERE CHECK_SERIAL_NUMBER = V_TEMP_ROW.CHECK_SERIAL_NUMBER
+                       AND VOID_DATE IS NULL
+                       AND STOP_PAY_DATE IS NULL;
+
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(200,
+                                                   'CCN_SD_PAID_LOAD_SUNTRUST_SP',
+                                                   'Error occurred while updating data in UNATTACHED_MNL_DRFT_DTL table is '||SUBSTR(SQLERRM,1,400),
+                                                   NULL, --cost_center_code
+                                                   NVL(rec.CHECK_SERIAL_NUMBER,''));
+                END;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+        ELSE
+            ERRPKG.INSERT_ERROR_LOG_SP(200,
+                                       'CCN_SD_PAID_LOAD_SUNTRUST_SP',
+                                       'Paid Date is null',
+                                       NULL, --cost_center_code
+                                       NVL(rec.CHECK_SERIAL_NUMBER,''));
         END IF;
 
-        V_TEMP_ROW := NULL ;
-        V_COMMIT := V_COMMIT + 1;
+        V_TEMP_ROW := NULL;
         IF V_COMMIT > 500 THEN
             COMMIT;
             V_COMMIT := 0;
@@ -114,61 +121,33 @@ Changed : 02/28/2015 nxk927 (update all the drafts excluding void and stopped dr
                      if paid details are received before POS is received
         : 03/06/2017 gxg192 Changes to update UNATTACHED_MNL_DRFT_DTL table
                      only if record is not found in store drafts table.
+        : 03/07/2017 gxg192 Changes to load paid details if paid date is not null
 ******************************************************************/
 AS
     CURSOR TEMP_CUR is
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
-               FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK CHECK_SERIAL_NUMBER
+               CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK) CHECK_SERIAL_NUMBER
           FROM TEMP_PAID_DETAILS_ROYAL;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
 BEGIN
     FOR rec IN TEMP_CUR LOOP
-        BEGIN
-            rec.CHECK_SERIAL_NUMBER := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
-
-            /*If POS is not yet received for a draft then there will be no record in store_drafts table for it;
-              so below query will throw no data found exception and CHECK_SERIAL_NUMBER will be Null.*/
-            SELECT *
-              INTO V_TEMP_ROW
-              FROM STORE_DRAFTS
-             WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
-
-            V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
-            V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
-            SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
-
-            UPDATE STORE_DRAFTS
-               SET ROW = V_TEMP_ROW
-             WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-               AND VOID_DATE IS NULL
-               AND STOP_PAY_DATE IS NULL;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                V_TEMP_ROW := NULL;
-                ERRPKG.INSERT_ERROR_LOG_SP(200,
-                                           'CCN_SD_PAID_LOAD_ROYAL_SP',
-                                           'Error occurred while updating data in STORE_DRAFTS table is '||SUBSTR(SQLERRM,1,400),
-                                           NULL, --cost_center_code
-                                           NVL(rec.CHECK_SERIAL_NUMBER,''));
-        END;
-
-        /*If POS is not yet received for a draft, Updating the unattached draft if unattached draft is available.*/
-        IF V_TEMP_ROW.CHECK_SERIAL_NUMBER IS NULL THEN
+        IF rec.PAID_DATE IS NOT NULL THEN
             BEGIN
+                /*If POS is not yet received for a draft then there will be no record in store_drafts table for it;
+                  so below query will throw no data found exception and CHECK_SERIAL_NUMBER will be Null.*/
                 SELECT *
                   INTO V_TEMP_ROW
-                  FROM UNATTACHED_MNL_DRFT_DTL
+                  FROM STORE_DRAFTS
                  WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
 
                 V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
                 V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
                 SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
 
-                UPDATE UNATTACHED_MNL_DRFT_DTL
+                UPDATE STORE_DRAFTS
                    SET ROW = V_TEMP_ROW
                  WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
                    AND VOID_DATE IS NULL
@@ -176,16 +155,50 @@ BEGIN
 
             EXCEPTION
                 WHEN OTHERS THEN
+                    V_TEMP_ROW := NULL;
                     ERRPKG.INSERT_ERROR_LOG_SP(200,
                                                'CCN_SD_PAID_LOAD_ROYAL_SP',
-                                               'Error occurred while updating data in UNATTACHED_MNL_DRFT_DTL table is '||SUBSTR(SQLERRM,1,400),
+                                               'Error occurred while updating data in STORE_DRAFTS table is '||SUBSTR(SQLERRM,1,400),
                                                NULL, --cost_center_code
                                                NVL(rec.CHECK_SERIAL_NUMBER,''));
             END;
-        END IF;
 
+            /*If POS is not yet received for a draft, Updating the unattached draft if unattached draft is available.*/
+            IF V_TEMP_ROW.CHECK_SERIAL_NUMBER IS NULL THEN
+                BEGIN
+                    SELECT *
+                      INTO V_TEMP_ROW
+                      FROM UNATTACHED_MNL_DRFT_DTL
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+
+                    V_TEMP_ROW.PAID_DATE           := rec.PAID_DATE;
+                    V_TEMP_ROW.BANK_PAID_AMOUNT    := rec.AMOUNT;
+                    SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_TEMP_ROW);
+
+                    UPDATE UNATTACHED_MNL_DRFT_DTL
+                       SET ROW = V_TEMP_ROW
+                     WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                       AND VOID_DATE IS NULL
+                       AND STOP_PAY_DATE IS NULL;
+
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        ERRPKG.INSERT_ERROR_LOG_SP(200,
+                                                   'CCN_SD_PAID_LOAD_ROYAL_SP',
+                                                   'Error occurred while updating data in UNATTACHED_MNL_DRFT_DTL table is '||SUBSTR(SQLERRM,1,400),
+                                                   NULL, --cost_center_code
+                                                   NVL(rec.CHECK_SERIAL_NUMBER,''));
+                END;
+            END IF;
+            V_COMMIT := V_COMMIT + 1;
+        ELSE
+            ERRPKG.INSERT_ERROR_LOG_SP(200,
+                                       'CCN_SD_PAID_LOAD_ROYAL_SP',
+                                       'Paid Date is null',
+                                       NULL, --cost_center_code
+                                       NVL(rec.CHECK_SERIAL_NUMBER,''));
+        END IF;
         V_TEMP_ROW := NULL ;
-        V_COMMIT := V_COMMIT + 1;
         IF V_COMMIT > 500 THEN
             COMMIT;
             V_COMMIT := 0;
