@@ -775,48 +775,39 @@ UNATTACHED_MNL_DRFT_DTL_HST table
 Created : 08/25/2014 jxc517 CCN Project....
 Changed : 09/15/2014 jxc517 CCN Project....Modified IF condition to include "NOT"
         : 02/27/2017 gxg192 Changes to load data into STORE_DRAFTS only after POS is received
+        : 03/06/2017 gxg192 Removed call to SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT
+                            function and changes to optimize code
 ******************************************************************/
 AS
-    V_CONTEXT    VARCHAR2(200);
-    V_COUNT      NUMBER := 0;
 BEGIN
 
-      FOR rec IN (SELECT * FROM UNATTACHED_MNL_DRFT_DTL) LOOP
-          IF NOT SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(rec) THEN
+    /*If POS is received for an unattached manual draft, then store drafts table is updated
+      with paid details from unattached table and unattached draft is removed;
+      else the draft is kept in UNATTACHED_MNL_DRFT_DTL table till POS is received for it.*/
+    FOR rec IN (SELECT * FROM UNATTACHED_MNL_DRFT_DTL) LOOP
+        BEGIN
+            UPDATE STORE_DRAFTS
+               SET BANK_PAID_AMOUNT     = rec.BANK_PAID_AMOUNT,
+                   PAID_DATE            = rec.PAID_DATE
+             WHERE CHECK_SERIAL_NUMBER  = rec.CHECK_SERIAL_NUMBER;
 
-              SELECT COUNT(*)
-                INTO V_COUNT
-                FROM STORE_DRAFTS
-               WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
-                 AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+            IF SQL%ROWCOUNT <> 0 THEN
+                INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
 
-              IF V_COUNT <> 0 THEN
+                DELETE
+                  FROM UNATTACHED_MNL_DRFT_DTL
+                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                            'CCN_SD_ATTACH_MNL_DRFT_DTL_SP',
+                                            SQLERRM,
+                                            rec.COST_CENTER_CODE,
+                                            rec.CHECK_SERIAL_NUMBER);
+        END;
+    END LOOP;
 
-                  UPDATE STORE_DRAFTS
-                     SET BANK_PAID_AMOUNT     = rec.BANK_PAID_AMOUNT,
-                         PAID_DATE            = rec.PAID_DATE
-                   WHERE NVL(COST_CENTER_CODE,'XXX')           = rec.COST_CENTER_CODE
-                     AND NVL(CHECK_SERIAL_NUMBER,'XXX')        = rec.CHECK_SERIAL_NUMBER
-                     AND NVL(TRANSACTION_DATE,TRUNC(SYSDATE))  = rec.TRANSACTION_DATE;
-
-                  INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
-                  DELETE
-                    FROM UNATTACHED_MNL_DRFT_DTL
-                   WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
-                     AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
-                     AND TRANSACTION_DATE    = rec.TRANSACTION_DATE;
-
-              END IF;
-          END IF;
-      END LOOP;
-       
-EXCEPTION
-    WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'CCN_SD_ATTACH_MNL_DRFT_DTL_SP',
-                                    SQLERRM,
-                                    '000000',
-                                    '0000000000'); 
 END CCN_SD_ATTACH_MNL_DRFT_DTL_SP;
 
 PROCEDURE DAILY_LOAD_SP
