@@ -16,7 +16,7 @@
 . /app/ccn/ccn.config
 
 DATADIR="$HOME/POSdownloads/POSxmls"
-ARCHIVEDIR="$HOME/POSdownloads/archivefiles"
+ARCHIVEDIR="$HOME/POSdownloads/POSxmls/archivefiles"
 LOGDIR="$HOME/POSdownloads/log"
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
