@@ -2,8 +2,8 @@ create or replace TRIGGER COSTCNTR.TR_TERRITORY_UPD
 /**********************************************************
 created : Initial User
 Modified: rxv940 CCN Project Team....
-        : Changes to the update section of the trigger. Changed
-        : the If .. elif statement to 2 If statements.
+        : Changed code to handle file generation for both STORE
+        : and TERR. 
 **********************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.TERRITORY
 REFERENCING NEW AS NEW OLD AS OLD
