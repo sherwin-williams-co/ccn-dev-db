@@ -1,4 +1,10 @@
-CREATE OR REPLACE TRIGGER COSTCNTR.TR_TERRITORY_UPD
+create or replace TRIGGER COSTCNTR.TR_TERRITORY_UPD
+/**********************************************************
+created : Initial User
+Modified: rxv940 CCN Project Team....
+        : Changes to the update section of the trigger. Changed
+        : the If .. elif statement to 2 If statements.
+**********************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.TERRITORY
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -78,7 +84,8 @@ IF INSERTING THEN
 ELSIF UPDATING THEN
    IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE,'XXX') <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE,'XXX') THEN      
       POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_territory_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'TERRITORY',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
-			ELSIF NVL(:OLD.HOME_STORE,'XXX') <> NVL(:NEW.HOME_STORE,'XXX') THEN      
+   END IF;
+   IF NVL(:OLD.HOME_STORE,'XXX') <> NVL(:NEW.HOME_STORE,'XXX') THEN      
          POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
                                                'TERRITORY',
                                                'CHANGE',
