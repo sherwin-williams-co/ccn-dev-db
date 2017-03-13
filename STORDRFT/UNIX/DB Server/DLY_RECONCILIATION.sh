@@ -12,6 +12,8 @@
 #            the ERROR CODE that needs to be captured, will not be overwritten in the ERROR STATUS CHECK block
 #          : 3/24/2016 nxk927 CCN Project Team.....
 #            changed the error check to make it uniform
+#          : 3/3/2017 axt754 CCN Project Team.....
+#            Added Code for calling two other procedures for Daily Audit Records Read and Write
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -23,6 +25,8 @@ DATE_PREV=${DAILY_PREV_RUNDATE}
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.DISPLAY_AMOUNTS" "$DATE_PREV"
+./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SNTRST_STRE_DRAFTS_MNTN_AMT_ST" "$DATE_PREV"
+./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SD_AUDIT_REC_READ_AMT_SPLT" "$DATE_PREV"
 
 ############################################################################
 #                           ERROR STATUS CHECK
