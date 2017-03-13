@@ -35,15 +35,9 @@ if [ $status -ne 0 ]; then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
-
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
-
 ############################################################################
 
-proc_name="DLY_RECONCILIATION_SPLIT_WRITTEN"
-TIME=`date +"%H:%M:%S"`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+echo "Processing Started for DLY_RECONCILIATION_SPLIT_WRITTEN"
 
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SNTRST_STRE_DRAFTS_MNTN_AMT_ST" "$DATE_PREV"
 
@@ -53,18 +47,14 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for DLY_RECONCILIATION_SPLIT_WRITTEN"
      exit 1;
 fi
-
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
+echo "Processing finished for DLY_RECONCILIATION_SPLIT_WRITTEN"
 
 ############################################################################
 
-proc_name="DLY_RECONCILIATION_SPLIT_READ"
-TIME=`date +"%H:%M:%S"`
-echo "Processing Started for $proc_name at $TIME on $DATE"
+echo "Processing Started for DLY_RECONCILIATION_SPLIT_READ"
 
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SD_AUDIT_REC_READ_AMT_SPLT" "$DATE_PREV"
 
@@ -74,9 +64,10 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     echo "processing FAILED for DLY_RECONCILIATION_SPLIT_READ"
      exit 1;
 fi
+echo "Processing finished for DLY_RECONCILIATION_SPLIT_READ"
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
