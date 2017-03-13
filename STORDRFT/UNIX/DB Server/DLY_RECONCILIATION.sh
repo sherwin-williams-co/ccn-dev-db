@@ -25,7 +25,47 @@ DATE_PREV=${DAILY_PREV_RUNDATE}
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.DISPLAY_AMOUNTS" "$DATE_PREV"
+
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
+
+############################################################################
+
+proc_name="DLY_RECONCILIATION_SPLIT_WRITTEN"
+TIME=`date +"%H:%M:%S"`
+echo "Processing Started for $proc_name at $TIME on $DATE"
+
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SNTRST_STRE_DRAFTS_MNTN_AMT_ST" "$DATE_PREV"
+
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
+status=$?
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+     echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
+     exit 1;
+fi
+
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
+
+############################################################################
+
+proc_name="DLY_RECONCILIATION_SPLIT_READ"
+TIME=`date +"%H:%M:%S"`
+echo "Processing Started for $proc_name at $TIME on $DATE"
+
 ./EXEC_PROC_1PARAM.sh "SD_DAILY_RECS_REPORT.SD_AUDIT_REC_READ_AMT_SPLT" "$DATE_PREV"
 
 ############################################################################
