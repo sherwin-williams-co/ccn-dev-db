@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY BANKING_AUDIT_PKG as 
+CREATE OR REPLACE PACKAGE BODY BANKING_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 
@@ -439,13 +439,40 @@ BEGIN
     OUT_CONTEXT          := V_CONTEXT;
 END PROCESS_AUDIT_LOG;
 
+FUNCTION GET_MAX_TRANS_ID
+/**********************************************************
+GET_MAX_TRANS_ID
+
+This function returns the maximum log id from 'AUDIT_LOG' table.
+
+Created : 03/14/2017 gxg192 CCN Project Team . . .
+Modified:
+**********************************************************/
+RETURN audit_log.log_id%TYPE
+IS
+    L_LOG_ID audit_log.log_id%TYPE := 0;
+BEGIN
+
+    SELECT NVL(MAX(LOG_ID),0)
+      INTO L_LOG_ID
+      FROM AUDIT_LOG
+     WHERE AUDIT_REC_FLAG IS NULL;
+
+    RETURN L_LOG_ID;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN L_LOG_ID;
+END GET_MAX_TRANS_ID;
+
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
 Selects all rows from audit_log that have changed from
 the last run of the backfeed process
 
 Created : 09/15/2015 jcx517 CCN project....
-Changed :
+Changed : 03/15/2017 gxg192 Changes to run the audit log process again if new records
+                            are added in audit log while the initial process was running
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -462,30 +489,42 @@ IS
     V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+    v_before_max_tran_id AUDIT_LOG.LOG_ID%TYPE := get_max_trans_id();
+    v_after_max_tran_id  AUDIT_LOG.LOG_ID%TYPE;
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BANKING_AUDIT_LOG', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
-        BEGIN
-            SAVEPOINT NEXT_AUDIT_REC;
-            PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID,
-                              SEL_AUDIT_REC.TABLE_NAME,
-                              V_BANK_ACCOUNT_NBR,
-                              V_CC_CODE,
-                              V_CONTEXT);
-        EXCEPTION
-            WHEN OTHERS THEN
-                ROLLBACK TO NEXT_AUDIT_REC;
-                V_TRANS_STATUS := 'ERROR';
-                errpkg.INSERT_ERROR_LOG_SP(SQLCODE,
-                                           'SELECT_AUDIT_LOG', --proc name
-                                           SUBSTR(SQLERRM,1,500),
-                                           NVL(V_BANK_ACCOUNT_NBR, 'BANK_ACCOUNT_NBR'),
-                                           NVL(V_CC_CODE, 'AUDIT'),
-                                           'BANKING_AUDIT_LOG');
-        END;
-    END LOOP;  
+    LOOP
+        FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+            BEGIN
+                SAVEPOINT NEXT_AUDIT_REC;
+                PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID,
+                                  SEL_AUDIT_REC.TABLE_NAME,
+                                  V_BANK_ACCOUNT_NBR,
+                                  V_CC_CODE,
+                                  V_CONTEXT);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    ROLLBACK TO NEXT_AUDIT_REC;
+                    V_TRANS_STATUS := 'ERROR';
+                    errpkg.INSERT_ERROR_LOG_SP(SQLCODE,
+                                               'SELECT_AUDIT_LOG', --proc name
+                                               SUBSTR(SQLERRM,1,500),
+                                               NVL(V_BANK_ACCOUNT_NBR, 'BANK_ACCOUNT_NBR'),
+                                               NVL(V_CC_CODE, 'AUDIT'),
+                                               'BANKING_AUDIT_LOG');
+            END;
+        END LOOP;
+
+        v_after_max_tran_id := get_max_trans_id();
+        IF v_after_max_tran_id <> v_before_max_tran_id THEN
+            v_before_max_tran_id := v_after_max_tran_id;
+        ELSE
+            EXIT;
+        END IF;
+    END LOOP;
+
     V_CONTEXT:='Updating the Status in batch_job table';
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BANKING_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
