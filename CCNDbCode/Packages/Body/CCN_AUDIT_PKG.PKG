@@ -1399,6 +1399,37 @@ BEGIN
 --Exceptions handled in calling procedure
 END PROCESS_AUDIT_LOG;
 
+FUNCTION GET_MAX_TRANS_ID(IN_TABLE_NAME IN AUDIT_LOG.TABLE_NAME%TYPE DEFAULT NULL)
+/**********************************************************
+GET_MAX_TRANS_ID
+
+This function returns the maximum log id from 'AUDIT_LOG' table.
+
+Created : 03/14/2017 gxg192 CCN Project Team . . .
+Modified: 03/17/2017 gxg192 Changes to consider only records after last run date
+                            Also added condition for TABLE_NAME
+**********************************************************/
+RETURN audit_log.log_id%TYPE
+IS
+    L_LOG_ID audit_log.log_id%TYPE;
+BEGIN
+
+    SELECT MAX(LOG_ID)
+      INTO L_LOG_ID
+      FROM AUDIT_LOG
+     WHERE AUDIT_REC_FLAG IS NULL
+       AND TABLE_NAME = NVL(IN_TABLE_NAME,TABLE_NAME)
+       AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                  FROM BATCH_JOB
+                                 WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG');
+
+    RETURN L_LOG_ID;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN L_LOG_ID;
+END GET_MAX_TRANS_ID;
+
 PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
 SELECT_HIERARCHY_AUDIT_LOG
@@ -1406,8 +1437,10 @@ SELECT_HIERARCHY_AUDIT_LOG
 Selects all rows from audit_log that have changed from
 the last run of the backfeed process for hierarchy_detail table alone
 
-created : 10/20/2013 jxc517 CCN Project Team . . . 
-modified : 02/07/2014 jxc517 CCN Project Team . . . 
+Created  : 10/20/2013 jxc517 CCN Project Team . . .
+Modified : 02/07/2014 jxc517 CCN Project Team . . .
+           03/17/2017 gxg192 Changes to run the audit log process again if new records
+                             are added in audit log while the initial process was running
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -1431,6 +1464,8 @@ V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
+v_before_max_tran_id AUDIT_LOG.LOG_ID%TYPE := get_max_trans_id('HIERARCHY_DETAIL');
+v_after_max_tran_id  AUDIT_LOG.LOG_ID%TYPE;
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
@@ -1444,20 +1479,29 @@ BEGIN
            AND AUDIT_REC_FLAG IS NULL;
     END LOOP;
 
-    FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
-        BEGIN
-            SAVEPOINT NEXT_AUDIT_REC;
-            PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME, V_CC_CODE, V_CONTEXT);
-        EXCEPTION
-            WHEN OTHERS THEN
-                ROLLBACK TO NEXT_AUDIT_REC;
-                V_TRANS_STATUS := 'ERROR';
-                v_code  := SQLCODE;
-                v_errm  := substr(SQLERRM,1,500);
-                --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_HIERARCHY_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT'));
-        END;
-    END LOOP;  
+    LOOP
+        FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+            BEGIN
+                SAVEPOINT NEXT_AUDIT_REC;
+                PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID, SEL_AUDIT_REC.TABLE_NAME, V_CC_CODE, V_CONTEXT);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    ROLLBACK TO NEXT_AUDIT_REC;
+                    V_TRANS_STATUS := 'ERROR';
+                    v_code  := SQLCODE;
+                    v_errm  := substr(SQLERRM,1,500);
+                    --write to error log
+                    errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_HIERARCHY_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT'));
+            END;
+        END LOOP;
+
+        v_after_max_tran_id := get_max_trans_id('HIERARCHY_DETAIL');
+        IF v_after_max_tran_id <> v_before_max_tran_id THEN
+            v_before_max_tran_id := v_after_max_tran_id;
+        ELSE
+            EXIT;
+        END IF;
+    END LOOP;
 
     V_CONTEXT:='Updating the Status in batch_job table';
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
@@ -1469,32 +1513,6 @@ EXCEPTION
         V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
         ERRPKG.RAISE_ERR(-20003,'SELECT_HIERARCHY_AUDIT_LOG',V_CONTEXT);
 END SELECT_HIERARCHY_AUDIT_LOG;
-
-FUNCTION GET_MAX_TRANS_ID
-/**********************************************************
-GET_MAX_TRANS_ID
-
-This function returns the maximum log id from 'AUDIT_LOG' table.
-
-Created : 03/14/2017 gxg192 CCN Project Team . . .
-Modified:
-**********************************************************/
-RETURN audit_log.log_id%TYPE
-IS
-    L_LOG_ID audit_log.log_id%TYPE := 0;
-BEGIN
-
-    SELECT NVL(MAX(LOG_ID),0)
-      INTO L_LOG_ID
-      FROM AUDIT_LOG
-     WHERE AUDIT_REC_FLAG IS NULL;
-
-    RETURN L_LOG_ID;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN L_LOG_ID;
-END GET_MAX_TRANS_ID;
 
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
