@@ -400,6 +400,8 @@ Changed : 10/07/2015 nxk927 CCN Project....
           changed the function name from VALIDATE_CC_BNK_NBR to GET_SNZ_SAM_CODE
         : 08/23/2016 nxk927 CCN Project....
           changed the table where the data was being pulled
+        : 03/17/2017 nxk927 CCN Project....
+          taking source bank account number directly
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -417,9 +419,10 @@ IS
                --assigning code1 as SNZ if its not a valid Cost center
                BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,BANK_ACCOUNT_NBR) CODE1,
                RETURN_REFEED_CODE(TCODE) TCODE,
-               BANK_ACCOUNT_NBR
+               BANK_ACCOUNT_NBR,
+               SOURCE_BANK_ACCOUNT
           FROM MISCTRAN
-         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+         WHERE SOURCE_BANK_ACCOUNT = IN_BANK_ACCOUNT_NBR
            AND LOAD_DATE = IN_DATE
            AND TCODE IS NOT NULL
          ORDER BY COST_CENTER_CODE;
@@ -440,7 +443,7 @@ BEGIN
         --writing the header for the first time per bank account
         --then the body for all the cost center under the same bank account number
         IF V_FLAG = 'Y' THEN
-            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
+            GENERATE_HEADER(rec.SOURCE_BANK_ACCOUNT,OUT_HEADER);
             V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
 
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -631,12 +634,14 @@ Changed : 10/07/2015 nxk927 CCN Project....
         : 08/23/2016 nxk927 CCN Project....
           passing the bank account number from the misctran table instead of JV table
           using ACH_DRFTS_EXT_CTRL instead of ACH_DRFTS_EXTRCT_CNTRL_FL
-          and considering only those with BANK_AUTO_RECON_IND as 'Y'          
+          and considering only those with BANK_AUTO_RECON_IND as 'Y'
+        : 03/17/2017 nxk927 CCN Project....
+          taking source bank account number for MISCTRAN
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR ach_cur IS
-        SELECT DISTINCT BANK_ACCOUNT_NBR
+        SELECT DISTINCT SOURCE_BANK_ACCOUNT BANK_ACCOUNT_NBR
           FROM MISCTRAN
          WHERE LOAD_DATE = IN_DATE--TRUNC(SYSDATE)
          UNION
@@ -984,7 +989,7 @@ BEGIN
                                          V_SRC_BANK_ACCOUNT_NBR);
         GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
                              V_LEAD_BANK_CC_REC);
-        V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
+        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
         INSERT INTO MISCTRAN VALUES (V_BANK_ACCOUNT_NBR,
                                      REC.COST_CENTER_CODE,
                                      REC.AMOUNT,
@@ -1202,17 +1207,20 @@ IN_DATE            IN         DATE)
 IS
     CURSOR main_cur IS
         SELECT COST_CENTER_CODE,
-               (CASE WHEN SUM(TO_NUMBER(AMOUNT_SIGN||AMOUNT)) < 0 THEN '-' ELSE '+' END) AMOUNT_SIGN ,
-               LPAD(REPLACE(SUM(TO_NUMBER(AMOUNT_SIGN||AMOUNT)),'-',''),9,0)  AMOUNT
+               (CASE
+                   WHEN SUM(AMOUNT) < 0 THEN
+                      '-'
+                   ELSE
+                      '+'
+               END) AMOUNT_SIGN ,
+               LPAD(ABS(SUM(AMOUNT)),9,0)  AMOUNT
           FROM (SELECT COST_CENTER_CODE,
-                       DECODE(DB_CR_CODE, 'OC', '-', '+') AMOUNT_SIGN,
-                       SUBSTR(AMOUNT, 4) AS AMOUNT
+                       SUBSTR(AMOUNT, 4) * DECODE(DB_CR_CODE, 'OC', -1, 1) AS AMOUNT
                   FROM MISCTRAN
                  WHERE LOAD_DATE = IN_DATE
                  UNION
                 SELECT COST_CENTER_CODE,
-                       DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', '-', '+') AMOUNT_SIGN,
-                       SUBSTR(AMOUNT, 4) AS AMOUNT
+                       SUBSTR(AMOUNT, 4) * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
                   FROM OVERSHRT
                  WHERE LOAD_DATE = IN_DATE)
          GROUP BY COST_CENTER_CODE
