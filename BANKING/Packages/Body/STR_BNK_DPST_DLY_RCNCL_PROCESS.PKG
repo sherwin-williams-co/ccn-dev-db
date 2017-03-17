@@ -915,6 +915,9 @@ Created : 08/23/2016 nxk927 CCN Project....
 Changed : 11/07/2016 jxc517 CCN Project....
           adding source bank account number from header details
           we get the max(line number) from header table prior to the line number in detail table
+        : 03/17/2017 nxk927 CCN Project....
+          using source bank account number from header details instead of the bank account number
+          for the cost center that it belongs to.
 *****************************************************************************/
 IS
     CURSOR JV_MISCTRAN IS
@@ -981,7 +984,7 @@ BEGIN
                                          V_SRC_BANK_ACCOUNT_NBR);
         GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
                              V_LEAD_BANK_CC_REC);
-        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
+        V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
         INSERT INTO MISCTRAN VALUES (V_BANK_ACCOUNT_NBR,
                                      REC.COST_CENTER_CODE,
                                      REC.AMOUNT,
@@ -1191,22 +1194,29 @@ CFA => Cash Flow Adjustments
 Created : 10/27/2016 jxc517 CCN Project....
 Changed : 11/09/2016 jxc517 CCN Project....
           modified the file name from TXT to txt
+Changed : 03/17/2017 nxk927 CCN Project....
+          OC/RC should be '-' and OD/RD should be '+'
+          combining multiple transactions into one
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR main_cur IS
         SELECT COST_CENTER_CODE,
-               DECODE(DB_CR_CODE, 'OD', '-', '+') AMOUNT_SIGN,
-               SUBSTR(AMOUNT, 4) AS AMOUNT
-          FROM MISCTRAN
-         WHERE LOAD_DATE = IN_DATE
-         UNION
-        SELECT COST_CENTER_CODE,
-               DECODE(SUBSTR(TRAN_CODE, 1, 2), 'OD', '-', '+') AMOUNT_SIGN,
-               SUBSTR(AMOUNT, 4) AS AMOUNT
-          FROM OVERSHRT
-         WHERE LOAD_DATE = IN_DATE
-         ORDER BY 1;
+               (CASE WHEN SUM(TO_NUMBER(AMOUNT_SIGN||AMOUNT)) < 0 THEN '-' ELSE '+' END) AMOUNT_SIGN ,
+               LPAD(REPLACE(SUM(TO_NUMBER(AMOUNT_SIGN||AMOUNT)),'-',''),9,0)  AMOUNT
+          FROM (SELECT COST_CENTER_CODE,
+                       DECODE(DB_CR_CODE, 'OC', '-', '+') AMOUNT_SIGN,
+                       SUBSTR(AMOUNT, 4) AS AMOUNT
+                  FROM MISCTRAN
+                 WHERE LOAD_DATE = IN_DATE
+                 UNION
+                SELECT COST_CENTER_CODE,
+                       DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', '-', '+') AMOUNT_SIGN,
+                       SUBSTR(AMOUNT, 4) AS AMOUNT
+                  FROM OVERSHRT
+                 WHERE LOAD_DATE = IN_DATE)
+         GROUP BY COST_CENTER_CODE
+         ORDER BY COST_CENTER_CODE;
 
     PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
     UAR_BNK_DRFT_CRRCTN_FL_NM    VARCHAR2(50) := 'stores_cashflowadj_' ||
