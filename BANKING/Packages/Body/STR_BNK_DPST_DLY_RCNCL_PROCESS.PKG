@@ -522,7 +522,7 @@ Changed : 10/07/2015 nxk927 CCN Project....
           using ACH_DRFTS_EXT_CTRL instead of ACH_DRFTS_EXTRCT_CNTRL_FL
           and considering only those with BANK_AUTO_RECON_IND as 'Y'
         : 03/21/2017 nxk927 CCN Project....
-          Column name changed from source bank account number to ORIGINATED_BANK_ACCNT_NBR
+          Using the new field ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -641,23 +641,24 @@ Changed : 10/07/2015 nxk927 CCN Project....
         : 03/17/2017 nxk927 CCN Project....
           taking source bank account number for MISCTRAN
         : 03/21/2017 nxk927 CCN Project....
-          renamed source bank account number to ORIGINATED_BANK_ACCNT_NBR
+          Renamed SOURCE_BANK_ACCOUNT to ORIGINATED_BANK_ACCNT_NBR
+          Using the new field ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR ach_cur IS
-        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR BANK_ACCOUNT_NBR
+        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM MISCTRAN
          WHERE LOAD_DATE = IN_DATE--TRUNC(SYSDATE)
          UNION
-        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR BANK_ACCOUNT_NBR
+        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM ACH_DRFTS_EXT_CTRL--ACH_DRFTS_EXTRCT_CNTRL_FL
          WHERE LOAD_DATE = IN_DATE--TRUNC(SYSDATE)
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
          UNION
-        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR BANK_ACCOUNT_NBR
+        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM SUMMARY_EXTRCT_CNTRL_FL
          WHERE LOAD_DATE = IN_DATE;-- TRUNC(SYSDATE))
 
@@ -674,9 +675,9 @@ BEGIN
     --Push the data into SMIS1.SRA12060(+1) file
     FOR ach_rec IN ach_cur LOOP
         ---writing the UAR_POS_REFEED part first(Header, body ,trailer)
-        GENERATE_UAR_POS_REFEED_FILE(ach_rec.BANK_ACCOUNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
+        GENERATE_UAR_POS_REFEED_FILE(ach_rec.ORIGINATED_BANK_ACCNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
         ---writing the UAR_POS_BNK_DPST_ACH part  first(Header, body ,trailer)
-        GNRT_UAR_POS_BNK_DPST_ACH_FILE(ach_rec.BANK_ACCOUNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
+        GNRT_UAR_POS_BNK_DPST_ACH_FILE(ach_rec.ORIGINATED_BANK_ACCNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
     END LOOP;
     UTL_FILE.FCLOSE(UAR_POSITION_OTPT_FL);
 END GENERATE_UAR_POS_FILE;
@@ -718,6 +719,8 @@ CURSOR SUM_CUR IS
                        WHERE COST_CENTER_CODE = SM.COST_CENTER_CODE
                          AND CENTURY          = SM.CENTURY
                          AND BANK_DEP_AMT     = SM.BANK_DEP_AMT
+                         --bank account here refers to the originated bank account number
+                         --this comparisio is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL 
                          AND BANK_ACCOUNT_NBR = SM.BANK_ACCOUNT_NBR
                          AND TRANSACTION_DATE = TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR'));
     V_COUNT NUMBER := 0;
@@ -753,7 +756,7 @@ PROCEDURE LOAD_ACH_DRFTS_EXTRCT
   TEMP_LOAD_ACH_DRFTS_EXTRCT [using SRA10910 file]
 
 Created : 08/23/2016 nxk927 CCN Project....
-Changed : 03/21/2017 nxk927 CCN Project....
+Changed : : 03/21/2017 nxk927 CCN Project....
           New Column ORIGINATED_BANK_ACCNT_NBR added
 *****************************************************************************/
 IS
@@ -774,6 +777,8 @@ IS
                             WHERE ACH.COST_CENTER_CODE          = TACH.COST_CENTER_CODE
                               AND ACH.CENTURY                   = TACH.CENTURY
                               AND ACH.TRANSACTION_DATE          = TO_DATE(TACH.TRANSACTION_DATE, 'YYMMDD')
+                              --bank account here refers to the originated bank account number
+                              --this comparisio is before loading into actual table UAR_ACH_DRFTS_EXT_CTRL
                               AND ACH.BANK_DEP_AMT              = TACH.BANK_DEP_AMT
                               AND ACH.BANK_ACCOUNT_NBR          = TACH.BANK_ACCOUNT_NBR);
     V_COUNT NUMBER := 0;
@@ -1165,7 +1170,7 @@ Changed : 03/17/2017 nxk927 CCN Project....
           OC/RC should be '-' and OD/RD should be '+'
           combining multiple transactions into one
 Changed : 03/21/2017 jxc517 CCN Project Team....
-          Added code NOT to consider refeed codes 0049 and 0055
+          Added code NOT to consider transactoin code 0495
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1182,7 +1187,7 @@ IS
                        SUBSTR(AMOUNT, 4) * DECODE(DB_CR_CODE, 'OC', -1, 1) AS AMOUNT
                   FROM MISCTRAN
                  WHERE LOAD_DATE = IN_DATE
-                   AND NVL(RETURN_REFEED_CODE(TCODE), TCODE) NOT IN ('0049', '0055')
+                   AND TCODE NOT IN ('0495')
                  UNION
                 SELECT COST_CENTER_CODE,
                        SUBSTR(AMOUNT, 4) * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
