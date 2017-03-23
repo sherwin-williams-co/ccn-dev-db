@@ -1,0 +1,86 @@
+create or replace PACKAGE BODY POS_GIFT_CARD_PKG AS
+/*********************************************************************** 
+        This Package is for generating GIFT CARD file from the New POS data.
+        
+created : 03/15/2017 vxv336 CCN Team
+changed : 
+************************************************************************/
+
+PROCEDURE GENERATE_GIFT_CARD_FILE
+/*********************************************************************** 
+        This Procedure is generates GIFT CARD file.
+        
+created : 03/15/2017 vxv336 CCN Team
+changed : 
+************************************************************************/
+IS
+
+CURSOR c_legacy IS
+ SELECT '*'||CH.TRANID
+        ||CH.TRANID||'7601'
+		    ||CGC.GIFTCARDNBR
+		    ||'    '
+        ||CBS.DIVISION
+		    ||CBS.DISTRICT
+        ||CBS.AREA
+		    ||'  '
+        ||CH.STORE_NO
+        ||CH.BILLST
+        ||LPAD(CGC.AUTHAMT*100,14,'0')
+        ||TO_CHAR(TO_DATE(CH.TRAN_DATE), 'mmddyyyy')
+        ||REPLACE(SUBSTR(CH.TRAN_TIMESTAMP, 13, 5), '.', '')
+        ||CH.TERMNBR
+        ||CH.TRANNBR
+        ||LPAD(CH.EMP_NO,2,'0') gc_data
+   FROM PNP_CCN_HEADERS CH,
+        PNP_CCN_BATCH_SUMMARY CBS,
+        PNP_CCN_GIFT_CARD_LOG CGC
+  WHERE CGC.RLS_RUN_CYCLE = (SELECT MAX(CLS.RLS_RUN_CYCLE) 
+                               FROM POS_CCN_LOAD_STATUS CLS
+                              WHERE CLS.STATUS_CODE = 'C')
+    AND UPPER(CGC.ACTION) IN ('APPROVED', 'MANUAL')                               
+    AND CH.RLS_RUN_CYCLE = CGC.RLS_RUN_CYCLE 
+    AND CH.TRAN_GUID = CGC.TRAN_GUID
+    AND CH.BATCH_GUID = CBS.BATCH_GUID;
+
+g_schema                            VARCHAR2(10) := 'BANKING';
+v_file_name                         VARCHAR2(100) := 'POS_GIFT_CARD';
+v_file_path                         VARCHAR2(100);
+v_header                            VARCHAR2(100);
+v_footer1                           VARCHAR2(100);
+v_footer2                           VARCHAR2(100);
+v_gc_rec                           CLOB;
+v_gc_file                           utl_file.file_type;
+v_rec                               c_legacy%ROWTYPE;
+
+BEGIN
+    v_file_path := ccn_common_tools.get_datafile_path_fnc(g_schema);
+
+    v_gc_file := utl_file.fopen ( v_file_path
+                                                  ,v_file_name || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv'
+                                                  ,'W' 
+                                                  ,32767); 
+
+    v_header   := '*00P0315201700223609PROD';  
+    UTL_FILE.PUT_LINE(v_gc_file, v_header, TRUE);
+
+    FOR v_rec IN c_legacy LOOP
+               
+        v_gc_rec := v_rec.gc_data;
+        UTL_FILE.PUT_LINE(v_gc_file, v_gc_rec, TRUE);
+                                
+    END LOOP;
+
+    v_footer1   := '*980100000000026300000001202330';
+    v_footer2   := '*990100000000026500000001202330';
+    UTL_FILE.PUT_LINE(v_gc_file, v_footer1, TRUE);
+    UTL_FILE.PUT_LINE(v_gc_file, v_footer2, TRUE);
+    
+    IF UTL_FILE.IS_OPEN(v_gc_file) THEN
+      UTL_FILE.FCLOSE(v_gc_file);
+    END IF;
+    COMMIT;
+
+END GENERATE_GIFT_CARD_FILE;
+
+END POS_GIFT_CARD_PKG;
