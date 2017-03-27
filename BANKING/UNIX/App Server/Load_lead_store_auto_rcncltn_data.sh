@@ -6,7 +6,7 @@
 #                 The script will load the data for leads/independent stores that are having auto-reconciliation set to "Y".
 #                 
 # Created       : 01/23/2017 gxg192 CCN Project Team.....
-# Modified      : 
+# Modified      : 03/27/2017 gxg192 Changes to run data loading process only on last day of the month
 #                  
 ########################################################################################################################
 . /app/banking/dev/banking.config
@@ -20,9 +20,18 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ########################################################################
-#               Loading LEAD_STORE_AUTO_RCNCLTN_DATA table
+#      This Process needs to be run only on Last day of the Month
+#      Thus checking if Today is last day of the month
 ########################################################################
-echo "Processing Started to load LEAD_STORE_AUTO_RCNCLTN_DATA table at $TIME on $DATE"
+Lastday=`printf "%(%m/%d/%Y)T\n" "last day"`
+echo "Today's date is $DATE and Last day of this month is $Lastday"
+if [ $DATE = $Lastday ];
+then
+
+   ########################################################################
+   #               Loading LEAD_STORE_AUTO_RCNCLTN_DATA table
+   ########################################################################
+   echo "Processing Started to load LEAD_STORE_AUTO_RCNCLTN_DATA table at $TIME on $DATE"
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<END > $LOGDIR/$proc_name"_"$TimeStamp.log
 set serveroutput on;
@@ -34,14 +43,18 @@ exec :exitCode := 0;
 exit :exitCode;
 END
 
-status=$?
-TIME=`date +"%H:%M:%S"`
-if test $status -ne 0
-then
-   echo "Processing FAILED to load the LEAD_STORE_AUTO_RCNCLTN_DATA table at ${TIME} on ${DATE}"
-   exit 1;
+   status=$?
+   TIME=`date +"%H:%M:%S"`
+   if test $status -ne 0
+   then
+      echo "Processing FAILED to load the LEAD_STORE_AUTO_RCNCLTN_DATA table at ${TIME} on ${DATE}"
+      exit 1;
+   fi
+   echo "Processing completed to load the LEAD_STORE_AUTO_RCNCLTN_DATA table at ${TIME} on ${DATE}"
+
+else
+   echo "Today is NOT Last day of the Month, thus data loading process is not executed."
 fi
-echo "Processing completed to load the LEAD_STORE_AUTO_RCNCLTN_DATA table at ${TIME} on ${DATE}"
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at $TIME on $DATE"
