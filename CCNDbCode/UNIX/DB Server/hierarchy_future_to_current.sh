@@ -11,6 +11,7 @@
 #               :  gxg192 01/26/2017 1. Removed exitCode variable
 #                                    2. Changes to send email if process fails
 #               :  gxg192 01/31/2017 1. Removed ; after exit command
+#               :  sxh487 03/27/2017 Added code to ftp a trigger file to CPR
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -52,6 +53,19 @@ then
      fi
 
      exit 1
+fi
+
+############################################################################
+# Execute ftp_cpr_trigger.sh to send a trigger file to cprdbscriptqa in QA
+#                 				    or cprdbscript1 in PROD
+############################################################################
+./ftp_cpr_trigger.sh
+status=$?
+if test $status -ne 0
+then
+    TIME=`date +"%H:%M:%S"`
+    echo "Processing FAILED for ftp_cpr_trigger at ${TIME} on ${DATE}"
+    exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
