@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY CCN_BATCH_PROCESS AS
+CREATE OR REPLACE PACKAGE BODY CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package body will have procedures and functions related 
 to the batch process
@@ -18,7 +18,7 @@ IS
  	V_CLOB        CLOB;
 
 BEGIN
-   FOR REC IN (SELECT * 
+   FOR REC IN (SELECT *
                  FROM COST_CENTER 
                 WHERE OPEN_DATE = TRUNC(SYSDATE) -1
                   AND OPEN_DATE <> '01-JAN-2099') LOOP
@@ -34,5 +34,227 @@ BEGIN
       MAIL_PKG.SEND_MAIL('NEWLY_CRTD_COST_CENTER', NULL, NULL,V_CLOB);
    END IF;
 
-END NEWLY_CRTD_COST_CENTER;   
+END NEWLY_CRTD_COST_CENTER;
+
+FUNCTION GET_HIERARCHY_DETAIL_STRING(
+/**********************************************************
+	This procedure is intended to generate a file with the list of new selling stores
+  created on that day
+
+1 - consider only open/valid store cost centers under USA/CAN/PRI countries
+2 - cost center should be a complete cost center => should be part of global, facts and legacy hierarchies
+3 - selling store flag should have been set to "Y" on that day
+
+Created : 09/27/2016 jxc517 CCN project Team....
+Changed :
+**********************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2)
+RETURN VARCHAR2
+IS
+    V_GLBL_HD_VIEW_REC            HIERARCHY_DETAIL_VIEW%ROWTYPE;
+    V_LGCY_HD_VIEW_REC            HIERARCHY_DETAIL_VIEW%ROWTYPE;
+    V_FCTS_HD_VIEW_REC            HIERARCHY_DETAIL_VIEW%ROWTYPE;
+    V_RETURN_VALUE                VARCHAR2(32000);
+BEGIN
+    FOR hd_rec IN (SELECT *
+                     FROM HIERARCHY_DETAIL_VIEW
+                    WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                      AND HRCHY_HDR_NAME IN ('GLOBAL_HIERARCHY', 'FACTS_DIVISION', 'LEGACY_GL_DIVISION')) LOOP
+        IF hd_rec.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY' THEN
+            V_GLBL_HD_VIEW_REC := hd_rec;
+        ELSIF hd_rec.HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION' THEN
+            V_LGCY_HD_VIEW_REC := hd_rec;
+        ELSIF hd_rec.HRCHY_HDR_NAME = 'FACTS_DIVISION' THEN
+            V_FCTS_HD_VIEW_REC := hd_rec;
+        END IF;
+    END LOOP;
+
+    V_RETURN_VALUE := '"' || V_LGCY_HD_VIEW_REC.DIVISION || ' ~ ' || V_LGCY_HD_VIEW_REC.DIVISION_NAME || '",' ||
+                      '"' || V_FCTS_HD_VIEW_REC.DIVISION || ' ~ ' || V_FCTS_HD_VIEW_REC.DIVISION_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.DOMAIN || ' ~ ' || V_GLBL_HD_VIEW_REC.DOMAIN_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC."GROUP" || ' ~ ' || V_GLBL_HD_VIEW_REC.GROUP_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.DIVISION || ' ~ ' || V_GLBL_HD_VIEW_REC.DIVISION_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.AREA || ' ~ ' || V_GLBL_HD_VIEW_REC.AREA_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.DISTRICT || ' ~ ' || V_GLBL_HD_VIEW_REC.DISTRICT_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.CITY_SALES_MANAGER || ' ~ ' || V_GLBL_HD_VIEW_REC.CITY_SALES_MANAGER_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.ZONE || ' ~ ' || V_GLBL_HD_VIEW_REC.ZONE_NAME || '",' ||
+                      '"' || V_GLBL_HD_VIEW_REC.SPECIAL_ROLES || ' ~ ' || V_GLBL_HD_VIEW_REC.SPECIAL_ROLES_NAME;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_HIERARCHY_DETAIL_STRING;
+
+PROCEDURE GENERATE_USA_SELLING_STR_FILE(
+/**********************************************************
+This process takes care of generating USA/PRI selling store file
+
+Created : 09/27/2016 jxc517 CCN project Team....
+Changed : 04/03/2017 gxg192 Changes to send email with file as an attachment
+**********************************************************/
+IN_DATE       IN     DATE)
+IS
+    CURSOR curs IS
+        SELECT *
+          FROM COST_CENTER CC
+         WHERE CLOSE_DATE IS NULL
+           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+           AND CATEGORY = 'S'
+           AND COUNTRY_CODE IN ('USA', 'PRI')
+           AND GLOBAL_HIERARCHY_IND = 'Y'
+           AND EXISTS (SELECT 1
+                         FROM STORE S
+                        WHERE CC.COST_CENTER_CODE = S.COST_CENTER_CODE
+                          AND NVL(SELLING_STORE_FLAG, 'N') = 'Y'
+                          AND SELLING_STORE_FLAG_MARK_DT = IN_DATE);
+
+    V_CLOB                        CLOB;
+    V_CLOB_FOR_EMAIL              CLOB;
+    V_ADDRESS_USA_OT              ADDRESS_USA_OT;
+
+    PATH        	  VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME  	    VARCHAR2(50) := 'USA_SELLING_STORES_' || TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+    OUTPUT_FILE     UTL_FILE.FILE_TYPE;
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   ,'W' --BINARY
+                                   ,32767);
+
+    V_ADDRESS_USA_OT := ADDRESS_USA_OT('DUMMY', 'M');
+
+    V_CLOB := 'SELLING_STORE_MARKED_ON,' ||
+              'STORE_NUMBER,' ||
+              'STORE_NAME,' ||
+              'LEGACY_GL_DIVISION,' ||
+              'FACTS_DIVISION,' ||
+              'DOMAIN,' ||
+              'GROUP,' ||
+              'DIVISION,' ||
+              'AREA,' ||
+              'DISTRICT,' ||
+              'CITY_SALES_MANAGER,' ||
+              'ZONE,' ||
+              'SPECIAL_ROLES,' ||
+              V_ADDRESS_USA_OT.print_header_delimited(',');
+
+    V_CLOB_FOR_EMAIL := V_CLOB;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+
+    FOR cc_rec IN curs LOOP
+        V_ADDRESS_USA_OT := ADDRESS_USA_OT(cc_rec.COST_CENTER_CODE, 'M');
+
+        V_CLOB := '"' || IN_DATE || '",' ||
+                  '"' || cc_rec.COST_CENTER_CODE || '",' ||
+                  '"' || cc_rec.COST_CENTER_NAME || '",' ||
+                  GET_HIERARCHY_DETAIL_STRING(cc_rec.COST_CENTER_CODE) || '",' ||
+                  V_ADDRESS_USA_OT.print_values_delimited(',');
+
+        V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    END LOOP;
+
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+    MAIL_PKG.SEND_MAIL('SELLING_STORES_MAIL_USA', NULL, NULL,V_CLOB_FOR_EMAIL);
+
+END GENERATE_USA_SELLING_STR_FILE;
+
+PROCEDURE GENERATE_CAN_SELLING_STR_FILE(
+/**********************************************************
+This process takes care of generating CAN selling store file
+
+Created : 09/27/2016 jxc517 CCN project Team....
+Changed : 04/03/2017 gxg192 Changes to send email with file as an attachment
+**********************************************************/
+IN_DATE       IN     DATE)
+IS
+    CURSOR curs IS
+        SELECT *
+          FROM COST_CENTER CC
+         WHERE CLOSE_DATE IS NULL
+           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+           AND CATEGORY = 'S'
+           AND COUNTRY_CODE = 'CAN'
+           AND GLOBAL_HIERARCHY_IND = 'Y'
+           AND EXISTS (SELECT 1
+                         FROM STORE S
+                        WHERE CC.COST_CENTER_CODE = S.COST_CENTER_CODE
+                          AND NVL(SELLING_STORE_FLAG, 'N') = 'Y'
+                          AND SELLING_STORE_FLAG_MARK_DT = IN_DATE);
+
+    V_CLOB                        CLOB;
+    V_CLOB_FOR_EMAIL              CLOB;
+    V_ADDRESS_CAN_OT              ADDRESS_CAN_OT;
+
+    PATH        	  VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME  	    VARCHAR2(50) := 'CAN_SELLING_STORES_' || TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+    OUTPUT_FILE     UTL_FILE.FILE_TYPE;
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   ,'W' --BINARY
+                                   ,32767);
+
+    V_ADDRESS_CAN_OT := ADDRESS_CAN_OT('DUMMY', 'M');
+
+    V_CLOB := 'SELLING_STORE_MARKED_ON,' ||
+              'STORE_NUMBER,' ||
+              'STORE_NAME,' ||
+              'LEGACY_GL_DIVISION,' ||
+              'FACTS_DIVISION,' ||
+              'DOMAIN,' ||
+              'GROUP,' ||
+              'DIVISION,' ||
+              'AREA,' ||
+              'DISTRICT,' ||
+              'CITY_SALES_MANAGER,' ||
+              'ZONE,' ||
+              'SPECIAL_ROLES,' ||
+              V_ADDRESS_CAN_OT.print_header_delimited(',');
+
+    V_CLOB_FOR_EMAIL := V_CLOB;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+
+    FOR cc_rec IN curs LOOP
+        V_ADDRESS_CAN_OT := ADDRESS_CAN_OT(cc_rec.COST_CENTER_CODE, 'M');
+
+        V_CLOB := '"' || IN_DATE || '",' ||
+                  '"' || cc_rec.COST_CENTER_CODE || '",' ||
+                  '"' || cc_rec.COST_CENTER_NAME || '",' ||
+                  GET_HIERARCHY_DETAIL_STRING(cc_rec.COST_CENTER_CODE) || '",' ||
+                  V_ADDRESS_CAN_OT.print_values_delimited(',');
+
+        V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    END LOOP;
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+    MAIL_PKG.SEND_MAIL('SELLING_STORES_MAIL_CAN', NULL, NULL,V_CLOB_FOR_EMAIL);
+
+END GENERATE_CAN_SELLING_STR_FILE;
+
+PROCEDURE GENERATE_SELLING_STORE_FILE(
+/**********************************************************
+	This procedure is intended to generate a file with the list of new selling stores
+  created on the date passed
+
+1 - consider only open/valid store cost centers under USA/CAN/PRI countries
+2 - cost center should be a complete cost center => should be part of global, facts and legacy hierarchies
+3 - selling store flag should have been set to "Y" on that day
+4 - consider only mailling address for any country code
+
+Created : 09/27/2016 jxc517 CCN project Team....
+Changed :
+**********************************************************/
+IN_DATE       IN     DATE)
+IS
+BEGIN
+    GENERATE_USA_SELLING_STR_FILE(IN_DATE);
+
+    GENERATE_CAN_SELLING_STR_FILE(IN_DATE);
+
+END GENERATE_SELLING_STORE_FILE;
+
 END CCN_BATCH_PROCESS;
