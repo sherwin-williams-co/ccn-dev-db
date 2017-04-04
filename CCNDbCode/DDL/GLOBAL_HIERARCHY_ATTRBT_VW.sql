@@ -18,8 +18,8 @@ Modified : 11/12/2015 sxt410 CCN Project...
          : 08/01/2016 jxc517 CCN Project Team....
            Added District Manager Gems Id field, modified the code to give proper Manager Names, 
            modified code to avoid multiple calls to get the same value
-		 : 03/21/2017 pxb712 CCN Project Team....
-           Added a new column CITY_MGR_GEMS_ID in the view.  
+		 : 04/04/2017 pxb712 CCN Project Team....
+           Added new columns CITY_MGR_GEMS_ID,DIV_MGR_GEMS_ID and AREA_MGR_GEMS_ID in the view.
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -47,7 +47,9 @@ Modified : 11/12/2015 sxt410 CCN Project...
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DOMAIN_UPPER_VALUE, 'ManagerName') DOMAIN_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.GROUP_UPPER_VALUE, 'ManagerName') GROUP_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DIV_UPPER_VALUE, 'ManagerName') DIV_MGR_NAME,
+       CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DIV_UPPER_VALUE, 'GEMS_ID') DIV_MGR_GEMS_ID,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.AREA_UPPER_VALUE, 'ManagerName') AREA_MGR_NAME,
+       CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.AREA_UPPER_VALUE, 'GEMS_ID') AREA_MGR_GEMS_ID,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DISTRICT_UPPER_VALUE, 'ManagerName') DISTRICT_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DISTRICT_UPPER_VALUE, 'GEMS_ID') DISTRICT_MGR_GEMS_ID,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'ManagerName') CITY_MGR_NAME,
