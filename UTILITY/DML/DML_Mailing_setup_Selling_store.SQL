@@ -4,12 +4,13 @@ email for Selling Stores details
 
 Created : 03/30/2017 gxg192 CCN Project....
 Changed : 04/04/2017 gxg192 Changed mail_id
+          04/04/2017 gxg192 Added ccn oracle team's mail_id
 *****************************************************************************/
 
 SET DEFINE OFF;
 
 INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('51', 'croperations@sherwin.com');
+   VALUES ('51', 'croperations@sherwin.com; ccnoracle.team@sherwin.com');
 
 /*****************************************************************************
 Below script is created to store mailing details for Selling store email
