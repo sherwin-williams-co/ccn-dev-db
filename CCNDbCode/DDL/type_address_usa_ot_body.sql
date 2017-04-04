@@ -4,6 +4,19 @@ CONSTRUCTOR FUNCTION address_usa_ot(IN_COST_CENTER_CODE IN    VARCHAR2,
                                     IN_ADDRESS_TYPE     IN    VARCHAR2) RETURN SELF AS RESULT
 IS
 BEGIN
+/*****************************************************************************
+This is a TYPE that is defined with fields used to generate a CSV file for new selling stores.
+
+This is used by the CCN_BATCH_PROCESS
+It has 1 Constructor and 2 Functions
+
+1 - The CONSTRUCTOR FUNCTION address_usa_ot is used to initialize member variables.
+2 - The MEMBER FUNCTION print_header_delimited is used to create a Header for the DELIMITER passed
+3 - The MEMBER FUNCTION print_values_delimited prints the values with the DELIMITER passed
+
+Created : 09/28/2016 jxc517 CCN Project....
+Changed : 04/03/2017 gxg192 Added comments block.
+*****************************************************************************/
     SELF.COST_CENTER_CODE := IN_COST_CENTER_CODE;
     BEGIN
         SELECT *
