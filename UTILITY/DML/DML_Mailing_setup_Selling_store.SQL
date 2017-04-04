@@ -3,13 +3,13 @@ Below script is created to store mailing groups email id for
 email for Selling Stores details
 
 Created : 03/30/2017 gxg192 CCN Project....
-Changed :
+Changed : 04/04/2017 gxg192 Changed mail_id
 *****************************************************************************/
 
 SET DEFINE OFF;
 
 INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID)
-   VALUES ('51', 'ccnoracle.team@sherwin.com');
+   VALUES ('51', 'croperations@sherwin.com');
 
 /*****************************************************************************
 Below script is created to store mailing details for Selling store email
