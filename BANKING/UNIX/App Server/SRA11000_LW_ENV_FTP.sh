@@ -7,12 +7,6 @@
 #                 the input files to test.
 # Created       : 04/07/2017 nxk927 CCN Project Team.....
 #################################################################
-#Run below command to make the process run in the background even after shutdown
-#nohup sh /app/banking/dev/SRA11000_LW_ENV_FTP_BP.sh > /app/banking/dev/SRA11000_LW_ENV_FTP_BP.log 2>&1 &
-
-#Below statement will be used to check if the process is running in the background
-#ps -eaf | grep SRA11000_LW_ENV_FTP_BP.sh
-
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
