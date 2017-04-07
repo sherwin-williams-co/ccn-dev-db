@@ -8,6 +8,8 @@
 # Created  : 10/16/2015 jxc517 CCN Project Team.....
 # Modified : 04/27/2016 nxk927 CCN Project Team.....
 #            pushed the time variable inside in teh error check so the error check can be handled properly
+# Modified : 04/07/2017 nxk927 CCN Project Team.....
+#            added the ftp_indicator to control ftp of the file
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -15,7 +17,10 @@
 proc_name="SRA11000_dailyRun_ftp"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
+
 echo "Processing Started for $proc_name at $TIME on $DATE"
+if [ $FTP_INDICATOR == Y ] 
+then
 
 ############################################################################
 # ftp the SRA11000 SEIRAL.DAT [SMIS1.SRA10060_*] and UAR.POS [SMIS1.SRA12060_*]
@@ -43,7 +48,10 @@ then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
+else
+echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
+echo "Existing the process without ftp'ing the file"
+fi
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
-
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 exit 0
