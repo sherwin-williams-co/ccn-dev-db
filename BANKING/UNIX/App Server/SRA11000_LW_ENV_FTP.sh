@@ -3,6 +3,8 @@
 #
 # Description   : Checks for the file  SRA10510_*.TXT, SRA13510_*.TXT, SRA11060_*.TXT and UAR.MISCTRAN_*.TXT
 #                 If it find all the four files,it ftp's all the file 
+#                 We are receiving the SRA11000 input files in QA and prod. TO make it run in test, this script wil ftp
+#                 the input files to test.
 # Created       : 04/07/2017 nxk927 CCN Project Team.....
 #################################################################
 #Run below command to make the process run in the background even after shutdown
@@ -15,7 +17,6 @@
 . /app/banking/dev/banking.config
 
 #path where the Command file is stored
-cmd_path=$HOME/initLoad
 FOLDER=`date +"%m%d%Y"`
 FILES_PATH=$HOME/SRA11000/$FOLDER
 # Search for the file named SRA10510_*.TXT,SRA10910_*.TXT, UAR.MISCTRAN_*.TXT, UAR.OVERSHRT_*.TXT
