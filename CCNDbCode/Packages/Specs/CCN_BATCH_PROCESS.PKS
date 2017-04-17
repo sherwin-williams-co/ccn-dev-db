@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE CCN_BATCH_PROCESS AS
+create or replace PACKAGE CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package spec will have procedures and functions related 
 to the batch process
@@ -30,5 +30,22 @@ Created : 09/27/2016 jxc517 CCN project Team....
 Changed :
 **********************************************************/
 IN_DATE       IN     DATE);
+
+PROCEDURE PCI_TERMINAL_MISMATCH
+/**********************************************************
+This process takes care of generating PCI_TERMINAL_MISMATCH file
+
+Created : 04/11/2017 pxb712 CCN project Team....
+**********************************************************/
+;
+
+PROCEDURE HIERARCHY_DAD_MISMATCH
+/**********************************************************
+This process takes care of generating HIER_TRNSFR_TERRITORY and HIER_TRNSFR_DAD_CHNG_TERRITORY file...
+
+Created : 04/13/2017 pxb712 CCN project Team....
+**********************************************************/
+;
+
 
 END CCN_BATCH_PROCESS;

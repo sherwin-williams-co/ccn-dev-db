@@ -21,6 +21,21 @@ created : 11/14/2012 MDH CCN Project....
 *******************************************************************************/
  ( IN_STATUS  IN VARCHAR2 );
        
+PROCEDURE REPLACE_COST_CENTER(
+/**********************************************************
+	REPLACE_COST_CENTER
+
+	This procedure will repalce the OLD cost center with NEW cost center
+
+IN_OLD_CC - Input Cost Center to be removed
+IN_NEW_CC - Input Cost Center to be created
+
+created : 03/24/2015 jxc517 CCN Project....
+modified:
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2);
+          
 FUNCTION CODE_DETAIL_VALID
 /**********************************************************
 	CODE_DETAIL_VALID(in_field_name, in_value_code)
@@ -375,6 +390,17 @@ IN_PREV_LVL_VAL   HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE
 )
 RETURN XMLTYPE;
 
+FUNCTION SPLIT_STRING_DATA (
+/***********************************************************
+This function is used to split the string that is passed to it
+basing upon the delimiter.
+
+Created : 09/01/2016 MXK766 CCN Project
+Modified: 
+************************************************************/
+IN_HIERARCHY_NAME  IN VARCHAR2, 
+IN_STRING          IN VARCHAR2) RETURN TABLE_VARCHAR2 ;
+
 FUNCTION GET_FIPS_CODE(
 /*******************************************************************************
     This function will get the FIPS code based on state 
@@ -400,6 +426,19 @@ created : 10/31/2016 sxh487 CCN Project
 modified: 
 **********************************************************/
 IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
+RETURN VARCHAR2;
+ 
+FUNCTION COST_CENTER_EXISTS(
+/*******************************************************************************
+   This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
+    matches. If it don't match then send the report in an email
+
+   Created : 04/11/2017 pxb712 CCN Project Team...
+*******************************************************************************/
+IN_COST_CENTER_CODE  in varchar2 DEFAULT NULL,
+IN_TERMINAL_NUMBER   in varchar2 DEFAULT NULL,
+IN_PCI_TERMINAL_ID   in varchar2 DEFAULT NULL
+)
 RETURN VARCHAR2;
 
 END COMMON_TOOLS;
