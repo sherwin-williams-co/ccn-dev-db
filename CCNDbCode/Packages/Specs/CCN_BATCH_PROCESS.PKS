@@ -1,4 +1,4 @@
-create or replace PACKAGE CCN_BATCH_PROCESS AS
+CREATE OR REPLACE PACKAGE CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package spec will have procedures and functions related 
 to the batch process
@@ -41,7 +41,7 @@ Created : 04/11/2017 pxb712 CCN project Team....
 
 PROCEDURE HIERARCHY_DAD_MISMATCH
 /**********************************************************
-This process takes care of generating HIER_TRNSFR_TERRITORY and HIER_TRNSFR_DAD_CHNG_TERRITORY file...
+This process takes care of generating HIER_TRNSFR_TERRITORY file
 
 Created : 04/13/2017 pxb712 CCN project Team....
 **********************************************************/
