@@ -7707,8 +7707,8 @@ END COMPARE_ZIPCODE_SP;
 
 PROCEDURE PCI_TERMINAL_COUNT_CHECK(
 /*****************************************************************************
-    This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
-    matches. If it don't match then send the report in an email
+This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
+matches. If it don't match then send the report in an email
 
 Created : 03/02/2016 nxk927 CCN Project Team...
 Changed : 04/07/2016 nxk927 CCN Project Team...
@@ -7719,50 +7719,49 @@ Changed : 04/07/2016 nxk927 CCN Project Team...
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_ROW_DATA          IN  CLOB)
 IS
- V_TERMINAL_COUNT   NUMBER := 0;
- V_PCI_TERM_COUNT   NUMBER :=0;
- v_Row_data XMLTYPE := sys.XMLTYPE(in_row_data);
- 
- 
-BEGIN
-    SELECT COUNT(TERMINAL_NUMBER), COUNT(PCI_TERMINAL_ID)
+    V_TERMINAL_COUNT NUMBER := 0;
+    V_PCI_TERM_COUNT NUMBER := 0;
+    V_ROW_DATA      XMLTYPE := sys.XMLTYPE(in_row_data);
+    V_PCI_TERMINAL_MAIL_ROW   PCI_TERMINAL_MAIL%ROWTYPE;
+  
+  BEGIN
+SELECT COUNT(TERMINAL_NUMBER), COUNT(PCI_TERMINAL_ID)
       INTO V_TERMINAL_COUNT, V_PCI_TERM_COUNT
       FROM XMLTABLE ('/POLLING_UI/TERMINAL_TABLE/TERMINAL'
            PASSING v_Row_data
            COLUMNS TERMINAL_NUMBER VARCHAR2(6) PATH 'TERMINAL_NUMBER/text()',
                    PCI_TERMINAL_ID VARCHAR2(15)PATH  'PCI_TERMINAL_ID/text()' );
-                   
-        
-     IF V_TERMINAL_COUNT <> V_PCI_TERM_COUNT THEN
-       FOR REC IN (SELECT COST_CENTER_CODE, 
-                          TERMINAL_NUMBER,
-                          PCI_TERMINAL_ID
-                     FROM TERMINAL
-                    WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-                      AND EXPIRATION_DATE IS NULL) LOOP
-       IF COMMON_TOOLS.COST_CENTER_EXISTS(REC.COST_CENTER_CODE, REC.TERMINAL_NUMBER, REC.PCI_TERMINAL_ID) = 'N'  THEN  
-                  INSERT INTO 
-                            PCI_TERMINAL_MAIL (COST_CENTER_CODE, 
-                                               TERMINAL_NUMBER, 
-                                               PCI_TERMINAL_ID,
-                                               ENTRY_DATE) 
-                         VALUES (REC.COST_CENTER_CODE , 
-                                 REC.TERMINAL_NUMBER ,
-                                 REC.PCI_TERMINAL_ID , 
-                                 SYSDATE);
-                                 
-        END IF;
-       END LOOP;
-       
-    ELSE 
-       DELETE FROM 
-                  PCI_TERMINAL_MAIL 
-              WHERE
-                  COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    END IF;
+  
+    IF V_TERMINAL_COUNT <> V_PCI_TERM_COUNT THEN
+      FOR REC IN (SELECT distinct COST_CENTER_CODE, TERMINAL_NUMBER, PCI_TERMINAL_ID
+                    FROM TERMINAL TERM
+                   WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                     AND EXPIRATION_DATE IS NULL
+                     AND NOT EXISTS
+                     (SELECT 1 FROM PCI_TERMINAL_MAIL 
+                       WHERE COST_CENTER_CODE = TERM.COST_CENTER_CODE 
+                         AND TERMINAL_NUMBER = TERM.TERMINAL_NUMBER 
+                         AND NVL(PCI_TERMINAL_ID,'XX') = NVL(TERM.PCI_TERMINAL_ID,'XX')
+                         AND ENTRY_DATE  >= to_date(to_char(sysdate-1,'MM/DD/YYYY') || ' 18:30:00','MM/DD/YYYY HH24:MI:SS'))) LOOP
+                
+          V_PCI_TERMINAL_MAIL_ROW.COST_CENTER_CODE := REC.COST_CENTER_CODE;
+          V_PCI_TERMINAL_MAIL_ROW.TERMINAL_NUMBER  := REC.TERMINAL_NUMBER;
+          V_PCI_TERMINAL_MAIL_ROW.PCI_TERMINAL_ID  := REC.PCI_TERMINAL_ID;
+          V_PCI_TERMINAL_MAIL_ROW.ENTRY_DATE       := SYSDATE;
+           
+          CCN_TABLE_IU_PKG.PCI_TERMINAL_I_SP(V_PCI_TERMINAL_MAIL_ROW);
+            
+     END LOOP;
     
+    ELSE
+        DELETE FROM PCI_TERMINAL_MAIL
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+	         AND ENTRY_DATE  >= to_date(to_char(sysdate-1,'MM/DD/YYYY') || ' 18:30:00','MM/DD/YYYY HH24:MI:SS');
+    END IF;
+  
 END PCI_TERMINAL_COUNT_CHECK;
-
+   
+   
 PROCEDURE TERMINAL_COUNT_BR_SP(
 /*****************************************************************************
 TERMINAL_COUNT_BR_SP

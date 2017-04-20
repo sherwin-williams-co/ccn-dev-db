@@ -1,8 +1,9 @@
+#!/bin/sh
 #############################################################################################################################
 # Script name   : PCI_TERMINAL_MAIL.sh
 #
 # Description   : This script is to run the CCN_BATCH_PROCESS.PCI_TERMINAL_MISMATCH procedure that send 
-#		  all PCI emails at 6.30 PM (Monday - Saturday)
+#		  all PCI emails at 6.30 PM (Monday till Saturday)
 # Created       : 04/07/2017 pxb712 
 # Modified      : 
 #############################################################################################################################
@@ -24,6 +25,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
+
 CCN_BATCH_PROCESS.PCI_TERMINAL_MISMATCH();
 EXCEPTION
  when others then
