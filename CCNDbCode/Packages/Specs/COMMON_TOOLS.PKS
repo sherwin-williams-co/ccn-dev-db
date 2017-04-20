@@ -402,17 +402,4 @@ modified:
 IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
 RETURN VARCHAR2;
 
-FUNCTION COST_CENTER_EXISTS(
-/*******************************************************************************
-This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
-    matches. If it don't match then send the report in an email
-
-Created : 04/11/2017 pxb712 CCN Project Team...
-*******************************************************************************/
-IN_COST_CENTER_CODE  in varchar2 DEFAULT NULL,
-IN_TERMINAL_NUMBER   in varchar2 DEFAULT NULL,
-IN_PCI_TERMINAL_ID   in varchar2 DEFAULT NULL
-)
-RETURN VARCHAR2;
-
 END COMMON_TOOLS;
