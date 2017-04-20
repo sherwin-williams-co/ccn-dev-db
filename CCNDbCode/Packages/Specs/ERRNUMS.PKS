@@ -2745,6 +2745,19 @@ exc_invld_pci_mrchnt_id_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_mrchnt_id_sz_err , -20536);
 
+/*********************************************************** 
+The "invld_ftr_adr_efctv_dt_err" passes a numerical error of -20537
+This error will state that the future address is having effective date 
+less than or equal to current date
+
+Created  : 04/20/2016 jxc517 CCN Project Team....
+Modified : 
+************************************************************/
+en_invld_ftr_adr_efctv_dt_err CONSTANT NUMBER := -20537;
+exc_invld_ftr_adr_efctv_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invld_ftr_adr_efctv_dt_err , -20537);
+
 /***********************************************************
 The "hier_batch_process_err" passes a numerical error of -20538.
 This error will state that error occured in process to move the future hierarchy
@@ -2873,5 +2886,17 @@ en_dup_processor_err CONSTANT NUMBER := -20177;
 exc_dup_processor_err EXCEPTION;
 
 PRAGMA EXCEPTION_INIT(exc_dup_processor_err , -20177);
+
+/*********************************************************** 
+The "invalid_terminal_counts_exp" passes a numerical error of -20178.
+An error occurs when address COL cannot be found.
+
+created : 08/11/2016 MXK766 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_terminal_count_err CONSTANT NUMBER := -20178;
+exc_invalid_terminal_count_err EXCEPTION;
+
+PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 END ERRNUMS;
