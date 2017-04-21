@@ -1,8 +1,8 @@
 #!/bin/sh
 #############################################################################################################################
-# Script name   : Hierarchy_DAD_EMAIL.sh
+# Script name   : GENERATE_HRCHY_MISMATCH_FILE.sh
 #
-# Description   : This script is to run the CCN_BATCH_PROCESS.HIERARCHY_DAD_MISMATCH procedure that send 
+# Description   : This script is to run the CCN_BATCH_PROCESS.HRCHY_DAD_MISMATCH procedure that send 
 #		  all PCI emails at 6.30 PM (Monday till Saturday)
 # Created       : 04/07/2017 pxb712 
 # Modified      : 
@@ -10,7 +10,7 @@
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
-proc_name="HIERARCHY_DAD_MISMATCH"
+proc_name="GENERATE_HRCHY_MISMATCH_FILE"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m%d%Y"`
 
@@ -25,7 +25,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-CCN_BATCH_PROCESS.HIERARCHY_DAD_MISMATCH();
+CCN_BATCH_PROCESS.GENERATE_HRCHY_MISMATCH_FILE();
 EXCEPTION
  when others then
  :exitCode := 2;
