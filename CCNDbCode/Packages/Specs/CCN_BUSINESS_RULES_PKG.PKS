@@ -11,6 +11,7 @@ revised :mdh 9/24/2012
          mdh 10/16/2012 - added Business_Rules_SP (rowtype & xml) procedures
          12/16/2014 AXK326 CCN Project Team....
           Code changes made after deleting the sales manager link from the Territory Table
+		  Changed: 04/17/17 rxa457 --added Business Rules for DISPATCH_TERMINAL
 *******************************************************************************/
 
 
@@ -47,6 +48,7 @@ changed : 05/16/2016 jxc517 CCN Project Team....
    ,inSALES_REP_XMLTYPE      VARCHAR2--sys.xmltype
    ,inSTATUS_XMLTYPE         VARCHAR2--sys.xmltype
    ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
+   ,inDISPATCH_TERMINAL_XMLTYPE VARCHAR2 --sys.xmltype --added rxa457 for DISPATCH_TERMINAL
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
@@ -89,6 +91,7 @@ created : MDH 9/25//2012
    ,inSALES_REP_ROWTYPE      IN SALES_REP%ROWTYPE
    ,inSTATUS_ROWTYPE         IN STATUS%ROWTYPE
    ,inSTORE_ROWTYPE          IN STORE%ROWTYPE
+   ,inDISPATCH_TERMINAL_ROWTYPE IN DISPATCH_TERMINAL%ROWTYPE --added rxa457 for DISPATCH_TERMINAL
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
@@ -466,6 +469,16 @@ created : BLR 7/26/2012
   inStore_rowtype                  IN  STORE%ROWTYPE
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE);
   
+PROCEDURE DISPATCH_TERMINAL_BR_SP(
+      /******************************************************************************
+      DISPATCH_TERMINAL_BR_SP
+      This procedure is intended enforce the Business Rules
+      for verifying specific columns on the DISPATCH_TERMINAL Table
+      created : rxa457 04/17/17 asp:400-asp-763
+      *******************************************************************************/
+      inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
+      inCC_rowtype                IN COST_CENTER%ROWTYPE);
+	  
 PROCEDURE TERMINAL_BR_SP (
 /*******************************************************************************
 	 TERMINAL_BR_SP
