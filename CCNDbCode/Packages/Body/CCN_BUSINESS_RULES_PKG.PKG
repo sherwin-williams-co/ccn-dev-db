@@ -51,6 +51,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
    ,inSALES_REP_XMLTYPE      VARCHAR2--sys.xmltype
    ,inSTATUS_XMLTYPE         VARCHAR2--sys.xmltype
    ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
+   ,inDISPATCH_TERMINAL_XMLTYPE VARCHAR2 --sys.xmltype  --added rxa457 for DISPATCH_TERMINAL
    ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype 
    ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
@@ -81,6 +82,7 @@ V_REAL_ESTATE_ROWTYPE    REAL_ESTATE%ROWTYPE;
 V_SALES_REP_ROWTYPE      SALES_REP%ROWTYPE;
 V_STATUS_ROWTYPE         STATUS%ROWTYPE;
 V_STORE_ROWTYPE          STORE%ROWTYPE;
+V_DISPATCH_TERMINAL_ROWTYPE DISPATCH_TERMINAL%ROWTYPE; --added rxa457 for DISPATCH_TERMINAL
 V_TERMINAL_ROWTYPE       TERMINAL%ROWTYPE;
 V_TERRITORY_ROWTYPE      TERRITORY%ROWTYPE;  
 V_TYPE_ROWTYPE           TYPE%ROWTYPE;
@@ -333,6 +335,14 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
    END IF ; 
 --
 --
+--added rxa457 for DISPATCH_TERMINAL
+/**  Translate DISPATCH_TERMINAL_XMLTYPE Table ***/
+IF (inDISPATCH_TERMINAL_XMLTYPE IS NOT NULL) THEN
+  v_break                       := ('Processing Dispatch Terminal XMLTYPE ');
+  CCN_TABLE_IU_PKG.DISPATCH_TERMINAL_ROWTYPE_SP('DISPATCH_TERMINAL', indispatch_terminal_xmltype, v_dispatch_terminal_rowtype);
+END IF;
+--
+--
 /**  Translate TERMINAL_XMLTYPE Table ***/
    IF (inTERMINAL_XMLTYPE  IS NOT NULL)  THEN
       v_break  := ('Processing TERMINAL XMLTYPE '); 
@@ -401,6 +411,7 @@ v_break  := ('Entering Business Rules (rowtype)' );
    ,V_SALES_REP_ROWTYPE      
    ,V_STATUS_ROWTYPE         
    ,V_STORE_ROWTYPE          
+   ,V_DISPATCH_TERMINAL_ROWTYPE --added rxa457 for DISPATCH_TERMINAL
    ,V_TERMINAL_ROWTYPE       
    ,V_TERRITORY_ROWTYPE     
    ,V_TYPE_ROWTYPE           
@@ -453,6 +464,7 @@ revised : MDH 10/11/2012
           jxc517 08/27/2014 CCN Project - Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+Changed  : 04/17/17 rxa457 for asp-400:asp-763 added new paremeter and table DISPATCH_TERMINAL
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
@@ -472,6 +484,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
    ,inSALES_REP_ROWTYPE      IN SALES_REP%ROWTYPE
    ,inSTATUS_ROWTYPE         IN STATUS%ROWTYPE
    ,inSTORE_ROWTYPE          IN STORE%ROWTYPE
+   ,inDISPATCH_TERMINAL_ROWTYPE IN DISPATCH_TERMINAL%ROWTYPE --added rxa457 for DISPATCH_TERMINAL
    ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
@@ -688,6 +701,13 @@ v_break  := ('Entering Table Specific Business Rules'
           , incost_center_rowtype); 
    END IF ; 
 --
+--
+--added rxa457 for DISPATCH_TERMINAL
+/**  Call DISPATCH_TERMINAL Table Business Rule ***/
+IF (inDISPATCH_TERMINAL_ROWTYPE.cost_center_code IS NOT NULL) THEN
+  v_break                                        := ('Processing DISPATCH_TERMINAL Business Rules ');
+  CCN_BUSINESS_RULES_PKG.DISPATCH_TERMINAL_BR_SP(indispatch_terminal_rowtype, incost_center_rowtype);
+END IF;
 --
 /**  Call TERMINAL Table Business Rule ***/
    IF (inTERMINAL_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
@@ -7046,6 +7066,103 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
      
  END  STORE_BR_SP;
  
+PROCEDURE DISPATCH_TERMINAL_BR_SP(
+      /*******************************************************************************
+      DISPATCH_TERMINAL_BR_SP
+      This procedure is intended enforce the Business Rules
+      for verifying specific columns on the DISPATCH_TERMINAL Table
+      created : rxa457 4/17/17 for as:400-asp-763
+      *******************************************************************************/
+      inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
+      inCC_rowtype                IN COST_CENTER%ROWTYPE)
+  IS
+    inactive_cost_center_err      EXCEPTION;
+    invalid_category_err          EXCEPTION;
+    invalid_dispatch_category_err EXCEPTION;
+    no_cost_center_exp            EXCEPTION;
+    ccntr_closed_exp              EXCEPTION;
+    invalid_home_store_desig1_exp EXCEPTION;
+    invalid_home_store_desig2_exp EXCEPTION;
+    v_code                        NUMBER;
+    v_errm                        VARCHAR(500);
+    v_home_store DISPATCH_TERMINAL.HOME_STORE%TYPE;
+    V_COSTCTR_ROWTYPE COST_CENTER%ROWTYPE;
+    /*
+    Dispatch terminal Category rule is checked when new cost centers are added;
+    then the Dispatch Terminal record is only added if the category of the Cost_Center table is "D":
+    */
+  BEGIN
+    /*Raise cost center null exception*/
+    IF inCC_rowtype.cost_center_code IS NULL THEN
+      RAISE no_cost_center_exp;
+    END IF;
+    /*
+    A Cost Center row is selected to validate category code is an "D"; otherwise Dispatch Terminal table cannot be added
+    */
+    IF inCC_rowtype.cost_center_code <> inDispatch_Terminal_rowtype.cost_center_code THEN
+      RAISE inactive_cost_center_err;
+    END IF;
+    /*
+    For this Dispatch Terminal table validation check, the category should be "D"
+    */
+    IF (inCC_rowtype.CATEGORY <> 'D' OR inDispatch_Terminal_rowtype.CATEGORY <> 'D') THEN
+      RAISE invalid_category_err;
+    END IF;
+    IF NOT common_tools.code_detail_valid('CATEGORY', inDispatch_Terminal_rowtype.CATEGORY) THEN
+      -- value not found in table
+      RAISE invalid_dispatch_category_err;
+    END IF;
+    /******************************************************************************
+    The Dispatch terminal can only be added if the Cost_Center is not closed!
+    *******************************************************************************/
+    IF inCC_rowtype.close_date IS NOT NULL THEN
+      RAISE ccntr_closed_exp;
+    END IF;
+    /*******************************************************************************
+    Home store validations
+    *******************************************************************************/
+    BEGIN
+      IF (inDispatch_Terminal_rowtype.home_store IS NULL) THEN
+        RAISE invalid_home_store_desig1_exp;
+      END IF;
+      --Home Store not Found as Cost center with category "S" in Cost Center table
+      BEGIN
+        v_home_store := common_tools.cost_center_look_up_fnc(inDispatch_Terminal_rowtype.home_store);
+        SELECT *
+        INTO V_COSTCTR_ROWTYPE
+        FROM COST_CENTER
+        WHERE COST_CENTER_CODE = v_home_store
+        AND CATEGORY           = 'S';
+      EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RAISE invalid_home_store_desig2_exp;
+      END;
+    END;
+  EXCEPTION
+  WHEN no_cost_center_exp THEN
+    v_code := errnums.en_no_cost_center_err;
+    errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.no_cost_center_exp ', 'Cost_Center "' || inCC_rowtype.cost_center_code || '" not found ');
+  WHEN inactive_cost_center_err THEN
+    v_code := errnums.en_inactive_cost_center_err;
+    errpkg.raise_err(v_code, 'dispatch_terminal_br_sp.inactive_cost_center_err ', 'CCN_BUSINESS_RULES_PKG ' || 'For Dispatch Terminal Cost Center "' || inDispatch_Terminal_rowtype.cost_center_code || '", ' || 'For CC Cost Center "' || inCC_rowtype.cost_center_code || '". ' || 'Cost Center codes are invalid; do not match Cost Center and Dispatch Terminal tables');
+  WHEN invalid_category_err THEN
+    v_code := errnums.en_invalid_category_err;
+    errpkg.raise_err(v_code, 'dispatch_terminal_br_sp_BR_SP.invalid_category_err ', 'CCN_BUSINESS_RULES_PKG ' || 'For Dispatch Terminal Cost Center "' || inDispatch_Terminal_rowtype.cost_center_code || '", ' || 'CC Category_Code is "' || inCC_rowtype.CATEGORY || '". ' || 'When storing category for Dispatch Terminal table; category must equal D on Cost Center Table ');
+  WHEN invalid_dispatch_category_err THEN
+    v_code := errnums.en_invalid_code_detail_err;
+    errpkg.raise_err(v_code, 'dispatch_terminal_br_sp_BR_SP.invalid_dispatch_terminal_category_err ', 'CCN_BUSINESS_RULES_PKG ' || 'Dispatch Terminal Cost Center is "' || inDispatch_Terminal_rowtype.cost_center_code || '", ' || 'Category_Code is "' || inDispatch_Terminal_rowtype.CATEGORY || '". ' || 'The Dispatch Terminal Table category column is invalid;  not found on Code Detail  ');
+  WHEN invalid_home_store_desig1_exp THEN
+    v_code := errnums.en_inv_home_store_desig1_err;
+    errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.invalid_home_store_desig1_exp ', 'Cost Center "' || inCC_rowtype.cost_center_code || '" Home Store Required "' || '"');
+  WHEN invalid_home_store_desig2_exp THEN
+    v_code := errnums.en_inv_home_store_desig1_err;
+    errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.invalid_home_store_desig2_exp ', 'Cost Center "' || inCC_rowtype.cost_center_code || '" Attached Home Store is not a valid cost center of type Store - S "' || '"');
+  WHEN OTHERS THEN
+    v_code := SQLCODE;
+    v_errm := SUBSTR(SQLERRM, 1, 500);
+    errpkg.raise_err(v_code, v_errm || 'CCN_BUSINESS_RULES_PKG ' || 'No errors found');
+END DISPATCH_TERMINAL_BR_SP;
+  
  PROCEDURE TERMINAL_BR_SP ( 
 /*****************************************************************************
 	TERMINAL_BR_SP
