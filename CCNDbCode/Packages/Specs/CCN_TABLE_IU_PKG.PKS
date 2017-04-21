@@ -7,6 +7,7 @@ This package is intended to control access to the core CCN table.
 created : 09/18/2012 TAL -- CCN coding project
 changed : 12/16/2014 AXK326 CCN Project Team....
           Code changes made after deleting the sales manager link from the Territory Table
+		: 04/13/2017 rxa457 CCN Project team.. added new procedures for DISPATCH_TERMINAL		  
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
@@ -370,6 +371,16 @@ created : 03/20/2012 tal CCN Project....
 ********************************************************************************/
 ;
 
+PROCEDURE DISPATCH_TERMINAL_S_SP(
+	in_COST_CENTER IN DISPATCH_TERMINAL.COST_CENTER_CODE%TYPE,
+	out_DISPATCH_TERMINAL_REF_CUR OUT REF_CURSOR)
+  /*******************************************************************************
+  DISPATCH_TERMINAL_S_SP
+  This procedure is intended to return a ref cursor with data from
+  from the DISPATCH_TERMINAL table.
+  created : 04/13/2017 tal CCN Project.... rxa457-asp-763
+  ********************************************************************************/
+  ;
 
 PROCEDURE TAXWARE_S_SP  ( IN_COST_CENTER        IN  TAXWARE.COST_CENTER_CODE%TYPE
                         , OUT_TAXWARE_REF_CUR   OUT REF_CURSOR )
@@ -871,6 +882,20 @@ changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_STORE_row           OUT STORE%ROWTYPE
 );
+
+PROCEDURE DISPATCH_TERMINAL_I_SP(
+	/*****************************************************************************
+	DISPATCH_TERTMINAL_I_SP
+	This procedure is intended to insert new DISPATCH_TERMINAL records
+	OracleTableName  -  Table name for row -varible
+	xml file     -  the data being inserted
+	DISPATCH_TERMINAL_ROWTYPE    -  Dispatch Terminal Data Row
+	created : 04/14/2017 asp-763 CCN Project....
+	-- below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+	in_table_name IN VARCHAR2,
+	in_row_data   IN VARCHAR2, --sys.xmltype
+	out_dispatch_terminal_row OUT DISPATCH_TERMINAL%ROWTYPE);
+
 
 PROCEDURE TAXWARE_I_SP (
 /*****************************************************************************
@@ -1412,6 +1437,20 @@ changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 ,out_STORE_row           OUT STORE%ROWTYPE
 );
 
+PROCEDURE DISPATCH_TERMINAL_U_SP(
+/*****************************************************************/
+--DISPATCH_TERMINAL_U_SP
+--This procedure is intended to update changed DISPATCH_TERMINAL records
+--CostCenter - Cost Center that changed
+--OracleTableName -Table name for row -varible (based on the table that was updated)
+--in_row_data - xml file - the data being inserted
+--created : 04/14/2017 ASP-763 CCN Project....
+/*****************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+in_table_name IN VARCHAR2,
+in_row_data   IN VARCHAR2, --sys.xmltype
+out_DISPATCH_TERMINAL_row OUT DISPATCH_TERMINAL%ROWTYPE);
+		
 PROCEDURE TAXWARE_U_SP (
 /******************************************************************************
 	TAXWARE_U_SP
@@ -1840,6 +1879,17 @@ created : 09/26/2012 TAL -- CCN Project....
 ,OUT_STORE_ROWTYPE       OUT STORE%ROWTYPE
 );
 
+PROCEDURE DISPATCH_TERMINAL_ROWTYPE_SP(
+	/******************************************************************************/
+	--DISPATCH_TERMINAL_ROWTYPE_SP
+	--This procedure is convert xml and return rowtype data for DISPATCH_TERMINAL table.
+	--created : 04/13/2017 tal CCN Project.... rxa457-asp-763
+	/******************************************************************************/
+	/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+	in_table_name IN VARCHAR2,
+	in_row_data   IN VARCHAR2, --sys.xmltype
+	OUT_DISPATCH_TERMINAL_ROWTYPE OUT DISPATCH_TERMINAL%ROWTYPE);
+		
 PROCEDURE TAXWARE_ROWTYPE_SP (
 /******************************************************************************
 	TAXWARE_ROWTYPE_SP
