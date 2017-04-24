@@ -2046,7 +2046,7 @@ IN_HIERARCHY_TRANSFER_ROW IN HIERARCHY_TRANSFER_MAIL%ROWTYPE);
 
 PROCEDURE PCI_TERMINAL_I_SP(
 /*******************************************************************************
-This procedure is intended to insert new PACU_TERMINAL_MAIL records
+This procedure is intended to insert new PCI_TERMINAL_MAIL records
 created : 04/19/2017 pxb712 CCN Project Team....
 changed :
 *******************************************************************************/
