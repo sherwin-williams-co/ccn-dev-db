@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY COSTCNTR.CCN_HIERARCHY_UPLOAD
+create or replace PACKAGE BODY          CCN_HIERARCHY_UPLOAD
     AS
 PROCEDURE BUILD_HIERARCHY_XML_DATA_SP(
 /******************************************************************************
@@ -450,6 +450,11 @@ Modified: 05/05/2016 jxc517 CCN Project....
           Changes due to signature change
           08/23/2016 MXK766 CCN Project....
           Changes made related to ADMINORG_HIERARCHY.
+Modified: 04/21/2017 jxc517 CCN Project Team....
+          Added effective date to get for some hierarchies
+          Credit and Pricing users will use template with effective date field
+          Others use the old template without effective date field
+          Also fixing the spaces issue with the hierarchy level being passed with spaces
 ******************************************************************************/
 AS
    V_CLOB CLOB;
@@ -457,6 +462,7 @@ AS
    V_TRANS_STATUS          BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
    V_COUNT                 NUMBER := 0;
    CURR_LVL_VAL_NOT_EXISTS EXCEPTION;
+   V_EFFECTIVE_DATE        DATE;
 BEGIN
 
    CCN_BATCH_PKG.INSERT_BATCH_JOB('BULK_HIER_TRNSFR', V_BATCH_NUMBER);
@@ -469,27 +475,32 @@ BEGIN
          SELECT COUNT(*)
            INTO V_COUNT
            FROM HIERARCHY_DETAIL
-          WHERE HRCHY_DTL_CURR_LVL_VAL = rec.FROM_HIERARCHY || rec.COST_CENTER_CODE
+          WHERE HRCHY_DTL_CURR_LVL_VAL = REPLACE(rec.FROM_HIERARCHY,' ','') || rec.COST_CENTER_CODE
             AND HRCHY_HDR_NAME         = rec.HIERARCHY_NAME;
          IF V_COUNT <> 1 THEN
              RAISE CURR_LVL_VAL_NOT_EXISTS;
          END IF;
-         IF UPPER(TRIM(rec.HIERARCHY_NAME)) = 'ADMINORG_HIERARCHY' THEN
-         CCN_HIERARCHY_UPLOAD.BLD_ADMINORG_HIER_TRANSFR_CLOB(rec.COST_CENTER_CODE,
-                                                          rec.MANAGER_ID,
-                                                          UPPER(TRIM(rec.HIERARCHY_NAME)),
-                                                          rec.FROM_HIERARCHY,
-                                                          rec.TO_HIERARCHY,
-                                                          TRUNC(SYSDATE),
-                                                          V_CLOB);
+         IF rec.EFFECTIVE_DATE IS NOT NULL THEN
+            V_EFFECTIVE_DATE := TO_DATE(rec.EFFECTIVE_DATE, 'YYYYMMDD');
          ELSE
-         CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_TRNSFR_CLOB(rec.COST_CENTER_CODE,
-                                                          rec.MANAGER_ID,
-                                                          rec.HIERARCHY_NAME,
-                                                          rec.FROM_HIERARCHY,
-                                                          rec.TO_HIERARCHY,
-                                                          TRUNC(SYSDATE),
-                                                          V_CLOB);
+            V_EFFECTIVE_DATE := TRUNC(SYSDATE);
+         END IF;
+         IF UPPER(TRIM(rec.HIERARCHY_NAME)) = 'ADMINORG_HIERARCHY' THEN
+            CCN_HIERARCHY_UPLOAD.BLD_ADMINORG_HIER_TRANSFR_CLOB(rec.COST_CENTER_CODE,
+                                                                rec.MANAGER_ID,
+                                                                UPPER(TRIM(rec.HIERARCHY_NAME)),
+                                                                rec.FROM_HIERARCHY,
+                                                                rec.TO_HIERARCHY,
+                                                                V_EFFECTIVE_DATE,
+                                                                V_CLOB);
+         ELSE
+            CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_TRNSFR_CLOB(rec.COST_CENTER_CODE,
+                                                             rec.MANAGER_ID,
+                                                             rec.HIERARCHY_NAME,
+                                                             rec.FROM_HIERARCHY,
+                                                             rec.TO_HIERARCHY,
+                                                             V_EFFECTIVE_DATE,
+                                                             V_CLOB);
          END IF;
          CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB,'Y');
          COMMIT;
@@ -528,13 +539,17 @@ Modified: 03/23/2016 jxc517 CCN Project Team....
           Added logic to include PRICE_DISTRICT Hierarchy
 Modified: 05/05/2016 jxc517 CCN Project....
           Changes due to signature change
+Modified: 04/21/2017 jxc517 CCN Project Team....
+          Added effective date to get for some hierarchies
+          Credit and Pricing users will use template with effective date field
+          Others use the old template without effective date field
 ******************************************************************************/
 AS
-   V_CLOB               CLOB;
-   V_COUNT              NUMBER := 0;
+   V_CLOB                CLOB;
+   V_COUNT               NUMBER := 0;
    NOT_A_VALID_HIERARCHY EXCEPTION;
+   V_EFFECTIVE_DATE      DATE;
 BEGIN
-
    FOR rec IN (SELECT * FROM TEMP_COST_CENTER_HIERARCHY) LOOP
       BEGIN
          SAVEPOINT HIERARCHY_LOAD;
@@ -547,20 +562,25 @@ BEGIN
                 RAISE NOT_A_VALID_HIERARCHY;
              END IF;
          END;
-         IF UPPER(TRIM(rec.HIERARCHY_NAME)) ='ADMINORG_HIERARCHY' THEN
-           CCN_HIERARCHY_UPLOAD.BUILD_ADMINORG_HIER_INS_CLOB(rec.COST_CENTER_CODE,
-                                                           rec.MANAGER_ID,
-                                                           rec.HIERARCHY_NAME,
-                                                           rec.HIERARCHY_VALUE,
-                                                           TRUNC(SYSDATE),
-                                                           V_CLOB);
+         IF rec.EFFECTIVE_DATE IS NOT NULL THEN
+            V_EFFECTIVE_DATE := TO_DATE(rec.EFFECTIVE_DATE, 'YYYYMMDD');
          ELSE
-          CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,
-                                                           rec.MANAGER_ID,
-                                                           rec.HIERARCHY_NAME,
-                                                           rec.HIERARCHY_VALUE,
-                                                           TRUNC(SYSDATE),
-                                                           V_CLOB);
+            V_EFFECTIVE_DATE := TRUNC(SYSDATE);
+         END IF;
+         IF UPPER(TRIM(rec.HIERARCHY_NAME)) ='ADMINORG_HIERARCHY' THEN
+            CCN_HIERARCHY_UPLOAD.BUILD_ADMINORG_HIER_INS_CLOB(rec.COST_CENTER_CODE,
+                                                              rec.MANAGER_ID,
+                                                              rec.HIERARCHY_NAME,
+                                                              rec.HIERARCHY_VALUE,
+                                                              V_EFFECTIVE_DATE,
+                                                              V_CLOB);
+         ELSE
+            CCN_HIERARCHY_UPLOAD.BUILD_HIERARCHY_INSERT_CLOB(rec.COST_CENTER_CODE,
+                                                             rec.MANAGER_ID,
+                                                             rec.HIERARCHY_NAME,
+                                                             rec.HIERARCHY_VALUE,
+                                                             V_EFFECTIVE_DATE,
+                                                             V_CLOB);
          END IF;
          CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
          COMMIT;
