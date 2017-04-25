@@ -6,6 +6,7 @@ Purpose    : For dropping and creating the COST_CENTER_REAL_ESTATE table.
 
 Created :
 Changed : 04/25/2017 gxg192 CCN Project....
+        : 04/25/2017 gxg192 Corrected compilation errors
 */
 
   DROP TABLE COST_CENTER_REAL_ESTATE;
@@ -38,8 +39,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
 	DEPOSIT_TICKET_REORDER VARCHAR2(1), 
 	POP_KIT_CODE VARCHAR2(1), 
 	GLOBAL_HIERARCHY_IND VARCHAR2(1), 
-	STD_COST_IDENTIFIER, VARCHAR2(2),
-	PRIM_COST_IDENTIFIER, VARCHAR2(2),
+	STD_COST_IDENTIFIER  VARCHAR2(2),
+	PRIM_COST_IDENTIFIER VARCHAR2(2),
+    STATUS_CODE VARCHAR2(1),
 	STATUS_EFFECTIVE_DATE VARCHAR2(8), 
 	STATUS_EXPIRATION_DATE VARCHAR2(8), 
 	TYPE_CODE VARCHAR2(2), 
@@ -165,7 +167,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         POP_KIT_CODE,
                                         GLOBAL_HIERARCHY_IND,
                                         STD_COST_IDENTIFIER,
-                                        PRIM_COST_IDENTIFIER,,
+                                        PRIM_COST_IDENTIFIER,
                                         STATUS_CODE,
                                         STATUS_EFFECTIVE_DATE,
                                         STATUS_EXPIRATION_DATE,
