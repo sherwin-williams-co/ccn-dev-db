@@ -6,6 +6,7 @@ Purpose    : For dropping and creating the COST_CENTER_ADMINISTRATION table.
 
 Created :
 Changed : 04/25/2017 gxg192 CCN Project....
+          04/27/2017 gxg192 Added new fields in ACCESS PARAMETERS
 */
 
   DROP TABLE COST_CENTER_ADMINISTRATION;
@@ -167,6 +168,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         DEPOSIT_TICKET_REORDER,
                                         POP_KIT_CODE,
                                         GLOBAL_HIERARCHY_IND,
+                                        STD_COST_IDENTIFIER,
+                                        PRIM_COST_IDENTIFIER,
                                         STATUS_CODE,
                                         STATUS_EFFECTIVE_DATE,
                                         STATUS_EXPIRATION_DATE,
