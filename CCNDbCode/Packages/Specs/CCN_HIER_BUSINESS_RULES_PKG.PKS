@@ -294,4 +294,15 @@ Modified:
     IN_HIERARCHY_TO_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
 RETURN VARCHAR2;
 
+FUNCTION IS_HRCHY_EFFCTV_EXP_PAST(
+/***********************************************************
+This function will check if the Effective/Expiration dates passed are in the past
+for PRICE_DISTRICT Hierarchy
+
+Created : 04/21/2017 sxh487 CCN Project Team....
+Modified:
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
+RETURN VARCHAR2;
+
 END CCN_HIER_BUSINESS_RULES_PKG;
