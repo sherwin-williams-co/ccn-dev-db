@@ -2793,6 +2793,19 @@ exc_hrchy_to_eql_hrchy_frm_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_hrchy_to_eql_hrchy_frm_err , -20540);
 
+/*********************************************************** 
+The "past_dates_not_allowed_err" passes a numerical error of -20541
+This error will state that the Price District hierarchy does not support 
+Effective/Expiration dates to be in the past
+
+Created  : 04/21/2017 sxh487 CCN Project Team....
+Modified : 
+************************************************************/
+en_past_dates_not_allowed_err CONSTANT NUMBER := -20541;
+exc_past_dates_not_allowed_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_past_dates_not_allowed_err , -20541);
+
 /***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
