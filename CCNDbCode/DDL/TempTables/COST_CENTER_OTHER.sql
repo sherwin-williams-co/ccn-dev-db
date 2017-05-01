@@ -4,8 +4,9 @@ Purpose    : For dropping and creating the COST_CENTER_OTHER table.
              This is an external table which is used for storing data from COST_CENTER_OTHER.csv
              loaded through batch process.
 
-Created :
+Created : 
 Changed : 04/25/2017 gxg192 CCN Project....
+        : 04/25/2017 gxg192 Corrected compilation issues
 */
 
   DROP TABLE COST_CENTER_OTHER;
@@ -38,8 +39,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
 	DEPOSIT_TICKET_REORDER VARCHAR2(1), 
 	POP_KIT_CODE VARCHAR2(1), 
 	GLOBAL_HIERARCHY_IND VARCHAR2(1), 
-	STD_COST_IDENTIFIER VARCHAR2(2)
-	PRIM_COST_IDENTIFIER VARCHAR2(2)
+	STD_COST_IDENTIFIER VARCHAR2(2),
+	PRIM_COST_IDENTIFIER VARCHAR2(2),
 	STATUS_CODE VARCHAR2(1), 
 	STATUS_EFFECTIVE_DATE VARCHAR2(8), 
 	STATUS_EXPIRATION_DATE VARCHAR2(8), 
