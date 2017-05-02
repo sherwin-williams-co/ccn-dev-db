@@ -4,13 +4,11 @@ Purpose    : "Cara M. DiDonato" requested to stop sending "STINSINV file" email 
              as they are retiring that group. Instead the email needs to be sent to "BPI FIN AP NOAM@SWCBD" group. 
 
 Created : 05/02/2017 gxg192 CCN Project....
-Changed :
+Changed : 05/02/2017 gxg192 Changes to use group id.
 */
 
 UPDATE MAILING_GROUP
    SET mail_id = 'ccnoracle.team@sherwin.com; bpi.fin.ap.noam@sherwin.com'
- WHERE group_id = (SELECT group_id
-                     FROM MAILING_DETAILS
-                    WHERE subject = 'STINSINV file');
+ WHERE group_id = '27';
 
 COMMIT;
