@@ -172,5 +172,5 @@ Select '09680' as DCO, '030' as email_number from dual) LOOP
 
 END LOOP;
 -- Commit the complete transaction
-COMMIT:
+COMMIT;
 END;
