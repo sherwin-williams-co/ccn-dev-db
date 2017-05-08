@@ -37,8 +37,6 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            ahead of other code
          : 11/04/2016 MXK766 CCN Project Team..
            Adding INVENTORY_INDICATOR columm from the store table.
-         : 11/10/2016 AXK326 CCN Project Team..
-           Adding POLLING_IND column from polling table.
          : 11/22/2016 rxs349 CCN Project Team..
            Adding CASE expressions to STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER columns.
          : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE & STATUS_CODE ahead of other code
@@ -77,10 +75,6 @@ CCN_HIERARCHY.GET_TYPE_FNC(C.COST_CENTER_CODE) TYPE_CODE,
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
     AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_STATUS_CODE,
-(SELECT POLLING_IND
-   FROM POLLING
-  WHERE CURRENT_FLAG = 'Y'
-    AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_IND,
  NVL((SELECT CD.CODE_DETAIL_DESCRIPTION
         FROM CODE_DETAIL CD,
              POLLING P
