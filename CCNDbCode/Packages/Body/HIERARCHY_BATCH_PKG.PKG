@@ -6,6 +6,39 @@ AS
 Created : 10/02/2015 SX410 CCN Project....
 Changed :
 **********************************************************/
+FUNCTION IS_CURR_REC_READY_FOR_HIST(
+/******************************************************************************
+  This function will check is the current record can be moved to history or not
+
+Created : 05/11/2017 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+IN_HIERARCHY_DETAIL_REC   IN     HIERARCHY_DETAIL%ROWTYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL    VARCHAR2(1) := 'N';
+    V_COUNT         NUMBER      := 0;
+BEGIN
+    --Check if there is a future record coming into current the next day
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM HIERARCHY_DETAIL_FUTURE
+     WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_REC.HRCHY_HDR_NAME
+       AND HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_LEVEL
+       AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_REC.HRCHY_DTL_CURR_ROW_VAL
+       --we are OK to keep the below condition as this batch runs daily including weekends
+       --if anything in that schedule changes [which ideally should not happen], we need to revisit this again
+       AND HRCHY_DTL_EFF_DATE     = TRUNC(SYSDATE) + 1;
+
+    --future do not exist for the next day, so we can move this record to history
+    IF V_COUNT = 0 THEN
+        V_RETURN_VAL := 'Y';
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_CURR_REC_READY_FOR_HIST;
+
 PROCEDURE HIERARCHY_BATCH_PROCESS
 /******************************************************************************
   This procedure is a wrapper to call HIERARCHY_HIST_INSERT to insert history 
@@ -19,6 +52,8 @@ Changed : 01/13/2017 gxg192 CCN Project....
           Changes to fetch error number from errnums package and call ERRPKG.RAISE_ERR to raise the exception
         : 01/31/2017 gxg192 CCN Project....
           Changes to remove V_ERROR_MESSAGE variable and added user defined exception
+Changed : 05/11/2017 jxc517 CCN Project Team....
+          Added condition to ignore expired records with the future coming the next day
 *******************************************************************************/
 IS
   V_BATCH_NUMBER            BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
@@ -28,14 +63,15 @@ IS
   exec_process_error        EXCEPTION;
 
 BEGIN
-
     CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_BATCH_JOB', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     FOR REC IN (SELECT *
                   FROM HIERARCHY_DETAIL
                  WHERE HRCHY_DTL_EXP_DATE <= TRUNC(SYSDATE)) LOOP
         BEGIN
-            CCN_HIERARCHY.HIERARCHY_HIST_INSERT(REC);
+            IF IS_CURR_REC_READY_FOR_HIST(REC) = 'Y' THEN
+                CCN_HIERARCHY.HIERARCHY_HIST_INSERT(REC);
+            END IF;
         EXCEPTION
             WHEN OTHERS THEN
                 COMMON_TOOLS.LOG_ERROR(REC.HRCHY_DTL_CURR_ROW_VAL, 'HIERARCHY INSERT/DELETE ERROR', SQLERRM, SQLCODE);

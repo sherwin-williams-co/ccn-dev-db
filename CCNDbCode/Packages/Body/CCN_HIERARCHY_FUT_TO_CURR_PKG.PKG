@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_HIERARCHY_FUT_TO_CURR_PKG
+create or replace PACKAGE BODY CCN_HIERARCHY_FUT_TO_CURR_PKG
 AS
 /**********************************************************
   This Package contains procedured to move the future hierarchy details records into
@@ -24,6 +24,8 @@ revised : 08/19/2016 jxc517 CCN Project....
           Changes to define error number and call ERRPKG.RAISE_ERR to raise the exception
           01/31/2017 gxg192 CCN Project....
           Changes to remove V_ERROR_MESSAGE variable and added user defined exception
+          05/12/2017 jxc517 CCN Project Team....
+          Added call to remove the old record immediately after creating the new record
 *******************************************************************************/
 IS
    V_BATCH_NUMBER   BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
@@ -54,34 +56,28 @@ BEGIN
             END;
 
             IF REC.HRCHY_HDR_NAME='ADMINORG_HIERARCHY' THEN
-               IF V_HD_REC.HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
-                --Build the clob to invoke the existing transfer process
-                CCN_HIERARCHY_UPLOAD.BLD_ADMINORG_HIER_TRANSFR_CLOB
-                                                               (
-                                                                 IN_CC_CODE                 => V_HD_REC.HRCHY_DTL_CURR_ROW_VAL,
-                                                                 IN_MANAGER_ID              => NULL,
-                                                                 IN_HIERARCHY_NAME          => V_HD_REC.HRCHY_HDR_NAME,
-                                                                 IN_FROM_COMPOSITE_KEYVALUE => V_HD_REC.HRCHY_DTL_PREV_LVL_VAL,
-                                                                 IN_TO_COMPOSITE_KEYVALUE   => REC.HRCHY_DTL_PREV_LVL_VAL,
-                                                                 IN_EFFECTIVE_DATE          => REC.HRCHY_DTL_EFF_DATE,
-                                                                 OUT_XML_AS_CLOB            => V_CLOB
-                                                                );
-                CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB,'Y');
-               ELSE
-               --if not found, we need to perform an insert process
-               --Build the clob to invoke the existing insert process
-                CCN_HIERARCHY_UPLOAD.BUILD_ADMINORG_HIER_INS_CLOB
-                                                                (
-                                                                 IN_CC_CODE            => REC.HRCHY_DTL_CURR_ROW_VAL,
-                                                                 IN_MANAGER_ID         => NULL,
-                                                                 IN_HIERARCHY_NAME     => REC.HRCHY_HDR_NAME,
-                                                                 IN_COMPOSITE_KEYVALUE => REC.HRCHY_DTL_PREV_LVL_VAL,
-                                                                 IN_EFFECTIVE_DATE     => REC.HRCHY_DTL_EFF_DATE,
-                                                                 OUT_XML_AS_CLOB       => V_CLOB
-                                                                );
-                CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
-               END IF;
-            ELSE
+                IF V_HD_REC.HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
+                    --Build the clob to invoke the existing transfer process
+                    CCN_HIERARCHY_UPLOAD.BLD_ADMINORG_HIER_TRANSFR_CLOB(V_HD_REC.HRCHY_DTL_CURR_ROW_VAL,
+                                                                        NULL,
+                                                                        V_HD_REC.HRCHY_HDR_NAME,
+                                                                        V_HD_REC.HRCHY_DTL_PREV_LVL_VAL,
+                                                                        rec.HRCHY_DTL_PREV_LVL_VAL,
+                                                                        rec.HRCHY_DTL_EFF_DATE,V_CLOB);
+                    CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB,'Y');
+                    CCN_HIERARCHY.HIERARCHY_HIST_INSERT(V_HD_REC);
+                ELSE
+                    --if not found, we need to perform an insert process
+                    --Build the clob to invoke the existing insert process
+                    CCN_HIERARCHY_UPLOAD.BUILD_ADMINORG_HIER_INS_CLOB(rec.HRCHY_DTL_CURR_ROW_VAL,
+                                                                      NULL,
+                                                                      rec.HRCHY_HDR_NAME,
+                                                                      rec.HRCHY_DTL_PREV_LVL_VAL,
+                                                                      rec.HRCHY_DTL_EFF_DATE,
+                                                                      V_CLOB);
+                    CCN_HIERARCHY.HIERARCHY_DETAIL_INSERT(V_CLOB);
+                END IF;
+            ELSE 
                 --If found we need to perform a transfer process
                 IF V_HD_REC.HRCHY_DTL_CURR_ROW_VAL IS NOT NULL THEN
                     --Build the clob to invoke the existing transfer process
@@ -93,6 +89,7 @@ BEGIN
                                                                      rec.HRCHY_DTL_EFF_DATE,
                                                                      V_CLOB);
                     CCN_HIERARCHY.HIERARCHY_TRANSFER_PROCESS(V_CLOB);
+                    CCN_HIERARCHY.HIERARCHY_HIST_INSERT(V_HD_REC);
                 ELSE
                 --if not found, we need to perform an insert process
                     --Build the clob to invoke the existing insert process
