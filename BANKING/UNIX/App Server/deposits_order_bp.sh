@@ -8,6 +8,8 @@
 # Created  : 06/09/2016 jxc517 CCN Project Team.....
 # Modified : 08/26/2016 nxk927 CCN Project Team.....
 #            added extra condition to not run for batch process.
+# Modified : 05/16/2017 nxk927 CCN Project Team.....
+#            added extra condition to not kick the bg process until one process is completed
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh /app/banking/dev/deposits_order_bp.sh > /app/banking/dev/deposits_order_bp.log 2>&1 &
@@ -26,7 +28,10 @@ while true; do
    then
       if [ -s $file_path/DEPOSIT_TICKET_*.txt ] && [ -s $file_path/DEPOSIT_TICKET_*.xml ]
       then
-         sh deposit_ticket_order_files_ftp.sh
+         if [ ! -f dep_tkt_proc_hold.trigger ]
+         then
+            sh deposit_ticket_order_files_ftp.sh
+         fi
       fi
       if [ -s $file_path/DEPOSIT_BAG_*.xml ]
       then
