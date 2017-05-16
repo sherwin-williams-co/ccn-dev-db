@@ -6,6 +6,12 @@
 #			 Added Script Comments and Handled exceptions using echo as fallback_command and record them in the log file
 ##########################################################
 
+#Set Error
+set -e
+
+#Echo Error and exit in the event of unknown Errors   
+trap "echo Exception or Error Occured inside pl_gain.sh. Exiting..; exit 1; " ERR
+
 . /app/strdrft/dataloadInfo.txt
 
 dt=`date`
@@ -27,25 +33,30 @@ echo "Running $file"
 filename=`basename $file .rpt` 
 
 PATH=/usr/jdk/jdk1.7.0_17/bin:$PATH
-java -classpath .:../src:../lib/cvom.jar:../lib/log4j-1.2.14.jar:../lib/CrystalReportsRuntime.jar:../lib/ojdbc5-11.1.0.7.0.jar:../lib/CrystalCommon2.jar:../lib/DatabaseConnectors.jar:../lib/JDBInterface.jar:../lib/keycodeDecoder.jar:../lib/pfjgraphics.jar:../lib/QueryBuilder.jar:../lib/commons-collections-3.1.jar:../lib/commons-configuration-1.2.jar:../lib/commons-lang-2.1.jar:../lib/commons-logging.jar:../lib/com.ibm.icu_4.0.1.v20090822.jar:../lib/log4j.jar:../lib/xpp3.jar:../lib/jai_imageio.jar:../lib/logging.jar:../lib/com.azalea.ufl.barcode.1.0.jar:../lib/XMLConnector.jar:../lib/iText-5.0.1.jar:../lib/derby.jar:../lib/Xtreme.jar:../lib/icu4j-2.6.1.jar:../bin com.businessobjects.samples.CrystalExportExampleStrdrft /app/strdrft/sdReport/rpt/plrpt/$file /app/strdrft/sdReport/reports/$filename.pdf $user $passw "$P1" "$P2" $fl1 $db_name $server_name $port_num || echo "Unknown Exception occured while running Java report $filename"
+java -classpath .:../src:../lib/cvom.jar:../lib/log4j-1.2.14.jar:../lib/CrystalReportsRuntime.jar:../lib/ojdbc5-11.1.0.7.0.jar:../lib/CrystalCommon2.jar:../lib/DatabaseConnectors.jar:../lib/JDBInterface.jar:../lib/keycodeDecoder.jar:../lib/pfjgraphics.jar:../lib/QueryBuilder.jar:../lib/commons-collections-3.1.jar:../lib/commons-configuration-1.2.jar:../lib/commons-lang-2.1.jar:../lib/commons-logging.jar:../lib/com.ibm.icu_4.0.1.v20090822.jar:../lib/log4j.jar:../lib/xpp3.jar:../lib/jai_imageio.jar:../lib/logging.jar:../lib/com.azalea.ufl.barcode.1.0.jar:../lib/XMLConnector.jar:../lib/iText-5.0.1.jar:../lib/derby.jar:../lib/Xtreme.jar:../lib/icu4j-2.6.1.jar:../bin com.businessobjects.samples.CrystalExportExampleStrdrft /app/strdrft/sdReport/rpt/plrpt/$file /app/strdrft/sdReport/reports/$filename.pdf $user $passw "$P1" "$P2" $fl1 $db_name $server_name $port_num
 
 #Check for Existance of generated report file before Starting the conversion process
 if [ -f /app/strdrft/sdReport/reports/$filename.pdf ]
 	then
-echo "\n Converting to TXT"
-		/usr/local/bin/pdftotext -layout -nopgbrk /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt || "Unknown Exception occured while Converting /app/strdrft/sdReport/reports/$filename.pdf to TXT file"
+		echo " Converting to TXT"
+/usr/local/bin/pdftotext -layout -nopgbrk /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt
+		#Archive PDF file
+		cp /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.pdf
 	else
-		echo "Exception occured while Converting /app/strdrft/sdReport/reports/$filename.pdf to TXT file - PDF File not found"
+		echo "Exception occured while Converting /app/strdrft/sdReport/reports/$filename.pdf to TXT file - PDF File not found.. Breaking out of Report Generation"
+		break
 fi
 
 #Check for Existance of converted report TXT file before Starting the Finalization process
 if [ -f /app/strdrft/sdReport/reports/$filename.txt ]
 	then
-		echo "\n Finalizing converted TXT file"
-		sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdReport/reports/final/$filename.txt || echo "Unknown Exception occured while Finalizing the TXT file /app/strdrft/sdReport/reports/$filename.txt - sed command"
-		cp /app/strdrft/sdReport/reports/final/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt || echo "Unknown Exception occured while backing up generated /app/strdrft/sdReport/reports/$filename.txt to a tmp folder - cp command"
+		echo " Finalizing converted TXT file\n"
+sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdReport/reports/final/$filename.txt 
+
+cp /app/strdrft/sdReport/reports/final/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt
 	else
-		echo "Exception occured while converting/finalizing the TXT file /app/strdrft/sdReport/reports/$filename.txt - File not found"
+		echo "Exception occured while converting/finalizing the TXT file /app/strdrft/sdReport/reports/$filename.txt - File not found.. Breaking out of Report Finalization"
+		break
 fi
 
 
