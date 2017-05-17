@@ -1,0 +1,20 @@
+/*
+     Created: 05/17/2017 axt754 CCN Project Team..
+     Script to clean up POS_XML_IFACE components 
+*/
+BEGIN
+    -- DROP Package POS_XML_IFACE_FILE
+    BEGIN
+        EXECUTE IMMEDIATE 'DROP PACKAGE POS_XML_IFACE_FILE';
+    EXCEPTION
+        WHEN OTHERS THEN NULL;   
+    END;
+    
+    -- DROP table POS_XML_IFACE_LOCAL
+    BEGIN
+        EXECUTE IMMEDIATE 'DROP TABLE POS_XML_IFACE_LOCAL';
+    EXCEPTION
+        WHEN OTHERS THEN NULL;   
+    END;
+END;
+/
