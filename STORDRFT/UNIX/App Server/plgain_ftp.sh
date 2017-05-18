@@ -37,16 +37,16 @@ FTP_MF
 
 		echo "End of FTP.. Will now cleanup the generated files\n"
 		cd /app/strdrft/sdReport/scripts 
-		sh cleanup_mthly_reports.sh
+		sh cleanup_monthly_gl_reports.sh
 	else
 		echo "Cannot Start FTP Process because Report File /app/strdrft/sdReport/reports/final/glreport.txt is not found"
-		sh cleanup_and_email_mthly_reports.sh
+		sh cleanup_and_email_monthly_gl_reports.sh
 		exit 1
 	fi
 #Exceptions or Errors are found in the Log file then cleanup the generated report files and email the log file
 else
 	echo "Exceptions found in the Log file.. skipping FTP process.  Starting cleanup_and_email now.. Please check the Log File for more details\n"
-	sh cleanup_and_email_mthly_reports.sh
+	sh cleanup_and_email_monthly_gl_reports.sh
 	exit 1
 fi
 
