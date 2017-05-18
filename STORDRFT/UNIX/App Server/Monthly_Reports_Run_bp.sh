@@ -17,22 +17,22 @@
 #ps -eaf | grep Monthly_Reports_Run_bp.sh
 
 while true; do
-   if [ -f /app/strdrft/sdReport/data/sd_monthly_load.trg ]
-   then
-      DATE=`date +"%m/%d/%Y"`
-      TIME=`date +"%I:%M:%S"`
-      echo "sd_monthly_load.trg trigger file found at $TIME on $DATE"
-      echo "Removing sd_monthly_load.trg trigger file at $TIME on $DATE"
-      rm -f /app/strdrft/sdReport/data/sd_monthly_load.trg
-      TIME=`date +"%I:%M:%S"`
-      echo "sd_monthly_load.trg trigger file removed at $TIME on $DATE"
-      cd /app/strdrft/sdReport/scripts
-      echo "Running the Report Generation process at $TIME on $DATE"
-      sh sdreport.sh
-      TIME=`date +"%I:%M:%S"`
-      echo "Running the FTP Process at $TIME on $DATE"
-      sh plgain_ftp.sh
-   fi
+	if [ -f /app/strdrft/sdReport/data/sd_monthly_load.trg ]
+	then
+		DATE=`date +"%m/%d/%Y"`
+		TIME=`date +"%I:%M:%S"`
+		echo "sd_monthly_load.trg trigger file found at $TIME on $DATE"
+		echo "Removing sd_monthly_load.trg trigger file at $TIME on $DATE"
+		rm -f /app/strdrft/sdReport/data/sd_monthly_load.trg
+		TIME=`date +"%I:%M:%S"`
+		echo "sd_monthly_load.trg trigger file removed at $TIME on $DATE"
+		cd /app/strdrft/sdReport/scripts
+		echo "Running the Report Generation process at $TIME on $DATE"
+		sh sdreport.sh
+		TIME=`date +"%I:%M:%S"`
+        echo "Running the FTP Process at $TIME on $DATE"
+        sh plgain_ftp.sh
+	fi
 done
 
 echo "process completed - but should not come to this point"

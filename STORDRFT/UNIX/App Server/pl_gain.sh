@@ -3,14 +3,8 @@
 # Script to Run the reports
 #
 # modified: 05/09/2017 rxa457 - asp-781 CCN Project Team... 
-#			 Added Script Comments and Handled exceptions using echo as fallback_command and record them in the log file
+#			 Added Script Comments and Handled exceptions 
 ##########################################################
-
-#Set Error
-set -e
-
-#Echo Error and exit in the event of unknown Errors   
-trap "echo Exception or Error Occured inside pl_gain.sh. Exiting..; exit 1; " ERR
 
 . /app/strdrft/dataloadInfo.txt
 
@@ -38,30 +32,31 @@ java -classpath .:../src:../lib/cvom.jar:../lib/log4j-1.2.14.jar:../lib/CrystalR
 #Check for Existance of generated report file before Starting the conversion process
 if [ -f /app/strdrft/sdReport/reports/$filename.pdf ]
 	then
-		echo " Converting to TXT"
-/usr/local/bin/pdftotext -layout -nopgbrk /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt
+		echo "\n Converting to TXT"
+
+		/usr/local/bin/pdftotext -layout -nopgbrk /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt
 		#Archive PDF file
 		cp /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.pdf
 	else
 		echo "Exception occured while Converting /app/strdrft/sdReport/reports/$filename.pdf to TXT file - PDF File not found.. Breaking out of Report Generation"
-		break
+		exit 1
 fi
 
 #Check for Existance of converted report TXT file before Starting the Finalization process
 if [ -f /app/strdrft/sdReport/reports/$filename.txt ]
 	then
 		echo " Finalizing converted TXT file\n"
-sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdReport/reports/final/$filename.txt 
+		sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdReport/reports/final/$filename.txt
 
-cp /app/strdrft/sdReport/reports/final/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt
+		cp /app/strdrft/sdReport/reports/final/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt
 	else
 		echo "Exception occured while converting/finalizing the TXT file /app/strdrft/sdReport/reports/$filename.txt - File not found.. Breaking out of Report Finalization"
-		break
+		exit 1
 fi
-
-
 
 done
 dt1=`date`
 
 echo "END PL GAIN REPORT  : $dt1\n"
+
+exit 0
