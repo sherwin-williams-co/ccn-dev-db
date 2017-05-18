@@ -29,18 +29,16 @@ printf "deposit bag Process is runnning" > dep_tkt_proc_hold.trigger
 TIME=`date +"%H:%M:%S"`
 echo "Process started for $proc_name at $TIME on $DATE"
 
-#move to the datafiles folder
-cd $HOME/datafiles
-
-for file in DEPOSIT_BAG_*.xml
+for file in $HOME/datafiles/DEPOSIT_BAG_*.xml
 do
-if [ -e DEPOSIT_BAG_*.xml ]
+if [ -e $file ]
 then
+filename=`basename $file`
 ftp -inv ${mainframe_host} <<FTP_MF > $FTPLOG
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
-cd /FTP/PrintServices/Deposit_Bags
-put $file
+##cd /FTP/PrintServices/Deposit_Bags
+put $file $filename
 bye
 END_SCRIPT
 FTP_MF
@@ -49,38 +47,35 @@ FTP_MF
 #                           ERROR STATUS CHECK
 ############################################################################
 TIME=`date +"%H:%M:%S"`
-sh $HOME/check_ftp_status.sh $FTPLOG
+./check_ftp_status.sh $FTPLOG
 
 status=$?
+f1=${filename:0:18}
+dt=$(date +%Y%m%d%H%M%S)
+TIME=`date +"%H:%M:%S"`
+
 if test $status -ne 0
 then
-   echo "The transfer of $file FAILED at ${TIME} on ${DATE}"
-   sh $HOME/dpst_bag_send_mail.sh 'DEPOSIT_BAG_FTP_FAILED' $file
+   echo "The transfer of $filename FAILED at ${TIME} on ${DATE}"
+   ./dpst_bag_send_mail.sh 'DEPOSIT_BAG_FTP_FAILED' $filename
 
    status=$?
    TIME=`date +"%H:%M:%S"`
    if test $status -ne 0
    then
-      echo "Sending email for $CC for $file FAILED at $TIME on $DATE"
+      echo "Sending email for $CC for $filename FAILED at $TIME on $DATE"
    fi
 
-   f1=${file:0:18}
-   dt=$(date +%Y%m%d%H%M%S)
    mv $file $ftp_failed_files_path/${f1}_${dt}.xml
    TIME=`date +"%H:%M:%S"`
-   echo "File $file moved to ftp_failed_files folder at $TIME on $DATE"
+   echo "File $filename moved to ftp_failed_files folder at $TIME on $DATE"
 else
-   echo "The transfer of $file completed successfully at ${TIME} on ${DATE}"
-   f1=${file:0:18}
-   dt=$(date +%Y%m%d%H%M%S)
+   echo "The transfer of $filename completed successfully at ${TIME} on ${DATE}"
    mv $file $archieve_path/${f1}_${dt}.xml
-   TIME=`date +"%H:%M:%S"`
    echo "File $file Archieved successfully at $TIME on $DATE"
 fi
 fi
 done
-
-cd $HOME
 
 TIME=`date +"%H:%M:%S"`
 echo "Removing the trigger file at $TIME on $DATE"
