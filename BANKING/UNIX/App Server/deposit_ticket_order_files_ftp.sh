@@ -23,7 +23,6 @@
 proc_name="deposit_ticket_order_files_ftp"
 DATE=`date +"%m/%d/%Y"`
 archieve_path="$HOME/datafiles/archieve"
-file_path="$HOME/datafiles"
 FTPLOG=$HOME/logs/dep_tckt_ftplogfile.log
 
 # Generating a dep_tkt_proc_hold.trigger file using the redirection command to make sure deposits_order_bp.sh background process will not kick off until one process is completed.
