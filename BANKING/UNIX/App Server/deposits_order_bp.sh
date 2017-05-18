@@ -26,16 +26,16 @@ file_path="$HOME/datafiles"
 while true; do
    if [ ! -f dep_tkt_bag_dailyRun.trigger ]
    then
-      if [ -s $file_path/DEPOSIT_TICKET_*.txt ] && [ -s $file_path/DEPOSIT_TICKET_*.xml ]
-      then
-         if [ ! -f dep_tkt_proc_hold.trigger ]
+      if [ ! -f dep_tkt_proc_hold.trigger ]
          then
-            sh deposit_ticket_order_files_ftp.sh
-         fi
-      fi
-      if [ -s $file_path/DEPOSIT_BAG_*.xml ]
-      then
-         sh deposit_bag_order_files_ftp.sh
+           if [ -s $file_path/DEPOSIT_TICKET_*.txt ] && [ -s $file_path/DEPOSIT_TICKET_*.xml ]
+           then
+              sh deposit_ticket_order_files_ftp.sh
+           fi
+           if [ -s $file_path/DEPOSIT_BAG_*.xml ]
+           then
+              sh deposit_bag_order_files_ftp.sh
+           fi
       fi
    fi
 done
