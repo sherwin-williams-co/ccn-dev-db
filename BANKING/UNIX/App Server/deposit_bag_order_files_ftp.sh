@@ -37,7 +37,7 @@ filename=`basename $file`
 ftp -inv ${mainframe_host} <<FTP_MF > $FTPLOG
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
-##cd /FTP/PrintServices/Deposit_Bags
+cd /FTP/PrintServices/Deposit_Bags
 put $file $filename
 bye
 END_SCRIPT
