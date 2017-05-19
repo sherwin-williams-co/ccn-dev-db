@@ -16,6 +16,8 @@
 #            1. Changes to call check_ftp_status.sh for checking status of FTP process
 #          : 05/16/2017 nxk927 CCN Project Team.....
 #            Added logic to make the background process to wait until current process is complete
+#          : 05/19/2017 nxk927 CCN Project Team.....
+#            Added logic to check if the file is present before the process starts
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -32,6 +34,8 @@ TIME=`date +"%H:%M:%S"`
 echo "Process started for $proc_name at $TIME on $DATE"
 for file in $HOME/datafiles/DEPOSIT_TICKET*.xml
 do
+  if [ -e $file ]
+  then
   file1=`basename $file`
   filename=${file1:0:21}
   file2=$filename.txt
@@ -92,7 +96,9 @@ FTP_MF
 
      echo "Sending email Process finished at $TIME on $DATE"
   fi
+fi
 done
+
 
 TIME=`date +"%H:%M:%S"`
 echo "Removing the trigger file at $TIME on $DATE"
