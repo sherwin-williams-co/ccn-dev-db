@@ -15,23 +15,23 @@ run=`cat /app/strdrft/sdReport/data/run1.txt`
 
 for file in $run
 do
-	filename=`basename $file .rpt` 
-	if [ -f $FPATH/$filename.txt ]
-	then
-		echo "Removing $FPATH/$filename.txt"
-		rm -f $FPATH/$filename.txt
-	fi
-	if [ -f $FPATH2/$filename.pdf ]
-	then
-		echo "Removing $FPATH2/$filename.pdf"
-		rm -f $FPATH2/$filename.pdf
-	fi
+    filename=`basename $file .rpt` 
+    if [ -f $FPATH/$filename.txt ]
+    then
+        echo "Removing $FPATH/$filename.txt"
+        rm -f $FPATH/$filename.txt
+    fi
+    if [ -f $FPATH2/$filename.pdf ]
+    then
+        echo "Removing $FPATH2/$filename.pdf"
+        rm -f $FPATH2/$filename.pdf
+    fi
 done 
 
 if [ -f $FPATH/glreport.txt ]
 then
-	echo "Removing $FPATH/glreport.txt"
-	rm -f $FPATH/glreport.txt
+    echo "Removing $FPATH/glreport.txt"
+    rm -f $FPATH/glreport.txt
 fi
 
 LOGDIR=/app/strdrft/sdReport/logs
@@ -42,7 +42,9 @@ LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
 
 echo "END CLEANUP\n"
 
-echo "Monthly_Reports_Run_bp.log has been archived as $LOG_NAME\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+echo "Monthly_Reports_Run_bp.log has been archived as $LOG_NAME"
+#To format log file to clearly indicate the end of runs
+echo "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 
 #Archive Log file
 cp $LOGDIR/$THISSCRIPT.log $LOGDIR/$LOG_NAME
