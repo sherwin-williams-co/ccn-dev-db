@@ -16,8 +16,8 @@
 #            1. Changes to call check_ftp_status.sh for checking status of FTP process
 #          : 05/16/2017 nxk927 CCN Project Team.....
 #            Added logic to make the background process to wait until current process is complete
-#          : 05/19/2017 nxk927 CCN Project Team.....
-#            Added logic to check if the file is present before the process starts
+#          : 05/24/2017 nxk927 CCN Project Team.....
+#            declaring the file name for the xml before starting the process
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -26,16 +26,15 @@ proc_name="deposit_ticket_order_files_ftp"
 DATE=`date +"%m/%d/%Y"`
 archieve_path="$HOME/datafiles/archieve"
 FTPLOG=$HOME/logs/dep_tckt_ftplogfile.log
+xml_file=`$HOME/datafiles/DEPOSIT_TICKET_*.xml`
 
 # Generating a dep_tkt_proc_hold.trigger file using the redirection command to make sure deposits_order_bp.sh background process will not kick off until one process is completed.
 printf "deposit ticket Process is runnning" > dep_tkt_proc_hold.trigger
 
 TIME=`date +"%H:%M:%S"`
 echo "Process started for $proc_name at $TIME on $DATE"
-for file in $HOME/datafiles/DEPOSIT_TICKET*.xml
+for file in $xml_file
 do
-  if [ -e $file ]
-  then
   file1=`basename $file`
   filename=${file1:0:21}
   file2=$filename.txt
@@ -95,7 +94,6 @@ FTP_MF
      fi
 
      echo "Sending email Process finished at $TIME on $DATE"
-  fi
 fi
 done
 
