@@ -94,7 +94,7 @@ FTP_MF
      fi
 
      echo "Sending email Process finished at $TIME on $DATE"
-fi
+  fi
 done
 
 
