@@ -294,10 +294,31 @@ Modified:
     IN_HIERARCHY_TO_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
 RETURN VARCHAR2;
 
+FUNCTION CC_EXISTS_IN_HIER_ERROR(
+/***********************************************************
+This function will check if the cost center passed is already in 
+hierarchy_error_log for PRICE_DISTRICT Hierarchy
+
+Returns 'N' if it is existing in the log without re-run
+Returns 'Y' if it does not exist in the log or exists after re-run
+i.e with the EXCEPTION_FLAG of 'Y'
+
+Created : 05/24/2017 sxh487 CCN Project Team....
+Modified:
+************************************************************/
+    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
+RETURN VARCHAR2;
+
 FUNCTION IS_HRCHY_EFFCTV_EXP_PAST(
 /***********************************************************
-This function will check if the Effective/Expiration dates passed are in the past
-for PRICE_DISTRICT Hierarchy
+This function will check 
+
+  * If a cost center for PRICE_DISTRICT exists 
+   in the hierarchy_error_log with/without re-run to enforce/relax
+   the PAST_DATES_NOT_ALLOWED_EXC business rule.
+
+  * If the Effective/Expiration dates passed are in the past or not
+    for PRICE_DISTRICT Hierarchy
 
 Created : 04/21/2017 sxh487 CCN Project Team....
 Modified:
