@@ -380,4 +380,178 @@ BEGIN
    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 END GENERATE_HRCHY_MISMATCH_FILE;
 
+PROCEDURE GENERATE_BCMID_BC_FILE
+/******************************************************************************************
+This Procedure create file BCMID_BC.CSV on the server
+File structure:
+MERCHANT_ID,SUBSTR(MERCHANT_ID, 7, 4),PCI_MERCHANT_ID,DISCOVER_ID,PCI_DISCOVER_ID,AMEX_SE_ID
+Filters:
+POLLING_STATUS_CODE = 'P'
+CATEGORY IN ('S','O')
+
+created : 05/25/2017 sxp130 ASP-795
+modified:
+*******************************************************************************************/
+AS
+  V_OUT_CLOB  CLOB;
+  V_CODE      NUMBER;
+  V_ERRM      VARCHAR2(500);
+
+  PATH                VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+  FILENAME            VARCHAR2(50) := 'BCMID_BC_' || TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+  OUTPUT_FILE         UTL_FILE.FILE_TYPE;
+
+ CURSOR CUR IS
+     SELECT MERCHANT_ID ||','||
+            SUBSTR(MERCHANT_ID, 7, 4) ||','||
+            PCI_MERCHANT_ID ||','||
+            DISCOVER_ID ||','||
+            PCI_DISCOVER_ID ||','||
+            AMEX_SE_ID AS V_REC_CLOB
+       FROM BANK_CARD
+      WHERE POLLING_STATUS_CODE = 'P'
+        AND EXPIRATION_DATE IS NULL
+        AND EXISTS (SELECT 1
+                      FROM COST_CENTER
+                     WHERE BANK_CARD.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
+                       AND CATEGORY IN ( 'S', 'O' ));
+
+ BEGIN
+   OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   , 'W' --BINARY
+                                   , 32767);
+
+FOR REC IN CUR LOOP
+V_OUT_CLOB :=  REC.V_REC_CLOB ;
+           UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+ END LOOP;
+UTL_FILE.FCLOSE(OUTPUT_FILE);
+EXCEPTION
+  when OTHERS then
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,500);
+       DBMS_OUTPUT.PUT_LINE('GENERATE_BCMID_BC_FILE FAILED AT '||SQLERRM || ' : ' ||SQLCODE);
+
+END GENERATE_BCMID_BC_FILE;
+
+PROCEDURE GENERATE_BCSERIAL_BC_FILE
+/******************************************************************************************
+This Procedure create file BCSERIAL_BC.CSV on the server
+Filters:
+POLLING_STATUS_CODE = 'P'
+CATEGORY IN ('S','O')
+
+created : 05/25/2017 sxp130 ASP-795
+modified:
+*******************************************************************************************/
+AS
+  V_OUT_CLOB  CLOB;
+  V_CODE      NUMBER;
+  V_ERRM      VARCHAR2(500);
+
+  PATH                VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+  FILENAME            VARCHAR2(50) := 'BCSERIAL_BC_' || TO_CHAR(SYSDATE,'MMDDRR') || '.dat';
+  OUTPUT_FILE         UTL_FILE.FILE_TYPE;
+
+ CURSOR CUR IS
+      SELECT '60' AS REC_TYPE,
+            RPAD(NVL(SubStr(COST_CENTER.COST_CENTER_CODE,3),' '),4,' ') AS STORE_NO,
+            RPAD(' ',12) AS FILLER01,
+            RPAD(NVL(COST_CENTER.COST_CENTER_NAME,' '),35,' ') AS STORENAME,
+            RPAD(' ',73) AS FILLER02,
+            RPAD(NVL(HIERARCHY_DETAIL_VIEW.DIVISION,' '),2,' ') AS DIV_NO,
+            RPAD(' ',15) AS FILLER03,
+            RPAD(NVL(HIERARCHY_DETAIL_VIEW.AREA,' '),2,' ') AS AREA,
+            RPAD(' ',15) AS FILLER04,
+            RPAD(NVL(HIERARCHY_DETAIL_VIEW.DISTRICT,' '),2,' ') AS DIST,
+            RPAD(' ',3) AS FILLER05,
+            RPAD(NVL(BANK_CARD.MERCHANT_ID,' '),11,' ') AS MERCH_ID,
+            RPAD(' ',4) AS FILLER06,
+            RPAD(NVL(BANK_CARD.DISCOVER_ID,' '),15,' ') AS DISCV_ID,
+            RPAD(' ',5) AS FILLER07,
+            RPAD(NVL(BANK_CARD.AMEX_SE_ID,' '),10,' ') AS AMEX_ID,
+            RPAD(' ',5) AS FILLER08 ,
+            RPAD(NVL(ADDRESS_VW.ADDRESS_LINE_1,' '),30,' ') AS ADDRESS1,
+            RPAD(' ',2) AS FILLER09,
+            RPAD(NVL(ADDRESS_VW.CITY,' '),20,' ') AS CITY,
+            RPAD(' ',1) AS FILLER10,
+            RPAD(NVL(ADDRESS_VW.STATE_CODE,' '),2,' ') AS STATE,
+            RPAD(' ',3) AS FILLER11,
+            RPAD(NVL(ADDRESS_VW.ZIP_CODE,' '),10,' ') AS ZIP,
+            RPAD(' ',2) AS FILLER12,
+            RPAD(NVL(COST_CENTER.STATEMENT_TYPE,' '),2,' ') AS GRP_CODE,
+            RPAD(' ',13) AS FILLER13
+       FROM BANK_CARD
+       JOIN COST_CENTER
+         ON (BANK_CARD.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
+        AND COST_CENTER.CATEGORY IN ( 'S', 'O' ))
+       JOIN HIERARCHY_DETAIL_VIEW
+         ON (COST_CENTER.COST_CENTER_CODE = HIERARCHY_DETAIL_VIEW.COST_CENTER_CODE
+        AND HRCHY_HDR_NAME IN ('GLOBAL_HIERARCHY'))
+       JOIN (SELECT COST_CENTER_CODE, PREMISES AS ADDRESS_LINE_1, DISTRICT AS CITY, NULL AS STATE_CODE, POSTAL_CODE AS ZIP_CODE  FROM ADDRESS_BRB   ---FIELDS NEED TO CONFIRM, NO STATE COLUMN
+              WHERE ADDRESS_BRB.EXPIRATION_DATE IS NULL
+              AND ADDRESS_TYPE ='M'
+             UNION
+             SELECT COST_CENTER_CODE, ADDRESS_LINE_1, CITY, STATE_CODE, POSTAL_CODE AS ZIP_CODE FROM ADDRESS_OTHER
+              WHERE ADDRESS_OTHER.EXPIRATION_DATE IS NULL
+              AND ADDRESS_TYPE ='M'
+             UNION
+             SELECT COST_CENTER_CODE, ADDRESS_LINE_1, CITY, STATE_CODE, ZIP_CODE FROM ADDRESS_USA
+              WHERE ADDRESS_USA.EXPIRATION_DATE IS NULL
+              AND ADDRESS_TYPE ='M'
+             UNION
+             SELECT COST_CENTER_CODE, ADDRESS_LINE_1, CITY, PROVINCE_CODE AS STATE_CODE, POSTAL_CODE AS ZIP_CODE FROM ADDRESS_MEX
+              WHERE ADDRESS_MEX.EXPIRATION_DATE IS NULL
+              AND ADDRESS_TYPE ='M'
+             UNION
+             SELECT COST_CENTER_CODE, ADDRESS_LINE_1, CITY, PROVINCE_CODE AS STATE_CODE, POSTAL_CODE AS ZIP_CODE FROM ADDRESS_CAN
+              WHERE ADDRESS_CAN.EXPIRATION_DATE IS NULL
+              AND ADDRESS_TYPE ='M'
+            ) ADDRESS_VW
+         ON (COST_CENTER.COST_CENTER_CODE = ADDRESS_VW.COST_CENTER_CODE)
+      WHERE BANK_CARD.POLLING_STATUS_CODE = 'P'
+        AND BANK_CARD.EXPIRATION_DATE IS NULL;
+
+ BEGIN
+   OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   , 'W' --BINARY
+                                   , 32767);
+
+FOR REC IN CUR LOOP
+V_OUT_CLOB :=  REC.REC_TYPE || REC.STORE_NO || REC.FILLER01 || REC.STORENAME || REC.FILLER02 || REC.DIV_NO || REC.FILLER03 || REC.AREA || REC.FILLER04 ||
+               REC.DIST || REC.FILLER05 || REC.MERCH_ID || REC.FILLER06 || REC.DISCV_ID || REC.FILLER07 || REC.AMEX_ID || REC.FILLER08 || REC.ADDRESS1 || REC.FILLER09 ||
+               REC.CITY || REC.FILLER10 || REC.STATE || REC.FILLER11 || REC.ZIP || REC.FILLER12 || REC.GRP_CODE || REC.FILLER13;
+
+           UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+ END LOOP;
+UTL_FILE.FCLOSE(OUTPUT_FILE);
+EXCEPTION
+  when OTHERS then
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,500);
+       DBMS_OUTPUT.PUT_LINE('GENERATE_BCSERIAL_BC_FILE FAILED AT '||SQLERRM || ' : ' ||SQLCODE);
+
+END GENERATE_BCSERIAL_BC_FILE;
+
+PROCEDURE GENERATE_STORE_DATA_FILE
+/**********************************************************
+This procedure is intended to generate below files which describes store and merchant details
+1. BCMID_BC.CSV
+2. BCSERIAL_BC.CSV
+Filters:
+1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
+
+Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
+Changed :
+**********************************************************/
+IS
+BEGIN
+    GENERATE_BCMID_BC_FILE;
+
+    GENERATE_BCSERIAL_BC_FILE;
+
+END GENERATE_STORE_DATA_FILE;
+
 END CCN_BATCH_PROCESS;
