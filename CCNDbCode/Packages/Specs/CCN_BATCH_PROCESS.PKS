@@ -47,16 +47,16 @@ Created : 04/13/2017 pxb712 CCN project Team....
 **********************************************************/
 ;
 
-
-PROCEDURE GENERATE_STORE_PD_HRCHY_FILE
+PROCEDURE GENERATE_STORE_DATA_FILE
 /**********************************************************
-This procedure is intended to generate Price District Hierarchy reporting for stores pricing group
-STORE_PDH_HRCHY.CSV
-The Report is scheduled to run everyday 8am
+This procedure is intended to generate below files which describes store and merchant details
+1. MID_BC.CSV
+2. SERIAL_BC.CSV
 Filters:
-consider only Category = 'S' and stores attached to Price district Hierarchy
+1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
 
-Created : 05/25/2017 rxa457 ASP-772 CCN project Team....
+Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
+Changed :
 **********************************************************/
 ;
 
