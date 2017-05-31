@@ -47,18 +47,6 @@ Created : 04/13/2017 pxb712 CCN project Team....
 **********************************************************/
 ;
 
-PROCEDURE GENERATE_STORE_DATA_FILE
-/**********************************************************
-This procedure is intended to generate below files which describes store and merchant details
-1. MID_BC.CSV
-2. SERIAL_BC.CSV
-Filters:
-1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
-
-Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
-Changed :
-**********************************************************/
-;
 
 PROCEDURE GENERATE_STORE_PD_HRCHY_FILE
 /**********************************************************

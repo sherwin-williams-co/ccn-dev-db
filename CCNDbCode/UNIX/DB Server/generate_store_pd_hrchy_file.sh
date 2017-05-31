@@ -18,7 +18,7 @@ FILEDATE=`date +"%m%d%y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing Started for $proc at $TIME on $DATE"
+echo "Processing Started for $proc at $TIME on $DATE" >> $LOGDIR/$proc"_"$TimeStamp.log
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
@@ -38,22 +38,24 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-   echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+   echo "processing FAILED for $proc at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
+   
+   #Identify starting Line number of current run from the log file
+   curlineno=`grep -n "Processing Started for generate_store_pd_hrchy_file.sh" $LOGDIR/$proc"_"$TimeStamp.log|cut -f1 -d:|tail -1`
+   #Tail the current run log file content
+   logfile=`sed -n -e ''''$curlineno''',$p' $LOGDIR/$proc"_"$TimeStamp.log`
+
+   #Emailing the Current run's Log File
+   cd $HOME/
+   ./send_mail.sh STORE_PDH_HRCHY_ERROR "$logfile"
+   
    exit 1;
 fi
-echo "Process to generate weekly Store Pricing District Hierarchy report file executed for $RUNDATE at ${TIME} on ${DATE}"
-cd $datafilepath
-csv_files=`ls STORE_PDH_HRCHY_$FILEDATE.csv`
-for file in $csv_files
-do
-   filename=`echo "$file" | cut -d'.' -f1`
-   extension=`echo "$file" | cut -d'.' -f2`
-   echo renaming $file to $filename"_"$TimeStamp.$extension
-   mv $file $filename"_"$TimeStamp.$extension
-done
+
+echo "Process to generate weekly Store Pricing District Hierarchy report file executed successfully for $RUNDATE at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc at ${TIME} on ${DATE}"
+echo "Processing finished for $proc at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
 
 exit 0
 #######################################################################################################################
