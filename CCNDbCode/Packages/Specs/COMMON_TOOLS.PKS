@@ -420,4 +420,15 @@ modified:
 IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
 RETURN VARCHAR2;
 
+FUNCTION GET_FORMATTED_PHONE_NUMBER(
+/***********************************************
+Fucntion to get formatted (###)###-#### Pri, Scd, Fax phone_number using 
+COST_CENTER_CODE and PHONE_NUMBER as Parameters
+
+created : 05/31/2017  rxa457 CCN Project..
+***********************************************/
+IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE,
+IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
+RETURN VARCHAR2;
+
 END COMMON_TOOLS;
