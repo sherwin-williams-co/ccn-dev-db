@@ -10,9 +10,11 @@ This has been modified to improve the performance when returning the whole resul
 Created  : 04/16/2015 jxc517 CCN Project....
 Modified : 06/04/2015 jxc517 CCN Project....
            To improve performance, eliminated all redundant queries
+         : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
+                      the same data as it is in COST_CENTER_CODE field.
 *******************************************************************************/ 
        DISTINCT
-       CC.STATEMENT_TYPE
+        CC.STATEMENT_TYPE
        ,H.HRCHY_HDR_NAME
        ,CC.COST_CENTER_CODE
        ,H.HRCHY_DTL_EFF_DATE
@@ -26,7 +28,6 @@ Modified : 06/04/2015 jxc517 CCN Project....
        ,H.CITY_SALES_MANAGER_VAL CITY_SALES_MANAGER
        ,H.ZONE_VAL "ZONE"
        ,H.SPECIAL_ROLES_VAL SPECIAL_ROLES
-       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.DOMAIN_VAL_NAME DOMAIN_NAME
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
@@ -38,6 +39,8 @@ Modified : 06/04/2015 jxc517 CCN Project....
        ,H.SPECIAL_ROLES_VAL_NAME SPECIAL_ROLES_NAME
        ,CC.COST_CENTER_NAME
   FROM COST_CENTER CC,
+        --inner sub query "T" gives all the hierarchy details with all the levels
+        --present in the CCN system by joining the header, description and detail tables
        (WITH T AS (SELECT HDESC.HRCHY_HDR_LVL_DESC DESCRIPTION,
                           HD.HRCHY_DTL_CURR_ROW_VAL COST_CENTER_CODE,
                           HD.HRCHY_HDR_NAME,
@@ -66,6 +69,8 @@ Modified : 06/04/2015 jxc517 CCN Project....
                       AND NVL(HD.HRCHY_DTL_NEXT_LVL_VAL, '~~~') = '~~~')
              SELECT *
                FROM T
+                    --PIVOT function convers this entire result set into a transpose (level of rows to level of columns)
+                    --so that we get one record for each hierarchy with all level values as its columns
                     PIVOT 
                     (MAX(VAL) AS VAL,
                      MAX(VAL_NAME) AS VAL_NAME FOR (DESCRIPTION) IN ('Domain' AS DOMAIN,
@@ -77,6 +82,8 @@ Modified : 06/04/2015 jxc517 CCN Project....
                                                                      'City/Sales Manager' AS CITY_SALES_MANAGER,
                                                                      'Zone' AS "ZONE",
                                                                      'Special Roles' AS SPECIAL_ROLES))) H
+--Finally result of the above two steps(WITH T and PIVOT) will be a new result set "H" which can be used as any other
+--table in a join condition
  WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE(+)
  ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
 
@@ -85,3 +92,4 @@ Modified : 06/04/2015 jxc517 CCN Project....
   GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO ICM_CPDB4;
   GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO STORDRFT;
   GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO CCNUSER;
+  

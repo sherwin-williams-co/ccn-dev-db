@@ -6,6 +6,8 @@ and Admin_to_sales_district hierarchies for linked to the cost center
 
 Created  : 10/28/2015 SXT410 CCN Project....
 Modified : 03/01/2016 MXR916 Added STATEMENT_TYPE_DESCRIPTION column.
+         : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
+                      the same data as it is in COST_CENTER_CODE field.
 *******************************************************************************/ 
        DISTINCT
        CC.STATEMENT_TYPE
@@ -22,7 +24,6 @@ Modified : 03/01/2016 MXR916 Added STATEMENT_TYPE_DESCRIPTION column.
        ,H.CITY_SALES_MANAGER_VAL CITY_SALES_MANAGER
        ,H.ZONE_VAL "ZONE"
        ,H.SPECIAL_ROLES_VAL SPECIAL_ROLES
-       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.DOMAIN_VAL_NAME DOMAIN_NAME
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME

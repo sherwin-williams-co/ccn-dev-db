@@ -9,6 +9,8 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
            09/06/2016 vxv336 Removed ACM, DCM, RCM and added DCO, DCO_DESC
            01/18/2016 gxg192 Changes for fetching DCO_DESC value
            05/19/2017 axt754 Changes for fetching EMAIL_NUMBER value
+           05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
+                      the same data as it is in COST_CENTER_CODE field.
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -20,7 +22,6 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
        ,H.DIVISION_VAL DIVISION
        ,H.AREA_VAL AREA
        ,H.DISTRICT_VAL DISTRICT
-       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
        ,H.AREA_VAL_NAME AREA_NAME

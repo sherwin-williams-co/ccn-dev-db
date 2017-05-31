@@ -20,6 +20,8 @@ Modified : 11/12/2015 sxt410 CCN Project...
            modified code to avoid multiple calls to get the same value
 		 : 04/04/2017 pxb712 CCN Project Team....
            Added new columns CITY_MGR_GEMS_ID,DIV_MGR_GEMS_ID and AREA_MGR_GEMS_ID in the view.
+         : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
+           the same data as it is in COST_CENTER_CODE field.
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -34,7 +36,6 @@ Modified : 11/12/2015 sxt410 CCN Project...
        A.CITY_SALES_MANAGER,
        A."ZONE",
        A.SPECIAL_ROLES,
-       A.COST_CENTER,
        A.DOMAIN_NAME,
        A.GROUP_NAME,
        A.DIVISION_NAME,

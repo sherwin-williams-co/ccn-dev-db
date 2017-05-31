@@ -4,7 +4,8 @@ SELECT
 This View will give all the details of alternate dad hierarchy linked to the cost center
 
 Created  : 02/16/2017 jxc517 CCN Project....
-Modified : 
+Modified : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
+                      the same data as it is in COST_CENTER_CODE field.
 *******************************************************************************/
        STATEMENT_TYPE,
        HRCHY_HDR_NAME,
@@ -19,7 +20,6 @@ Modified :
        CITY_SALES_MANAGER,
        ZONE,
        SPECIAL_ROLES,
-       COST_CENTER,
        DOMAIN_NAME,
        GROUP_NAME,
        DIVISION_NAME,
