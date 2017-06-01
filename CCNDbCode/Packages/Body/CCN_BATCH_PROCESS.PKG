@@ -391,7 +391,7 @@ consider only Category = 'S' and stores attached to Price district Hierarchy
 Created : 05/25/2017 rxa457 ASP-772 CCN project Team....
 **********************************************************/
 IS
-  CURSOR CURS IS
+  CURSOR main_cursor IS
     SELECT CC.*
       FROM COST_CENTER CC
      WHERE CATEGORY             = 'S'
@@ -401,191 +401,209 @@ IS
                       AND CC.COST_CENTER_CODE = H.COST_CENTER_CODE)
      ORDER BY COST_CENTER_CODE;
 
-  CURSOR ADDRESS(P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR address_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT *
      FROM ADDRESS_VW
     WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
       AND ADDRESS_TYPE     = 'M'
       AND EXPIRATION_DATE IS NULL;
   
-  CURSOR HRCHY (P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR hierarchy_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT *
       FROM HIERARCHY_DETAIL_VIEW
      WHERE HRCHY_HDR_NAME  = 'GLOBAL_HIERARCHY'
        AND COST_CENTER_CODE = P_COST_CENTER_CODE;
   
-  CURSOR POLLING (P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR polling_cur(P_COST_CENTER_CODE VARCHAR2) IS
       SELECT *
         FROM POLLING
        WHERE CURRENT_FLAG      = 'Y'
          AND COST_CENTER_CODE  = P_COST_CENTER_CODE;
   
-  CURSOR TYPE (P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR type_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT *
       FROM TYPE
      WHERE EXPIRATION_DATE IS NULL
        AND COST_CENTER_CODE = P_COST_CENTER_CODE;
   
-  CURSOR PRICE_DISTRICT(P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR pricing_district_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT FIRST_VALUE(DISTRICT) IGNORE NULLS OVER (ORDER BY HRCHY_DTL_EFF_DATE DESC) AS PRICE_DISTRICT
       FROM HIERARCHY_DETAIL_VIEW
      WHERE HRCHY_HDR_NAME   = 'PRICE_DISTRICT'
        AND COST_CENTER_CODE = P_COST_CENTER_CODE
        AND ROWNUM          <= 1;
 
-    V_CLOB                        CLOB;
-    V_CLOB_FOR_EMAIL              CLOB;
+    V_CLOB                      CLOB;
+    V_CLOB_FOR_EMAIL            CLOB;
 
-    PATH        	  VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME  	    VARCHAR2(50) := 'STORE_PDH_HRCHY' || '_'|| TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
-    OUTPUT_FILE     UTL_FILE.FILE_TYPE;
+    PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME                    VARCHAR2(50)   := 'STORE_PDH_HRCHY' || '_'|| TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+    OUTPUT_FILE                 UTL_FILE.FILE_TYPE;
 
-    C_ADDRESS                     ADDRESS_VW%ROWTYPE;
-    C_PHONE                       PHONE%ROWTYPE;
-    C_HRCHY                       HRCHY%ROWTYPE;
-    C_POLLING                     POLLING%ROWTYPE;
-    C_TYPE                        TYPE%ROWTYPE;
-    V_ADDRESS_STREET              VARCHAR2(200);
-    V_ADDRESS_ZIP                 VARCHAR2(10);
-    V_PHONE_NUMBER                VARCHAR2(14);
-    V_FAX_NUMBER                  VARCHAR2(14);
-    V_AREA_SHORT_NAME             C_HRCHY.AREA%TYPE;
-    V_GNRC_DESC                   CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-    V_POLLING_STATUS_CODE_DESC    CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-    V_TYPE_CODE_DESC              CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-    V_PRICE_DISTRICT              HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE;
-    V_DAD                         HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE;
-	  V_CUR_COUNT					          NUMBER := 0;
+    V_ADDRESS_STREET            VARCHAR2(200);
+    V_CITY                      ADDRESS_VW.CITY%TYPE;
+    V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
+    V_ADDRESS_ZIP               VARCHAR2(10);
+    V_PHONE_NUMBER              VARCHAR2(14);
+    V_FAX_NUMBER                VARCHAR2(14);
+    V_DIVISION                  HIERARCHY_DETAIL_VIEW.DIVISION%TYPE;
+    V_DIVISION_NAME             HIERARCHY_DETAIL_VIEW.DIVISION_NAME%TYPE;
+    V_AREA                      HIERARCHY_DETAIL_VIEW.AREA%TYPE;
+    V_AREA_NAME                 HIERARCHY_DETAIL_VIEW.AREA_NAME%TYPE;
+    V_AREA_SHORT_NAME           VARCHAR2(100);
+    V_DAD                       HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE;
+    V_DAD_DESC                  HIERARCHY_DETAIL_VIEW.DISTRICT_NAME%TYPE;
+    V_POLLING_STATUS_CODE       POLLING.POLLING_STATUS_CODE%TYPE;
+    V_POLLING_STATUS_CODE_DESC  CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
+    V_TYPE_CODE                 TYPE.TYPE_CODE%TYPE;
+    V_TYPE_CODE_DESC            CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
+    V_PRICE_DISTRICT            VARCHAR2(100);
+    V_CUR_COUNT                 NUMBER := 0;
 BEGIN
     OUTPUT_FILE := UTL_FILE.FOPEN (PATH
                                    ,FILENAME
                                    ,'W' --BINARY
                                    ,32767);
 
-    V_CLOB := 'Store No,' ||
-              'Store No DESC,' ||
-              'Store Address-Street,' ||
-              'Store Address-City,' ||
-              'Store Address-State,' ||
-              'Store Address-ZIP,' ||
-              'Store Phone-No,' ||
-              'Store Fax No,' ||
-              'Store Div,' ||
-              'Store Div DESC,' ||
-              'Store Area,' ||
-              'Store Area Name,' ||
-              'Store Area Name Short,' ||
-              'Store Dad,' ||
-              'Store Dad DESC,' ||
-              'Store Open Date,' ||
-              'Store Close Date,' ||
-              'GNRC Code (Current),' ||
-              'GNRC Code (Current) DESC,' ||
-              'Store Polling Status Code,' ||
-              'Store Polling Status Code DESC,' ||
-              'Store Type,' ||
-              'Store Type DESC,' ||
-              'Store Pricing District';
+    V_CLOB_FOR_EMAIL := 'Store No,' ||
+                        'Store No DESC,' ||
+                        'Store Address-Street,' ||
+                        'Store Address-City,' ||
+                        'Store Address-State,' ||
+                        'Store Address-ZIP,' ||
+                        'Store Phone-No,' ||
+                        'Store Fax No,' ||
+                        'Store Div,' ||
+                        'Store Div DESC,' ||
+                        'Store Area,' ||
+                        'Store Area Name,' ||
+                        'Store Area Name Short,' ||
+                        'Store Dad,' ||
+                        'Store Dad DESC,' ||
+                        'Store Open Date,' ||
+                        'Store Close Date,' ||
+                        'GNRC Code (Current),' ||
+                        'GNRC Code (Current) DESC,' ||
+                        'Store Polling Status Code,' ||
+                        'Store Polling Status Code DESC,' ||
+                        'Store Type,' ||
+                        'Store Type DESC,' ||
+                        'Store Pricing District';
 
-    V_CLOB_FOR_EMAIL := V_CLOB;
-    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB_FOR_EMAIL, TRUE);
 
-  	V_CUR_COUNT := 0;
-	
-    FOR cc_rec IN curs LOOP
+    V_CUR_COUNT := 0;
+    FOR cc_rec IN main_cursor LOOP
         V_CUR_COUNT := V_CUR_COUNT + 1;
 
-		/*Fetch Address Information*/
-		IF ADDRESS%ISOPEN THEN
-			CLOSE ADDRESS;
-		END IF;
-		OPEN ADDRESS(cc_rec.COST_CENTER_CODE);
-		FETCH ADDRESS INTO C_ADDRESS;
-		CLOSE ADDRESS;
-		IF C_ADDRESS.ADDRESS_LINE_1 IS NOT NULL OR C_ADDRESS.ADDRESS_LINE_2 IS NOT NULL THEN
-			V_ADDRESS_STREET := LTRIM(RTRIM(C_ADDRESS.ADDRESS_LINE_1||' '||C_ADDRESS.ADDRESS_LINE_2));
-		ELSE
-			V_ADDRESS_STREET := NULL;
-		END IF;
-        IF C_ADDRESS.ZIP_CODE IS NOT NULL THEN
-            V_ADDRESS_ZIP := LTRIM(RTRIM(C_ADDRESS.ZIP_CODE||' ' ||C_ADDRESS.ZIP_CODE_4));
-        ELSE
-            V_ADDRESS_ZIP := NULL;
-		END IF;
-
-		/*Fetch Phone Information*/
+        /*Fetch Address Information*/
+        V_ADDRESS_STREET := NULL;
+        V_CITY           := NULL;
+        V_STATE_CODE     := NULL;
+        V_ADDRESS_ZIP    := NULL;
+        FOR rec IN address_cur(cc_rec.COST_CENTER_CODE) LOOP
+            IF rec.ADDRESS_LINE_1 IS NOT NULL OR rec.ADDRESS_LINE_2 IS NOT NULL THEN
+                V_ADDRESS_STREET := LTRIM(RTRIM(rec.ADDRESS_LINE_1||' '||rec.ADDRESS_LINE_2));
+            END IF;
+            V_CITY    := rec.CITY;
+            V_STATE_CODE := rec.STATE_CODE;
+            IF rec.ZIP_CODE IS NOT NULL THEN
+                            V_ADDRESS_ZIP := LTRIM(
+                                                    RTRIM(rec.ZIP_CODE||' ' ||rec.ZIP_CODE_4)
+                                                   );
+            END IF;
+        END LOOP;
+        
+        /*Fetch Phone Information*/
         V_PHONE_NUMBER := COMMON_TOOLS.GET_FORMATTED_PHONE_NUMBER(CC_REC.COST_CENTER_CODE, 'PRI');
-        V_FAX_NUMBER := COMMON_TOOLS.GET_FORMATTED_PHONE_NUMBER(CC_REC.COST_CENTER_CODE, 'FAX');
+        V_FAX_NUMBER   := COMMON_TOOLS.GET_FORMATTED_PHONE_NUMBER(CC_REC.COST_CENTER_CODE, 'FAX');
 
         /*Fetch Global Hierarchy Information for Area, and DAD*/
-        IF HRCHY%ISOPEN THEN
-		    CLOSE HRCHY;
-		END IF;
-		OPEN HRCHY(cc_rec.COST_CENTER_CODE);
-		FETCH HRCHY INTO C_HRCHY;
-		CLOSE HRCHY;
-        V_AREA_SHORT_NAME := RTRIM(REPLACE(REPLACE(C_HRCHY.AREA_NAME,'AREA',''),'REGION',''));
-        V_DAD := C_HRCHY.DIVISION||C_HRCHY.AREA||C_HRCHY.DISTRICT ;
-        V_GNRC_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE','COD',CC_REC.STATEMENT_TYPE),'N/A');
+        V_DIVISION := NULL;
+        V_DIVISION_NAME := NULL;
+        V_AREA := NULL;
+        V_AREA_NAME := NULL;
+        V_AREA_SHORT_NAME := NULL;
+        V_DAD := NULL;
+        V_DAD_DESC := NULL;
+        FOR rec IN hierarchy_cur(cc_rec.COST_CENTER_CODE) LOOP
+            V_DIVISION := rec.DIVISION;
+            V_DIVISION_NAME := rec.DIVISION_NAME;
+            V_AREA := rec.AREA;
+            V_AREA_NAME := rec.AREA_NAME;
+            V_AREA_SHORT_NAME := RTRIM(REPLACE(REPLACE(rec.AREA_NAME,
+                                                       'AREA',
+                                                       ''),
+                                               'REGION',
+                                               '')
+                                       );
+            V_DAD := rec.DIVISION || rec.AREA || rec.DISTRICT;
+            V_DAD_DESC := rec.DISTRICT_NAME;
+        END LOOP;
 
         /*Fetch Polling Information*/
-        IF POLLING%ISOPEN THEN
-            CLOSE POLLING;
-        END IF;
-        OPEN POLLING(cc_rec.COST_CENTER_CODE);
-        FETCH POLLING INTO C_POLLING;
-        CLOSE POLLING;
-        V_POLLING_STATUS_CODE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('POLLING_STATUS_CODE','COD',C_POLLING.POLLING_STATUS_CODE),'N/A');
+        V_POLLING_STATUS_CODE      := NULL;
+        V_POLLING_STATUS_CODE_DESC := NULL;
+        FOR rec IN polling_cur(cc_rec.COST_CENTER_CODE) LOOP
+            V_POLLING_STATUS_CODE := rec.POLLING_STATUS_CODE;
+            V_POLLING_STATUS_CODE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('POLLING_STATUS_CODE',
+                                                                                 'COD',
+                                                                                 rec.POLLING_STATUS_CODE),
+                                 'N/A');
+        END LOOP;
 
         /*Fetch Type Information*/
-        IF TYPE%ISOPEN THEN
-            CLOSE TYPE;
-        END IF;
-        OPEN TYPE(cc_rec.COST_CENTER_CODE);
-        FETCH TYPE INTO C_TYPE;
-        CLOSE TYPE;
-
-        V_TYPE_CODE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TYPE_CODE','COD',C_TYPE.TYPE_CODE),'N/A');
+        V_TYPE_CODE      := NULL;
+        V_TYPE_CODE_DESC := NULL;
+        FOR rec IN type_cur(cc_rec.COST_CENTER_CODE) LOOP
+            V_TYPE_CODE      := rec.TYPE_CODE;
+            V_TYPE_CODE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TYPE_CODE',
+                                                                                 'COD',
+                                                                                  rec.TYPE_CODE),
+                                 'N/A');
+        END LOOP;
+        
         /*Fetch price District Information*/
-        IF PRICE_DISTRICT%ISOPEN THEN
-            CLOSE PRICE_DISTRICT;
-        END IF;
-        OPEN PRICE_DISTRICT(cc_rec.COST_CENTER_CODE);
-        FETCH PRICE_DISTRICT INTO V_PRICE_DISTRICT;
-        CLOSE PRICE_DISTRICT;
+        V_PRICE_DISTRICT := NULL;
+        FOR rec IN pricing_district_cur(cc_rec.COST_CENTER_CODE) LOOP
+            V_PRICE_DISTRICT := rec.PRICE_DISTRICT;
+        END LOOP;
 
         V_CLOB := '"' || cc_rec.COST_CENTER_CODE || '",' ||
-				          '"' || cc_rec.COST_CENTER_NAME || '",' ||
+                  '"' || cc_rec.COST_CENTER_NAME || '",' ||
                   '"' || V_ADDRESS_STREET || '",' ||
-                  '"' || C_ADDRESS.CITY || '",' ||
-                  '"' || C_ADDRESS.STATE_CODE || '",' ||
+                  '"' || V_CITY || '",' ||
+                  '"' || V_STATE_CODE || '",' ||
                   '"' || V_ADDRESS_ZIP || '",' ||
                   '"' || V_PHONE_NUMBER || '",' ||
                   '"' || V_FAX_NUMBER || '",' ||
-                  '"' || C_HRCHY.DIVISION || '",' ||
-                  '"' || C_HRCHY.DIVISION_NAME || '",' ||
-                  '"' || C_HRCHY.AREA || '",' ||
-                  '"' || C_HRCHY.AREA_NAME || '",' ||
+                  '"' || V_DIVISION || '",' ||
+                  '"' || V_DIVISION_NAME || '",' ||
+                  '"' || V_AREA || '",' ||
+                  '"' || V_AREA_NAME || '",' ||
                   '"' || V_AREA_SHORT_NAME || '",' ||
                   '"' || V_DAD || '",' ||
-                  '"' || C_HRCHY.DISTRICT_NAME || '",' ||
+                  '"' || V_DAD_DESC || '",' ||
                   '"' || CC_REC.OPEN_DATE || '",' ||
                   '"' || CC_REC.CLOSE_DATE || '",' ||
                   '"' || CC_REC.STATEMENT_TYPE || '",' ||
-                  '"' || V_GNRC_DESC || '",' ||
-                  '"' || C_POLLING.POLLING_STATUS_CODE || '",' ||
+                  '"' || NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE',
+                                                                                'COD',
+                                                                                cc_rec.STATEMENT_TYPE),
+                                'N/A') || '",' ||
+                  '"' || V_POLLING_STATUS_CODE || '",' ||
                   '"' || V_POLLING_STATUS_CODE_DESC || '",' ||
-                  '"' || C_TYPE.TYPE_CODE || '",' ||
+                  '"' || V_TYPE_CODE || '",' ||
                   '"' || V_TYPE_CODE_DESC || '",'||
                   '"' || V_PRICE_DISTRICT || '"';
-
+        
         V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
     END LOOP;
 
     UTL_FILE.FCLOSE(OUTPUT_FILE);
     IF V_CUR_COUNT > 0 THEN
-		MAIL_PKG.SEND_MAIL('STORE_PDH_HRCHY_MAIL', NULL, NULL,V_CLOB_FOR_EMAIL);
+        MAIL_PKG.SEND_MAIL('STORE_PDH_HRCHY_MAIL', NULL, NULL,V_CLOB_FOR_EMAIL);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
