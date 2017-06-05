@@ -40,10 +40,8 @@ else
     echo "$DATA_FILES_PATH/SRA10910_*.TXT files does not exist"
 fi
 
-#if ls $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT &> /dev/null; then
 if ls $MSCTRAN_PATH/misctran*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/UAR.MISCTRAN_*.TXT files exist "
-    mv $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT $ARCHIVE_PATH/$FOLDER
     mv $MSCTRAN_PATH/misctran*.txt $ARCHIVE_PATH/$FOLDER
 else
     echo "$MSCTRAN_PATH/misctran*.txt files does not exist"

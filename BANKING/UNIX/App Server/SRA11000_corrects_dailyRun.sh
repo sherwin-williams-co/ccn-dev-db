@@ -55,7 +55,6 @@ echo "Renaming input files finished at ${TIME} on ${DATE}"
 echo "Archiving input files started at ${TIME} on ${DATE}"
 if ls $OVRSHRT_PATH/overshrt*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files exist "
-    mv $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT $ARCHIVE_PATH/$FOLDER
     mv $OVRSHRT_PATH/overshrt*.txt $ARCHIVE_PATH/$FOLDER
 else
     echo "$OVRSHRT_PATH/overshrt*.txt files does not exist"
