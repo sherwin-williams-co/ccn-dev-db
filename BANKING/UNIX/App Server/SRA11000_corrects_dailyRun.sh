@@ -10,12 +10,15 @@
 # Created  : 11/07/2016 jxc517 CCN Project Team.....
 # Modified : 11/09/2016 jxc517 CCN Project Team.....
 #            Moved the FTP portion separately by itself
+#          : 04/20/2017 nxk927 CCN Project Team.....
+#            source file changed. Using the source file provided by marcy Lee.
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
 proc_name="SRA11000_corrects_dailyRun"
 DATA_FILES_PATH="$HOME/initLoad"
+OVRSHRT_PATH="$HOME/datafiles/ccn_users"
 ARCHIVE_PATH="$HOME/SRA11000"
 LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
@@ -38,11 +41,11 @@ fi
 #                                          Rename the input files
 #################################################################
 echo "Renaming input files started at ${TIME} on ${DATE}"
-if ls $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT >> $DATA_FILES_PATH/UAR.OVERSHRT.TXT
+if ls $OVRSHRT_PATH/overshrt*.txt &> /dev/null; then
+    echo "$OVRSHRT_PATH/OVERSHRT*.TXT files exist to rename"
+    cat $OVRSHRT_PATH/overshrt*.txt >> $DATA_FILES_PATH/UAR.OVERSHRT.TXT
 else
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files does not exist to rename"
+    echo "$OVRSHRT_PATH/OVERSHRT*.TXT files does not exist to rename"
 fi
 echo "Renaming input files finished at ${TIME} on ${DATE}"
 
@@ -50,11 +53,12 @@ echo "Renaming input files finished at ${TIME} on ${DATE}"
 #                          archive input files to archive folder
 #################################################################
 echo "Archiving input files started at ${TIME} on ${DATE}"
-if ls $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT &> /dev/null; then
+if ls $OVRSHRT_PATH/overshrt*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files exist "
     mv $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT $ARCHIVE_PATH/$FOLDER
+    mv $OVRSHRT_PATH/overshrt*.txt $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files does not exist"
+    echo "$OVRSHRT_PATH/overshrt*.txt files does not exist"
 fi
 echo "Archiving input files finished at ${TIME} on ${DATE}"
 

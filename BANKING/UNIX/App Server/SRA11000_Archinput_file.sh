@@ -9,6 +9,8 @@
 #            removed the error status check
 #          : 08/23/2016 nxk927 CCN Project Team.....
 #            changed the files that we consider for this process
+#          : 04/20/2017 nxk927 CCN Project Team.....
+#            source file changed. Using the source file provided by marcy Lee.
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -16,6 +18,7 @@
 proc_name="SRA11000_Archinput_file"
 DATA_FILES_PATH="$HOME/initLoad"
 ARCHIVE_PATH="$HOME/SRA11000"
+MSCTRAN_PATH="$HOME/datafiles/ccn_users"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 FOLDER=`date +"%m%d%Y"`
@@ -37,11 +40,13 @@ else
     echo "$DATA_FILES_PATH/SRA10910_*.TXT files does not exist"
 fi
 
-if ls $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT &> /dev/null; then
+#if ls $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT &> /dev/null; then
+if ls $MSCTRAN_PATH/misctran*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/UAR.MISCTRAN_*.TXT files exist "
     mv $DATA_FILES_PATH/UAR.MISCTRAN_*.TXT $ARCHIVE_PATH/$FOLDER
+    mv $MSCTRAN_PATH/misctran*.txt $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/UAR.MISCTRAN_*.TXT files does not exist"
+    echo "$MSCTRAN_PATH/misctran*.txt files does not exist"
 fi
 
 TIME=`date +"%H:%M:%S"`
