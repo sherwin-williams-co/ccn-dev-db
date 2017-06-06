@@ -10,8 +10,8 @@ created :kdp 4/26/2012
 revised :mdh 9/24/2012
          mdh 10/16/2012 - added Business_Rules_SP (rowtype & xml) procedures
          12/16/2014 AXK326 CCN Project Team....
-          Code changes made after deleting the sales manager link from the Territory Table
-		  Changed: 04/17/17 rxa457 --added Business Rules for DISPATCH_TERMINAL
+         Code changes made after deleting the sales manager link from the Territory Table
+         Changed: 04/17/17 rxa457 --added Business Rules for DISPATCH_TERMINAL
 *******************************************************************************/
 
 
@@ -30,28 +30,28 @@ created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
 ******************************************************************************/	
-    inADDRESS_CAN_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_MEX_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_OTH_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_USA_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADDRESS_BRB_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inADMIN_XMLTYPE          VARCHAR2--sys.xmltype
-   ,inBANKCARD_XMLTYPE       VARCHAR2--sys.xmltype
-   ,inCOST_CENTER_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inMARKETING_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inOTHER_XMLTYPE          VARCHAR2--sys.xmltype
-   ,inPhone_XMLTYPE          VARCHAR2--sys.xmltype
-   ,inPHONE_PRI_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inPHONE_SCD_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inPOLLING_XMLTYPE        VARCHAR2--sys.xmltype
-   ,inREAL_ESTATE_XMLTYPE    VARCHAR2--sys.xmltype
-   ,inSALES_REP_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inSTATUS_XMLTYPE         VARCHAR2--sys.xmltype
-   ,inSTORE_XMLTYPE          VARCHAR2--sys.xmltype
-   ,inDISPATCH_TERMINAL_XMLTYPE VARCHAR2 --sys.xmltype --added rxa457 for DISPATCH_TERMINAL
-   ,inTERMINAL_XMLTYPE       VARCHAR2--sys.xmltype
-   ,inTERRITORY_XMLTYPE      VARCHAR2--sys.xmltype
-   ,inTYPE_XMLTYPE           VARCHAR2--sys.xmltype
+    inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inADDRESS_OTH_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inADDRESS_USA_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inADDRESS_BRB_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inADMIN_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inBANKCARD_XMLTYPE          VARCHAR2--sys.xmltype
+   ,inCOST_CENTER_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inMARKETING_XMLTYPE         VARCHAR2--sys.xmltype
+   ,inOTHER_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inPhone_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inPHONE_PRI_XMLTYPE         VARCHAR2--sys.xmltype
+   ,inPHONE_SCD_XMLTYPE         VARCHAR2--sys.xmltype
+   ,inPOLLING_XMLTYPE           VARCHAR2--sys.xmltype
+   ,inREAL_ESTATE_XMLTYPE       VARCHAR2--sys.xmltype
+   ,inSALES_REP_XMLTYPE         VARCHAR2--sys.xmltype
+   ,inSTATUS_XMLTYPE            VARCHAR2--sys.xmltype
+   ,inSTORE_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inDISPATCH_TERMINAL_XMLTYPE VARCHAR2 --sys.xmltype
+   ,inTERMINAL_XMLTYPE          VARCHAR2--sys.xmltype
+   ,inTERRITORY_XMLTYPE         VARCHAR2--sys.xmltype
+   ,inTYPE_XMLTYPE              VARCHAR2--sys.xmltype
  );
 
 PROCEDURE Business_Rules_sp (
@@ -73,28 +73,28 @@ PROCEDURE Business_Rules_sp (
 
 created : MDH 9/25//2012
 ******************************************************************************/	
-    inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
-   ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
-   ,inADDRESS_OTH_ROWTYPE    IN ADDRESS_OTHER%ROWTYPE
-   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE
-   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE
-   ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
-   ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
-   ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
-   ,inMARKETING_ROWTYPE      IN MARKETING%ROWTYPE
-   ,inOTHER_ROWTYPE          IN OTHER%ROWTYPE
-   ,inPhone_ROWTYPE          IN PHONE%ROWTYPE
-   ,inPHONE_PRI_ROWTYPE      IN PHONE%ROWTYPE
-   ,inPHONE_SCD_ROWTYPE      IN PHONE%ROWTYPE
-   ,inPOLLING_ROWTYPE        IN POLLING%ROWTYPE
-   ,inREAL_ESTATE_ROWTYPE    IN REAL_ESTATE%ROWTYPE
-   ,inSALES_REP_ROWTYPE      IN SALES_REP%ROWTYPE
-   ,inSTATUS_ROWTYPE         IN STATUS%ROWTYPE
-   ,inSTORE_ROWTYPE          IN STORE%ROWTYPE
-   ,inDISPATCH_TERMINAL_ROWTYPE IN DISPATCH_TERMINAL%ROWTYPE --added rxa457 for DISPATCH_TERMINAL
-   ,inTERMINAL_ROWTYPE       IN TERMINAL%ROWTYPE
-   ,inTERRITORY_ROWTYPE      IN TERRITORY%ROWTYPE
-   ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
+    inADDRESS_CAN_ROWTYPE       IN ADDRESS_CAN%ROWTYPE
+   ,inADDRESS_MEX_ROWTYPE       IN ADDRESS_MEX%ROWTYPE
+   ,inADDRESS_OTH_ROWTYPE       IN ADDRESS_OTHER%ROWTYPE
+   ,inADDRESS_USA_ROWTYPE       IN ADDRESS_USA%ROWTYPE
+   ,inADDRESS_BRB_ROWTYPE       IN ADDRESS_BRB%ROWTYPE
+   ,inADMIN_ROWTYPE             IN ADMINISTRATION%ROWTYPE
+   ,inBANKCARD_ROWTYPE          IN BANK_CARD%ROWTYPE
+   ,inCOST_CENTER_ROWTYPE       IN COST_CENTER%ROWTYPE
+   ,inMARKETING_ROWTYPE         IN MARKETING%ROWTYPE
+   ,inOTHER_ROWTYPE             IN OTHER%ROWTYPE
+   ,inPhone_ROWTYPE             IN PHONE%ROWTYPE
+   ,inPHONE_PRI_ROWTYPE         IN PHONE%ROWTYPE
+   ,inPHONE_SCD_ROWTYPE         IN PHONE%ROWTYPE
+   ,inPOLLING_ROWTYPE           IN POLLING%ROWTYPE
+   ,inREAL_ESTATE_ROWTYPE       IN REAL_ESTATE%ROWTYPE
+   ,inSALES_REP_ROWTYPE         IN SALES_REP%ROWTYPE
+   ,inSTATUS_ROWTYPE            IN STATUS%ROWTYPE
+   ,inSTORE_ROWTYPE             IN STORE%ROWTYPE
+   ,inDISPATCH_TERMINAL_ROWTYPE IN DISPATCH_TERMINAL%ROWTYPE
+   ,inTERMINAL_ROWTYPE          IN TERMINAL%ROWTYPE
+   ,inTERRITORY_ROWTYPE         IN TERRITORY%ROWTYPE
+   ,inTYPE_ROWTYPE              IN TYPE%ROWTYPE
  );
 
 /*****************************************************************************/
@@ -472,7 +472,7 @@ created : BLR 7/26/2012
 PROCEDURE DISPATCH_TERMINAL_BR_SP(
       /******************************************************************************
       DISPATCH_TERMINAL_BR_SP
-      This procedure is intended enforce the Business Rules
+      This procedure is intended to enforce the Business Rules
       for verifying specific columns on the DISPATCH_TERMINAL Table
       created : rxa457 04/17/17 asp:400-asp-763
       *******************************************************************************/

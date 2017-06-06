@@ -7,22 +7,17 @@ BEFORE INSERT OR UPDATE ON COSTCNTR.DISPATCH_TERMINAL
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
 DECLARE
-
-      v_transaction_id varchar2(500);
+    v_transaction_id varchar2(500);
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_dispatch_terminal_row dispatch_terminal%ROWTYPE;
-     
-    
 BEGIN
-            v_dispatch_terminal_row.cost_center_code := :NEW.cost_center_code;
-            v_dispatch_terminal_row.home_store := :NEW.home_store;      
-            v_dispatch_terminal_row.category := :NEW.category;
-     
-        
+    v_dispatch_terminal_row.cost_center_code := :NEW.cost_center_code;
+    v_dispatch_terminal_row.home_store := :NEW.home_store;      
+    v_dispatch_terminal_row.category := :NEW.category;
     
     SELECT XMLELEMENT ( "DISPATCH_TERMINAL",               
-          XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
+           XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
                          "xsi:nonamespaceSchemaLocation" ),
            XMLForest(v_dispatch_terminal_row.COST_CENTER_CODE COST_CENTER_CODE            
@@ -33,14 +28,14 @@ BEGIN
                   XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                                   'http://www.oracle.com/Employee.xsd' AS
                                      "xsi:nonamespaceSchemaLocation" ),
-           XMLForest(
+            XMLForest(
                                 v_dispatch_terminal_row.cost_center_code cost_center_code
                                 ,V_dispatch_terminal_ROW.CATEGORY CATEGORY
             )) AS "primaryKey"        ,
-      ('|' || v_dispatch_terminal_row.cost_center_code || '|' || V_DISPATCH_TERMINAL_ROW.CATEGORY || '|') tran_id
-    INTO V_ROWDATA
+            ('|' || v_dispatch_terminal_row.cost_center_code || '|' || V_DISPATCH_TERMINAL_ROW.CATEGORY || '|') tran_id
+        INTO V_ROWDATA
         ,v_primaryKey,v_transaction_id
-    FROM DUAL;    
+        FROM DUAL;    
       
           INSERT INTO audit_log
                (log_id
@@ -61,5 +56,3 @@ BEGIN
 
 
 END TR_DISPATCH_TERMINAL_UPD;
-/
-
