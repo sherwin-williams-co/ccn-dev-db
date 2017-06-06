@@ -36,13 +36,15 @@ TIME=`date +"%H:%M:%S"`
 echo "Process started for $proc_name at $TIME on $DATE"
 for file in $HOME/datafiles/DEPOSIT_TICKET_*.xml
 do
-  file1=`basename $file`
-  filename=${file1:0:21}
-  file2=$filename.txt
-  if [ -e $HOME/datafiles/$file2 ]
+  if [ -e $file ]
   then
-     TIME=`date +"%H:%M:%S"`
-     echo "FTP Process started for $proc_name at $TIME on $DATE"
+     file1=`basename $file`
+     filename=${file1:0:21}
+     file2=$filename.txt
+     if [ -e $HOME/datafiles/$file2 ]
+     then
+        TIME=`date +"%H:%M:%S"`
+        echo "FTP Process started for $proc_name at $TIME on $DATE"
 ftp -inv ${mainframe_host} <<FTP_MF > $FTPLOG
 quote user ${mainframe_user}
 quote pass ${mainframe_pw}
@@ -53,16 +55,38 @@ bye
 END_SCRIPT
 FTP_MF
 
-     ############################################################################
-     #                           ERROR STATUS CHECK
-     ############################################################################
-     TIME=`date +"%H:%M:%S"`
-     ./check_ftp_status.sh $FTPLOG
-     status=$?
-     if test $status -ne 0
-     then
-        echo "The transfer of $filename to mainframe FAILED at ${TIME} on ${DATE}"
-        ./dpst_tkt_send_mail.sh 'DEPOSIT_TCKT_FTP_FAILED' $filename
+        ############################################################################
+        #                           ERROR STATUS CHECK
+        ############################################################################
+        TIME=`date +"%H:%M:%S"`
+        ./check_ftp_status.sh $FTPLOG
+        status=$?
+        if test $status -ne 0
+        then
+           echo "The transfer of $filename to mainframe FAILED at ${TIME} on ${DATE}"
+           ./dpst_tkt_send_mail.sh 'DEPOSIT_TCKT_FTP_FAILED' $filename
+
+           status=$?
+           TIME=`date +"%H:%M:%S"`
+           if test $status -ne 0
+           then
+              echo "Sending email for $CC for $filename FAILED at $TIME on $DATE"
+           fi
+        else
+           echo "The transfer of $filename completed successfully at ${TIME} on ${DATE}"
+           echo "Archieving Process started for $proc_name at $TIME on $DATE"
+           dt=$(date +%Y%m%d%H%M%S)
+           mv $HOME/datafiles/$file1 $archieve_path/${filename}_${dt}.xml
+           mv $HOME/datafiles/$file2 $archieve_path/${filename}_${dt}.txt
+           TIME=`date +"%H:%M:%S"`
+           echo "Archieving Process finished for $proc_name at $TIME on $DATE"
+        fi
+     else
+        CC=${file:15:6}
+        echo "Corresponding deposit ticket file for cost center $CC not found for processing"
+        TIME=`date +"%H:%M:%S"`
+        echo "Sending email for $CC for corresponding file check at $TIME on $DATE"
+        ./dpst_tkt_send_mail.sh 'DEPOSIT_TICKET_FILE' $filename
 
         status=$?
         TIME=`date +"%H:%M:%S"`
@@ -70,31 +94,9 @@ FTP_MF
         then
            echo "Sending email for $CC for $filename FAILED at $TIME on $DATE"
         fi
-     else
-        echo "The transfer of $filename completed successfully at ${TIME} on ${DATE}"
-        echo "Archieving Process started for $proc_name at $TIME on $DATE"
-        dt=$(date +%Y%m%d%H%M%S)
-        mv $HOME/datafiles/$file1 $archieve_path/${filename}_${dt}.xml
-        mv $HOME/datafiles/$file2 $archieve_path/${filename}_${dt}.txt
-        TIME=`date +"%H:%M:%S"`
-        echo "Archieving Process finished for $proc_name at $TIME on $DATE"
+
+        echo "Sending email Process finished at $TIME on $DATE"
      fi
-
-  else
-     CC=${file:15:6}
-     echo "Corresponding deposit ticket file for cost center $CC not found for processing"
-     TIME=`date +"%H:%M:%S"`
-     echo "Sending email for $CC for corresponding file check at $TIME on $DATE"
-     ./dpst_tkt_send_mail.sh 'DEPOSIT_TICKET_FILE' $filename
-
-     status=$?
-     TIME=`date +"%H:%M:%S"`
-     if test $status -ne 0
-     then
-        echo "Sending email for $CC for $filename FAILED at $TIME on $DATE"
-     fi
-
-     echo "Sending email Process finished at $TIME on $DATE"
   fi
 done
 
