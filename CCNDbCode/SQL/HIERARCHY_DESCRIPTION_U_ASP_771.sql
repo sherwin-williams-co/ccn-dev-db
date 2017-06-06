@@ -1,51 +1,50 @@
 /*
-   This procedure is intended to clean up the XML attribute upper_lvl_ver_value in HIERARCHY_DESCRIPTION table for Price District Hierarchy
-   Updating upper_lvl_ver_value xml value to NULL for Price District Hierarchy for all level in the HIERARCHY_DESCRIPTION Table.
+   This procedure is intended to clean up the xml attribute upper_lvl_ver_value in hierarchy_description table for price district hierarchy
+   updating upper_lvl_ver_value xml value to null for price district hierarchy for all level in the hierarchy_description table.
 
-Created by: SXP130 4-19-17 for ASP-771
+created by: sxp130 06-06-17 for ASP-771
 */
-
 DECLARE
-   cursor HIER_DESC_PRICE_DIST_CUR is
-     select ROWID
-       FROM HIERARCHY_DESCRIPTION
-      WHERE UPPER(HRCHY_HDR_NAME) = UPPER('PRICE_DISTRICT');
+   CURSOR hier_desc_price_dist_cur IS
+      SELECT ROWID
+        FROM hierarchy_description
+       WHERE Upper(hrchy_hdr_name) = Upper('PRICE_DISTRICT');
 
-   -- Varible Declaration
-   v_count integer := 0;
-   v_commit integer := 0;
+   -- varible declaration
+   v_count INTEGER := 0;
+   v_commit INTEGER := 0;
 
-
-Begin
-   for HIER_DESC_PRICE_DIST_REC in HIER_DESC_PRICE_DIST_CUR loop
- BEGIN
-         --Performing the update using the ROWID is measurable quicker than using the primary, even if the index blocks are cached.
-         --This is because the index search is unnecessary if the ROWID is specified
-         UPDATE  HIERARCHY_DESCRIPTION set upper_lvl_ver_value = NULL
-            where ROWID = HIER_DESC_PRICE_DIST_REC.ROWID ;
+BEGIN
+   FOR hier_desc_price_dist_rec IN hier_desc_price_dist_cur LOOP
+      BEGIN
+         --performing the update using the rowid is measurable quicker than using the primary, even if the index blocks are cached.
+         --this is because the index search is unnecessary if the rowid is specified
+         UPDATE hierarchy_description
+            SET upper_lvl_ver_value = NULL
+          WHERE ROWID = hier_desc_price_dist_rec.ROWID ;
 
          v_count := v_count + 1;
          v_commit := v_commit + 1;
-         if v_commit > 500 then
-            commit;
+         IF v_commit > 500 THEN
+            COMMIT;
             v_commit := 0;
-         end if;
+         END IF;
 
-   EXCEPTION
-      WHEN others then
-         dbms_output.put_line('Invalid Update of HIERARCHY_DESCRIPTION Table for row '
-            || HIER_DESC_PRICE_DIST_REC.rowid
-	          || ' '
-            || sqlerrm);
- END;
-END LOOP;
-commit; --if v_commit is < 500 records should commit
-   dbms_output.put_line('Total Update HIERARCHY_DESCRIPTION : '
-      || v_count);
+      EXCEPTION
+         WHEN OTHERS THEN
+            Dbms_Output.put_line('Invalid update of hierarchy_description table for row '
+                                || hier_desc_price_dist_rec.ROWID
+                                || ' '
+                                || SQLERRM);
+      END;
+   END LOOP;
+   COMMIT; --if v_commit is < 500 records should commit
+   Dbms_Output.put_line('Total update hierarchy_description : '
+                        || v_count);
 EXCEPTION
-   when others then
-   rollback;
-      dbms_output.put_line('Table Not updated Stopped on Record - '
-      || v_count);
+   WHEN OTHERS THEN
+      ROLLBACK;
+      Dbms_Output.put_line('table not updated stopped on record - '
+                           || v_count);
 END;
 /
