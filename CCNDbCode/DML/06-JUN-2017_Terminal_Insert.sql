@@ -1,0 +1,12 @@
+/*
+Created: 06/06/2017 sxh487 CCN Project Team..
+Script for Adding a terminal '20454' to store '8756'
+*/
+SELECT * FROM TERMINAL WHERE COST_CENTER_CODE = '768756';
+--1 Row(s) Selected
+INSERT INTO TERMINAL VALUES ('768756','P','20454','03-MAY-2017', NULL, NULL, NULL, NULL, NULL, NULL);
+--1 Row Inserted
+SELECT * FROM TERMINAL WHERE COST_CENTER_CODE = '768756';
+--2 Row(s) Selected
+
+COMMIT;
