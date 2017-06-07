@@ -470,14 +470,14 @@ created : BLR 7/26/2012
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE);
   
 PROCEDURE DISPATCH_TERMINAL_BR_SP(
-      /******************************************************************************
-      DISPATCH_TERMINAL_BR_SP
-      This procedure is intended to enforce the Business Rules
-      for verifying specific columns on the DISPATCH_TERMINAL Table
-      created : rxa457 04/17/17 asp:400-asp-763
-      *******************************************************************************/
-      inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
-      inCC_rowtype                IN COST_CENTER%ROWTYPE);
+/******************************************************************************
+    DISPATCH_TERMINAL_BR_SP
+    This procedure is intended to enforce the Business Rules
+    for verifying specific columns on the DISPATCH_TERMINAL Table
+    created : rxa457 04/17/17 asp:400-asp-763
+*******************************************************************************/
+    inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
+    inCC_rowtype                IN COST_CENTER%ROWTYPE);
 	  
 PROCEDURE TERMINAL_BR_SP (
 /*******************************************************************************
