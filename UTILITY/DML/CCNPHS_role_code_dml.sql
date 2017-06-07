@@ -27,7 +27,7 @@ INSERT INTO ROLE_DETAILS
 
 -- Check if the insert into ROLE_DEATILS is valid
 SELECT * 
-  FROM ROLE_DEATILS
+  FROM ROLE_DETAILS
  WHERE ROLE_CODE = 'CCNPHS';
 
 -- check the roles assigned to 'jmk01r'
