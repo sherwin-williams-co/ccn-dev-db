@@ -17,8 +17,16 @@ changed :
 ******************************************************************/
 (IN_TRAN_GUID        IN   VARCHAR2
 ,IN_SEQNBR           IN   VARCHAR2
-,IN_RUNCYCLE         IN   VARCHAR2
 ,IN_IND              IN   VARCHAR2) RETURN VARCHAR2;
+
+PROCEDURE LOAD_POS_CCN_DISC(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CCN_LOAD_STATUS" with data extracted from new interface tables
+created : 03/02/2017 nxk927 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE     IN DATE);
 
 PROCEDURE SD_MF_FF_DATA_LOAD_SP(
 /**************************************************************** 
