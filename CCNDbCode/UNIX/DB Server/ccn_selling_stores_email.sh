@@ -8,6 +8,7 @@
 # Created  : 09/29/2016 jxc517 CCN Project Team.....
 # Modified : 04/03/2017 gxg192 Added WHENEVER clause to track error
 #            04/04/2017 gxg192 Changes to run the process for previous day.
+#            06/06/2017 axt754 Error Handling to notify failures. 
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -41,6 +42,8 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
+   cd $HOME
+   ./send_mail.sh "SELLING_STORES_ERROR"
    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
    exit 1;
 fi
