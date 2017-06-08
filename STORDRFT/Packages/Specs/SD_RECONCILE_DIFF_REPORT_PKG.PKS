@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE          SD_RECONCILE_DIFF_REPORT_PKG
+create or replace PACKAGE          SD_RECONCILE_DIFF_REPORT_PKG
 /**************************************************************** 
 The package is used to compare the reconcile the storedrafts data.
       
@@ -6,6 +6,19 @@ created : 12/21/2016 MXK766/NXK927 POS XML Conversion
 changed : 
 *****************************************************************/
 AS
+
+FUNCTION GET_DISC_AMT_TYPE
+/******************************************************************
+This function will return the hexadecimal conversion of the value passed in
+based on the transaction type passed in
+
+created : 11/10/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+(IN_TRAN_GUID        IN   VARCHAR2
+,IN_SEQNBR           IN   VARCHAR2
+,IN_RUNCYCLE         IN   VARCHAR2
+,IN_IND              IN   VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE SD_MF_FF_DATA_LOAD_SP(
 /**************************************************************** 
@@ -250,4 +263,3 @@ changed :
     IN_ORPHAN_COUNT    IN NUMBER) RETURN VARCHAR2;
     
 END SD_RECONCILE_DIFF_REPORT_PKG;
-

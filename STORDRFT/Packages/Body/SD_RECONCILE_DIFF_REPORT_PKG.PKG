@@ -1,5 +1,4 @@
-CREATE OR REPLACE 
-PACKAGE BODY          SD_RECONCILE_DIFF_REPORT_PKG
+create or replace PACKAGE BODY          SD_RECONCILE_DIFF_REPORT_PKG
 /**************************************************************** 
 The package is used to compare the reconcile the storedrafts data.
 
@@ -125,6 +124,43 @@ EXCEPTION
 WHEN OTHERS THEN
     RETURN NULL;
 END RETURN_SUMMARY_STRING;
+
+FUNCTION GET_DISC_AMT_TYPE
+/******************************************************************
+This function will return the hexadecimal conversion of the value passed in
+based on the transaction type passed in
+
+created : 11/10/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+(IN_TRAN_GUID        IN   VARCHAR2
+,IN_SEQNBR           IN   VARCHAR2
+,IN_RUNCYCLE         IN   VARCHAR2
+,IN_IND              IN   VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE         VARCHAR2(100);
+    V_ITEM_DISCOUNT_AMOUNT VARCHAR2(100);
+    V_ITEM_DISCOUNT_TYPE   VARCHAR2(100);
+BEGIN
+    SELECT NVL(NONTAXAMT,0) + NVL(TAXAMT,0),
+           NVL(TYP,0)
+      INTO V_ITEM_DISCOUNT_AMOUNT,
+           V_ITEM_DISCOUNT_TYPE
+      FROM PNP_CCN_DISC
+     WHERE TRAN_GUID     = HEXTORAW(IN_TRAN_GUID)
+       AND SEQNBR        = IN_SEQNBR
+       AND RLS_RUN_CYCLE = IN_RUNCYCLE;
+   IF IN_IND = 'A' THEN 
+      V_RETURN_VALUE := V_ITEM_DISCOUNT_AMOUNT;
+      RETURN V_RETURN_VALUE;
+   ELSE
+      V_RETURN_VALUE := V_ITEM_DISCOUNT_TYPE;
+      RETURN V_RETURN_VALUE;
+   END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+         RETURN V_RETURN_VALUE; 
+END GET_DISC_AMT_TYPE;
 
 PROCEDURE SD_MF_FF_DATA_LOAD_SP(
 /**************************************************************** 
@@ -853,7 +889,7 @@ EXCEPTION
     WHEN OTHERS THEN
     ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'CSTMR_LINE_ITEM_DIFF_sp'
+                                   ,'CSTMR_LINE_ITEM_DIFF_SP'
                                    ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                    ,'000000'
                                    ,'0000000000');
@@ -990,7 +1026,7 @@ EXCEPTION
     WHEN OTHERS THEN
     ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'CSTMR_SALES_TAX_DIFF_sp'
+                                  ,'CSTMR_SALES_TAX_DIFF_SP'
                                   ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                   ,'000000'
                                   ,'0000000000');
@@ -1043,7 +1079,7 @@ CURSOR POS_SD_CUR IS
            ACC.ACCUM_ID,
            CH.TRANID,
            ACC.SEQNBR           
-      FROM PNP.CCN_ACCUMS ACC, 
+      FROM PNP_CCN_ACCUMS ACC, 
            PNP_CCN_HEADERS CH
      WHERE CH.TRANID IN ('10', '11', '13', '19', '22', '31', '41', '82', '91') 
        AND ACC.TRAN_GUID      = CH.TRAN_GUID
@@ -1060,7 +1096,7 @@ CURSOR POS_SD_CUR IS
 V_PREV_REC VARCHAR2(35):= 'XXXXXXXXXXX'; 
 
 BEGIN
-   EXECUTE IMMEDIATE 'TRUNCATE TABLE DLY_POS_CCN_ACCUMS';
+   EXECUTE IMMEDIATE 'TRUNCATE TABLE POS_CCN_ACCUMS';
 
    FOR REC IN POS_SD_CUR LOOP
    IF REC.TRANID in ('10','19', '31') THEN
@@ -1085,7 +1121,7 @@ BEGIN
           END IF;
     END IF;
             
-    INSERT INTO DLY_POS_CCN_ACCUMS VALUES REC;
+    INSERT INTO POS_CCN_ACCUMS VALUES REC;
         
         
    END LOOP;
@@ -1094,7 +1130,7 @@ COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'LOAD_DLY_POS_CCN_ACCUMS',
+                                    'LOAD_POS_CCN_ACCUMS',
                                     SQLERRM,
                                     '000000',
                                     '0000000000');
@@ -1113,7 +1149,7 @@ AS
 
 CURSOR POS_SD_CUR IS
     SELECT *
-      FROM DLY_POS_CCN_ACCUMS
+      FROM POS_CCN_ACCUMS
      WHERE ((TRANID IN ('11', '13','22','41', '82', '91') and SUBSTR(ACCUM_ID,1,1) <> '7')
            OR 
            TRANID IN ('10', '19','31'))-- and ACCUM_ID NOT IN ('72','73','74'))
@@ -1121,61 +1157,7 @@ CURSOR POS_SD_CUR IS
            --OR  TRANID IN ('19','31') and ACCUM_ID <> '73') --(10,19,31)   ('10', '11', '13', '19', '22', '31', '41', '82', '91')
        AND ACCUM_ID <> '92'
      ORDER BY DECODE(ACCUM_ID,'95', '70', ACCUM_ID);
-      /*SELECT ACC.TRAN_GUID,
-           CH.STORE_NO COST_CENTER_CODE,
-           CH.TERMNBR TERMINAL_NUMBER,
-           LPAD(CH.TRANNBR,5,'0') TRANSACTION_NUMBER,  --CHANGED BY MXK766
-           'O' SORT_FORCE,
-           'O' SEGMENT_CODE,
-           'O' SUB_SEGMENT_CODE,
-           NULL AS FILLER,
-           '0' PAY_DISC_CODE,
-           --NULL TRANSACTION_TOTAL_AMOUNT_SIGN,
-          --nxk927 03/23/2017
-          -- DECODE(ACC.ACCUM_ID, '8c', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
-          --DECODE(ACC.ACCUM_ID, '8c' ,LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
-           DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
-           DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8' ,LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
-           '0' POS_LINE_CNT,
-           --NULL PAY_AMOUNT_SIGN,
-           (CASE WHEN ACC.AMT < 0 THEN '-' ELSE NULL END) PAY_AMOUNT_SIGN,
-           LPAD(REPLACE(ACC.AMT*100,'-',''),'7',0) PAY_AMOUNT,
-           NULL POS_DISC_SIGN,
-           '0000000' POS_DISC,
---           (CASE WHEN SUBSTR(ACC.ACCUM_ID,1,1) = '8' THEN
---                    DECODE((SELECT SIGN(ACC.AMT)
---                              FROM PNP.CCN_ACCUMS
---                             WHERE TRAN_GUID = CH.TRAN_GUID
---                               AND ACCUM_ID  = '92'), '-1', '-', NULL)
---                ELSE NULL
---           END) SALES_DISC_AMOUNT_SIGN,
-           NULL SALES_DISC_AMOUNT_SIGN,
---           (CASE WHEN SUBSTR(ACC.ACCUM_ID,1,1) = '8' THEN
---                    (SELECT LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(ACC.AMT, '-', ''), '0', '7', '2'),7,'0')
---                      FROM PNP.CCN_ACCUMS
---                     WHERE TRAN_GUID = CH.TRAN_GUID
---                       AND ACCUM_ID  = '92')
---                ELSE '0000000'
---           END) SALES_DISC_AMOUNT,
-           '0000000' SALES_DISC_AMOUNT,
-           ACC.RLS_RUN_CYCLE,
-           ACC.ACCUM_ID
-      FROM PNP.CCN_ACCUMS ACC, 
-           PNP_CCN_HEADERS CH
-     WHERE CH.TRANID IN ('10', '11', '13', '19', '22', '31', '41', '82', '91')
-       AND ACC.TRAN_GUID      = CH.TRAN_GUID
-       AND ACC.RLS_RUN_CYCLE  = CH.RLS_RUN_CYCLE
-       AND CH.RLS_RUN_CYCLE   IN (SELECT RLS_RUN_CYCLE
-                                    FROM POS_CCN_LOAD_STATUS
-                                   WHERE LOAD_DATE = IN_DATE)
-       AND EXISTS (SELECT 1
-                      FROM PNP_CCN_SALES_LINES
-                     WHERE SALESNBR = '000009126'
-                       AND RLS_RUN_CYCLE = CH.RLS_RUN_CYCLE
-                       AND TRAN_GUID =     CH.TRAN_GUID)
-       AND SUBSTR(ACC.ACCUM_ID,1,1) <> '7'
-       AND ACC.ACCUM_ID <> '92';*/
-
+      
       V_COUNT     NUMBER := 0;
       V_TCOUNT    NUMBER := 0;
       V_TEMP_ROW  POS_CSTMR_FORM_OF_PAY%ROWTYPE;
@@ -1214,7 +1196,7 @@ FOR REC IN POS_SD_CUR
                       PAY_AMOUNT--LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(AMT, '-', ''), '0', '7', '2'),7,'0')
                  INTO V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN,
                       V_TEMP_ROW.SALES_DISC_AMOUNT
-                 FROM DLY_POS_CCN_ACCUMS
+                 FROM POS_CCN_ACCUMS
                 WHERE TRAN_GUID = rec.TRAN_GUID
                   AND ACCUM_ID  = '92';
                   
@@ -1312,69 +1294,6 @@ changed :
 IN_DATE IN DATE)
 IS
 CURSOR CUR IS
---    SELECT FF.ROWID TGT_ROWID
---        ,FF.COST_CENTER_CODE COST_CENTER_CODE1
---        ,FF.TERMINAL_NUMBER TERMINAL_NUMBER1
---        ,FF.TRANSACTION_NUMBER TRANSACTION_NUMBER1
---        ,FF.PAY_DISC_CODE PAY_DISC_CODE1
---        ,FF.TRANSACTION_TOTAL_AMOUNT_SIGN TRANSACTION_TOTAL_AMOUNT_SIGN1
---        ,CAST(FF.TRANSACTION_TOTAL_AMOUNT AS VARCHAR2(100)) TRANSACTION_TOTAL_AMOUNT1
---        ,POS.COST_CENTER_CODE COST_CENTER_CODE2
---        ,POS.TERMINAL_NUMBER TERMINAL_NUMBER2
---        ,POS.TRANSACTION_NUMBER TRANSACTION_NUMBER2
---        ,POS.PAY_DISC_CODE PAY_DISC_CODE2
---        ,POS.TRANSACTION_TOTAL_AMOUNT_SIGN TRANSACTION_TOTAL_AMOUNT_SIGN2
---        ,CAST(POS.TRANSACTION_TOTAL_AMOUNT AS VARCHAR2(100)) TRANSACTION_TOTAL_AMOUNT2
---  FROM (
---       SELECT *
---         FROM CSTMR_FORM_OF_PAY_DATA FF
---        WHERE  LOAD_DATE = IN_DATE) FF
---         -- AND TRANSACTION_TOTAL_AMOUNT<>'0000000')FF
---  LEFT OUTER JOIN (SELECT CH.STORE_NO COST_CENTER_CODE,
---                          CH.TERMNBR TERMINAL_NUMBER,
---                          LPAD(CH.TRANNBR,5,'0') TRANSACTION_NUMBER,  --CHANGED BY MXK766
---                          'O' SORT_FORCE,
---                          'O' SEGMENT_CODE,
---                          'O' SUB_SEGMENT_CODE,
---                          NULL AS FILLER,
---                          '0' PAY_DISC_CODE,
---                          --NULL TRANSACTION_TOTAL_AMOUNT_SIGN,
---                          --DECODE(ACC.ACCUM_ID, '8c', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
---                          --DECODE(ACC.ACCUM_ID, '8c' ,LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
---                          DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
---                          DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8' ,LPAD(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
---                          '0' POS_LINE_CNT,
---                          --NULL PAY_AMOUNT_SIGN,
---                          (CASE WHEN ACC.AMT < 0 THEN '-' ELSE NULL END) PAY_AMOUNT_SIGN,
---                          LPAD(REPLACE(ACC.AMT*100,'-',''),'7',0) PAY_AMOUNT,
---                          NULL POS_DISC_SIGN,
---                          '0000000' POS_DISC,
---                          NULL SALES_DISC_AMOUNT_SIGN,
---                          '0000000' SALES_DISC_AMOUNT
---                     FROM PNP.CCN_ACCUMS ACC, 
---                          PNP_CCN_HEADERS CH
---                    WHERE CH.TRANID IN ('10', '11', '13', '19', '22', '31', '41', '82', '91')
---                      AND ACC.TRAN_GUID      = CH.TRAN_GUID
---                      AND CH.RLS_RUN_CYCLE = (SELECT MAX(RLS_RUN_CYCLE) 
---                                                FROM PNP_CCN_LOAD_STATUS)
---                      AND ACC.RLS_RUN_CYCLE  = CH.RLS_RUN_CYCLE
---                      AND EXISTS (SELECT 1
---                                    FROM PNP_CCN_SALES_LINES
---                                   WHERE SALESNBR = '000009126'
---                                     AND RLS_RUN_CYCLE = CH.RLS_RUN_CYCLE
---                                     AND TRAN_GUID =     CH.TRAN_GUID)) POS
---   ON FF.COST_CENTER_CODE = POS.COST_CENTER_CODE
---   AND FF.TERMINAL_NUMBER = POS.TERMINAL_NUMBER
---   AND FF.TRANSACTION_NUMBER = POS.TRANSACTION_NUMBER
---   AND FF.TRANSACTION_TOTAL_AMOUNT = POS.TRANSACTION_TOTAL_AMOUNT
---   AND FF.PAY_AMOUNT = POS.PAY_AMOUNT
--- WHERE FF.COST_CENTER_CODE  IS NULL OR  
---       FF.TERMINAL_NUMBER  IS NULL OR  
---       FF.TRANSACTION_NUMBER  IS NULL OR 
---       POS.COST_CENTER_CODE  IS NULL OR 
---       POS.TERMINAL_NUMBER  IS NULL OR 
---       POS.TRANSACTION_NUMBER  IS NULL;
-
     SELECT FF.ROWID TGT_ROWID
         ,FF.COST_CENTER_CODE COST_CENTER_CODE1
         ,FF.TERMINAL_NUMBER TERMINAL_NUMBER1
@@ -1486,7 +1405,7 @@ EXCEPTION
     WHEN OTHERS THEN
     ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'CSTMR_FORM_OF_PAY_DIFF_sp'
+                                   ,'CSTMR_FORM_OF_PAY_DIFF_SP'
                                    ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                    ,'000000'
                                    ,'0000000000');
@@ -1616,7 +1535,7 @@ EXCEPTION
     WHEN OTHERS THEN
     ROLLBACK;
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'BANK_PAID_DATA_DIFF_sp'
+                                   ,'CSTMR_BANK_CARD_DIFF_SP'
                                    ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                    ,'000000'
                                    ,'0000000000');
@@ -1993,7 +1912,7 @@ EXCEPTION
     WHEN OTHERS THEN
     ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'BANK_PAID_DATA_DIFF_sp'
+                                   ,'BANK_PAID_DATA_DIFF_SP'
                                    ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                    ,'000000'
                                    ,'0000000000');
@@ -2402,7 +2321,7 @@ EXCEPTION
     WHEN OTHERS THEN
         ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'STORE_DRAFTS_DIFF_sp'
+                                   ,'STORE_DRAFTS_DIFF_SP'
                                    ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                    ,'000000'
                                    ,'0000000000');
@@ -2647,7 +2566,7 @@ EXCEPTION
     WHEN OTHERS THEN
         ROLLBACK; 
     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'STORE_DRAFT_INSTLR_DIFF_sp'
+                                  ,'STORE_DRAFT_INSTLR_DIFF_SP'
                                   ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                   ,'000000'
                                   ,'0000000000');
@@ -2831,7 +2750,7 @@ EXCEPTION
     WHEN OTHERS THEN
         ROLLBACK; 
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'STORE_DRAFT_DISBRSMT_DIFF_sp'
+                                  ,'STORE_DRAFT_DISBRSMT_DIFF_SP'
                                   ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                   ,'000000'
                                   ,'0000000000');
@@ -3052,7 +2971,7 @@ EXCEPTION
     WHEN OTHERS THEN
         ROLLBACK; 
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'CUSTOMER_DIFF_sp'
+                                  ,'CUSTOMER_DIFF_SP'
                                   ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                   ,'000000'
                                   ,'0000000000');
@@ -3137,12 +3056,14 @@ IS
          (CASE WHEN CSL.PR < 0 THEN '-' ELSE NULL END) ITEM_PRICE_SIGN2,
          SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CSL.PR, '-', ''), '0', '7', '2'), '0', '7')ITEM_PRICE2,
          (CASE WHEN CSL.EXTENDED_PRICE < 0 THEN '-' ELSE NULL END) ITEM_EXTERNAL_AMOUNT_SIGN2,
-         SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CSL.EXTENDED_PRICE, '-', ''), '0', '7', '2'), '0', '7')ITEM_EXTERNAL_AMOUNT2,
+         SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(GET_DISC_AMT_TYPE(CSL.TRAN_GUID,CSL.SEQNBR,CSL.RLS_RUN_CYCLE, 'A') - CSL.EXTENDED_PRICE, '-', ''), '0', '7', '2'), '0', '7')ITEM_EXTERNAL_AMOUNT2,
          NULL ITEM_DISC_AMOUNT_SIGN2,
-         '0000000' ITEM_DISC_AMOUNT2,
+         SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(GET_DISC_AMT_TYPE(CSL.TRAN_GUID,CSL.SEQNBR,CSL.RLS_RUN_CYCLE, 'A'), '-', ''), '0', '7', '2'), '0', '7') ITEM_DISC_AMOUNT2, 
+         --'0000000' ITEM_DISC_AMOUNT2,
          '0' ITEM_SALES_TAX_INDICATOR2,     
          '0' ITEM_DISC_CODE2,
-         '0' ITEM_DISC_TYPE2,
+         GET_DISC_AMT_TYPE(CSL.TRAN_GUID,CSL.SEQNBR, CSL.RLS_RUN_CYCLE,'B' ) ITEM_DISC_TYPE2, 
+         --'0' ITEM_DISC_TYPE2,
          '0' SALES_PROMO_CODE2,
          CSL.PRIME GL_PRIME_ACCOUNT2,
          CSL.SUB GL_SUB_ACCOUNT2,
@@ -3255,315 +3176,10 @@ EXCEPTION
     WHEN OTHERS THEN
         ROLLBACK;
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'CSTMR_DETAILS_DIFF_sp'
+                                  ,'CSTMR_DETAILS_DIFF_SP'
                                   ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
                                   ,'000000'
                                   ,'0000000000');
 END CSTMR_DETAILS_DIFF_SP;
 
---PROCEDURE POS_CUSTOMER_DIFF_SP(
---/**************************************************************** 
---This Procedure is used compare the legacy customer load 
---and the POSXML customer load and creats a Difference file.
---
---created : 02/23/2016 NXK927/VXV CCN Project
---changed : 
---*****************************************************************/
---    IN_DATE IN DATE)
---IS
---    CURSOR FF_RECONCILE_CUR IS
---    SELECT 
---        COST_CENTER_CODE AS COST_CENTER_CODE,
---        TERMINAL_NUMBER AS TERMINAL_NUMBER,
---        TRANSACTION_NUMBER AS TRANSACTION_NUMBER,
---        SORT_FORCE AS SORT_FORCE,
---        SEGMENT_CODE AS SEGMENT_CODE,
---        SUB_SEGMENT_CODE AS SUB_SEGMENT_CODE,
---        FILLER AS FILLER,
---        CAST(TRANSACTION_DATE AS VARCHAR2(100)) AS TRANSACTION_DATE,
---        CUSTOMER_ACCOUNT_NUMBER AS CUSTOMER_ACCOUNT_NUMBER,
---        CAST(CUSTOMER_JOB_NUMBER AS VARCHAR2(100)) AS CUSTOMER_JOB_NUMBER,
---        POS_TRANSACTION_NUMBER_BATCH AS POS_TRANSACTION_NUMBER_BATCH,
---        CAST(POS_TRANSACTION_TIME AS VARCHAR2(100)) AS POS_TRANSACTION_TIME,
---        CYCLE_RUN_NUMBER AS CYCLE_RUN_NUMBER,
---        CAST(EMPLOYEE_NUMBER AS VARCHAR2(100)) AS EMPLOYEE_NUMBER,
---        POS_MODE_INDICATOR AS POS_MODE_INDICATOR,
---        BUSINESS_TYPE_CODE AS BUSINESS_TYPE_CODE,
---        SLS_TERRITORY_NUMBER AS SLS_TERRITORY_NUMBER,
---        SLS_TERRITORY_NUMBER_NO_CORR AS SLS_TERRITORY_NUMBER_NO_CORR,
---        TERRITORY_SPLIT_INDICATOR AS TERRITORY_SPLIT_INDICATOR,
---        CAST(POS_TRANSACTION_CODE AS VARCHAR2(100)) AS POS_TRANSACTION_CODE,
---        POS_TRANSACTION_DATE AS POS_TRANSACTION_DATE,
---        POS_TERMINAL_NUMBER AS POS_TERMINAL_NUMBER,
---        POS_TRANSACTION_NUMBER AS POS_TRANSACTION_NUMBER,
---        DATA_INDICATOR AS DATA_INDICATOR,
---        PURCHASE_ORDER_NUMBER AS PURCHASE_ORDER_NUMBER,
---        DATA_SOURCE AS DATA_SOURCE,
---        LOAD_DATE AS LOAD_DATE,
---        COMMENTS AS COMMENTS,
---        TGT_ROWID AS TGT_ROWID,
---        COST_CENTER_CODE2 AS COST_CENTER_CODE2,
---        TERMINAL_NUMBER2 AS TERMINAL_NUMBER2,
---        TRANSACTION_NUMBER2 AS TRANSACTION_NUMBER2,
---        SORT_FORCE2 AS SORT_FORCE2,
---        SEGMENT_CODE2 AS SEGMENT_CODE2,
---        SUB_SEGMENT_CODE2 AS SUB_SEGMENT_CODE2,
---        FILLER2 AS FILLER2,
---        CAST(TRANSACTION_DATE2 AS VARCHAR2(100)) AS TRANSACTION_DATE2,
---        CUSTOMER_ACCOUNT_NUMBER2 AS CUSTOMER_ACCOUNT_NUMBER2,
---        CAST(CUSTOMER_JOB_NUMBER2 AS VARCHAR2(100)) AS CUSTOMER_JOB_NUMBER2,
---        POS_TRANSACTION_NUMBER_BATCH2 AS POS_TRANSACTION_NUMBER_BATCH2,
---        CAST(POS_TRANSACTION_TIME2 AS VARCHAR2(100)) AS POS_TRANSACTION_TIME2,
---        CYCLE_RUN_NUMBER2 AS CYCLE_RUN_NUMBER2,
---        CAST(EMPLOYEE_NUMBER2 AS VARCHAR2(100)) AS EMPLOYEE_NUMBER2,
---        POS_MODE_INDICATOR2 AS POS_MODE_INDICATOR2,
---        BUSINESS_TYPE_CODE2 AS BUSINESS_TYPE_CODE2,
---        SLS_TERRITORY_NUMBER2 AS SLS_TERRITORY_NUMBER2,
---        SLS_TERRITORY_NUMBER_NO_CORR2 AS SLS_TERRITORY_NUMBER_NO_CORR2,
---        TERRITORY_SPLIT_INDICATOR2 AS TERRITORY_SPLIT_INDICATOR2,
---        CAST(POS_TRANSACTION_CODE2 AS VARCHAR2(100)) AS POS_TRANSACTION_CODE2,
---        POS_TRANSACTION_DATE2 AS POS_TRANSACTION_DATE2,
---        POS_TERMINAL_NUMBER2 AS POS_TERMINAL_NUMBER2,
---        POS_TRANSACTION_NUMBER2 AS POS_TRANSACTION_NUMBER2,
---        DATA_INDICATOR2 AS DATA_INDICATOR2,
---        PURCHASE_ORDER_NUMBER2 AS PURCHASE_ORDER_NUMBER2 
---    FROM
---    (SELECT 
---        CH.COST_CENTER_CODE COST_CENTER_CODE2,
---        CH.TERMINAL_NUMBER TERMINAL_NUMBER2,
---        CH.TRANSACTION_NUMBER TRANSACTION_NUMBER2,
---        CH.SORT_FORCE SORT_FORCE2,
---        CH.SEGMENT_CODE SEGMENT_CODE2,
---        CH.SUB_SEGMENT_CODE SUB_SEGMENT_CODE2,
---        CH.FILLER FILLER2,
---        CH.TRANSACTION_DATE TRANSACTION_DATE2,
---        CH.CUSTOMER_ACCOUNT_NUMBER CUSTOMER_ACCOUNT_NUMBER2,
---        CH.CUSTOMER_JOB_NUMBER CUSTOMER_JOB_NUMBER2,
---        CH.POS_TRANSACTION_NUMBER_BATCH POS_TRANSACTION_NUMBER_BATCH2, 
---        CH.POS_TRANSACTION_TIME POS_TRANSACTION_TIME2,
---        CH.CYCLE_RUN_NUMBER CYCLE_RUN_NUMBER2,
---        CH.EMPLOYEE_NUMBER EMPLOYEE_NUMBER2,
---        CH.POS_MODE_INDICATOR POS_MODE_INDICATOR2,          
---        CH.BUSINESS_TYPE_CODE BUSINESS_TYPE_CODE2,
---        CH.SLS_TERRITORY_NUMBER SLS_TERRITORY_NUMBER2,
---        CH.SLS_TERRITORY_NUMBER_NO_CORR SLS_TERRITORY_NUMBER_NO_CORR2,
---        CH.TERRITORY_SPLIT_INDICATOR TERRITORY_SPLIT_INDICATOR2,
---        Ch.POS_TRANSACTION_CODE POS_TRANSACTION_CODE2,
---        'O' POS_TRANSACTION_DATE2,
---        'O' POS_TERMINAL_NUMBER2,
---        'O' POS_TRANSACTION_NUMBER2,
---        'O' DATA_INDICATOR2,
---        CH.PURCHASE_ORDER_NUMBER PURCHASE_ORDER_NUMBER2
---    FROM DLY_POS_CUSTOMER  CH
---  WHERE LOAD_DATE = IN_DATE
---   ) POS
---    LEFT JOIN 
---    (SELECT FF.*, ROWID AS TGT_ROWID FROM CUSTOMER_DATA FF --WHERE LOAD_DATE = IN_DATE
---    ) FF
---    ON (
---        FF.COST_CENTER_CODE = POS.COST_CENTER_CODE2     AND 
---        FF.TERMINAL_NUMBER = POS.TERMINAL_NUMBER2       AND 
---        FF.TRANSACTION_NUMBER = POS.TRANSACTION_NUMBER2 AND 
---        FF.CUSTOMER_ACCOUNT_NUMBER = POS.CUSTOMER_ACCOUNT_NUMBER2
---        )
---    WHERE 
---       -- NVL(FF.TRANSACTION_DATE,C_CHAR) <> NVL(POS.TRANSACTION_DATE2,C_CHAR)         OR
---       -- NVL(FF.CUSTOMER_JOB_NUMBER,C_CHAR) <> NVL(POS.CUSTOMER_JOB_NUMBER2,C_CHAR)   OR
---       -- NVL(FF.POS_TRANSACTION_TIME,C_CHAR) <> NVL(POS.POS_TRANSACTION_TIME2,C_CHAR) OR
---        NVL(FF.EMPLOYEE_NUMBER,C_CHAR) <> NVL(POS.EMPLOYEE_NUMBER2,C_CHAR)           OR
---        NVL(FF.POS_TRANSACTION_CODE,C_CHAR) <> NVL(POS.POS_TRANSACTION_CODE2,C_CHAR);
---      
---V_FILE_NAME                         VARCHAR2(100) := 'POS_CUSTOMER_DATA';
---BEGIN
---    RESET_GLOBAL_VARIABLES_SP;
---    G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
---    G_HEADER   :=   CCN_COMMON_TOOLS.RETURN_HEADER_STRING('CUSTOMER_DATA');
---   
---    FOR REC IN FF_RECONCILE_CUR LOOP
---        IF REC.COST_CENTER_CODE IS NULL THEN
---            G_ORPHAN_COUNT := G_ORPHAN_COUNT+1; 
---
---            G_REC1 := G_REC1||'LEGACY'||C_SEPARATOR
---                      ||'"'||REC.COST_CENTER_CODE2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.TERMINAL_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.TRANSACTION_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.TRANSACTION_DATE2||'"'||C_SEPARATOR
---                      ||'"'||REC.CUSTOMER_ACCOUNT_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.CUSTOMER_JOB_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.POS_TRANSACTION_TIME2||'"'||C_SEPARATOR
---                      ||'"'||REC.EMPLOYEE_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.BUSINESS_TYPE_CODE2||'"'|| CHR(9) ||C_SEPARATOR
---                      ||'"'||REC.SLS_TERRITORY_NUMBER2||'"'||C_SEPARATOR
---                      ||'"'||REC.POS_TRANSACTION_CODE2||'"'|| CHR(9) ||CHR(10);
---        END IF;
---    END LOOP; 
---
---    G_REPORT := C_FILE_HEADER||CHR(10);
---    G_REPORT := G_REPORT||C_FILE_RECONCILE_LEGACY||CHR(10)||
---                G_HEADER||CHR(10) 
---                ||G_REC2||CHR(10);  
---    G_REPORT := G_REPORT|| 
---                C_FILE_LEGACY_ORPHAN_HEADER||CHR(10)||
---                G_HEADER||CHR(10) ||
---                G_REC1||CHR(10);
---    G_SUMMARY  :=C_FILE_SUMMARY_HEADER||CHR(10)||
---                 RETURN_SUMMARY_STRING('DLY_POS_CUSTOMER',IN_DATE,G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
---                             
---    G_REPORT := G_REPORT|| G_SUMMARY;
---
---    CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
---    
---    COMMIT;
---EXCEPTION
---    WHEN OTHERS THEN
---        ROLLBACK; 
---        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
---                                  ,'POS_CUSTOMER_DIFF_SP'
---                                  ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
---                                  ,'000000'
---                                  ,'0000000000');
---END POS_CUSTOMER_DIFF_SP;
-
-PROCEDURE POS_CUSTOMER_DIFF_SP(
-/**************************************************************** 
-This Procedure is used compare the legacy customer load 
-and the POSXML customer load and creats a Difference file.
-
-created : 02/23/2016 NXK927/VXV CCN Project
-changed : 
-*****************************************************************/
-    IN_DATE IN DATE)
-IS
-    CURSOR FF_RECONCILE_CUR IS
-     SELECT 
-        CH.COST_CENTER_CODE ||','||
-        CH.TERMINAL_NUMBER  ||','||
-        CH.TRANSACTION_NUMBER ||','||
-        CH.TRANSACTION_DATE ||','||
-        CH.CUSTOMER_ACCOUNT_NUMBER ||','||
-        CH.CUSTOMER_JOB_NUMBER ||','||
-        CH.POS_TRANSACTION_TIME ||','||
-        CH.EMPLOYEE_NUMBER ||','||
-        CH.BUSINESS_TYPE_CODE ||','||
-        CH.SLS_TERRITORY_NUMBER||','||
-        Ch.POS_TRANSACTION_CODE || chr(10) AS CUSTDATA
-    FROM DLY_POS_CUSTOMER  CH
-  WHERE LOAD_DATE = IN_DATE
-    AND NOT EXISTS (SELECT 1 
-                      FROM CUSTOMER_DATA FF
-                     WHERE FF.COST_CENTER_CODE = CH.COST_CENTER_CODE
-                       AND FF.TERMINAL_NUMBER = CH.TERMINAL_NUMBER
-                       AND FF.TRANSACTION_NUMBER = CH.TRANSACTION_NUMBER
-                       AND FF.CUSTOMER_ACCOUNT_NUMBER = CH.CUSTOMER_ACCOUNT_NUMBER);
-      
-V_FILE_NAME                         VARCHAR2(100) := 'POS_CUSTOMER_DATA';
-BEGIN
-    RESET_GLOBAL_VARIABLES_SP;
-    G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
-    G_HEADER   :=   CCN_COMMON_TOOLS.RETURN_HEADER_STRING('CUSTOMER_DATA');
-   
-    FOR REC IN FF_RECONCILE_CUR LOOP
-        --IF REC.COST_CENTER_CODE IS NULL THEN
-            G_ORPHAN_COUNT := G_ORPHAN_COUNT+1; 
-
-            G_REC1 := G_REC1 || REC.CUSTDATA;
-        --END IF;
-    END LOOP; 
-
-    G_REPORT := C_FILE_HEADER||CHR(10);
- 
-    G_REPORT := G_REPORT|| 
-                C_POS_EXTRA_HEADER||CHR(10)||
-                G_HEADER||CHR(10) ||
-                G_REC1||CHR(10);
-    G_SUMMARY  :=C_FILE_SUMMARY_HEADER||CHR(10)||
-                 RETURN_SUMMARY_STRING('DLY_POS_CUSTOMER',IN_DATE,0,G_ORPHAN_COUNT);
-                             
-    G_REPORT := G_REPORT|| G_SUMMARY;
-
-    CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
-    
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK; 
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'POS_CUSTOMER_DIFF_SP'
-                                  ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
-                                  ,'000000'
-                                  ,'0000000000');
-END POS_CUSTOMER_DIFF_SP;
-
-
-PROCEDURE POS_CSTMR_DETAILS_DIFF_SP(
-/*********************************************************************** 
-This Procedure is used compare the legacy customer details load 
-and the POSXML customer details load and creats a Difference file.
-        
-created : 12/21/2016 MXK766/NXK927 CCN Project
-changed :  
-************************************************************************/
-    IN_DATE IN DATE)
-IS
-    CURSOR FF_RECONCILE_CUR IS
-    SELECT  COST_CENTER_CODE ||','||
-         TERMINAL_NUMBER  ||','||
-         TRANSACTION_NUMBER ||','||
-         SALES_NUMBER ||','||
-         ITEM_QUANTITY ||','||
-         ITEM_PRICE   ||','||
-         ITEM_EXTERNAL_AMOUNT ||','||
-         GL_PRIME_ACCOUNT ||','||
-         GL_SUB_ACCOUNT || CHR(10) AS CUSTDATA
-    FROM DLY_POS_CUSTOMER_DETAILS POS
-    WHERE LOAD_DATE = IN_DATE
-    AND NOT EXISTS  (SELECT 1 
-                          FROM CUSTOMER_DETAILS_DATA FF
-                         WHERE FF.COST_CENTER_CODE = POS.COST_CENTER_CODE
-                           AND FF.TERMINAL_NUMBER = POS.TERMINAL_NUMBER
-                           AND FF.TRANSACTION_NUMBER = POS.TRANSACTION_NUMBER
-                           AND FF.SALES_NUMBER = POS.SALES_NUMBER
-                           AND FF.ITEM_QUANTITY = POS.ITEM_QUANTITY
-                           AND FF.ITEM_PRICE = POS.ITEM_PRICE
-                          AND FF.ITEM_EXTERNAL_AMOUNT = POS.ITEM_EXTERNAL_AMOUNT);
-      
-    V_FILE_NAME    VARCHAR2(100) := 'POS_CUSTOMER_DETAILS_DATA';
-BEGIN
-    RESET_GLOBAL_VARIABLES_SP;
-    G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
-    G_HEADER   :=   CCN_COMMON_TOOLS.RETURN_HEADER_STRING('CUSTOMER_DETAILS_DATA');
-
-    FOR REC IN FF_RECONCILE_CUR LOOP
-
-            G_ORPHAN_COUNT := G_ORPHAN_COUNT+1; 
-            
-            G_REC1 := G_REC1 || REC.CUSTDATA;         
-
-    END LOOP;
-
-    G_REPORT := C_FILE_HEADER||CHR(10);
-    
-    G_REPORT := G_REPORT||
-                C_POS_EXTRA_HEADER||CHR(10)||
-                G_HEADER||CHR(10) ||
-                G_REC1||CHR(10);
-    G_SUMMARY  :=C_FILE_SUMMARY_HEADER||CHR(10)||
-                 RETURN_SUMMARY_STRING('DLY_POS_CUSTOMER_DETAILS',IN_DATE,0,G_ORPHAN_COUNT);
-
-    G_REPORT := G_REPORT|| G_SUMMARY;
-
-    CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
-
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK;
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                  ,'CSTMR_DETAILS_DIFF_sp'
-                                  ,SQLERRM||'-'||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE
-                                  ,'000000'
-                                  ,'0000000000');
-END POS_CSTMR_DETAILS_DIFF_SP;
-
 END SD_RECONCILE_DIFF_REPORT_PKG;
-
