@@ -4,6 +4,8 @@
 
 created by: sxp130 06-06-17 for ASP-771
 */
+set serveroutput on;
+
 DECLARE
    CURSOR hier_detail_hst_price_dist_cur IS
       SELECT ROWID
