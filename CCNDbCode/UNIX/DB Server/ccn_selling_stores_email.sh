@@ -42,9 +42,9 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
+   echo "processing FAILED for $proc at ${TIME} on ${DATE}"
    cd $HOME
    ./send_mail.sh "SELLING_STORES_ERROR"
-   echo "processing FAILED for $proc at ${TIME} on ${DATE}"
    exit 1;
 fi
 echo "Process to generate selling store file executed for $RUNDATE at ${TIME} on ${DATE}"

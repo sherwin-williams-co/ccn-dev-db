@@ -7,10 +7,7 @@
 INSERT INTO MAILING_DETAILS
     VALUES  ('SELLING_STORES_ERROR',51,'Job Failed for Selling Store Details'
             ,'ccnoracle.team@sherwin.com','Failed to Generate Selling Store Details'
-            ,'Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
+            ,'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 -- Check the inserted value
 SELECT * 
