@@ -1,3 +1,7 @@
+/*
+created : nxk927 06/12/2017 
+          table to load pos data to compare it with the legacy data
+*/
 
   CREATE TABLE POSXML_BNK_PAID_DATA_TMP 
    (	TRANSACTION_SOURCE VARCHAR2(1), 

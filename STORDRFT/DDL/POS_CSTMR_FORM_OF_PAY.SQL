@@ -1,3 +1,7 @@
+/*
+created : nxk927 06/12/2017 
+          table to load pos customer form of pay data from pnp schema to compare it with the legacy data
+*/
 
   CREATE TABLE POS_CSTMR_FORM_OF_PAY 
    (	TRANGUID VARCHAR2(50), 

@@ -1,3 +1,7 @@
+/*
+created : nxk927 06/12/2017 
+          table to load leagcy data to compare it with the new pos data
+*/
 
   CREATE TABLE CUSTOMER_LINE_ITEM_DATA 
    (	TRANSACTION_SOURCE VARCHAR2(1), 

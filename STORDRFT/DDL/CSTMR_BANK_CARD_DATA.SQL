@@ -1,4 +1,7 @@
-
+/*
+created : nxk927 06/12/2017 
+          table to load leagcy data to compare it with the new pos data
+*/
   CREATE TABLE CSTMR_BANK_CARD_DATA 
    (	COST_CENTER_CODE VARCHAR2(4), 
 	TERMINAL_NUMBER VARCHAR2(5), 

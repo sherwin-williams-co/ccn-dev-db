@@ -1,3 +1,7 @@
+/*
+created : nxk927 06/12/2017 
+          table to load leagcy data to compare it with the new pos data
+*/
 
   CREATE TABLE CSTMR_SALES_TAX_DATA 
    (	COST_CENTER_CODE VARCHAR2(4), 

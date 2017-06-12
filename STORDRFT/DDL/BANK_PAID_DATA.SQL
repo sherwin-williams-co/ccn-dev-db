@@ -1,4 +1,7 @@
-
+/*
+created : nxk927 06/12/2017 
+          table to load leagcy data to compare it with the new pos data
+*/
   CREATE TABLE BANK_PAID_DATA 
    (	TRANSACTION_SOURCE VARCHAR2(1), 
 	TRANSACTION_TYPE VARCHAR2(1), 

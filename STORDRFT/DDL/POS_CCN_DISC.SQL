@@ -1,3 +1,9 @@
+/*
+created : nxk927 06/12/2017 
+          table to load pnp data for the customer data to compare it with the legacy data
+*/
+
+
 CREATE TABLE POS_CCN_DISC
    (DISCFLAG NUMBER(5,0), 
 	DISCPR NUMBER(12,2), 
