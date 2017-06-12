@@ -1,4 +1,7 @@
-
+/*
+created : nxk927 06/12/2017 
+          table to load leagcy data to compare it with the new pos data
+*/
   CREATE TABLE INSTLR_LN_ITEM_DATA 
    (	TRANSACTION_SOURCE VARCHAR2(1), 
 	TRANSACTION_TYPE VARCHAR2(1), 
@@ -20,5 +23,5 @@
 	DATA_SOURCE VARCHAR2(100), 
 	LOAD_DATE DATE NOT NULL ENABLE, 
 	COMMENTS VARCHAR2(4000)
-   ) 
+   ) ;
 
