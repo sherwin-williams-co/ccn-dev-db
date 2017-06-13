@@ -2,7 +2,7 @@ create or replace TRIGGER TR_HIER_DETAIL_UPD
 /*******************************************************************************
 This trigger fires on an insert/ update on HIERARCHY_DETAIL table
 
-Created : 
+Created : 06/13/2017 rxv940 CCN Project Team....
 Changed : 06/13/2017 rxv940 CCN Project Team....
           Changes the NVL condition on a date column
 *******************************************************************************/
@@ -40,27 +40,27 @@ BEGIN
 
     SELECT XMLELEMENT("HIERARCHY_DETAIL",
            XMLATTRIBUTES('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
-                                'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
-           XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                               HRCHY_HDR_NAME
-                            ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
-                            ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
-                            ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EFF_DATE, 'yyyymmdd')                                     HRCHY_DTL_EFF_DATE
-                            ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EXP_DATE, 'yyyymmdd')                                     HRCHY_DTL_EXP_DATE
-                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL HRCHY_DTL_CURR_ROW_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_DESC                                                              HRCHY_DTL_DESC
-                            ,V_ATTRIBUTES                                                                             ATTRIBUTES)
+                         'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
+           XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                              HRCHY_HDR_NAME
+                    ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
+                    ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
+                    ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EFF_DATE, 'yyyymmdd')                                     HRCHY_DTL_EFF_DATE
+                    ,TO_CHAR(V_HI_DET_ROW.HRCHY_DTL_EXP_DATE, 'yyyymmdd')                                     HRCHY_DTL_EXP_DATE
+                    ,V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL                                                      HRCHY_DTL_CURR_ROW_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_DESC                                                              HRCHY_DTL_DESC
+                    ,V_ATTRIBUTES                                                                             ATTRIBUTES)
                   ) AS "result",
            XMLELEMENT("PRIMARY_KEY",
            XMLATTRIBUTES('http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
-                                'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
-           XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                               HRCHY_HDR_NAME
-                            ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
-                            ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
-                            ,V_HI_DET_ROW.HRCHY_DTL_EFF_DATE                                                          HRCHY_DTL_EFF_DATE)
+                         'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
+           XMLFOREST(V_HI_DET_ROW.HRCHY_HDR_NAME                                                              HRCHY_HDR_NAME
+                    ,SUBSTR('00', 1,2 - LENGTH(V_HI_DET_ROW.HRCHY_DTL_LEVEL)) || V_HI_DET_ROW.HRCHY_DTL_LEVEL HRCHY_DTL_LEVEL
+                    ,V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL                                                      HRCHY_DTL_PREV_LVL_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL                                                      HRCHY_DTL_CURR_LVL_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL                                                      HRCHY_DTL_NEXT_LVL_VAL
+                    ,V_HI_DET_ROW.HRCHY_DTL_EFF_DATE                                                          HRCHY_DTL_EFF_DATE)
                   ) AS "PrimaryKey"
     INTO v_rowdata, v_primaryKey
     FROM DUAL;
@@ -103,9 +103,15 @@ BEGIN
                 (
                 NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX')<> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
                 OR 
-                NOT ((:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) OR (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL))
+                    NOT 
+                       (
+                       (:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) 
+                       OR 
+                       (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
+                       )
                 )
-                AND LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~'
+                AND LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 
+				AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~'
                 THEN
                     POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
                                                         'HIERARCHY_DETAIL',
