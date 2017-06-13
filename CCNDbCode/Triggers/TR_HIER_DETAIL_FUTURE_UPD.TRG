@@ -1,4 +1,11 @@
 CREATE OR REPLACE TRIGGER TR_HIER_DETAIL_FUTURE_UPD 
+/*******************************************************************************
+This trigger fires on an insert/ update on HIERARCHY_DETAIL_FUTURE table
+
+Created : 
+Changed : 06/13/2017 rxv940 CCN Project Team....
+          Removed the Before Update trigger
+*******************************************************************************/
 BEFORE INSERT ON HIERARCHY_DETAIL_FUTURE
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -20,14 +27,12 @@ BEGIN
         V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL     := :NEW.HRCHY_DTL_CURR_ROW_VAL;
     
         IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN
-            IF INSERTING THEN
-                IF LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
-                    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
-                                                        'HIERARCHY_DETAIL_FUTURE',
-                                                        'ADD',
-                                                        'POS_STORE_UPDATE'
-                                                        );
-                END IF;
+            IF LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
+                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
+                                                     'HIERARCHY_DETAIL_FUTURE',
+                                                     'ADD',
+                                                     'POS_STORE_UPDATE'
+                                                     );
             END IF;
         END IF;
     EXCEPTION
