@@ -792,4 +792,17 @@ created : MXK766 08/19/2016
 ********************************************************************************/
 IN_HRCHY_HDR_NAME IN VARCHAR2, IN_COST_CENTER_YN IN VARCHAR2) RETURN NUMBER;
 
+PROCEDURE PRICE_DIST_FUT_HIER_DET_S_SP
+/**********************************************************
+This procedure will be called from UI when "Batch Processes" window ******* button click
+It is intended to generate a file price_dist_future_hier.csv with the list of future price district hierarchy
+filters:
+
+1 - consider only open/valid store cost centers
+2 - consider only Price District Future Hierarchy
+
+created : 06/12/2017 sxp130 ASP_802 ccn project team....
+**********************************************************/
+;
+
 END CCN_HIERARCHY;

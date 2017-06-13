@@ -3665,4 +3665,106 @@ EXCEPTION
                          ,'Invalid DCO Cost Center' ); 
 END DCO_COSTCENTER_LOOKUP;
 
+PROCEDURE PRICE_DIST_FUT_HIER_DET_S_SP
+/**********************************************************
+This procedure will be called from UI when "Batch Processes" window ******* button click
+It is intended to generate a file price_dist_future_hier.csv with the list of future price district hierarchy
+
+filters:
+1. Consider only price district future hierarchy
+
+created : 06/12/2017 sxp130 ASP_802 ccn project team....
+**********************************************************/
+IS
+   CURSOR cur_hier_det_fut_cc IS
+      SELECT *
+        FROM hierarchy_detail_future
+       WHERE hierarchy_detail_future.hrchy_hdr_name = 'PRICE_DISTRICT';
+
+   CURSOR cur_cost_center (p_cost_center_code VARCHAR2) IS
+      SELECT *
+        FROM cost_center
+       WHERE cost_center.cost_center_code = p_cost_center_code;
+
+   CURSOR cur_type_code (p_cost_center_code VARCHAR2) IS
+      SELECT *
+        FROM TYPE
+       WHERE TYPE.cost_center_code = p_cost_center_code
+         AND expiration_date IS NULL;
+
+   --variable declaration
+   V_CLOB                      CLOB;
+   V_CLOB_FOR_EMAIL            CLOB;
+   path                        VARCHAR2(50)   := 'CCN_DATAFILES'; -- directory created in oracle database
+   filename                    VARCHAR2(50)   := 'PRICE_DIST_FUTURE_HIER' || '_'|| TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+   output_file                 UTL_FILE.file_type;
+   V_COST_CENTER_CODE          VARCHAR2(50);
+   V_COST_CENTER_NAME          VARCHAR2(50);
+   V_CATEGORY                  VARCHAR2(50);
+   V_TYPE_CODE                 VARCHAR2(50);
+
+BEGIN
+   output_file := UTL_FILE.fopen (path
+                                  ,filename
+                                  ,'W' --binary
+                                  ,32767);
+
+   V_CLOB_FOR_EMAIL := 'Cost Center,' ||
+                       'Name,' ||
+                       'Type,' ||
+                       'Category,' ||
+                       'Levels,' ||
+                       'Effective Date,' ||
+                       'Expiration Date';
+
+   UTL_FILE.put_line(output_file, V_CLOB_FOR_EMAIL, TRUE);
+
+   FOR cur_hdf_rec IN cur_hier_det_fut_cc LOOP
+      --variable initialize to null
+      V_COST_CENTER_CODE            := NULL;
+      V_COST_CENTER_NAME            := NULL;
+      V_CATEGORY                    := NULL;
+      V_TYPE_CODE                   := NULL;
+
+      /*fetch cost center information for price district future hierarchy*/
+      FOR cur_cc_rec IN cur_cost_center (cur_hdf_rec.hrchy_dtl_curr_row_val)  LOOP
+         V_COST_CENTER_CODE := cur_cc_rec.cost_center_code;
+         V_COST_CENTER_NAME := cur_cc_rec.cost_center_name;
+         V_CATEGORY         := cur_cc_rec.category;
+      END LOOP;
+
+      /*fetch type_code information for cost center*/
+      FOR cur_type_rec IN cur_type_code (cur_hdf_rec.hrchy_dtl_curr_row_val)  LOOP
+         V_TYPE_CODE := cur_type_rec.type_code;
+      END LOOP;
+
+      V_CLOB := '"' || V_COST_CENTER_CODE                 || '",' ||
+                '"' || V_COST_CENTER_NAME                 || '",' ||
+                '"' || V_TYPE_CODE                        || '",' ||
+                '"' || V_CATEGORY                         || '",' ||
+                '"' || cur_hdf_rec.hrchy_dtl_prev_lvl_val || '",' ||
+                '"' || cur_hdf_rec.hrchy_dtl_eff_date     || '",' ||
+                '"' || cur_hdf_rec.hrchy_dtl_exp_date     || '"';
+
+      IF V_CLOB <> EMPTY_CLOB() THEN
+         UTL_FILE.put_line(output_file, V_CLOB, TRUE);
+         IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+            V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || Chr(10) || V_CLOB;
+         ELSE
+            V_CLOB_FOR_EMAIL := V_CLOB;
+         END IF;
+      END IF;
+   END LOOP;
+
+   UTL_FILE.fclose(output_file);
+   --sending mail for the category 'PRICE_DIST_FUTURE_HIER'
+   IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+      MAIL_PKG.send_mail('PRICE_DIST_FUTURE_HIER', NULL, NULL, V_CLOB_FOR_EMAIL);
+   END IF;
+EXCEPTION
+   WHEN OTHERS THEN
+      UTL_FILE.fclose(output_file);
+      ERRPKG.raise_err(-20999, 'ccn_hierarchy.PRICE_DIST_FUT_HIER_DET_S_SP','generate price district future hierarchy reporting failed at '||SQLCODE||' : '||SQLERRM);
+END PRICE_DIST_FUT_HIER_DET_S_SP;
+
 END CCN_HIERARCHY;
