@@ -1,4 +1,11 @@
-CREATE OR REPLACE TRIGGER COSTCNTR.TR_HIER_DETAIL_UPD 
+create or replace TRIGGER COSTCNTR.TR_HIER_DETAIL_UPD 
+/*******************************************************************************
+This trigger fires on an insert/ update on HIERARCHY_DETAIL table
+
+Created : 
+Changed : 06/13/2017 rxv940 CCN Project Team....
+          Changes the NVL condition on a date column
+*******************************************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.HIERARCHY_DETAIL
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -80,8 +87,9 @@ INSERT
           V_PRIMARYKEY,
           V_ROWDATA,
           'TR_HIER_DETAIL_UPD');
+                   
 BEGIN
-IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN
+IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN 
    IF INSERTING THEN
       IF LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND
                 V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
@@ -91,12 +99,13 @@ IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN
                                             'POS_STORE_UPDATE'
                                             );
       END IF;
+
    ELSIF UPDATING THEN
       IF 
       (
       NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX')<> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
-      OR
-      NVL(:OLD.HRCHY_DTL_EFF_DATE,'XXX') <> NVL(:NEW.HRCHY_DTL_EFF_DATE,'XXX')
+      OR 
+      NOT ((:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) OR (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL))
       )
       AND LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~'
       THEN
