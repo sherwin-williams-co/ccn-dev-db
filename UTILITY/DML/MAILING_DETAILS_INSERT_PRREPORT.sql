@@ -1,6 +1,12 @@
---------------------------------------------------------
---  File created - Friday-May-26-2017   rxa457 for asp-772
---------------------------------------------------------
+/********************************************************************************************************************************************
+Inserting new mailing group ID for 'Pricng Stores Group" email ID's. This mailing group will be used to send emails to Pricing Stores Group.
+Inserts into MAILING_DEAILS for Price District Hierarchy Reporting which is scheduled every Monday 8 am. Inserts separate records for both success and error email
+Task - ASP-772
+
+Created : 05/25/2017 rxa457 CCN Project Team....
+Changed:  06/14/2017 rxa457 CCN Project Team....
+              Changed to pricing district group mail ID rather than individual ID's based on confirmation received from users on 06/12/2017
+********************************************************************************************************************************************/
 
 REM INSERTING into MAILING_GROUP
 SET DEFINE OFF;
