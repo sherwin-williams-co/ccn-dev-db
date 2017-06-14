@@ -4,7 +4,7 @@
 
 REM INSERTING into MAILING_GROUP
 SET DEFINE OFF;
-Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('63','jmkeating@sherwin.com;baeverden@sherwin.com;ccnoracle.team@sherwin.com');
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('63','Pricing.StoresGroup@sherwin.com;ccnoracle.team@sherwin.com');
 
 
 REM INSERTING into MAILING_DETAILS
