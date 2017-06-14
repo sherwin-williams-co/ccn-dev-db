@@ -1,61 +1,87 @@
-create or replace PACKAGE BODY UAR_GIFT_CARD_PROCESS 
+CREATE OR REPLACE PACKAGE BODY UAR_GIFT_CARD_PROCESS
 AS
 
-PROCEDURE TRUNCATE_TABLE(
-/*****************************************************************************
-TRUNCATE_TABLE
-
-This procedure will truncate all loaded data for the table name that is
-passed in.
-
-created : 10/26/2016 axk326 CCN Project....
-changed :
-*****************************************************************************/
-IN_TABLE_NAME IN VARCHAR2)
-IS
-
-BEGIN
-
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE ' || IN_TABLE_NAME;
-
-EXCEPTION
-    WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'TRUNCATE_TABLE',
-                                     SQLERRM,
-                                    '000000', 
-                                    '0000000',  
-                                    '0000000');
-END TRUNCATE_TABLE;
-
-PROCEDURE TRUNC_GIFT_CARD_TBLS
+FUNCTION GET_UAR_TRANS_CODE(
 /**************************************************************************************
-TRUNCATE all new POS tables
+GET_UAR_TRANS_CODE
 
-This procedure will truncate all previous day data before loading current day data
-into POS temp tables.
+This FUNCTION will derive the UAT TRANS CODE based on Accum id present in CCN_ACCUMS table
+in POS.
+Example
+    UAR_TRANS_CODE	Tran ID	    SMIS2 posAccum              posAccum
+    101102	        10	        no 76-->default to 11       ac-->convert to 02
+    107601	        10	        76                          ad-->convert to 01
 
-created : 09/14/2016 axk326 CCN Project....
-changed :
+    IF 76 is not present, then 11
+    IF ac is present,     then 02
+
+Created : 05/19/2017 gxg192 CCN Project....
+Changed :
 **************************************************************************************/
+            IN_TRANID        IN UAR_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
+            IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
+            IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
+RETURN UAR_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE
 IS
+    V_UAR_TRAN_CODE UAR_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
+    CNT_ACCUM_ID_76 NUMBER;
+    CNT_ACCUM_ID_AC NUMBER;
+    CNT_ACCUM_ID_AD NUMBER;
 BEGIN
+    SELECT IN_TRANID||
+           DECODE(COUNT(DECODE(accum_id,'76',1,NULL)),0,'11','76') ||
+           DECODE(COUNT(DECODE(accum_id,'ac',1,NULL)),0,'01','02') uat_tran_id
+      INTO V_UAR_TRAN_CODE
+      FROM PNP_CCN_ACCUMS
+     WHERE TRAN_GUID = IN_TRAN_GUID
+       AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
 
---Truncate temporary POS temp tables
---    TRUNCATE_TABLE('TEMP_GIFT_CARD_POS_DTL');
---    TRUNCATE_TABLE('TEMP_GIFT_CARD_POS_CTL');
-    TRUNCATE_TABLE('UAR_GIFT_CARD_POS_TRANS');
+    RETURN V_UAR_TRAN_CODE;
 
 EXCEPTION
     WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'TRUNC_GIFT_CARD_TBLS',
-                                     SQLERRM,
-                                    '000000', 
-                                    '0000000',  
-                                    '0000000');
-END TRUNC_GIFT_CARD_TBLS;
+       V_UAR_TRAN_CODE := NULL;
+       RETURN V_UAR_TRAN_CODE;
+       ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                 'UAR_GIFT_CARD_PROCESS.GET_UAR_TRANS_CODE',
+                                  SQLERRM,
+                                  SUBSTR(IN_TRAN_GUID,-16,16),
+                                  IN_TRANID,
+                                 'UAR_GIFT_CARD_POS_TRANS');
+END GET_UAR_TRANS_CODE;
 
+PROCEDURE LOAD_POS_CCN_LOAD_STATUS(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CCN_LOAD_STATUS" with data extracted from new interface tables
+Created : 06/12/2017 gxg192 CCN Project....
+Changed :
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+BEGIN
+
+   INSERT INTO POS_CCN_LOAD_STATUS
+   SELECT CH.*,
+          IN_DATE LOAD_DATE
+     FROM PNP_CCN_LOAD_STATUS CH
+    WHERE TRUNC(CH.START_TS) > (SELECT MAX(TRUNC(END_TS))
+                                  FROM POS_CCN_LOAD_STATUS)
+      AND STATUS_CODE = 'C';
+
+   COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'UAR_GIFT_CARD_PROCESS.LOAD_POS_CCN_LOAD_STATUS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000',
+                                    'POS_CCN_LOAD_STATUS');
+
+END LOAD_POS_CCN_LOAD_STATUS;
 
 PROCEDURE UAR_GC_POS_TRANS_LOAD_SP(
 /*******************************************************************************
@@ -63,13 +89,15 @@ This procedure is used to load the UAR Gift Card POS Transaction table
 "UAR_GIFT_CARD_POS_TRANS" with data extracted from new interface tables
 created : 10/28/2016 axk326 CCN Project....
 changed : 12/08/2016 vxv336 added STATUS filter in cursor query
+        : 05/19/2017 gxg192 Changes for fetching UAR_TRAN_CODE
 *******************************************************************************/
 IN_DATE DATE)
 AS
 
 CURSOR GC_CUR IS
- SELECT CH.TRANID TRANSACTION_TYPE,
-        CH.TRANID||'7601' UAR_TRAN_CODE,            -- Need to verify and change it
+ SELECT CH.RLS_RUN_CYCLE,
+        CH.TRAN_GUID,
+        CH.TRANID TRANSACTION_TYPE,
         CGC.GIFTCARDNBR GIFT_CARD_NBR,
         CBS.DIVISION DIVISION_NBR,
         CBS.AREA AREA_NBR,
@@ -85,26 +113,28 @@ CURSOR GC_CUR IS
    FROM PNP_CCN_HEADERS CH,
         PNP_CCN_BATCH_SUMMARY CBS,
         PNP_CCN_GIFT_CARD_LOG CGC
-  WHERE CGC.RLS_RUN_CYCLE = (SELECT MAX(CLS.RLS_RUN_CYCLE) 
-                               FROM POS_CCN_LOAD_STATUS CLS
-                              WHERE CLS.STATUS_CODE = 'C')
+  WHERE CGC.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                                FROM POS_CCN_LOAD_STATUS
+                               WHERE LOAD_DATE = IN_DATE)
     AND UPPER(CGC.ACTION) IN ('APPROVED', 'MANUAL')                               
     AND CH.RLS_RUN_CYCLE = CGC.RLS_RUN_CYCLE 
     AND CH.TRAN_GUID = CGC.TRAN_GUID
-    AND CH.BATCH_GUID = CBS.BATCH_GUID
-    ;  
-    
+    AND CH.BATCH_GUID = CBS.BATCH_GUID;
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
-   V_TEMP_ROW   UAR_GIFT_CARD_POS_TRANS%ROWTYPE;
+   V_TEMP_ROW      UAR_GIFT_CARD_POS_TRANS%ROWTYPE;
 
 BEGIN
+
+     DELETE UAR_GIFT_CARD_POS_TRANS
+      WHERE TRUNC(LOAD_DATE) = TRUNC(IN_DATE);
+
      FOR REC IN GC_CUR
      LOOP
         BEGIN
            V_TEMP_ROW.TRANSACTION_TYPE    := rec.TRANSACTION_TYPE;
-           V_TEMP_ROW.UAR_TRAN_CODE       := rec.UAR_TRAN_CODE;   
+           V_TEMP_ROW.UAR_TRAN_CODE       := GET_UAR_TRANS_CODE(rec.TRANSACTION_TYPE, rec.RLS_RUN_CYCLE, rec.TRAN_GUID);
            V_TEMP_ROW.GIFT_CARD_NBR       := rec.GIFT_CARD_NBR;   
            V_TEMP_ROW.DIVISION_NBR        := rec.DIVISION_NBR;    
            V_TEMP_ROW.DISTRICT_NBR        := rec.DISTRICT_NBR;    
@@ -117,6 +147,7 @@ BEGIN
            V_TEMP_ROW.TERM_NBR            := STORDRFT.SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TERM_NBR, '0', '5');       
            V_TEMP_ROW.TRANS_NBR           := rec.TRANS_NBR;       
            V_TEMP_ROW.EMPLOYEE_NBR        := STORDRFT.SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.EMPLOYEE_NBR, '0', '2');
+           V_TEMP_ROW.LOAD_DATE           := IN_DATE;
 
            INSERT INTO UAR_GIFT_CARD_POS_TRANS VALUES V_TEMP_ROW;
 
@@ -128,13 +159,12 @@ BEGIN
            V_TCOUNT := V_TCOUNT + 1;
         EXCEPTION
             WHEN OTHERS THEN
-
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                           'UAR_GC_POS_TRANS_LOAD_SP',
+                                           'UAR_GIFT_CARD_PROCESS.UAR_GC_POS_TRANS_LOAD_SP',
                                            SQLERRM,
                                            '000000', 
                                            '0000000',  
-                                           '0000000');
+                                           'UAR_GIFT_CARD_POS_TRANS');
         END;
      END LOOP;
 COMMIT;
@@ -143,7 +173,7 @@ DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
 EXCEPTION
     WHEN OTHERS THEN
           ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'UAR_GC_POS_TRANS_LOAD_SP',
+                                    'UAR_GIFT_CARD_PROCESS.UAR_GC_POS_TRANS_LOAD_SP',
                                     SQLERRM,
                                     '000000', 
                                     '0000000',  
@@ -155,12 +185,14 @@ PROCEDURE GENERATE_GIFT_CARD_TRANS_FILE (
 This procedure will generate UAR GIFT CARD TRANSACTION FILE [SRA30060] file
 
 Created : 10/28/2016 vxv336 CCN Project
-Changed :          
+Changed : 06/14/2017 gxg192 Changes to add header, trailor and summary record
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
   CURSOR main_cur IS
-      SELECT * FROM UAR_GIFT_CARD_POS_TRANS;
+      SELECT *
+        FROM UAR_GIFT_CARD_POS_TRANS
+       WHERE TRUNC(LOAD_DATE) = TRUNC(IN_DATE);
       
   PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
   UAR_GIFT_CARD_TRANS_FL_NM    VARCHAR2(50) := 'SMIS1.UAR.POSGFTCD_' ||
@@ -168,11 +200,21 @@ IS
                                        TO_CHAR(SYSDATE,'HH24MISS');
   UAR_GIFT_CARD_TRANS_FL       UTL_FILE.FILE_TYPE;
   V_OUT_CLOB                   CLOB;
+
+  V_RECORD_COUNT               NUMBER := 0;
+  V_TOTAL_TRANS_AMOUNT         NUMBER := 0;
+
 BEGIN
   UAR_GIFT_CARD_TRANS_FL := UTL_FILE.FOPEN (PATH
                                          ,UAR_GIFT_CARD_TRANS_FL_NM
                                          ,'W' --BINARY
                                          ,32767);
+  --Create header record
+  --Example *00P0614201700335842PROD
+
+  V_OUT_CLOB := '*00P' || TO_CHAR(IN_DATE,'MMDDRRRR') ||SUBSTR(TO_CHAR(SYSTIMESTAMP,'HHMISSFF'),1,8)||'PROD'|| CHR(13);
+  UTL_FILE.PUT_LINE(UAR_GIFT_CARD_TRANS_FL, V_OUT_CLOB, TRUE);
+
   FOR rec IN main_cur LOOP
       V_OUT_CLOB := V_OUT_CLOB
                         || '*' || rec.TRANSACTION_TYPE
@@ -196,64 +238,38 @@ BEGIN
       IF V_OUT_CLOB <> EMPTY_CLOB() THEN
           UTL_FILE.PUT_LINE(UAR_GIFT_CARD_TRANS_FL, V_OUT_CLOB, TRUE);
           V_OUT_CLOB := NULL;
+          V_RECORD_COUNT := V_RECORD_COUNT + 1;
+          V_TOTAL_TRANS_AMOUNT := V_TOTAL_TRANS_AMOUNT + TO_NUMBER(rec.TRANS_AMOUNT);
       END IF;
   END LOOP;
+
+  --Create trailor record
+  --Example *980100000000033100000001881325
+  V_OUT_CLOB := '*9801'
+                || LPAD(V_RECORD_COUNT,12,'0')
+                || LPAD(V_TOTAL_TRANS_AMOUNT,14,'0')
+                || CHR(13);
+  UTL_FILE.PUT_LINE(UAR_GIFT_CARD_TRANS_FL, V_OUT_CLOB, TRUE);
+
+  --Create summary record
+  --Example *990100000000033300000001881325
+  V_OUT_CLOB := '*9901'
+                || LPAD(V_RECORD_COUNT+2,12,'0')
+                || LPAD(V_TOTAL_TRANS_AMOUNT,14,'0');
+  UTL_FILE.PUT_LINE(UAR_GIFT_CARD_TRANS_FL, V_OUT_CLOB, TRUE);
+
   UTL_FILE.FCLOSE(UAR_GIFT_CARD_TRANS_FL);
+
 END GENERATE_GIFT_CARD_TRANS_FILE;
-
-PROCEDURE LOAD_GC_TRANS_FILE
-/*********************************************************************** 
-        This Procedure loads the Mainframe gift card transation file
-        into FF_GIFT_CARD_POS_TRANS
-        
-created : 12/06/2016 vxv336 CCN Team
-changed :
-************************************************************************/
-IS
-
-BEGIN
-
-    --EXECUTE IMMEDIATE 'TRUNCATE TABLE FF_GIFT_CARD_POS_TRANS';
-    DELETE FROM FF_GIFT_CARD_POS_TRANS WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
-    
-    INSERT INTO FF_GIFT_CARD_POS_TRANS
-    SELECT TRIM(TRANSACTION_TYPE)
-           ,TRIM(UAR_TRAN_CODE)
-           ,TRIM(GIFT_CARD_NBR)
-           ,TRIM(DIVISION_NBR)
-           ,TRIM(DISTRICT_NBR)
-           ,TRIM(AREA_NBR)
-           ,TRIM(STORE_NBR)
-           ,TRIM(STORE_STATE_CD)
-           ,TRUNC(TRIM(TRANS_AMOUNT))/100
-           ,TRIM(TRANS_DATE)
-           ,LPAD(TRUNC(TRIM(TRANS_TIME)),4,'0')
-           ,TRIM(TERM_NBR)
-           ,TRIM(TRANS_NBR)
-           ,TRUNC(TRIM(EMPLOYEE_NBR))
-           ,TRUNC(SYSDATE)
-           ,NULL   -- COMMENTS
-      FROM TEMP_GIFT_CARD_POS_TRANS;
-    COMMIT;
-    
-EXCEPTION
-WHEN OTHERS THEN
-    ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                               ,'LOAD_GC_TRANS_FILE'
-                               ,SQLERRM
-                               ,'000000'
-                               ,'0000000000'
-                               ,NULL);
-END LOAD_GC_TRANS_FILE;
-
 
 PROCEDURE POS_GC_DATA_LOAD_SP(
 /***********************************************************************
 This Procedure is a wrapper for the gift card related data to be loaded
 from POS Interface tables
 
-created : 10/26/2016 AXK326 CCN Project....
-changed : 12/06/2016 vxv336 Removed CONTROL and DETAIL file generation
+Created : 10/26/2016 AXK326 CCN Project....
+Changed : 12/06/2016 vxv336 Removed CONTROL and DETAIL file generation
+        : 06/12/2017 gxg192 Added call to procedure load_pos_ccn_load_status
 ***********************************************************************/
 IN_DATE DATE
 ) 
@@ -270,23 +286,29 @@ BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     BEGIN
 -- STEP 1
--- Call to Truncate all the Gift Card related temp tables before starting a fresh load
+-- Call to LOAD_POS_CCN_LOAD_STATUS to load Records from PNP.CCN_load_status into pos ccn load status table
       V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Truncate gift card related Temp Tables ';
-      TRUNC_GIFT_CARD_TBLS();
-      DBMS_OUTPUT.PUT_LINE('Truncating completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
+      V_CONTEXT := 'LOAD_POS_CCN_LOAD_STATUS';
+      LOAD_POS_CCN_LOAD_STATUS(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
 -- STEP 2
 -- Call to perform DailyLoad from POS new interface tables to UAR_GIFT_CARD_POS_TRANS table
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'UAR_GC_POS_TRANS_LOAD_SP';
       UAR_GC_POS_TRANS_LOAD_SP(IN_DATE);    
-      
+      DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
 -- STEP 3
 -- Call to Generate UAR GIFT CARD TRANSACTION FILE
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'GENERATE_GIFT_CARD_TRANS_FILE';
       GENERATE_GIFT_CARD_TRANS_FILE(IN_DATE);
-      
+      DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 -- STEP 4
 -- Call to load Mainframe gift card file into 
-      LOAD_GC_TRANS_FILE;
+      --LOAD_GC_TRANS_FILE; commenting becuase this process will not be required on production.
+      --Above process is moved on gc reconcile diff rpt pkg.
     END;
     
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_GC_DATA_LOAD_SP', V_BATCH_NUMBER, V_TRANS_STATUS);

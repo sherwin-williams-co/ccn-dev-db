@@ -27,10 +27,13 @@ echo "Process started for $proc_name at $TIME on $DATE"
 
 while read -r line
 do
-   if  [[ $line == 4* ]] || [[ $line == 5* ]] ;
+   if [[ $line == 5* ]] || [[ $line == 4* ]] ; 
    then
-      echo "FTP Failed!! Error code - $line"
-      exit 1
+      if [[ ${line} != *"bytes sent"* ]];
+      then
+         echo "FTP Failed!! Error code - $line"
+         exit 1
+      fi
    fi
    echo $line
 done < "$FTPLOG"
