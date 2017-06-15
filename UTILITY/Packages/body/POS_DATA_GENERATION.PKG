@@ -52,7 +52,7 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VAL;
-END GET_PRI_DSC_CODE;						   
+END GET_PRI_DSC_CODE;
 
 FUNCTION RETURN_COST_CENTER_CODE(
 /*******************************************************************************
@@ -341,6 +341,9 @@ Changed : 06/08/2017 jxc517 CCN Project Team....
 Changed : 06/08/2017 jxc517 CCN Project Team....
         : We look for JOB_TITLE "MGR" in store and if thats a null we look for 
         : "ASST MGR"
+Changed : 06/12/2017 rxv940 CCN Project Team....
+        : We look for all possible JOB_TITLE from JOB_TITLE_GROUP and get the 
+        : one hired the earliest in case of more than one matches
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2,
     IN_PROCESS_NAME     IN VARCHAR2) RETURN EMPLOYEE_DETAILS%ROWTYPE
@@ -361,27 +364,53 @@ BEGIN
                            );
     WHEN IN_PROCESS_NAME = 'STORE' THEN
         BEGIN
-            SELECT EMP.*
-              INTO V_EMPLOYEE_DETAILS
-              FROM EMPLOYEE_DETAILS EMP
-            WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
-              AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-              AND UPPER(JOB_TITLE) IN ('MGR')
-              AND ROWNUM < 2;
+            SELECT 
+               EMPLOYEE_NUMBER
+             , EMPLOYEE_NAME
+             , LAST_NAME
+             , FIRST_NAME
+             , MIDDLE_INITIAL
+             , HOME_ADDRESS_LINE1
+             , HOME_ADDRESS_LINE2
+             , HOME_CITY_STATE
+             , HOME_CITY
+             , HOME_STATE
+             , HOME_POSTAL_CODE
+             , HOME_PHONE
+             , COMPANY_CODE
+             , SEX
+             , EMP_PAYROLL_STATUS
+             , EMP_ASSIGNMENT_STATUS
+             , EMP_DIVISION
+             , HIRE_DATE
+             , TERM_DATE
+             , ADJUSTED_SERVICE_DATE
+             , JOB_CODE
+             , JOB_DIVISION
+             , JOB_FAMILY
+             , JOB_TITLE
+             , JOB_TYPE
+             , JOB_LEVEL
+             , JOB_FUNCTION
+             , DAD_CODE
+             , FULL_PART_CODE
+             , COST_CENTER_CODE
+           INTO V_EMPLOYEE_DETAILS
+           FROM (
+                 SELECT EMP.*, ROW_NUMBER() OVER (PARTITION BY COST_CENTER_CODE ORDER BY HIRE_DATE)  RN
+                 FROM EMPLOYEE_DETAILS EMP
+                 WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP 
+                                         WHERE NONMGR_IND = 'Y'
+                                        AND UPPER(JOB_GROUP) <> 'ASSISTANT MANGER')
+
+                 )
+           WHERE RN = 1;
         EXCEPTION
             WHEN OTHERS THEN
                 NULL;
-        END;
-        --If a store does not have a Manager, then only get the Assistant Manager for that store
-        IF V_EMPLOYEE_DETAILS.COST_CENTER_CODE IS NULL THEN
-            SELECT EMP.*
-              INTO V_EMPLOYEE_DETAILS
-              FROM EMPLOYEE_DETAILS EMP
-             WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
-               AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-               AND UPPER(JOB_TITLE) IN ('ASST MGR')
-               AND ROWNUM < 2;
-        END IF;
+        END; 
     END CASE;
 
     RETURN V_EMPLOYEE_DETAILS;
@@ -625,8 +654,9 @@ PROCEDURE POS_DOWNLOADS_UPD_SP(
 /*******************************************************************************
 This procedure is used do update on the table POS_DOWNLOADS 
 
-Created : 10/17/2016 MXK766 CCN Project....
-Changed :
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 06/02/2017 rxv940 CCN Project....
+        : Selecting only the first 36 characters of Request_id.                    
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
 IS
@@ -643,7 +673,7 @@ BEGIN
            FILE_TYPE          = IN_POS_DOWNLOADS.FILE_TYPE,
            COMMENTS           = IN_POS_DOWNLOADS.COMMENTS,
            FILE_NAME          = IN_POS_DOWNLOADS.FILE_NAME,
-           POLLING_REQUEST_ID = IN_POS_DOWNLOADS.POLLING_REQUEST_ID,
+           POLLING_REQUEST_ID = SUBSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, 1, 36),
            UPDATE_DT          = IN_POS_DOWNLOADS.UPDATE_DT
      WHERE FILE_NAME = IN_POS_DOWNLOADS.FILE_NAME
         OR POS_ID    = IN_POS_DOWNLOADS.POS_ID;
@@ -1040,7 +1070,7 @@ BEGIN
 
     --build currency
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.CURRENCY_CODE), 'currency') || CHR(10);
-    --build dsc-code       
+    --build dsc-code 
     V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(V_COSTCENTER_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
     --build acct-cntry,gnrc,real-cntry
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
@@ -1645,6 +1675,8 @@ Changed : 03/02/2017 rxv940 CCN Project Team....
           Handling XML special characters
 Changed : 03/02/2017 rxv940 CCN Project Team....
           <r_u_flag> is changed to 'R' from 'U'
+Changed : 04/06/2017 rxv940 CCN Project....
+        : Added code to create the .POLLINGDONE file 
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -1661,6 +1693,7 @@ IS
     V_REC_COUNT            PLS_INTEGER :=0;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
+    V_DONE_FILE            VARCHAR2(100);
     
 BEGIN
     V_COMMENTS := 'GEN_POS_TERRITORY_DATA_SP Procedure started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -1719,6 +1752,13 @@ BEGIN
     DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                 'CCN_DATAFILES',
                                 V_FILE_NAME);
+    V_DONE_FILE := REPLACE(V_FILE_NAME,
+                               '.XML',
+                               '.POLLINGDONE');
+                               
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
+                                    'CCN_DATAFILES',
+                                    V_DONE_FILE);                                     
                                 
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
@@ -1879,7 +1919,7 @@ IS
     V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
-
+    V_DONE_FILE            VARCHAR2(100);    
 BEGIN  
     V_COMMENTS := 'GENERATE_POS_STORE_DATA Procedure started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
@@ -2002,7 +2042,7 @@ BEGIN
 
         --build currency
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(STORE_REC.CURRENCY_CODE), 'currency') || CHR(10);
-        --build dsc-code         
+        --build dsc-code 
         V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(STORE_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
         --build acct-cntry,gnrc,real-cntry
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(STORE_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
@@ -2064,6 +2104,15 @@ BEGIN
     DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                'CCN_DATAFILES',
                                V_FILE_NAME);
+
+    V_DONE_FILE := REPLACE(V_FILE_NAME,
+                               '.XML',
+                               '.POLLINGDONE');
+                               
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
+                                    'CCN_DATAFILES',
+                                    V_DONE_FILE);                                    
+
 
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
                                 ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -2153,6 +2202,8 @@ the order of the XML elements.
 
 Created : 03/30/2017 rxv940 CCN Project....
 Changed : 04/06/2017 rxv940 CCN Project....
+        : Added code to create the .POLLINGDONE file 
+Changed : 04/06/2017 rxv940 CCN Project....
         : Added a condition to pick only Polling stores
 *******************************************************************************/
 IS
@@ -2174,6 +2225,7 @@ IS
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
     V_GOAHEAD              VARCHAR2(1) :='Y';
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
+    V_DONE_FILE            VARCHAR2(100);
 
 BEGIN
 
@@ -2282,7 +2334,14 @@ BEGIN
         DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                    'CCN_DATAFILES',
                                    V_FILE_NAME);
-
+                                   
+        V_DONE_FILE := REPLACE(V_FILE_NAME,
+                               '.XML',
+                               '.POLLINGDONE');
+                               
+        DBMS_XSLPROCESSOR.CLOB2FILE('Done',
+                                    'CCN_DATAFILES',
+                                    V_DONE_FILE);                                   
 
         V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
                                     ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -2308,5 +2367,25 @@ EXCEPTION
                                        '000000');
                                        
 END INIT_LOAD_PARAM_SP;                   
+
+PROCEDURE INIT_LOAD_STR_TERR_PARAM_SP
+/*******************************************************************************
+This procedure is used to create an Initload for STORE, TERR and PARAM all at once
+
+Created : 04/10/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+IS
+BEGIN
+
+  POS_DATA_GENERATION.INIT_LOAD_STORE_SP;
+                              
+  POS_DATA_GENERATION.INIT_LOAD_TERR_SP;
+  
+  POS_DATA_GENERATION.INIT_LOAD_PARAM_SP;
+
+  COMMIT; 
+                                       
+END INIT_LOAD_STR_TERR_PARAM_SP;
 
 END POS_DATA_GENERATION;
