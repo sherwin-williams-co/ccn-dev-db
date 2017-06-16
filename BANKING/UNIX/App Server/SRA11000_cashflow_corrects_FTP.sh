@@ -5,7 +5,8 @@
 # Description   : This shell script will FTP the CFA file to UAR
 #
 # Created  : 06/15/2017 nxk927 CCN Project Team.....
-# Modified : 
+# Modified : 06/16/2017 nxk927 CCN Project Team.....
+#             added a check to see if the file has data
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -19,9 +20,12 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #         FTP files stores_cashflowadj_*
 #################################################################
 echo "Processing started for FTP at ${TIME} on ${DATE}"
-if [ $FTP_INDICATOR == Y ] 
-then
 cd /app/banking/dev/initLoad
+file=stores_cashflowadj_*
+if [ `ls -l $file | awk '{print $5}'` -ne 0 ]
+then
+   if [ $FTP_INDICATOR == Y ] 
+   then
 ftp -inv ${uar_cfa_qa_host} <<FTP_MF
 quote user ${uar_cfa_qa_user}
 quote pass ${uar_cfa_qa_pw}
@@ -42,6 +46,9 @@ fi
 else
 echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
 echo "Existing the process without ftp'ing the file"
+fi
+else
+echo "File don't have any data to be FTPed."
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"

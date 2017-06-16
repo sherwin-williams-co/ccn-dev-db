@@ -10,6 +10,8 @@
 #            pushed the time variable inside in teh error check so the error check can be handled properly
 # Modified : 04/07/2017 nxk927 CCN Project Team.....
 #            added the ftp_indicator to control ftp of the file
+# Modified : 06/16/2017 nxk927 CCN Project Team.....
+#             added a check to see if the file has data
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -19,14 +21,16 @@ TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
-if [ $FTP_INDICATOR == Y ] 
+cd /app/banking/dev/initLoad
+file=SMIS1.SRA12060_*
+if [ `ls -l $file | awk '{print $5}'` -ne 0 ]
 then
-
+   if [ $FTP_INDICATOR == Y ] 
+   then
 ############################################################################
 # ftp the SRA11000 SEIRAL.DAT [SMIS1.SRA10060_*] and UAR.POS [SMIS1.SRA12060_*]
 # files to stuar2hq.sw.sherwin.com server 
 ############################################################################
-cd /app/banking/dev/initLoad
 ftp -inv ${uar_host} <<FTP_MF
 quote user ${uar_user}
 quote pass ${uar_pw}
@@ -51,6 +55,9 @@ fi
 else
 echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
 echo "Existing the process without ftp'ing the file"
+fi
+else
+echo "File don't have any data to be FTPed."
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
