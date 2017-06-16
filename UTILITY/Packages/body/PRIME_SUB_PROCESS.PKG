@@ -1,0 +1,415 @@
+create or replace PACKAGE BODY PRIME_SUB_PROCESS IS
+
+
+FUNCTION RETURN_HEADER_RECORD_FNC(
+/*******************************************************************************
+This Function is used to return the header information
+
+Created : 03/24/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_APLFILE_NAME  IN VARCHAR2,
+    IN_MIC_FILE_NAME IN VARCHAR2,
+    IN_REC_COUNT     IN NUMBER,
+    IN_UPD_DEL       IN VARCHAR2) RETURN VARCHAR2
+IS
+BEGIN
+    RETURN
+'<dlHeaderRcd>
+   <aplfile_name>'||IN_APLFILE_NAME||'</aplfile_name>
+   <micfile_name>'||IN_MIC_FILE_NAME||'</micfile_name>
+   <rec_cnt>'||IN_REC_COUNT||'</rec_cnt>
+   <cre_date>'||TO_CHAR(SYSDATE,'YYYY-MM-DD')||'</cre_date>
+   <cre_time>'||TO_CHAR(SYSDATE,'HH:MI:SS')||'</cre_time>
+   <r_u_flag>'||IN_UPD_DEL||'</r_u_flag>
+   <wfd/>
+</dlHeaderRcd>';
+END RETURN_HEADER_RECORD_FNC;
+
+
+FUNCTION RETRIEVE_POS_DATA_FNC(
+/*******************************************************************************
+This Function is used to return the POS_DOWNLOADS_GL_PS information
+
+Created : 04/03/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_POS_ID    IN NUMBER,
+    IN_FILE_NAME IN VARCHAR2) RETURN POS_DOWNLOADS_GL_PS%ROWTYPE
+IS
+    V_POS_DOWNLOADS_GL_PS POS_DOWNLOADS_GL_PS%ROWTYPE;
+BEGIN
+    IF IN_POS_ID IS NOT NULL THEN
+        SELECT *
+          INTO V_POS_DOWNLOADS_GL_PS
+          FROM POS_DOWNLOADS_GL_PS
+         WHERE POS_ID = IN_POS_ID;
+    ELSIF IN_FILE_NAME IS NOT NULL THEN
+        SELECT *
+          INTO V_POS_DOWNLOADS_GL_PS
+          FROM POS_DOWNLOADS_GL_PS
+         WHERE FILE_NAME = IN_FILE_NAME
+           AND ROWNUM = 1;
+    END IF;
+
+    RETURN V_POS_DOWNLOADS_GL_PS;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+       RETURN V_POS_DOWNLOADS_GL_PS;
+END RETRIEVE_POS_DATA_FNC;
+
+
+FUNCTION INS_POS_DOWNLOADS_GL_PS_FN(
+/*******************************************************************************
+This function is used to insert into POS_DOWNLOADS_GL_PS table.
+
+Created : 04/13/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2) RETURN NUMBER
+IS
+    V_POS_ID POS_DOWNLOADS_GL_PS.POS_ID%TYPE;
+BEGIN
+    INSERT
+    INTO POS_DOWNLOADS_GL_PS(POS_ID
+                       ,DATA_SOURCE
+                       ,DATA_OPERATION
+                       ,FILE_TYPE
+                       ,FILE_PROCESSED
+                       ,COMMENTS
+                       ,CREATE_DT)
+    VALUES (SEQ_POS_DOWNLOADS_PRIME_SUB.NEXTVAL
+            ,IN_DATA_SOURCE
+            ,IN_DATA_OPERATION
+            ,IN_FILE_TYPE
+            ,'N'
+            ,NULL
+            ,SYSDATE)
+    RETURNING POS_ID 
+         INTO V_POS_ID;
+								
+    RETURN V_POS_ID;
+END INS_POS_DOWNLOADS_GL_PS_FN;
+
+PROCEDURE POS_DOWNLOADS_GL_PS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS_GL_PS 
+
+Created : 04/03/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_POS_DOWNLOADS_GL_PS_REC POS_DOWNLOADS_GL_PS%ROWTYPE)
+IS
+   V_ERROR VARCHAR2(1000);
+BEGIN
+    UPDATE POS_DOWNLOADS_GL_PS 
+       SET 
+           DATA_SOURCE        = IN_POS_DOWNLOADS_GL_PS_REC.DATA_SOURCE,
+           DATA_OPERATION     = IN_POS_DOWNLOADS_GL_PS_REC.DATA_OPERATION, 
+           FILE_PROCESSED     = IN_POS_DOWNLOADS_GL_PS_REC.FILE_PROCESSED,
+           FILE_TYPE          = IN_POS_DOWNLOADS_GL_PS_REC.FILE_TYPE,
+           COMMENTS           = IN_POS_DOWNLOADS_GL_PS_REC.COMMENTS,
+           FILE_NAME          = IN_POS_DOWNLOADS_GL_PS_REC.FILE_NAME,
+           POLLING_REQUEST_ID = IN_POS_DOWNLOADS_GL_PS_REC.POLLING_REQUEST_ID,
+           UPDATE_DT          = IN_POS_DOWNLOADS_GL_PS_REC.UPDATE_DT
+     WHERE FILE_PROCESSED     = 'N';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_DOWNLOADS_GL_PS_UPD_SP',
+                                       V_ERROR,
+                                       '000000');  
+    
+END POS_DOWNLOADS_GL_PS_UPD_SP;
+
+FUNCTION RETURN_POS_DOWNLOADS_INSERT_YN(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_ACCNT_NBR IN VARCHAR2, 
+    IN_FILE_TYPE IN VARCHAR2) RETURN VARCHAR2
+IS
+V_COUNT  NUMBER      := 0;
+V_RETURN VARCHAR2(1) := 'Y';
+BEGIN
+    SELECT COUNT(1) 
+      INTO V_COUNT 
+      FROM POS_DOWNLOADS_GL_PS 
+     WHERE ACCNT_NBR        = IN_ACCNT_NBR 
+       AND FILE_TYPE        = IN_FILE_TYPE
+       AND FILE_PROCESSED   = 'N';
+    
+    IF V_COUNT > 0 THEN
+        V_RETURN := 'N';
+    END IF;
+
+    RETURN V_RETURN;
+END RETURN_POS_DOWNLOADS_INSERT_YN;
+
+
+PROCEDURE POS_TRG_EVENT_LOG(
+/*******************************************************************************
+This procedure is used to capture the changes done on tables into pos_downloads 
+table
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_ACCNT_NBR        IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2)
+IS
+    V_ERROR VARCHAR2(500);
+BEGIN
+    --Check for cost center and file type operation exists and not yet processed. 
+    --If exists then do not insert. Else Insert.
+    IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_ACCNT_NBR, 
+                                      IN_FILE_TYPE) = 'Y' THEN
+        INSERT
+          INTO POS_DOWNLOADS_GL_PS(POS_ID
+                             ,ACCNT_NBR
+                             ,DATA_SOURCE
+                             ,DATA_OPERATION
+                             ,FILE_TYPE
+                             ,FILE_PROCESSED
+                             ,COMMENTS
+                             ,CREATE_DT)
+        VALUES (SEQ_POS_DOWNLOADS_PRIME_SUB.NEXTVAL
+                ,IN_ACCNT_NBR
+                ,IN_DATA_SOURCE
+                ,IN_DATA_OPERATION
+                ,IN_FILE_TYPE
+                ,'N'
+                ,NULL
+                ,SYSDATE);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_TRG_EVENT_LOG',
+                                       V_ERROR,
+                                       '000000');
+END POS_TRG_EVENT_LOG;
+
+
+FUNCTION RETURN_PRIME_GL_INFO_FNC(ACCT_NBR VARCHAR2) 
+RETURN GENERAL_LEDGER_ACCOUNTS%ROWTYPE IS
+/*******************************************************************************
+This function is used to return the Prime_GL info
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    V_GEN_LEDGE_REC GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
+    
+BEGIN
+    SELECT *
+    INTO V_GEN_LEDGE_REC
+    FROM GENERAL_LEDGER_ACCOUNTS
+    WHERE GL_ACCOUNT_NUMBER = ACCT_NBR;
+
+    RETURN V_GEN_LEDGE_REC;  
+
+EXCEPTION 
+WHEN NO_DATA_FOUND THEN
+    RETURN V_GEN_LEDGE_REC;
+END RETURN_PRIME_GL_INFO_FNC;
+
+
+PROCEDURE PRIME_SUB_DATA_INIT_LOAD_SP(
+/*******************************************************************************
+This procedure is used to read the changes that happened Prime Subs
+and generate an XML document with those changes.
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for 
+the order of the XML elements.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="" xmlns:prodata="urn:schemas-progress-com:xml-prodata:0001">
+  <xsd:element name="primesubUpdt" prodata:proDataSet="true">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="dlHeaderRcd" minOccurs="0" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="aplfile_name" type="xsd:string" nillable="true"/>
+              <xsd:element name="micfile_name" type="xsd:string" nillable="true"/>
+              <xsd:element name="rec_cnt" type="xsd:int" nillable="true"/>
+              <xsd:element name="cre_date" type="xsd:date" nillable="true"/>
+              <xsd:element name="cre_time" type="xsd:string" nillable="true"/>
+              <xsd:element name="r_u_flag" type="xsd:string" nillable="true"/>
+              <xsd:element name="wfd" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="glacctsUpdtRcd" minOccurs="0" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="acct-nbr" type="xsd:string" nillable="true"/>
+              <xsd:element name="descr" type="xsd:string" nillable="true"/>
+              <xsd:element name="PnL" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+            <xsd:attribute name="" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="primesubUpdtRcd" minOccurs="0" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="ProgName" type="xsd:string" nillable="true"/>
+              <xsd:element name="SortSeq" type="xsd:int" nillable="true"/>
+              <xsd:element name="pr-sub" type="xsd:string" nillable="true"/>
+              <xsd:element name="Shrd" type="xsd:boolean" nillable="true"/>
+            </xsd:sequence>
+            <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//dlHeaderRcd"/>
+      <xsd:field xpath="aplfile_name"/>
+    </xsd:unique>
+    <xsd:unique name="glacctsUpdtRcd_main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//glacctsUpdtRcd"/>
+      <xsd:field xpath="acct-nbr"/>
+    </xsd:unique>
+  </xsd:element>
+</xsd:schema>
+
+Created : 03/24/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+LOAD_TYPE   VARCHAR2)
+IS
+
+    V_XMLOUTPUT            CLOB;
+    V_XMLDATA              CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_FILE_NAME            VARCHAR2(100) := 'PrimeSubUpdate_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
+    V_ERROR                VARCHAR2(1000);
+    V_COMMENTS             VARCHAR2(4000);     
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_DONE_FILE            VARCHAR2(100);
+    V_REC_GL_PS_POSDATA    POS_DOWNLOADS_GL_PS%ROWTYPE;
+    V_POS_ID               POS_DOWNLOADS_GL_PS.POS_ID%TYPE;
+    
+BEGIN
+
+    V_COMMENTS := 'PRIME_SUB_DATA_INIT_LOAD_SP Procedure started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    
+    IF (LOAD_TYPE = 'InitLoad') THEN
+--    We do not create a record into the POS table. This is intentionally done to create an extra record from being inserted while handling Manual updates
+      V_POS_ID := INS_POS_DOWNLOADS_GL_PS_FN('GL_ACCNT_NBR',	'INIT_LOAD', 'POS_PRIMESUB_UPDATE');
+    END IF;
+    
+    FOR GL IN (SELECT * FROM GENERAL_LEDGER_ACCOUNTS) 
+          LOOP
+                  V_XMLDATA       := V_XMLDATA || '<glacctsUpdtRcd dtl_trans_type="a">' || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(GL.GL_ACCOUNT_NUMBER), 'acct-nbr') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(GL.DESCRIPTION), 'descr') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(GL.PROFIT_OR_LOSS), 'PnL') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || '</glacctsUpdtRcd>' || CHR(10);
+                  V_REC_COUNT     := V_REC_COUNT + 1;
+          
+          END LOOP;
+                    
+     FOR PRIME_SUB IN (SELECT * FROM GL_PRIME_SUB_ACCOUNT_DTLS)
+        
+          LOOP
+                  V_XMLDATA       := V_XMLDATA || '<primesubUpdtRcd dtl_trans_type="a">' || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PRIME_SUB.PROGRAM_NAME), 'ProgName') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PRIME_SUB.SORTED_SEQUENCE), 'SortSeq') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PRIME_SUB.GL_PS_ACCOUNT_NUMBER), 'pr-sub') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PRIME_SUB.SHARED), 'Shrd') || CHR(10);
+                  V_XMLDATA       := V_XMLDATA || '</primesubUpdtRcd>' || CHR(10);
+                  V_REC_COUNT     := V_REC_COUNT + 1;
+          
+          END LOOP;     
+          
+      V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10); 
+
+      V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+                                ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);    
+          
+      V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
+                   '<primesubUpdt ' || V_XMLNAMESPACE ||  '>' || CHR(10) ||
+                   RETURN_HEADER_RECORD_FNC('PSA2',                                                                     
+                                        'PSUB2',                                                                     
+                                        V_REC_COUNT,                                                                       
+                                        'R') || CHR(10) ||                                                                  
+                   V_XMLDATA ||
+                   '</primesubUpdt>'; 
+       
+      DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
+                               'CCN_DATAFILES',
+                               V_FILE_NAME);
+
+    
+      V_DONE_FILE := REPLACE(V_FILE_NAME,
+                               '.XML',
+                               '.POLLINGDONE');
+                               
+      DBMS_XSLPROCESSOR.CLOB2FILE('Done',
+                                    'CCN_DATAFILES',
+                                    V_DONE_FILE);
+
+      V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+                                    ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);         
+    
+--    V_REC_GL_PS_POSDATA.POS_ID         := V_POS_ID;
+    V_REC_GL_PS_POSDATA.DATA_SOURCE    := 'GL_ACCNT_NBR';
+    V_REC_GL_PS_POSDATA.DATA_OPERATION := CASE WHEN LOAD_TYPE = 'InitLoad' THEN 'INIT_LOAD' ELSE 'CHANGE' END;
+    V_REC_GL_PS_POSDATA.FILE_PROCESSED := 'N';                        -- Updates are based on FILE_PROCESSED = 'N'
+    V_REC_GL_PS_POSDATA.FILE_TYPE      := 'POS_PRIMESUB_UPDATE';
+    V_REC_GL_PS_POSDATA.COMMENTS       := V_COMMENTS;
+    V_REC_GL_PS_POSDATA.CREATE_DT      := SYSDATE;
+    V_REC_GL_PS_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_GL_PS_POSDATA.POLLING_REQUEST_ID := NULL;
+    V_REC_GL_PS_POSDATA.UPDATE_DT      := SYSDATE;
+
+    POS_DOWNLOADS_GL_PS_UPD_SP(V_REC_GL_PS_POSDATA);
+    COMMIT;                             
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) ||
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'INIT_LOAD_STORE_SP',
+                                       V_ERROR,
+                                       '000000');      
+
+END PRIME_SUB_DATA_INIT_LOAD_SP;
+
+PROCEDURE GEN_POS_DATA_GL_PS_UPD_SP
+/*******************************************************************************
+This procedure is used to create a GENERAL_LEDGER and PRIME_SUB init load file 
+for the manual updates done.
+
+Created : 04/06/2017 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+IS 
+BEGIN
+     PRIME_SUB_PROCESS.PRIME_SUB_DATA_INIT_LOAD_SP('nonInitLoad');
+  COMMIT;     -- No UI to commit
+END;
+
+END PRIME_SUB_PROCESS;

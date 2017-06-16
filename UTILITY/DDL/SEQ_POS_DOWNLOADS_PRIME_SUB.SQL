@@ -1,0 +1,3 @@
+-- Sequence to populate POS_DOWNLOADS_PRIME_SUB table
+-- created by rxv940 on 06/16/2017
+CREATE SEQUENCE SEQ_POS_DOWNLOADS_PRIME_SUB;
