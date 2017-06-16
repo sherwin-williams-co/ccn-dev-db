@@ -20,11 +20,11 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #         FTP files stores_cashflowadj_*
 #################################################################
 echo "Processing started for FTP at ${TIME} on ${DATE}"
-cd /app/banking/dev/initLoad
-file=stores_cashflowadj_*
-if [ `ls -l $file | awk '{print $5}'` -ne 0 ]
-then
-   if [ $FTP_INDICATOR == Y ] 
+if [ $FTP_INDICATOR == Y ] 
+   then
+   cd /app/banking/dev/initLoad
+   file=stores_cashflowadj_*
+   if [ `ls -l $file | awk '{print $5}'` -ne 0 ]
    then
 ftp -inv ${uar_cfa_qa_host} <<FTP_MF
 quote user ${uar_cfa_qa_user}
@@ -44,11 +44,11 @@ then
      exit 1;
 fi
 else
-echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
-echo "Existing the process without ftp'ing the file"
+echo "File don't have any data to be FTPed."
 fi
 else
-echo "File don't have any data to be FTPed."
+echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
+echo "Existing the process without ftp'ing the file"
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
