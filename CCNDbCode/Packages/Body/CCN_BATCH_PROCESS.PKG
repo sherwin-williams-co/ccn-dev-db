@@ -748,12 +748,29 @@ AS
       SELECT *
         FROM GLOBAL_HIERARCHY_DETAIL_VIEW
        WHERE COST_CENTER_CODE =   P_COST_CENTER_CODE;
-   CURSOR CUR_ADDRESS(P_COST_CENTER_CODE VARCHAR2) IS
-      SELECT *
+   CURSOR CUR_ADDRESS IS
+      SELECT COST_CENTER_CODE, 
+             ADDRESS_LINE_1,
+             CITY,
+             STATE_CODE,
+             PROVINCE_CODE,
+             ZIP_CODE,
+             POSTAL_CODE
         FROM ADDRESS_VW
        WHERE ADDRESS_TYPE = 'M'
-         AND EXPIRATION_DATE IS NULL
-         AND COST_CENTER_CODE = P_COST_CENTER_CODE ;
+         AND EXPIRATION_DATE IS NULL;
+
+   TYPE REC_TYPE IS RECORD (COST_CENTER_CODE     VARCHAR2(6),
+                            ADDRESS_LINE_1       VARCHAR2(2000),
+                            CITY                 VARCHAR2(100),
+                            STATE_CODE           VARCHAR2(100),
+                            PROVINCE_CODE        VARCHAR2(100),
+                            ZIP_CODE             VARCHAR2(100),
+                            POSTAL_CODE          VARCHAR2(100));
+
+   TYPE ADDRESS_VW_RT IS TABLE OF REC_TYPE INDEX BY VARCHAR2(6);
+   ADDRESS_VW ADDRESS_VW_RT;
+
    --Variable Declaration
    PATH                     VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
    FILENAME                 VARCHAR2(50) := 'STORE_BANK_CARD_SERIAL_' || TO_CHAR(SYSDATE,'MMDDRR') || '.dat';
@@ -775,6 +792,11 @@ BEGIN
                                  ,FILENAME
                                  , 'W' --BINARY
                                  , 32767);
+								 
+   FOR REC IN CUR_ADDRESS LOOP
+      ADDRESS_VW(REC.COST_CENTER_CODE) := REC;
+   END LOOP;
+								 
    FOR REC_CC IN CUR_COST_CENTER LOOP
       --Variable initialize to NULL
       V_DIVISION_NO            := FILL_SPACES(2);
@@ -803,12 +825,17 @@ BEGIN
       END LOOP;
 
       /*Fetch Address Information*/
-      FOR REC_ADD IN CUR_ADDRESS (REC_CC.COST_CENTER_CODE)  LOOP
-         V_ADDRESS_LINE_1 := RPAD(NVL(REC_ADD.ADDRESS_LINE_1,' '),30,' ');
-         V_CITY :=  RPAD(NVL(REC_ADD.CITY,' '),20,' ');
-         V_STATE_CODE := RPAD(NVL(NVL(REC_ADD.STATE_CODE, REC_ADD.PROVINCE_CODE),' '),2,' ');
-         V_ZIP_CODE := RPAD(NVL(NVL(REC_ADD.ZIP_CODE, REC_ADD.POSTAL_CODE),' '),10,' ');
-      END LOOP;
+      IF ADDRESS_VW.EXISTS(REC_CC.COST_CENTER_CODE) THEN
+         V_ADDRESS_LINE_1 := RPAD(NVL(ADDRESS_VW(REC_CC.COST_CENTER_CODE).ADDRESS_LINE_1,' '),30,' ');
+         V_CITY := RPAD(NVL(ADDRESS_VW(REC_CC.COST_CENTER_CODE).CITY,' '),20,' ');
+         V_STATE_CODE := RPAD(NVL(NVL(ADDRESS_VW(REC_CC.COST_CENTER_CODE).STATE_CODE, ADDRESS_VW(REC_CC.COST_CENTER_CODE).PROVINCE_CODE),' '),2,' ');
+         V_ZIP_CODE :=  RPAD(NVL(NVL(ADDRESS_VW(REC_CC.COST_CENTER_CODE).ZIP_CODE, ADDRESS_VW(REC_CC.COST_CENTER_CODE).POSTAL_CODE),' '),10,' ');   
+      ELSE
+         V_ADDRESS_LINE_1 := FILL_SPACES(30);
+         V_CITY := FILL_SPACES(20);
+         V_STATE_CODE := FILL_SPACES(2);
+         V_ZIP_CODE := FILL_SPACES(10);
+      END IF;
 
       IF Trim(V_MERCHANT_ID) IS NOT NULL THEN
          V_CLOB :=   '60'                                                    ||
