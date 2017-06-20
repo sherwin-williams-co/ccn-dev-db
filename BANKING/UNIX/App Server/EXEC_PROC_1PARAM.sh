@@ -4,7 +4,7 @@
 #
 # Description   : Wrapper for executing procedures with 1 parameter
 #
-# Created  : 09/26/2016 AXK326 CCN Project Team.....
+# Created  : 06/16/2017 gxg192 CCN Project Team.....
 # Modified : 
 ############################################################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
@@ -50,3 +50,4 @@ echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################
+

@@ -11,6 +11,7 @@
 #            03/27/2017 gxg192 Added DATE variable and changes to remove cd command
 #            05/18/2017 gxg192 Moved SRA30000_Arch_Output_file.sh in gc_reconcile_diff_rpt.sh
 #            06/09/2017 gxg192 Added logic to send email if process fails
+#            06/20/2017 gxg192 Changed procedure used for daily load process
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -24,7 +25,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ###################################################################################
 #  Load gift card data from POS tables and Generate the gift card file from POS
 ###################################################################################
-./EXEC_PROC_1PARAM.sh "UAR_GIFT_CARD_PROCESS.POS_GC_DATA_LOAD_SP" "$IN_DATE"
+./EXEC_PROC_1PARAM.sh "POS_BANKING_DAILY_LOAD.GIFT_CARD_DATA_LOAD_SP" "$IN_DATE"
 status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
@@ -74,3 +75,4 @@ exit 0
 ############################################################################
 #                Process END
 ############################################################################
+

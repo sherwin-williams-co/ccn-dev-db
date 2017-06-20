@@ -7,6 +7,7 @@
 #
 # Created  : 10/17/2016 vxv336 CCN Project Team.....
 # Modified : 03/27/2017 gxg192 Changes to capture ftp status correctly
+#          : 06/16/2017 gxg192 Changes to add Time after ftp status check.
 #
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
@@ -20,8 +21,8 @@ YYMMDD=`date +"%y%m%d"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ############################################################################
-# ftp the SRA30000 
-# files to stuar2hq.sw.sherwin.com server 
+# ftp the SRA30000
+# files to stuar2hq.sw.sherwin.com server
 ############################################################################
 ftp -inv ${uar_host} <<FTP_MF > $FTPLOG
 quote user ${uar_user}
@@ -34,16 +35,17 @@ echo "bye the transfer is complete"
 FTP_MF
 
 ############################################################################
-#                           ERROR STATUS CHECK 
+#                           ERROR STATUS CHECK
 ############################################################################
-TIME=`date +"%H:%M:%S"`
 ./check_ftp_status.sh $FTPLOG
 status=$?
 if test $status -ne 0
 then
+   TIME=`date +"%H:%M:%S"`
    echo "The transfer of SRA30000_D$YYMMDD* to uar FAILED at ${TIME} on ${DATE}"
    exit 1;
 fi
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
+

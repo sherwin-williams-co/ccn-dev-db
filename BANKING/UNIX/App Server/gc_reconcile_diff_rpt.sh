@@ -1,16 +1,16 @@
 #!/bin/bash
 #####################################################################################
 # Script name   : gc_reconcile_diff_rpt.sh
-# Description   : This shell script will call GC_RECONCILE_DIFF_RPT_PKG to generate
+# Description   : This shell script will call BANKING_RECONCILE_DIFF_REP_PKG to generate
 #                 a reconcile diff report for Gift Cards
 # Created  : 01/05/2017 vxv336 CCN Project Team
-# Modified : 01/05/2017 gxg192 Changes to load main frame file into FF_GIFT_CARD_POS_TRANS
+# Modified : 06/05/2017 gxg192 Changes to load main frame file into FF_GIFT_CARD_POS_TRANS
 #                              table and added send email function
+#          : 06/16/2017 gxg192 Changed the procedure used for diff process
 #####################################################################################
 . /app/banking/dev/banking.config
 
 proc_name="gc_reconcile_diff_rpt"
-LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 YYMMDD=`date +"%y%m%d"`
@@ -35,25 +35,12 @@ fi
 }
 
 ############################################################################
-#         Copy the SRA30000 file into GIFT_CARD_POS_TRANS_file
-#         and load the data into FF_GIFT_CARD_POS_TRANS table
+#   Copy the SRA30000 file into GIFT_CARD_POS_TRANS_file and load the data
+#   into FF_GIFT_CARD_POS_TRANS table and create diff report.
 ############################################################################
 cp $HOME/initLoad/SRA30000_D$YYMMDD* $HOME/initLoad/GIFT_CARD_POS_TRANS_file.TXT
 
-./EXEC_PROC_NOPARAM.sh "GC_RECONCILE_DIFF_RPT_PKG.LOAD_GC_TRANS_FILE"
-status=$?
-if [ $status -ne 0 ]; then
-     TIME=`date +"%H:%M:%S"`
-     ERR_MSG="Processing failed for Loading Gift Card File at $TIME on $DATE"
-     SENDEMAIL "$ERR_MSG"
-     exit 1;
-fi
-
-############################################################################
-#         Ganerate the reconcile diff report
-############################################################################
-
-./EXEC_PROC_1PARAM.sh "GC_RECONCILE_DIFF_RPT_PKG.DATA_CHECK" "$1"
+./EXEC_PROC_1PARAM.sh "BANKING_RECONCILE_DIFF_REP_PKG.GENERATE_GIFT_CARD_DELTA_FILE" "$1"
 
 ############################################################################
 #                           ERROR STATUS CHECK
@@ -96,3 +83,4 @@ exit 0
 ############################################################################
 #                Process END
 ############################################################################
+
