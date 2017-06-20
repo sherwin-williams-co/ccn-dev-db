@@ -2,7 +2,7 @@
 Script to check the data source tables to confirm data are loaded for given runcycle.
 
 USED BY  :  banking_pos_data_load_cbp.sh
-Created  :  06/08/2017 gxg192
+Created  :  06/08/2017 gxg192 CCN Project....
 -----------------------------------------------------------------------------------------------------------*/
 SET SERVEROUTPUT ON
 SET FEEDBACK OFF

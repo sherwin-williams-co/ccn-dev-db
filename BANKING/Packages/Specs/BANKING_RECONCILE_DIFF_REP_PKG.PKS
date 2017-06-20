@@ -1,10 +1,10 @@
 CREATE OR REPLACE PACKAGE BANKING_RECONCILE_DIFF_REP_PKG
 /**************************************************************** 
-This package is used to look for the missing data in POS data and 
-Mainframe files using the next 2 days of Data loads
+This package is for creating reconcile difference report for
+Banking Gift Card and deposit ticket/bags.
 
-created : 12/16/2016 vxv336 CCN Team
-changed : 
+Created : 06/15/2017 gxg192 CCN Project....
+Changed :
 *****************************************************************/
 AS
 

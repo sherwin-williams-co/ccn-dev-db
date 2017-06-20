@@ -9,7 +9,7 @@
 #                 is present in it.
 #
 # Created  : 01/26/2017 gxg192 CCN Project Team.....
-# Modified :
+# Modified : 06/16/2017 gxg192 Changes to not consider line containing message as bytes sent.
 #####################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
