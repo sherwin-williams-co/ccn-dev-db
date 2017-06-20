@@ -19,14 +19,7 @@ modified : 09/14/2015 nxk927
         ,ADMIN_COST_CNTR_TYPE AS COST_CNTR_TYPE
         ,ADDRESS_TYPE
         ,DECODE(EXPIRATION_DATE, NULL, 'Y', 'N') ACTIVE_FLAG
-        ,(SELECT CASE 
-                   WHEN M.ADDRESS_TYPE IS NULL THEN 
-                     NULL 
-                   ELSE 
-                     NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('ADDRESS_TYPE','COD',M.ADDRESS_TYPE),'N/A') 
-                 END 
-            FROM DUAL
-         )ADDRESS_TYPE_DESCRIPTION
+        ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('ADDRESS_TYPE','COD',M.ADDRESS_TYPE),'N/A') ADDRESS_TYPE_DESCRIPTION
         ,EFFECTIVE_DATE
         ,EXPIRATION_DATE
         ,ADDRESS_LINE_1
@@ -36,14 +29,7 @@ modified : 09/14/2015 nxk927
         ,PROVINCE_CODE
         ,PROVINCE_CODE_DESCRIPTION
         ,STATE_CODE
-        ,(SELECT CASE 
-                   WHEN STATE_CODE_APPLB_FLAG_YN = 'Y' THEN 
-                     NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATE_CODE','COD',STATE_CODE),'N/A') 
-                   ELSE 
-                     NULL 
-                 END 
-            FROM DUAL
-         )STATE_CODE_DESCRIPTION
+        ,STATE_CODE_DESCRIPTION
         ,PREMISES
         ,AVENUE_LANE
         ,DISTRICT
@@ -57,14 +43,7 @@ modified : 09/14/2015 nxk927
         ,CHECK_DIGIT
         ,VALID_ADDRESS
         ,COUNTRY_CODE
-        ,(SELECT CASE 
-                   WHEN M.COUNTRY_CODE IS NULL THEN 
-                      NULL 
-                   ELSE 
-                     NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('COUNTRY_CODE','COD',M.COUNTRY_CODE),'N/A') 
-                  END 
-             FROM DUAL
-         )COUNTRY_CODE_DESCRIPTION
+        ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('COUNTRY_CODE','COD',M.COUNTRY_CODE),'N/A') COUNTRY_CODE_DESCRIPTION
    FROM (
             SELECT  ADDRESS_TYPE
                     ,COST_CENTER_CODE
@@ -77,7 +56,7 @@ modified : 09/14/2015 nxk927
                     ,PROVINCE_CODE
                     ,NULL AS PROVINCE_CODE_DESCRIPTION
                     ,STATE_CODE
-                    ,'Y' STATE_CODE_APPLB_FLAG_YN
+                    ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATE_CODE','COD',STATE_CODE),'N/A') STATE_CODE_DESCRIPTION
                     ,NULL AS PREMISES
                     ,NULL AS AVENUE_LANE
                     ,NULL AS DISTRICT
@@ -104,7 +83,7 @@ modified : 09/14/2015 nxk927
                     ,NULL AS PROVINCE_CODE
                     ,NULL AS PROVINCE_CODE_DESCRIPTION
                     ,STATE_CODE
-                    ,'Y' STATE_CODE_APPLB_FLAG_YN
+                    ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATE_CODE','COD',STATE_CODE),'N/A') STATE_CODE_DESCRIPTION
                     ,NULL AS PREMISES
                     ,NULL AS AVENUE_LANE
                     ,NULL AS DISTRICT
@@ -131,7 +110,7 @@ modified : 09/14/2015 nxk927
                     ,PROVINCE_CODE
                     ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('PROVINCE_CODE_CAN','COD',PROVINCE_CODE),'N/A') PROVINCE_CODE_DESCRIPTION
                     ,NULL AS STATE_CODE
-                    ,'N' STATE_CODE_APPLB_FLAG_YN
+                    ,NULL AS STATE_CODE_DESCRIPTION
                     ,NULL AS PREMISES
                     ,NULL AS AVENUE_LANE
                     ,NULL AS DISTRICT
@@ -158,7 +137,7 @@ modified : 09/14/2015 nxk927
                     ,PROVINCE_CODE
                     ,NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('PROVINCE_CODE_MEX','COD',PROVINCE_CODE),'N/A') PROVINCE_CODE_DESCRIPTION
                     ,NULL AS STATE_CODE
-                    ,'N' STATE_CODE_APPLB_FLAG_YN
+                    ,NULL AS STATE_CODE_DESCRIPTION
                     ,NULL AS PREMISES
                     ,NULL AS AVENUE_LANE
                     ,NULL AS DISTRICT
@@ -185,7 +164,7 @@ modified : 09/14/2015 nxk927
                     ,NULL AS PROVINCE_CODE
                     ,NULL AS PROVINCE_CODE_DESCRIPTION
                     ,NULL AS STATE_CODE
-                    ,'N' STATE_CODE_APPLB_FLAG_YN
+                    ,NULL AS STATE_CODE_DESCRIPTION
                     ,PREMISES
                     ,AVENUE_LANE
                     ,DISTRICT
