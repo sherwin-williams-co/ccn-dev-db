@@ -2,7 +2,6 @@
 -- Below scripts is got from fldpprpt.JOB_TITLE_GROUP
 -- created by rxv940 on 06/21/2017
 SET DEFINE OFF
-SET DEFINE OFF;
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND,JOB_GRP_EXCLD) values ('SUPVR','Non-Management Full-time','N','Y');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND,JOB_GRP_EXCLD) values ('ADMIN','Non-Management Full-time','N','Y');
 Insert into JOB_TITLE_GROUP (JOB_TITLE,JOB_GROUP,NONMGR_IND,JOB_GRP_EXCLD) values ('ACCT REP','Sales Rep','N','Y');
