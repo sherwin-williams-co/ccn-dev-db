@@ -1,0 +1,5 @@
+-- Create synonym
+-- run this in COSTCNTR 
+-- created by rxv940 on 06/21/2017
+
+CREATE OR REPLACE SYNONYM JOB_TITLE_GROUP FOR CCN_UTILITY.JOB_TITLE_GROUP;
