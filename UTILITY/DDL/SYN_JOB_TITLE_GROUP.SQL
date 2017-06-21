@@ -1,0 +1,5 @@
+-- Synonym for JOB_TITLE_GROUP 
+-- run this in Utils 
+-- Created by rxv940 on 06/20/2017
+
+CREATE OR REPLACE SYNONYM JOB_TITLE_GROUP FOR FLDPRRPT.JOB_TITLE_GROUP;
