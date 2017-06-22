@@ -1,21 +1,22 @@
 CREATE OR REPLACE VIEW ADDRESS_VW AS 
- SELECT COST_CENTER_CD AS COST_CENTER_CODE
-/***********************************************************************
-This view will have all the address information for all teh cost centers
-created  : 09/14/2015
-modified : 09/14/2015 nxk927
-         added the active flag
-       : 09/17/2015 jxc527
-         query changed to handle Territory store's address.
-       : 11/24/2015 nxk927
-         corrected the active spelling
-       : 11/24/2015 nxk927
-         added ADMIN_COST_CNTR_TYPE column
-       : 07/13/2016 nxk927/axk326
-         added ADDRESS_BRB to the view
-       : 06/13/2017 rxa457 CCN Project Team...
-             Performance Tuning Changes...ASP-804
-************************************************************************/
+ SELECT 
+        /***********************************************************************
+        This view will have all the address information for all teh cost centers
+        created  : 09/14/2015
+        modified : 09/14/2015 nxk927
+                 added the active flag
+               : 09/17/2015 jxc527
+                 query changed to handle Territory store's address.
+               : 11/24/2015 nxk927
+                 corrected the active spelling
+               : 11/24/2015 nxk927
+                 added ADMIN_COST_CNTR_TYPE column
+               : 07/13/2016 nxk927/axk326
+                 added ADDRESS_BRB to the view
+               : 06/13/2017 rxa457 CCN Project Team...
+                     Performance Tuning Changes...ASP-804
+        ************************************************************************/
+        COST_CENTER_CD AS COST_CENTER_CODE
         ,ADMIN_COST_CNTR_TYPE AS COST_CNTR_TYPE
         ,ADDRESS_TYPE
         ,DECODE(EXPIRATION_DATE, NULL, 'Y', 'N') ACTIVE_FLAG
