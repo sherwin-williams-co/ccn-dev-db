@@ -5,7 +5,9 @@
 #
 # Created  : 01/26/2016 mxk766 CCN Project Team.....
 # Modified : 03/06/2017 rxv940 CCN Project Team..... 
-#            Changes to the path of ccn.config
+#          : Changes to the path of ccn.config
+# Modified : 06/22/2017 rxv940 CCN Project Team.....
+#          : Included positional parameters for MAIL_PKG call
 #################################################################
 . /app/ccn/ccn.config
 
@@ -15,7 +17,7 @@ proc_name="send_mail.sh";
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo "Processing Started for $proc_name at $TIME on $DATE"
+echo "Processing Started for $proc_name at $TIME on $DATE "
 
 sqlplus -s -l "$sqlplus_user"@"$sqlplus_sid"/"$sqlplus_pw" << END
 set heading off;
@@ -26,7 +28,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail('$1','$2');
+MAIL_PKG.send_mail(IN_MAIL_CATEGORY=>'$1',IN_CLOB=>'$2');
 Exception
  when others then
  :exitCode := 2;
@@ -42,12 +44,12 @@ status=$?
 if test $status -ne 0
 then
     TIME=`date +"%H:%M:%S"`
-    echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
-    exit 1;
+    echo "processing FAILED for Sending Mail at $TIME on $DATE "
+    exit 1
 fi
 
 TIME=`date +"%H:%M:%S"`
-echo "Processing Finished for $proc_name at ${TIME} on ${DATE}"
+echo "Processing Finished for $proc_name at $TIME on $DATE "
 exit 0
 
 ############################################################################
