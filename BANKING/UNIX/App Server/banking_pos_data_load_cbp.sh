@@ -2,7 +2,8 @@
 ########################################################################################################################################################
 # Script name : banking_pos_data_load_cbp.sh
 # Description : Script to check if data is available on source (i.e. POS) so that Data load process can be run.
-#     Created : gxg192 06/16/2017
+#     Created : gxg192 06/16/2017 CCN Project Team.....
+#     Modified: gxg192 06/22/2017 Changes to call single shell script for loading data for gift card and ticket/bags
 ########################################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -25,25 +26,13 @@ exit;
 EOF`
    if [ $data_status = READY ]
    then
-      TIME=`date +"%H:%M:%S"`
-      ./SRA30000_dailyRun.sh
+      ./ccn_bnkng_daily_pos_load.sh
       status=$?
       if [ $status -ne 0 ];
       then
          TIME=`date +"%H:%M:%S"`
-         echo "Processing FAILED for SRA30000_dailyRun at ${TIME} on ${DATE}"
+         echo "Processing FAILED for ccn_bnkng_daily_pos_load.sh at ${TIME} on ${DATE}"
       fi
-
-      TIME=`date +"%H:%M:%S"`
-      ./pos_dep_tick_dailyRun.sh
-      status=$?
-      if [ $status -ne 0 ];
-      then
-         TIME=`date +"%H:%M:%S"`
-         echo "Processing FAILED for pos_dep_tick_dailyRun.sh at ${TIME} on ${DATE}"
-      fi
-
-      echo "Processing completed for $proc at $TIME on $DATE"
-      exit 0
+      exit 0;
    fi
 done

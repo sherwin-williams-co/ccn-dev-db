@@ -1,10 +1,13 @@
 /***************************************************************************************************
-Description : This file has commands to create table INTERIM_DEPST_DLY
+Description : This file has commands to create table FF_INTERIM_DEPST
 Created  : 05/10/2017 gxg192 CCN Project Team.....
-Modified :
+Modified : 06/21/2017 gxg192 Changes to make this table as hostorical table and not external table
+                             Data from TEMP_INTERIM_DEPST table (which stores data from main frame file)
+                             will be loaded in this table daily. We need to store all the historical data
+                             in this table thus added load_date column.
 ****************************************************************************************************/
 
-CREATE TABLE INTERIM_DEPST_DLY
+CREATE TABLE FF_INTERIM_DEPST
    (
       REGION           VARCHAR2(2),
       CTLCLK           VARCHAR2(2),
@@ -12,7 +15,7 @@ CREATE TABLE INTERIM_DEPST_DLY
       COST_CENTER_CODE VARCHAR2(4),
       TERMINAL_NUMBER  VARCHAR2(5),
       TRAN_NO          VARCHAR2(6),
-      RLSE_RUN         VARCHAR2(100),
+      RLSE_RUN         VARCHAR2(10),
       TRAN_DATE        VARCHAR2(6),
       TRAN_TIME        VARCHAR2(4),
       FILLER           VARCHAR2(1),
@@ -22,4 +25,4 @@ CREATE TABLE INTERIM_DEPST_DLY
       DATA_SOURCE      VARCHAR2(20),
       LOAD_DATE        DATE,
       COMMENTS         VARCHAR2(1000)
-   );
+    );

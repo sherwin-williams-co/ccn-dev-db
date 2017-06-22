@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY BANKING_RECONCILE_DIFF_REP_PKG
+CREATE OR REPLACE PACKAGE BODY BNK_RECONCILE_DIFF_REPORT_PKG
 /**************************************************************** 
 This package is for creating reconcile difference report for
 Banking Gift Card and deposit ticket/bags.
@@ -26,8 +26,10 @@ AS
    G_REPORT                              CLOB; 
    G_SUMMARY                             CLOB;
    G_MISMATCH_COLUMN_NAME                VARCHAR2(4000);
+   G_CONTEXT       VARCHAR2(200);
+   G_START_TIME    NUMBER;
 
-PROCEDURE LOAD_GC_TRANS_FILE
+PROCEDURE LOAD_FF_GIFT_CARD_POS_TRANS(
 /***********************************************************************
         This Procedure loads the Mainframe gift card transation file
         into FF_GIFT_CARD_POS_TRANS
@@ -35,11 +37,12 @@ PROCEDURE LOAD_GC_TRANS_FILE
 Created : 12/06/2016 vxv336 CCN Team
 Changed :
 ************************************************************************/
+   IN_LOAD_DATE IN DATE)
 IS
 
 BEGIN
 
-    DELETE FROM FF_GIFT_CARD_POS_TRANS WHERE LOAD_DATE = TRUNC(SYSDATE);
+    DELETE FROM FF_GIFT_CARD_POS_TRANS WHERE LOAD_DATE = IN_LOAD_DATE;
 
     INSERT INTO FF_GIFT_CARD_POS_TRANS
     SELECT TRIM(TRANSACTION_TYPE)
@@ -64,14 +67,14 @@ BEGIN
 EXCEPTION
 WHEN OTHERS THEN
     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                               ,'BANKING_RECONCILE_DIFF_REP_PKG.LOAD_GC_TRANS_FILE'
+                               ,'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_GIFT_CARD_POS_TRANS'
                                ,SQLERRM
                                ,'000000'
                                ,'0000000000'
                                ,'FF_GIFT_CARD_POS_TRANS');
     ROLLBACK;
     RAISE;
-END LOAD_GC_TRANS_FILE;
+END LOAD_FF_GIFT_CARD_POS_TRANS;
 
 PROCEDURE UPDATE_COMMENTS_SP(
 /**************************************************************** 
@@ -119,7 +122,7 @@ BEGIN
     RETURN OUT_SUMMARY;
 END GET_REPORT_SUMMARY;
 
-PROCEDURE GENERATE_GIFT_CARD_DELTA_FILE(
+PROCEDURE GIFT_CARD_DIFF_SP(
 /*********************************************************************** 
 This procedure is used to look for the missing and mismatched data 
 in Mainframe files from POS data
@@ -134,13 +137,10 @@ IS
     V_ORPHAN                         CLOB;
     V_REPORT                         CLOB;
     V_SUMMARY                        CLOB;
-    V_LOAD_DATE                      DATE := IN_LOAD_DATE;
     V_HEADER                         VARCHAR2(4000);
     V_COMMENT                        VARCHAR2(4000);
     V_DB_DIRECTORY                   VARCHAR2(100);
     V_FILE_HEADER                    VARCHAR2(1000) := '************************************GIFTCARD RECONCILE REPORT************************************'||CHR(10)||CHR(10);
-    V_FILE_RECONCILE_LEGACY          VARCHAR2(1000) := '********************************MISMATCHED MAINFRAME AND POS DATA*************************'||CHR(10);
-    V_FILE_LEGACY_ORPHAN_HEADER      VARCHAR2(1000) := CHR(13)||CHR(10)||'*************************************MAINFRAME DATA MISSING IN POS*****************************************'||CHR(10);
     V_FILE_NAME                      VARCHAR2(100)  := 'GIFT_CARD_RECONCILE_DATA'|| TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
     V_GIFT_CARD_DIFF_FILE            UTL_FILE.FILE_TYPE;
 
@@ -174,7 +174,7 @@ IS
           ,CAST(LPAD(POS.TRANS_NBR, 5, '0') AS VARCHAR2(10)) TRANS_NBR2 
           ,CAST(POS.EMPLOYEE_NBR AS VARCHAR2(8)) EMPLOYEE_NBR2
           ,CAST(POS.UAR_TRAN_CODE AS VARCHAR2(12)) UAR_TRAN_CODE2
-     FROM (SELECT * FROM FF_GIFT_CARD_POS_TRANS WHERE LOAD_DATE = V_LOAD_DATE) FF
+     FROM (SELECT * FROM FF_GIFT_CARD_POS_TRANS WHERE LOAD_DATE = IN_LOAD_DATE) FF
            LEFT OUTER JOIN 
           (SELECT TO_CHAR(CH.TRANID) TRANSACTION_TYPE,
                   POS_BANKING_DAILY_LOAD.GET_UAR_TRANS_CODE(CH.TRANID, CH.RLS_RUN_CYCLE, CH.TRAN_GUID) UAR_TRAN_CODE,
@@ -218,18 +218,10 @@ IS
    
 BEGIN
 
-    --Load the Gift Card file from Mainframe
-    LOAD_GC_TRANS_FILE;
-    
-    IF V_LOAD_DATE IS NULL 
-    THEN
-        V_LOAD_DATE := TRUNC(SYSDATE);
-    END IF;
-        
     V_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
    
-    UPDATE_COMMENTS_SP('FF_GIFT_CARD_POS_TRANS',NULL,NULL,V_LOAD_DATE);
-    V_REPORT  := V_FILE_HEADER||V_FILE_RECONCILE_LEGACY||V_HEADER||CHR(10);
+    UPDATE_COMMENTS_SP('FF_GIFT_CARD_POS_TRANS',NULL,NULL,IN_LOAD_DATE);
+    V_REPORT  := V_FILE_HEADER||C_FILE_RECONCILE_LEGACY||CHR(10)||CHR(10);
 
     FOR V_REC IN GC_RECON_CUR
     LOOP
@@ -376,24 +368,24 @@ BEGIN
       END IF;
       
       IF V_COMMENT IS NOT NULL THEN
-          UPDATE_COMMENTS_SP('FF_GIFT_CARD_POS_TRANS',V_REC.GC_ROWID,V_COMMENT,V_LOAD_DATE);
+          UPDATE_COMMENTS_SP('FF_GIFT_CARD_POS_TRANS',V_REC.GC_ROWID,V_COMMENT,IN_LOAD_DATE);
       END IF;
 
     END LOOP;
     COMMIT;
 
     V_HEADER  := CCN_COMMON_TOOLS.RETURN_HEADER_STRING('FF_GIFT_CARD_POS_TRANS');
-    V_SUMMARY := GET_REPORT_SUMMARY(V_LOAD_DATE);
+    V_SUMMARY := GET_REPORT_SUMMARY(IN_LOAD_DATE);
     
     V_REPORT  := V_REPORT
-                 ||V_FILE_LEGACY_ORPHAN_HEADER||V_HEADER||CHR(10)||V_ORPHAN||V_SUMMARY;
+                 ||CHR(13)||CHR(10)||C_FILE_LEGACY_ORPHAN_HEADER||CHR(10)||V_HEADER||CHR(10)||V_ORPHAN||V_SUMMARY;
     
     CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(V_DB_DIRECTORY, V_FILE_NAME, V_REPORT);
 
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'BANKING_RECONCILE_DIFF_REP_PKG.GENERATE_GIFT_CARD_DELTA_FILE'
+                                   ,'BNK_RECONCILE_DIFF_REPORT_PKG.GIFT_CARD_DIFF_SP'
                                    ,SQLERRM
                                    ,'000000'
                                    ,'0000000000'
@@ -401,26 +393,24 @@ EXCEPTION
         ROLLBACK;
         RAISE;
 
-END GENERATE_GIFT_CARD_DELTA_FILE;
+END GIFT_CARD_DIFF_SP;
 
-PROCEDURE DPST_TCKT_POS_CNTS_DLY_SP(
+PROCEDURE LOAD_FF_DPST_TCKT_POS_CNTS(
 /*******************************************************************************
 This procedure is used to load the POS Deposit temp table external table data 
-into DPST_TCKT_POS_CNTS_DLY
+into FF_DPST_TCKT_POS_CNTS
 created : 10/13/2016 axk326 CCN Project....
 changed :
 *******************************************************************************/
-    IN_DATE IN DATE)
+    IN_LOAD_DATE IN DATE)
 AS
-   V_TMP_FF_DPST_TCKT_POSCNTS_ROW DPST_TCKT_POS_CNTS_DLY%ROWTYPE;
-   V_EXTERNAL_TBL_EXCEP_NBR       CONSTANT NUMBER :=-29913;
-   V_EXTERNAL_TBL_EXCEP           EXCEPTION;
-   PRAGMA EXCEPTION_INIT(V_EXTERNAL_TBL_EXCEP,-29913);
+   V_TMP_FF_DPST_TCKT_POSCNTS_ROW FF_DPST_TCKT_POS_CNTS%ROWTYPE;
+
 BEGIN
 
-     DELETE FROM DPST_TCKT_POS_CNTS_DLY WHERE LOAD_DATE = IN_DATE;
+     DELETE FROM FF_DPST_TCKT_POS_CNTS WHERE LOAD_DATE = IN_LOAD_DATE;
 
-     FOR REC IN (SELECT * FROM FF_DPST_TCKT_POS_CNTS) LOOP
+     FOR REC IN (SELECT * FROM TEMP_DPST_TCKT_POS_CNTS) LOOP
 
       BEGIN
          V_TMP_FF_DPST_TCKT_POSCNTS_ROW.COST_CENTER_CODE := REC.COST_CENTER_CODE;
@@ -428,91 +418,80 @@ BEGIN
          V_TMP_FF_DPST_TCKT_POSCNTS_ROW.POS_COUNT        := REC.POS_COUNT;
          V_TMP_FF_DPST_TCKT_POSCNTS_ROW.FILLER           := REC.FILLER;
          V_TMP_FF_DPST_TCKT_POSCNTS_ROW.DATA_SOURCE      := 'MAINFRAME';
-         V_TMP_FF_DPST_TCKT_POSCNTS_ROW.LOAD_DATE        := IN_DATE;
+         V_TMP_FF_DPST_TCKT_POSCNTS_ROW.LOAD_DATE        := IN_LOAD_DATE;
          V_TMP_FF_DPST_TCKT_POSCNTS_ROW.COMMENTS         := NULL;
          
-         INSERT INTO DPST_TCKT_POS_CNTS_DLY VALUES V_TMP_FF_DPST_TCKT_POSCNTS_ROW;
+         INSERT INTO FF_DPST_TCKT_POS_CNTS VALUES V_TMP_FF_DPST_TCKT_POSCNTS_ROW;
 
       EXCEPTION
       WHEN OTHERS THEN
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.DPST_TCKT_POS_CNTS_DLY_SP',
+                                    'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_DPST_TCKT_POS_CNTS',
                                     SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
                                     rec.TERMINAL_NUMBER, 
                                     rec.COST_CENTER_CODE,
-                                    'DPST_TCKT_POS_CNTS_DLY');
+                                    'FF_DPST_TCKT_POS_CNTS');
          RAISE;
       END;
      END LOOP;
      COMMIT;
 EXCEPTION
-    WHEN V_EXTERNAL_TBL_EXCEP THEN
-        ROLLBACK;  
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.DPST_TCKT_POS_CNTS_DLY_SP',
-                                    SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
-                                    '000000', 
-                                    '0000000',  
-                                    'DPST_TCKT_POS_CNTS_DLY');
-         RAISE;
     WHEN OTHERS THEN
         ROLLBACK;
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.DPST_TCKT_POS_CNTS_DLY_SP',
+                                    'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_DPST_TCKT_POS_CNTS',
                                     SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
                                     '000000', 
                                     '0000000',  
-                                    'DPST_TCKT_POS_CNTS_DLY');
+                                    'FF_DPST_TCKT_POS_CNTS');
          RAISE;
-END DPST_TCKT_POS_CNTS_DLY_SP;
+END LOAD_FF_DPST_TCKT_POS_CNTS;
 
-PROCEDURE INTERIM_DEPST_DLY_SP(
+PROCEDURE LOAD_FF_INTERIM_DEPST(
 /*******************************************************************************
 This procedure is used to load the POS Interim Deposit temp table external table data 
-into INTERIM_DEPST_DLY
+into FF_INTERIM_DEPST
 created : 10/13/2016 axk326 CCN Project....
 changed :
 *******************************************************************************/
-    IN_DATE IN DATE)
+    IN_LOAD_DATE IN DATE)
 AS
-   V_INTERIM_DEPST_DLY_ROW BANKING.INTERIM_DEPST_DLY%ROWTYPE;
-   V_EXTERNAL_TBL_EXCEP_NBR    CONSTANT NUMBER :=-29913;
-   V_EXTERNAL_TBL_EXCEP        EXCEPTION;
-   PRAGMA EXCEPTION_INIT(V_EXTERNAL_TBL_EXCEP,-29913);
+   V_FF_INTERIM_DEPST_ROW BANKING.FF_INTERIM_DEPST%ROWTYPE;
+
 BEGIN
 
-     DELETE FROM INTERIM_DEPST_DLY WHERE LOAD_DATE = IN_DATE;
+     DELETE FROM FF_INTERIM_DEPST WHERE LOAD_DATE = IN_LOAD_DATE;
 
-     FOR REC IN (SELECT * FROM FF_INTERIM_DEPST) LOOP
+     FOR REC IN (SELECT * FROM TEMP_INTERIM_DEPST) LOOP
 
       BEGIN
-         V_INTERIM_DEPST_DLY_ROW.REGION           := REC.REGION;
-         V_INTERIM_DEPST_DLY_ROW.CTLCLK           := REC.CTLCLK;
-         V_INTERIM_DEPST_DLY_ROW.DIV_NO           := REC.DIV_NO;
-         V_INTERIM_DEPST_DLY_ROW.COST_CENTER_CODE := REC.COST_CENTER_CODE;
-         V_INTERIM_DEPST_DLY_ROW.TERMINAL_NUMBER  := REC.TERMINAL_NUMBER;
-         V_INTERIM_DEPST_DLY_ROW.TRAN_NO          := REC.TRAN_NO;
-         V_INTERIM_DEPST_DLY_ROW.RLSE_RUN         := REC.RLSE_RUN;
-         V_INTERIM_DEPST_DLY_ROW.TRAN_DATE        := REC.TRAN_DATE;
-         V_INTERIM_DEPST_DLY_ROW.TRAN_TIME        := TO_CHAR(TO_DATE(REC.TRAN_TIME,'HH24MI'),'HHMI');
-         V_INTERIM_DEPST_DLY_ROW.FILLER           := REC.FILLER;
-         V_INTERIM_DEPST_DLY_ROW.TRAN_NO1         := REC.TRAN_NO1;
-         V_INTERIM_DEPST_DLY_ROW.EMP_NO           := REC.EMP_NO;
-         V_INTERIM_DEPST_DLY_ROW.DEPST_AMOUNT     := REC.DEPST_AMOUNT;
-         V_INTERIM_DEPST_DLY_ROW.DATA_SOURCE      := 'MAINFRAME';
-         V_INTERIM_DEPST_DLY_ROW.LOAD_DATE        := IN_DATE;
-         V_INTERIM_DEPST_DLY_ROW.COMMENTS         := NULL;
+         V_FF_INTERIM_DEPST_ROW.REGION           := REC.REGION;
+         V_FF_INTERIM_DEPST_ROW.CTLCLK           := REC.CTLCLK;
+         V_FF_INTERIM_DEPST_ROW.DIV_NO           := REC.DIV_NO;
+         V_FF_INTERIM_DEPST_ROW.COST_CENTER_CODE := REC.COST_CENTER_CODE;
+         V_FF_INTERIM_DEPST_ROW.TERMINAL_NUMBER  := REC.TERMINAL_NUMBER;
+         V_FF_INTERIM_DEPST_ROW.TRAN_NO          := REC.TRAN_NO;
+         V_FF_INTERIM_DEPST_ROW.RLSE_RUN         := REC.RLSE_RUN;
+         V_FF_INTERIM_DEPST_ROW.TRAN_DATE        := REC.TRAN_DATE;
+         V_FF_INTERIM_DEPST_ROW.TRAN_TIME        := TO_CHAR(TO_DATE(REC.TRAN_TIME,'HH24MI'),'HHMI');
+         V_FF_INTERIM_DEPST_ROW.FILLER           := REC.FILLER;
+         V_FF_INTERIM_DEPST_ROW.TRAN_NO1         := REC.TRAN_NO1;
+         V_FF_INTERIM_DEPST_ROW.EMP_NO           := REC.EMP_NO;
+         V_FF_INTERIM_DEPST_ROW.DEPST_AMOUNT     := REC.DEPST_AMOUNT;
+         V_FF_INTERIM_DEPST_ROW.DATA_SOURCE      := 'MAINFRAME';
+         V_FF_INTERIM_DEPST_ROW.LOAD_DATE        := IN_LOAD_DATE;
+         V_FF_INTERIM_DEPST_ROW.COMMENTS         := NULL;
          
-         INSERT INTO INTERIM_DEPST_DLY VALUES V_INTERIM_DEPST_DLY_ROW;
+         INSERT INTO FF_INTERIM_DEPST VALUES V_FF_INTERIM_DEPST_ROW;
 
       EXCEPTION
       WHEN OTHERS THEN
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                           'BANKING_RECONCILE_DIFF_REP_PKG.INTERIM_DEPST_DLY_SP',
+                                           'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_INTERIM_DEPST',
                                            SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
                                            rec.TERMINAL_NUMBER, 
                                            rec.COST_CENTER_CODE,
-                                           'INTERIM_DEPST_DLY');
+                                           'FF_INTERIM_DEPST');
          RAISE;
       END;
 
@@ -521,62 +500,16 @@ BEGIN
      COMMIT;
 
 EXCEPTION
-    WHEN V_EXTERNAL_TBL_EXCEP THEN
-        ROLLBACK;  
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.INTERIM_DEPST_DLY_SP',
-                                    SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
-                                    '000000', 
-                                    '0000000',  
-                                    'INTERIM_DEPST_DLY');
-        RAISE;
     WHEN OTHERS THEN
         ROLLBACK;
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.INTERIM_DEPST_DLY_SP',
+                                    'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_INTERIM_DEPST',
                                     SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
                                     '000000', 
                                     '0000000',  
-                                    'INTERIM_DEPST_DLY');
+                                    'FF_INTERIM_DEPST');
          RAISE;
-END INTERIM_DEPST_DLY_SP;
-
-PROCEDURE DLY_DEP_TKT_LD_SP(
-/************************************************************************
-POS_DEP_TKT_DLY_LD_SP
-
-This Procedure is a wrapper for the daily Load for POS related tables
-* Loads all the deposit ticket counts
-
-created : 09/14/2016 axk326 CCN Project....
-changed :
-************************************************************************/
-    IN_DATE DATE)
-AS
-    V_CONTEXT    VARCHAR2(200);
-    V_START_TIME NUMBER;
-BEGIN
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load DPST_TCKT_POS_CNTS_DLY Table ';
-      DPST_TCKT_POS_CNTS_DLY_SP(IN_DATE);
-      DBMS_OUTPUT.PUT_LINE('POS_DPST_TICKET_COUNTS Table loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-      
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load INTERIM_DEPST_DLY Table ';
-      INTERIM_DEPST_DLY_SP(IN_DATE);
-      DBMS_OUTPUT.PUT_LINE('POS_INTERIM_DEPST Table loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-EXCEPTION
-    WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'BANKING_RECONCILE_DIFF_REP_PKG.DLY_DEP_TKT_LD_SP',
-                                    SQLERRM,
-                                    '000000', 
-                                    '0000000',  
-                                    '0000000');
-         RAISE;
-END DLY_DEP_TKT_LD_SP;
+END LOAD_FF_INTERIM_DEPST;
 
 PROCEDURE RESET_GLOBAL_VARIABLES_SP
 /**************************************************************** 
@@ -595,6 +528,7 @@ BEGIN
     G_REPORT               :=''; 
     G_SUMMARY              :='';
     G_MISMATCH_COLUMN_NAME :='';
+
 END RESET_GLOBAL_VARIABLES_SP;
 
 FUNCTION GET_LOADED_TABLE_COUNT(
@@ -626,7 +560,7 @@ created : 12/21/2016 MXK766/NXK927
 changed : 
 *****************************************************************/
     IN_TABLE_NAME      IN VARCHAR2, 
-    IN_DATE            IN DATE,
+    IN_LOAD_DATE            IN DATE,
     IN_UNMATCHED_COUNT IN NUMBER,
     IN_ORPHAN_COUNT    IN NUMBER) RETURN VARCHAR2
 IS
@@ -634,8 +568,8 @@ BEGIN
 
     RETURN
     'Load Date,Processed Records,Matched Records Count,Unmatched Records Count,Missed Records Count'||CHR(10)||
-    '"'||TO_CHAR(TRUNC(SYSDATE),'MM-DD-YYYY')||'"'|| CHR(9) ||C_SEPARATOR||'"'||GET_LOADED_TABLE_COUNT(IN_TABLE_NAME, IN_DATE)||'"'|| CHR(9) ||C_SEPARATOR
-    ||'"'||(GET_LOADED_TABLE_COUNT(IN_TABLE_NAME,IN_DATE) - (IN_UNMATCHED_COUNT + IN_ORPHAN_COUNT)) ||'"'|| CHR(9) ||C_SEPARATOR
+    '"'||TO_CHAR(TRUNC(SYSDATE),'MM-DD-YYYY')||'"'|| CHR(9) ||C_SEPARATOR||'"'||GET_LOADED_TABLE_COUNT(IN_TABLE_NAME, IN_LOAD_DATE)||'"'|| CHR(9) ||C_SEPARATOR
+    ||'"'||(GET_LOADED_TABLE_COUNT(IN_TABLE_NAME,IN_LOAD_DATE) - (IN_UNMATCHED_COUNT + IN_ORPHAN_COUNT)) ||'"'|| CHR(9) ||C_SEPARATOR
     ||'"'||IN_UNMATCHED_COUNT||'"'|| CHR(9) ||C_SEPARATOR
     ||'"'||IN_ORPHAN_COUNT ||'"'|| CHR(9);
     
@@ -652,7 +586,7 @@ PROCEDURE DEPOSIT_TICKET_DIFF_SP(
 created : 09/09/2016 AXD783 POS XML Conversion
 changed :
 ************************************************************************/
-   IN_DATE DATE)
+   IN_LOAD_DATE DATE)
 IS
 
 CURSOR c_legacy IS
@@ -663,12 +597,12 @@ SELECT DLY.ROWID AS TGT_ROWID
       ,POS.COST_CENTER_CODE COST_CENTER_CODE2
       ,POS.TERMINAL_NUMBER TERMINAL_NUMBER2
       ,CAST(POS.POS_COUNT AS VARCHAR2(50)) POS_COUNT2
-  FROM (SELECT * FROM DPST_TCKT_POS_CNTS_DLY WHERE LOAD_DATE = IN_DATE) DLY
-       LEFT OUTER JOIN (SELECT * FROM POS_DPST_TICKET_COUNTS WHERE LOAD_DATE = IN_DATE) POS
+  FROM (SELECT * FROM FF_DPST_TCKT_POS_CNTS WHERE LOAD_DATE = IN_LOAD_DATE) DLY
+       LEFT OUTER JOIN (SELECT * FROM POS_DPST_TICKET_COUNTS WHERE LOAD_DATE = IN_LOAD_DATE) POS
        ON DLY.COST_CENTER_CODE = POS.COST_CENTER_CODE
    AND DLY.TERMINAL_NUMBER = POS.TERMINAL_NUMBER 
    AND DLY.POS_COUNT = POS.POS_COUNT
-   AND DLY.LOAD_DATE = IN_DATE
+   AND DLY.LOAD_DATE = IN_LOAD_DATE
  WHERE DLY.COST_CENTER_CODE IS NULL OR
        POS.COST_CENTER_CODE IS NULL OR
        DLY.TERMINAL_NUMBER IS NULL OR
@@ -682,7 +616,7 @@ BEGIN
     RESET_GLOBAL_VARIABLES_SP; 
     G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
     V_HEADER   :=   'IN_TABLE'||','||'COST_CENTER_CODE'||','||'TERMINAL_NUMBER'||','||'POS_COUNT';
-    UPDATE_COMMENTS_SP('DPST_TCKT_POS_CNTS_DLY',NULL,NULL,IN_DATE);
+    UPDATE_COMMENTS_SP('FF_DPST_TCKT_POS_CNTS',NULL,NULL,IN_LOAD_DATE);
 
     FOR REC IN c_legacy LOOP
         IF  REC.COST_CENTER_CODE2 IS NULL OR REC.TERMINAL_NUMBER2 IS NULL THEN       
@@ -691,7 +625,7 @@ BEGIN
                               ||'"'||REC.TERMINAL_NUMBER1||'"'|| CHR(9) ||C_SEPARATOR
                               ||'"'||REC.POS_COUNT1||'"'|| CHR(10);
             G_ORPHAN_COUNT := G_ORPHAN_COUNT + 1;
-            UPDATE_COMMENTS_SP('DPST_TCKT_POS_CNTS_DLY',REC.TGT_ROWID, 'DATA MISSING FROM NEW POS',IN_DATE);
+            UPDATE_COMMENTS_SP('FF_DPST_TCKT_POS_CNTS',REC.TGT_ROWID, 'DATA MISSING FROM NEW POS',IN_LOAD_DATE);
         ELSIF NVL(REC.POS_COUNT1,C_CHAR) <> NVL(REC.POS_COUNT2,C_CHAR) THEN
             REC.POS_COUNT1 := C_MISMATCH_IND || REC.POS_COUNT1;
             REC.POS_COUNT2 := C_MISMATCH_IND || REC.POS_COUNT2;
@@ -705,7 +639,7 @@ BEGIN
                               ||'"'||REC.TERMINAL_NUMBER2||'"'|| CHR(9) ||C_SEPARATOR 
                               ||'"'||REC.POS_COUNT2||'"'|| CHR(10);
             G_UNMATCHED_COUNT := G_UNMATCHED_COUNT + 1;
-            UPDATE_COMMENTS_SP('DPST_TCKT_POS_CNTS_DLY',REC.TGT_ROWID, 'MAINFRAME DATA MIS-MATCH WITH NEW POS - COLUMN/S TO CHECK :' || G_MISMATCH_COLUMN_NAME,IN_DATE);
+            UPDATE_COMMENTS_SP('FF_DPST_TCKT_POS_CNTS',REC.TGT_ROWID, 'MAINFRAME DATA MIS-MATCH WITH NEW POS - COLUMN/S TO CHECK :' || G_MISMATCH_COLUMN_NAME,IN_LOAD_DATE);
         END IF;
     END LOOP;  
     G_REPORT := C_FILE_HEADER||CHR(10)||
@@ -716,30 +650,30 @@ BEGIN
                 V_HEADER||CHR(10)||
                 G_REC1||CHR(10)||
                 C_FILE_SUMMARY_HEADER||CHR(10)||
-    RETURN_SUMMARY_STRING('DPST_TCKT_POS_CNTS_DLY', IN_DATE, G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
+    RETURN_SUMMARY_STRING('FF_DPST_TCKT_POS_CNTS', IN_LOAD_DATE, G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
 
     CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
                                  
 EXCEPTION
 WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'BANKING_RECONCILE_DIFF_REP_PKG.DEPOSIT_TICKET_DIFF_SP'
+                                   ,'BNK_RECONCILE_DIFF_REPORT_PKG.DEPOSIT_TICKET_DIFF_SP'
                                    ,SQLERRM
                                    ,'000000'
                                    ,'0000000000'
                                    ,NULL);
-
+        RAISE;
 END DEPOSIT_TICKET_DIFF_SP;
 
 PROCEDURE INTERIM_DEPST_DIFF_SP(
 /*********************************************************************** 
-   This Procedure is used compare the legacy Interim DeDaily load 
+   This Procedure is used compare the legacy Interim Deposit Daily load 
    file and the POSXML Interim Deposit data load and creats a Difference file.
         
 created : 10/18/2016 AXK326 POS XML Conversion
 changed :
 ************************************************************************/
-   IN_DATE DATE)
+   IN_LOAD_DATE DATE)
 IS
 
 CURSOR c_legacy IS
@@ -758,15 +692,15 @@ SELECT DLY.ROWID TGT_ROWID
       ,POS.TRAN_NO1 TRAN_NO12
       ,POS.EMP_NO EMP_NO2
       ,CAST(POS.DEPST_AMOUNT  AS VARCHAR2(20)) DEPST_AMOUNT2
-  FROM (SELECT * FROM INTERIM_DEPST_DLY WHERE LOAD_DATE = IN_DATE) DLY
-       LEFT OUTER JOIN (SELECT * FROM POS_INTERIM_DEPST WHERE LOAD_DATE = IN_DATE) POS
+  FROM (SELECT * FROM FF_INTERIM_DEPST WHERE LOAD_DATE = IN_LOAD_DATE) DLY
+       LEFT OUTER JOIN (SELECT * FROM POS_INTERIM_DEPST WHERE LOAD_DATE = IN_LOAD_DATE) POS
     ON DLY.COST_CENTER_CODE = POS.COST_CENTER_CODE
    AND DLY.TERMINAL_NUMBER = POS.TERMINAL_NUMBER 
    AND DLY.TRAN_NO1 = POS.TRAN_NO1
    AND DLY.EMP_NO = POS.EMP_NO
    AND DLY.TRAN_DATE = POS.TRAN_DATE
    AND DLY.DEPST_AMOUNT = POS.DEPST_AMOUNT
-   AND DLY.LOAD_DATE = IN_DATE
+   AND DLY.LOAD_DATE = IN_LOAD_DATE
  WHERE DLY.COST_CENTER_CODE IS NULL OR
        POS.COST_CENTER_CODE IS NULL OR
        DLY.TERMINAL_NUMBER IS NULL OR
@@ -783,7 +717,7 @@ BEGIN
     RESET_GLOBAL_VARIABLES_SP; 
     G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
     V_HEADER   :=  'IN_TABLE, COST_CENTER_CODE, TERMINAL_NUMBER,TRAN_DATE,TRAN_TIME,TRAN_NO1,EMP_NO,DEPST_AMOUNT';
-    UPDATE_COMMENTS_SP('INTERIM_DEPST_DLY',NULL,NULL,IN_DATE);
+    UPDATE_COMMENTS_SP('FF_INTERIM_DEPST',NULL,NULL,IN_LOAD_DATE);
 
     FOR REC IN c_legacy LOOP
         IF  REC.COST_CENTER_CODE2 IS NULL OR REC.TERMINAL_NUMBER2 IS NULL OR REC.TRAN_NO12 IS NULL  OR REC.EMP_NO2 IS NULL THEN        
@@ -796,7 +730,7 @@ BEGIN
                               ||'"'||REC.EMP_NO1||'"'|| CHR(9) ||C_SEPARATOR
                               ||'"'||REC.DEPST_AMOUNT1||'"'|| CHR(10);
             G_ORPHAN_COUNT := G_ORPHAN_COUNT + 1;
-            UPDATE_COMMENTS_SP('INTERIM_DEPST_DLY',REC.TGT_ROWID,'DATA MISSING FROM NEW POS',IN_DATE);
+            UPDATE_COMMENTS_SP('FF_INTERIM_DEPST',REC.TGT_ROWID,'DATA MISSING FROM NEW POS',IN_LOAD_DATE);
         ELSIF NVL(REC.DEPST_AMOUNT1,C_CHAR) <> NVL(REC.DEPST_AMOUNT2,C_CHAR) THEN
             REC.DEPST_AMOUNT1 := C_MISMATCH_IND || REC.DEPST_AMOUNT1;
             REC.DEPST_AMOUNT2 := C_MISMATCH_IND || REC.DEPST_AMOUNT2;
@@ -818,7 +752,7 @@ BEGIN
                               ||'"'||REC.EMP_NO2||'"'|| CHR(9) ||C_SEPARATOR 
                               ||'"'||REC.DEPST_AMOUNT2||'"'|| CHR(10);
             G_UNMATCHED_COUNT := G_UNMATCHED_COUNT + 1;
-            UPDATE_COMMENTS_SP('INTERIM_DEPST_DLY',REC.TGT_ROWID, 'MAINFRAME DATA MIS-MATCH WITH NEW POS - COLUMN/S TO CHECK :' || G_MISMATCH_COLUMN_NAME,IN_DATE);
+            UPDATE_COMMENTS_SP('FF_INTERIM_DEPST',REC.TGT_ROWID, 'MAINFRAME DATA MIS-MATCH WITH NEW POS - COLUMN/S TO CHECK :' || G_MISMATCH_COLUMN_NAME,IN_LOAD_DATE);
         END IF;
     END LOOP;
      G_REPORT := C_FILE_HEADER||CHR(10)||
@@ -829,56 +763,79 @@ BEGIN
                     V_HEADER||CHR(10)||
                     G_REC1||CHR(10)||
                     C_FILE_SUMMARY_HEADER||CHR(10)||
-                RETURN_SUMMARY_STRING('INTERIM_DEPST_DLY',IN_DATE,G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
+                RETURN_SUMMARY_STRING('FF_INTERIM_DEPST',IN_LOAD_DATE,G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
 
        CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
 EXCEPTION
 WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
-                                   ,'BANKING_RECONCILE_DIFF_REP_PKG.INTERIM_DEPST_DIFF_SP'
+                                   ,'BNK_RECONCILE_DIFF_REPORT_PKG.INTERIM_DEPST_DIFF_SP'
                                    ,SQLERRM
                                    ,'000000'
                                    ,'0000000000'
                                    ,NULL);
-
+        RAISE;
 END INTERIM_DEPST_DIFF_SP;
 
-PROCEDURE GENERATE_TCKT_BAG_DELTA_FILES(
+PROCEDURE BANKING_MF_FF_DATA_LOAD_SP(
+/**************************************************************** 
+This Procedure is used to build the data required for the
+reconciliation of data for the Banking gift card and ticket/bag feed.
+
+Created : 06/21/2017 gxg192 CCN Project....
+Changed : 
+*****************************************************************/
+    IN_LOAD_DATE IN DATE)
+IS
+   V_LOAD_DATE DATE;
+BEGIN
+
+   V_LOAD_DATE := NVL(IN_LOAD_DATE, TRUNC(SYSDATE));
+
+   --Load the Gift Card file from Mainframe
+   LOAD_FF_GIFT_CARD_POS_TRANS(IN_LOAD_DATE);
+   
+   --Load the Deposit Ticket POS Counts data from Mainframe
+   LOAD_FF_DPST_TCKT_POS_CNTS(IN_LOAD_DATE);
+   
+   --Load Deposit ticket Interim data from Mainframe
+   LOAD_FF_INTERIM_DEPST(IN_LOAD_DATE);
+   
+END BANKING_MF_FF_DATA_LOAD_SP;
+
+PROCEDURE GEN_DELTA_FILES_SP(
 /*********************************************************************** 
 This Procedure is Wrapper procedure, which is used to generate
 all difference files in server.
 
-created : 01/13/2016 NXK927 CCN Project
-changed :
+Created : 06/21/2017 gxg192 CCN Project....
+Changed : 
 ************************************************************************/
-    IN_LOAD_DATE IN DATE)
+IN_LOAD_DATE IN DATE)
 IS
-    V_ERROR  VARCHAR2(100);
-    V_LOAD_DATE  DATE;
+   V_LOAD_DATE DATE;
 BEGIN
 
     V_LOAD_DATE := NVL(IN_LOAD_DATE, TRUNC(SYSDATE));
     
-    -- Call DLY_DEP_TKT_LD_SP procedure
-    V_ERROR := 'LOADING DAILY MAINFRAME FILE';
-    DLY_DEP_TKT_LD_SP(V_LOAD_DATE);
-
-    -- Call INTERIM_DEPST_DIFF_SP procedure
-    V_ERROR := 'DIff Tables between INTERIM_DEPST_DLY and POS_INTERIM_DEPST';
+    -- Call to GIFT_CARD_DIFF_SP to create Gift Card diff file.
+    G_START_TIME := DBMS_UTILITY.GET_TIME;
+    G_CONTEXT := 'GIFT_CARD_DIFF_SP';
+    GIFT_CARD_DIFF_SP(V_LOAD_DATE);
+    DBMS_OUTPUT.PUT_LINE(G_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - G_START_TIME)/100 || ' Seconds');
+    
+    -- Call to INTERIM_DEPST_DIFF_SP to create Interim Deposit diff file.
+    G_START_TIME := DBMS_UTILITY.GET_TIME;
+    G_CONTEXT := 'INTERIM_DEPST_DIFF_SP';
     INTERIM_DEPST_DIFF_SP(V_LOAD_DATE);
-
-    -- Call DEPOSIT_TICKET_DIFF_SP procedure
-    V_ERROR := 'DIff Tables between DPST_TCKT_POS_CNTS_DLY and POS_DPST_TICKET_COUNTS';
+    DBMS_OUTPUT.PUT_LINE(G_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - G_START_TIME)/100 || ' Seconds');
+    
+    -- Call to DEPOSIT_TICKET_DIFF_SP to create Deposit Ticket diff file.
+    G_START_TIME := DBMS_UTILITY.GET_TIME;
+    G_CONTEXT := 'DEPOSIT_TICKET_DIFF_SP';
     DEPOSIT_TICKET_DIFF_SP(V_LOAD_DATE);
+    DBMS_OUTPUT.PUT_LINE(G_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - G_START_TIME)/100 || ' Seconds');
 
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'BANKING_RECONCILE_DIFF_REP_PKG.GENERATE_TCKT_BAG_DELTA_FILES: '||V_ERROR,
-                                   SQLERRM||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
-                                   '000000',
-                                   '0000000',
-                                   '0000000');
-END GENERATE_TCKT_BAG_DELTA_FILES;
+END GEN_DELTA_FILES_SP;
 
-END BANKING_RECONCILE_DIFF_REP_PKG;
+END BNK_RECONCILE_DIFF_REPORT_PKG;
