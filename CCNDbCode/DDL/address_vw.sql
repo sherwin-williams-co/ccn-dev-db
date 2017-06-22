@@ -1,4 +1,5 @@
 CREATE OR REPLACE VIEW ADDRESS_VW AS 
+ SELECT COST_CENTER_CD AS COST_CENTER_CODE
 /***********************************************************************
 This view will have all the address information for all teh cost centers
 created  : 09/14/2015
@@ -15,7 +16,6 @@ modified : 09/14/2015 nxk927
        : 06/13/2017 rxa457 CCN Project Team...
              Performance Tuning Changes...ASP-804
 ************************************************************************/
- SELECT COST_CENTER_CD AS COST_CENTER_CODE
         ,ADMIN_COST_CNTR_TYPE AS COST_CNTR_TYPE
         ,ADDRESS_TYPE
         ,DECODE(EXPIRATION_DATE, NULL, 'Y', 'N') ACTIVE_FLAG
