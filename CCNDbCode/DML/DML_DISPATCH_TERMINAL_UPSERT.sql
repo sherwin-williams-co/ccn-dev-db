@@ -6,7 +6,10 @@ Adding Records into DISPATCH_TERMINAL TABle
 Update Cost center category to "D" which are Dispatch termials
 
 Created : 04/11/2017 rxa457 CCN Project Team....
-Created:
+Modified: 06/23/2017 rxa457 CCN Project Team... 
+          Feedback points from Testing and Business incorporated - MISSING script for INSERT ORDER as part of the main patch. isnert and update PLSQL blocks merged as one block.
+          Cost center '76782T' need not be excluded from DISPATCH terminal category
+          Future Date Cost centers to be excluded 
 ********************************************************************************/
 SET DEFINE OFF;
 
@@ -15,23 +18,37 @@ Insert into CODE_DETAIL (CODE_HEADER_NAME,CODE_HEADER_TYPE,CODE_DETAIL_VALUE,COD
 COMMIT;
 
 REM INSERTING into INSERTORDER
-Insert into INSERTORDER (TABLE_NAME,TABLE_ORDER) values ('DISPATCH_TERMINAL',21);
+Insert into INSERTORDER (TABLE_NAME,TABLE_ORDER) 
+            SELECT 'DISPATCH_TERMINAL'
+                   ,21
+              FROM DUAL
+             WHERE NOT EXISTS(SELECT 'X' 
+                                FROM INSERTORDER I 
+                               WHERE I.TABLE_NAME = 'DISPATCH_TERMINAL' 
+                                 AND I.TABLE_ORDER = 21
+                              ) ;
 COMMIT;
 
 REM UPDATING COST_CENTER CATEGORY AND INSERTS INTO DISPATCH_TERMINAL
 DECLARE
         CURSOR UPD_COST_CENTER IS 
-          SELECT * FROM COST_CENTER A 
+          SELECT * 
+            FROM COST_CENTER A 
            WHERE COST_CENTER_CODE LIKE '%T' 
-            AND COST_CENTER_CODE NOT IN ('83MXMT', '83VIET', '81GPOT','OOPPFT', '76782T')
-            AND EXISTS(SELECT 'X' FROM COST_CENTER C WHERE SUBSTR(C.COST_CENTER_CODE,-4,4) = SUBSTR(A.COST_CENTER_NAME,-4,4) AND C.CATEGORY = 'S')
-            AND A.CATEGORY !='D'
-            AND (TRUNC(OPEN_DATE) <= TRUNC(SYSDATE) OR OPEN_DATE IS NULL) 
-            AND (TRUNC(BEGIN_DATE) <= TRUNC(SYSDATE) OR BEGIN_DATE IS NULL);
+             AND COST_CENTER_CODE NOT IN ('83MXMT', '83VIET', '81GPOT','OOPPFT')
+             AND EXISTS(SELECT 'X' 
+                           FROM COST_CENTER C 
+                          WHERE SUBSTR(C.COST_CENTER_CODE,-4,4) = SUBSTR(A.COST_CENTER_NAME,-4,4) 
+                            AND C.CATEGORY = 'S'
+                        )
+             AND A.CATEGORY !='D'
+             AND (TRUNC(OPEN_DATE) <= TRUNC(SYSDATE) OR OPEN_DATE IS NULL) 
+             AND (TRUNC(BEGIN_DATE) <= TRUNC(SYSDATE) OR BEGIN_DATE IS NULL);
                 
-        CURSOR HOME_STORE(P_COST_CENTER_NAME VARCHAR2) IS SELECT COST_CENTER_CODE FROM COST_CENTER C 
-                                                            WHERE SUBSTR(C.COST_CENTER_CODE,-4,4) = SUBSTR(P_COST_CENTER_NAME,-4,4) 
-                                                                  AND C.CATEGORY = 'S';
+        CURSOR HOME_STORE(P_COST_CENTER_NAME VARCHAR2) IS SELECT COST_CENTER_CODE 
+                                                            FROM COST_CENTER C 
+                                                           WHERE SUBSTR(C.COST_CENTER_CODE,-4,4) = SUBSTR(P_COST_CENTER_NAME,-4,4) 
+                                                                 AND C.CATEGORY = 'S';
         I NUMBER :=0;
         V_HOME_STORE COST_CENTER.COST_CENTER_CODE%TYPE;
 BEGIN
