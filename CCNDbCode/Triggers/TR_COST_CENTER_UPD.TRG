@@ -5,6 +5,8 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
    This trigger will insert records into audit_log table for logging changes
    happened on cost_center table.
    Modified : 02/15/2017 gxg192 Added missing fields
+            : 06/23/2017 rxa457 CCN Project Team..
+                Override category "D" for dispatch_terminal category with "S" - Store type in order to continue to send the back feed to mainframe as "S" category
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -24,7 +26,11 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
       */
       v_cost_center_row.COST_CENTER_CODE       := :NEW.cost_center_code;
       v_cost_center_row.COST_CENTER_NAME       := :NEW.COST_CENTER_NAME;
+      IF :NEW.CATEGORY = 'D' THEN
+        v_cost_center_row.CATEGORY             := 'S';
+      ELSE
       v_cost_center_row.CATEGORY               := :NEW.CATEGORY;
+      END IF;
       v_cost_center_row.ENTITY_TYPE            := :NEW.ENTITY_TYPE;
       v_cost_center_row.STATEMENT_TYPE         := :NEW.STATEMENT_TYPE;
       v_cost_center_row.COUNTRY_CODE           := :NEW.COUNTRY_CODE;
@@ -142,11 +148,11 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
             'COST_CENTER' ,
             v_primaryKey ,
             v_rowdata ,
-            'TR_COST_CENTER_UPD'
+            DECODE(:NEW.CATEGORY,'D','TR_DT_COST_CENTER_UPD','TR_COST_CENTER_UPD')
          );
       --END IF;
       BEGIN
-         IF v_cost_center_row.CATEGORY IN ('S','T') THEN
+         IF :NEW.CATEGORY IN ('S','T') THEN
             IF INSERTING THEN
                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(
                v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'ADD',
