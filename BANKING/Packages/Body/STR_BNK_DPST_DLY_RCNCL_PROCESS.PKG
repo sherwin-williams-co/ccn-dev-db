@@ -19,6 +19,45 @@ Created : 06/19/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
 
+PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
+/******************************************************************************
+  This procedure generates Report if there are mismatch in the source bank 
+  account number and db bank account
+
+Created : 06/23/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_TABLE_NAME IN    VARCHAR2,
+IN_DATE       IN    DATE,
+IN_CATEGORY   IN    VARCHAR2)
+IS
+  MISMATHC_REFCUR       SYS_REFCURSOR;
+  V_COST_CENTER_CODE    MISCTRAN.COST_CENTER_CODE%TYPE;
+  V_BANK_ACCT_NBR       MISCTRAN.BANK_ACCOUNT_NBR%TYPE;
+  V_ORG_BANK_ACCT_NBR   MISCTRAN.ORIGINATED_BANK_ACCNT_NBR%TYPE;
+  V_MISMATCH_QUERY      VARCHAR2(500);
+  V_CLOB                CLOB;
+BEGIN
+  V_MISMATCH_QUERY :='SELECT DISTINCT COST_CENTER_CODE,BANK_ACCOUNT_NBR, ORIGINATED_BANK_ACCNT_NBR' 
+                       || '  FROM ' || IN_TABLE_NAME || ' WHERE LOAD_DATE =  TO_DATE('''||TO_CHAR(IN_DATE,'DD-MON-YYYY')||''',''DD-MON-YYYY'')' ||
+                       ' AND BANK_ACCOUNT_NBR <> ORIGINATED_BANK_ACCNT_NBR';
+                       
+   OPEN MISMATHC_REFCUR FOR  V_MISMATCH_QUERY;
+   LOOP
+        FETCH MISMATHC_REFCUR INTO V_COST_CENTER_CODE, V_BANK_ACCT_NBR,V_ORG_BANK_ACCT_NBR;
+        EXIT WHEN MISMATHC_REFCUR%NOTFOUND;
+        V_CLOB := V_COST_CENTER_CODE  ||','|| 
+                  V_BANK_ACCT_NBR     ||','|| 
+                  V_ORG_BANK_ACCT_NBR || CHR(10) ||V_CLOB;
+    END LOOP;
+    CLOSE MISMATHC_REFCUR;
+    DBMS_OUTPUT.PUT_LINE(V_CLOB);
+    IF V_CLOB <> EMPTY_CLOB() THEN
+     MAIL_PKG.SEND_MAIL(IN_CATEGORY,NULL, NULL, V_CLOB);
+    END IF;
+
+END GNRTE_BNK_ACT_MISMTH_RPT;
+
 FUNCTION GET_BANK_DEPOSIT_DELAY_DAYS(
 /*****************************************************************************
 	This function will return the arrear days based on the passed date
@@ -463,6 +502,8 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Column name changed from source bank account number to ORIGINATED_BANK_ACCNT_NBR
         : 06/20/2017 jxc517/nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 06/23/2017 nxk927 CCN Project....
+          Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -478,11 +519,11 @@ IS
                DECODE(TCODE,'2255','OC','2896', 'OC','0594','OC','2895' ,'OC','2899' ,'OC', 'OD') CODE,
                --assigning code1 as SAM if bank account doesn't match from the serial file
                --assigning code1 as SNZ if its not a valid Cost center
-               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,BANK_ACCOUNT_NBR) CODE1,
+               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,ORIGINATED_BANK_ACCNT_NBR) CODE1,
                RETURN_REFEED_CODE(TCODE) TCODE,
                ORIGINATED_BANK_ACCNT_NBR
           FROM MISCTRAN
-         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+         WHERE ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
            AND LOAD_DATE = IN_DATE
            AND TCODE IS NOT NULL
          ORDER BY COST_CENTER_CODE;
@@ -584,6 +625,8 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Using the new field ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
         : 06/20/2017 jxc517/nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 06/23/2017 nxk927 CCN Project....
+          Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -597,7 +640,7 @@ IS
                          '0020' TCODE,
                          ORIGINATED_BANK_ACCNT_NBR
                     FROM SUMMARY_EXTRCT_CNTRL_FL A
-                   WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   WHERE A.ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
                      AND A.LOAD_DATE = IN_DATE
                    UNION
                   SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
@@ -606,11 +649,11 @@ IS
                          '0055' TCODE,
                          ORIGINATED_BANK_ACCNT_NBR
                     FROM ACH_DRFTS_EXT_CTRL A
-                   WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+                   WHERE A.ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
                      AND A.LOAD_DATE = IN_DATE
-                     AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
-                                                FROM BANK_ACCOUNT
-                                               WHERE BANK_AUTO_RECON_IND = 'Y'))
+                     AND ORIGINATED_BANK_ACCNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
+                                                         FROM BANK_ACCOUNT
+                                                        WHERE BANK_AUTO_RECON_IND = 'Y'))
            ORDER BY COST_CENTER_CODE;
 
 	  V_DIVISION            VARCHAR2(10);
@@ -707,6 +750,9 @@ Changed : 10/07/2015 nxk927 CCN Project....
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added condition to get records with UAR bank account number matching with the
           CCN bank account number
+        : 06/23/2017 nxk927 CCN Project....
+          Removed the condition to get records with UAR bank account number matching with the
+          CCN bank account number
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -714,20 +760,17 @@ IS
         SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM MISCTRAN
          WHERE LOAD_DATE = IN_DATE
-           AND BANK_ACCOUNT_NBR = ORIGINATED_BANK_ACCNT_NBR
          UNION
         SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM ACH_DRFTS_EXT_CTRL
          WHERE LOAD_DATE = IN_DATE
-           AND BANK_ACCOUNT_NBR = ORIGINATED_BANK_ACCNT_NBR
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
          UNION
         SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM SUMMARY_EXTRCT_CNTRL_FL
-         WHERE LOAD_DATE = IN_DATE
-           AND BANK_ACCOUNT_NBR = ORIGINATED_BANK_ACCNT_NBR;
+         WHERE LOAD_DATE = IN_DATE;
 
     PATH                  VARCHAR2(50) := 'BANKING_LOAD_FILES';
     UAR_POSITION_FL_NM    VARCHAR2(50) := 'SMIS1.SRA12060_' ||
@@ -817,6 +860,7 @@ BEGIN
         END IF;
     END LOOP;
     COMMIT;
+    GNRTE_BNK_ACT_MISMTH_RPT('SUMMARY_EXTRCT_CNTRL_FL',IN_DATE,'SUMMARY_BNK_ACT_MISMTH_RPT');
 EXCEPTION
     WHEN OTHERS THEN
         RAISE;
@@ -879,6 +923,7 @@ BEGIN
         END IF;
     END LOOP;
     COMMIT;
+    GNRTE_BNK_ACT_MISMTH_RPT('ACH_DRFTS_EXT_CTRL',IN_DATE,'ACH_DRAFT_BNK_ACT_MISMTH_RPT');
 EXCEPTION
     WHEN OTHERS THEN
         RAISE;
@@ -982,6 +1027,7 @@ BEGIN
         END IF;
     END LOOP;
     COMMIT;
+    GNRTE_BNK_ACT_MISMTH_RPT('MISCTRAN',IN_DATE,'MISCTRAN_BNK_ACT_MISMTH_RPT');
 EXCEPTION
    WHEN OTHERS THEN
        RAISE;
@@ -1164,6 +1210,7 @@ BEGIN
         END IF;
     END LOOP;
     COMMIT;
+    GNRTE_BNK_ACT_MISMTH_RPT('OVERSHRT',IN_DATE,'OVERSHRT_BNK_ACT_MISMTH_RPT');
 EXCEPTION
    WHEN OTHERS THEN
        RAISE;
@@ -1189,6 +1236,9 @@ Changed : 03/21/2017 jxc517 CCN Project Team....
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added condition to get records with UAR bank account number matching with the
           CCN bank account number
+Changed : 06/23/2017 nxk927 CCN Project....
+          Removed condition to get records with UAR bank account number matching with the
+          CCN bank account number
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1206,13 +1256,11 @@ IS
                   FROM MISCTRAN
                  WHERE LOAD_DATE = IN_DATE
                    AND TCODE NOT IN ('0495')
-                   AND BANK_ACCOUNT_NBR = ORIGINATED_BANK_ACCNT_NBR
                  UNION
                 SELECT COST_CENTER_CODE,
                        SUBSTR(AMOUNT, 4) * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
                   FROM OVERSHRT
-                 WHERE LOAD_DATE = IN_DATE
-                   AND BANK_ACCOUNT_NBR = ORIGINATED_BANK_ACCNT_NBR)
+                 WHERE LOAD_DATE = IN_DATE)
          GROUP BY COST_CENTER_CODE
          ORDER BY COST_CENTER_CODE;
 
@@ -1313,6 +1361,11 @@ Changed : 11/07/2016 jxc517 CCN Project Team....
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added condition to get records with UAR bank account number matching with the
           CCN bank account number
+Changed : 06/23/2017 nxk927 CCN Project....
+          Removed condition to get records with UAR bank account number matching with the
+          CCN bank account number
+          Changed the condition to check for source bank account number rather than the lead's bank account
+          number
 *******************************************************************************/
 IS
     CURSOR main_cursor IS
@@ -1345,10 +1398,9 @@ IS
           FROM MISCTRAN MT,
                PRIME_SUB_DETAIL PSD,
                BANK_ACCOUNT BA
-         WHERE MT.TCODE            = PSD.TCODE(+)
-           AND MT.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
-           AND MT.LOAD_DATE        = TRUNC(SYSDATE)
-           AND MT.BANK_ACCOUNT_NBR = MT.ORIGINATED_BANK_ACCNT_NBR
+         WHERE MT.TCODE                     = PSD.TCODE(+)
+           AND MT.ORIGINATED_BANK_ACCNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
+           AND MT.LOAD_DATE                 = TRUNC(SYSDATE)
          UNION
         SELECT OS.BANK_ACCOUNT_NBR,
                (SELECT COST_CENTER_CODE
@@ -1379,10 +1431,9 @@ IS
           FROM OVERSHRT OS,
                PRIME_SUB_DETAIL PSD,
                BANK_ACCOUNT BA
-         WHERE OS.TCODE            = PSD.TCODE(+)
-           AND OS.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
-           AND OS.LOAD_DATE        = TRUNC(SYSDATE)
-           AND OS.BANK_ACCOUNT_NBR = OS.ORIGINATED_BANK_ACCNT_NBR;
+         WHERE OS.TCODE                     = PSD.TCODE(+)
+           AND OS.ORIGINATED_BANK_ACCNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
+           AND OS.LOAD_DATE                 = TRUNC(SYSDATE);
 
     V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
