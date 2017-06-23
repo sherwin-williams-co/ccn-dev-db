@@ -16,8 +16,8 @@ CREATE OR REPLACE VIEW ADDRESS_VW AS
                  added ADDRESS_BRB to the view
                : 06/13/2017 rxa457 CCN Project Team...
                      Performance Tuning Changes...ASP-804
-			   : 06/22/2017 rxa457 CCN Project Team...
-			         Changes to include corresponding Home store address for Dispatch Terminal Cost centers
+               : 06/22/2017 rxa457 CCN Project Team...
+                     Changes to include corresponding Home store address for Dispatch Terminal Cost centers
         ************************************************************************/
         COST_CENTER_CD AS COST_CENTER_CODE
         ,ADMIN_COST_CNTR_TYPE AS COST_CNTR_TYPE
