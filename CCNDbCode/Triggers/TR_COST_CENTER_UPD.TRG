@@ -148,7 +148,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
             'COST_CENTER' ,
             v_primaryKey ,
             v_rowdata ,
-            DECODE(:NEW.CATEGORY,'D','TR_DT_COST_CENTER_UPD','TR_COST_CENTER_UPD')
+            'TR_COST_CENTER_UPD'
          );
       --END IF;
       BEGIN
