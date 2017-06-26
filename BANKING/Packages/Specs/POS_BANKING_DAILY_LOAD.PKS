@@ -16,12 +16,12 @@ This FUNCTION will derive the UAT TRANS CODE based on Accum id present in CCN_AC
 in POS.
 
 Created : 05/19/2017 gxg192 CCN Project....
-Changed :
+Changed : 06/26/2017 gxg192 Changes in data type.
 **************************************************************************************/
-            IN_TRANID        IN UAR_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
+            IN_TRANID        IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
             IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
-RETURN UAR_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
+RETURN POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
 
 PROCEDURE GENERATE_GIFT_CARD_TRANS_FILE (
 /******************************************************************************

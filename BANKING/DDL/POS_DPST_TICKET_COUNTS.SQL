@@ -1,7 +1,7 @@
 /***************************************************************************************************
 Description : This file has commands to create table POS_DPST_TICKET_COUNTS
 Created  : 05/10/2017 gxg192 CCN Project Team.....
-Modified :
+Modified : 06/23/2017 gxg192 Added index on load_date field.
 ****************************************************************************************************/
 
 CREATE TABLE POS_DPST_TICKET_COUNTS
@@ -13,3 +13,5 @@ CREATE TABLE POS_DPST_TICKET_COUNTS
       DATA_SOURCE      VARCHAR2(20),
       LOAD_DATE        DATE
    );
+
+CREATE INDEX POS_DPST_TICKET_COUNTS_INDX_LD ON POS_DPST_TICKET_COUNTS (LOAD_DATE);

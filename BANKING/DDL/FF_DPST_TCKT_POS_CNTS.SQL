@@ -5,6 +5,7 @@ Modified : 06/21/2017 gxg192 Changes to make this table as hostorical table and 
                              Data from TEMP_DPST_TCKT_POS_CNTS table (which stores data from main frame file)
                              will be loaded in this table daily. We need to store all the historical data
                              in this table thus added load_date column.
+         : 06/23/2017 gxg192 Added index on load_date field.
 ****************************************************************************************************/
 
 CREATE TABLE FF_DPST_TCKT_POS_CNTS
@@ -17,3 +18,5 @@ CREATE TABLE FF_DPST_TCKT_POS_CNTS
       LOAD_DATE        DATE,
       COMMENTS         VARCHAR2(1000)
    );
+
+CREATE INDEX FF_DPST_TCKT_POS_CNTS_INDX_LD ON FF_DPST_TCKT_POS_CNTS (LOAD_DATE);

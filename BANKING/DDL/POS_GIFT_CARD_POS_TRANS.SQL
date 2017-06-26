@@ -1,10 +1,10 @@
 /***************************************************************************************************
-Description : This file has commands to create table UAR_GIFT_CARD_POS_TRANS
-Created  : 05/10/2017 gxg192 CCN Project Team.....
+Description : This file has commands to create table POS_GIFT_CARD_POS_TRANS
+Created  : 06/23/2017 gxg192 CCN Project Team.....
 Modified :
 ****************************************************************************************************/
 
-CREATE TABLE UAR_GIFT_CARD_POS_TRANS
+CREATE TABLE POS_GIFT_CARD_POS_TRANS
    (
       TRANSACTION_TYPE VARCHAR2(2),
       UAR_TRAN_CODE    VARCHAR2(6),
@@ -20,12 +20,10 @@ CREATE TABLE UAR_GIFT_CARD_POS_TRANS
       TERM_NBR         VARCHAR2(5),
       TRANS_NBR        VARCHAR2(5),
       EMPLOYEE_NBR     VARCHAR2(2),
-      RLS_RUN_CYCLE    NUMBER,
+      TRAN_GUID        RAW(16),
       LOAD_DATE        DATE,
-      CONSTRAINT GC_PK_ID PRIMARY KEY (STORE_NBR, GIFT_CARD_NBR,
+      CONSTRAINT POS_GIFT_CARD_POS_TRANS_PK_ID PRIMARY KEY (STORE_NBR, GIFT_CARD_NBR,
       TERM_NBR, TRANS_NBR)
    );
 
-CREATE INDEX UAR_GC_POS_TRANS_INDX_RRC ON UAR_GIFT_CARD_POS_TRANS (RLS_RUN_CYCLE);
-
-CREATE INDEX UAR_GC_POS_TRANS_INDX_LD ON UAR_GIFT_CARD_POS_TRANS (LOAD_DATE);
+CREATE INDEX POS_GC_POS_TRANS_INDX_LD ON POS_GIFT_CARD_POS_TRANS (LOAD_DATE);

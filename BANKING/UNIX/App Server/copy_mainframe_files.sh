@@ -6,12 +6,11 @@
 #                    2. copy the mainframe file for gift card with required filename
 #
 # Created  : 06/20/2017 gxg192 CCN Project Team....
-# Modified : Changes to combine gift card and ticket/bag process
+# Modified : 06/26/2017 Changes to copy all mainframe files from QA.
 ###################################################################################
 . /app/banking/dev/banking.config
 
 proc_name="copy_mainframe_files"
-FTPLOG=$HOME/logs/ftp_MF_files_from_qa.log
 INITLOADPATH="$HOME/initLoad"
 FOLDER=`date +"%m%d%Y"`
 YYMMDD=`date +"%y%m%d"`
@@ -19,7 +18,8 @@ YYMMDD=`date +"%y%m%d"`
 qa_host="stap3ccnqwv"
 qa_user="banking"
 qa_password="tram5555"
-qa_path="/app/banking/qa/initLoad/archieve/DEP_TKT_BAG/$FOLDER"
+qa_tktbag_path="/app/banking/qa/initLoad/archieve/DEP_TKT_BAG/$FOLDER"
+qa_gc_path="/app/banking/qa/initLoad"
 
 filename_mainframe_gc="SRA30000_D$YYMMDD*"
 filename_flatfile_gc="GIFT_CARD_POS_TRANS_FILE.TXT"
@@ -33,31 +33,20 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 ###################################################################################
-#   Copy the SRA30000 file as GIFT_CARD_POS_TRANS_file which is source for 
-#   TEMP_GIFT_CARD_POS_TRANS table which loads data into FF_GIFT_CARD_POS_TRANS
-#   table that is used for diff process.
-###################################################################################
-if ls $INITLOADPATH/$filename_mainframe_gc &> /dev/null;
-then
-   cp $INITLOADPATH/$filename_mainframe_gc $INITLOADPATH/$filename_flatfile_gc
-   echo "Copied $filename_mainframe_gc as $filename_flatfile_gc on $INITLOADPATH successfully."
-else
-   echo "File $filename_mainframe_gc does not exists on $INITLOADPATH. Processing failed at ${TIME} on ${DATE}"
-   exit 1;
-fi
-
-###################################################################################
 #   Copy the STE03062_DEPST and STE03064_DEPST files
 #   from QA to this sever.
 #   These files are source to the external tables and used to create
 #   diff report for banking deposit ticket/bag process.
 ###################################################################################
-ftp -inv ${qa_host} <<FTP_MF > $FTPLOG
+ftp -inv ${qa_host} <<FTP_MF
 quote user ${qa_user}
 quote pass ${qa_password}
-cd ${qa_path}
+cd ${qa_tktbag_path}
 get $filename_dept_tick $INITLOADPATH/$filename_dept_tick
 get $filename_interim_dep $INITLOADPATH/$filename_interim_dep
+cd ${qa_gc_path}
+lcd ${INITLOADPATH}
+mget $filename_mainframe_gc
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
@@ -70,16 +59,24 @@ TIME=`date +"%H:%M:%S"`
 if [ ! -e $INITLOADPATH/$filename_dept_tick ]
 then
    echo "The transfer of $filename_dept_tick from qa to this server FAILED at ${TIME} on ${DATE}"
-   exit 1;
+   exit 1
 fi
 
 if [ ! -e $INITLOADPATH/$filename_interim_dep ]
 then
    echo "The transfer of $filename_interim_dep from qa to this server FAILED at ${TIME} on ${DATE}"
-   exit 1;
+   exit 1
 fi
-echo "Mainframe files transferred from QA as $filename_interim_dep & $filename_dept_tick at ${TIME} on ${DATE}"
 
+if [ ! -e $INITLOADPATH/$filename_mainframe_gc ]
+then
+   echo "The transfer of $filename_flatfile_gc from qa to this server FAILED at ${TIME} on ${DATE}"
+   exit 1
+else
+   cp $INITLOADPATH/$filename_mainframe_gc $INITLOADPATH/$filename_flatfile_gc
+fi
+
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
-exit 0;
+exit 0
 

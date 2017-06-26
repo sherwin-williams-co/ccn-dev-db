@@ -8,7 +8,7 @@
 # Created  : 10/17/2016 vxv336 CCN Project Team.....
 # Modified : 03/27/2017 gxg192 Changes to capture ftp status correctly
 #          : 06/16/2017 gxg192 Changes to add Time after ftp status check.
-#
+#          : 06/23/2017 gxg192 Changes to remove FTPLOG file after ftp status check.
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -43,8 +43,17 @@ if test $status -ne 0
 then
    TIME=`date +"%H:%M:%S"`
    echo "The transfer of SRA30000_D$YYMMDD* to uar FAILED at ${TIME} on ${DATE}"
-   exit 1;
+   exit 1
 fi
+
+############################################################################
+#                           Removing FTP log file
+############################################################################
+rm -f $FTPLOG
+TIME=`date +"%H:%M:%S"`
+echo "File $FTPLOG removed at ${TIME} on ${DATE}"
+
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0

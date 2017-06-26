@@ -1,18 +1,17 @@
 /*
 This temp table will hold data for the interim deposit tickets/bag
-which will be loaded into FF_INTERIM_DEPST table.
-Created : nxk927 09/12/2016
-Changed : gxg192 06/22/2017 Modified datasize for RLSE_RUN field.
+which will be substracted from the deposit tickets/bag we have on hand
+created : nxk927 09/12/2016
 */
 
 CREATE TABLE TEMP_INTERIM_DEPST
     (REGION            VARCHAR2(2),
      CTLCLK            VARCHAR2(2),
      DIV_NO            VARCHAR2(2),
-     COST_CENTER_CODE  VARCHAR2(4),
+     COST_CENTER_CODE VARCHAR2(4),
      TERMINAL_NUMBER   VARCHAR2(5),
      TRAN_NO           VARCHAR2(6),
-     RLSE_RUN          VARCHAR2(10),
+     RLSE_RUN          VARCHAR2(3),
      TRAN_DATE         VARCHAR2(6),
      TRAN_TIME         VARCHAR2(4),
      FILLER            VARCHAR2(1),

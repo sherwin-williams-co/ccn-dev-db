@@ -10,7 +10,7 @@
 
 #####################################################################
 # Below datacheck will get status as either READY or NOTREADY from pos_daily_data_check.sql
-# if data status is READY then run the daily load 
+# if data status is READY then run the daily load
 # if data status is NOTREADY then wait till data is ready for loading.
 #####################################################################
 proc="banking_pos_data_load_cbp"
@@ -33,6 +33,7 @@ EOF`
          TIME=`date +"%H:%M:%S"`
          echo "Processing FAILED for ccn_bnkng_daily_pos_load.sh at ${TIME} on ${DATE}"
       fi
-      exit 0;
+      exit 0
    fi
 done
+exit 1

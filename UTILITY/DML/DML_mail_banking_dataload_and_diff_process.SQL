@@ -5,7 +5,7 @@ Banking gift_card and ticket (for both data load and diff process).
 Script Name: DML_mail_banking_dataload_and_diff_process.SQL
 
 Created  : 05/23/2017 gxg192 CCN Project....
-Modified :
+Modified : 06/23/2017 gxg192 Removed setup for success email.
 *****************************************************************************/
 
 SET DEFINE OFF;
@@ -40,27 +40,11 @@ VALUES ('GIFT_CARD_PROCESS_ERROR',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
         
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
-VALUES ('GIFT_CARD_PROCESS_SUCCESS',
-        '48',
-        'SRA3000 Gift Card Process Completed',
-        'ccnoracle.team@sherwin.com',
-        'Processing of the SRA30000 Gift Card file completed successfully.',
-        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
-
-INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
 VALUES ('POS_BANK_DATA_LOAD_ERROR',
         '48',
         'Banking POS Data Load Process failed',
         'ccnoracle.team@sherwin.com',
         'Processing of loading the data from POS failed.',
-        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
-        
-INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
-VALUES ('POS_BANK_DATA_LOAD_SUCCESS',
-        '48',
-        'Banking POS Data Load Process Completed.',
-        'ccnoracle.team@sherwin.com',
-        'Processing of loading the data from POS completed successfully.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
@@ -71,4 +55,4 @@ VALUES ('BANKING_DIFF_PROCESS_ERROR',
         'Processing of reconcile Diff process for Banking failed.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
---COMMIT;
+COMMIT;

@@ -2,7 +2,7 @@
 Description : This file has commands to create table as FF_GIFT_CARD_POS_TRANS for 
               storing gift card related POS transaction records on Banking schema
 Created  : 05/10/2017 gxg192 CCN Project Team.....
-Modified :
+Modified : 06/23/2017 gxg192 Added index on load_date field.
 ****************************************************************************************************/
 
 CREATE TABLE FF_GIFT_CARD_POS_TRANS
@@ -26,3 +26,5 @@ CREATE TABLE FF_GIFT_CARD_POS_TRANS
       CONSTRAINT FF_GIFT_CARD_POS_TRANS_PK PRIMARY KEY (GIFT_CARD_NBR,
       STORE_NBR, TRANS_NBR, LOAD_DATE) 
    );
+
+CREATE INDEX FF_GIFT_CARD_POS_TRANS_INDX_LD ON FF_GIFT_CARD_POS_TRANS (LOAD_DATE);

@@ -1,7 +1,7 @@
 /***************************************************************************************************
 Description : This file has commands to create table POS_INTERIM_DEPST
 Created  : 05/10/2017 gxg192 CCN Project Team.....
-Modified :
+Modified : 06/23/2017 gxg192 Added index on load_date field.
 ****************************************************************************************************/
 
 CREATE TABLE POS_INTERIM_DEPST
@@ -22,3 +22,5 @@ CREATE TABLE POS_INTERIM_DEPST
       DATA_SOURCE      VARCHAR2(20),
       LOAD_DATE        DATE
    );
+
+CREATE INDEX POS_INTERIM_DEPST_INDX_LD ON POS_INTERIM_DEPST (LOAD_DATE);

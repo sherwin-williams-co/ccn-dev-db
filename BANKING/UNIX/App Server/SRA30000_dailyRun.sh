@@ -14,6 +14,8 @@
 #            06/20/2017 gxg192 Changed procedure used for daily load process
 #            06/21/2017 gxg192 Changes to only create gift card file and FTP it.
 #                              Loading data from POS into CCN is handled separately
+#            06/26/2017 gxg192 Changes to pass only category while calling send_mail.sh and removed
+#                              logic to send success email.
 ###################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -29,19 +31,12 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 ###################################################################################
 ./EXEC_PROC_1PARAM.sh "POS_BANKING_DAILY_LOAD.GENERATE_GIFT_CARD_TRANS_FILE" "$RUNDATE"
 status=$?
-TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-     ERR_MSG="Processing FAILED for Generating Gift card trans file at ${TIME} on ${DATE}"
-     echo $ERR_MSG
-     ./send_mail.sh GIFT_CARD_PROCESS_ERROR "$ERR_MSG"
-     status=$?
-     if [ $status -ne 0 ];
-     then
-        TIME=`date +"%H:%M:%S"`
-        echo "send_mail.sh process FAILED for GIFT_CARD_PROCESS_ERROR at ${TIME} on ${DATE}"
-     fi
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+     echo "Processing FAILED for Generating Gift card trans file at ${TIME} on ${DATE}"
+     ./send_mail.sh GIFT_CARD_PROCESS_ERROR
+     exit 1
 fi
 
 ###################################################################################
@@ -49,32 +44,28 @@ fi
 ###################################################################################
 ./SRA30000_dailyRun_ftp.sh
 status=$?
-TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-     ERR_MSG="Processing FAILED for SRA30000_dailyRun_ftp at ${TIME} on ${DATE}"
-     echo $ERR_MSG
-     ./send_mail.sh GIFT_CARD_PROCESS_ERROR "$ERR_MSG"
-     status=$?
-     if [ $status -ne 0 ];
-     then
-        TIME=`date +"%H:%M:%S"`
-        echo "send_mail.sh process FAILED for GIFT_CARD_PROCESS_ERROR at ${TIME} on ${DATE}"
-     fi
-     exit 1;
+     TIME=`date +"%H:%M:%S"`
+     echo "Processing FAILED for SRA30000_dailyRun_ftp at ${TIME} on ${DATE}"
+     ./send_mail.sh GIFT_CARD_PROCESS_ERROR
+     exit 1
 fi
 
 ###################################################################################
-#                  Send email that Gift card process is successful.
+#         Archiving gift card output file
 ###################################################################################
-./send_mail.sh GIFT_CARD_PROCESS_SUCCESS
+./SRA30000_Arch_Output_file.sh
 status=$?
 if [ $status -ne 0 ];
 then
    TIME=`date +"%H:%M:%S"`
-   echo "send_mail.sh process FAILED for GIFT_CARD_PROCESS_SUCCESS at ${TIME} on ${DATE}"
+   echo "Processing FAILED for SRA30000_Arch_Output_file.sh at ${TIME} on ${DATE}"
+   ./send_mail.sh GIFT_CARD_PROCESS_ERROR
+   exit 1
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at $TIME on $DATE"
 exit 0
 ###################################################################################

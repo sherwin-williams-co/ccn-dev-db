@@ -5,15 +5,13 @@
 # Description   : Wrapper for executing procedures with 1 parameter
 #
 # Created  : 06/16/2017 gxg192 CCN Project Team.....
-# Modified : 
+# Modified : 06/26/2017 gxg192 Removed unused variables.
 ############################################################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
 proc_name=$1"('$2');"
-LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
@@ -50,4 +48,5 @@ echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
 ############################################################################
+
 

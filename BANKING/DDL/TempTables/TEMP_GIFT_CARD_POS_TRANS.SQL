@@ -1,7 +1,7 @@
 /***************************************************************************************************
 Description : This file has commands to create table UAR_GIFT_CARD_POS_TRANS
 Created  : 05/10/2017 gxg192 CCN Project Team.....
-Modified :
+Modified : 06/26/2017 gxg192 Formated the code
 ****************************************************************************************************/
 
 CREATE TABLE TEMP_GIFT_CARD_POS_TRANS
@@ -31,56 +31,7 @@ CREATE TABLE TEMP_GIFT_CARD_POS_TRANS
       discardfile BANKING_LOAD_FILES:'GIFT_CARD_POS_TRANS.dsc'
       LOAD WHEN
       (
-         (
-            2:3
-         )
-         = '10'
-      OR
-         (
-            2:3
-         )
-         = '11'
-      OR
-         (
-            2:3
-         )
-         = '12'
-      OR
-         (
-            2:3
-         )
-         = '19'
-      OR
-         (
-            2:3
-         )
-         = '22'
-      OR
-         (
-            2:3
-         )
-         = '31'
-      OR
-         (
-            2:3
-         )
-         = '41'
-      OR
-         (
-            2:3
-         )
-         = '81'
-      OR
-         (
-            2:3
-         )
-         = '82'
-      OR
-         (
-            2:3
-         )
-         = '91'
-      )
+      (2:3) = '10' OR (2:3) = '11' OR (2:3) = '12' OR (2:3) = '19' OR (2:3) = '22' OR (2:3) = '31' OR (2:3) = '41' OR (2:3) = '81' OR (2:3) = '82' OR (2:3) = '91')
       FIELDS
       (
       TRANSACTION_TYPE POSITION(2:3) CHAR(2),

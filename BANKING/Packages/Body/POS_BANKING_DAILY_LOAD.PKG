@@ -7,6 +7,7 @@ Banking Gift Card and deposit ticket/bags.
 Created : 06/15/2017 gxg192 CCN Project....
 Changed : 06/21/2017 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
+        : 06/26/2017 gxg192 Changed procedure name from LOAD_UAR_GIFT_CARD_POS_TRANS to LOAD_POS_GIFT_CARD_POS_TRANS
 ***************************************************************************************/
 
 FUNCTION GET_UAR_TRANS_CODE(
@@ -24,25 +25,40 @@ Example
     IF ac is present,     then 02
 
 Created : 05/19/2017 gxg192 CCN Project....
-Changed :
+Changed : 06/26/2017 gxg192 Changes in logic for finding uar tran code.
 **************************************************************************************/
-            IN_TRANID        IN UAR_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
+            IN_TRANID        IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
             IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
-RETURN UAR_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE
+RETURN POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE
 IS
-    V_UAR_TRAN_CODE UAR_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
+    V_UAR_TRAN_CODE POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
     CNT_ACCUM_ID_76 NUMBER;
     CNT_ACCUM_ID_AC NUMBER;
-    CNT_ACCUM_ID_AD NUMBER;
+
 BEGIN
-    SELECT IN_TRANID||
-           DECODE(COUNT(DECODE(accum_id,'76',1,NULL)),0,'11','76') ||
-           DECODE(COUNT(DECODE(accum_id,'ac',1,NULL)),0,'01','02') uat_tran_id
-      INTO V_UAR_TRAN_CODE
+    SELECT COUNT(DECODE(accum_id,'76',1,NULL)),
+           COUNT(DECODE(accum_id,'ac',1,NULL))
+      INTO CNT_ACCUM_ID_76, CNT_ACCUM_ID_AC
       FROM PNP_CCN_ACCUMS
      WHERE TRAN_GUID = IN_TRAN_GUID
        AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
+
+    --IF accum id as 76 is present then default SMIS2 posAccum to 76 else 11
+    IF CNT_ACCUM_ID_76 > 0 THEN
+       V_UAR_TRAN_CODE := '76';
+    ELSE
+       V_UAR_TRAN_CODE := '11';
+    END IF;
+
+    --IF accum id as ac is present then default posAccum to 02 else 01
+    IF CNT_ACCUM_ID_AC > 0 THEN
+       V_UAR_TRAN_CODE := V_UAR_TRAN_CODE|| '02';
+    ELSE
+       V_UAR_TRAN_CODE := V_UAR_TRAN_CODE|| '01';
+    END IF;
+
+    V_UAR_TRAN_CODE := IN_TRANID || V_UAR_TRAN_CODE;
 
     RETURN V_UAR_TRAN_CODE;
 
@@ -53,7 +69,7 @@ EXCEPTION
                                   SQLERRM,
                                   SUBSTR(IN_TRAN_GUID,-16,16),
                                   IN_TRANID,
-                                 'UAR_GIFT_CARD_POS_TRANS');
+                                 'POS_GIFT_CARD_POS_TRANS');
        V_UAR_TRAN_CODE := NULL;
        RETURN V_UAR_TRAN_CODE;
 END GET_UAR_TRANS_CODE;
@@ -92,13 +108,15 @@ EXCEPTION
 
 END LOAD_POS_CCN_LOAD_STATUS;
 
-PROCEDURE LOAD_UAR_GIFT_CARD_POS_TRANS(
+PROCEDURE LOAD_POS_GIFT_CARD_POS_TRANS(
 /*******************************************************************************
 This procedure is used to load the UAR Gift Card POS Transaction table
-"UAR_GIFT_CARD_POS_TRANS" with data extracted from new interface tables
+"POS_GIFT_CARD_POS_TRANS" with data extracted from new interface tables
 created : 10/28/2016 axk326 CCN Project....
 changed : 12/08/2016 vxv336 added STATUS filter in cursor query
         : 05/19/2017 gxg192 Changes for fetching UAR_TRAN_CODE
+        : 06/26/2017 gxg192 Changed table name from UAR_GIFT_CARD_POS_TRANS to
+                            POS_GIFT_CARD_POS_TRANS
 *******************************************************************************/
 IN_DATE DATE)
 AS
@@ -132,11 +150,11 @@ CURSOR GC_CUR IS
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
-   V_TEMP_ROW      UAR_GIFT_CARD_POS_TRANS%ROWTYPE;
+   V_TEMP_ROW      POS_GIFT_CARD_POS_TRANS%ROWTYPE;
 
 BEGIN
 
-     DELETE UAR_GIFT_CARD_POS_TRANS
+     DELETE POS_GIFT_CARD_POS_TRANS
       WHERE LOAD_DATE = IN_DATE;
 
      FOR REC IN GC_CUR
@@ -156,10 +174,10 @@ BEGIN
            V_TEMP_ROW.TERM_NBR            := STORDRFT.SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TERM_NBR, '0', '5');       
            V_TEMP_ROW.TRANS_NBR           := rec.TRANS_NBR;       
            V_TEMP_ROW.EMPLOYEE_NBR        := STORDRFT.SD_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.EMPLOYEE_NBR, '0', '2');
-           V_TEMP_ROW.RLS_RUN_CYCLE       := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.TRAN_GUID           := rec.TRAN_GUID;
            V_TEMP_ROW.LOAD_DATE           := IN_DATE;
 
-           INSERT INTO UAR_GIFT_CARD_POS_TRANS VALUES V_TEMP_ROW;
+           INSERT INTO POS_GIFT_CARD_POS_TRANS VALUES V_TEMP_ROW;
 
            V_COUNT   := V_COUNT + 1;
            IF V_COUNT > 100 THEN
@@ -170,11 +188,11 @@ BEGIN
         EXCEPTION
             WHEN OTHERS THEN
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                           'POS_BANKING_DAILY_LOAD.LOAD_UAR_GIFT_CARD_POS_TRANS',
+                                           'POS_BANKING_DAILY_LOAD.LOAD_POS_GIFT_CARD_POS_TRANS',
                                            SQLERRM,
                                            '000000', 
                                            '0000000',  
-                                           'UAR_GIFT_CARD_POS_TRANS');
+                                           'POS_GIFT_CARD_POS_TRANS');
                 RAISE;
         END;
      END LOOP;
@@ -184,14 +202,14 @@ DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
 EXCEPTION
     WHEN OTHERS THEN
        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                  'POS_BANKING_DAILY_LOAD.LOAD_UAR_GIFT_CARD_POS_TRANS',
+                                  'POS_BANKING_DAILY_LOAD.LOAD_POS_GIFT_CARD_POS_TRANS',
                                   SQLERRM,
                                   '000000', 
                                   '0000000',  
                                   '0000000');
        ROLLBACK;
        RAISE;
-END LOAD_UAR_GIFT_CARD_POS_TRANS;
+END LOAD_POS_GIFT_CARD_POS_TRANS;
 
 PROCEDURE GENERATE_GIFT_CARD_TRANS_FILE (
 /******************************************************************************
@@ -204,7 +222,7 @@ IN_DATE            IN         DATE)
 IS
   CURSOR main_cur IS
       SELECT *
-        FROM UAR_GIFT_CARD_POS_TRANS
+        FROM POS_GIFT_CARD_POS_TRANS
        WHERE LOAD_DATE = IN_DATE;
       
   PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
@@ -473,10 +491,10 @@ BEGIN
    DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
 -- STEP 2
--- Call to perform DailyLoad from POS new interface tables to UAR_GIFT_CARD_POS_TRANS table
+-- Call to perform DailyLoad from POS new interface tables to POS_GIFT_CARD_POS_TRANS table
    V_START_TIME := DBMS_UTILITY.GET_TIME;
-   V_CONTEXT := 'LOAD_UAR_GIFT_CARD_POS_TRANS';
-   LOAD_UAR_GIFT_CARD_POS_TRANS(IN_DATE);
+   V_CONTEXT := 'LOAD_POS_GIFT_CARD_POS_TRANS';
+   LOAD_POS_GIFT_CARD_POS_TRANS(IN_DATE);
    DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
 -- STEP 3

@@ -29,7 +29,7 @@ status=$?
 if [ $status -ne 0 ]; then
    TIME=`date +"%H:%M:%S"` 
    echo "Processing failed for generating difference files on server at $TIME on $DATE"
-   exit 1;
+   exit 1
 fi
 
 ############################################################################
@@ -46,7 +46,7 @@ fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
-exit 0;
+exit 0
 ###################################################################################
 #                Process END
 ###################################################################################

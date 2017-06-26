@@ -5,6 +5,7 @@ Modified : 06/21/2017 gxg192 Changes to make this table as hostorical table and 
                              Data from TEMP_INTERIM_DEPST table (which stores data from main frame file)
                              will be loaded in this table daily. We need to store all the historical data
                              in this table thus added load_date column.
+         : 06/23/2017 gxg192 Changed datasize of a column and added index on load_date field.
 ****************************************************************************************************/
 
 CREATE TABLE FF_INTERIM_DEPST
@@ -15,7 +16,7 @@ CREATE TABLE FF_INTERIM_DEPST
       COST_CENTER_CODE VARCHAR2(4),
       TERMINAL_NUMBER  VARCHAR2(5),
       TRAN_NO          VARCHAR2(6),
-      RLSE_RUN         VARCHAR2(10),
+      RLSE_RUN         VARCHAR2(3),
       TRAN_DATE        VARCHAR2(6),
       TRAN_TIME        VARCHAR2(4),
       FILLER           VARCHAR2(1),
@@ -26,3 +27,5 @@ CREATE TABLE FF_INTERIM_DEPST
       LOAD_DATE        DATE,
       COMMENTS         VARCHAR2(1000)
     );
+
+CREATE INDEX FF_INTERIM_DEPST_INDX_LD ON FF_INTERIM_DEPST (LOAD_DATE);
