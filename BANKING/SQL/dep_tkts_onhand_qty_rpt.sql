@@ -7,7 +7,7 @@
   and DPST_TCKTS_UPDT_BTCH job scheduled daily at 7 AM,
   hence This script will execute daily at 8 AM.
 
-created : sxp130 06/22/2017
+created : sxp130 06/22/2017 ASP_805
 modified:
 **********************************************************/
 DECLARE
@@ -16,7 +16,6 @@ DECLARE
              dep_tkts_onhand_qty,
              last_vw_order_date
         FROM bank_dep_tick
-       WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = UPPER('Y')
        ORDER BY cost_center_code;
 
    --variable declaration
