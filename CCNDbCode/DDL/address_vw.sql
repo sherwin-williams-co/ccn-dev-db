@@ -182,8 +182,6 @@ CREATE OR REPLACE VIEW ADDRESS_VW AS
                 ,VALID_ADDRESS
                 ,COUNTRY_CODE
            FROM ADDRESS_BRB
-        UNION ALL
-
         )M,
         (SELECT A.ADMIN_COST_CNTR_TYPE,
                 C.COST_CENTER_CODE AS COST_CENTER_CD,
