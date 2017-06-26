@@ -5,7 +5,7 @@ Modified:
 **********************************************************************************/
 REM INSERTING into MAILING_GROUP
 SET DEFINE OFF;
-Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('69','Pricing.StoresGroup@sherwin.com;ccnoracle.team@sherwin.com');
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('69','smis1@sherwin.com;ccnoracle.team@sherwin.com');
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
@@ -19,7 +19,7 @@ values ('DEP_BAG_TICK_ONHAND_QTY_RPT',
 COMMIT;
 
 REM INSERTING into MAILING_GROUP
-Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('70','Pricing.StoresGroup@sherwin.com;ccnoracle.team@sherwin.com');
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('70','smis1@sherwin.com;ccnoracle.team@sherwin.com');
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
