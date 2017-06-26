@@ -4,8 +4,7 @@ Purpose    : For dropping and creating the COST_CENTER_DISPATCH_TERMINAL table.
              This is an external table which is used for storing data from COST_CENTER_DISPATCH_TERMINAL.csv
              loaded through batch process.
 
-Created :
-Changed : 06/23/2017 rxa457 CCN Project....
+Created    : 06/23/2017 rxa457 CCN Project....
 */
 
   DROP TABLE COST_CENTER_DISPATCH_TERMINAL;
