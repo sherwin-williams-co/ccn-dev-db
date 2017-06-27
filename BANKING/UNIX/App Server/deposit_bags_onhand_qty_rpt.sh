@@ -43,7 +43,7 @@ if test $status -ne 0
 then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
-     exit 1;
+     exit 1
 fi
 
 TIME=`date +"%H:%M:%S"`

@@ -9,24 +9,24 @@ Changed :
 *******************************************************************************/
 SELECT * 
   FROM bank_dep_tick 
- WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = UPPER('N')
+ WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = 'N'
    AND dep_tkts_onhand_qty < 0;
 
 UPDATE bank_dep_tick
    SET dep_tkts_onhand_qty = 0
- WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = UPPER('N')
+ WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = 'N'
    AND dep_tkts_onhand_qty < 0;
 
 COMMIT;
 
 SELECT * 
   FROM bank_dep_bag_tick 
- WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = UPPER('N')
+ WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = 'N'
    AND depbag_onhand_qty < 0;
 
 UPDATE bank_dep_bag_tick
    SET depbag_onhand_qty = 0
- WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = UPPER('N')
+ WHERE business_rules_pkg.is_placing_dpt_tkt_bag_ord_ok(cost_center_code) = 'N'
    AND depbag_onhand_qty < 0;
 
 COMMIT;
