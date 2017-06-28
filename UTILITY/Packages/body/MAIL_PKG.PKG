@@ -40,6 +40,86 @@ BEGIN
     END IF;
 END WRITE_CLOB;
 
+
+PROCEDURE FILE_ATTACHMENTS(
+/****************************************************************
+   This Procedure is used Attach the list of files to the mail
+created : 05/02/2016 AXD783
+changed :
+*****************************************************************/
+ in_MAIL_CATEGORY VARCHAR2
+,v_conn IN OUT utl_smtp.connection
+                          )
+IS
+  v_boundry                 VARCHAR2(200)        := '-----AABCDEFBBCCC0123456789DE';
+  crlf                      VARCHAR2 (2) := CHR (13) || CHR (10);
+  filehandler               UTL_FILE.FILE_TYPE;
+  v_file_name               VARCHAR2(100);
+  vLine                     VARCHAR2(4000);
+  v_length                  NUMBER;
+  v_blocksize               NUMBER;
+  v_exists                  BOOLEAN;
+  v_date                      DATE;
+  file_not_found            EXCEPTION;
+BEGIN
+    FOR REC IN (SELECT mf.file_name,mf.directory_name
+                  FROM mailing_file_details mf
+                      ,mailing_details md
+                 WHERE mf.group_id = md.group_id
+                   AND md.mail_category =UPPER(in_MAIL_CATEGORY)) LOOP
+                  -- v_date := TRUNC(SYSDATE);
+    v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
+    -- Check the file exists and if the size of the file.
+    utl_file.fgetattr(rec.directory_name, v_file_name, v_exists, v_length,v_blocksize);
+    IF NOT v_exists THEN
+        RAISE FILE_NOT_FOUND;
+    END IF;
+    IF NOT v_length < 1024 THEN
+       filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
+       utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || v_file_name || '"' || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, UTL_TCP.crlf);
+       --Content for the file that is being sent
+       LOOP
+           BEGIN
+               utl_file.get_line(filehandler, vLine);
+               utl_smtp.write_data(v_conn, vLine || UTL_TCP.CRLF); --Content of attachment
+           EXCEPTION
+           WHEN OTHERS THEN
+               EXIT;
+           END;
+       END LOOP;
+       utl_file.fclose(filehandler);
+    END IF;
+    -- AXK326, block added for sending attachments even if they are 1kb or less than that.
+    IF v_length <= 1024 THEN
+       filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
+       utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || v_file_name || '"' || UTL_TCP.crlf);
+       utl_smtp.write_data(v_conn, UTL_TCP.crlf);
+       --Content for the file that is being sent
+       LOOP
+           BEGIN
+               utl_file.get_line(filehandler, vLine);
+               utl_smtp.write_data(v_conn, vLine || UTL_TCP.CRLF); --Content of attachment
+           EXCEPTION
+           WHEN OTHERS THEN
+               EXIT;
+           END;
+       END LOOP;
+       utl_file.fclose(filehandler);
+    END IF;
+  END LOOP;
+EXCEPTION
+    WHEN file_not_found THEN
+        DBMS_OUTPUT.PUT_LINE('File Name :'||v_file_name ||' Not Found');
+    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error THEN
+        raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE(sqlerrm);
+END FILE_ATTACHMENTS;
 PROCEDURE SEND_MAIL(
 /******************************************************************************************************
 SEND_MAIL
@@ -118,6 +198,8 @@ Updated : 09/18/2014 nxk
           Added code for Deposit Ticket/Bags ordered
         : 12/21/2016 gxg192 CCN Project Team....
           Added code for Deposit Ticket/Bag order error report
+        : 01/05/2017 MXK766 CCN Project Team....
+          Added code for STOREDRAFTS_RECONCILE_FILES_GEN.
         : 01/16/2017 gxg192 CCN Project Team....
           Added code for Deposit Ticket FTP failure
         :01/19/2017 MXK766 CCN Project Team....
@@ -132,8 +214,10 @@ Updated : 09/18/2014 nxk
 		      Removed the message 'V_MESSAGE' set for 'PCI_POS_TERMINAL_MISMATCH'
         :05/11/2017 RXA457 - asp-781 for CCN Project Team.. To email  log file if STRDRFT MONTHLY_PROCESS_RUN_BP process fails
         :06/08/2017 axt754 - changes to Selling stores to handle large volume of data
-        :06/23/2017 nxk927 
-         added new category for the bank account mismatch for the SRA11000 input files
+        :06/13/2017 sxp130 - ASP_802 for CCN Project Team.. To email Price District Future Hierarchy - PRICE_DIST_FUTURE_HIER
+        :06/22/2017 gxg192 Changes for banking pos data load and diff process
+        :06/23/2017 nxk927 added new category for the bank account mismatch for the SRA11000 input files
+        :06/26/2017 sxp130 - ASP_805 for CCN Project Team.. To email DEP_BAG_TICK_ONHAND_QTY_RPT AND DEP_TICK_ONHAND_QTY_RPT
 		:06/28/2017 nxk927
 		 using write clob procedure to handle big file
 /******************************************************************************************************/
@@ -453,6 +537,11 @@ BEGIN
          --Content for the excel that is being sent
          UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STOREDRAFTS_RECONCILE_FILES_GEN' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      -- added mail category for Bank reconcile diff file process.
+      ELSIF IN_MAIL_CATEGORY = 'BANKING_RECONCILE_FILES_GEN' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
       ELSIF IN_MAIL_CATEGORY = 'MONTHLY_REPORTS_RUN_BP' THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
@@ -470,6 +559,26 @@ BEGIN
          UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
          --Header for the excel that is being sent
          UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, BANK_ACCOUNT_NBR, ORIGINATED_BANK_ACCNT_NBR ' ||  UTL_TCP.crlf);
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'DEP_BAG_TICK_ONHAND_QTY_RPT' THEN    --ASP_805
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'DEP_TICK_ONHAND_QTY_RPT' THEN   --ASP_805
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
          WRITE_CLOB(v_mail_conn, IN_CLOB);
          UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
