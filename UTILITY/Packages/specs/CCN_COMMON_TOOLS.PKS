@@ -264,4 +264,17 @@ Changed :
 ******************************************************************/
     IN_DATE      IN    DATE) RETURN DATE;
 
+FUNCTION FORMAT_INPUT_FOR_FILE(
+/*****************************************************************************
+This function will return the formatted data as requested
+
+Created : gxg192 CCN Project....
+Changed :
+*****************************************************************************/
+IN_VALUE         IN VARCHAR2,
+IN_PADDING_VALUE IN VARCHAR2,
+IN_LENGTH        IN NUMBER,
+IN_PRECISION     IN NUMBER DEFAULT 0
+) RETURN VARCHAR2;
+
 END CCN_COMMON_TOOLS;
