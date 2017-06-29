@@ -5,7 +5,7 @@
 */
 -- Insert into MAILING GROUP
 INSERT INTO MAILING_GROUP 
-      VALUES (86, 'psg.finplan@sherwin.com');
+      VALUES (86, 'ccnoracle.team@sherwin.com;psg.finplan@sherwin.com');
       
 -- check the inserted value
 SELECT *
