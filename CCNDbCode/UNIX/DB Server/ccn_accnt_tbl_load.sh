@@ -44,7 +44,6 @@ then
    exit 1;
 else
    echo "Processing finished for $proc at ${TIME} on ${DATE}"
-   TIME=`date +"%H:%M:%S"`
    echo "calling ccn_accnt_view_rpt at ${TIME} on ${DATE}"
    ./ccn_accnt_view_rpt.sh
 fi
