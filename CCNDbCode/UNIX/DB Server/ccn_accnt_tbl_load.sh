@@ -43,7 +43,6 @@ then
    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
    exit 1;
 else
-   TIME=`date +"%H:%M:%S"`
    echo "Processing finished for $proc at ${TIME} on ${DATE}"
    TIME=`date +"%H:%M:%S"`
    echo "calling ccn_accnt_view_rpt at ${TIME} on ${DATE}"

@@ -1,13 +1,15 @@
 create or replace PACKAGE CCN_ACCOUNTING_PKG AS
 /****************************************************************************** 
-This package is used to create report from CCN_ACCOUNTING_VIEW attributes. 
+This package is used to load the table into CCN_ACCOUNTING_TBL 
+and generate report from CCN_ACCOUNTING_TBL attributes. 
 
 created : 06/16/2017 axt754 -- CCN Project Team...
 
 ******************************************************************************/
+
 PROCEDURE GEN_CCN_ACCOUNTING_REPORT
 /****************************************************************************** 
-This PROCEDURE is calls columns from CCN_ACCOUNTING_VIEW and generate CLOB for
+This PROCEDURE is calls columns from CCN_ACCOUNTING_TBL and generate CLOB for
 calling MAIL_PKG. 
 
 created : 06/16/2017 axt754 -- CCN Project Team
