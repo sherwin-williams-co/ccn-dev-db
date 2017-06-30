@@ -599,38 +599,6 @@ EXCEPTION
 END RETURN_PHONE_INFO; 
 
 
-FUNCTION CREATE_PARAM_FILE (
-/*******************************************************************************
-This function is used to Check for the availability of cost center in the tables.
-
-Created : 10/17/2016 MXK766 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
-IS
-    V_COUNT          NUMBER      := 0;
-    V_FILE_CREATE_YN VARCHAR2(1) := 'N';
-BEGIN
-    SELECT SUM(CNT) 
-      INTO V_COUNT
-      FROM (SELECT COUNT(1) CNT
-              FROM LEAD_BANK_CC
-             WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
-             UNION ALL
-            SELECT COUNT(1) CNT 
-              FROM MEMBER_BANK_CC
-             WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE);
-
-    IF V_COUNT > 0 THEN
-       V_FILE_CREATE_YN := 'Y';
-    END IF;
-
-    RETURN V_FILE_CREATE_YN;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_FILE_CREATE_YN;
-END CREATE_PARAM_FILE;
-
 FUNCTION CHECK_COST_CENTER_CATEGORY(
 /*******************************************************************************
 This function is used to return the category from the cost center table.
@@ -1335,12 +1303,12 @@ the order of the XML elements.
         <xsd:element name="dlHeaderRcd" minOccurs="1" maxOccurs="1">
           <xsd:complexType>
             <xsd:sequence>
-              <xsd:element name="aplfile_name" type="xsd:string" nillable="true"/>
-              <xsd:element name="micfile_name" type="xsd:string" nillable="true"/>
-              <xsd:element name="rec_cnt" type="xsd:int" nillable="true"/>
-              <xsd:element name="cre_date" type="xsd:date" nillable="true"/>
-              <xsd:element name="cre_time" type="xsd:string" nillable="true"/>
-              <xsd:element name="r_u_flag" type="xsd:string" nillable="true"/>
+              <xsd:element name="aplfile_name" type="xsd:string"/>
+              <xsd:element name="micfile_name" type="xsd:string"/>
+              <xsd:element name="rec_cnt" type="xsd:int"/>
+              <xsd:element name="cre_date" type="xsd:date"/>
+              <xsd:element name="cre_time" type="xsd:string"/>
+              <xsd:element name="r_u_flag" type="xsd:string"/>
               <xsd:element name="wfd" type="xsd:string" nillable="true"/>
             </xsd:sequence>
           </xsd:complexType>
@@ -1348,7 +1316,7 @@ the order of the XML elements.
         <xsd:element name="parmUpdtRcd" minOccurs="1" maxOccurs="1">
           <xsd:complexType>
             <xsd:sequence>
-              <xsd:element name="P-cval" type="xsd:string" nillable="true" minOccurs="2" maxOccurs="2"/>
+              <xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
               <xsd:element name="cost-center" type="xsd:string"/>
               <xsd:element name="logo1" type="xsd:string" nillable="true"/>
               <xsd:element name="logo2" type="xsd:string" nillable="true"/>
@@ -1372,8 +1340,7 @@ the order of the XML elements.
     </xsd:unique>
     <xsd:unique name="main-inx" prodata:primaryIndex="true">
       <xsd:selector xpath=".//parmUpdtRcd"/>
-      <xsd:field xpath="P-eff-dt"/>
-      <xsd:field xpath="P-seq-nbr"/>
+      <xsd:field xpath="cost-center"/>
     </xsd:unique>
   </xsd:element>
 </xsd:schema>
@@ -1384,6 +1351,9 @@ Changed : 03/02/2017 rxv940 CCN Project Team....
 Changed : 06/26/2017 rxv940 CCN Project....
         : Changed the XML tag store-number to cost-center and removed the
         : nabanco state and country codes from .xsd and .xml creation
+Changed : 06/30/2017 rxv940 CCN Project....
+        : Updated the new .XSD and removed the check for non-nullable
+        : bank account number and name
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
 IS
@@ -1403,110 +1373,97 @@ IS
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
     V_DONE_FILE            VARCHAR2(100);
-    V_GOAHEAD              VARCHAR2(1) :='Y';
 BEGIN
     V_COMMENTS  := 'GEN_PARAM_UPD_SP Procedure started at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);    
 
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
     
-    --CHECK FOR THE DATA SOURCE. IF IT IS LEAD_BANK_CC OR MEMBER_BANK_CC THEN GO AHEAD.
-    --IF IT IS BANK CARD THEN CHECK FOR LEAD BANK CC OR MEMBER BANK CC. IF NOT THERE THEN IGNORE THIS CHANGE.
-    IF V_REC_POSDATA.DATA_SOURCE IN ('BANK_CARD') THEN
-        V_GOAHEAD := CREATE_PARAM_FILE(V_REC_POSDATA.COST_CENTER_CODE);
-    END IF;
-    
-    IF V_GOAHEAD ='Y' THEN
-        --step 1
-        --<xsd:element name="P-cval" type="xsd:string" nillable="true" minOccurs="2" maxOccurs="2"/>
-        V_LEAD_BANK_CC_REC := RETURN_LEAD_MEMBER_INFO(V_REC_POSDATA.COST_CENTER_CODE);
-        V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
+    --step 1
+    --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
+    V_LEAD_BANK_CC_REC := RETURN_LEAD_MEMBER_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
 
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR), 'P-cval') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR), 'P-cval') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
 
-        --Step 2
-        --<xsd:element name="store-number" type="xsd:string"/>
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_POSDATA.COST_CENTER_CODE), 'cost-center') || CHR(10);
+    --Step 2
+    --<xsd:element name="store-number" type="xsd:string"/>
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_POSDATA.COST_CENTER_CODE), 'cost-center') || CHR(10);
         
-        --Step 3
-        --<xsd:element name="logo1" type="xsd:string" nillable="true"/>
-        --<xsd:element name="logo2" type="xsd:string" nillable="true"/>
-        V_COST_CENTER_REC := RETURN_COST_CENTER_INFO(V_REC_POSDATA.COST_CENTER_CODE);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.PRI_LOGO_GROUP_IND), 'logo1') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.SCD_LOGO_GROUP_IND), 'logo2') || CHR(10);
+    --Step 3
+    --<xsd:element name="logo1" type="xsd:string" nillable="true"/>
+    --<xsd:element name="logo2" type="xsd:string" nillable="true"/>
+    V_COST_CENTER_REC := RETURN_COST_CENTER_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.PRI_LOGO_GROUP_IND), 'logo1') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.SCD_LOGO_GROUP_IND), 'logo2') || CHR(10);
 
-        --Step 4
-        --<xsd:element name="visamid" type="xsd:string" nillable="true"/>
-        --<xsd:element name="discovermid" type="xsd:string" nillable="true"/>
-        --<xsd:element name="amexmid" type="xsd:string" nillable="true"/>
-        --<xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
-        V_BANK_CARD_REC := RETURN_BANK_CARD_INFO(V_REC_POSDATA.COST_CENTER_CODE);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.MERCHANT_ID), 'visamid') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.DISCOVER_ID), 'discovermid') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.AMEX_SE_ID), 'amexmid') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.QUALITY_CODE), 'auth-qual-code') || CHR(10);
+    --Step 4
+    --<xsd:element name="visamid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="discovermid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="amexmid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
+    V_BANK_CARD_REC := RETURN_BANK_CARD_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.MERCHANT_ID), 'visamid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.DISCOVER_ID), 'discovermid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.AMEX_SE_ID), 'amexmid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.QUALITY_CODE), 'auth-qual-code') || CHR(10);
 
-        --Step 5
-        --<xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.PCI_MERCHANT_ID), 'paxsouthmid') || CHR(10);
+    --Step 5
+    --<xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.PCI_MERCHANT_ID), 'paxsouthmid') || CHR(10);
 
-        --Step 6
-        --<xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
-        --<xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
-        --<xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
+    --Step 6
+    --<xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
+    --<xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
+    --<xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
 
-        V_PROCESSORS_REC  := RETURN_PROCESSORS_INFO(V_REC_POSDATA.COST_CENTER_CODE);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_ID), 'payroll-processor') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_NAME), 'payroll-processor-name') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PHONE_NUMBER), 'payroll-processor-phone') || CHR(10);
+    V_PROCESSORS_REC  := RETURN_PROCESSORS_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_ID), 'payroll-processor') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_NAME), 'payroll-processor-name') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PHONE_NUMBER), 'payroll-processor-phone') || CHR(10);
 
-        V_XMLDATA       := '<parmUpdtRcd dtl_trans_type="R">' || CHR(10) ||
-                           V_XMLDATA ||
-                           '</parmUpdtRcd>' ||
-                           CHR(10);
-        V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
-        V_XMLDATA       := NULL; 
-        V_REC_COUNT     := V_REC_COUNT+1; 
+    V_XMLDATA       := '<parmUpdtRcd dtl_trans_type="R">' || CHR(10) ||
+                       V_XMLDATA ||
+                       '</parmUpdtRcd>' ||
+                       CHR(10);
+    V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
+    V_XMLDATA       := NULL;
+    V_REC_COUNT     := V_REC_COUNT+1;
 
-        V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
-        V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+    V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
                                     ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
-        V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
-                       '<parmUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10)||
-                       RETURN_HEADER_RECORD('POS1',
-                                            'PARAM',
-                                            V_REC_COUNT,
-                                            'U') || CHR(10) ||
-                       V_XMLOUTPUT ||
-                       '</parmUpdtMsg>';
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
+                   '<parmUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10)||
+                   RETURN_HEADER_RECORD('POS1',
+                                        'PARAM',
+                                        V_REC_COUNT,
+                                        'U') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</parmUpdtMsg>';
 
-        --Generate the output as a file.
-        DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
-                                   'CCN_DATAFILES',
-                                   V_FILE_NAME);
-        V_DONE_FILE := REPLACE(V_FILE_NAME,
-                               '.XML',
-                               '.POLLINGDONE');
-        DBMS_XSLPROCESSOR.CLOB2FILE('Done',
-                                    'CCN_DATAFILES',
-                                    V_DONE_FILE);
+    --Generate the output as a file.
+    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
+                               'CCN_DATAFILES',
+                               V_FILE_NAME);
+    V_DONE_FILE := REPLACE(V_FILE_NAME,
+                           '.XML',
+                           '.POLLINGDONE');
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
+                                'CCN_DATAFILES',
+                                V_DONE_FILE);
 
-        V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
-                                    ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+                                ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
-        --Update the POS-Downloads
-        V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
-        V_REC_POSDATA.FILE_PROCESSED := 'Y';
-        V_REC_POSDATA.COMMENTS       := V_COMMENTS;
+    --Update the POS-Downloads
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.COMMENTS       := V_COMMENTS;
          
-        POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-    ELSE
-        V_COMMENTS := 'No Lead or Member bank information to process. So ignore this change.';
-        V_REC_POSDATA.FILE_PROCESSED := 'Y';
-        V_REC_POSDATA.COMMENTS       := V_COMMENTS;
-        POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
-    END IF;
+    POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
 EXCEPTION
     WHEN OTHERS THEN
         V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
@@ -2144,18 +2101,18 @@ the order of the XML elements.
         <xsd:element name="parmUpdtRcd" minOccurs="1" maxOccurs="1">
           <xsd:complexType>
             <xsd:sequence>
-              <xsd:element name="P-cval" type="xsd:string" minOccurs="2" maxOccurs="2"/>
+              <xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
               <xsd:element name="cost-center" type="xsd:string"/>
               <xsd:element name="logo1" type="xsd:string" nillable="true"/>
               <xsd:element name="logo2" type="xsd:string" nillable="true"/>
-              <xsd:element name="visamid" type="xsd:string"/>
-              <xsd:element name="discovermid" type="xsd:string"/>
-              <xsd:element name="amexmid" type="xsd:string"/>
-              <xsd:element name="auth-qual-code" type="xsd:int"/>
-              <xsd:element name="paxsouthmid" type="xsd:string"/>
-              <xsd:element name="payroll-processor" type="xsd:string"/>
-              <xsd:element name="payroll-processor-name" type="xsd:string"/>
-              <xsd:element name="payroll-processor-phone" type="xsd:string"/>
+              <xsd:element name="visamid" type="xsd:string" nillable="true"/>
+              <xsd:element name="discovermid" type="xsd:string" nillable="true"/>
+              <xsd:element name="amexmid" type="xsd:string" nillable="true"/>
+              <xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
+              <xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
             </xsd:sequence>
             <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
           </xsd:complexType>
@@ -2168,8 +2125,7 @@ the order of the XML elements.
     </xsd:unique>
     <xsd:unique name="main-inx" prodata:primaryIndex="true">
       <xsd:selector xpath=".//parmUpdtRcd"/>
-      <xsd:field xpath="P-eff-dt"/>
-      <xsd:field xpath="P-seq-nbr"/>
+      <xsd:field xpath="cost-center"/>
     </xsd:unique>
   </xsd:element>
 </xsd:schema>
@@ -2181,6 +2137,9 @@ Changed : 04/06/2017 rxv940 CCN Project....
 Changed : 06/26/2017 rxv940 CCN Project....
         : Changed the XML tag store-number to cost-center and removed the
         : nabanco state and country codes from .xsd and .xml creation
+Changed : 06/30/2017 rxv940 CCN Project....
+        : Updated the new .XSD and removed the check for non-nullable
+        : bank account number and name
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -2198,7 +2157,6 @@ IS
     V_COST_CENTER_REC      COST_CENTER%ROWTYPE;
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
-    V_GOAHEAD              VARCHAR2(1) :='Y';
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
 
 BEGIN
@@ -2224,96 +2182,92 @@ BEGIN
                     ) LOOP
 
 
-        V_GOAHEAD := CREATE_PARAM_FILE(PARAM_REC.COST_CENTER_CODE);
+
+        --step 1
+        --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
+        V_LEAD_BANK_CC_REC := RETURN_LEAD_MEMBER_INFO(PARAM_REC.COST_CENTER_CODE);
+        V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
     
-        IF V_GOAHEAD ='Y' THEN
-            --step 1
-            --<xsd:element name="P-cval" type="xsd:string" nillable="true" minOccurs="2" maxOccurs="2"/>
-            V_LEAD_BANK_CC_REC := RETURN_LEAD_MEMBER_INFO(PARAM_REC.COST_CENTER_CODE);
-            V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR), 'P-cval') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
     
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR), 'P-cval') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
-    
-            --Step 2
-            --<xsd:element name="store-number" type="xsd:string"/>
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PARAM_REC.COST_CENTER_CODE), 'cost-center') || CHR(10);
+        --Step 2
+        --<xsd:element name="store-number" type="xsd:string"/>
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(PARAM_REC.COST_CENTER_CODE), 'cost-center') || CHR(10);
             
-            --Step 3
-            --<xsd:element name="logo1" type="xsd:string" nillable="true"/>
-            --<xsd:element name="logo2" type="xsd:string" nillable="true"/>
-            V_COST_CENTER_REC := RETURN_COST_CENTER_INFO(PARAM_REC.COST_CENTER_CODE);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.PRI_LOGO_GROUP_IND), 'logo1') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.SCD_LOGO_GROUP_IND), 'logo2') || CHR(10);
+        --Step 3
+        --<xsd:element name="logo1" type="xsd:string" nillable="true"/>
+        --<xsd:element name="logo2" type="xsd:string" nillable="true"/>
+        V_COST_CENTER_REC := RETURN_COST_CENTER_INFO(PARAM_REC.COST_CENTER_CODE);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.PRI_LOGO_GROUP_IND), 'logo1') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.SCD_LOGO_GROUP_IND), 'logo2') || CHR(10);
     
-            --Step 4
-            --<xsd:element name="visamid" type="xsd:string" nillable="true"/>
-            --<xsd:element name="discovermid" type="xsd:string" nillable="true"/>
-            --<xsd:element name="amexmid" type="xsd:string" nillable="true"/>
-            --<xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
-            V_BANK_CARD_REC := RETURN_BANK_CARD_INFO(PARAM_REC.COST_CENTER_CODE);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.MERCHANT_ID), 'visamid') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.DISCOVER_ID), 'discovermid') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.AMEX_SE_ID), 'amexmid') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.QUALITY_CODE), 'auth-qual-code') || CHR(10);
+        --Step 4
+        --<xsd:element name="visamid" type="xsd:string" nillable="true"/>
+        --<xsd:element name="discovermid" type="xsd:string" nillable="true"/>
+        --<xsd:element name="amexmid" type="xsd:string" nillable="true"/>
+        --<xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
+        V_BANK_CARD_REC := RETURN_BANK_CARD_INFO(PARAM_REC.COST_CENTER_CODE);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.MERCHANT_ID), 'visamid') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.DISCOVER_ID), 'discovermid') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.AMEX_SE_ID), 'amexmid') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.QUALITY_CODE), 'auth-qual-code') || CHR(10);
     
-            --Step 5
-            --<xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.PCI_MERCHANT_ID), 'paxsouthmid') || CHR(10);
+        --Step 5
+        --<xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.PCI_MERCHANT_ID), 'paxsouthmid') || CHR(10);
     
-            --Step 6
-            --<xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
-            --<xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
-            --<xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
+        --Step 6
+        --<xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
+        --<xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
+        --<xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
     
-            V_PROCESSORS_REC  := RETURN_PROCESSORS_INFO(PARAM_REC.COST_CENTER_CODE);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_ID), 'payroll-processor') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_NAME), 'payroll-processor-name') || CHR(10);
-            V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PHONE_NUMBER), 'payroll-processor-phone') || CHR(10);
+        V_PROCESSORS_REC  := RETURN_PROCESSORS_INFO(PARAM_REC.COST_CENTER_CODE);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_ID), 'payroll-processor') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_NAME), 'payroll-processor-name') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PHONE_NUMBER), 'payroll-processor-phone') || CHR(10);
     
-            V_XMLDATA       := '<parmUpdtRcd dtl_trans_type="R">' || CHR(10) ||
-                               V_XMLDATA ||
-                               '</parmUpdtRcd>' ||
-                               CHR(10);
-            V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
-            V_XMLDATA       := NULL; 
-            V_REC_COUNT     := V_REC_COUNT+1; 
+        V_XMLDATA       := '<parmUpdtRcd dtl_trans_type="R">' || CHR(10) ||
+                           V_XMLDATA ||
+                           '</parmUpdtRcd>' ||
+                           CHR(10);
+        V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
+        V_XMLDATA       := NULL;
+        V_REC_COUNT     := V_REC_COUNT+1;
             
-         END IF;   
 
     END LOOP;
 
 
-        V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
-        V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
-                                    ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
-        V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
-                       '<parmUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10)||
-                       RETURN_HEADER_RECORD('POS1',
-                                            'PARAM',
-                                            V_REC_COUNT,
-                                            'R') || CHR(10) ||
-                       V_XMLOUTPUT ||
-                       '</parmUpdtMsg>';
+    V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+                                ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
+                   '<parmUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10)||
+                   RETURN_HEADER_RECORD('POS1',
+                                        'PARAM',
+                                        V_REC_COUNT,
+                                        'R') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</parmUpdtMsg>';
 
-        --Generate the output as a file.
-        DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
-                                   'CCN_DATAFILES',
-                                   V_FILE_NAME);
+    --Generate the output as a file.
+    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
+                               'CCN_DATAFILES',
+                               V_FILE_NAME);
 
+    V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
+                                ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
-        V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
-                                    ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
-
-        --Update the POS-Downloads
-        V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
-        V_REC_POSDATA.FILE_PROCESSED := 'Y';
-        V_REC_POSDATA.COMMENTS       := V_COMMENTS;
+    --Update the POS-Downloads
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.COMMENTS       := V_COMMENTS;
          
-        POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
         
-        COMMIT;
+    COMMIT;
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -2325,7 +2279,7 @@ EXCEPTION
                                        'GEN_PARAM_UPD_SP',
                                        V_ERROR,
                                        '000000');
-                                       
+        RAISE;
 END INIT_LOAD_PARAM_SP;                   
 
 END POS_DATA_GENERATION;
