@@ -86,7 +86,7 @@ EXCEPTION
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DPST_BAGS_UPDATE_BATCH_PKG.PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
 END PROCESS;
 
-PROCEDURE INTRM_BAG_PROCESS(
+PROCEDURE INTRM_DPST_BAG_PROCESS(
 /******************************************************************************
   This procedure will update the deposit tickets on a daily
   basis based on the files we recieve from POS
@@ -97,8 +97,6 @@ Changed : 11/16/2016 nxk927 CCN Project....
           The interim deposit will be cosidered 1 per cost center
         : 06/13/2017 gxg192 Replaced table TEMP_INTERIM_DEPST with POS_INTERIM_DEPST
                      since data from new POS needs to be considered.
-        : 07/07/2017 nxk927 CCN Project....
-          changed the process name to INTRM_BAG_PROCESS
 *******************************************************************************/
 IN_SERVER_NAME  IN VARCHAR2,
 IN_LOGFILE      IN VARCHAR2
@@ -106,19 +104,18 @@ IN_LOGFILE      IN VARCHAR2
 V_BATCH_NUMBER                 BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS                 BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('INTRM_BAG_PROCESS', V_BATCH_NUMBER,IN_SERVER_NAME,IN_LOGFILE);
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('INTRM_DPST_BAG_PROC', V_BATCH_NUMBER,IN_SERVER_NAME,IN_LOGFILE);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     BEGIN
         FOR rec IN (SELECT DISTINCT COST_CENTER_CODE
-                      FROM POS_INTERIM_DEPST
-                     WHERE LOAD_DATE = TRUNC(SYSDATE)) LOOP
+                      FROM TEMP_INTERIM_DEPST) LOOP
             BEGIN
                 UPDATE BANK_DEP_BAG_TICK
                    SET DEPBAG_ONHAND_QTY      = NVL(DEPBAG_ONHAND_QTY,0) - 1
                  WHERE SUBSTR(COST_CENTER_CODE, 3) = rec.COST_CENTER_CODE;
             EXCEPTION
                 WHEN OTHERS THEN
-                    ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_BAG_PROCESS', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
+                    ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_DPST_BAG_PROC', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
             END;
             COMMIT;
         END LOOP;
@@ -128,12 +125,12 @@ BEGIN
             ROLLBACK;
     END;
     COMMIT;
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('INTRM_BAG_PROCESS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('INTRM_DPST_BAG_PROC', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_BAG_PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
-END INTRM_BAG_PROCESS;
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_DPST_BAG_PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
+END INTRM_DPST_BAG_PROCESS;
 
 PROCEDURE DPST_BAG_PROCESS(
 /******************************************************************************
@@ -153,8 +150,8 @@ BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     BEGIN
         FOR rec IN (SELECT DISTINCT COST_CENTER_CODE
-                      FROM POS_DPST_TICKET_COUNTS
-                     WHERE LOAD_DATE = TRUNC(SYSDATE)) LOOP
+                      FROM TEMP_DPST_TCKT_POS_CNTS
+                     WHERE TO_NUMBER(POS_COUNT) > 0) LOOP
             BEGIN
                 UPDATE BANK_DEP_BAG_TICK
                    SET DEPBAG_ONHAND_QTY      = NVL(DEPBAG_ONHAND_QTY,0) - 1
@@ -177,39 +174,5 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_DPST_BAG_PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
 END DPST_BAG_PROCESS;
-
-PROCEDURE INTRM_DPST_BAG_PROCESS(
-/******************************************************************************
-  This procedure will update the deposit tickets on a daily
-  basis based on the files we recieve from POS
-
-Created : 09/06/2016 nxk927 CCN Project....
-Changed : 11/16/2016 nxk927 CCN Project....
-          Grouping by just cost center. 
-          The interim deposit will be cosidered 1 per cost center
-        : 06/13/2017 gxg192 Replaced table TEMP_INTERIM_DEPST with POS_INTERIM_DEPST
-                     since data from new POS needs to be considered.
-*******************************************************************************/
-IN_SERVER_NAME  IN VARCHAR2,
-IN_LOGFILE      IN VARCHAR2
-)IS
-V_BATCH_NUMBER                 BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
-V_TRANS_STATUS                 BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('INTRM_DPST_BAG_PROCESS', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    BEGIN
-        --INTERIM PROCESS
-        INTRM_BAG_PROCESS(IN_SERVER_NAME,IN_LOGFILE);
-        
-        --DAILY DEPOSIT PROCESS
-        DPST_BAG_PROCESS(IN_SERVER_NAME,IN_LOGFILE);
-    END;
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('INTRM_DPST_BAG_PROCESS', V_BATCH_NUMBER, V_TRANS_STATUS);
-    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_DPST_BAG_PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
-END INTRM_DPST_BAG_PROCESS;
 
 END DPST_BAGS_UPDATE_BATCH_PKG;
