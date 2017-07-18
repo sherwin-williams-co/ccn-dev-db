@@ -419,68 +419,63 @@ EXCEPTION
         RETURN V_EMPLOYEE_DETAILS; 
 END RETURN_EMPLOYEE_DETAILS; 
  
-FUNCTION RETURN_POS_BANK_ACCNT_NBR (
+PROCEDURE GET_BNK_DTLS(
 /*******************************************************************************
-This function is used to return the lead member information
+This procedure is used to return employee details for a given cost center
 
-Created : 07/17/2017 rxv940 CCN Project....
-Changed : 
+Created : 07/18/2017 rxv940 CCN Project....
+
 *******************************************************************************/
-    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+    IN_COST_CENTER     IN  VARCHAR2,
+    OUT_BANK_ACCNT_NBR OUT VARCHAR2,
+    OUT_BANK_NAME OUT VARCHAR2)
 IS
-	V_BANK_ACCNT_NBR    VARCHAR2(20);
+    V_BNK_ACCNT_NBR      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
+    V_POS_BNK_ACCNT_NBR  LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_BANK_ACCOUNT_NM    BANK_ACCOUNT.BANK_NAME%TYPE ;
 BEGIN
+
     BEGIN
-        SELECT NVL(MEMBER_BANK_ACCOUNT_NBR, LEAD_BANK_ACCOUNT_NBR)
-          INTO V_BANK_ACCNT_NBR
-          FROM MEMBER_BANK_CC
-         WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
-           AND ROWNUM = 1;
+
+        SELECT NVL(MEMBER_BANK_ACCOUNT_NBR, LEAD_BANK_ACCOUNT_NBR), LEAD_BANK_ACCOUNT_NBR
+          INTO V_BNK_ACCNT_NBR, V_POS_BNK_ACCNT_NBR
+        FROM MEMBER_BANK_CC
+          WHERE MEMBER_STORE_NBR = IN_COST_CENTER;
+
     EXCEPTION
         WHEN OTHERS THEN
             NULL;
     END;
 
-    IF V_BANK_ACCNT_NBR IS NULL THEN
-        BEGIN
+    BEGIN
+
+        IF V_POS_BNK_ACCNT_NBR IS NULL THEN
+
             SELECT LEAD_BANK_ACCOUNT_NBR
-              INTO V_BANK_ACCNT_NBR
-              FROM LEAD_BANK_CC
-             WHERE LEAD_STORE_NBR = IN_COST_CENTER_CODE
-               AND ROWNUM = 1;
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-    END IF;
+              INTO V_POS_BNK_ACCNT_NBR
+            FROM LEAD_BANK_CC
+              WHERE LEAD_STORE_NBR = IN_COST_CENTER;
 
-    RETURN V_BANK_ACCNT_NBR;
+        END IF;
+
+        SELECT BANK_NAME
+          INTO V_BANK_ACCOUNT_NM
+        FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR = V_POS_BNK_ACCNT_NBR;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+
+    OUT_BANK_NAME      := V_BANK_ACCOUNT_NM;
+    OUT_BANK_ACCNT_NBR := NVL(V_BNK_ACCNT_NBR, V_POS_BNK_ACCNT_NBR);
+
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN V_BANK_ACCNT_NBR;
-END RETURN_POS_BANK_ACCNT_NBR;
-
-FUNCTION RETURN_BANK_ACCOUNT_INFO (
-/*******************************************************************************
-This function is used to return the bank account information
-
-Created : 10/17/2016 MXK766 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_ACCOUNT_NBR IN VARCHAR2) RETURN BANK_ACCOUNT%ROWTYPE
-IS
-    V_BANK_ACCOUNT_REC  BANK_ACCOUNT%ROWTYPE;
-BEGIN
-    SELECT *
-      INTO V_BANK_ACCOUNT_REC
-      FROM BANK_ACCOUNT
-     WHERE BANK_ACCOUNT_NBR = IN_ACCOUNT_NBR;
-
-    RETURN V_BANK_ACCOUNT_REC;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_BANK_ACCOUNT_REC;
-END RETURN_BANK_ACCOUNT_INFO;
+        OUT_BANK_NAME      := NULL;
+        OUT_BANK_ACCNT_NBR := NULL;
+END GET_BNK_DTLS;
 
 FUNCTION RETURN_BANK_CARD_INFO (
 /*******************************************************************************
@@ -1350,7 +1345,7 @@ Changed : 06/30/2017 rxv940 CCN Project....
         : Updated the new .XSD and removed the check for non-nullable
         : bank account number and name
 Changed : 07/17/2017 rxv940 CCN Project....
-        : Declared V_POS_BANK_ACCNT_NBR and using it instead of a record
+        : Changes to retrirve bank details using GET_BNK_DTLS
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
 IS
@@ -1363,9 +1358,9 @@ IS
     V_ERROR                VARCHAR2(1000);
     V_COMMENTS             VARCHAR2(4000);
     V_POS_BANK_ACCNT_NBR   VARCHAR2(20);
+    V_BANK_ACCOUNT_NM      BANK_ACCOUNT.BANK_NAME%TYPE;
     V_REC_COUNT            PLS_INTEGER :=0;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
-    V_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
     V_COST_CENTER_REC      COST_CENTER%ROWTYPE;
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
@@ -1374,6 +1369,10 @@ BEGIN
     V_COMMENTS  := 'GEN_PARAM_UPD_SP Procedure started at [ '||TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM')||' ] '||CHR(10);    
 
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
+
+    GET_BNK_DTLS(V_REC_POSDATA.COST_CENTER_CODE,
+                 V_POS_BANK_ACCNT_NBR,
+                 V_BANK_ACCOUNT_NM);
     
     --step 1
     --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
@@ -1381,7 +1380,7 @@ BEGIN
     V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_POS_BANK_ACCNT_NBR);
 
     V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_POS_BANK_ACCNT_NBR), 'P-cval') || CHR(10);
-    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_NM), 'P-cval') || CHR(10);
 
     --Step 2
     --<xsd:element name="store-number" type="xsd:string"/>
@@ -2138,7 +2137,7 @@ Changed : 06/30/2017 rxv940 CCN Project....
         : Updated the new .XSD and removed the check for non-nullable
         : bank account number and name
 Changed : 07/17/2017 rxv940 CCN Project....
-        : Declared V_POS_BANK_ACCNT_NBR and using it instead of a record
+        : Changes to retrirve bank details using GET_BNK_DTLS
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -2150,9 +2149,9 @@ IS
     V_ERROR                VARCHAR2(1000);
     V_COMMENTS             VARCHAR2(4000);
     V_POS_BANK_ACCNT_NBR   VARCHAR2(20);
+    V_BANK_ACCOUNT_NM      BANK_ACCOUNT.BANK_NAME%TYPE;
     V_REC_COUNT            PLS_INTEGER :=0;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
-    V_BANK_ACCOUNT_REC     BANK_ACCOUNT%ROWTYPE;
     V_COST_CENTER_REC      COST_CENTER%ROWTYPE;
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
@@ -2182,13 +2181,17 @@ BEGIN
 
 
 
+        GET_BNK_DTLS(PARAM_REC.COST_CENTER_CODE,
+                     V_POS_BANK_ACCNT_NBR,
+                     V_BANK_ACCOUNT_NM);
+
         --step 1
         --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
         V_POS_BANK_ACCNT_NBR := RETURN_POS_BANK_ACCNT_NBR(PARAM_REC.COST_CENTER_CODE);
         V_BANK_ACCOUNT_REC := RETURN_BANK_ACCOUNT_INFO(V_POS_BANK_ACCNT_NBR);
     
         V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_POS_BANK_ACCNT_NBR), 'P-cval') || CHR(10);
-        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_REC.BANK_NAME), 'P-cval') || CHR(10);
+        V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_NM), 'P-cval') || CHR(10);
     
         --Step 2
         --<xsd:element name="store-number" type="xsd:string"/>
