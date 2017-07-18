@@ -16,7 +16,8 @@ of transfer process or bank type change
 Returns 'Y' if it is part of bank type change
 
 Created : 10/21/2015 jxc517 CCN Project....
-Changed : 
+Changed : 10/10/2017 rxa457 CCN project Team...
+          When a Lead is directly attached first time to a Bank with a Future date then Future tab is not getting enabled in UI
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR    IN      BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2
 IS
@@ -27,14 +28,14 @@ BEGIN
     --virtual future with different effective date => its created as part of bank type change process and we should display it
     SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
       INTO V_RETURN_VAL
-      FROM LEAD_BANK_CC LB
+      FROM LEAD_BANK_CC_FUTURE LF
      WHERE LEAD_BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-       AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE
-       AND EXISTS (SELECT 1
-                     FROM LEAD_BANK_CC_FUTURE
-                    WHERE LEAD_STORE_NBR        = LB.LEAD_STORE_NBR
-                      AND LEAD_BANK_ACCOUNT_NBR = LB.LEAD_BANK_ACCOUNT_NBR
-                      AND EFFECTIVE_DATE        <> LB.EFFECTIVE_DATE);
+       AND NOT EXISTS(SELECT 1
+      FROM LEAD_BANK_CC LB
+                       WHERE LB.LEAD_BANK_ACCOUNT_NBR             = LF.LEAD_BANK_ACCOUNT_NBR
+                         AND LB.LEAD_STORE_NBR                    = LF.LEAD_STORE_NBR
+                         AND NVL(LB.EXPIRATION_DATE, SYSDATE + 1) <= SYSDATE
+                         AND LB.EFFECTIVE_DATE                    = LF.EFFECTIVE_DATE);
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -172,6 +173,8 @@ Created : 07/09/2015 jxc517 CCN Project....
 Changed : 01/15/2015 dxv848 CCN Project....
           Adding the condition if the bank_account effective_date is greater than the sysdate
           Then that bank_account in future table.
+Changed : 07/12/2017 rxa457 CCN Project Team...
+              Building Future TAB types when the save is initiated from Future tab irrespective of bank effective date to get the correct future ID
 *******************************************************************************/
     IN_XML                         IN     CLOB,
     O_BANK_ACCOUNT_REC                OUT BANK_ACCOUNT%ROWTYPE,
@@ -221,7 +224,8 @@ BEGIN
         END CASE;
     END LOOP;
     V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
-    IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) THEN
+    --if the bank effective date is greater then the sysdate or If the save is initiated from the Future tab then it goes to future V_FLAG = 'F'
+       IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) OR V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
        --if the effective is greater then the sysdate then it goes to future so extracting the bank acount and getting the future id
        IF NOT V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
           V_BANK_ACCOUNT_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();
@@ -367,6 +371,8 @@ Changed : 10/14/2015 jxc517 CCN Project....
           Code has been changed to deal with virtual futures
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+Changed : rxa457 07/18/2017 CCN Project Team...
+             Removed unused IN parameter IN_BANK_TYPE_CHNG_VRTL_FTR from package call VIRTUAL_FUTURE_MAINTENANCE_PKG.VIRTUAL_FUTURE_UPSERT_SP								
 *******************************************************************************/
     IN_BANK_ACCOUNT_REC                IN BANK_ACCOUNT%ROWTYPE,
     IN_LEAD_BANK_CC_REC                IN LEAD_BANK_CC%ROWTYPE,
@@ -400,8 +406,7 @@ BEGIN
     IF V_REAL_FUTURE_BANK_ACCOUNT = 'N' THEN
         VIRTUAL_FUTURE_MAINTENANCE_PKG.VIRTUAL_FUTURE_UPSERT_SP(IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR,
                                                                 V_REAL_FUTURE_BANK_ACCOUNT,
-                                                                V_TRANSFER_VRTL_FTR,
-                                                                V_BANK_TYPE_CHNG_VRTL_FTR);
+                                                                V_TRANSFER_VRTL_FTR);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -901,8 +906,8 @@ Changed : 10/07/2015 jxc517 CCN Project....
           Added logic to support future dated lead effective dates, to create future details
         : 12/10/2015 dxv848 added to logic to check for the future which is already exists
 Changed : 07/07/2017 rxa457 CCN Project Team...
-              ACCNT_MNTNC_LEAD_PROCESS should be called to delete existing futures before calling BUILD_FUTURE_FROM_CURRENT which generates Future ID
-              referece ASP-808 where future ID is getting upated as +1 every time a save button is hot from account maintenance screen with a future lead 
+              ACCNT_MNTNC_LEAD_PROCESS should be called ahead of calling Business Rules Package and Future upsert
+              Before this change, Business rules package is not being called for Virtual Bank Future scenarios where bank eff date is current and lead eff date is in future.. This is being fixed by calling Business rules package for all scenarios
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB)
 IS
@@ -913,7 +918,35 @@ IS
     V_BANK_MICR_FORMAT_TAB            TABLE_IU_PKG.BANK_MICR_FORMAT_TAB_TYPE;
     V_BANK_MICR_FORMAT_FUTURE_TAB     TABLE_IU_PKG.BANK_MICR_FORMAT_FTR_TAB_TYPE;
     V_ROW_DATA                        XMLTYPE := SYS.XMLTYPE(IN_ROW_DATA);
+    V_FUTURE_ID                       BANK_ACCOUNT_FUTURE.FUTURE_ID%TYPE;
+    V_BANK_EFFECTIVE_DATE             BANK_ACCOUNT.EFFECTIVE_DATE%TYPE;
+    V_LEAD_EFFECTIVE_DATE             LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;
+    V_BANK_ACCOUNT_NBR                BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
+    V_LEAD_STORE_NBR                  LEAD_BANK_CC.LEAD_STORE_NBR%TYPE;      
 BEGIN
+    --Fetching Lead Effective Date, Bank Effective Date, Lead Store nbr and bank account Nbr from the input row data
+    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
+       V_FUTURE_ID := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()').GETSTRINGVAL();
+    END IF;
+    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()') = 1 THEN
+       V_BANK_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
+    END IF;
+    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/EFFECTIVE_DATE/text()') = 1 THEN
+       V_LEAD_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
+    END IF;
+    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()') = 1 THEN
+       V_BANK_ACCOUNT_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();
+    END IF;
+    IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()') = 1 THEN
+       V_LEAD_STORE_NBR   := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/LEAD_BANK_CC/LEAD_STORE_NBR/text()').GETSTRINGVAL();
+    END IF;
+
+    IF V_FUTURE_ID IS NOT NULL OR V_LEAD_EFFECTIVE_DATE > TRUNC(SYSDATE) THEN
+       IF V_LEAD_EFFECTIVE_DATE >= V_BANK_EFFECTIVE_DATE THEN
+          ACCNT_MNTNC_LEAD_PROCESS(V_LEAD_STORE_NBR,V_BANK_ACCOUNT_NBR);
+       END IF;
+    END IF;
+
     --Below code runs once per tab, which means we run either current or future tab at a time but not both at the same time
     BUILD_TABLE_TYPES(IN_ROW_DATA,
                       V_BANK_ACCOUNT_REC,
@@ -927,28 +960,26 @@ BEGIN
     --The future "I" comes to current once the date hits, so this "I" record should go into future table even though
     --we got them as current details from UI. Below IF condition will take care of this particular scenario
     IF TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE) > TRUNC(SYSDATE)  THEN
-        --if the bank_account future effective date is greater than the lead_bank effective date then check if the existing futures are present
-        --if present then delete those futres first reactivate the current. then create the future
-        IF TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE) >= TRUNC(V_BANK_ACCOUNT_REC.EFFECTIVE_DATE) THEN
-            ACCNT_MNTNC_LEAD_PROCESS(V_LEAD_BANK_CC_REC.LEAD_STORE_NBR,V_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR);
-        END IF;
-        BUILD_FUTURE_FROM_CURRENT(V_BANK_ACCOUNT_REC,
-                                  V_LEAD_BANK_CC_REC,
-                                  V_BANK_MICR_FORMAT_TAB,
-                                  V_BANK_ACCOUNT_FUTURE_REC,
-                                  V_LEAD_BANK_CC_FUTURE_REC,
-                                  V_BANK_MICR_FORMAT_FUTURE_TAB);
+       BUILD_FUTURE_FROM_CURRENT(V_BANK_ACCOUNT_REC,
+                                 V_LEAD_BANK_CC_REC,
+                                 V_BANK_MICR_FORMAT_TAB,
+                                 V_BANK_ACCOUNT_FUTURE_REC,
+                                 V_LEAD_BANK_CC_FUTURE_REC,
+                                 V_BANK_MICR_FORMAT_FUTURE_TAB);
         V_BANK_ACCOUNT_REC := NULL;
         V_LEAD_BANK_CC_REC := NULL;
         V_BANK_MICR_FORMAT_TAB.DELETE();
-    ELSE
-        BUSINESS_RULES_PKG.ACCOUNT_MAINTENANCE_BR_SP(V_BANK_ACCOUNT_REC,
-                                                     V_BANK_ACCOUNT_FUTURE_REC,
-                                                     V_LEAD_BANK_CC_REC,
-                                                     V_LEAD_BANK_CC_FUTURE_REC,
-                                                     V_BANK_MICR_FORMAT_TAB,
-                                                     V_BANK_MICR_FORMAT_FUTURE_TAB);
     END IF;
+
+    --Calling Business Rules Pacakge for all scenarios including Virtual Future scenarios 
+      --where Bank effective date is current and Lead effective date is in Future
+    BUSINESS_RULES_PKG.ACCOUNT_MAINTENANCE_BR_SP(V_BANK_ACCOUNT_REC,
+                                                 V_BANK_ACCOUNT_FUTURE_REC,
+                                                 V_LEAD_BANK_CC_REC,
+                                                 V_LEAD_BANK_CC_FUTURE_REC,
+                                                 V_BANK_MICR_FORMAT_TAB,
+                                                 V_BANK_MICR_FORMAT_FUTURE_TAB);
+
     IF V_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN --Current Details
         ACCNT_MNTNC_CURRENT_UPSERT_SP(V_BANK_ACCOUNT_REC,
                                       V_LEAD_BANK_CC_REC,
