@@ -12,6 +12,7 @@
 
 proc_name="SRA11000_get_input_files"
 DATE=`date +"%m/%d/%Y"`
+dt=`date +"%m%d%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
@@ -27,7 +28,7 @@ quote pass ${trsry_pwd}
 cd "/sw/smart_adm/loads/ach/data/ach"
 pwd
 SITE BLKSIZE(9400) LRECL(94) RECFM(FB) CYLINDER SPACE(1,1)
-get stores_ach.txt
+get stores_ach.txt stores_ach_$dt.txt
 bye
 END_SCRIPT
 echo "bye the transfer is complete"

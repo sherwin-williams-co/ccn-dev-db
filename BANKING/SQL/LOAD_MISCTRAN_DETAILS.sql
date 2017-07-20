@@ -1,16 +1,16 @@
 /*
 Created : nxk927 03/21/2017
           Truncating and loading the MISCTRAN_DETAILS table with the source bank account number
+Modified: 06/05/2017 rxa457 asp-761 CCN Project team.. 
+          Cost center code will now be 6 digit code IN BOTH MISCTRAN, OVERSHRT and nomore a 4 digit code
+          AMount field is numeric with 2 decimals points and nomore a varchar2 field
 */
 
 DECLARE
     CURSOR main_cursor IS
         SELECT MT.BANK_ACCOUNT_NBR,
-               (SELECT COST_CENTER_CODE
-                  FROM COST_CENTER
-                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(MT.COST_CENTER_CODE)
-                   AND ROWNUM < 2) AS COST_CENTER_CODE,
-               MT.AMOUNT/100,
+               MT.COST_CENTER_CODE,
+               MT.AMOUNT,
                MT.TRANSACTION_DATE,
                MT.TCODE,
                (SELECT NAME
@@ -28,8 +28,8 @@ DECLARE
                BA.IDI_BANK_SHORT_NAME,
                (SELECT CC.COST_CENTER_CODE 
                   FROM COSTCNTR.COST_CENTER CC 
-                 WHERE SUBSTR(CC.COST_CENTER_CODE,-4) = NVL(PSD.PRIME_SUB_COST_CENTER, MT.COST_CENTER_CODE)
-				   AND ROWNUM <2) AS BOOKING_COST_CENTER,
+                 WHERE SUBSTR(CC.COST_CENTER_CODE,-4) = NVL(PSD.PRIME_SUB_COST_CENTER, SUBSTR(MT.COST_CENTER_CODE,3))
+                   AND ROWNUM <2) AS BOOKING_COST_CENTER,
                MT.ORIGINATED_BANK_ACCNT_NBR
           FROM MISCTRAN MT,
                PRIME_SUB_DETAIL PSD,
@@ -38,11 +38,8 @@ DECLARE
            AND MT.BANK_ACCOUNT_NBR = LPAD(REPLACE(BA.BANK_ACCOUNT_NBR(+),'-'), 17, 0)
          UNION
         SELECT OS.BANK_ACCOUNT_NBR,
-               (SELECT COST_CENTER_CODE
-                  FROM COST_CENTER
-                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(OS.COST_CENTER_CODE)
-                   AND ROWNUM < 2) AS COST_CENTER_CODE,
-               OS.AMOUNT/100,
+               OS.COST_CENTER_CODE,
+               OS.AMOUNT,
                OS.TRANSACTION_DATE,
                OS.TCODE,
                (SELECT NAME
@@ -60,7 +57,7 @@ DECLARE
                BA.IDI_BANK_SHORT_NAME,
                (SELECT CC.COST_CENTER_CODE 
                   FROM COSTCNTR.COST_CENTER CC 
-                 WHERE SUBSTR(CC.COST_CENTER_CODE,-4) = NVL(PSD.PRIME_SUB_COST_CENTER, OS.COST_CENTER_CODE)
+                 WHERE SUBSTR(CC.COST_CENTER_CODE,-4) = NVL(PSD.PRIME_SUB_COST_CENTER, SUBSTR(OS.COST_CENTER_CODE,3))
                    AND ROWNUM <2) AS BOOKING_COST_CENTER,
                OS.ORIGINATED_BANK_ACCNT_NBR
           FROM OVERSHRT OS,

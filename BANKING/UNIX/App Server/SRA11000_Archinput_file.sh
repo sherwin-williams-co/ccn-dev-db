@@ -11,6 +11,8 @@
 #            changed the files that we consider for this process
 #          : 04/20/2017 nxk927 CCN Project Team.....
 #            source file changed. Using the source file provided by marcy Lee.
+#          : 07/20/2017 nxk927 CCN Project Team.....
+#            source file changed. archiving the new file provided by treasury
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -26,18 +28,12 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                        Archive files to folder
 #################################################################
-if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510_*.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist"
-fi
 
-if ls $DATA_FILES_PATH/SRA10910_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10910_*.TXT files exist "
-    mv $DATA_FILES_PATH/SRA10910_*.TXT $ARCHIVE_PATH/$FOLDER
+if ls $DATA_FILES_PATH/stores_ach_*.txt &> /dev/null; then
+    echo "$DATA_FILES_PATH/stores_ach.txt files exist "
+    mv $DATA_FILES_PATH/stores_ach_*.txt $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/SRA10910_*.TXT files does not exist"
+    echo "$DATA_FILES_PATH/stores_ach.txt files does not exist"
 fi
 
 if ls $MSCTRAN_PATH/misctran*.txt &> /dev/null; then

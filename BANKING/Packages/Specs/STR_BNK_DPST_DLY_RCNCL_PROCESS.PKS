@@ -9,6 +9,33 @@ Changed :
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
+PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
+/******************************************************************************
+  This procedure generates Report if there are mismatch in the source bank 
+  account number and db bank account
+
+Created : 06/23/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_TABLE_NAME IN    VARCHAR2,
+IN_DATE       IN    DATE,
+IN_CATEGORY   IN    VARCHAR2);
+
+PROCEDURE GET_LEAD_BANK_RECORD(
+/******************************************************************************
+  This procedure gets the lead bank record for the cost center passed in
+
+Created : 06/22/2015 jxc517 CCN Project....
+Changed : Parameter IN_COST_CENTER_CODE should be passed as 4 characters. If 6 characters
+          use substr(cc,3)
+Changed : 06/20/2017 jxc517/nxk927 CCN Project....
+          Added IN_DATE parameter
+          Added condition to get the lead bank account number as of the Bank Deposit Day
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+IN_DATE                   IN     DATE,
+OUT_LEAD_BANK_RECORD         OUT LEAD_BANK_CC%ROWTYPE);
+
 FUNCTION RETURN_REFEED_CODE(
 /*****************************************************************************
   This function will return the refeed code from the Refeed_lookup_tb for the 
@@ -49,5 +76,39 @@ Created : 11/07/2016 jxc517 CCN Project....
 Changed :
 *******************************************************************************/
 IN_DATE            IN         DATE);
+
+
+PROCEDURE GENERATE_BNK_DRFT_CRRCTN_FILE(
+/******************************************************************************
+  This procedure will generate UAR BANK DRAFT CORRECTION FILE [SRA12060] file using
+  MISCTRAN and OVERSHRT files we receive from Corporate Treasurers Department
+
+as per requirements document:
+SRA13513 [CFA TRANS] --> SRA15010 [CFA TRANS] --> SWSD.BANK.DRAFT.CORRECTS
+CFA => Cash Flow Adjustments
+
+Created : 10/27/2016 jxc517 CCN Project....
+Changed : 11/09/2016 jxc517 CCN Project....
+          modified the file name from TXT to txt
+Changed : 03/17/2017 nxk927 CCN Project....
+          OC/RC should be '-' and OD/RD should be '+'
+          combining multiple transactions into one
+Changed : 03/21/2017 jxc517 CCN Project Team....
+          Added code NOT to consider refeed codes 0049 and 0055
+*******************************************************************************/
+IN_DATE            IN         DATE);
+
+FUNCTION cost_center_look_up_fnc( 
+/**********************************************************
+This function will return 6 digit COST_CENTER_CODE
+when the 4-digit code is passed or just the 4 digit cost center code if matching cost center code is not found 
+Error is raised if error flag is set to Yes else No error will be raised
+
+created : 06/08/2017 rxa457 CCN Project Team..
+**********************************************************/
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
+in_error_flag IN VARCHAR DEFAULT 'Y'
+)
+RETURN VARCHAR2;   
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
