@@ -9,6 +9,42 @@ Changed :
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
+FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
+/******************************************************************************
+This procedure performs all the business rules that are applicable Account Maintenance Window
+
+created : 06/19/2015 jxc517 CCN Project....
+revised : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
+
+PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
+/******************************************************************************
+  This procedure generates Report if there are mismatch in the source bank 
+  account number and db bank account
+
+Created : 06/23/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_TABLE_NAME IN    VARCHAR2,
+IN_DATE       IN    DATE,
+IN_CATEGORY   IN    VARCHAR2);
+
+PROCEDURE GET_LEAD_BANK_RECORD(
+/******************************************************************************
+  This procedure gets the lead bank record for the cost center passed in
+
+Created : 06/22/2015 jxc517 CCN Project....
+Changed : Parameter IN_COST_CENTER_CODE should be passed as 4 characters. If 6 characters
+          use substr(cc,3)
+Changed : 06/20/2017 jxc517/nxk927 CCN Project....
+          Added IN_DATE parameter
+          Added condition to get the lead bank account number as of the Bank Deposit Day
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+IN_DATE                   IN     DATE,
+OUT_LEAD_BANK_RECORD         OUT LEAD_BANK_CC%ROWTYPE);
+
 FUNCTION RETURN_REFEED_CODE(
 /*****************************************************************************
   This function will return the refeed code from the Refeed_lookup_tb for the 
@@ -50,7 +86,6 @@ Changed :
 *******************************************************************************/
 IN_DATE            IN         DATE);
 
-
 FUNCTION COST_CENTER_LOOK_UP_FNC( 
 /**********************************************************
 THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
@@ -60,8 +95,7 @@ ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
 CREATED : 06/08/2017 RXA457 CCN PROJECT TEAM..
 **********************************************************/
 IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
-IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
-)
-RETURN VARCHAR2;   
+IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y')
+RETURN VARCHAR2;
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
