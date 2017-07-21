@@ -18,7 +18,6 @@ PROC="check_sra11000_process"
 DATE=`date +"%m%d%Y"`
 TIME=`date +"%H%M%S"`
 LOG_NAME="$PROC"_$DATE_$TIME.log
-BG_PROCESSES_EXECUTING=FALSE
 
 echo "Processing Started for "$PROC" at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
 
@@ -29,11 +28,6 @@ echo "Processing Started for "$PROC" at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
 process_name=pos_data_check.sh
 FIND=`ps -elf | grep $process_name | grep -v grep`
 if [ "$FIND" != "" ]
-then
-BG_PROCESSES_EXECUTING=TRUE
-fi
-
-if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
 ./send_mail.sh SRA11000_PROCESS_FAIL
 kill -9 $(ps -ef | grep -v grep | grep $process_name | awk '{print $2}')
