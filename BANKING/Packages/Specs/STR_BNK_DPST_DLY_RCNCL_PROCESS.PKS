@@ -51,36 +51,16 @@ Changed :
 IN_DATE            IN         DATE);
 
 
-PROCEDURE GENERATE_BNK_DRFT_CRRCTN_FILE(
-/******************************************************************************
-  This procedure will generate UAR BANK DRAFT CORRECTION FILE [SRA12060] file using
-  MISCTRAN and OVERSHRT files we receive from Corporate Treasurers Department
-
-as per requirements document:
-SRA13513 [CFA TRANS] --> SRA15010 [CFA TRANS] --> SWSD.BANK.DRAFT.CORRECTS
-CFA => Cash Flow Adjustments
-
-Created : 10/27/2016 jxc517 CCN Project....
-Changed : 11/09/2016 jxc517 CCN Project....
-          modified the file name from TXT to txt
-Changed : 03/17/2017 nxk927 CCN Project....
-          OC/RC should be '-' and OD/RD should be '+'
-          combining multiple transactions into one
-Changed : 03/21/2017 jxc517 CCN Project Team....
-          Added code NOT to consider refeed codes 0049 and 0055
-*******************************************************************************/
-IN_DATE            IN         DATE);
-
-FUNCTION cost_center_look_up_fnc( 
+FUNCTION COST_CENTER_LOOK_UP_FNC( 
 /**********************************************************
-This function will return 6 digit COST_CENTER_CODE
-when the 4-digit code is passed or just the 4 digit cost center code if matching cost center code is not found 
-Error is raised if error flag is set to Yes else No error will be raised
+THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
+WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING COST CENTER CODE IS NOT FOUND 
+ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
 
-created : 06/08/2017 rxa457 CCN Project Team..
+CREATED : 06/08/2017 RXA457 CCN PROJECT TEAM..
 **********************************************************/
-in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
-in_error_flag IN VARCHAR DEFAULT 'Y'
+IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
+IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
 )
 RETURN VARCHAR2;   
 
