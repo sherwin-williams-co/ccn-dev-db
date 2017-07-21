@@ -463,20 +463,20 @@ exc_dep_bag_reordr_swtc_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_dep_bag_reordr_swtc_err , -20040);
 
 /*********************************************************** 
-The "invalid_cost_center_err" passes a numerical error of -20001.
+The "invalid_cost_center_err" passes a numerical error of -20041.
 An error occurs when Cost Center cannot be found.
 
 created : 06/12/2017 rxa457 CCN Project Team...
 revisions: 
 
 ************************************************************/
-en_invalid_cost_center_err CONSTANT NUMBER := -20001;
+en_invalid_cost_center_err CONSTANT NUMBER := -20041;
 exc_invalid_cost_center_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
-(exc_invalid_cost_center_err , -20001);
+(exc_invalid_cost_center_err , -20041);
 
 /*********************************************************** 
-The "dup_mainframe_costcntr_err" passes a numerical error of -20156.
+The "dup_mainframe_costcntr_err" passes a numerical error of -20042.
 This error will state that the entered new cost center has same 
 last 4 characters as one already existsing in the system. 
 
@@ -484,10 +484,10 @@ created : 06/12/2017 rxa457 CCN Project Team...
 revisions: 
 
 ************************************************************/
-en_dup_mainframe_costcntr_err CONSTANT NUMBER := -20156;
+en_dup_mainframe_costcntr_err CONSTANT NUMBER := -20042;
 exc_dup_mainframe_costcntr_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
-(EXC_DUP_MAINFRAME_COSTCNTR_ERR , -20156);
+(EXC_DUP_MAINFRAME_COSTCNTR_ERR , -20042);
 
 
 END ERRNUMS;
