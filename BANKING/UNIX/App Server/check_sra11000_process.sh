@@ -26,18 +26,16 @@ echo "Processing Started for "$PROC" at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
 #######################################
 #  Start of background process check  #
 #######################################
-MAIL_MESSAGE=""
 process_name=pos_data_check.sh
 FIND=`ps -elf | grep $process_name | grep -v grep`
 if [ "$FIND" != "" ]
 then
 BG_PROCESSES_EXECUTING=TRUE
-MAIL_MESSAGE+=$process_name","
 fi
 
 if [ "$BG_PROCESSES_EXECUTING" == "TRUE" ]
 then
-./send_mail.sh "SRA11000_PROCESS_FAIL" "PROCESS FAILED"
+./send_mail.sh SRA11000_PROCESS_FAIL
 kill -9 $(ps -ef | grep -v grep | grep $process_name | awk '{print $2}')
 fi
 
