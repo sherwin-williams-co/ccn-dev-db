@@ -13,7 +13,6 @@
 # if datacheck is NOTREADY send mail once and check for the file.
 #####################################################################
 proc="pos_data_check"
-TIME=`date +"%H:%M:%S"`
 DATE=`date '+%Y-%m-%d'`
 init_path="$HOME/initLoad"
 
@@ -27,7 +26,7 @@ EOF`
    then
       TIME=`date +"%H:%M:%S"`
       echo "Processing Started for $proc at $TIME on $DATE"
-      #./SRA11000_dailyRun.sh
+      ./SRA11000_dailyRun.sh
       TIME=`date +"%H:%M:%S"`
       echo "Processing finished for $proc at $TIME on $DATE"
       exit 0
