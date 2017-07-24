@@ -9,15 +9,6 @@ Changed :
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
-FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
-/******************************************************************************
-This procedure performs all the business rules that are applicable Account Maintenance Window
-
-created : 06/19/2015 jxc517 CCN Project....
-revised : 
-*******************************************************************************/
-IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
-
 PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
 /******************************************************************************
   This procedure generates Report if there are mismatch in the source bank 
