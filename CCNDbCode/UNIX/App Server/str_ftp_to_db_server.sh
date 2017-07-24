@@ -25,16 +25,16 @@ while(true)
 do
 
 #Check for .REQUEST file 
-if [ $(ls "$DATADIR/StoreUpdate_"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
+if [ $(ls "$DATADIR/StoreUpdate_"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ]
 then
-    
+
     DATE=`date +"%m/%d/%Y"`
     TIME=`date +"%H:%M:%S"`
     echo " $PROC_NAME --> call to str_mv_rqst_to_db_server.sh started at $DATE : $TIME "
-    
+
     ./str_mv_rqst_to_db_server.sh
-    
-    TIME=`date +"%H:%M:%S"` 
+
+    TIME=`date +"%H:%M:%S"`
     echo " $PROC_NAME --> call to str_mv_rqst_to_db_server.sh finished at $DATE : $TIME "
 
 fi

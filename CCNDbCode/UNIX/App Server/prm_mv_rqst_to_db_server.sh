@@ -1,15 +1,15 @@
 #!/bin/sh
 ###############################################################################################################################
-# Script name   : str_mv_rqst_to_db_server.sh
+# Script name   : prm_mv_rqst_to_db_server.sh
 # Description   : This script is to transfer files from db server to app server.
 #
 # Created  : 07/05/2017 rxv940 CCN Project Team.....
-# Modified :
+# Modified : 
 ###############################################################################################################################
 
 . /app/ccn/ccn.config
 
-PROC_NAME="str_mv_rqst_to_db_server.sh"
+PROC_NAME="prm_mv_rqst_to_db_server.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
 ARCHIVEDIR="$HOME/POSdownloads/POSxmls/archivefiles"
 DATE=$(date +"%d%m%Y")
@@ -18,10 +18,10 @@ TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Processing started at $DATE:$TIME "
 cd "$DATADIR" || exit
 
-for files in "$STR_FILE_NAME"*".REQUEST"
+for files in "$PRM_FILE_NAME"*".REQUEST"
 do
-
-    echo " $PROC_NAME --> FTP of $files to dbserver $CCNDBUSERNAME@$CCNDBSERVERHOST started at $DATE:$TIME "
+    
+    echo " $PROC_NAME --> FTP of $files to dbserver $CCNDBUSERNAME@$CCNDBSERVERHOST started at $DATE:$TIME " 
     $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$files"
 
     status=$?
@@ -34,9 +34,9 @@ do
 
 ################################# END OF ERROR CHECK #################################
 
-    echo " $PROC_NAME --> Archive of $files started at $DATE:$TIME "
+    echo " $PROC_NAME --> Archive of $files started at $DATE:$TIME " 
 
-    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$files"
+    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$files" 
 
     status=$?
     TIME=$(date +"%H%M%S")

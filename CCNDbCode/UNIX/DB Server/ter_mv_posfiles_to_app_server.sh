@@ -1,6 +1,6 @@
 #!/bin/sh
 ###############################################################################################################################
-# Script name   : str_mv_posfiles_to_app_server.sh
+# Script name   : ter_mv_posfiles_to_app_server.sh
 # Description   : This script is to transfer Store files from db server to app server.
 #
 # Created  : 07/03/2017 rxv940 CCN Project Team.....
@@ -8,14 +8,14 @@
 ###############################################################################################################################
 
 . /app/ccn/host.sh
-PROC_NAME=str_mv_posfiles_to_app_server.sh
+PROC_NAME=ter_mv_posfiles_to_app_server.sh
 DATADIR="$HOME"/datafiles
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Process started at $DATE:$TIME " 
 cd "$DATADIR" || exit
 
-for files in "$STR_FILE_NAME"*".POLLINGDONE"
+for files in "$TER_FILE_NAME"*".POLLINGDONE"
 do
     FILENAME=$(echo "$files" | sed -e 's/POLLINGDONE/XML/g')
     DONEFILENAME=$files

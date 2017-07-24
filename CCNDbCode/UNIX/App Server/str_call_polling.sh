@@ -5,7 +5,7 @@
 # Description   : This script is to call polling process for Store 
 #               : on the arrival of .XML and .POLLINGDONE files in the APP Server
 # Created  : 07/03/2017 rxv940 CCN Project Team.....
-# Modified : 
+# Modified :
 #####################################################################################
 
 #Run below command to make the process run in the background even after shutdown

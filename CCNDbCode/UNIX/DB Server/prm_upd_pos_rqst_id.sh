@@ -1,6 +1,6 @@
 #!/bin/sh
 ############################################################################
-# Script name : str_upd_pos_rqst_id.sh
+# Script name : prm_upd_pos_rqst_id.sh
 # Description : This shell script will call call the DB proc to 
 #               update the POS_DOWNLOADS table with request id
 #
@@ -10,7 +10,7 @@
 ############################################################################
 . /app/ccn/host.sh
 
-PROC_NAME="str_upd_pos_rqst_id.sh"
+PROC_NAME="prm_upd_pos_rqst_id.sh"
 DATADIR="$HOME"/datafiles
 ARCHIVEDIR="$HOME"/datafiles/polling/archive
 ERRORDIR="$HOME"/datafiles/polling/error
@@ -19,7 +19,7 @@ TIME=$(date +"%H%M%S")
 
 echo " $PROC_NAME --> Process started at $DATE:$TIME "
 
-for files in "$DATADIR/$STR_FILE_NAME"*".REQUEST"
+for files in "$DATADIR/$PRM_FILE_NAME"*".REQUEST"
 do
 
 FILENAME=$(basename "$files" | sed -e 's/REQUEST/XML/g')
@@ -32,7 +32,7 @@ then
     
     REQUESTID=$(cat "$files")
     echo " $PROC_NAME --> The respnose in the response file $FILENAME is $REQUESTID "
-    ./str_exec_pos_downloads_update.sh "$FILENAME" "$REQUESTID" 	
+    ./prm_exec_pos_downloads_update.sh "$FILENAME" "$REQUESTID" 	
     status=$?
     TIME=$(date +"%H%M%S")
     
