@@ -19,51 +19,6 @@ Created : 06/19/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
 
-FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
-/******************************************************************************
-This procedure performs all the business rules that are applicable Account Maintenance Window
-created : 06/19/2015 jxc517 CCN Project....
-revised : 
-*******************************************************************************/
-IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
-IS
-V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
-BEGIN
-    --Check in Lead/Independent cost centers for bank account number
-    BEGIN
-        SELECT LEAD_BANK_ACCOUNT_NBR
-          INTO V_BANK_ACCOUNT_NBR
-          FROM LEAD_BANK_CC
-         WHERE substr(LEAD_STORE_NBR,3) = IN_COST_CENTER_CODE
-           AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE
-           AND ROWNUM < 2;
-    EXCEPTION
-        WHEN OTHERS THEN
-            NULL;
-    END;
-    IF V_BANK_ACCOUNT_NBR IS NULL THEN
-        --Check in Member cost centers for bank account number as not found in Lead/Independent
-        BEGIN
-            SELECT LEAD_BANK_ACCOUNT_NBR
-              INTO V_BANK_ACCOUNT_NBR
-              FROM LEAD_BANK_CC
-             WHERE LEAD_STORE_NBR = (SELECT LEAD_STORE_NBR
-                                       FROM MEMBER_BANK_CC
-                                      WHERE SUBSTR(MEMBER_STORE_NBR,3) = IN_COST_CENTER_CODE
-                                        AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE)
-               AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE
-               AND ROWNUM < 2;
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-    END IF;
-    RETURN V_BANK_ACCOUNT_NBR;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN NULL;
-END GET_BNK_ACCNT_NBR_FOR_CC;
-
 PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
 /******************************************************************************
   This procedure generates Report if there are mismatch in the source bank 
@@ -888,7 +843,7 @@ IS
 CURSOR SUM_CUR IS
     SELECT STORE_NO STORENBR,
            SUM(BANK_DEP_BATCH) BANK_DEP_AMT,
-           GET_BNK_ACCNT_NBR_FOR_CC(STORE_NO) AS BANK_ACCOUNT_NBR,
+           NULL AS BANK_ACCOUNT_NBR,
            POS_TRAN_DT TRANSACTION_DATE,
            RLS_RUN_CYCLE,
            IN_DATE AS LOAD_DATE
@@ -917,7 +872,7 @@ BEGIN
         
         IF V_COUNT1 <> 0 THEN
            REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
-        
+
            INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.STORENBR))),
                                                        '1',
                                                        REC.BANK_DEP_AMT,
@@ -925,7 +880,7 @@ BEGIN
                                                        REC.TRANSACTION_DATE,
                                                        REC.LOAD_DATE,
                                                        REC.BANK_ACCOUNT_NBR);
-         END IF;   
+        END IF;   
         
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 then
@@ -1040,7 +995,7 @@ IS
                TRAN_SEQNUM,
                DB_CR_CODE,    
                SNZ_SAM_CODE,
-               TRUNC(SYSDATE) LOAD_DATE,
+               IN_DATE AS LOAD_DATE,
                TO_NUMBER(LINE_NUMBER) LINE_NUMBER
           FROM TEMP_UAR_MISCTRAN MT
           ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
