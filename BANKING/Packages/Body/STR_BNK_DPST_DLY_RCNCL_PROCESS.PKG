@@ -22,7 +22,6 @@ Changed :
 FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
 /******************************************************************************
 This procedure performs all the business rules that are applicable Account Maintenance Window
-
 created : 06/19/2015 jxc517 CCN Project....
 revised : 
 *******************************************************************************/
@@ -689,6 +688,9 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
         : 06/23/2017 nxk927 CCN Project....
           Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
+        : 07/24/2017 nxk927 CCN Project....
+          Since the source changed and the data we are recieving is current, we should be considering the data
+          that was loaded a day back for our process
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -712,7 +714,7 @@ IS
                          ORIGINATED_BANK_ACCNT_NBR
                     FROM ACH_DRFTS_EXT_CTRL A
                    WHERE A.ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
-                     AND A.LOAD_DATE = IN_DATE
+                     AND A.LOAD_DATE = IN_DATE -1
                      AND ORIGINATED_BANK_ACCNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                                          FROM BANK_ACCOUNT
                                                         WHERE BANK_AUTO_RECON_IND = 'Y'))
@@ -815,6 +817,9 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
         : 06/23/2017 nxk927 CCN Project....
           Removed the condition to get records with UAR bank account number matching with the
           CCN bank account number
+        : 07/24/2017 nxk927 CCN Project....
+          Since the source changed and the data we are recieving is current, we should be considering the data
+          that was loaded a day back for our process
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -825,7 +830,7 @@ IS
          UNION
         SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
           FROM ACH_DRFTS_EXT_CTRL
-         WHERE LOAD_DATE = IN_DATE
+         WHERE LOAD_DATE = IN_DATE -1 
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
@@ -971,7 +976,7 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
 IS
     CURSOR ACH_INS_CUR IS
         SELECT A.*, 
-               TO_DATE(IN_DATE)-2 AS TRANSACTION_DATE,
+               TO_DATE(IN_DATE)-1 AS TRANSACTION_DATE,
                IN_DATE AS LOAD_DATE
           FROM TEMP_ACH_DRFTS_EXT_CTRL A;
 
@@ -980,7 +985,7 @@ IS
 BEGIN
     FOR REC IN ACH_INS_CUR LOOP
         REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
-        GET_LEAD_BANK_RECORD(REC.COST_CENTER_CODE,
+        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
                              IN_DATE,
                              V_LEAD_BANK_CC_REC);
         V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
@@ -990,7 +995,7 @@ BEGIN
                                                REC.BANK_DEP_AMT/100,
                                                REC.BANK_ACCOUNT_NBR,
                                                REC.LOAD_DATE,
-                                               REC.BANK_ACCOUNT_NBR);--V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
+                                               V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 then
             COMMIT;
@@ -998,7 +1003,6 @@ BEGIN
         END IF;
     END LOOP;
     COMMIT;
-
     GNRTE_BNK_ACT_MISMTH_RPT('ACH_DRFTS_EXT_CTRL',IN_DATE,'ACH_DRAFT_BNK_ACT_MISMTH_RPT');
 EXCEPTION
     WHEN OTHERS THEN
@@ -1192,7 +1196,7 @@ BEGIN
         DBMS_OUTPUT.PUT_LINE('LOAD_ACH_DRFTS_EXTRCT : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
         V_START_TIME := DBMS_UTILITY.GET_TIME;
-           --load the current MISCTRAN file for use in next run
+        --load the current MISCTRAN file for use in next run
         LOAD_MISCTRAN(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('LOAD_MISCTRAN : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
         
