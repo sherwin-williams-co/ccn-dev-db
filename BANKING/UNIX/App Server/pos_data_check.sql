@@ -19,7 +19,7 @@ BEGIN
        and STATUS_CODE = 'C';
 
     IF V_DATA_CHECK = 0 -- if no data present
-       OR (TO_CHAR(SYSDATE, 'D') = 3 AND V_DATA_CHECK <> 3)--If tuesday and we do not have 3 days of data.
+       OR (TO_CHAR(SYSDATE, 'D') = 3 AND V_DATA_CHECK < 3)--If tuesday and we don't have at least 3 days of data.
        THEN
        DBMS_OUTPUT.PUT_LINE('NOTREADY'); 
     ELSE
