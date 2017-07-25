@@ -9,6 +9,17 @@ Changed :
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
+FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
+/******************************************************************************
+ This function will return the bank account number for the cost center for the date minus
+ delay date.
+
+created : 07/25/2017 nxk927 CCN Project....
+revised : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2,
+IN_DATE             IN DATE) RETURN VARCHAR2;
+
 PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
 /******************************************************************************
   This procedure generates Report if there are mismatch in the source bank 
