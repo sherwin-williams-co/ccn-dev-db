@@ -11,6 +11,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
            05/19/2017 axt754 Changes for fetching EMAIL_NUMBER value
            05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
                       the same data as it is in COST_CENTER_CODE field.
+         : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -22,6 +23,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
        ,H.DIVISION_VAL DIVISION
        ,H.AREA_VAL AREA
        ,H.DISTRICT_VAL DISTRICT
+       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
        ,H.AREA_VAL_NAME AREA_NAME

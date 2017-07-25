@@ -6,6 +6,7 @@ This View will give all the details of alternate dad hierarchy linked to the cos
 Created  : 02/16/2017 jxc517 CCN Project....
 Modified : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
                       the same data as it is in COST_CENTER_CODE field.
+         : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
 *******************************************************************************/
        STATEMENT_TYPE,
        HRCHY_HDR_NAME,
@@ -20,6 +21,7 @@ Modified : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containin
        CITY_SALES_MANAGER,
        ZONE,
        SPECIAL_ROLES,
+       COST_CENTER,
        DOMAIN_NAME,
        GROUP_NAME,
        DIVISION_NAME,

@@ -1,6 +1,3 @@
---index to improve the persormance of hierarchy_detail query used in the below view
-CREATE INDEX INDEX4 ON HIERARCHY_DETAIL (HRCHY_HDR_NAME, HRCHY_DTL_LEVEL, HRCHY_DTL_CURR_LVL_VAL);
-
   CREATE OR REPLACE VIEW HIERARCHY_DETAIL_VIEW  AS 
   SELECT
 /*******************************************************************************
@@ -12,6 +9,7 @@ Modified : 06/04/2015 jxc517 CCN Project....
            To improve performance, eliminated all redundant queries
          : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
                       the same data as it is in COST_CENTER_CODE field.
+         : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
 *******************************************************************************/ 
        DISTINCT
         CC.STATEMENT_TYPE
@@ -28,6 +26,7 @@ Modified : 06/04/2015 jxc517 CCN Project....
        ,H.CITY_SALES_MANAGER_VAL CITY_SALES_MANAGER
        ,H.ZONE_VAL "ZONE"
        ,H.SPECIAL_ROLES_VAL SPECIAL_ROLES
+       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.DOMAIN_VAL_NAME DOMAIN_NAME
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
@@ -86,10 +85,3 @@ Modified : 06/04/2015 jxc517 CCN Project....
 --table in a join condition
  WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE(+)
  ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
-
-
-  GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO SWFF_CP2D11E_DBLU;
-  GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO ICM_CPDB4;
-  GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO STORDRFT;
-  GRANT SELECT ON HIERARCHY_DETAIL_VIEW TO CCNUSER;
-  
