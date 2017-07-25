@@ -15,7 +15,6 @@
 # if datacheck is NOTREADY then wait it till it gets the data
 #####################################################################
 proc="pos_data_check"
-TIME=`date +"%H:%M:%S"`
 DATE=`date '+%Y-%m-%d'`
 init_path="$HOME/initLoad"
 
@@ -25,10 +24,10 @@ do
        @$HOME/pos_data_check.sql
 exit;
 EOF`
-day=`date +%a`
    if [ "$data" = READY ]
    then
-      if [ -f $init_path/stores_ach.txt  ] || [ $day = Sat ]
+      day=`date +%a`
+      if [ $day = Sat ] || [ -f $init_path/stores_ach.txt  ]
       then
          TIME=`date +"%H:%M:%S"`
          echo "Processing Started for $proc at $TIME on $DATE"

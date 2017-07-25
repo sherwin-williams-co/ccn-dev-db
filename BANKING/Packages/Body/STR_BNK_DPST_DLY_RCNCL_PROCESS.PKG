@@ -30,14 +30,12 @@ revised :
 IN_COST_CENTER_CODE IN VARCHAR2,
 IN_DATE             IN DATE) RETURN VARCHAR2
 IS
-V_BANK_ACCOUNT_NBR          BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
 V_LEAD_BANK_CC_REC          LEAD_BANK_CC%ROWTYPE;
 BEGIN
     GET_LEAD_BANK_RECORD(IN_COST_CENTER_CODE,
                          IN_DATE,
                          V_LEAD_BANK_CC_REC);
-    V_BANK_ACCOUNT_NBR := V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
-    RETURN V_BANK_ACCOUNT_NBR;
+    RETURN V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
 EXCEPTION
     WHEN OTHERS THEN
         RETURN NULL;
@@ -541,6 +539,8 @@ Changed : 10/07/2015 nxk927 CCN Project....
           asp-761 .. cost_center_Code field changed to store as 6 digit equivalent.. Converted back to 4 digits like before to generate the 4 digit code into the files
         : 06/23/2017 nxk927 CCN Project....
           Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
+        : 07/25/2017 nxk927 CCN Project....
+          Reverting the code back to use BANK_ACCNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -556,11 +556,11 @@ IS
                DECODE(TCODE,'2255','OC','2896', 'OC','0594','OC','2895' ,'OC','2899' ,'OC', 'OD') CODE,
                --assigning code1 as SAM if bank account doesn't match from the serial file
                --assigning code1 as SNZ if its not a valid Cost center
-               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,ORIGINATED_BANK_ACCNT_NBR) CODE1,
+               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,BANK_ACCOUNT_NBR) CODE1,
                RETURN_REFEED_CODE(TCODE) TCODE,
-               ORIGINATED_BANK_ACCNT_NBR
+               BANK_ACCOUNT_NBR
           FROM MISCTRAN
-         WHERE ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
+         WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND LOAD_DATE = IN_DATE
            AND TCODE IS NOT NULL
          ORDER BY 1;
@@ -581,7 +581,7 @@ BEGIN
         --writing the header for the first time per bank account
         --then the body for all the cost center under the same bank account number
         IF V_FLAG = 'Y' THEN
-            GENERATE_HEADER(rec.ORIGINATED_BANK_ACCNT_NBR,OUT_HEADER);
+            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
             V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
 
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -669,6 +669,7 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
         : 07/25/2017 nxk927 CCN Project....
           Recieving the current ach_draft data and we use the same data for next day process
+          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -680,16 +681,16 @@ IS
                          A.TRANSACTION_DATE,
                          NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
                          '0020' TCODE,
-                         ORIGINATED_BANK_ACCNT_NBR
+                         BANK_ACCOUNT_NBR
                     FROM SUMMARY_EXTRCT_CNTRL_FL A
-                   WHERE A.ORIGINATED_BANK_ACCNT_NBR = IN_BANK_ACCOUNT_NBR
+                   WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
                      AND A.LOAD_DATE = IN_DATE
                    UNION
                   SELECT NVL(SUBSTR(A.COST_CENTER_CODE,-4), ' ') COST_CENTER_CODE,
                          A.TRANSACTION_DATE,
                          NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
                          '0055' TCODE,
-                         BANK_ACCOUNT_NBR AS ORIGINATED_BANK_ACCNT_NBR
+                         BANK_ACCOUNT_NBR
                     FROM ACH_DRFTS_EXT_CTRL A
                    WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
                      AND A.LOAD_DATE        = IN_DATE -1
@@ -712,7 +713,7 @@ BEGIN
         --writing the header for the first time per bank account.
         --then the body for all the cost center under the same bank account number
         IF V_FLAG = 'Y' THEN
-            GENERATE_HEADER(rec.ORIGINATED_BANK_ACCNT_NBR,OUT_HEADER);
+            GENERATE_HEADER(rec.BANK_ACCOUNT_NBR,OUT_HEADER);
             V_OUT_CLOB := V_OUT_CLOB || OUT_HEADER;
 
             IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -797,22 +798,23 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           CCN bank account number
         : 07/25/2017 nxk927 CCN Project....
           Recieving the current ach_draft data and we use the same data for next day process
+          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR 
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
     CURSOR ach_cur IS
-        SELECT DISTINCT BANK_ACCOUNT_NBR AS ORIGINATED_BANK_ACCNT_NBR
+        SELECT DISTINCT BANK_ACCOUNT_NBR
           FROM MISCTRAN
          WHERE LOAD_DATE = IN_DATE
          UNION
-        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
+        SELECT DISTINCT BANK_ACCOUNT_NBR
           FROM ACH_DRFTS_EXT_CTRL
          WHERE LOAD_DATE = IN_DATE -1 
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
          UNION
-        SELECT DISTINCT ORIGINATED_BANK_ACCNT_NBR
+        SELECT DISTINCT BANK_ACCOUNT_NBR
           FROM SUMMARY_EXTRCT_CNTRL_FL
          WHERE LOAD_DATE = IN_DATE;
 
@@ -829,9 +831,9 @@ BEGIN
     --Push the data into SMIS1.SRA12060(+1) file
     FOR ach_rec IN ach_cur LOOP
         ---writing the UAR_POS_REFEED part first(Header, body ,trailer)
-        GENERATE_UAR_POS_REFEED_FILE(ach_rec.ORIGINATED_BANK_ACCNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
+        GENERATE_UAR_POS_REFEED_FILE(ach_rec.BANK_ACCOUNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
         ---writing the UAR_POS_BNK_DPST_ACH part  first(Header, body ,trailer)
-        GNRT_UAR_POS_BNK_DPST_ACH_FILE(ach_rec.ORIGINATED_BANK_ACCNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
+        GNRT_UAR_POS_BNK_DPST_ACH_FILE(ach_rec.BANK_ACCOUNT_NBR, IN_DATE, UAR_POSITION_OTPT_FL);
     END LOOP;
     UTL_FILE.FCLOSE(UAR_POSITION_OTPT_FL);
 END GENERATE_UAR_POS_FILE;
