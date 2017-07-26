@@ -19,6 +19,28 @@ Created : 06/19/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
 
+FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
+/******************************************************************************
+ This function will return the bank account number for the cost center for the date minus
+ delay date.
+
+created : 07/25/2017 nxk927 CCN Project....
+revised : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2,
+IN_DATE             IN DATE) RETURN VARCHAR2
+IS
+V_LEAD_BANK_CC_REC          LEAD_BANK_CC%ROWTYPE;
+BEGIN
+    GET_LEAD_BANK_RECORD(IN_COST_CENTER_CODE,
+                         IN_DATE,
+                         V_LEAD_BANK_CC_REC);
+    RETURN V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_BNK_ACCNT_NBR_FOR_CC;
+
 PROCEDURE GNRTE_BNK_ACT_MISMTH_RPT(
 /******************************************************************************
   This procedure generates Report if there are mismatch in the source bank 
@@ -103,7 +125,8 @@ FUNCTION FORMAT_INPUT_FOR_FILE(
 	This function will return the formatted data as requested  
 
 Created : 06/19/2015 jxc517 CCN Project....
-Changed :
+Changed : 07/24/2017 nxk927 CCN Project....
+          fixed a issue with the decimal place when it was in the first position
 *****************************************************************************/
 IN_VALUE         IN VARCHAR2,
 IN_PADDING_VALUE IN VARCHAR2,
@@ -119,7 +142,7 @@ BEGIN
     IF IN_VALUE IS NOT NULL THEN
         V_DECIMAL_LOCATION := INSTR(IN_VALUE,'.');
         IF V_DECIMAL_LOCATION <> 0 THEN
-           V_LEFT_SIDE_VALUE  := SUBSTR(IN_VALUE,1,V_DECIMAL_LOCATION - 1);
+           V_LEFT_SIDE_VALUE  := NVL(SUBSTR(IN_VALUE,1,V_DECIMAL_LOCATION - 1), '0');
            V_RIGHT_SIDE_VALUE := SUBSTR(IN_VALUE,V_DECIMAL_LOCATION + 1);
         ELSE
            V_LEFT_SIDE_VALUE  := IN_VALUE;
@@ -314,7 +337,7 @@ IS
            AND BANK_ACCOUNT_NBR   <> 'NOT_AVAILABLE'
          ORDER BY COST_CENTER_CODE;
 
-    PATH                 VARCHAR2(50) := 'BANKING_LOAD_FILES';
+    PATH        	       VARCHAR2(50) := 'BANKING_LOAD_FILES';
     UAR_SERIAL_FL_NM     VARCHAR2(50) := 'SMIS1.SRA10060_' ||
                                          TO_CHAR(IN_DATE,'DDMONRRRR') || '_' ||
                                          TO_CHAR(SYSDATE,'HH24MISS');
@@ -512,19 +535,19 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Column name changed from source bank account number to ORIGINATED_BANK_ACCNT_NBR
         : 06/20/2017 jxc517/nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 05/23/2017 rxa457 CCN Project...
+          asp-761 .. cost_center_Code field changed to store as 6 digit equivalent.. Converted back to 4 digits like before to generate the 4 digit code into the files
         : 06/23/2017 nxk927 CCN Project....
           Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
-          passing the ORIGINATED_BANK_ACCNT_NBR to get the SNZ or the SAM code in the business rule.
-          Need to check if ORIGINATED_BANK_ACCNT_NBR matches the db bank account number.
-        : 07/26/2017 nxk927 CCN Project....
-          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 07/25/2017 nxk927 CCN Project....
+          Reverting the code back to use BANK_ACCNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
 IO_UAR_POSITION_OTPT_FL IN OUT UTL_FILE.FILE_TYPE)
 IS
    CURSOR refeed_cur IS  --POS_REFEED_CUR
-        SELECT COST_CENTER_CODE,
+        SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
                TRANSACTION_DATE,
                NVL(AMOUNT, '0') AMOUNT,
                NVL(TRAN_SEQNUM, '0') TRNSCTN_SEQ_NBR,
@@ -533,14 +556,14 @@ IS
                DECODE(TCODE,'2255','OC','2896', 'OC','0594','OC','2895' ,'OC','2899' ,'OC', 'OD') CODE,
                --assigning code1 as SAM if bank account doesn't match from the serial file
                --assigning code1 as SNZ if its not a valid Cost center
-               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,ORIGINATED_BANK_ACCNT_NBR) CODE1,
+               BUSINESS_RULES_PKG.GET_SNZ_SAM_CODE(COST_CENTER_CODE,BANK_ACCOUNT_NBR) CODE1,
                RETURN_REFEED_CODE(TCODE) TCODE,
                BANK_ACCOUNT_NBR
           FROM MISCTRAN
          WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
            AND LOAD_DATE = IN_DATE
            AND TCODE IS NOT NULL
-         ORDER BY COST_CENTER_CODE;
+         ORDER BY 1;
 
     V_DIVISION              VARCHAR2(10);
     V_AREA                  VARCHAR2(10);
@@ -575,7 +598,7 @@ BEGIN
                               FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                   --FIELD-4 (17)
                               '0' ||                                                                   --STORE-NBR-PFX (1)
                               RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                   --STORE-NBR(4 + 12 spaces)
-                              FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12) ||                            --AMOUNT (12)
+                              FORMAT_INPUT_FOR_FILE(rec.AMOUNT, '0', 12,2) ||                            --AMOUNT (12)
                               FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) || --TRAN-DATE YYMMDD (2 + 2 + 2)
                               RPAD(rec.TCODE, 4, ' ') ||                                               --TRAN-CODE (4)
                               FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                    --FILLER (4 spaces)
@@ -637,12 +660,16 @@ Changed : 10/07/2015 nxk927 CCN Project....
           and considering only those with BANK_AUTO_RECON_IND as 'Y'
         : 03/21/2017 nxk927 CCN Project....
           Using the new field ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
+        : 05/23/2017 rxa457 CCN Project...
+          asp-761 .. cost_center_Code field changed to store as 6 digit equivalent.. Converted back to 4 digits like before to generate the 4 digit code into the files
+          BANK_DEP_AMT is now stored as NUMBER(10,2); format_inut_for_file changed to write the amount field in the generated fiel as varchar2 equivalent
         : 06/20/2017 jxc517/nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
         : 06/23/2017 nxk927 CCN Project....
           Reverting the code back to use ORIGINATED_BANK_ACCNT_NBR instead of BANK_ACCOUNT_NBR
-        : 07/26/2017 nxk927 CCN Project....
-          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 07/25/2017 nxk927 CCN Project....
+          Recieving the current ach_draft data and we use the same data for next day process
+          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR 
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -650,7 +677,7 @@ IO_UAR_POSITION_OTPT_FL IN OUT UTL_FILE.FILE_TYPE)
 IS
     CURSOR pos_cur IS
           SELECT *
-            FROM (SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
+            FROM (SELECT NVL(SUBSTR(A.COST_CENTER_CODE,-4), ' ') COST_CENTER_CODE,
                          A.TRANSACTION_DATE,
                          NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
                          '0020' TCODE,
@@ -659,17 +686,17 @@ IS
                    WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
                      AND A.LOAD_DATE = IN_DATE
                    UNION
-                  SELECT NVL(A.COST_CENTER_CODE, ' ') COST_CENTER_CODE,
+                  SELECT NVL(SUBSTR(A.COST_CENTER_CODE,-4), ' ') COST_CENTER_CODE,
                          A.TRANSACTION_DATE,
                          NVL(A.BANK_DEP_AMT, '0') BANK_DEP_AMT,
                          '0055' TCODE,
                          BANK_ACCOUNT_NBR
                     FROM ACH_DRFTS_EXT_CTRL A
                    WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-                     AND A.LOAD_DATE = IN_DATE
-                     AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
-                                                FROM BANK_ACCOUNT
-                                               WHERE BANK_AUTO_RECON_IND = 'Y'))
+                     AND A.LOAD_DATE        = IN_DATE -1
+                     AND BANK_ACCOUNT_NBR  IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
+                                                 FROM BANK_ACCOUNT
+                                                WHERE BANK_AUTO_RECON_IND = 'Y'))
            ORDER BY COST_CENTER_CODE;
 
 	  V_DIVISION            VARCHAR2(10);
@@ -704,7 +731,7 @@ BEGIN
                           FORMAT_INPUT_FOR_FILE(' ', ' ', 17) ||                                    --FIELD-4 (17)
                           '0' ||                                                                    --STORE-NBR-PFX (1)
                           RPAD(rec.COST_CENTER_CODE, 16, ' ') ||                                    --STORE-NBR(4 + 12 spaces)
-                          FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12) ||                       --AMOUNT (12)
+                          FORMAT_INPUT_FOR_FILE(rec.BANK_DEP_AMT, '0', 12,2) ||                       --AMOUNT (12)
                           FORMAT_INPUT_FOR_FILE(TO_CHAR(rec.TRANSACTION_DATE,'YYMMDD'), '0', 6) ||  --TRAN-DATE YYMMDD (2 + 2 + 2)
                           RPAD(rec.TCODE, 4, ' ') ||                                                --TRAN-CODE (4)
                           FORMAT_INPUT_FOR_FILE(' ', ' ', 4) ||                                     --FILLER (4 spaces)
@@ -769,8 +796,9 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
         : 06/23/2017 nxk927 CCN Project....
           Removed the condition to get records with UAR bank account number matching with the
           CCN bank account number
-        : 07/26/2017 nxk927 CCN Project....
-          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 07/25/2017 nxk927 CCN Project....
+          Recieving the current ach_draft data and we use the same data for next day process
+          Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR 
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -781,7 +809,7 @@ IS
          UNION
         SELECT DISTINCT BANK_ACCOUNT_NBR
           FROM ACH_DRFTS_EXT_CTRL
-         WHERE LOAD_DATE = IN_DATE
+         WHERE LOAD_DATE = IN_DATE -1 
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
@@ -827,54 +855,60 @@ Changed : 10/07/2015 nxk927 CCN Project....
           removed the substr(rec.COST_CENTER_CODE,3) as was used by mistake
         : 03/21/2017 nxk927 CCN Project....
           New Column ORIGINATED_BANK_ACCNT_NBR added
+        : 05/23/2017 rxa457 CCN Project...
+          asp-761.. insert into SUMMARY_EXTRCT_CNTRL_FL, UAR_SUMMARY_EXTRCT_CNTRL_FL changed (due to impact from dropping column filler field from SUMMARY_EXTRCT_CNTRL_FL,FROM UAR_SUMMARY_EXTRCT_CNTRL_FL);
+          cost_center_code field changed to 6 digit equivalent;
+          Amount field changed to NUMBER(10,2) from Varchar2
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added IN_DATE parameter
           Signature change in call to GET_LEAD_BANK_RECORD
         : 06/28/2017 nxk927 CCN Project....
           logging the error before raising the error if any error occurs
-        : 07/26/2017 nxk927 CCN Project....
-          UAR table has to remain the same as in the output file
+        : 07/20/2017 nxk927 CCN Project....
+          Data source changed. (data source will be new pos)
+        : 07/25/2017 nxk927 CCN Project....
+          calling the function to get the bank account number
 *****************************************************************************/
-    IN_DATE            IN         DATE)
+    IN_DATE            IN         DATE,
+    IN_RLS_RUN_CYCLE   IN         VARCHAR2)
 IS
 CURSOR SUM_CUR IS
-   SELECT COST_CENTER_CODE,
-          CENTURY,
-          BANK_DEP_AMT,
-          FILLER,
-          BANK_ACCOUNT_NBR,
-          TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR') TRANSACTION_DATE,
-          TRUNC(SYSDATE) LOAD_DATE,
-          BANK_ACCOUNT_NBR ORIGINATED_BANK_ACCNT_NBR
-     FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL SM
-     ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
-     ---Usually they are sending the same data with the new data for a certain time
-     ---this should not be sent
-    WHERE NOT EXISTS (SELECT 1
-                        FROM UAR_SUMMARY_EXTRCT_CNTRL_FL
-                       WHERE COST_CENTER_CODE = SM.COST_CENTER_CODE
-                         AND CENTURY          = SM.CENTURY
-                         AND BANK_DEP_AMT     = SM.BANK_DEP_AMT
-                         --bank account here refers to the originated bank account number
-                         --this comparisio is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL 
-                         AND BANK_ACCOUNT_NBR = SM.BANK_ACCOUNT_NBR
-                         AND TRANSACTION_DATE = TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR'));
-    V_COUNT NUMBER := 0;
-    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
+    SELECT STORE_NO STORENBR,
+           SUM(BANK_DEP_BATCH) BANK_DEP_AMT,
+           GET_BNK_ACCNT_NBR_FOR_CC(STORE_NO,IN_DATE) AS BANK_ACCOUNT_NBR,
+           POS_TRAN_DT TRANSACTION_DATE,
+           RLS_RUN_CYCLE,
+           IN_DATE AS LOAD_DATE
+      FROM PNP.CCN_BATCH_SUMMARY SM
+     WHERE RLS_RUN_CYCLE >= IN_RLS_RUN_CYCLE - DECODE(TO_CHAR(IN_DATE, 'D'),3,3,1) --(Need logic modification for the friday's run)
+       AND RLS_RUN_CYCLE <  IN_RLS_RUN_CYCLE
+       AND BANK_DEP_BATCH <> '0'
+     GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE;
+     
+     V_COUNT NUMBER := 0;
+     V_COUNT1 NUMBER := 0;
+     V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
 BEGIN
     FOR REC IN SUM_CUR LOOP
-        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
-                             IN_DATE,
-                             V_LEAD_BANK_CC_REC);
-        INSERT INTO UAR_SUMMARY_EXTRCT_CNTRL_FL VALUES (REC.COST_CENTER_CODE,
-                                                        REC.CENTURY,
-                                                        REC.BANK_DEP_AMT,
-                                                        REC.FILLER,
-                                                        REC.BANK_ACCOUNT_NBR,
-                                                        REC.TRANSACTION_DATE,
-                                                        REC.LOAD_DATE);
-        REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
-        INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES REC;
+        V_COUNT1 := 0;
+        SELECT COUNT(*)
+          INTO V_COUNT1
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR    = REC.BANK_ACCOUNT_NBR
+           AND BANK_AUTO_RECON_IND = 'Y';
+        
+        IF V_COUNT1 <> 0 THEN
+           REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
+
+           INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.STORENBR))),
+                                                       '1',
+                                                       REC.BANK_DEP_AMT,
+                                                       REC.BANK_ACCOUNT_NBR,
+                                                       REC.TRANSACTION_DATE,
+                                                       REC.LOAD_DATE,
+                                                       REC.BANK_ACCOUNT_NBR);
+        END IF;   
+        
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 then
             COMMIT;
@@ -902,50 +936,41 @@ PROCEDURE LOAD_ACH_DRFTS_EXTRCT(
 Created : 08/23/2016 nxk927 CCN Project....
 Changed : : 03/21/2017 nxk927 CCN Project....
           New Column ORIGINATED_BANK_ACCNT_NBR added
+        : 05/23/2017 rxa457 CCN Project...
+          asp-761.. inserts into ACH_DRFTS_EXTRCT, UAR_ACH_DRFTS_EXTRCT changed (due to COLUMN changes in ACH_DRFTS_EXTRCT,and UAR_ACH_DRFTS_EXTRCT);
+          cost_center_code field changed to 6 digit equivalent;
+          Amount field changed to NUMBER(10,2) from Varchar2
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added IN_DATE parameter
           Signature change in call to GET_LEAD_BANK_RECORD
         : 06/28/2017 nxk927 CCN Project....
           logging the error before raising the error if any error occurs
+        : 07/20/2017 nxk927 CCN Project....
+          Data source changed. (data source : treasury)
+        : 07/25/2017 nxk927 CCN Project....
+          calling the function to get the bank account number
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
     CURSOR ACH_INS_CUR IS
-        SELECT TACH.COST_CENTER_CODE,
-               TACH.CENTURY,
-               TO_DATE(TACH.TRANSACTION_DATE, 'YYMMDD') TRANSACTION_DATE,
-               TACH.BANK_DEP_AMT,
-               TACH.BANK_ACCOUNT_NBR,
-               TRUNC(SYSDATE) LOAD_DATE,
-               TACH.BANK_ACCOUNT_NBR ORIGINATED_BANK_ACCNT_NBR
-          FROM TEMP_ACH_DRFTS_EXT_CTRL TACH
-          ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
-          ---Usually they are sending the same data with the new data for a certain time
-          ---this should not be sent
-         WHERE NOT EXISTS  (SELECT 1
-                             FROM UAR_ACH_DRFTS_EXT_CTRL ACH
-                            WHERE ACH.COST_CENTER_CODE          = TACH.COST_CENTER_CODE
-                              AND ACH.CENTURY                   = TACH.CENTURY
-                              AND ACH.TRANSACTION_DATE          = TO_DATE(TACH.TRANSACTION_DATE, 'YYMMDD')
-                              --bank account here refers to the originated bank account number
-                              --this comparisio is before loading into actual table UAR_ACH_DRFTS_EXT_CTRL
-                              AND ACH.BANK_DEP_AMT              = TACH.BANK_DEP_AMT
-                              AND ACH.BANK_ACCOUNT_NBR          = TACH.BANK_ACCOUNT_NBR);
+        SELECT A.*, 
+               TO_DATE(IN_DATE)-1 AS TRANSACTION_DATE,
+               IN_DATE AS LOAD_DATE,
+               GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,IN_DATE) AS ORIGINAL_BANK_ACCOUNT_NBR
+          FROM TEMP_ACH_DRFTS_EXT_CTRL A;
+
     V_COUNT NUMBER := 0;
-    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
 BEGIN
     FOR REC IN ACH_INS_CUR LOOP
-        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
-                             IN_DATE,
-                             V_LEAD_BANK_CC_REC);
-        INSERT INTO UAR_ACH_DRFTS_EXT_CTRL VALUES (REC.COST_CENTER_CODE,
-                                                   REC.CENTURY,
-                                                   REC.TRANSACTION_DATE,
-                                                   REC.BANK_DEP_AMT,
-                                                   REC.BANK_ACCOUNT_NBR,
-                                                   REC.LOAD_DATE);
-        REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
-        INSERT INTO ACH_DRFTS_EXT_CTRL VALUES REC;
+        REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
+        REC.ORIGINAL_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIGINAL_BANK_ACCOUNT_NBR,'-'), '0', 17);
+        INSERT INTO ACH_DRFTS_EXT_CTRL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.COST_CENTER_CODE))),
+                                               '1',
+                                               REC.TRANSACTION_DATE,
+                                               REC.BANK_DEP_AMT/100,
+                                               REC.ORIGINAL_BANK_ACCOUNT_NBR,
+                                               REC.LOAD_DATE,
+                                               REC.BANK_ACCOUNT_NBR);
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 then
             COMMIT;
@@ -974,11 +999,16 @@ Created : 08/23/2016 nxk927 CCN Project....
 Changed : 11/07/2016 jxc517 CCN Project....
           adding source bank account number from header details
           we get the max(line number) from header table prior to the line number in detail table
+        : 05/23/2017 rxa457 CCN Project...
+          asp-761.. COST_CENTER_CODE field changed to 6 digit equivalent
+          AMOUNT, TRAN_SEQ_NUM FIELDS changed to NUMBER, NUMBER(10,2) RESPECTIVELY 
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added IN_DATE parameter
           Signature change in call to GET_LEAD_BANK_RECORD
         : 06/28/2017 nxk927 CCN Project....
           logging the error before raising the error if any error occurs
+        : 07/25/2017 nxk927 CCN Project....
+          calling the function to get the bank account number
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -993,7 +1023,8 @@ IS
                TRAN_SEQNUM,
                DB_CR_CODE,    
                SNZ_SAM_CODE,
-               TRUNC(SYSDATE) LOAD_DATE,
+               IN_DATE AS LOAD_DATE,
+               GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,IN_DATE) AS ORIG_BANK_ACCOUNT_NBR,
                TO_NUMBER(LINE_NUMBER) LINE_NUMBER
           FROM TEMP_UAR_MISCTRAN MT
           ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
@@ -1009,7 +1040,6 @@ IS
                               AND NVL(DB_CR_CODE,'X')  = NVL(MT.DB_CR_CODE,'X')
                               AND NVL(SNZ_SAM_CODE,'A')= NVL(MT.SNZ_SAM_CODE,'A'));
     V_COUNT NUMBER := 0;
-    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
     V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
     
@@ -1044,16 +1074,14 @@ BEGIN
                                          REC.SNZ_SAM_CODE,
                                          REC.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
-        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
-                             IN_DATE,
-                             V_LEAD_BANK_CC_REC);
-        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
+
+        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
         INSERT INTO MISCTRAN VALUES (V_BANK_ACCOUNT_NBR,
-                                     REC.COST_CENTER_CODE,
-                                     REC.AMOUNT,
+                                     COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.COST_CENTER_CODE))),
+                                     REC.AMOUNT/100,
                                      REC.TRANSACTION_DATE,
                                      REC.TCODE,
-                                     REC.TRAN_SEQNUM,
+                                     TO_NUMBER(REC.TRAN_SEQNUM),
                                      REC.DB_CR_CODE,
                                      REC.SNZ_SAM_CODE,
                                      REC.LOAD_DATE,
@@ -1077,6 +1105,29 @@ EXCEPTION
        RAISE;
 END LOAD_MISCTRAN;
 
+FUNCTION GET_RUNCYCLE(
+/******************************************************************************
+  This function will get the runcycle for the days load
+  
+Created : 07/18/2017 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_DATE            IN         DATE)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE      VARCHAR2(5);
+BEGIN
+    SELECT RLS_RUN_CYCLE
+      INTO V_RETURN_VALUE
+      FROM POS_CCN_LOAD_STATUS
+     WHERE LOAD_DATE = IN_DATE;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_RUNCYCLE;
+
 PROCEDURE EXECUTE_PROCESS(
 /******************************************************************************
   This procedure is the core procedure for performing the "Store Bank
@@ -1093,6 +1144,8 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Signature changes
         : 06/28/2017 nxk927 CCN Project....
           logging the error if there are any errors that occured during the whole process
+        : 07/20/2017 nxk927 CCN Project....
+          added the function to get the runcycle.
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1100,13 +1153,16 @@ IS
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_REF_CUR           REF_CURSOR;
     V_START_TIME        NUMBER;
+    V_RLS_RUN_CYCLE     VARCHAR2(5);
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BDP_DLY_RCNCL_PRCSS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
     BEGIN
+        V_RLS_RUN_CYCLE := GET_RUNCYCLE(IN_DATE);
+        
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --load the current SUMMARY CONTROL SRA10510 file for use in next run
-        LOAD_SUMMARY_EXTRCT_CNTRL_FL(IN_DATE);
+        LOAD_SUMMARY_EXTRCT_CNTRL_FL(IN_DATE, V_RLS_RUN_CYCLE);
         DBMS_OUTPUT.PUT_LINE('LOAD_SUMMARY_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
         V_START_TIME := DBMS_UTILITY.GET_TIME;
@@ -1133,15 +1189,16 @@ BEGIN
         --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
         GENERATE_UAR_POS_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_POS_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+        
 
     EXCEPTION
         WHEN OTHERS THEN
-           ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                      'STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS',
-                                      SQLERRM,
-                                      '2222222222',
-                                      '222222',
-                                      'OTHER');
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                       'STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS',
+                                       SQLERRM,
+                                       '2222222222',
+                                       '222222',
+                                       'OTHER');
             V_TRANS_STATUS := 'ERROR';
     END;
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BDP_DLY_RCNCL_PRCSS', V_BATCH_NUMBER, V_TRANS_STATUS);
@@ -1165,11 +1222,18 @@ Created : 10/27/2016 jxc517 CCN Project....
 Changed : 11/07/2016 jxc517 CCN Project....
           adding source bank account number from header details
           we get the max(line number) from header table prior to the line number in detail table
+        : 05/23/2017 rxa457 CCN Project.. asp-761
+          insert into JV_EXTRCT_CNTRL_FL changed (due to imapct from dropping column filler fields (TRAN_DATE1, UNKNOWN_FIELD, CODE1) from JV_EXTRCT_CNTRL_FL, UAR_JV_EXTRCT_CNTRL_FL )
+          and COST_CENTER_CODE field changed to 6 digit equivalent
+          and AMOUNT FIELD CHANGED TO NUMBER(10,2) FROM varchar2
+          and TRAN_SEQNUM field changed to NUMBER FROM varchar2
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added IN_DATE parameter
           Signature change in call to GET_LEAD_BANK_RECORD
         : 06/28/2017 nxk927 CCN Project....
           logging the error before raising the error if any error occurs
+        : 07/25/2017 nxk927 CCN Project....
+          calling the function to get the bank account number
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -1187,6 +1251,7 @@ IS
                UNKNOWN_FIELD,
                CODE1,
                TRUNC(SYSDATE) LOAD_DATE,
+               GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,IN_DATE) AS ORIG_BANK_ACCOUNT_NBR,
                TO_NUMBER(LINE_NUMBER) LINE_NUMBER
           FROM TEMP_UAR_OVERSHRT MT
           ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
@@ -1203,7 +1268,6 @@ IS
                               AND NVL(UNKNOWN_FIELD,'X')  = NVL(MT.UNKNOWN_FIELD,'X')
                               AND NVL(CODE1,'A')          = NVL(MT.CODE1,'A'));
     V_COUNT NUMBER := 0;
-    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
     V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
 
@@ -1241,20 +1305,14 @@ BEGIN
                                          rec.CODE1,
                                          rec.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
-        GET_LEAD_BANK_RECORD(rec.COST_CENTER_CODE,
-                             IN_DATE,
-                             V_LEAD_BANK_CC_REC);
-        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(V_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR,'-'), '0', 17);
+        V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
         INSERT INTO OVERSHRT VALUES (V_BANK_ACCOUNT_NBR,
-                                     rec.COST_CENTER_CODE,
-                                     rec.AMOUNT,
+                                     COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.COST_CENTER_CODE))),
+                                     rec.AMOUNT/100,
                                      rec.TRANSACTION_DATE,
                                      rec.TCODE,
-                                     rec.TRAN_SEQNUM,
+                                     TO_NUMBER(rec.TRAN_SEQNUM),
                                      rec.TRAN_CODE,
-                                     rec.TRAN_DATE1,
-                                     rec.UNKNOWN_FIELD,
-                                     rec.CODE1,
                                      rec.LOAD_DATE,
                                      V_SRC_BANK_ACCOUNT_NBR);
         V_COUNT := V_COUNT +1;
@@ -1268,11 +1326,11 @@ BEGIN
 EXCEPTION
    WHEN OTHERS THEN
        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                  'STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT',
-                                  SQLERRM,
-                                  '2222222222',
-                                  '222222',
-                                  'OVERSHRT');
+                                       'STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT',
+                                       SQLERRM,
+                                       '2222222222',
+                                       '222222',
+                                       'OVERSHRT');
        RAISE;
 END LOAD_OVERSHRT;
 
@@ -1293,6 +1351,9 @@ Changed : 03/17/2017 nxk927 CCN Project....
           combining multiple transactions into one
 Changed : 03/21/2017 jxc517 CCN Project Team....
           Added code NOT to consider transactoin code 0495
+Changed : 05/27/2017 rxa457 CCN Project Team
+          COST_CENTER_CODE field changed to 6 digit equivalent field
+          and AMOUNT FIELD is no longer a varchar2 field and stores as NUMBER(10,2)
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added condition to get records with UAR bank account number matching with the
           CCN bank account number
@@ -1311,14 +1372,14 @@ IS
                       '+'
                END) AMOUNT_SIGN ,
                LPAD(ABS(SUM(AMOUNT)),9,0)  AMOUNT
-          FROM (SELECT COST_CENTER_CODE,
-                       SUBSTR(AMOUNT, 4) * DECODE(DB_CR_CODE, 'OC', -1, 1) AS AMOUNT
+          FROM (SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
+                       AMOUNT * 100 * DECODE(DB_CR_CODE, 'OC', -1, 1) AS AMOUNT
                   FROM MISCTRAN
                  WHERE LOAD_DATE = IN_DATE
                    AND TCODE NOT IN ('0495')
                  UNION
-                SELECT COST_CENTER_CODE,
-                       SUBSTR(AMOUNT, 4) * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
+                SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
+                       AMOUNT * 100 * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
                   FROM OVERSHRT
                  WHERE LOAD_DATE = IN_DATE)
          GROUP BY COST_CENTER_CODE
@@ -1393,7 +1454,7 @@ BEGIN
                                        SQLERRM,
                                        '2222222222',
                                        '222222',
-                                       'OTHER');
+                                       'OVERSHRT');
             V_TRANS_STATUS := 'ERROR';
     END;
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BDP_DLY_RCNCL_PRCSS1', V_BATCH_NUMBER, V_TRANS_STATUS);
@@ -1426,6 +1487,9 @@ Changed : 11/07/2016 jxc517 CCN Project Team....
           Modified AMOUNT field to NUMBER with 2 decimals
         : 03/21/2017 nxk927
           adding ORIGINATED_BANK_ACCNT_NBR in MISCTRAN_PRIMESUB table
+        : 05/27/2017 rxa457 CCN Project Team...
+          COST_CENTER_cODE is changed to 6 digit equivalent and..
+          AMOUNT FIELD is already stored as NUMBER(10,2) and no longer a varchar2 field
 Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Added condition to get records with UAR bank account number matching with the
           CCN bank account number
@@ -1438,11 +1502,8 @@ Changed : 06/23/2017 nxk927 CCN Project....
 IS
     CURSOR main_cursor IS
         SELECT MT.BANK_ACCOUNT_NBR,
-               (SELECT COST_CENTER_CODE
-                  FROM COST_CENTER
-                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(MT.COST_CENTER_CODE)
-                   AND ROWNUM < 2) AS COST_CENTER_CODE,
-               MT.AMOUNT/100,
+               MT.COST_CENTER_CODE,
+               MT.AMOUNT,
                MT.TRANSACTION_DATE,
                MT.TCODE,
                (SELECT NAME
@@ -1471,11 +1532,8 @@ IS
            AND MT.LOAD_DATE                 = TRUNC(SYSDATE)
          UNION
         SELECT OS.BANK_ACCOUNT_NBR,
-               (SELECT COST_CENTER_CODE
-                  FROM COST_CENTER
-                 WHERE SUBSTR(UPPER(COST_CENTER_CODE), 3) = UPPER(OS.COST_CENTER_CODE)
-                   AND ROWNUM < 2) AS COST_CENTER_CODE,
-               OS.AMOUNT/100,
+               OS.COST_CENTER_CODE,
+               OS.AMOUNT,
                OS.TRANSACTION_DATE,
                OS.TCODE,
                (SELECT NAME
@@ -1526,5 +1584,86 @@ EXCEPTION
                                    'OTHER');
         RAISE;
 END PRIME_SUB_LOAD_PROCESS;
+
+FUNCTION COST_CENTER_LOOK_UP_FNC( 
+/**********************************************************
+THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
+WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING COST CENTER CODE IS NOT FOUND 
+ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
+
+CREATED : 06/08/2017 CCN PROJECT TEAM..
+**********************************************************/
+IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
+IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
+)
+RETURN VARCHAR2
+IS
+
+  V_COST_CENTER_CODE          VARCHAR2(30);  
+  INVALID_COST_CENTER_ERR     EXCEPTION;
+  MULTI_COSTCNTR_ERROR        EXCEPTION;
+  V_COST_CENTER_STR           VARCHAR2(30);
+    
+--
+BEGIN
+           SELECT LISTAGG(COST_CENTER_CODE, ',') 
+           WITHIN GROUP (ORDER BY COST_CENTER_CODE)
+           INTO V_COST_CENTER_STR
+       FROM 
+        (SELECT /*+  INDEX(COST_CENTER COST_CENTER_PK) */ COST_CENTER_CODE
+          FROM COST_CENTER
+         WHERE LENGTH(IN_COST_CENTER) = 6 
+           AND COST_CENTER_CODE = (IN_COST_CENTER) 
+        UNION
+        SELECT /*+  INDEX(COST_CENTER COST_CENTER_NX02) */ COST_CENTER_CODE
+          FROM COST_CENTER
+         WHERE LENGTH(IN_COST_CENTER) = 4
+           AND SUBSTR(COST_CENTER_CODE,3) = UPPER(IN_COST_CENTER)
+        );
+   
+    IF V_COST_CENTER_STR IS NOT NULL THEN
+        IF INSTR(V_COST_CENTER_STR, ',') > 0 THEN
+            IF IN_ERROR_FLAG = 'Y' THEN
+                RAISE MULTI_COSTCNTR_ERROR;
+            ELSE
+                RETURN IN_COST_CENTER;
+            END IF;
+        END IF;
+    ELSE
+        IF IN_ERROR_FLAG = 'Y' THEN
+            RAISE INVALID_COST_CENTER_ERR;
+        ELSE
+            RETURN IN_COST_CENTER;
+        END IF;
+    END IF;
+   
+    --IT COMES HERE ONLY IF THERE IS ONLY ONE COST CENTER FOR THE INPUT PASSED    
+    V_COST_CENTER_CODE := V_COST_CENTER_STR ;  
+   
+    RETURN NVL(V_COST_CENTER_CODE,IN_COST_CENTER);
+  
+EXCEPTION
+ 
+    WHEN INVALID_COST_CENTER_ERR THEN  
+        ERRPKG.RAISE_ERR(ERRNUMS.EN_INVALID_COST_CENTER_ERR
+                         ,'COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC' ||'ENTERED COST_CENTER_CODE WAS "' ||  IN_COST_CENTER || '". ' 
+                           ||'CCN_TABLE_IU_PKG ' || 'COST CENTER IS NOT FOUND - WOULD YOU LIKE TO ADD? ' ); 
+ 
+    WHEN MULTI_COSTCNTR_ERROR THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.EN_DUP_MAINFRAME_COSTCNTR_ERR
+                         ,'COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC'
+                         ,'TWO OR MORE COST CENTERS ''' ||V_COST_CENTER_STR|| '''EXISTS WITH SAME LAST FOUR CHARACTERS IN THE MAINFRAME');
+                 NULL;
+   
+    WHEN OTHERS THEN
+         IF IN_ERROR_FLAG = 'Y' THEN
+                     RETURN IN_COST_CENTER;
+                 ELSE
+                     V_COST_CENTER_CODE := IN_COST_CENTER;
+             ERRPKG.RAISE_ERR(SQLCODE
+                             ,'COST CENTER NOT FOUND COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC ERROR');
+         END IF;
+
+END COST_CENTER_LOOK_UP_FNC;
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
