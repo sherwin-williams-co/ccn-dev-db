@@ -102,7 +102,7 @@ echo "Processing finished for UAR data load for the uar.position file and serial
 #                  STR_BNK_DPST_DLY_RCNCL_PROCESS.GENERATE_FILES
 #################################################################
 echo "Processing started for generating uar.position file and serial.dat file at ${TIME} on ${DATE}"
-./ SRA11000_generate_files.sh
+./SRA11000_generate_files.sh
 
 status=$?
 if test $status -ne 0
