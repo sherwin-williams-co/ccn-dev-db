@@ -11,10 +11,8 @@
 . /app/banking/dev/banking.config
 
 proc_name="SRA11000_generate_files"
-LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 LOAD_DATE=`date +"%d-%^b-%Y"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
