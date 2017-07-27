@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="gl_ps_mv_rqst_to_db_server.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"

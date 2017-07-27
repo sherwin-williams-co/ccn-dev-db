@@ -7,9 +7,10 @@
 # Modified : 03/06/2017 rxv940 CCN Project Team..... 
 #          : Changes to the path of ccn.config
 # Modified : 06/22/2017 rxv940 CCN Project Team.....
-#          : Included positional parameters for MAIL_PKG call
+#          : Included positional parameters for MAIL_PKG call and 
+#          : corrected the config file name.
 #################################################################
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 
 proc_name="send_mail.sh";

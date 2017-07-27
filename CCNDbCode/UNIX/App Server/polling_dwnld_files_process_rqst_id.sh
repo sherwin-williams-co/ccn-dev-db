@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : polling_dwnld_files_process_rqst_id.sh
 # Description   : This script is to parse the request id and act accordingly
@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 files=$1
 FILENAME=$2
@@ -33,7 +33,7 @@ then
     TIME="$(date +"%H%M%S")"
     if [ "$status" -gt 0 ]
     then
-        $SCRIPT_DIR/send_mail.sh "ARCHIVINGPROCESSFAILURE"
+        $SCRIPT_DIR/send_mail.sh "ARCHIVINGPROCESSFAILURE" "Error in $PROC_NAME while archiving $FILENAME and $files."
         echo " $PROC_NAME --> Moving of files to the archive directory failed at $DATE:$TIME ."
         mv {"$files","$FILENAME"} "$ERRORDIR"
         echo " $PROC_NAME -->  Polling process failed so moving $FILENAME and $files to error directory $ERRORDIR at $DATE:$TIME. " 

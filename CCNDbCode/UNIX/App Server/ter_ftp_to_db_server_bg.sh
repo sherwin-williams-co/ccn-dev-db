@@ -15,14 +15,14 @@
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep ter_ftp_to_db_server_bg.sh
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 DATADIR="$HOME"/POSdownloads/POSxmls
 
 while(true)
 do
 
 #Check for .REQUEST file 
-if [ $(ls "$DATADIR/$TER_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ]
+if [ $(ls "$DATADIR/$TER_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
 then
     $SCRIPT_DIR/ter_mv_rqst_to_db_server.sh
 fi

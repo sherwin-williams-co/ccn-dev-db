@@ -4,10 +4,10 @@
 # Description   : This script is to transfer files from db server to app server.
 #
 # Created  : 07/05/2017 rxv940 CCN Project Team.....
-# Modified :
+# Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="ter_mv_rqst_to_db_server.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
@@ -20,8 +20,8 @@ cd "$DATADIR" || exit
 
 for files in "$TER_FILE_NAME"*".REQUEST"
 do
-
-    echo " $PROC_NAME --> FTP of $files to dbserver $CCNDBUSERNAME@$CCNDBSERVERHOST started at $DATE:$TIME "
+    
+    echo " $PROC_NAME --> FTP of $files to dbserver $CCNDBUSERNAME@$CCNDBSERVERHOST started at $DATE:$TIME " 
     $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$files"
 
     status=$?
@@ -34,9 +34,9 @@ do
 
 ################################# END OF ERROR CHECK #################################
 
-    echo " $PROC_NAME --> Archive of $files started at $DATE:$TIME "
+    echo " $PROC_NAME --> Archive of $files started at $DATE:$TIME " 
 
-    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$files"
+    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$files" 
 
     status=$?
     TIME=$(date +"%H%M%S")

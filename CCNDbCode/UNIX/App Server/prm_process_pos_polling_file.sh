@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : prm_process_pos_polling_file.sh
 # Description   : This script is to process PARAM polling files that moved to app server and send it to polling.
@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="prm_process_pos_polling_file.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
@@ -43,5 +43,6 @@ do
     fi
 
 done
-
+TIME="$(date +"%H%M%S")"
+echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "
 exit 0

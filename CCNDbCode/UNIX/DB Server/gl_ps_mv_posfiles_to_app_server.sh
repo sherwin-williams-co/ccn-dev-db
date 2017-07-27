@@ -24,7 +24,7 @@ do
     then
         TIME=$(date +"%H%M%S")
         echo " $PROC_NAME --> FTPing of file $FILENAME and $DONEFILENAME started at $DATE:$TIME " 
-        $HOME/polling_dwnld_files_ftp_to_db_server.sh "$FILENAME" "$DONEFILENAME"
+        $HOME/polling_dwnld_files_ftp_to_app_server.sh "$FILENAME" "$DONEFILENAME"
 
         status=$?
         TIME=$(date +"%H%M%S")
@@ -39,7 +39,7 @@ do
 
     echo " $PROC_NAME --> Archiving of files $FILENAME and $DONEFILENAME started at $DATE:$TIME " 
 
-    $HOME/polling_dwnld_files_archive_process.sh "$FILENAME" "$DONEFILENAME"
+    $HOME/polling_dwnld_files_db_server_archive_process.sh "$FILENAME" "$DONEFILENAME"
     status=$?
     TIME=$(date +"%H%M%S")
     if [ "$status" -ne 0 ]

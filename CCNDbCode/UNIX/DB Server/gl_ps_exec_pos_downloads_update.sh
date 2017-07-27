@@ -60,7 +60,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $proc_name --> processing FAILED while executing return_pos_downloads.sh at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" 
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while updating REQUESTID $REQUESTID for file $FILENAME in to the POS_DOWNLOADS table"
      exit 1
 fi
 

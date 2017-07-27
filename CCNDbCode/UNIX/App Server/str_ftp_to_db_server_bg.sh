@@ -5,8 +5,8 @@
 #             : after receving the Store .REQUEST file
 #
 # Created  : 07/05/2017 rxv940 CCN Project ....
-# Modified :
-#
+# Modified : 
+#              
 ############################################################################
 
 #Run below command to make the process run in the background even after shutdown
@@ -15,14 +15,14 @@
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep str_ftp_to_db_server_bg.sh
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 DATADIR="$HOME"/POSdownloads/POSxmls
 
 while(true)
 do
 
-#Check for .REQUEST file
-if [ $(ls "$DATADIR/$STR_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ]
+#Check for .REQUEST file 
+if [ $(ls "$DATADIR/$STR_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
 then
     $SCRIPT_DIR/str_mv_rqst_to_db_server.sh
 fi

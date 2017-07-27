@@ -14,7 +14,7 @@
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep prm_call_polling_bg.sh
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 DATADIR="$HOME/POSdownloads/POSxmls"
 
 while(true)

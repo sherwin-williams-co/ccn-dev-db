@@ -5,7 +5,7 @@
 # Description   : This script is to call polling process for Store 
 #               : on the arrival of .XML and .POLLINGDONE files in the APP Server
 # Created  : 07/03/2017 rxv940 CCN Project Team.....
-# Modified :
+# Modified : 
 #####################################################################################
 
 #Run below command to make the process run in the background even after shutdown
@@ -14,7 +14,7 @@
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep str_call_polling_bg.sh
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 DATADIR="$HOME/POSdownloads/POSxmls"
 
 while(true)

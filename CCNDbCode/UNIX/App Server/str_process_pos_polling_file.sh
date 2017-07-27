@@ -1,13 +1,13 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : str_process_pos_polling_file.sh
 # Description   : This script is to process Store polling files that moved to app server and send it to polling.
 #
 # Created  : 07/03/2017 rxv940 CCN Project Team.....
-# Modified :
+# Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="str_process_pos_polling_file.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
@@ -24,26 +24,27 @@ do
     REQUESTNAME="$(basename "${FILENAME//XML/REQUEST}")"
     TIME="$(date +"%H%M%S")"
 
-    echo " $PROC_NAME --> Sending files to Polling started at $DATE:$TIME "
-    echo " $PROC_NAME --> Request file name is $REQUESTNAME at $DATE:$TIME "
-
+    echo " $PROC_NAME --> Sending files to Polling started at $DATE:$TIME " 
+    echo " $PROC_NAME --> Request file name is $REQUESTNAME at $DATE:$TIME " 
+    
     cd "$CLASSHOME" || exit
-    REQUESTID=$(java com.webservice.PollingRequest "$STOREUSERNAME" "$STOREPASSWORD" "$STOREENVIRONMENT" "$FILENAME" "$ENVIRON")
+    REQUESTID=$(java com.webservice.PollingRequest "$STOREUSERNAME" "$STOREPASSWORD" "$STOREENVIRONMENT" "$FILENAME" "$ENVIRON") 
 
 ###################################### ERROR HANDLING ##########################################
 
     echo " $PROC_NAME --> Request id is $REQUESTID at $DATE:$TIME "
 
-    if  [[ "$REQUESTID" == *"Invalid Number of arguments passed."* ]] ||
-        [[ "$REQUESTID" == *"Exception"* ]] ||
-        [[ "$REQUESTID" == *"Invalid file path provided."* ]] ||
+    if  [[ "$REQUESTID" == *"Invalid Number of arguments passed."* ]] || 
+        [[ "$REQUESTID" == *"Exception"* ]] || 
+        [[ "$REQUESTID" == *"Invalid file path provided."* ]] || 
         [[ "$REQUESTID" == *"Error"* ]];
-    then
+    then    
         $SCRIPT_DIR/polling_dwnld_files_error_rqst_id.sh $files $FILENAME $REQUESTID
-    else
+    else 
         $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID
     fi
 
 done
-
+TIME="$(date +"%H%M%S")"
+echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "
 exit 0

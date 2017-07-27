@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="polling_dwnld_files_archive_process.sh"
 FILENAME=$1
@@ -24,12 +24,12 @@ status=$?
 TIME=$(date +"%H%M%S")
 if [ $status -gt 0 ]
 then
-    $SCRIPT_DIR/send_mail.sh "ARCHIVINGPROCESSFAILURE"
+    $SCRIPT_DIR/send_mail.sh "ARCHIVINGPROCESSFAILURE" "Error in $PROC_NAME while archiving $FILENAME."
     echo " $PROC_NAME --> Process failed while archiving the file $FILENAME at $DATE:$TIME "
     mv "$DATADIR/$FILENAME" "$ERRORDIR"
     echo " $PROC_NAME --> File $FILENAME is moved to $ERRORDIR at $DATE:$TIME "
     exit 1
 fi
-echo " $PROC_NAME --> File $FILENAME is archived under $ARCHIVEDIR at $DATE:$TIME "
+echo " $PROC_NAME --> File $FILENAME is archived under $ARCHIVEDIR and process completed at $DATE:$TIME "
 
 exit 0

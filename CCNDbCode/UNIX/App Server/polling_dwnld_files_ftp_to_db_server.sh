@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="polling_dwnld_files_ftp_to_db_server.sh"
 FILENAME=$1
@@ -29,7 +29,7 @@ END_SCRIPT
     
     if [ $status -gt 0 ];
     then
-        $SCRIPT_DIR/send_mail.sh "FTPFAILURE"
+        $SCRIPT_DIR/send_mail.sh "FTPFAILURE" "FTP failure while FTP'ing file $FILENAME to DB Server"
         echo " $PROC_NAME --> FTP failed when ftping the file $FILENAME at $DATE:$TIME "
         mv "$DATADIR/$FILENAME" "$ERRORDIR"
         echo " $PROC_NAME --> File $FILENAME is moved to $ERRORDIR at $DATE:$TIME "

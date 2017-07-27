@@ -51,7 +51,7 @@ then
 else
 
     ERRORMESSAGE=$(cat "$files")
-    ./send_mail.sh "POLLING_FAILURE_MAIL" 
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "The response file $files has errors. The message is $ERRORMESSAGE."
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> The response file $files has errors and the message is $ERRORMESSAGE at $DATE:$TIME "
     mv "$files" "$ERRORDIR"

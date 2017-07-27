@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : gl_ps_process_pos_polling_file.sh
 # Description   : This script is to process PrimeSub polling files that moved to app server and send it to polling.
@@ -7,7 +7,7 @@
 # Modified : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="gl_ps_process_pos_polling_file.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
@@ -41,7 +41,9 @@ do
     else 
         $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID
     fi
-	
+
 done
+TIME="$(date +"%H%M%S")"
+echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "
 
 exit 0
