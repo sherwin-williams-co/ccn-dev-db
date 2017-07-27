@@ -25,6 +25,8 @@
 #            pushed the time variable inside in teh error check so the error check can be handled properly
 #            updated the error check
 #          : 01/11/2017 gxg192 The status check at the end of the file is removed as it is not required
+#          : 07/27/2017 nxk927
+#            Process to load data and generate the output file splitted in two process
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -81,36 +83,37 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
 
 #################################################################
-#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_UAR_DATA
 #################################################################
-echo "Processing started for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
-sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
-set heading off;
-set serveroutput on;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS(TRUNC(SYSDATE));
-Exception
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
+echo "Processing started for UAR data load for the uar.position file and serial.dat file at ${TIME} on ${DATE}"
+./SRA11000_dly_uar_data_load.sh
 
 status=$?
 if test $status -ne 0
 then
     TIME=`date +"%H:%M:%S"`
-    echo "processing FAILED for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
+    echo "processing FAILED for UAR data load for the uar.position file and serial.dat file at ${TIME} on ${DATE}"
     exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_PROCESS at ${TIME} on ${DATE}"
+echo "Processing finished for UAR data load for the uar.position file and serial.dat file at ${TIME} on ${DATE}"
+
+#################################################################
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.GNRTE_UAR_FILE
+#################################################################
+echo "Processing started for generating uar.position file and serial.dat file at ${TIME} on ${DATE}"
+./SRA11000_dly_gnrte_uar_file.sh
+
+status=$?
+if test $status -ne 0
+then
+    TIME=`date +"%H:%M:%S"`
+    echo "processing FAILED for generating uar.position file and serial.dat file at ${TIME} on ${DATE}"
+    exit 1;
+fi
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for generating uar.position file and serial.dat file at ${TIME} on ${DATE}"
+
 
 #################################################################
 #                 Archive the concatenate files to archive folder
@@ -130,7 +133,7 @@ echo "Processing finished for SRA11000_Archconcat_file script at ${TIME} on ${DA
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-./SRA11000_dailyRun_ftp.sh
+###./SRA11000_dailyRun_ftp.sh   ##This is just commented on DEV
 status=$?
 if test $status -ne 0
 then

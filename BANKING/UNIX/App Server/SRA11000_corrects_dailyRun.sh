@@ -64,36 +64,36 @@ fi
 echo "Archiving input files finished at ${TIME} on ${DATE}"
 
 ##########################################################################
-#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT
 ##########################################################################
-echo "Processing started for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS at ${TIME} on ${DATE}"
-sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
-set heading off;
-set serveroutput on;
-set verify off;
-var exitCode number;
-WHENEVER OSERROR EXIT 1
-WHENEVER SQLERROR EXIT 1
-BEGIN
-:exitCode := 0;
-STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS(TRUNC(SYSDATE));
-Exception
- when others then
- :exitCode := 2;
- END;
- /
-exit :exitCode
-END
+echo "Processing started for loading OVERSHRT table at ${TIME} on ${DATE}"
+./SRA11000_dly_corrects_data_load.sh
 
 status=$?
 if test $status -ne 0
 then
     TIME=`date +"%H:%M:%S"`
-    echo "processing FAILED for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS at ${TIME} on ${DATE}"
+    echo "processing FAILED for loading OVERSHRT table at ${TIME} on ${DATE}"
     exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
-echo "Processing finished for STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS at ${TIME} on ${DATE}"
+echo "Processing finished for loading OVERSHRT table at ${TIME} on ${DATE}"
+
+##########################################################################
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT
+##########################################################################
+echo "Processing started for generating bank correction/cashflow file at ${TIME} on ${DATE}"
+./SRA11000_dly_gnrte_corrects_file.sh
+
+status=$?
+if test $status -ne 0
+then
+    TIME=`date +"%H:%M:%S"`
+    echo "processing FAILED for generating bank correction/cashflow file at ${TIME} on ${DATE}"
+    exit 1;
+fi
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for generating bank correction/cashflow file at ${TIME} on ${DATE}"
 
 #################################################################
 #                 Archive the concatenate files to archive folder
@@ -111,7 +111,6 @@ echo "Archiving input concatenated files finished at ${TIME} on ${DATE}"
 #         FTP files stores_cashflowadj_*
 #################################################################
 ./SRA11000_corrects_FTP.sh
-./SRA11000_cashflow_corrects_FTP.sh
 
 #################################################################
 #         ARCHIVE files stores_cashflowadj_*
