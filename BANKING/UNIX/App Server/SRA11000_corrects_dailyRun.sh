@@ -67,7 +67,7 @@ echo "Archiving input files finished at ${TIME} on ${DATE}"
 #                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT
 ##########################################################################
 echo "Processing started for loading OVERSHRT table at ${TIME} on ${DATE}"
-./SRA11000_dly_corrects_data_load.sh
+./SRA11000_load_corrects_data.sh
 
 status=$?
 if test $status -ne 0
@@ -80,10 +80,10 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing finished for loading OVERSHRT table at ${TIME} on ${DATE}"
 
 ##########################################################################
-#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_OVERSHRT
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.GENERATE_CORRECTS_FILE
 ##########################################################################
 echo "Processing started for generating bank correction/cashflow file at ${TIME} on ${DATE}"
-./SRA11000_dly_gnrte_corrects_file.sh
+./SRA11000_generate_corrects_file.sh
 
 status=$?
 if test $status -ne 0

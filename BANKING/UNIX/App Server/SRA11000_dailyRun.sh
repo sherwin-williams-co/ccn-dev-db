@@ -83,10 +83,10 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing finished for SRA11000_Archinput_file script at ${TIME} on ${DATE}"
 
 #################################################################
-#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_UAR_DATA
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_DATA
 #################################################################
 echo "Processing started for UAR data load for the uar.position file and serial.dat file at ${TIME} on ${DATE}"
-./SRA11000_dly_uar_data_load.sh
+./SRA11000_load_data.sh
 
 status=$?
 if test $status -ne 0
@@ -99,10 +99,10 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing finished for UAR data load for the uar.position file and serial.dat file at ${TIME} on ${DATE}"
 
 #################################################################
-#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.GNRTE_UAR_FILE
+#                  STR_BNK_DPST_DLY_RCNCL_PROCESS.GENERATE_FILES
 #################################################################
 echo "Processing started for generating uar.position file and serial.dat file at ${TIME} on ${DATE}"
-./SRA11000_dly_gnrte_uar_file.sh
+./ SRA11000_generate_files.sh
 
 status=$?
 if test $status -ne 0
@@ -133,7 +133,7 @@ echo "Processing finished for SRA11000_Archconcat_file script at ${TIME} on ${DA
 #################################################################
 #         FTP files SMIS1.SRA12060_*, SMIS1.SRA10060_*
 #################################################################
-###./SRA11000_dailyRun_ftp.sh   ##This is just commented on DEV
+./SRA11000_dailyRun_ftp.sh
 status=$?
 if test $status -ne 0
 then

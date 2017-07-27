@@ -20,7 +20,7 @@ Changed :
 IN_TCODE         IN VARCHAR2
 ) RETURN VARCHAR2;
 
-PROCEDURE LOAD_UAR_DATA(
+PROCEDURE LOAD_DATA(
 /******************************************************************************
   This procedure will load the table that will be used to generate the data
   for the UAR.POSITION file
@@ -30,7 +30,7 @@ Changed :
 *******************************************************************************/
 IN_DATE            IN         DATE);
 
-PROCEDURE GNRTE_UAR_FILE(
+PROCEDURE GENERATE_FILES(
 /******************************************************************************
   This procedure is the core procedure for performing the "Store Bank
   Deposit Daily Reconciliation" process for the date passed in
@@ -69,7 +69,7 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
 *****************************************************************************/
     IN_DATE            IN         DATE);
 
-PROCEDURE GENERATE_CRRCTN_FILE(
+PROCEDURE GENERATE_CORRECTS_FILE(
 /******************************************************************************
   This procedure will generate the bank draft corrects/cashflow file
 
