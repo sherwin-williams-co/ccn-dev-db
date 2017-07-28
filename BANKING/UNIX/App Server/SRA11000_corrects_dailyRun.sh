@@ -111,6 +111,7 @@ echo "Archiving input concatenated files finished at ${TIME} on ${DATE}"
 #         FTP files stores_cashflowadj_*
 #################################################################
 ./SRA11000_corrects_FTP.sh
+./SRA11000_cashflow_corrects_FTP.sh
 
 #################################################################
 #         ARCHIVE files stores_cashflowadj_*
