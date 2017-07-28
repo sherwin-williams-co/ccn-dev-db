@@ -1,0 +1,18 @@
+/*
+     Created: 07/25/2017 axt754 CCN Project Team..
+     This Script Alters the CCN_ACCOUNTING_TBL by adding 
+     Three new columns STATUS_CODE_DESC, TERRITORY_BUSN_CODE, TERRITORY_BUSN_CODE_DESC, TERRITORY_REP
+     and rename column 'CITY_MGR_NAME' to 'CITY_SALES_MANAGER_NAME'       
+     
+*/
+ALTER TABLE CCN_ACCOUNTING_TBL
+              ADD (STATUS_CODE_DESC          VARCHAR2(100)
+                   ,TERRITORY_BUSN_CODE      VARCHAR2(2)
+                   ,TERRITORY_BUSN_CODE_DESC VARCHAR2(100)
+                   ,TERRITORY_REP            VARCHAR2(100));
+               
+ALTER TABLE CCN_ACCOUNTING_TBL 
+  RENAME COLUMN CITY_MGR_NAME TO CITY_SALES_MANAGER_NAME;
+  
+  
+DESC CCN_ACCOUNTING_TBL;

@@ -14,10 +14,12 @@ This PROCEDURE loads the data into CCN_ACCOUNTING_TBL
 created : 06/16/2017 axt754 -- CCN Project Team
 Modified: 07/05/2017 axt754 -- Change to remove all filters except global hierarchy ind
 Modified: 07/11/2017 pxb712 -- Change to add a new column STATUS_CODE in CCN_ACCOUNTING_TBL
+          07/25/2017 axt754 -- Added STATUS_CODE_DESC, TERRITORY_BUSN_CODE, TERRITORY_BUSN_CODE_DESC to CCN_ACCOUNTING_TBL
+          07/28/2017 axt754 -- Added Territory_rep to CCN_ACCOUNTING_TBL
+                            -- Renamed CITY_MGR_NAME to CITY_SALES_MANAGER_NAME in CCN_ACCOUNTING_TBL
 ******************************************************************************/
 IN_DATE IN DATE)
 IS 
-  -- Just retreive all cost centers that are attached to global hierarchy
    CURSOR GET_CC_DETAILS IS 
        SELECT COST_CENTER_CODE 
              ,COST_CENTER_NAME
@@ -33,8 +35,7 @@ IS
              ,CLOSE_DATE
              ,CURRENCY_CODE
              ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CURRENCY_CODE','COD',CURRENCY_CODE) CURRENCY_CODE_DESC
-         FROM COST_CENTER
-        WHERE GLOBAL_HIERARCHY_IND = 'Y';
+         FROM COST_CENTER;
         
     CURSOR GET_MARKETING_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT MKT_MISSION
@@ -74,8 +75,7 @@ IS
         SELECT DIV_MGR_NAME
                ,AREA_MGR_NAME
                ,DISTRICT_MGR_NAME
-               ,CITY_MGR_NAME
-               ,CC_MGR_NAME
+               ,CITY_MGR_NAME CITY_SALES_MANAGER_NAME
           FROM GLOBAL_HIERARCHY_ATTRBT_VW
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
          
@@ -91,10 +91,18 @@ IS
            
      CURSOR GET_STATUS_CODE(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT STATUS_CODE
+              ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATUS_CODE','COD',STATUS_CODE) STATUS_CODE_DESC
           FROM STATUS
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND EXPIRATION_DATE IS NULL;      
-           
+           AND EXPIRATION_DATE IS NULL;
+
+     CURSOR GET_TERR_BUSN_CODE(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT TERRITORY_TYPE_BUSN_CODE TERRITORY_BUSN_CODE
+               ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TERRITORY_TYPE_BUSN_CODE','COD',TERRITORY_TYPE_BUSN_CODE) TERRITORY_BUSN_CODE_DESC
+          FROM TERRITORY
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+
     V_CCN_ACCOUNTING_ROWTYPE CCN_ACCOUNTING_TBL%ROWTYPE;
     V_COUNT                   NUMBER := 0;
     
@@ -168,11 +176,16 @@ BEGIN
        -- LOAD MANAGER DETAILS
         FOR REC IN GET_MGR_DETAILS(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
-              V_CCN_ACCOUNTING_ROWTYPE.DIV_MGR_NAME       := REC.DIV_MGR_NAME;
-              V_CCN_ACCOUNTING_ROWTYPE.AREA_MGR_NAME      := REC.AREA_MGR_NAME;
-              V_CCN_ACCOUNTING_ROWTYPE.DISTRICT_MGR_NAME  := REC.DISTRICT_MGR_NAME;
-              V_CCN_ACCOUNTING_ROWTYPE.CITY_MGR_NAME      := REC.CITY_MGR_NAME;
-              V_CCN_ACCOUNTING_ROWTYPE.CC_MGR_NAME        := REC.CC_MGR_NAME;
+              V_CCN_ACCOUNTING_ROWTYPE.DIV_MGR_NAME              := REC.DIV_MGR_NAME;
+              V_CCN_ACCOUNTING_ROWTYPE.AREA_MGR_NAME             := REC.AREA_MGR_NAME;
+              V_CCN_ACCOUNTING_ROWTYPE.DISTRICT_MGR_NAME         := REC.DISTRICT_MGR_NAME;
+              V_CCN_ACCOUNTING_ROWTYPE.CITY_SALES_MANAGER_NAME   := REC.CITY_SALES_MANAGER_NAME;
+
+              -- Load Territory Rep as city_sales_manager_name, for cost centers whose category is 'T'
+              IF CC_REC.CATEGORY = 'T' THEN
+                  V_CCN_ACCOUNTING_ROWTYPE.TERRITORY_REP         := REC.CITY_SALES_MANAGER_NAME;
+              END IF;
+
            EXCEPTION
               WHEN OTHERS THEN
                  NULL;
@@ -192,19 +205,39 @@ BEGIN
            END;
         END LOOP;
         
-        
+        -- LOAD STATUS DETAILS
        FOR REC IN GET_STATUS_CODE(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
-              V_CCN_ACCOUNTING_ROWTYPE.STATUS_CODE := REC.STATUS_CODE;
+              V_CCN_ACCOUNTING_ROWTYPE.STATUS_CODE      := REC.STATUS_CODE;
+              V_CCN_ACCOUNTING_ROWTYPE.STATUS_CODE_DESC := REC.STATUS_CODE_DESC;
+           EXCEPTION
+              WHEN OTHERS THEN
+                 NULL;
+           END;
+        END LOOP;
+
+        -- LOAD TERRITORY TYPE BUSN DETAILS
+       FOR REC IN GET_TERR_BUSN_CODE(CC_REC.COST_CENTER_CODE) LOOP
+           BEGIN
+              V_CCN_ACCOUNTING_ROWTYPE.TERRITORY_BUSN_CODE      := REC.TERRITORY_BUSN_CODE;
+              V_CCN_ACCOUNTING_ROWTYPE.TERRITORY_BUSN_CODE_DESC := REC.TERRITORY_BUSN_CODE_DESC;
            EXCEPTION
               WHEN OTHERS THEN
                  NULL;
            END;
         END LOOP; 
         
+        -- GET STORE MANAGER
+        V_CCN_ACCOUNTING_ROWTYPE.CC_MGR_NAME := CCN_HIERARCHY.GET_MGR_NAME_FNC(CC_REC.COST_CENTER_CODE);
+
         V_CCN_ACCOUNTING_ROWTYPE.LOAD_DATE := IN_DATE; 
-        -- INSERT INTO CCN_ACCOUNTING_TBL
-        INSERT INTO CCN_ACCOUNTING_TBL VALUES V_CCN_ACCOUNTING_ROWTYPE;
+
+        -- INSERT INTO CCN_ACCOUNTING_TBL if DIVISION,AREA,DISTRICT is not NULL(Which are attached to Global Hierarchy)
+        IF(V_CCN_ACCOUNTING_ROWTYPE.DIVISION IS NOT NULL AND
+           V_CCN_ACCOUNTING_ROWTYPE.AREA     IS NOT NULL AND
+           V_CCN_ACCOUNTING_ROWTYPE.DISTRICT IS NOT NULL) THEN
+            INSERT INTO CCN_ACCOUNTING_TBL VALUES V_CCN_ACCOUNTING_ROWTYPE;
+        END IF;
         
         --COMMIT LOGIC
         V_COUNT := V_COUNT + 1;
@@ -228,7 +261,9 @@ calling MAIL_PKG.
 
 created : 06/16/2017 axt754 -- CCN Project Team
 Mdified: 07/11/2017 pxb712 -- added new column STATUS_CODE in CCN_ACCOUNTING_TBL
-
+         07/25/2017 axt754 -- Added STATUS_CODE_DESC, TERRITORY_BUSN_CODE, TERRITORY_BUSN_CODE_DESC to report
+         07/28/2017 axt754 -- Added Territory_rep to report
+                           -- Renamed CITY_MGR_NAME to CITY/SALES_MANAGER_NAME in report
 ******************************************************************************/
       IS
    V_CLOB           CLOB;
@@ -284,9 +319,13 @@ BEGIN
              ',DIV_MGR_NAME'||
              ',AREA_MGR_NAME'||
              ',DISTRICT_MGR_NAME'||
-             ',CITY_MGR_NAME'||
+             ',CITY/SALES_MANAGER_NAME'||
              ',CC_MGR_NAME'||
-             ',STATUS_CODE'||CHR(10);
+             ',STATUS_CODE'||
+             ',STATUS_CODE_DESC'||
+             ',TERRITORY_BUSN_CODE'||
+             ',TERRITORY_BUSN_CODE_DESC'||
+             ',TERRITORY_REP'||CHR(10);
    
    FOR REC IN (SELECT *
                  FROM CCN_ACCOUNTING_TBL
@@ -343,9 +382,13 @@ BEGIN
                  '"' || NVL(REC.DIV_MGR_NAME,'N/A') || '",' ||
                  '"' || NVL(REC.AREA_MGR_NAME,'N/A') || '",' ||
                  '"' || NVL(REC.DISTRICT_MGR_NAME,'N/A') || '",' ||
-                 '"' || NVL(REC.CITY_MGR_NAME,'N/A') || '",' ||
+                 '"' || NVL(REC.CITY_SALES_MANAGER_NAME,'N/A') || '",' ||
                  '"' || NVL(REC.CC_MGR_NAME,'N/A') || '",' ||
-                 '"' || NVL(REC.STATUS_CODE,'N/A') || '"' || CHR(10);
+                 '"' || NVL(REC.STATUS_CODE,'N/A') || '",' ||
+                 '"' || NVL(REC.STATUS_CODE_DESC,'N/A') || '",' ||
+                 '"' || NVL(REC.TERRITORY_BUSN_CODE,'N/A') || '",' ||
+                 '"' || NVL(REC.TERRITORY_BUSN_CODE_DESC,'N/A') || '",' ||
+                 '"' || NVL(REC.TERRITORY_REP,'N/A') || '"' || CHR(10);
                  
                  V_CLOB := V_CLOB || V_CLOB_REC;
    END LOOP;   
