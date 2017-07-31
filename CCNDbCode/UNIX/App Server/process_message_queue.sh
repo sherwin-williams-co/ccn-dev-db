@@ -8,50 +8,56 @@
 # Modified      : 
 ###############################################################################################################################
 
-. /app/ccn/ccn.config
+. /app/ccn/ccn_app_server.config
 
 PROC_NAME="process_message_queue.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
-DATE=$(date +"%d%m%Y")
-TIME=$(date +"%H%M%S")
-FILENAME=$DATADIR/COST_CENTER_DEQUEUE.queue
-SCRIPT_PATH="$HOME/scripts"
-
+FILENAME=COST_CENTER_DEQUEUE.queue
+TRGRFILE="COST_CENTER_DEQUEUE.TRGRFILE"
 
 #Go the class file path and call the java method by passing .ccdt file as parameters
 PATH=/usr/jdk/jdk1.6.0_31/bin:$PATH
-QueueMessage=$(java -classpath .:../PollingQueue/lib/com.ibm.dhbcore.jar:../PollingQueue/lib/com.ibm.mq.jar:../PollingQueue/lib/com.ibm.mqjms.jar:../PollingQueue/lib/connector.jar:../PollingQueue/lib/javax.jms.jar:../PollingQueue com.webservice.ReadMessageQueue /app/ccn/PollingQueue/CCN-v8.ccdt)
+QueueMessage=$(java -classpath .:../PollingQueue/lib/com.ibm.dhbcore.jar:../PollingQueue/lib/com.ibm.mq.jar:../PollingQueue/lib/com.ibm.mqjms.jar:../PollingQueue/lib/connector.jar:../PollingQueue/lib/javax.jms.jar:../PollingQueue com.webservice.ReadMessageQueue "/app/ccn/PollingQueue/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
+
+DATE=$(date +"%d%m%Y")
+TIME=$(date +"%H%M%S")
 
 #Print the output of java program
 if [ ! -z "$QueueMessage" ]; then
-    echo "$QueueMessage"  >> $FILENAME
+    echo "$QueueMessage"  >> $DATADIR/$FILENAME
 
 
-	#If the response has errors, then log the error and move it to the error folder.
-	if [[ "$QueueMessage" == *"Invalid Number of arguments passed."* ]] ||  
-	   [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
-	   [[ "$QueueMessage" == *"Error"* ]];
-	then
+    #If the response has errors, then log the error and move it to the error folder.
+    if  [[ "$QueueMessage" == *"Invalid Number of arguments passed."* ]] ||  
+        [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
+        [[ "$QueueMessage" == *"Error"* ]];
+    then
 
-	   #Log the Error Message.
-	   echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
-	   $SCRIPT_PATH/send_mail.sh "QueueDownloadFAILURE" 
-	   exit 1
+        #Log the Error Message.
+        echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
+        $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
+        exit 1
 
-	else
+    else
 
-	   #No issues so generating a file with message in the queue.
-	   echo " $PROC_NAME --> Message Read from queue :$QueueMessage at $DATE $TIME " 
-	   echo " $PROC_NAME --> Created a Message file $FILENAME at $DATE $TIME " 
-	   echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " 
-	   $SCRIPT_PATH/mv_trigger_file_to_dbserver.sh
-       exit 0       
-	fi
-	
+        #No issues so generating a file with message in the queue.
+        echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 
+        echo " $PROC_NAME --> Created a Message file $DATADIR/$FILENAME at $DATE $TIME " 
+        echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " 
+        $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE"
+        $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE"
+        sleep 300
+        $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$FILENAME"	
+    fi
+    
 else
 
     echo " $PROC_NAME --> There is no data in the queue at $DATE $TIME "
-    exit 0
+    echo "This is a Trigger File" > "$DATADIR/$TRGRFILE"        
+    $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE"
+    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE"
+    sleep 300
+    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$FILENAME"
 fi
 
-
+exit 0

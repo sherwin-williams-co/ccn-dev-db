@@ -12,15 +12,9 @@
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
-# establish parameter names for this script
-
 PROC="call_to_init_loads_sql.sh"
-
-
-# establish the date and time
 DATE=`date +"%Y-%m-%d"`
 TIME=`date +"%H:%M:%S"`
-
 
 echo " $PROC --> Processing Started at $TIME on $DATE"
 
@@ -46,19 +40,14 @@ EOF
 status=$?
 if [ $status -ne 0 ]
 then
-    DATE=`date +"%Y-%m-%d"`
+    ./send_mail.sh "POLLING_FAILURE_MAIL" 
     TIME=`date +"%H:%M:%S"`
     echo " $PROC --> processing failed at ${TIME} on ${DATE}"
-    ./send_mail.sh "POLLING_FAILURE_MAIL" 
     exit 1
 else
-    DATE=`date +"%Y-%m-%d"`
     TIME=`date +"%H:%M:%S"`
     echo " $PROC --> process finished successfully at ${TIME} on ${DATE} "
 fi
 
 
-##############################
-#  end of script             #
-##############################
-
+exit 0
