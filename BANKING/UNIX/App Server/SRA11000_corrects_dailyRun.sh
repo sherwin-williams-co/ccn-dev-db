@@ -20,6 +20,7 @@
 
 proc_name="SRA11000_corrects_dailyRun"
 DATA_FILES_PATH="$HOME/initLoad"
+OVRSHRT_PATH="$HOME/datafiles/ccn_users"
 ARCHIVE_PATH="$HOME/SRA11000"
 LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
@@ -42,11 +43,11 @@ fi
 #                                          Rename the input files
 #################################################################
 echo "Renaming input files started at ${TIME} on ${DATE}"
-if ls $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT >> $DATA_FILES_PATH/UAR.OVERSHRT.TXT
+if ls $OVRSHRT_PATH/overshrt*.txt &> /dev/null; then
+    echo "$OVRSHRT_PATH/OVERSHRT*.TXT files exist to rename"
+    cat $OVRSHRT_PATH/overshrt*.txt >> $DATA_FILES_PATH/UAR.OVERSHRT.TXT
 else
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files does not exist to rename"
+    echo "$OVRSHRT_PATH/OVERSHRT*.TXT files does not exist to rename"
 fi
 echo "Renaming input files finished at ${TIME} on ${DATE}"
 
@@ -54,11 +55,11 @@ echo "Renaming input files finished at ${TIME} on ${DATE}"
 #                          archive input files to archive folder
 #################################################################
 echo "Archiving input files started at ${TIME} on ${DATE}"
-if ls $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT &> /dev/null; then
+if ls $OVRSHRT_PATH/overshrt*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files exist "
-    mv $DATA_FILES_PATH/UAR.OVERSHRT_*.TXT $ARCHIVE_PATH/$FOLDER
+    mv $OVRSHRT_PATH/overshrt*.txt $ARCHIVE_PATH/$FOLDER
 else
-    echo "$DATA_FILES_PATH/UAR.OVERSHRT_*.TXT files does not exist"
+    echo "$OVRSHRT_PATH/overshrt*.txt files does not exist"
 fi
 echo "Archiving input files finished at ${TIME} on ${DATE}"
 
@@ -110,6 +111,7 @@ echo "Archiving input concatenated files finished at ${TIME} on ${DATE}"
 #         FTP files stores_cashflowadj_*
 #################################################################
 ./SRA11000_corrects_FTP.sh
+./SRA11000_cashflow_corrects_FTP.sh
 
 #################################################################
 #         ARCHIVE files stores_cashflowadj_*
