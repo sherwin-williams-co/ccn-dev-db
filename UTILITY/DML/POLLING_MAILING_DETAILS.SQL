@@ -3,6 +3,7 @@
 
 Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('88','ccnoracle.team@sherwin.com');
 Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('89','ccnoracle.team@sherwin.com');
+Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('92', 'ccnoracle.team@sherwin.com');
 COMMIT;
 
 
@@ -14,4 +15,10 @@ Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNA
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('ARCHIVINGPROCESSFAILURE','89','Polling Failure','ccnoracle.team@sherwin.com','Error while archiving. Please check the log file.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('QueueDownloadFAILURE','92','Queue Download Failure','ccnoracle.team@sherwin.com','Error while downloading store lists from the Queue.','Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
+
 COMMIT;
+
+
+
+
