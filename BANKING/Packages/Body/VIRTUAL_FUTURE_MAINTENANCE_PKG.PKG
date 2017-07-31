@@ -193,4 +193,88 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'VIRTUAL_FUTURE_UPSERT_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END VIRTUAL_FUTURE_UPSERT_SP;
 
+PROCEDURE VRTL_FTR_MBR_BANK_CC_UPDT(
+/******************************************************************************
+    This procedure will update the virtual future member details with the current records
+    updated details
+    Note: Previously this Procedure was named as UPDT_VIRTUAL_FTR_MBR_STR_DTLS and was part of member_maintenance_pkg
+
+Created : 07/31/2017 RXA457 CCN Project....
+*******************************************************************************/
+IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE)
+IS
+    CURSOR member_bank_cc_cur(IN_FUTURE_ID   IN      NUMBER) IS
+        SELECT A.*,
+               IN_FUTURE_ID AS FUTURE_ID
+          FROM MEMBER_BANK_CC A
+         WHERE MEMBER_STORE_NBR      = IN_MBR_BANK_CC_REC.MEMBER_STORE_NBR
+           AND LEAD_BANK_ACCOUNT_NBR = IN_MBR_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    V_FUTURE_ID              NUMBER;
+BEGIN
+    SELECT MAX(FUTURE_ID)
+      INTO V_FUTURE_ID
+      FROM MEMBER_BANK_CC_FUTURE
+     WHERE MEMBER_STORE_NBR      = IN_MBR_BANK_CC_REC.MEMBER_STORE_NBR
+       AND LEAD_BANK_ACCOUNT_NBR = IN_MBR_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    FOR rec IN member_bank_cc_cur(V_FUTURE_ID) LOOP
+        TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(rec);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'VRTL_FTR_MBR_BANK_CC_UPDT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END VRTL_FTR_MBR_BANK_CC_UPDT;
+
+FUNCTION IS_VIRTUAL_FTR_MBR_STR(
+/******************************************************************************
+    This function will determine if this is a virtual future store member or 
+    a real future store member
+    Note: - Function moved from MEMBER_MAINTENANCE_PKG
+Created : 07/31/2017 rxa457 CCN Project....
+*******************************************************************************/
+IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1);
+BEGIN
+		SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+      INTO V_RETURN_VAL
+      FROM MEMBER_BANK_CC_FUTURE
+     WHERE MEMBER_STORE_NBR      = IN_MBR_BANK_CC_REC.MEMBER_STORE_NBR
+       AND LEAD_STORE_NBR        = IN_MBR_BANK_CC_REC.LEAD_STORE_NBR
+       AND LEAD_BANK_ACCOUNT_NBR = IN_MBR_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+				RETURN V_RETURN_VAL;
+END IS_VIRTUAL_FTR_MBR_STR;
+
+FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
+/******************************************************************************
+	This procedure checks if the passed future is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+    Note: - Function moved from MEMBER_MAINTENANCE_PKG
+Created : 07/31/2017 rxa457 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR     IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+    --if the bank account exists in current tables with expiration date as null => it's not real future
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'N' ELSE 'Y' END
+      INTO V_RETURN_VAL
+      FROM BANK_ACCOUNT BA
+     WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+       AND EXPIRATION_DATE IS NULL
+       AND EXISTS (SELECT 1
+                     FROM BANK_ACCOUNT_FUTURE
+                    WHERE BANK_ACCOUNT_NBR = BA.BANK_ACCOUNT_NBR
+                      AND EFFECTIVE_DATE   = BA.EFFECTIVE_DATE
+                      AND EXPIRATION_DATE IS NULL);
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_REAL_FUTURE_BANK_ACCOUNT;
+
 END VIRTUAL_FUTURE_MAINTENANCE_PKG;

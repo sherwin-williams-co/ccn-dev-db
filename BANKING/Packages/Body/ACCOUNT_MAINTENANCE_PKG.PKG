@@ -174,7 +174,7 @@ Changed : 01/15/2015 dxv848 CCN Project....
           Adding the condition if the bank_account effective_date is greater than the sysdate
           Then that bank_account in future table.
 Changed : 07/12/2017 rxa457 CCN Project Team...
-              Building Future TAB types when the save is initiated from Future tab irrespective of bank effective date to get the correct future ID
+          Building Future TAB types when the save is initiated from Future tab irrespective of bank effective date to get the correct future ID
 *******************************************************************************/
     IN_XML                         IN     CLOB,
     O_BANK_ACCOUNT_REC                OUT BANK_ACCOUNT%ROWTYPE,
@@ -201,7 +201,6 @@ IS
     V_EFFECTIVE_DATE                BANK_ACCOUNT.EFFECTIVE_DATE%TYPE;
     V_FUTURE_ID                     NUMBER;
     V_BANK_ACCOUNT_NBR              BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
-
     V_BANK_MICR_FRMT_REC        BANK_MICR_FORMAT%ROWTYPE;
     V_BANK_MICR_FRMT_FTRE_REC   BANK_MICR_FORMAT_FUTURE%ROWTYPE;
 BEGIN
@@ -225,7 +224,7 @@ BEGIN
     END LOOP;
     V_EFFECTIVE_DATE := TO_DATE(V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/EFFECTIVE_DATE/text()').GETSTRINGVAL(), 'MM-DD-YYYY HH12:MI:SS AM');
     --if the bank effective date is greater then the sysdate or If the save is initiated from the Future tab then it goes to future V_FLAG = 'F'
-       IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) OR V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
+    IF TRUNC(V_EFFECTIVE_DATE) > TRUNC(SYSDATE) OR V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
        --if the effective is greater then the sysdate then it goes to future so extracting the bank acount and getting the future id
        IF NOT V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
           V_BANK_ACCOUNT_NBR := V_ROW_DATA.EXTRACT('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/BANK_ACCOUNT_NBR/text()').GETSTRINGVAL();
@@ -238,7 +237,6 @@ BEGIN
             TABLE_IU_PKG.BANK_ACCOUNT_ROWTYPE_SP('BANK_ACCOUNT'
                                                    ,V_XML_BANK_ACCOUNT_FRAG
                                                    ,O_BANK_ACCOUNT_REC);
-
         ELSE --future
             TABLE_IU_PKG.BANK_ACCOUNT_FUTURE_ROWTYPE_SP('BANK_ACCOUNT_FUTURE'
                                                         ,REPLACE(V_XML_BANK_ACCOUNT_FRAG,'BANK_ACCOUNT>','BANK_ACCOUNT_FUTURE>')
@@ -373,6 +371,7 @@ Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
 Changed : rxa457 07/18/2017 CCN Project Team...
              Removed unused IN parameter IN_BANK_TYPE_CHNG_VRTL_FTR from package call VIRTUAL_FUTURE_MAINTENANCE_PKG.VIRTUAL_FUTURE_UPSERT_SP								
+             Call to IS_REAL_FUTURE_BANK_ACCOUNT changed as VIRTUAL_FUTURE_MAINTENANCE_PKG.IS_REAL_FUTURE_BANK_ACCOUNT from "ACC_MEM_MAIN_COMMONTOOLS.IS_REAL_FUTURE_BANK_ACCOUNT"
 *******************************************************************************/
     IN_BANK_ACCOUNT_REC                IN BANK_ACCOUNT%ROWTYPE,
     IN_LEAD_BANK_CC_REC                IN LEAD_BANK_CC%ROWTYPE,
@@ -383,7 +382,7 @@ IS
     V_TRANSFER_VRTL_FTR         VARCHAR2(1);
     V_BANK_TYPE_CHNG_VRTL_FTR  VARCHAR2(1);
 BEGIN
-    V_REAL_FUTURE_BANK_ACCOUNT := ACC_MEM_MAIN_COMMONTOOLS.IS_REAL_FUTURE_BANK_ACCOUNT(IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR);
+    V_REAL_FUTURE_BANK_ACCOUNT := VIRTUAL_FUTURE_MAINTENANCE_PKG.IS_REAL_FUTURE_BANK_ACCOUNT(IN_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR);
     V_TRANSFER_VRTL_FTR        := IS_TRANSFER_VRTL_FTR(IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
     V_BANK_TYPE_CHNG_VRTL_FTR  := IS_BANK_TYPE_CHNG_VRTL_FTR(IN_LEAD_BANK_CC_REC.LEAD_BANK_ACCOUNT_NBR);
     TABLE_IU_PKG.BANK_ACCOUNT_I_SP(IN_BANK_ACCOUNT_REC);
@@ -971,32 +970,8 @@ BEGIN
         V_BANK_ACCOUNT_REC := NULL;
         V_LEAD_BANK_CC_REC := NULL;
         V_BANK_MICR_FORMAT_TAB.DELETE();
-    END IF;
-
-    --Calling Business Rules for all scenarios other than Virtual future scenario like before.. 
-      --virtual when Bank effective date is current and Lead effective date is in Future
-    SELECT NVL(TRUNC(V_BANK_ACCOUNT_REC.EFFECTIVE_DATE),
-               TRUNC(V_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE)
-               ),
-           NVL2(NVL(TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE),
-                    TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE)
-                    ), 
-                NVL(TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE),
-                    TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE)
-                    ), 
-                TRUNC(SYSDATE)
-                )
-      INTO V_CHK_BANK_EFFETCIVE_DATE,
-           V_CHK_LEAD_EFFETCIVE_DATE 
-      FROM DUAL;
-
-    IF (NOT(
-            (V_CHK_BANK_EFFETCIVE_DATE <= TRUNC(SYSDATE)
-             ) AND 
-            (V_CHK_LEAD_EFFETCIVE_DATE > TRUNC(SYSDATE)
-             )
-            )
-        ) THEN
+    ELSE
+				IF NVL(TRUNC(V_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE), TRUNC(SYSDATE)+1) > TRUNC(SYSDATE) THEN
     BUSINESS_RULES_PKG.ACCOUNT_MAINTENANCE_BR_SP(V_BANK_ACCOUNT_REC,
                                                  V_BANK_ACCOUNT_FUTURE_REC,
                                                  V_LEAD_BANK_CC_REC,
@@ -1004,6 +979,7 @@ BEGIN
                                                  V_BANK_MICR_FORMAT_TAB,
                                                  V_BANK_MICR_FORMAT_FUTURE_TAB);
     END IF;
+		END IF;
 
     IF V_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN --Current Details
         ACCNT_MNTNC_CURRENT_UPSERT_SP(V_BANK_ACCOUNT_REC,

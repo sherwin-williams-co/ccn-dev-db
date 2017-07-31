@@ -21,4 +21,34 @@ Changed : rxa457 07/18/2017 CCN Project Team...
     IN_REAL_FUTURE_BANK_ACCOUNT IN     VARCHAR2,
     IN_TRANSFER_VRTL_FTR        IN     VARCHAR2);
 
+PROCEDURE VRTL_FTR_MBR_BANK_CC_UPDT(
+/******************************************************************************
+    This procedure will update the virtual future member details with the current records
+    updated details
+    Note: Previously this Procedure was named as UPDT_VIRTUAL_FTR_MBR_STR_DTLS and was part of member_maintenance_pkg
+
+Created : 07/31/2017 RXA457 CCN Project....
+*******************************************************************************/
+IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE);
+
+FUNCTION IS_VIRTUAL_FTR_MBR_STR(
+/******************************************************************************
+    This function will determine if this is a virtual future store member or 
+    a real future store member
+    Note: - Function moved from MEMBER_MAINTENANCE_PKG
+Created : 07/31/2017 rxa457 CCN Project....
+*******************************************************************************/
+IN_MBR_BANK_CC_REC        IN     MEMBER_BANK_CC%ROWTYPE) RETURN VARCHAR2;
+
+FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
+/******************************************************************************
+	This procedure checks if the passed future is a virtual future or real future
+  returns 'N' if it is virtual future
+  returns 'Y' if it is real future
+  Note: - This function was Previously part of ACC_MEM_MAIN_COMMONTOOLS Package
+Created : 07/31/2017 rxa457 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_BANK_ACCOUNT_NBR     IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2;
+
 END VIRTUAL_FUTURE_MAINTENANCE_PKG;

@@ -7,17 +7,6 @@ Created : 12/10/2015 dxv848 CCN Project....
 Changed :
 **********************************************************/
 
-FUNCTION IS_REAL_FUTURE_BANK_ACCOUNT(
-/******************************************************************************
-	This procedure checks if the passed future is a virtual future or real future
-  returns 'N' if it is virtual future
-  returns 'Y' if it is real future
-
-Created : 10/15/2015 jxc517 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_BANK_ACCOUNT_NBR     IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE) RETURN VARCHAR2;
-  
 PROCEDURE ACCNT_MNTNC_CURRENT_DELETE_SP (
 /******************************************************************************
 	This procedure performs the core process for Account Maintenance Window,
