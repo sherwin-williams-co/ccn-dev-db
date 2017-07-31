@@ -5,7 +5,8 @@ This Package contains all the procedures used to
 maintain a virtual future
 
 Created : 10/21/2015 jxc517 CCN Project....
-Changed :
+Changed : rxa457 07/31/2017 CCN Project Team...
+          new Procedure VRTL_FTR_MBR_BANK_CC_UPDT included to update the virtual future member details with the current records
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
