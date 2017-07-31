@@ -907,7 +907,6 @@ Changed : 10/07/2015 jxc517 CCN Project....
         : 12/10/2015 dxv848 added to logic to check for the future which is already exists
 Changed : 07/07/2017 rxa457 CCN Project Team...
               ACCNT_MNTNC_LEAD_PROCESS should be called ahead of calling Business Rules Package and Future upsert
-              Before this change, Business rules package is not being called for Virtual Bank Future scenarios where bank eff date is current and lead eff date is in future.. This is being fixed by calling Business rules package for all scenarios
 *******************************************************************************/
     IN_ROW_DATA  IN  CLOB)
 IS
@@ -923,6 +922,8 @@ IS
     V_LEAD_EFFECTIVE_DATE             LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;
     V_BANK_ACCOUNT_NBR                BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
     V_LEAD_STORE_NBR                  LEAD_BANK_CC.LEAD_STORE_NBR%TYPE;      
+    V_CHK_BANK_EFFETCIVE_DATE         LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;		
+    V_CHK_LEAD_EFFETCIVE_DATE         LEAD_BANK_CC.EFFECTIVE_DATE%TYPE;		
 BEGIN
     --Fetching Lead Effective Date, Bank Effective Date, Lead Store nbr and bank account Nbr from the input row data
     IF V_ROW_DATA.EXISTSNODE('/ACCOUNT_MAINTENANCE_UI/BANK_ACCOUNT/FUTURE_ID/text()') = 1 THEN
@@ -955,6 +956,7 @@ BEGIN
                       V_LEAD_BANK_CC_FUTURE_REC,
                       V_BANK_MICR_FORMAT_TAB,
                       V_BANK_MICR_FORMAT_FUTURE_TAB);
+
     --If an user changes the lead bank type from "I" to "L" with a future date (he can do this only from current tab)
     --We should just expire the "I" record in current tab but create a virtual future with bank type as "I"
     --The future "I" comes to current once the date hits, so this "I" record should go into future table even though
@@ -971,14 +973,37 @@ BEGIN
         V_BANK_MICR_FORMAT_TAB.DELETE();
     END IF;
 
-    --Calling Business Rules Pacakge for all scenarios including Virtual Future scenarios 
-      --where Bank effective date is current and Lead effective date is in Future
+    --Calling Business Rules for all scenarios other than Virtual future scenario like before.. 
+      --virtual when Bank effective date is current and Lead effective date is in Future
+    SELECT NVL(TRUNC(V_BANK_ACCOUNT_REC.EFFECTIVE_DATE),
+               TRUNC(V_BANK_ACCOUNT_FUTURE_REC.EFFECTIVE_DATE)
+               ),
+           NVL2(NVL(TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE),
+                    TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE)
+                    ), 
+                NVL(TRUNC(V_LEAD_BANK_CC_REC.EFFECTIVE_DATE),
+                    TRUNC(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE)
+                    ), 
+                TRUNC(SYSDATE)
+                )
+      INTO V_CHK_BANK_EFFETCIVE_DATE,
+           V_CHK_LEAD_EFFETCIVE_DATE 
+      FROM DUAL;
+
+    IF (NOT(
+            (V_CHK_BANK_EFFETCIVE_DATE <= TRUNC(SYSDATE)
+             ) AND 
+            (V_CHK_LEAD_EFFETCIVE_DATE > TRUNC(SYSDATE)
+             )
+            )
+        ) THEN
     BUSINESS_RULES_PKG.ACCOUNT_MAINTENANCE_BR_SP(V_BANK_ACCOUNT_REC,
                                                  V_BANK_ACCOUNT_FUTURE_REC,
                                                  V_LEAD_BANK_CC_REC,
                                                  V_LEAD_BANK_CC_FUTURE_REC,
                                                  V_BANK_MICR_FORMAT_TAB,
                                                  V_BANK_MICR_FORMAT_FUTURE_TAB);
+    END IF;
 
     IF V_BANK_ACCOUNT_REC.BANK_ACCOUNT_NBR IS NOT NULL THEN --Current Details
         ACCNT_MNTNC_CURRENT_UPSERT_SP(V_BANK_ACCOUNT_REC,
