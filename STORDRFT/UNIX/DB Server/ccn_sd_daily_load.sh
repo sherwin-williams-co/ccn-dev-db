@@ -63,7 +63,8 @@ fi
 ##############################################################################
 # Load the daily drafts data from files into stordrft database
 ##############################################################################
-./daily_drafts_load.sh
+#./daily_drafts_load.sh
+./sd_data_status_check.sh
 
 ##############################################################################
 # if there is no error in the daily load then following process will run

@@ -23,7 +23,6 @@ TIME=`date +"%H:%M:%S"`
 DATE=${DAILY_LOAD_RUNDATE}
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
-
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
@@ -34,7 +33,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_START');
-SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP();
+SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP(TO_DATE('$DATE','MM/DD/YYYY'));
 Exception
  when others then
  :exitCode := 2;
@@ -50,6 +49,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
+	 echo "Processing FAILED for $proc at $TIME on $DATE"
      ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR
      ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
@@ -63,7 +63,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
+#MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
  Exception
  when others then
  :exitCode := 2;

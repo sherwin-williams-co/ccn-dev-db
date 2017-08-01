@@ -1,4 +1,5 @@
-CREATE OR REPLACE PACKAGE BODY SD_DAILY_LOAD
+CREATE OR REPLACE 
+PACKAGE body SD_DAILY_LOAD
 /****************************************************************************** 
 This package BODY will load:
   
@@ -7,7 +8,69 @@ changed :
 ******************************************************************************/
 AS
 
-PROCEDURE LOAD_DLY_CUSTOMER
+PROCEDURE SET_STORE_DRAFT_FLAGS(
+/*****************************************************************************
+	SET_STORE_DRAFT_FLAGS
+
+	This function will get set the flag values for store drafts table
+
+created : 07/10/2014 
+changed : 
+*****************************************************************************/
+    IN_ROW_TYPE     IN OUT   STORE_DRAFTS%ROWTYPE)
+IS
+BEGIN
+    IF IN_ROW_TYPE.VOID_DATE IS NULL AND IN_ROW_TYPE.STOP_PAY_DATE IS NULL THEN
+        IN_ROW_TYPE.OPEN_INDICATOR := 'Y';
+    ELSE
+        IN_ROW_TYPE.OPEN_INDICATOR := 'N';
+    END IF;
+    IF IN_ROW_TYPE.PAID_DATE IS NOT NULL THEN
+        IN_ROW_TYPE.PAY_INDICATOR := 'Y';
+    ELSE
+        IN_ROW_TYPE.PAY_INDICATOR := 'N';
+    END IF;
+    IF IN_ROW_TYPE.STOP_PAY_DATE IS NOT NULL THEN
+        IN_ROW_TYPE.STOP_INDICATOR := 'Y';
+    ELSE
+        IN_ROW_TYPE.STOP_INDICATOR := 'N';
+    END IF;
+    IF IN_ROW_TYPE.VOID_DATE IS NOT NULL THEN
+        IN_ROW_TYPE.VOID_INDICATOR := 'Y';
+    ELSE
+        IN_ROW_TYPE.VOID_INDICATOR := 'N';
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'SET_STORE_DRAFT_FLAGS', SUBSTR(SQLERRM,1,200));
+END SET_STORE_DRAFT_FLAGS;
+
+FUNCTION IS_UNATTACHED_STORE_DRAFT(
+/*****************************************************************************
+	IS_UNATTACHED_STORE_DRAFT
+
+	This function will return if the passed record is unattached or not based on some ruels.  
+
+created : 07/01/2014 jxc517 CCN Project Team.....
+changed : 12/10/2014 jxc517 CCN Project Team.....
+          Modified code to handle updates on unattached manual drafts
+*****************************************************************************/
+    IN_STORE_DRAFTS_RECORD     IN    STORE_DRAFTS%ROWTYPE) RETURN BOOLEAN
+IS
+    V_RETURN_VALUE BOOLEAN := FALSE;
+BEGIN
+    IF IN_STORE_DRAFTS_RECORD.COST_CENTER_CODE IS NULL
+            OR IN_STORE_DRAFTS_RECORD.CHECK_SERIAL_NUMBER IS NULL
+            OR IN_STORE_DRAFTS_RECORD.TRANSACTION_DATE IS NULL THEN
+        V_RETURN_VALUE := TRUE;
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_UNATTACHED_STORE_DRAFT;
+
+PROCEDURE LOAD_DLY_CUSTOMER(
 /*****************************************************************************
 	LOAD_DLY_CUSTOMER
 
@@ -17,10 +80,14 @@ PROCEDURE LOAD_DLY_CUSTOMER
 created : 06/11/2014 jxc517 CCN Project....
 changed :
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR TEMP_CUR is
-        SELECT *
-        FROM DLY_CUSTOMER;
+        SELECT DLY.*, (SELECT COST_CENTER_CODE 
+                         FROM COST_CENTER 
+                        WHERE SUBSTR(COST_CENTER_CODE,3) = TRIM(DLY.COST_CENTER_CODE)
+                          AND ROWNUM = 1) CC_CODE
+          FROM DLY_POS_CUSTOMER DLY
+         WHERE LOAD_DATE = IN_DATE;
 
     V_COMMIT           NUMBER := 0;
     V_TEMP_ROW         CUSTOMER%ROWTYPE;
@@ -29,11 +96,7 @@ BEGIN
 
     FOR rec IN TEMP_CUR LOOP
         BEGIN
-            SELECT COST_CENTER_CODE
-              INTO V_COST_CENTER_CODE
-              FROM COST_CENTER
-             WHERE SUBSTR(COST_CENTER_CODE,3) = CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
-            V_TEMP_ROW.COST_CENTER_CODE             := V_COST_CENTER_CODE;
+            V_TEMP_ROW.COST_CENTER_CODE             := rec.CC_CODE;
             V_TEMP_ROW.TRANSACTION_DATE             := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
             V_TEMP_ROW.TERMINAL_NUMBER              := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TERMINAL_NUMBER);
             V_TEMP_ROW.TRANSACTION_NUMBER           := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
@@ -83,7 +146,42 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_CUSTOMER;
 
-PROCEDURE LOAD_DLY_CUSTOMER_DETAILS
+FUNCTION GET_DISC_AMT_TYPE
+/******************************************************************
+This function will return the hexadecimal conversion of the value passed in
+based on the transaction type passed in
+
+created : 11/10/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+(IN_TRAN_GUID        IN   VARCHAR2
+,IN_SEQNBR           IN   VARCHAR2
+,IN_IND              IN   VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE         VARCHAR2(100);
+    V_ITEM_DISCOUNT_AMOUNT VARCHAR2(100);
+    V_ITEM_DISCOUNT_TYPE   VARCHAR2(100);
+BEGIN
+    SELECT NVL(NONTAXAMT,0) + NVL(TAXAMT,0),
+           NVL(TYP,0)
+      INTO V_ITEM_DISCOUNT_AMOUNT,
+           V_ITEM_DISCOUNT_TYPE
+      FROM PNP_CCN_DISC
+     WHERE TRAN_GUID = IN_TRAN_GUID
+       AND SEQNBR    = IN_SEQNBR;
+   IF IN_IND = 'A' THEN 
+      V_RETURN_VALUE := V_ITEM_DISCOUNT_AMOUNT;
+      RETURN V_RETURN_VALUE;
+   ELSE
+      V_RETURN_VALUE := V_ITEM_DISCOUNT_TYPE;
+      RETURN V_RETURN_VALUE;
+   END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+         RETURN V_RETURN_VALUE; 
+END GET_DISC_AMT_TYPE;
+
+PROCEDURE LOAD_DLY_CUSTOMER_DETAILS(
 /*****************************************************************************
 	LOAD_DLY_CUSTOMER_DETAILS
 
@@ -94,29 +192,66 @@ created : 06/11/2014 jxc517 CCN Project....
 changed : 12/05/2014 axk326 CCN Project....
           Code Modified to accept minus signs for amounts in customer_details
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR TEMP_CUR is
-        SELECT ROW_NUMBER( ) OVER (PARTITION BY C.COST_CENTER_CODE,B.TRANSACTION_DATE,A.TERMINAL_NUMBER,A.TRANSACTION_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
+        SELECT --ROW_NUMBER( ) OVER (PARTITION BY C.COST_CENTER_CODE,B.TRANSACTION_DATE,A.TERMINAL_NUMBER,A.TRANSACTION_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
                C.COST_CENTER_CODE CC_CODE,
-               A.*,
+               --A.*,
+               A.TRANGUID, 
+               A.COST_CENTER_CODE, 
+               A.TERMINAL_NUMBER, 
+               A.TRANSACTION_NUMBER, 
+               A.SORT_FORCE, 
+               A.SEGMENT_CODE, 
+               A.SUB_SEGMENT_CODE, 
+               A.FILLER, 
+               A.SALES_NUMBER, 
+               A.ITEM_QUANTITY_SIGN, 
+               A.ITEM_QUANTITY, 
+               A.ITEM_PRICE_SIGN, 
+               A.ITEM_PRICE, 
+               A.ITEM_EXTERNAL_AMOUNT_SIGN, 
+               A.ITEM_EXTERNAL_AMOUNT, 
+               A.ITEM_DISC_AMOUNT_SIGN, 
+               GET_DISC_AMT_TYPE(A.TRANGUID,A.SEQNBR, 'A') ITEM_DISC_AMOUNT, 
+               A.ITEM_SALES_TAX_INDICATOR, 
+               A.ITEM_DISC_CODE, 
+               GET_DISC_AMT_TYPE(A.TRANGUID,A.SEQNBR, 'B' ) ITEM_DISC_TYPE, 
+               A.SALES_PROMO_CODE, 
+               A.GL_PRIME_ACCOUNT, 
+               A.GL_SUB_ACCOUNT, 
+               A.SCHEDULE_TYPE, 
+               A.SCHEDULE_VERSION, 
+               A.PRICE_LVL_CODE, 
+               A.PERCENT_OFF_LVL, 
+               A.PROD_DESC_SOURCE, 
+               A.ORGNL_POS_TERMINAL_NUMBER, 
+               A.ORGNL_POS_TRANSACTION_NUMBER, 
+               A.RUNCYCLE,
+               A.LOAD_DATE, 
+               A.SEQNBR,
                B.TRANSACTION_DATE
-          FROM DLY_CUSTOMER_DETAILS A,
-               DLY_CUSTOMER B,
+          FROM DLY_POS_CUSTOMER_DETAILS A,
+               (SELECT  * 
+                  FROM DLY_POS_CUSTOMER 
+                 WHERE LOAD_DATE = IN_DATE) B,
                COST_CENTER C
-         WHERE A.COST_CENTER_CODE   = SUBSTR(C.COST_CENTER_CODE,3)
-           AND A.COST_CENTER_CODE = B.COST_CENTER_CODE
-           AND A.TERMINAL_NUMBER    = B.TERMINAL_NUMBER
-           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER;
+         WHERE A.COST_CENTER_CODE            = SUBSTR(C.COST_CENTER_CODE,3)
+           AND A.COST_CENTER_CODE            = SUBSTR(B.COST_CENTER_CODE,3)
+           AND C.COST_CENTER_CODE            = B.COST_CENTER_CODE
+           AND A.TERMINAL_NUMBER             = B.TERMINAL_NUMBER
+           AND A.TRANSACTION_NUMBER          = B.TRANSACTION_NUMBER
+           AND A.LOAD_DATE                   = IN_DATE;
 
     V_COMMIT         NUMBER := 0;
     V_TEMP_ROW       CUSTOMER_DETAILS%ROWTYPE;
 BEGIN
-
+    
     FOR rec IN TEMP_CUR LOOP
         BEGIN
-          V_TEMP_ROW.CUSTOMER_DETAIL_ID         := rec.SRLNO;
+            V_TEMP_ROW.CUSTOMER_DETAIL_ID         := rec.SEQNBR;
             V_TEMP_ROW.COST_CENTER_CODE           := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CC_CODE);
-            V_TEMP_ROW.TRANSACTION_DATE           := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
+            V_TEMP_ROW.TRANSACTION_DATE           := rec.TRANSACTION_DATE;--CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
             V_TEMP_ROW.TERMINAL_NUMBER            := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TERMINAL_NUMBER);
             V_TEMP_ROW.TRANSACTION_NUMBER         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
             V_TEMP_ROW.SEGMENT_CODE               := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
@@ -127,8 +262,8 @@ BEGIN
             V_TEMP_ROW.ITEM_PRICE                 := CASE rec.ITEM_PRICE_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.ITEM_PRICE ELSE V_TEMP_ROW.ITEM_PRICE END;
             V_TEMP_ROW.ITEM_EXT_AMOUNT            := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.ITEM_EXTERNAL_AMOUNT,7,2); 
             V_TEMP_ROW.ITEM_EXT_AMOUNT            := CASE rec.ITEM_EXTERNAL_AMOUNT_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.ITEM_EXT_AMOUNT ELSE V_TEMP_ROW.ITEM_EXT_AMOUNT END;
-            V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT       := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.ITEM_DISC_AMOUNT,7,2); 
-            V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT       := CASE rec.ITEM_DISC_AMOUNT_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT ELSE V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT END;
+            V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT       := NVL(rec.ITEM_DISC_AMOUNT,0);--CCN_COMMON_TOOLS.RETURN_NUMBER(NVL(rec.ITEM_DISC_AMOUNT,0),7,2); 
+            --V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT       := CASE rec.ITEM_DISC_AMOUNT_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT ELSE V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT END;
             V_TEMP_ROW.ITEM_SALES_TAX_IND         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_SALES_TAX_INDICATOR);
             V_TEMP_ROW.ITEM_DISCOUNT_CODE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_DISC_CODE);
             V_TEMP_ROW.ITEM_DISCOUNT_TYPE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.ITEM_DISC_TYPE);
@@ -142,6 +277,8 @@ BEGIN
             V_TEMP_ROW.PROD_DESC_SRCE             := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.PROD_DESC_SOURCE);
             V_TEMP_ROW.ORGNL_POS_TERM_NUMBER      := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.ORGNL_POS_TERMINAL_NUMBER);
             V_TEMP_ROW.ORGNL_POS_TRANS_NUMBER     := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.ORGNL_POS_TRANSACTION_NUMBER);
+
+            V_TEMP_ROW.ITEM_EXT_AMOUNT      := V_TEMP_ROW.ITEM_EXT_AMOUNT - (-NVL(V_TEMP_ROW.ITEM_DISCOUNT_AMOUNT,0));
 
             INSERT INTO CUSTOMER_DETAILS VALUES V_TEMP_ROW;
 
@@ -173,7 +310,7 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_CUSTOMER_DETAILS;
 
-PROCEDURE LOAD_DLY_CSTMR_FORM_OF_PAY
+PROCEDURE LOAD_DLY_CSTMR_FORM_OF_PAY(
 /*****************************************************************************
 	LOAD_DLY_CSTMR_FORM_OF_PAY
 
@@ -185,19 +322,23 @@ changed : 12/16/2014 axk326 CCN Project....
           Code changed to accept negative values for the amounts as per the 
           part of the dailyload process 
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR TEMP_CUR is
         SELECT ROW_NUMBER( ) OVER (PARTITION BY C.COST_CENTER_CODE,B.TRANSACTION_DATE,A.TERMINAL_NUMBER,A.TRANSACTION_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
                C.COST_CENTER_CODE CC_CODE,
                A.*,
                B.TRANSACTION_DATE
-          FROM DLY_CSTMR_FORM_OF_PAY A,
-               DLY_CUSTOMER B,
+          FROM DLY_POS_CSTMR_FORM_OF_PAY A,
+               (SELECT  * 
+                  FROM DLY_POS_CUSTOMER 
+                 WHERE LOAD_DATE = IN_DATE) B,
                COST_CENTER C
          WHERE A.COST_CENTER_CODE   = SUBSTR(C.COST_CENTER_CODE,3)
-           AND A.COST_CENTER_CODE = B.COST_CENTER_CODE
+           AND A.COST_CENTER_CODE   = SUBSTR(B.COST_CENTER_CODE,3)
+           AND B.COST_CENTER_CODE   = C.COST_CENTER_CODE
            AND A.TERMINAL_NUMBER    = B.TERMINAL_NUMBER
-           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER;
+           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER
+           AND A.LOAD_DATE          = IN_DATE;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   CUSTOMER_FORM_OF_PAY%ROWTYPE;
@@ -207,13 +348,13 @@ BEGIN
         BEGIN
             V_TEMP_ROW.CUSTOMER_FORM_OF_PAY_ID  := rec.SRLNO;
             V_TEMP_ROW.COST_CENTER_CODE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CC_CODE);
-            V_TEMP_ROW.TRANSACTION_DATE         := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
+            V_TEMP_ROW.TRANSACTION_DATE         := rec.TRANSACTION_DATE;--CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
             V_TEMP_ROW.TERMINAL_NUMBER          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TERMINAL_NUMBER);
             V_TEMP_ROW.TRANSACTION_NUMBER       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
             V_TEMP_ROW.SEGMENT_CODE             := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
             V_TEMP_ROW.SUB_SEGMENT_CODE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SUB_SEGMENT_CODE);
             V_TEMP_ROW.PAY_DISC_CODE            := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.PAY_DISC_CODE);
-            V_TEMP_ROW.TRANSACTION_TOTAL_AMT    := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.TRANSACTION_TOTAL_AMOUNT,7,2);  
+            V_TEMP_ROW.TRANSACTION_TOTAL_AMT    := rec.TRANSACTION_TOTAL_AMOUNT/100;--CCN_COMMON_TOOLS.RETURN_NUMBER(rec.TRANSACTION_TOTAL_AMOUNT,7,2);  
             V_TEMP_ROW.TRANSACTION_TOTAL_AMT    := CASE rec.TRANSACTION_TOTAL_AMOUNT_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.TRANSACTION_TOTAL_AMT ELSE V_TEMP_ROW.TRANSACTION_TOTAL_AMT END;
             V_TEMP_ROW.POS_LINE_COUNT           := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.POS_LINE_CNT);
             V_TEMP_ROW.PAY_AMOUNT               := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.PAY_AMOUNT,7,2);  
@@ -222,7 +363,7 @@ BEGIN
             V_TEMP_ROW.PAY_DISCOUNT             := CASE rec.POS_DISC_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.PAY_DISCOUNT ELSE V_TEMP_ROW.PAY_DISCOUNT END;
             V_TEMP_ROW.SALES_DISCOUNT_AMT       := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.SALES_DISC_AMOUNT,7,2);  
             V_TEMP_ROW.SALES_DISCOUNT_AMT       := CASE rec.SALES_DISC_AMOUNT_SIGN WHEN '-' THEN -1 * V_TEMP_ROW.SALES_DISCOUNT_AMT ELSE V_TEMP_ROW.SALES_DISCOUNT_AMT END;
-
+            
             INSERT INTO CUSTOMER_FORM_OF_PAY VALUES V_TEMP_ROW;
 
             V_TEMP_ROW := NULL ;
@@ -252,7 +393,7 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_CSTMR_FORM_OF_PAY;
 
-PROCEDURE LOAD_DLY_CSTMR_BANK_CARD
+PROCEDURE LOAD_DLY_CSTMR_BANK_CARD(
 /*****************************************************************************
 	LOAD_DLY_CSTMR_BANK_CARD
 
@@ -263,19 +404,23 @@ created : 06/11/2014 jxc517 CCN Project....
 changed : 12/16/2014 axk326 CCN Project....
           Code changed to accept the negative signs for the amounts when doing the daily load process 
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR TEMP_CUR is
         SELECT ROW_NUMBER( ) OVER (PARTITION BY C.COST_CENTER_CODE,B.TRANSACTION_DATE,A.TERMINAL_NUMBER,A.TRANSACTION_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
                C.COST_CENTER_CODE CC_CODE,
                A.*,
                B.TRANSACTION_DATE
-          FROM DLY_CSTMR_BANK_CARD A,
-               DLY_CUSTOMER B,
+          FROM DLY_POS_CSTMR_BANK_CARD A,
+               (SELECT  * 
+                  FROM DLY_POS_CUSTOMER 
+                 WHERE LOAD_DATE = IN_DATE) B,
                COST_CENTER C
          WHERE A.COST_CENTER_CODE   = SUBSTR(C.COST_CENTER_CODE,3)
-           AND A.COST_CENTER_CODE = B.COST_CENTER_CODE
+           AND A.COST_CENTER_CODE   = SUBSTR(B.COST_CENTER_CODE,3)
+           AND B.COST_CENTER_CODE   = C.COST_CENTER_CODE
            AND A.TERMINAL_NUMBER    = B.TERMINAL_NUMBER
-           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER;
+           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER
+           AND A.LOAD_DATE          = IN_DATE;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   CUSTOMER_BANK_CARD%ROWTYPE;
@@ -285,7 +430,7 @@ BEGIN
         BEGIN
             V_TEMP_ROW.CUSTOMER_BANK_CARD_ID    := rec.SRLNO;
             V_TEMP_ROW.COST_CENTER_CODE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CC_CODE);
-            V_TEMP_ROW.TRANSACTION_DATE         := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
+            V_TEMP_ROW.TRANSACTION_DATE         := rec.TRANSACTION_DATE;--CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
             V_TEMP_ROW.TERMINAL_NUMBER          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TERMINAL_NUMBER);
             V_TEMP_ROW.TRANSACTION_NUMBER       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
             V_TEMP_ROW.SEGMENT_CODE             := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SEGMENT_CODE);
@@ -325,7 +470,7 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_CSTMR_BANK_CARD;
 
-PROCEDURE LOAD_DLY_CSTMR_SALES_TAX
+PROCEDURE LOAD_DLY_CSTMR_SALES_TAX(
 /*****************************************************************************
 	LOAD_DLY_CSTMR_SALES_TAX
 
@@ -336,19 +481,24 @@ created : 06/11/2014 jxc517 CCN Project....
 changed : 12/16/2014 axk326 CCN Project....
           Code changed to accept negative signs to amounts as part fo the daily load process
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR TEMP_CUR is
         SELECT ROW_NUMBER( ) OVER (PARTITION BY C.COST_CENTER_CODE,B.TRANSACTION_DATE,A.TERMINAL_NUMBER,A.TRANSACTION_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
                C.COST_CENTER_CODE CC_CODE,
                A.*,
                B.TRANSACTION_DATE
-          FROM DLY_CSTMR_SALES_TAX A,
-               DLY_CUSTOMER B,
+          FROM DLY_POS_CSTMR_SALES_TAX A,
+               (SELECT  * 
+                  FROM DLY_POS_CUSTOMER 
+                 WHERE LOAD_DATE = IN_DATE) B,
                COST_CENTER C
          WHERE A.COST_CENTER_CODE   = SUBSTR(C.COST_CENTER_CODE,3)
-           AND A.COST_CENTER_CODE = B.COST_CENTER_CODE
+           AND A.COST_CENTER_CODE   = SUBSTR(B.COST_CENTER_CODE,3)
+           AND B.COST_CENTER_CODE   = C.COST_CENTER_CODE
            AND A.TERMINAL_NUMBER    = B.TERMINAL_NUMBER
-           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER;
+           AND A.TRANSACTION_NUMBER = B.TRANSACTION_NUMBER
+           AND A.LOAD_DATE          = IN_DATE
+           AND B.LOAD_DATE          = IN_DATE;
 
     V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   CUSTOMER_SALES_TAX%ROWTYPE;
@@ -358,7 +508,7 @@ BEGIN
         BEGIN
             V_TEMP_ROW.CUSTOMER_SALES_TAX_ID    := rec.SRLNO;
             V_TEMP_ROW.COST_CENTER_CODE         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CC_CODE);
-            V_TEMP_ROW.TRANSACTION_DATE         := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
+            V_TEMP_ROW.TRANSACTION_DATE         := rec.TRANSACTION_DATE;--CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
             V_TEMP_ROW.TERMINAL_NUMBER          := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TERMINAL_NUMBER);
             V_TEMP_ROW.TRANSACTION_NUMBER       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSACTION_NUMBER);
             V_TEMP_ROW.SALES_TAX_CORR_IND       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SALES_TAX_CORR_INDICATOR);
@@ -398,7 +548,7 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_CSTMR_SALES_TAX;
 
-PROCEDURE LOAD_DLY_STORE_DRAFTS
+PROCEDURE LOAD_DLY_STORE_DRAFTS(
 /*****************************************************************************
 	LOAD_DLY_STORE_DRAFTS
 
@@ -418,10 +568,15 @@ changed : 11/24/2014 axk326 CCN Project....
           01/16/2017 vxv336 
           Replaced separate calls with a single call to get STORE_DRAFTS FLAGS
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
     CURSOR STOREDRAFT_TEMP_CUR is
-        SELECT *
-        FROM DLY_ISSUE_CHANGE_DATA;
+        SELECT ICD.*, (SELECT COST_CENTER_CODE 
+                         FROM COST_CENTER 
+                        WHERE SUBSTR(COST_CENTER_CODE,3) = TRIM(ICD.COST_CENTER_CODE) 
+                          AND rownum = 1) CC_CODE
+          FROM DLY_POS_ISSUE_CHANGE_DATA ICD
+         WHERE LOAD_DATE = IN_DATE;
+
 
     V_COMMIT                      NUMBER := 0;
     V_COUNT                       NUMBER := 0;
@@ -432,17 +587,7 @@ BEGIN
 
     FOR rec IN STOREDRAFT_TEMP_CUR LOOP
         BEGIN
-            BEGIN
-            SELECT COST_CENTER_CODE
-              INTO V_COST_CENTER_CODE
-              FROM COST_CENTER
-             WHERE SUBSTR(COST_CENTER_CODE,3) = CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.COST_CENTER_CODE);
-            EXCEPTION
-                WHEN OTHERS THEN 
-                    V_COST_CENTER_CODE := NULL;
-      
-            END;
-            V_STOREDRAFT_TEMP_ROW.COST_CENTER_CODE        := V_COST_CENTER_CODE;
+            V_STOREDRAFT_TEMP_ROW.COST_CENTER_CODE        := REC.CC_CODE;--V_COST_CENTER_CODE;
             V_STOREDRAFT_TEMP_ROW.CHECK_SERIAL_NUMBER     := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
             V_STOREDRAFT_TEMP_ROW.DRAFT_NUMBER            := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.DRAFT_NUMBER);
             V_STOREDRAFT_TEMP_ROW.TRANSACTION_DATE        := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
@@ -465,7 +610,7 @@ BEGIN
             V_STOREDRAFT_TEMP_ROW.ISSUE_DATE              := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.ISSUE_DATE,'YYMMDD');
             V_STOREDRAFT_TEMP_ROW.GROSS_AMOUNT            := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.GROSS_AMOUNT,9,2);
             V_STOREDRAFT_TEMP_ROW.GROSS_AMOUNT            := CASE rec.GROSS_AMOUNT_SIGN WHEN '-' THEN -1 * V_STOREDRAFT_TEMP_ROW.GROSS_AMOUNT ELSE V_STOREDRAFT_TEMP_ROW.GROSS_AMOUNT END;
-            V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT           := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.RETAINAGE_AMOUNT,9,2);
+            V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT           := rec.RETAINAGE_AMOUNT/100;--CCN_COMMON_TOOLS.RETURN_NUMBER(rec.RETAINAGE_AMOUNT,9,2);
             V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT           := CASE rec.RETAINAGE_AMOUNT_SIGN WHEN '-' THEN -1 * V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT ELSE V_STOREDRAFT_TEMP_ROW.RETAIN_AMOUNT END;
             V_STOREDRAFT_TEMP_ROW.NET_AMOUNT              := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.NET_AMOUNT,9,2); 
             V_STOREDRAFT_TEMP_ROW.NET_AMOUNT              := CASE rec.NET_AMOUNT_SIGN WHEN '-' THEN -1 * V_STOREDRAFT_TEMP_ROW.NET_AMOUNT ELSE V_STOREDRAFT_TEMP_ROW.NET_AMOUNT END;
@@ -477,9 +622,10 @@ BEGIN
             V_STOREDRAFT_TEMP_ROW.REASON_CODE             := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.REASON_CODE);
             
 			FOR rec1 IN (SELECT *
-                           FROM DLY_BANK_PAID_DATA
-                          WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
-                            AND CHECK_SERIAL_NUMBER = REC.CHECK_SERIAL_NUMBER) LOOP
+                     FROM DLY_POS_BANK_PAID_DATA
+                    WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
+                      AND CHECK_SERIAL_NUMBER = REC.CHECK_SERIAL_NUMBER
+                      AND LOAD_DATE = IN_DATE) LOOP
                 V_STOREDRAFT_TEMP_ROW.BANK_NUMBER             := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec1.BANK_NUMBER);
                 V_STOREDRAFT_TEMP_ROW.BANK_ACCOUNT_NUMBER     := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC1.BANK_ACCOUNT_NUMBER);
                 V_STOREDRAFT_TEMP_ROW.BANK_PAID_AMOUNT        := CCN_COMMON_TOOLS.RETURN_NUMBER(REC1.BANK_PAID_AMOUNT,9,2);
@@ -489,11 +635,13 @@ BEGIN
                 V_STOREDRAFT_TEMP_ROW.VOID_DATE               := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec1.VOID_DATE,'YYMMDD');
             END LOOP;
             
-            SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_STOREDRAFT_TEMP_ROW);
+            --SD_BUSINESS_RULES_PKG.SET_STORE_DRAFT_FLAGS(V_STOREDRAFT_TEMP_ROW);
+            SET_STORE_DRAFT_FLAGS(V_STOREDRAFT_TEMP_ROW);
 
-            V_STOREDRAFT_TEMP_ROW.LOAD_DATE      := TRUNC(SYSDATE);
-
-            IF SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(V_STOREDRAFT_TEMP_ROW) THEN
+            --V_STOREDRAFT_TEMP_ROW.LOAD_DATE      := TRUNC(SYSDATE);
+                 
+                   
+            IF IS_UNATTACHED_STORE_DRAFT(V_STOREDRAFT_TEMP_ROW) THEN
                 INSERT INTO UNATTACHED_MNL_DRFT_DTL VALUES V_STOREDRAFT_TEMP_ROW;
             ELSE
                 IF V_STOREDRAFT_TEMP_ROW.TRANSACTION_DATE <= ADD_MONTHS(TRUNC(SYSDATE),-1 * SD_BUSINESS_RULES_PKG.G_HISTORY_MONTHS) THEN
@@ -546,7 +694,8 @@ BEGIN
                                            NVL(rec.TRANSACTION_DATE,'')||':'||
                                            NVL(rec.TERMINAL_NUMBER,'')||':'||
                                            NVL(rec.TRANSACTION_NUMBER,''));
-
+                                           
+                                           
         END;
     END LOOP;
     COMMIT;
@@ -559,7 +708,7 @@ EXCEPTION
                                     '0000000000');
 END LOAD_DLY_STORE_DRAFTS;
 
-PROCEDURE LOAD_DLY_STORE_DRAFTS_DETAIL
+PROCEDURE LOAD_DLY_STORE_DRAFTS_DETAIL(
 /*****************************************************************************
 	LOAD_DLY_STORE_DRAFTS_DETAIL
 
@@ -572,17 +721,19 @@ changed : 12/11/2014 nxk927
           12/16/2014 axk326 
           Changed the dailyload code to accept the negative signs for the amounts in all the required fields. 
 ******************************************************************************/
-IS
+IN_DATE IN DATE) IS
  CURSOR STOREDRAFT_DETAIL_CUR IS   
         SELECT ROW_NUMBER( ) OVER (PARTITION BY A.COST_CENTER_CODE,B.TRANSACTION_DATE,A.CHECK_SERIAL_NUMBER ORDER BY B.TRANSACTION_DATE) SRLNO,
                B.TRANSACTION_DATE,
                (SELECT COST_CENTER_CODE
                  FROM COST_CENTER
                 WHERE A.COST_CENTER_CODE    = SUBSTR(COST_CENTER_CODE,3)
-                  AND CATEGORY = 'S') CC_CODE,
+                  AND CATEGORY = 'S'
+                  AND ROWNUM   = 1) CC_CODE,
                A.*
-          FROM DLY_ISSUE_CHANGE_DATA B,
-               (SELECT TRANSACTION_SOURCE,
+          FROM DLY_POS_ISSUE_CHANGE_DATA B,
+               (SELECT TRANGUID,
+                       TRANSACTION_SOURCE,
                        TRANSACTION_TYPE,
                        COST_CENTER_CODE,
                        CHECK_SERIAL_NUMBER,
@@ -599,10 +750,14 @@ IS
                        NULL ITEM_PRICE,
                        ITEM_EXT_AMOUNT_SIGN,
                        NULL ITEM_QUANTITY_SIGN,
-                       NULL ITEM_PRICE_SIGN
-                  FROM DLY_DISBURSMENT_LINE_ITEM_DATA
+                       NULL ITEM_PRICE_SIGN,
+                       RUNCYCLE,
+                       LOAD_DATE
+                  FROM DLY_POS_DSBRSMNT_LN_ITM_DATA
+                 WHERE LOAD_DATE = IN_DATE
                  UNION ALL
-                SELECT TRANSACTION_SOURCE,
+                SELECT TRANGUID,
+                       TRANSACTION_SOURCE,
                        TRANSACTION_TYPE,
                        COST_CENTER_CODE,
                        CHECK_SERIAL_NUMBER,
@@ -619,10 +774,14 @@ IS
                        NULL ITEM_PRICE,
                        ITEM_EXT_AMOUNT_SIGN,
                        NULL ITEM_QUANTITY_SIGN,
-                       NULL ITEM_PRICE_SIGN
-                  FROM DLY_CUSTOMER_LINE_ITEM_DATA
+                       NULL ITEM_PRICE_SIGN,
+                       RUNCYCLE,
+                       LOAD_DATE
+                  FROM DLY_POS_CSTMR_LINE_ITEM_DATA
+                 WHERE LOAD_DATE = IN_DATE
                  UNION ALL
-                SELECT TRANSACTION_SOURCE,
+                SELECT TRANGUID,
+                       TRANSACTION_SOURCE,
                        TRANSACTION_TYPE,
                        COST_CENTER_CODE,
                        CHECK_SERIAL_NUMBER,
@@ -639,8 +798,11 @@ IS
                        ITEM_PRICE,
                        ITEM_EXT_AMOUNT_SIGN,
                        ITEM_QUANTITY_SIGN,
-                       ITEM_PRICE_SIGN
-                  FROM DLY_INSTALLER_LINE_ITEM_DATA) A
+                       ITEM_PRICE_SIGN,
+                       RUNCYCLE,
+                       LOAD_DATE
+                  FROM DLY_POS_INSTLLR_LN_ITM_DATA
+                 WHERE LOAD_DATE = IN_DATE) A
          WHERE A.COST_CENTER_CODE    = B.COST_CENTER_CODE(+)
            AND A.CHECK_SERIAL_NUMBER = B.CHECK_SERIAL_NUMBER(+);
 
@@ -651,7 +813,6 @@ BEGIN
 
     FOR rec IN STOREDRAFT_DETAIL_CUR LOOP
         BEGIN
-            V_STOREDRAFT_DETAIL_ROW.STORE_DRAFTS_DETAIL_ID  := rec.SRLNO;
             V_STOREDRAFT_DETAIL_ROW.COST_CENTER_CODE        := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CC_CODE);
             V_STOREDRAFT_DETAIL_ROW.CHECK_SERIAL_NUMBER     := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.CHECK_SERIAL_NUMBER);
             V_STOREDRAFT_DETAIL_ROW.TRANSACTION_DATE        := CCN_COMMON_TOOLS.GET_DATE_VALUE(rec.TRANSACTION_DATE,'YYMMDD');
@@ -667,7 +828,7 @@ BEGIN
             V_STOREDRAFT_DETAIL_ROW.ITEM_PRICE              := CASE rec.ITEM_PRICE_SIGN WHEN '-' THEN -1 * V_STOREDRAFT_DETAIL_ROW.ITEM_PRICE ELSE V_STOREDRAFT_DETAIL_ROW.ITEM_PRICE END;
             V_STOREDRAFT_DETAIL_ROW.ITEM_EXT_AMOUNT         := CCN_COMMON_TOOLS.RETURN_NUMBER(rec.ITEM_EXT_AMOUNT,9,2); --actual table has 7,2
             V_STOREDRAFT_DETAIL_ROW.ITEM_EXT_AMOUNT         := CASE rec.ITEM_EXT_AMOUNT_SIGN WHEN '-' THEN -1 * V_STOREDRAFT_DETAIL_ROW.ITEM_EXT_AMOUNT ELSE V_STOREDRAFT_DETAIL_ROW.ITEM_EXT_AMOUNT END;
-
+            
             IF V_STOREDRAFT_DETAIL_ROW.TRANSACTION_DATE <= ADD_MONTHS(TRUNC(SYSDATE),-1 * SD_BUSINESS_RULES_PKG.G_HISTORY_MONTHS) THEN
                 INSERT INTO HST_STORE_DRAFTS_DETAIL VALUES V_STOREDRAFT_DETAIL_ROW;
             ELSE
@@ -764,7 +925,7 @@ EXCEPTION
                                     '0000000000'); 
 END CCN_SD_DAILY_HST_LOAD_SP;
 
-PROCEDURE CCN_SD_ATTACH_MNL_DRFT_DTL_SP
+PROCEDURE CCN_SD_ATTACH_MNL_DRFT_DTL_SP(
 /******************************************************************
 CCN_SD_ATTACH_MNL_DRFT_DTL_SP
 
@@ -772,104 +933,93 @@ This Procedure will check the data from UNATTACHED_MNL_DRFT_DTL and if parent fo
 in STORE_DRAFTS table pushes that records to STORE_DRAFTS_DETAIL as well as 
 UNATTACHED_MNL_DRFT_DTL_HST table
 
-Created : 08/25/2014 jxc517 CCN Project....
-Changed : 09/15/2014 jxc517 CCN Project....Modified IF condition to include "NOT"
-        : 02/27/2017 gxg192 Changes to load data into STORE_DRAFTS only after POS is received
-        : 03/06/2017 gxg192 Removed call to SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT
-                            function and changes to optimize code
+created : 08/25/2014 jxc517 CCN Project....
+changed : 09/15/2014 jxc517 CCN Project....Modified IF condition to include "NOT"
 ******************************************************************/
-AS
+IN_DATE IN DATE) AS
+    V_CONTEXT    VARCHAR2(200);
 BEGIN
-
-    /*If POS is received for an unattached manual draft, then store drafts table is updated
-      with paid details from unattached table and unattached draft is removed;
-      else the draft is kept in UNATTACHED_MNL_DRFT_DTL table till POS is received for it.*/
-    FOR rec IN (SELECT * FROM UNATTACHED_MNL_DRFT_DTL) LOOP
-        BEGIN
-            UPDATE STORE_DRAFTS
-               SET BANK_PAID_AMOUNT     = rec.BANK_PAID_AMOUNT,
-                   PAID_DATE            = rec.PAID_DATE
-             WHERE CHECK_SERIAL_NUMBER  = rec.CHECK_SERIAL_NUMBER;
-
-            IF SQL%ROWCOUNT <> 0 THEN
-                INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
-
-                DELETE
-                  FROM UNATTACHED_MNL_DRFT_DTL
-                 WHERE CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER;
-            END IF;
-        EXCEPTION
-            WHEN OTHERS THEN
-                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                            'CCN_SD_ATTACH_MNL_DRFT_DTL_SP',
-                                            SQLERRM,
-                                            rec.COST_CENTER_CODE,
-                                            rec.CHECK_SERIAL_NUMBER);
-        END;
-    END LOOP;
-
+        FOR rec IN (SELECT * FROM UNATTACHED_MNL_DRFT_DTL) LOOP
+          --IF NOT SD_BUSINESS_RULES_PKG.IS_UNATTACHED_STORE_DRAFT(rec) THEN
+          IF NOT IS_UNATTACHED_STORE_DRAFT(rec) THEN
+              INSERT INTO STORE_DRAFTS VALUES rec;
+              INSERT INTO UNATTACHED_MNL_DRFT_DTL_HST VALUES rec;
+              DELETE
+                FROM UNATTACHED_MNL_DRFT_DTL
+               WHERE COST_CENTER_CODE    = rec.COST_CENTER_CODE
+                 AND CHECK_SERIAL_NUMBER = rec.CHECK_SERIAL_NUMBER
+                 AND TRANSACTION_DATE    = rec.TRANSACTION_DATE;
+          END IF;
+      END LOOP;
+       
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'CCN_SD_DAILY_HST_LOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000'); 
 END CCN_SD_ATTACH_MNL_DRFT_DTL_SP;
 
-PROCEDURE DAILY_LOAD_SP
+PROCEDURE DAILY_LOAD_SP(
 /******************************************************************
    DAILY_LOAD_SP
 
    This Procedure is a wrapper for the daily Load of the store drafts tables
     * Loads all the store drafts tables
 
-Created : 06/11/2014 jxc517 CCN Project....
-Changed : 02/27/2017 gxg192 Changes to call CCN_SD_ATTACH_MNL_DRFT_DTL_SP after STORE_DRAFTS
-                     and STORE_DRAFTS_DETAIL are loaded
+created : 06/11/2014 jxc517 CCN Project....
+changed :
 ******************************************************************/
-AS
+IN_DATE IN DATE) AS
     V_CONTEXT    VARCHAR2(200);
     V_START_TIME NUMBER;
 BEGIN
-
       V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load CUSTOMER Table ';
-      LOAD_DLY_CUSTOMER();
-      DBMS_OUTPUT.PUT_LINE('CUSTOMER loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load CUSTOMER_DETAILS Table ';
-      LOAD_DLY_CUSTOMER_DETAILS();
-      DBMS_OUTPUT.PUT_LINE('CUSTOMER_DETAILS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load CUSTOMER_FORM_OF_PAY Table ';
-      LOAD_DLY_CSTMR_FORM_OF_PAY();
-      DBMS_OUTPUT.PUT_LINE('CUSTOMER_FORM_OF_PAY loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load CUSTOMER_BANK_CARD Table ';
-      LOAD_DLY_CSTMR_BANK_CARD();
-      DBMS_OUTPUT.PUT_LINE('CUSTOMER_BANK_CARD loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
---Bank card not loaded as sub_segment_code came as null from daily files
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load CUSTOMER_SALES_TAX Table ';
-      LOAD_DLY_CSTMR_SALES_TAX();
-      DBMS_OUTPUT.PUT_LINE('CUSTOMER_SALES_TAX loaded in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
+      V_CONTEXT := 'Load STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST Table ';
+      CCN_SD_ATTACH_MNL_DRFT_DTL_SP(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load STORE_DRAFTS Table ';
-      LOAD_DLY_STORE_DRAFTS();
+      LOAD_DLY_STORE_DRAFTS(IN_DATE);
       DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load STORE_DRAFTS_DETAIL Table ';
-      LOAD_DLY_STORE_DRAFTS_DETAIL();
+      LOAD_DLY_STORE_DRAFTS_DETAIL(IN_DATE);
       DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS_DETAIL loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER Table ';
+      LOAD_DLY_CUSTOMER(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Load STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST Table ';
-      SD_DAILY_LOAD.CCN_SD_ATTACH_MNL_DRFT_DTL_SP();
-      DBMS_OUTPUT.PUT_LINE('STORE_DRAFTS and UNATTACHED_MNL_DRFT_DTL_HST loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      V_CONTEXT := 'Load CUSTOMER_DETAILS Table ';
+      LOAD_DLY_CUSTOMER_DETAILS(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_DETAILS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_FORM_OF_PAY Table ';
+      LOAD_DLY_CSTMR_FORM_OF_PAY(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_FORM_OF_PAY loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_BANK_CARD Table ';
+      LOAD_DLY_CSTMR_BANK_CARD(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_BANK_CARD loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      --Bank card not loaded as sub_segment_code came as null from daily files
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load CUSTOMER_SALES_TAX Table ';
+      LOAD_DLY_CSTMR_SALES_TAX(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('CUSTOMER_SALES_TAX loaded in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
 
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Load HST_STORE_DRAFTS and HST_STORE_DRAFTS_DETAIL Table ';
-      SD_DAILY_LOAD.CCN_SD_DAILY_HST_LOAD_SP();
+      CCN_SD_DAILY_HST_LOAD_SP();
       DBMS_OUTPUT.PUT_LINE('HST_STORE_DRAFTS and HST_STORE_DRAFTS_DETAIL loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -880,7 +1030,7 @@ EXCEPTION
                                     '0000000000'); 
 END DAILY_LOAD_SP;
 
-PROCEDURE CCN_SD_DAILY_LOAD_SP
+PROCEDURE CCN_SD_DAILY_LOAD_SP(
 /******************************************************************
 CCN_SD_DAILY_LOAD_SP
 
@@ -890,7 +1040,7 @@ This Procedure is a wrapper for the Daily Load of the store drafts tables
 created : 06/11/2014 jxc517 CCN Project....
 changed :
 ******************************************************************/
-AS
+IN_DATE IN DATE) AS
     V_CONTEXT    VARCHAR2(200);
     V_START_TIME DATE := SYSDATE;
     V_CLOB       CLOB;
@@ -901,7 +1051,7 @@ BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('SD_DAILY_DRFT_LOAD', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     BEGIN
-        DAILY_LOAD_SP();
+        DAILY_LOAD_SP(IN_DATE);
         FOR rec IN (SELECT * FROM ERROR_LOG WHERE ERROR_DATE >= V_START_TIME) LOOP
             V_CLOB := V_CLOB || rec.COST_CENTER ||','|| rec.ERROR_TEXT || CHR(10);
         END LOOP;
@@ -924,3 +1074,4 @@ EXCEPTION
 END CCN_SD_DAILY_LOAD_SP;
 
 END SD_DAILY_LOAD;
+

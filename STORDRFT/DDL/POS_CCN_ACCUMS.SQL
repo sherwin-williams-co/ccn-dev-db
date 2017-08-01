@@ -1,8 +1,9 @@
 /*
 created : nxk927 06/12/2017 
-          table to load pos data
+          table to load pos data to add logic for the form of pay data compare it with the legacy data
 */
-CREATE TABLE DLY_POS_CCN_ACCUMS 
+
+CREATE TABLE POS_CCN_ACCUMS 
    (	TRAN_GUID VARCHAR2(50) NOT NULL ENABLE, 
 	COST_CENTER_CODE VARCHAR2(6), 
 	TERMINAL_NUMBER VARCHAR2(6), 

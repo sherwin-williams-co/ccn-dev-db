@@ -1,0 +1,1379 @@
+create or replace PACKAGE BODY          POS_SD_DAILY_LOAD
+/****************************************************************
+This package will load the New POSXML TEMP Store Drafts tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*****************************************************************/
+AS
+
+PROCEDURE LOAD_POS_ISSUE_CHG_DATA(
+/*******************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_ISSUE_CHANGE_DATA_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+     SELECT CDL.TRAN_GUID,
+            'O' TRANSACTION_SOURCE,
+            'O' TRANSACTION_TYPE,
+            CH.STORE_NO COST_CENTER_CODE,
+            LPAD(CDL.DRAFT_NBR,10,'0') AS  CHECK_SERIAL_NUMBER,
+            SUBSTR(CDL.DRAFT_NBR, 5, 4) DRAFT_NUMBER,
+            '1'||TO_CHAR(TO_DATE(IN_DATE), 'yymmdd') AS PROCESS_DATE,
+            NULL FILLER,
+            'O' TRANSACTION_SEGMENT_TYPE,
+            --NULL NET_AMOUNT_SIGN,
+            (CASE WHEN CDL.DRAFT_AMT < 0 THEN '-' ELSE NULL END) NET_AMOUNT_SIGN,
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CDL.DRAFT_AMT, '-', ''), '0', '9', '2')NET_AMOUNT,
+            --NULL GROSS_AMOUNT_SIGN,
+--            (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END) GROSS_AMOUNT_SIGN,
+--            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '9', '2')GROSS_AMOUNT,
+--            --NULL RETAINAGE_AMOUNT_SIGN,
+            (CASE WHEN CH.INST_RETAINAGE < 0 THEN '-' ELSE NULL END) RETAINAGE_AMOUNT_SIGN,
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.INST_RETAINAGE, '-', ''), '0', '9', '2')RETAINAGE_AMOUNT,
+            (CASE WHEN (CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE((NVL(CDL.DRAFT_AMT,0) +NVL(CH.INST_RETAINAGE,0)), '-', ''), '0', '9', '2')) < 0 THEN '-' ELSE NULL END) GROSS_AMOUNT_SIGN,
+            --(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE((NVL(CDL.DRAFT_AMT,0) +NVL(CH.INST_RETAINAGE,0)), '-', ''), '0', '9', '2')) GROSS_AMOUNT,
+            (CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE((NVL(CDL.DRAFT_AMT,0)), '-', ''), '0', '9', '2')) GROSS_AMOUNT,
+            '1'||TO_CHAR(TO_DATE(CH.CTL_DT), 'yymmdd')ISSUE_DATE,
+            '1'||TO_CHAR(TO_DATE(CH.TRAN_DATE), 'yymmdd')TRANSACTION_DATE,
+            TO_CHAR(CH.TERMNBR) TERMINAL_NUMBER,
+            LPAD(CH.TRANNBR,5,'0') TRANSACTION_NUMBER,
+            (CASE WHEN CH.TRANID = '82' 
+                  THEN '000000000' ELSE DECODE (CDL.DRAFT_ACCT_NBR , '0', CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CDL.DRAFT_ACCT_NBR, '0', '9')
+                                                                   , '1', '000000000', CDL.DRAFT_ACCT_NBR) END) CUSTOMER_ACCOUNT_NUMBER,
+            (CASE WHEN CH.TRANID = '82' THEN '01' WHEN CH.TRANID = '19' THEN '01' ELSE CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.JOBNBR, '0', '2') END) CUSTOMER_JOB_NUMBER,
+            TO_CHAR(CH.TRANID) POS_TRANSACTION_CODE,
+            CH.BILLNM PAYEE_NAME,
+            CH.BILLADDR1 ADDRESS_LINE_1,
+            CH.BILLADDR2 ADDRESS_LINE_2,
+            CH.BILLCITY CITY,
+            CH.BILLST STATE_CODE,
+            CH.BILLZIP ZIP_CODE,
+            CH.BILLPHONE PHONE_NUMBER,
+            TO_CHAR(CH.TRAN_TIMESTAMP, 'HH24MI') AS TRANSACTION_TIME,
+            LPAD(TRIM(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.EMP_NO, '0', '2')),'2',0) EMPLOYEE_NUMBER,
+            TO_CHAR(TO_DATE(IN_DATE), 'mmdd') AS BOOK_DATE,
+            SUBSTR(CH.RLS_RUN_CYCLE, 1, 2) CYCLE_RUN_NUMBER,
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.REASON_CODE, '0', '2') REASON_CODE,
+            CDL.RLS_RUN_CYCLE
+      FROM  PNP_CCN_DRAFT_LOGS CDL,
+            PNP_CCN_HEADERS CH
+      WHERE CDL.TRAN_GUID      = CH.TRAN_GUID
+        AND CDL.RLS_RUN_CYCLE  = CH.RLS_RUN_CYCLE
+        AND CH.RLS_RUN_CYCLE   IN (SELECT RLS_RUN_CYCLE
+                                     FROM POS_CCN_LOAD_STATUS
+                                    WHERE LOAD_DATE = IN_DATE);
+
+   V_COUNT      NUMBER := 0;
+   V_TCOUNT     NUMBER := 0;
+   V_TEMP_ROW   DLY_POS_ISSUE_CHANGE_DATA%ROWTYPE;
+
+BEGIN
+     FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                     := rec.TRAN_GUID;
+           V_TEMP_ROW.TRANSACTION_SOURCE           := rec.TRANSACTION_SOURCE;
+           V_TEMP_ROW.TRANSACTION_TYPE             := rec.TRANSACTION_TYPE;
+           V_TEMP_ROW.COST_CENTER_CODE             := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.CHECK_SERIAL_NUMBER          := rec.CHECK_SERIAL_NUMBER;
+           V_TEMP_ROW.DRAFT_NUMBER                 := rec.DRAFT_NUMBER;
+           V_TEMP_ROW.PROCESS_DATE                 := rec.PROCESS_DATE;
+           V_TEMP_ROW.FILLER                       := rec.FILLER;
+           V_TEMP_ROW.TRANSACTION_SEGMENT_TYPE     := rec.TRANSACTION_SEGMENT_TYPE;
+           V_TEMP_ROW.NET_AMOUNT_SIGN              := rec.NET_AMOUNT_SIGN;
+           V_TEMP_ROW.NET_AMOUNT                   := rec.NET_AMOUNT;
+           V_TEMP_ROW.RETAINAGE_AMOUNT_SIGN        := rec.RETAINAGE_AMOUNT_SIGN;
+           V_TEMP_ROW.RETAINAGE_AMOUNT             := rec.RETAINAGE_AMOUNT;
+           V_TEMP_ROW.GROSS_AMOUNT_SIGN            := rec.GROSS_AMOUNT_SIGN;
+           V_TEMP_ROW.GROSS_AMOUNT                 := rec.GROSS_AMOUNT;
+           V_TEMP_ROW.GROSS_AMOUNT                 := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.GROSS_AMOUNT+V_TEMP_ROW.RETAINAGE_AMOUNT, '0', '9');
+           V_TEMP_ROW.ISSUE_DATE                   := rec.ISSUE_DATE;
+           V_TEMP_ROW.TRANSACTION_DATE             := rec.TRANSACTION_DATE;
+           V_TEMP_ROW.TERMINAL_NUMBER              := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER           := rec.TRANSACTION_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER           := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.TRANSACTION_NUMBER, '0', '5');
+           V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER      := rec.CUSTOMER_ACCOUNT_NUMBER;
+           V_TEMP_ROW.CUSTOMER_JOB_NUMBER          := rec.CUSTOMER_JOB_NUMBER;
+           V_TEMP_ROW.POS_TRANSACTION_CODE         := rec.POS_TRANSACTION_CODE;           
+           V_TEMP_ROW.CUSTOMER_JOB_NUMBER          := CASE V_TEMP_ROW.POS_TRANSACTION_CODE WHEN '82' THEN '01' ELSE V_TEMP_ROW.CUSTOMER_JOB_NUMBER END;
+           V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER      := CASE V_TEMP_ROW.POS_TRANSACTION_CODE WHEN '82' THEN '000000000' ELSE V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER END;
+           V_TEMP_ROW.PAYEE_NAME                   := rec.PAYEE_NAME;
+           V_TEMP_ROW.ADDRESS_LINE_1               := rec.ADDRESS_LINE_1;
+           V_TEMP_ROW.ADDRESS_LINE_2               := rec.ADDRESS_LINE_2;
+           V_TEMP_ROW.CITY                         := rec.CITY;
+           V_TEMP_ROW.STATE_CODE                   := rec.STATE_CODE;
+           V_TEMP_ROW.ZIP_CODE                     := rec.ZIP_CODE;
+           V_TEMP_ROW.PHONE_NUMBER                 := rec.PHONE_NUMBER;
+           V_TEMP_ROW.TRANSACTION_TIME             := rec.TRANSACTION_TIME;
+           V_TEMP_ROW.EMPLOYEE_NUMBER              := rec.EMPLOYEE_NUMBER;
+           V_TEMP_ROW.BOOK_DATE                    := rec.BOOK_DATE;
+           V_TEMP_ROW.CYCLE_RUN_NUMBER             := rec.CYCLE_RUN_NUMBER;
+           V_TEMP_ROW.REASON_CODE                  := rec.REASON_CODE;
+           V_TEMP_ROW.RUNCYCLE                     := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                    := IN_DATE;
+
+           INSERT INTO DLY_POS_ISSUE_CHANGE_DATA VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_ISSUE_CHG_DATA_TMP',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           NVL(rec.CHECK_SERIAL_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_ISSUE_CHG_DATA_TMP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_POS_ISSUE_CHG_DATA;
+
+PROCEDURE LOAD_POS_INSTLR_LN_ID_DTL(
+/*******************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_INSTLR_LN_ITEM_DATA_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_DATE     IN DATE)
+
+AS
+-- Cursor for loading the table POS_INSTLR_LN_ITEM_DATA_TMP
+   CURSOR POS_INSTLR_LID IS
+       SELECT CH.TRAN_GUID,
+              'O' TRANSACTION_SOURCE,              -- Unused column and obsolete
+              'O' TRANSACTION_TYPE,                -- Unused column and obsolete
+              CH.STORE_NO COST_CENTER_CODE,
+              LPAD(CDL.DRAFT_NBR,10,0) CHECK_SERIAL_NUMBER,
+              '1'||TO_CHAR(TO_DATE(IN_DATE), 'yymmdd') PROCESS_DATE,
+              NULL FILLER,
+              'O' TRANSACTION_SEGMENT_TYPE,        -- Unused column and obsolete
+              NULL ITEM_EXT_AMOUNT_SIGN,
+              LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CIL.IL_EXTENDED_PRICE, '-', ''), '0', '9', '2'),9,'0')ITEM_EXT_AMOUNT,
+              CIL.IL_P_TERM_NBR ORGNL_TERMINAL_NUMBER,
+              CIL.IL_P_TRAN_NBR ORGNL_TRANSACTION_NUMBER,
+              NULL ITEM_QTY_SIGN,
+              CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CIL.IL_QTY, '0', '7', '2')ITEM_QTY,
+              NULL ITEM_PRICE_SIGN,
+              LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CIL.IL_PRICE, '-', ''), '0', '7', '2'),7,'0') ITEM_PRICE,
+              CIL.IL_PRIME GL_PRIME_ACCOUNT_NUMBER,      -- Hard coded as 7504, 1693 for now
+              CIL.IL_SUB GL_SUB_ACCOUNT_NUMBER,         -- Hard coded for 101, 120 now
+              CH.RLS_RUN_CYCLE
+           FROM PNP_CCN_HEADERS CH,
+              PNP_CCN_DRAFT_LOGS CDL,
+              PNP_CCN_INSTALLER_LINES CIL
+        WHERE CH.TRAN_GUID = CDL.TRAN_GUID
+          AND CH.TRAN_GUID = CIL.TRAN_GUID
+          AND CH.RLS_RUN_CYCLE = CDL.RLS_RUN_CYCLE
+          AND CH.RLS_RUN_CYCLE = CIL.RLS_RUN_CYCLE
+          AND CH.TRANID = '13'
+          AND CH.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                                     FROM POS_CCN_LOAD_STATUS
+                                    WHERE LOAD_DATE = IN_DATE); 
+
+    V_COUNT     NUMBER := 0;
+    V_TCOUNT    NUMBER := 0;
+    V_TEMP_ROW  DLY_POS_INSTLLR_LN_ITM_DATA%ROWTYPE;
+BEGIN
+
+-- Cursor for loading POS_INSTLR_LN_ITEM_DATA_TMP
+   FOR REC IN POS_INSTLR_LID
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRAN_GUID;
+           V_TEMP_ROW.TRANSACTION_SOURCE                      := rec.TRANSACTION_SOURCE;
+           V_TEMP_ROW.TRANSACTION_TYPE                        := rec.TRANSACTION_TYPE;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.CHECK_SERIAL_NUMBER                     := rec.CHECK_SERIAL_NUMBER;
+           V_TEMP_ROW.PROCESS_DATE                            := rec.PROCESS_DATE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.TRANSACTION_SEGMENT_TYPE                := rec.TRANSACTION_SEGMENT_TYPE;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT_SIGN                    := rec.ITEM_EXT_AMOUNT_SIGN;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT                         := rec.ITEM_EXT_AMOUNT;
+           V_TEMP_ROW.ORGNL_TERMINAL_NUMBER                   := rec.ORGNL_TERMINAL_NUMBER;
+           V_TEMP_ROW.ORGNL_TRANSACTION_NUMBER                := rec.ORGNL_TRANSACTION_NUMBER;
+           V_TEMP_ROW.ORGNL_TRANSACTION_NUMBER                := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.ORGNL_TRANSACTION_NUMBER, '0', '5');
+           V_TEMP_ROW.ITEM_QUANTITY_SIGN                      := rec.ITEM_QTY_SIGN;
+           V_TEMP_ROW.ITEM_QUANTITY                           := rec.ITEM_QTY;
+           V_TEMP_ROW.ITEM_PRICE_SIGN                         := rec.ITEM_PRICE_SIGN;
+           V_TEMP_ROW.ITEM_PRICE                              := rec.ITEM_PRICE;
+           V_TEMP_ROW.GL_PRIME_ACCOUNT_NUMBER                 := rec.GL_PRIME_ACCOUNT_NUMBER;
+           V_TEMP_ROW.GL_SUB_ACCOUNT_NUMBER                   := rec.GL_SUB_ACCOUNT_NUMBER;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+
+           INSERT INTO DLY_POS_INSTLLR_LN_ITM_DATA VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_INSTLR_LN_ID_DTL',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           rec.CHECK_SERIAL_NUMBER);
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_INSTLR_LN_ID_DTL',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_INSTLR_LN_ID_DTL;
+
+PROCEDURE LOAD_POS_CSTMR_LINE_ITEM(
+/*******************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CUST_LINE_ITEM_DATA_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_DATE     IN DATE)
+AS
+-- Cursor for loading the table POS_CUST_LINE_ITEM_DATA_TMP
+ CURSOR POS_CUST_LID IS
+     SELECT CH.TRAN_GUID,
+            'O' TRANSACTION_SOURCE,
+            'O' TRANSACTION_TYPE,
+            CH.STORE_NO COST_CENTER_CODE,
+            LPAD(CDL.DRAFT_NBR ,10,'0') AS CHECK_SERIAL_NUMBER,
+            '1'||TO_CHAR(TO_DATE(IN_DATE), 'yymmdd') AS PROCESS_DATE,
+            NULL FILLER,
+            'O' TRANSACTION_SEGMENT_TYPE,
+            --NULL ITEM_EXT_AMOUNT_SIGN,
+            (CASE WHEN CDL.DRAFT_AMT < 0 THEN '-' ELSE NULL END) ITEM_EXT_AMOUNT_SIGN,
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CDL.DRAFT_AMT, '-', ''), '0', '9', '2')ITEM_EXT_AMOUNT,
+            (CASE WHEN TRIM(CDL.DRAFT_ACCT_NBR) = '1' THEN '000000000' ELSE TRIM(CDL.DRAFT_ACCT_NBR) END) ORGNL_CUSTOMER_ACCOUNT_NUMBER,
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.JOBNBR, '0', '2')ORGNL_JOB_NUMBER,
+            CH.RLS_RUN_CYCLE
+       FROM PNP_CCN_HEADERS CH,
+            PNP_CCN_DRAFT_LOGS CDL
+      WHERE CH.TRAN_GUID = CDL.TRAN_GUID
+        AND CH.TRANID IN ('19', '91')
+        AND CH.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                                   FROM POS_CCN_LOAD_STATUS
+                                  WHERE LOAD_DATE = IN_DATE); 
+    V_COUNT     NUMBER := 0;
+    V_TCOUNT    NUMBER := 0;
+    V_TEMP_ROW  DLY_POS_CSTMR_LINE_ITEM_DATA%ROWTYPE;
+BEGIN
+
+FOR REC IN POS_CUST_LID
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRAN_GUID;
+           V_TEMP_ROW.TRANSACTION_SOURCE                      := rec.TRANSACTION_SOURCE;
+           V_TEMP_ROW.TRANSACTION_TYPE                        := rec.TRANSACTION_TYPE;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.CHECK_SERIAL_NUMBER                     := rec.CHECK_SERIAL_NUMBER;
+           V_TEMP_ROW.PROCESS_DATE                            := rec.PROCESS_DATE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.TRANSACTION_SEGMENT_TYPE                := rec.TRANSACTION_SEGMENT_TYPE;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT_SIGN                    := rec.ITEM_EXT_AMOUNT_SIGN;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT                         := rec.ITEM_EXT_AMOUNT;
+           V_TEMP_ROW.ORGNL_CUSTOMER_ACCOUNT_NUMBER           := rec.ORGNL_CUSTOMER_ACCOUNT_NUMBER;
+           V_TEMP_ROW.ORGNL_JOB_NUMBER                        := rec.ORGNL_JOB_NUMBER;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+
+           INSERT INTO DLY_POS_CSTMR_LINE_ITEM_DATA VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_CSTMR_LINE_IT',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           rec.CHECK_SERIAL_NUMBER);
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CSTMR_LINE_ITEM',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CSTMR_LINE_ITEM;
+
+PROCEDURE LOAD_POS_DSBRSMT_LID(
+/*******************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_DISBRSMT_LINE_ITEM_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+-- POS_DISBRSMT_LINE_ITEM_TMP
+ CURSOR POS_DISBRSMT_LID IS
+      SELECT CH.TRAN_GUID,
+             'O' TRANSACTION_SOURCE,
+             'O' TRANSACTION_TYPE,
+             CH.STORE_NO COST_CENTER_CODE,
+             LPAD(CDL.DRAFT_NBR ,10,'0') AS CHECK_SERIAL_NUMBER,
+             '1'||TO_CHAR(TO_DATE(IN_DATE), 'yymmdd') AS PROCESS_DATE,
+             --NULL AS PROCESS_DATE, 
+             CAST(NULL AS VARCHAR2(100))FILLER,
+             'O' TRANSACTION_SEGMENT_TYPE,
+             --CAST(NULL AS VARCHAR2(100)) ITEM_EXT_AMOUNT_SIGN,
+             --CAST((CASE WHEN CML.AMT < 0 THEN '-' ELSE NULL END) AS VARCHAR2(100)) ITEM_EXT_AMOUNT_SIGN,
+             NULL ITEM_EXT_AMOUNT_SIGN,  -- Not considering the sign instead of negating
+             CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CML.AMT, '-', ''), '0', '9', '2')ITEM_EXT_AMOUNT,
+            -- SUBSTR(CML.PRIMESUB, 1, 4) GL_PRIME_ACCOUNT_NUMBER,
+             SUBSTR(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CML.PRIMESUB, '0', 7), 1, 4) GL_PRIME_ACCOUNT_NUMBER,
+             SUBSTR(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CML.PRIMESUB, '0', 7), 5, 3)GL_SUB_ACCOUNT_NUMBER,
+             CH.RLS_RUN_CYCLE
+         FROM PNP_CCN_HEADERS CH,
+              PNP_CCN_DRAFT_LOGS CDL,
+              PNP_CCN_MISC_LINES CML
+        WHERE CH.TRAN_GUID       = CDL.TRAN_GUID
+          AND CH.TRAN_GUID       = CML.TRAN_GUID
+          AND TO_CHAR(CH.TRANID) = '82'
+          AND CH.RLS_RUN_CYCLE   IN (SELECT RLS_RUN_CYCLE
+                                       FROM POS_CCN_LOAD_STATUS
+                                      WHERE LOAD_DATE = IN_DATE); 
+     
+    V_COUNT     NUMBER := 0;
+    V_TCOUNT    NUMBER := 0;
+    V_TEMP_ROW  DLY_POS_DSBRSMNT_LN_ITM_DATA%ROWTYPE;
+BEGIN
+
+FOR REC IN POS_DISBRSMT_LID
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRAN_GUID;
+           V_TEMP_ROW.TRANSACTION_SOURCE                      := rec.TRANSACTION_SOURCE;
+           V_TEMP_ROW.TRANSACTION_TYPE                        := rec.TRANSACTION_TYPE;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.CHECK_SERIAL_NUMBER                     := rec.CHECK_SERIAL_NUMBER;
+           V_TEMP_ROW.PROCESS_DATE                            := rec.PROCESS_DATE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.TRANSACTION_SEGMENT_TYPE                := rec.TRANSACTION_SEGMENT_TYPE;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT_SIGN                    := rec.ITEM_EXT_AMOUNT_SIGN;
+           V_TEMP_ROW.ITEM_EXT_AMOUNT                         := rec.ITEM_EXT_AMOUNT;
+           V_TEMP_ROW.GL_PRIME_ACCOUNT_NUMBER                 := rec.GL_PRIME_ACCOUNT_NUMBER;
+           V_TEMP_ROW.GL_SUB_ACCOUNT_NUMBER                   := rec.GL_SUB_ACCOUNT_NUMBER;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+
+           INSERT INTO DLY_POS_DSBRSMNT_LN_ITM_DATA VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_DSBRSMT_LID',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           rec.CHECK_SERIAL_NUMBER);
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_DSBRSMT_LID',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_DSBRSMT_LID;
+
+PROCEDURE LOAD_DLY_POS_CSTMR(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CUSTOMER_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*****************************************************************************/
+IN_DATE     IN DATE)
+
+AS
+CURSOR POS_SD_CUR IS
+    SELECT CH.TRAN_GUID,
+           CH.STORE_NO COST_CENTER_CODE,
+           TRIM(TO_CHAR(CH.TERMNBR)) TERMINAL_NUMBER,
+           LPAD(TRIM(CH.TRANNBR),5,'0') TRANSACTION_NUMBER,
+           'O' SORT_FORCE,
+           'O' SEGMENT_CODE,
+           'O' SUB_SEGMENT_CODE,
+           NULL FILLER,
+           '1'||TO_CHAR(TO_DATE(CH.TRAN_DATE), 'yymmdd')TRANSACTION_DATE,
+           DECODE(TRIM(CH.ACCTNBR), '1', NULL, '9', NULL, '3', NULL,TRIM(CH.ACCTNBR)) CUSTOMER_ACCOUNT_NUMBER,
+           DECODE(TRIM(CH.ACCTNBR), '1', NULL, '9', NULL, '3',NULL,CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.JOBNBR, '0', '2'))CUSTOMER_JOB_NUMBER,
+           --(CASE TRIM(CH.ACCTNBR) WHEN '1' THEN '000000000' ELSE TRIM(CH.ACCTNBR) END) CUSTOMER_ACCOUNT_NUMBER,
+           --(CASE TRIM(CH.ACCTNBR) WHEN '1' THEN '00' ELSE CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.JOBNBR, '0', '2') END)CUSTOMER_JOB_NUMBER,
+           'O' POS_TRANSACTION_NUMBER_BATCH, 
+            CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(TO_CHAR(CH.TRAN_TIMESTAMP, 'HH24MI'), '0', '4') AS POS_TRANSACTION_TIME,
+           SUBSTR(CH.RLS_RUN_CYCLE, 1, 2) CYCLE_RUN_NUMBER,
+           LPAD(TRIM(CH.EMP_NO),'2',0) EMPLOYEE_NUMBER,
+           'O' POS_MODE_INDICATOR,          
+           CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CH.CUSTTYPNBR, '0', '2') BUSINESS_TYPE_CODE,
+           CH.TERRNBR SLS_TERRITORY_NUMBER,
+           'O' SLS_TERRITORY_NUMBER_NO_CORR,
+           'O' TERRITORY_SPLIT_INDICATOR,
+           TRIM(TO_CHAR(CH.TRANID)) POS_TRANSACTION_CODE,
+           'O' POS_TRANSACTION_DATE,
+           'O' POS_TERMINAL_NUMBER,
+           'O' POS_TRANSACTION_NUMBER,
+           'O' DATA_INDICATOR,
+           --SUBSTR(CH.PONBR, 1, 20) PURCHASE_ORDER_NUMBER,
+           (CASE WHEN SHIPNM like '%PO %' or SHIPNM like '%P.O.%' or SHIPNM like '%PO#%'
+               THEN SHIPNM
+               ELSE NULL
+               END) PURCHASE_ORDER_NUMBER,
+           CH.RLS_RUN_CYCLE
+       FROM PNP_CCN_HEADERS CH
+      WHERE TRIM(TO_CHAR(CH.TRANID)) in ('10','11','31','22','19','41')
+        AND CH.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                                   FROM POS_CCN_LOAD_STATUS
+                                  WHERE LOAD_DATE = IN_DATE)
+        AND EXISTS (SELECT 1
+                      FROM PNP_CCN_SALES_LINES
+                     WHERE SALESNBR = '000009126'
+                       AND RLS_RUN_CYCLE = CH.RLS_RUN_CYCLE
+                       AND TRAN_GUID = CH.TRAN_GUID);
+
+
+      V_COUNT     NUMBER := 0;
+      V_TCOUNT    NUMBER := 0;
+      V_TEMP_ROW  DLY_POS_CUSTOMER%ROWTYPE;
+
+BEGIN
+  FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRAN_GUID;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.TERMINAL_NUMBER                         := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := rec.TRANSACTION_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.TRANSACTION_NUMBER, '0', '5');
+           V_TEMP_ROW.SORT_FORCE                              := rec.SORT_FORCE;
+           V_TEMP_ROW.SEGMENT_CODE                            := rec.SEGMENT_CODE;
+           V_TEMP_ROW.SUB_SEGMENT_CODE                        := rec.SUB_SEGMENT_CODE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.TRANSACTION_DATE                        := rec.TRANSACTION_DATE;
+           V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER                 := rec.CUSTOMER_ACCOUNT_NUMBER;
+           V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER                 := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER, '0', '9');
+           V_TEMP_ROW.CUSTOMER_JOB_NUMBER                     := rec.CUSTOMER_JOB_NUMBER;
+           V_TEMP_ROW.POS_TRANSACTION_NUMBER_BATCH            := rec.POS_TRANSACTION_NUMBER_BATCH;
+           V_TEMP_ROW.POS_TRANSACTION_TIME                    := rec.POS_TRANSACTION_TIME;
+           V_TEMP_ROW.CYCLE_RUN_NUMBER                        := rec.CYCLE_RUN_NUMBER;
+           V_TEMP_ROW.EMPLOYEE_NUMBER                         := rec.EMPLOYEE_NUMBER;
+           V_TEMP_ROW.EMPLOYEE_NUMBER                         := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.EMPLOYEE_NUMBER, '0', '2');
+           V_TEMP_ROW.POS_MODE_INDICATOR                      := rec.POS_MODE_INDICATOR;
+           V_TEMP_ROW.BUSINESS_TYPE_CODE                      := rec.BUSINESS_TYPE_CODE;
+           V_TEMP_ROW.BUSINESS_TYPE_CODE                      := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.BUSINESS_TYPE_CODE, '0', '2');
+           V_TEMP_ROW.SLS_TERRITORY_NUMBER                    := rec.SLS_TERRITORY_NUMBER;
+           V_TEMP_ROW.SLS_TERRITORY_NUMBER_NO_CORR            := rec.SLS_TERRITORY_NUMBER_NO_CORR;
+           V_TEMP_ROW.TERRITORY_SPLIT_INDICATOR               := rec.TERRITORY_SPLIT_INDICATOR;
+           V_TEMP_ROW.POS_TRANSACTION_CODE                    := rec.POS_TRANSACTION_CODE;
+           V_TEMP_ROW.POS_TRANSACTION_DATE                    := rec.POS_TRANSACTION_DATE;
+           V_TEMP_ROW.POS_TERMINAL_NUMBER                     := rec.POS_TERMINAL_NUMBER;
+           V_TEMP_ROW.POS_TRANSACTION_NUMBER                  := rec.POS_TRANSACTION_NUMBER;
+           V_TEMP_ROW.DATA_INDICATOR                          := rec.DATA_INDICATOR;
+           V_TEMP_ROW.PURCHASE_ORDER_NUMBER                   := SUBSTR(rec.PURCHASE_ORDER_NUMBER, 1, 20);--rec.PURCHASE_ORDER_NUMBER;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+           
+           INSERT INTO DLY_POS_CUSTOMER VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 50 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_DLY_POS_CSTMR',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           'TermNbr: '||NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                           'TranNbr: '||NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_DLY_POS_CSTMR',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_DLY_POS_CSTMR;
+
+PROCEDURE LOAD_DLY_POS_CSTMR_DTLS(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CUSTOMER_DETAILS_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed :
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT CH.TRANGUID,
+         csl.SEQNBR SEQNBR,
+         CH.COST_CENTER_CODE,
+         CH.TERMINAL_NUMBER,
+         CH.TRANSACTION_NUMBER,
+         'O' SORT_FORCE,
+         'O' SEGMENT_CODE,
+         'O' SUB_SEGMENT_CODE,
+         NULL FILLER,
+         (CASE CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CSL.SALESNBR, '0', '9') 
+          WHEN '000009126' THEN '000912600' 
+          WHEN '000009159' THEN '000915900' 
+          WHEN '000009217' THEN '000921700'
+          WHEN '000009118' THEN '000911800'
+          WHEN '000009134' THEN '000913400'
+          WHEN '000009142' THEN '000914200'
+          ELSE CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CSL.SALESNBR, '0', '9') END) SALES_NUMBER,
+         (CASE WHEN CSL.QTY < 0 THEN '-' ELSE NULL END) ITEM_QUANTITY_SIGN,
+         CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CSL.QTY, '0', '7', '2')ITEM_QUANTITY,
+         (CASE WHEN CSL.PR < 0 THEN '-' ELSE NULL END) ITEM_PRICE_SIGN,
+         CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CSL.PR, '-', ''), '0', '7', '2'), '0', '7')ITEM_PRICE,
+         (CASE WHEN CSL.EXTENDED_PRICE < 0 THEN '-' ELSE NULL END) ITEM_EXTERNAL_AMOUNT_SIGN,
+         CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CSL.EXTENDED_PRICE, '-', ''), '0', '7', '2'), '0', '7')ITEM_EXTERNAL_AMOUNT,
+         NULL ITEM_DISC_AMOUNT_SIGN,
+         '0000000' ITEM_DISC_AMOUNT,
+         '0' ITEM_SALES_TAX_INDICATOR,     
+         '0' ITEM_DISC_CODE,
+         '0' ITEM_DISC_TYPE,
+         '0' SALES_PROMO_CODE,
+         CSL.PRIME GL_PRIME_ACCOUNT,
+         CSL.SUB GL_SUB_ACCOUNT,
+         NULL SCHEDULE_TYPE,
+         NULL SCHEDULE_VERSION,
+         NULL PRICE_LVL_CODE,
+         '000' PERCENT_OFF_LVL,
+         NULL PROD_DESC_SOURCE,
+         '00000' ORGNL_POS_TERMINAL_NUMBER,
+         '00000' ORGNL_POS_TRANSACTION_NUMBER,
+         CH.RUNCYCLE
+    FROM DLY_POS_CUSTOMER CH,
+         PNP_CCN_SALES_LINES CSL
+     WHERE CH.TRANGUID = CSL.TRAN_GUID 
+       AND TRIM(TO_CHAR(CH.POS_TRANSACTION_CODE)) in ('10','11','31','22','19','41')
+       AND CH.RUNCYCLE  IN (SELECT RLS_RUN_CYCLE
+                              FROM POS_CCN_LOAD_STATUS
+                             WHERE LOAD_DATE = IN_DATE)
+       AND CH.RUNCYCLE  = CSL.RLS_RUN_CYCLE;
+
+
+      V_COUNT     NUMBER := 0;
+      V_TCOUNT    NUMBER := 0;
+      V_TEMP_ROW  DLY_POS_CUSTOMER_DETAILS%ROWTYPE;
+
+BEGIN
+  FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRANGUID;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.TERMINAL_NUMBER                         := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := rec.TRANSACTION_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.TRANSACTION_NUMBER, '0', '5');
+           V_TEMP_ROW.SORT_FORCE                              := rec.SORT_FORCE;
+           V_TEMP_ROW.SEGMENT_CODE                            := rec.SEGMENT_CODE;
+           V_TEMP_ROW.SUB_SEGMENT_CODE                        := rec.SUB_SEGMENT_CODE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.SALES_NUMBER                            := rec.SALES_NUMBER;
+           V_TEMP_ROW.SALES_NUMBER                            := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.SALES_NUMBER, '0', '9');
+           V_TEMP_ROW.SALES_NUMBER                            := CASE V_TEMP_ROW.SALES_NUMBER WHEN '000009126' THEN '000912600' WHEN '000009159' THEN '000915900' ELSE V_TEMP_ROW.SALES_NUMBER END;
+           V_TEMP_ROW.ITEM_QUANTITY_SIGN                      := rec.ITEM_QUANTITY_SIGN;
+           V_TEMP_ROW.ITEM_QUANTITY                           := rec.ITEM_QUANTITY;
+           V_TEMP_ROW.ITEM_QUANTITY                           := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.ITEM_QUANTITY, '0', '7');
+           V_TEMP_ROW.ITEM_PRICE_SIGN                         := rec.ITEM_PRICE_SIGN;
+           V_TEMP_ROW.ITEM_PRICE                              := rec.ITEM_PRICE;
+           V_TEMP_ROW.ITEM_PRICE                              := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.ITEM_PRICE, '0', '7');
+           V_TEMP_ROW.ITEM_EXTERNAL_AMOUNT_SIGN               := rec.ITEM_EXTERNAL_AMOUNT_SIGN;
+           V_TEMP_ROW.ITEM_EXTERNAL_AMOUNT                    := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.ITEM_EXTERNAL_AMOUNT, '0', '7');
+           V_TEMP_ROW.ITEM_DISC_AMOUNT_SIGN                   := rec.ITEM_DISC_AMOUNT_SIGN;
+           V_TEMP_ROW.ITEM_DISC_AMOUNT                        := rec.ITEM_DISC_AMOUNT;
+           V_TEMP_ROW.ITEM_SALES_TAX_INDICATOR                := rec.ITEM_SALES_TAX_INDICATOR;
+           V_TEMP_ROW.ITEM_DISC_CODE                          := rec.ITEM_DISC_CODE;
+           V_TEMP_ROW.ITEM_DISC_TYPE                          := rec.ITEM_DISC_TYPE;
+           V_TEMP_ROW.SALES_PROMO_CODE                        := rec.SALES_PROMO_CODE;
+           V_TEMP_ROW.GL_PRIME_ACCOUNT                        := rec.GL_PRIME_ACCOUNT;
+           V_TEMP_ROW.GL_SUB_ACCOUNT                          := rec.GL_SUB_ACCOUNT;
+           V_TEMP_ROW.SCHEDULE_TYPE                           := rec.SCHEDULE_TYPE;
+           V_TEMP_ROW.SCHEDULE_VERSION                        := rec.SCHEDULE_VERSION;
+           V_TEMP_ROW.PRICE_LVL_CODE                          := rec.PRICE_LVL_CODE;
+           V_TEMP_ROW.PERCENT_OFF_LVL                         := rec.PERCENT_OFF_LVL;
+           V_TEMP_ROW.PROD_DESC_SOURCE                        := rec.PROD_DESC_SOURCE;
+           V_TEMP_ROW.ORGNL_POS_TERMINAL_NUMBER               := rec.ORGNL_POS_TERMINAL_NUMBER;
+           V_TEMP_ROW.ORGNL_POS_TRANSACTION_NUMBER            := rec.ORGNL_POS_TRANSACTION_NUMBER;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RUNCYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+           V_TEMP_ROW.SEQNBR                                  := rec.SEQNBR;
+           
+                 
+           INSERT INTO DLY_POS_CUSTOMER_DETAILS VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_DLY_POS_CSTMR_DTLS',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           'TermNbr: '||NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                           'TranNbr: '||NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_DLY_POS_CSTMR_DTLS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END LOAD_DLY_POS_CSTMR_DTLS;
+
+PROCEDURE LOAD_POS_CSTMR_SLS_TAX(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table 
+"POS_CSTMR_SALES_TAX_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed : 12/14/2016 mxk766 CCN Project....
+          Filter to pull only tranids of value =11
+          Added lpad for the trannbr
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+   SELECT CH.TRANGUID,
+          CH.COST_CENTER_CODE,
+          CH.TERMINAL_NUMBER,
+          CH.TRANSACTION_NUMBER,
+          'O' SORT_FORCE,                      
+          'O' SEGMENT_CODE,                    
+          'O' SUB_SEGMENT_CODE,                
+          NULL FILLER,
+          'O' SALES_TAX_CORR_INDICATOR,        
+          --NULL SALES_TAX_COLL_AMOUNT_SIGN,
+          (CASE WHEN CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE((NVL(CTW.AMT, 0)+NVL(CTW.GSTAMT, 0))*100, '-', ''), '0', '7') < 0 THEN '-' ELSE NULL END) SALES_TAX_COLL_AMOUNT_SIGN,
+          CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE((NVL(CTW.AMT, 0)+NVL(CTW.GSTAMT, 0))*100, '-', ''), '0', '7') SALES_TAX_COLL_AMOUNT,       
+          '1' SALES_TAX_INDICATOR,
+          --NULL SALES_TAX_RATE_SIGN,
+          (CASE WHEN CTW.PCT < 0 THEN '-' ELSE NULL END) SALES_TAX_RATE_SIGN,
+          CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CTW.PCT*1000, '-', ''), '0', '5') SALES_TAX_RATE, 
+          CTW.ID SALES_TAX_CODE,
+          CH.RUNCYCLE
+     FROM DLY_POS_CUSTOMER CH,
+          PNP_CCN_TW_TAX_TTL CTW
+    WHERE CH.TRANGUID = CTW.TRAN_GUID
+      AND CH.RUNCYCLE  IN (SELECT RLS_RUN_CYCLE
+                             FROM POS_CCN_LOAD_STATUS
+                            WHERE LOAD_DATE = IN_DATE)
+      AND CH.RUNCYCLE  = CTW.RLS_RUN_CYCLE;
+                    
+      V_COUNT     NUMBER := 0;
+      V_TCOUNT    NUMBER := 0;
+      V_TEMP_ROW  DLY_POS_CSTMR_SALES_TAX%ROWTYPE;
+
+BEGIN
+
+FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRANGUID;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.TERMINAL_NUMBER                         := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TRANSACTION_NUMBER, '0', '5');
+           V_TEMP_ROW.SORT_FORCE                              := rec.SORT_FORCE;
+           V_TEMP_ROW.SEGMENT_CODE                            := rec.SEGMENT_CODE;
+           V_TEMP_ROW.SUB_SEGMENT_CODE                        := rec.SUB_SEGMENT_CODE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.SALES_TAX_COLL_AMOUNT_SIGN              := rec.SALES_TAX_COLL_AMOUNT_SIGN;
+           V_TEMP_ROW.SALES_TAX_COLL_AMOUNT                   := rec.SALES_TAX_COLL_AMOUNT;
+           V_TEMP_ROW.SALES_TAX_INDICATOR                     := rec.SALES_TAX_INDICATOR;
+           V_TEMP_ROW.SALES_TAX_RATE_SIGN                     := rec.SALES_TAX_RATE_SIGN;
+           V_TEMP_ROW.SALES_TAX_RATE                          := rec.SALES_TAX_RATE;
+           V_TEMP_ROW.SALES_TAX_RATE                          := CASE V_TEMP_ROW.SALES_TAX_RATE WHEN NULL THEN '00000' ELSE V_TEMP_ROW.SALES_TAX_RATE END;
+           V_TEMP_ROW.SALES_TAX_CODE                          := rec.SALES_TAX_CODE;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RUNCYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+
+           INSERT INTO DLY_POS_CSTMR_SALES_TAX VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_CSTMR_SLS_TAX',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           'TermNbr: '||NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                           'TranNbr: '||NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CSTMR_SLS_TAX',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CSTMR_SLS_TAX;
+
+PROCEDURE LOAD_POS_CSTMR_BNK_CRD(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CSTMR_BANK_CARD_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed : 12/15/2016 MXK766 CCN Project....
+          Replaced TRANID from 10 to 11.
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT CH.TRANGUID,
+           CH.COST_CENTER_CODE,
+           CH.TERMINAL_NUMBER,
+           CH.TRANSACTION_NUMBER,
+           'O' SORT_FORCE,
+           'O' SEGMENT_CODE,
+           'O' SUB_SEGMENT_CODE,
+           NULL as FILLER,
+           CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(TRIM(REPLACE(CBC.BC_BIN, '-', '')), '0', '16') BANK_CARD_ACCOUNT_NUMBER,
+           SUBSTR(CBC.BC_AUTH_NO,1,9) BANK_AUTH,
+           (CASE WHEN CBC.BC_AMT < 0 THEN '-' ELSE NULL END) BANK_AMOUNT_SIGN,
+           CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CBC.BC_AMT, '-', ''), '0', '9', '2')BANK_AMOUNT,
+           'O' BANK_TYPE,
+           CH.RUNCYCLE
+      FROM DLY_POS_CUSTOMER CH,
+           PNP_CCN_BANK_CARDS CBC
+    WHERE CH.TRANGUID = CBC.TRAN_GUID
+      AND CH.RUNCYCLE IN (SELECT RLS_RUN_CYCLE
+                            FROM POS_CCN_LOAD_STATUS
+                           WHERE LOAD_DATE = IN_DATE)
+      AND CH.RUNCYCLE = CBC.RLS_RUN_CYCLE;
+
+      V_COUNT     NUMBER := 0;
+      V_TCOUNT    NUMBER := 0;
+      V_TEMP_ROW  DLY_POS_CSTMR_BANK_CARD%ROWTYPE;
+
+BEGIN
+  FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRANGUID;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec.COST_CENTER_CODE;
+           V_TEMP_ROW.TERMINAL_NUMBER                         := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := rec.TRANSACTION_NUMBER;
+           V_TEMP_ROW.SORT_FORCE                              := rec.SORT_FORCE;
+           V_TEMP_ROW.SEGMENT_CODE                            := rec.SEGMENT_CODE;
+           V_TEMP_ROW.SUB_SEGMENT_CODE                        := rec.SUB_SEGMENT_CODE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.BANK_CARD_ACCOUNT_NUMBER                := rec.BANK_CARD_ACCOUNT_NUMBER;
+           V_TEMP_ROW.BANK_CARD_ACCOUNT_NUMBER                := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(V_TEMP_ROW.BANK_CARD_ACCOUNT_NUMBER, '0', '16');
+           V_TEMP_ROW.BANK_AUTH                               := rec.BANK_AUTH;
+           V_TEMP_ROW.BANK_AMOUNT_SIGN                        := rec.BANK_AMOUNT_SIGN;
+           V_TEMP_ROW.BANK_AMOUNT                             := rec.BANK_AMOUNT;
+           V_TEMP_ROW.BANK_TYPE                               := rec.BANK_TYPE;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RUNCYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+
+           INSERT INTO DLY_POS_CSTMR_BANK_CARD VALUES V_TEMP_ROW;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_CSTMR_BNK_CRD',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           'TermNbr: '||NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                           'TranNbr: '||NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CSTMR_BNK_CRD',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CSTMR_BNK_CRD;
+
+PROCEDURE LOAD_POS_CSTMR_FORM_OF_PAY(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CSTMR_FRM_OF_PAY_TMP" with data extracted from new interface tables
+created : 06/02/2016 nxk927 CCN Project....
+changed : Added padding to the TRANNBR Field
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT *
+      FROM PNP_POS_CCN_ACCUMS
+     WHERE ((TRANID IN ('11', '13','22','41', '82', '91') and SUBSTR(ACCUM_ID,1,1) <> '7')
+           OR 
+           TRANID IN ('10', '19','31'))-- and ACCUM_ID NOT IN ('72','73','74'))
+           --TRANID IN ('10', '19','31') and ACCUM_ID NOT IN ('81','73'))
+           --OR  TRANID IN ('19','31') and ACCUM_ID <> '73') --(10,19,31)   ('10', '11', '13', '19', '22', '31', '41', '82', '91')
+       AND ACCUM_ID <> '92'
+     ORDER BY TRAN_GUID,DECODE(ACCUM_ID,'95', '70', ACCUM_ID);
+      /*SELECT ACC.TRAN_GUID,
+           CH.STORE_NO COST_CENTER_CODE,
+           CH.TERMNBR TERMINAL_NUMBER,
+           LPAD(CH.TRANNBR,5,'0') TRANSACTION_NUMBER,  --CHANGED BY MXK766
+           'O' SORT_FORCE,
+           'O' SEGMENT_CODE,
+           'O' SUB_SEGMENT_CODE,
+           NULL AS FILLER,
+           '0' PAY_DISC_CODE,
+           --NULL TRANSACTION_TOTAL_AMOUNT_SIGN,
+          --nxk927 03/23/2017
+          -- DECODE(ACC.ACCUM_ID, '8c', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
+          --DECODE(ACC.ACCUM_ID, '8c' ,LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
+           DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
+           DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8' ,LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
+           '0' POS_LINE_CNT,
+           --NULL PAY_AMOUNT_SIGN,
+           (CASE WHEN ACC.AMT < 0 THEN '-' ELSE NULL END) PAY_AMOUNT_SIGN,
+           LPAD(REPLACE(ACC.AMT*100,'-',''),'7',0) PAY_AMOUNT,
+           NULL POS_DISC_SIGN,
+           '0000000' POS_DISC,
+--           (CASE WHEN SUBSTR(ACC.ACCUM_ID,1,1) = '8' THEN
+--                    DECODE((SELECT SIGN(ACC.AMT)
+--                              FROM PNP_CCN_ACCUMS
+--                             WHERE TRAN_GUID = CH.TRAN_GUID
+--                               AND ACCUM_ID  = '92'), '-1', '-', NULL)
+--                ELSE NULL
+--           END) SALES_DISC_AMOUNT_SIGN,
+           NULL SALES_DISC_AMOUNT_SIGN,
+--           (CASE WHEN SUBSTR(ACC.ACCUM_ID,1,1) = '8' THEN
+--                    (SELECT LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(ACC.AMT, '-', ''), '0', '7', '2'),7,'0')
+--                      FROM PNP_CCN_ACCUMS
+--                     WHERE TRAN_GUID = CH.TRAN_GUID
+--                       AND ACCUM_ID  = '92')
+--                ELSE '0000000'
+--           END) SALES_DISC_AMOUNT,
+           '0000000' SALES_DISC_AMOUNT,
+           ACC.RLS_RUN_CYCLE,
+           ACC.ACCUM_ID
+      FROM PNP_CCN_ACCUMS ACC, 
+           PNP_CCN_HEADERS CH
+     WHERE CH.TRANID IN ('10', '11', '13', '19', '22', '31', '41', '82', '91')
+       AND ACC.TRAN_GUID      = CH.TRAN_GUID
+       AND ACC.RLS_RUN_CYCLE  = CH.RLS_RUN_CYCLE
+       AND CH.RLS_RUN_CYCLE   IN (SELECT RLS_RUN_CYCLE
+                                    FROM POS_CCN_LOAD_STATUS
+                                   WHERE LOAD_DATE = IN_DATE)
+       AND EXISTS (SELECT 1
+                      FROM PNP_CCN_SALES_LINES
+                     WHERE SALESNBR = '000009126'
+                       AND RLS_RUN_CYCLE = CH.RLS_RUN_CYCLE
+                       AND TRAN_GUID =     CH.TRAN_GUID)
+       AND SUBSTR(ACC.ACCUM_ID,1,1) <> '7'
+       AND ACC.ACCUM_ID <> '92';*/
+
+      V_COUNT     NUMBER := 0;
+      V_TCOUNT    NUMBER := 0;
+      V_TEMP_ROW  DLY_POS_CSTMR_FORM_OF_PAY%ROWTYPE;
+      V_PREV_REC  VARCHAR2(35):= 'XXXXXXXXXXX'; 
+      V_FLAG      VARCHAR2(35):= 'N'; 
+      
+
+BEGIN
+    V_FLAG := 'N';
+FOR REC IN POS_SD_CUR
+     LOOP
+        BEGIN
+           V_TEMP_ROW.TRANGUID                                := rec.TRAN_GUID;
+           --V_TEMP_ROW.CUSTOMER_FORM_OF_PAY_ID                 := rec.SRLNO;
+           V_TEMP_ROW.COST_CENTER_CODE                        := rec. COST_CENTER_CODE;
+           V_TEMP_ROW.TERMINAL_NUMBER                         := rec.TERMINAL_NUMBER;
+           V_TEMP_ROW.TRANSACTION_NUMBER                      := rec.TRANSACTION_NUMBER;
+           V_TEMP_ROW.SORT_FORCE                              := rec.SORT_FORCE;
+           V_TEMP_ROW.SEGMENT_CODE                            := rec.SEGMENT_CODE;
+           V_TEMP_ROW.SUB_SEGMENT_CODE                        := rec.SUB_SEGMENT_CODE;
+           V_TEMP_ROW.FILLER                                  := rec.FILLER;
+           V_TEMP_ROW.PAY_DISC_CODE                           := rec.PAY_DISC_CODE;
+           V_TEMP_ROW.TRANSACTION_TOTAL_AMOUNT_SIGN           := rec.TRANSACTION_TOTAL_AMOUNT_SIGN;
+           V_TEMP_ROW.TRANSACTION_TOTAL_AMOUNT                := rec.TRANSACTION_TOTAL_AMOUNT;
+           V_TEMP_ROW.POS_LINE_CNT                            := rec.POS_LINE_CNT;
+           V_TEMP_ROW.PAY_AMOUNT_SIGN                         := rec.PAY_AMOUNT_SIGN;
+           V_TEMP_ROW.PAY_AMOUNT                              := rec.PAY_AMOUNT;
+           V_TEMP_ROW.POS_DISC_SIGN                           := rec.POS_DISC_SIGN;
+           V_TEMP_ROW.POS_DISC                                := rec.POS_DISC;
+           V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN                  := rec.SALES_DISC_AMOUNT_SIGN;
+           V_TEMP_ROW.SALES_DISC_AMOUNT                       := rec.SALES_DISC_AMOUNT;
+           BEGIN
+               SELECT PAY_AMOUNT_SIGN, -- (CASE WHEN AMT < 0 THEN '-' ELSE NULL END),
+                      PAY_AMOUNT--LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(AMT, '-', ''), '0', '7', '2'),7,'0')
+                 INTO V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN,
+                      V_TEMP_ROW.SALES_DISC_AMOUNT
+                 FROM PNP_POS_CCN_ACCUMS
+                WHERE TRAN_GUID = rec.TRAN_GUID
+                  AND ACCUM_ID  = '92';
+                  
+          EXCEPTION
+              WHEN OTHERS THEN
+                  V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN :=NULL;
+                  V_TEMP_ROW.SALES_DISC_AMOUNT  :=  '0000000';
+           END; 
+           
+           IF REC.TRANID in ('10','19', '31') THEN
+              IF REC.ACCUM_ID = '95' THEN
+                 V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN;
+                 V_TEMP_ROW.SALES_DISC_AMOUNT      := V_TEMP_ROW.SALES_DISC_AMOUNT;
+                 V_PREV_REC := REC.TRAN_GUID;
+              ELSIF V_PREV_REC <> REC.TRAN_GUID AND REC.ACCUM_ID = '93' THEN
+                 V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN;
+                 V_TEMP_ROW.SALES_DISC_AMOUNT      := V_TEMP_ROW.SALES_DISC_AMOUNT;
+              ELSE
+                 V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := NULL;
+                 V_TEMP_ROW.SALES_DISC_AMOUNT      := '0000000';
+              END IF;
+           ELSIF REC.TRANID in ('41') THEN
+              IF REC.ACCUM_ID = '94' THEN
+                 V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN;
+                 V_TEMP_ROW.SALES_DISC_AMOUNT      := V_TEMP_ROW.SALES_DISC_AMOUNT;
+              ELSE
+                V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := NULL;
+                V_TEMP_ROW.SALES_DISC_AMOUNT      := '0000000';   
+              END IF;
+           ELSE
+             IF SUBSTR(REC.ACCUM_ID,1,1) = '8' THEN
+                 V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN;
+                 V_TEMP_ROW.SALES_DISC_AMOUNT      := V_TEMP_ROW.SALES_DISC_AMOUNT;
+             ELSE
+                V_TEMP_ROW.SALES_DISC_AMOUNT_SIGN := NULL;
+                V_TEMP_ROW.SALES_DISC_AMOUNT      := '0000000';
+             END IF;
+           END IF;
+           IF REC.ACCUM_ID IN ('71','72','73','74','75','76') THEN
+              IF NVL(V_TEMP_ROW.PAY_AMOUNT_SIGN,'+') = '+' THEN
+                 V_TEMP_ROW.PAY_AMOUNT_SIGN := '-';
+              ELSE V_TEMP_ROW.PAY_AMOUNT_SIGN := '+';
+              V_FLAG := 'Y';
+              END IF;
+           END IF;
+           V_TEMP_ROW.RUNCYCLE                                := rec.RLS_RUN_CYCLE;
+           V_TEMP_ROW.LOAD_DATE                               := IN_DATE;
+           
+           --INSERT INTO DLY_POS_CSTMR_FORM_OF_PAY VALUES V_TEMP_ROW;
+           IF REC.ACCUM_ID IN ('81','82','83','84','85','86')  THEN
+              IF V_FLAG <> 'Y' THEN 
+                 INSERT INTO DLY_POS_CSTMR_FORM_OF_PAY VALUES V_TEMP_ROW;
+              END IF;
+           ELSE
+              INSERT INTO DLY_POS_CSTMR_FORM_OF_PAY VALUES V_TEMP_ROW;
+           END IF;
+
+           V_COUNT   := V_COUNT + 1;
+           IF V_COUNT > 100 THEN
+               COMMIT;
+               V_COUNT := 0;
+           END IF;
+           V_TCOUNT := V_TCOUNT + 1;
+        EXCEPTION
+            WHEN OTHERS THEN
+               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_POS_CSTMR_FORM_OF_PAY',
+                                           SQLERRM,
+                                           rec.COST_CENTER_CODE,
+                                           'TermNbr: '||NVL(rec.TERMINAL_NUMBER,'')||':'||
+                                           'TranNbr: '||NVL(rec.TRANSACTION_NUMBER,''));
+        END;
+     END LOOP;
+COMMIT;
+DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CSTMR_FORM_OF_PAY',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CSTMR_FORM_OF_PAY;
+
+PROCEDURE LOAD_POS_CCN_ACCUMS(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CCN_LOAD_STATUS" with data extracted from new interface tables
+created : 03/02/2017 nxk927 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT ACC.TRAN_GUID,
+           CH.STORE_NO COST_CENTER_CODE,
+           CH.TERMNBR TERMINAL_NUMBER,
+           LPAD(CH.TRANNBR,5,'0') TRANSACTION_NUMBER,  --CHANGED BY MXK766
+           'O' SORT_FORCE,
+           'O' SEGMENT_CODE,
+           'O' SUB_SEGMENT_CODE,
+           NULL AS FILLER,
+           '0' PAY_DISC_CODE,
+--           (CASE WHEN 
+--                   CH.TRANID in ('10','19', '31') then
+--                      DECODE(ACC.ACCUM_ID, '93' ,(CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL)
+--                 ELSE
+--                   DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL)
+--            END) TRANSACTION_TOTAL_AMOUNT_SIGN,
+--           (CASE WHEN 
+--                    CH.TRANID in ('10', '19','31') then
+--                       DECODE(ACC.ACCUM_ID, '93' ,LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000')  
+--                 ELSE
+--                    DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8' ,LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000')
+--            END) TRANSACTION_TOTAL_AMOUNT,
+           --DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8', (CASE WHEN CH.TRAN_TOTAL < 0 THEN '-' ELSE NULL END), NULL) TRANSACTION_TOTAL_AMOUNT_SIGN,
+           --DECODE(SUBSTR(ACC.ACCUM_ID,1,1), '8' ,LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(CH.TRAN_TOTAL, '-', ''), '0', '7', '2'),7,'0'),'0000000') TRANSACTION_TOTAL_AMOUNT,
+           NULL TRANSACTION_TOTAL_AMOUNT_SIGN,
+           CH.TRAN_TOTAL TRANSACTION_TOTAL_AMOUNT,
+           '0' POS_LINE_CNT,
+           (CASE WHEN ACC.AMT < 0 THEN '-' ELSE NULL END) PAY_AMOUNT_SIGN,
+           LPAD(REPLACE(ACC.AMT*100,'-',''),'7',0) PAY_AMOUNT,
+           NULL POS_DISC_SIGN,
+           '0000000' POS_DISC,
+           NULL SALES_DISC_AMOUNT_SIGN,
+           '0000000' SALES_DISC_AMOUNT,
+           ACC.RLS_RUN_CYCLE,
+           ACC.ACCUM_ID,
+           CH.TRANID,
+           ACC.SEQNBR           
+      FROM PNP_CCN_ACCUMS ACC, 
+           PNP_CCN_HEADERS CH
+     WHERE CH.TRANID IN ('10', '11', '13', '19', '22', '31', '41', '82', '91') 
+       AND ACC.TRAN_GUID      = CH.TRAN_GUID
+       AND ACC.RLS_RUN_CYCLE  = CH.RLS_RUN_CYCLE
+       AND CH.RLS_RUN_CYCLE   IN (SELECT RLS_RUN_CYCLE
+                                    FROM POS_CCN_LOAD_STATUS
+                                   WHERE LOAD_DATE = IN_DATE)
+       AND EXISTS (SELECT 1
+                      FROM PNP_CCN_SALES_LINES
+                     WHERE SALESNBR = '000009126'
+                       AND RLS_RUN_CYCLE = CH.RLS_RUN_CYCLE
+                       AND TRAN_GUID =     CH.TRAN_GUID)
+      ORDER BY CH.TRAN_GUID, ACC.ACCUM_ID desc;
+
+V_PREV_REC VARCHAR2(35):= 'XXXXXXXXXXX'; 
+
+BEGIN
+   EXECUTE IMMEDIATE 'TRUNCATE TABLE PNP_POS_CCN_ACCUMS';
+
+   FOR REC IN POS_SD_CUR LOOP
+   IF REC.TRANID in ('10','19', '31') THEN
+      IF REC.ACCUM_ID = '95' THEN
+         REC.TRANSACTION_TOTAL_AMOUNT_SIGN := (CASE WHEN REC.TRANSACTION_TOTAL_AMOUNT < 0 THEN '-' ELSE NULL END);
+         REC.TRANSACTION_TOTAL_AMOUNT      := LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(REC.TRANSACTION_TOTAL_AMOUNT, '-', ''), '0', '7', '2'),7,'0');
+         V_PREV_REC := REC.TRAN_GUID;
+       ELSIF V_PREV_REC <> REC.TRAN_GUID AND REC.ACCUM_ID = '93' THEN
+          REC.TRANSACTION_TOTAL_AMOUNT_SIGN := (CASE WHEN REC.TRANSACTION_TOTAL_AMOUNT < 0 THEN '-' ELSE NULL END);
+          REC.TRANSACTION_TOTAL_AMOUNT      := LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(REC.TRANSACTION_TOTAL_AMOUNT, '-', ''), '0', '7', '2'),7,'0');
+       ELSE
+          REC.TRANSACTION_TOTAL_AMOUNT_SIGN := NULL;
+          REC.TRANSACTION_TOTAL_AMOUNT      :=  '0000000';
+       END IF;
+    ELSE
+         IF SUBSTR(REC.ACCUM_ID,1,1) = '8' THEN
+             REC.TRANSACTION_TOTAL_AMOUNT_SIGN := (CASE WHEN REC.TRANSACTION_TOTAL_AMOUNT < 0 THEN '-' ELSE NULL END);
+             REC.TRANSACTION_TOTAL_AMOUNT      := LPAD(CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(REPLACE(REC.TRANSACTION_TOTAL_AMOUNT, '-', ''), '0', '7', '2'),7,'0');
+          ELSE
+             REC.TRANSACTION_TOTAL_AMOUNT_SIGN := NULL;
+             REC.TRANSACTION_TOTAL_AMOUNT      := '0000000';
+          END IF;
+    END IF;
+            
+    INSERT INTO PNP_POS_CCN_ACCUMS VALUES REC;
+        
+        
+   END LOOP;
+COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CCN_ACCUMS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CCN_ACCUMS;
+
+PROCEDURE LOAD_POS_CCN_LOAD_STATUS(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CCN_LOAD_STATUS" with data extracted from new interface tables
+created : 03/02/2017 nxk927 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT CH.*,
+           IN_DATE LOAD_DATE
+      FROM PNP_CCN_LOAD_STATUS CH
+     WHERE TRUNC(CH.RLS_RUN_CYCLE) > (SELECT MAX(RLS_RUN_CYCLE)
+                                        FROM POS_CCN_LOAD_STATUS)
+       AND CH.STATUS_CODE = 'C';
+
+BEGIN
+
+FOR REC IN POS_SD_CUR LOOP
+        INSERT INTO POS_CCN_LOAD_STATUS VALUES REC;
+END LOOP;
+COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_POS_CCN_LOAD_STATUS',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_POS_CCN_LOAD_STATUS;
+
+
+PROCEDURE LOAD_PNP_CCN_DISC(
+/****************************************************************************
+This procedure is used to load the POSXML store drafts temp table
+"POS_CCN_LOAD_STATUS" with data extracted from new interface tables
+created : 03/02/2017 nxk927 CCN Project....
+changed : 
+*****************************************************************************/
+IN_DATE     IN DATE)
+AS
+
+CURSOR POS_SD_CUR IS
+    SELECT CD.*,
+           IN_DATE LOAD_DATE
+      FROM PNP_CCN_DISC CD
+     WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                               FROM POS_CCN_LOAD_STATUS
+                              WHERE LOAD_DATE = IN_DATE);
+
+BEGIN
+
+FOR REC IN POS_SD_CUR LOOP
+        INSERT INTO PNP_POS_CCN_DISC VALUES REC;
+END LOOP;
+COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'LOAD_PNP_CCN_DISC',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+
+END LOAD_PNP_CCN_DISC;
+
+PROCEDURE POS_DAILY_LOAD_SP(
+/************************************************************************
+POS_DAILY_LOAD_SP
+
+This Procedure is a wrapper for the daily Load of the store drafts tables
+* Loads all the store drafts tables
+
+created : 04/01/2016 nxk927 CCN Project....
+changed :
+************************************************************************/
+IN_DATE     IN DATE)
+AS
+    V_CONTEXT    VARCHAR2(200);
+    V_START_TIME NUMBER;
+BEGIN
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_CCN_LOAD_STATUS Table ';
+      LOAD_POS_CCN_LOAD_STATUS(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CCN_LOAD_STATUS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_CCN_ACCUMS Table ';
+      LOAD_POS_CCN_ACCUMS(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CCN_ACCUMS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load LOAD_PNP_CCN_DISC Table ';
+      LOAD_PNP_CCN_DISC(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('PNP_CCN_DISC loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_ISSUE_CHG_DATA Table ';
+      LOAD_POS_ISSUE_CHG_DATA(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_ISSUE_CHG_DATA loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_INSTLR_LN_ID_DTL Tables ';
+      LOAD_POS_INSTLR_LN_ID_DTL(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_INSTLR_LN_ITEM_DATA_TMP loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_DISBRSMT_LINE_ITEM Tables ';
+      LOAD_POS_DSBRSMT_LID(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_DISBRSMT_LINE_ITEM loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load LOAD_POS_CSTMR_LINE_ITEM Tables ';
+      LOAD_POS_CSTMR_LINE_ITEM(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CUST_LINE_ITEM_DATA loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load DLY_POS_CSTMR Table ';
+      LOAD_DLY_POS_CSTMR(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CSTMR loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load DLY_POS_CSTMR_DTLS Table ';
+      LOAD_DLY_POS_CSTMR_DTLS(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CSTMR_DTLS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_CSTMR_SLS_TAX Table ';
+      LOAD_POS_CSTMR_SLS_TAX(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CSTMR_SLS_TAX loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_CSTMR_BNK_CRD Table ';
+      LOAD_POS_CSTMR_BNK_CRD(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CSTMR_BNK_CRD loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load POS_CSTMR_FORM_OF_PAY Table ';
+      LOAD_POS_CSTMR_FORM_OF_PAY(IN_DATE);
+      DBMS_OUTPUT.PUT_LINE('POS_CSTMR_FOP loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'POS_DAILY_LOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END POS_DAILY_LOAD_SP;
+
+PROCEDURE POS_SD_DAILY_LOAD_SP(
+/*******************************************************************************
+POS_SD_DAILY_LOAD_SP
+
+This Procedure is a wrapper for the Daily Load of the POSXML store drafts TEMP
+tables
+
+created : 04/01/2016 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_DATE     IN DATE)
+AS
+    V_CONTEXT        VARCHAR2(200);
+    V_START_TIME     NUMBER;
+    V_START_TIME_SD  DATE := SYSDATE;
+    V_CLOB           CLOB;
+
+    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('POS_SD_DLY_LOAD', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+      POS_DAILY_LOAD_SP(IN_DATE);
+    END;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_SD_DLY_LOAD', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'POS_SD_DAILY_LOAD_SP',
+                                     SQLERRM,
+                                    '000000',
+                                    '0000000000');
+END POS_SD_DAILY_LOAD_SP;
+
+END POS_SD_DAILY_LOAD;

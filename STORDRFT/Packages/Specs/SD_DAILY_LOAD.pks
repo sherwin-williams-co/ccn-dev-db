@@ -16,5 +16,17 @@ changed :
 ******************************************************************/
 ;
 
+FUNCTION GET_DISC_AMT_TYPE
+/******************************************************************
+This function will return the hexadecimal conversion of the value passed in
+based on the transaction type passed in
+
+created : 11/10/2014 jxc517 CCN Project....
+changed :
+******************************************************************/
+(IN_TRAN_GUID        IN   VARCHAR2
+,IN_SEQNBR           IN   VARCHAR2
+,IN_IND              IN   VARCHAR2) RETURN VARCHAR2;
+
 END SD_DAILY_LOAD;
 
