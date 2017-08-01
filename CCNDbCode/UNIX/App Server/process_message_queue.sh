@@ -53,11 +53,9 @@ if [ ! -z "$QueueMessage" ]; then
 else
 
     echo " $PROC_NAME --> There is no data in the queue at $DATE $TIME "
-    echo "This is a Trigger File" > "$DATADIR/$TRGRFILE"        
-    $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE"
-    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE"
-    sleep 300
-    $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$FILENAME"
+
 fi
+
+echo " $PROC_NAME --> Process completed successfully at $DATE $TIME "
 
 exit 0
