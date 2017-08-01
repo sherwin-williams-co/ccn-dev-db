@@ -5,7 +5,8 @@ account maintenance window and concentration transfer window
 
 Created : 12/10/2015 dxv848 CCN Project....
 Changed : rxa457 07/31/2017 CCN Project Team...
-          Removed function IS_REAL_FUTURE_BANK_ACCOUNT and moved to VIRTUAL_FUTURE_MAINTENANCE_PKG
+          Removed function IS_REAL_FUTURE_BANK_ACCOUNT and moved to 
+           VIRTUAL_FUTURE_MAINTENANCE_PKG
 **********************************************************/
 
 PROCEDURE ACCNT_MNTNC_CURRENT_DELETE_SP (

@@ -6,7 +6,8 @@ maintain a virtual future
 
 Created : 10/21/2015 jxc517 CCN Project....
 Changed : rxa457 07/31/2017 CCN Project....
-          added new functions / procedures ...IS_TRANSFER_VRTL_FTR;  IS_REAL_FUTURE_BANK_ACCOUNT; IS_VIRTUAL_FTR_MBR_STR; VRTL_FTR_MBR_BANK_CC_UPDT; IS_BANK_TYPE_CHNG_VRTL_FTR
+          added new functions / procedures ...IS_TRANSFER_VRTL_FTR;  IS_REAL_FUTURE_BANK_ACCOUNT; 
+           IS_VIRTUAL_FTR_MBR_STR; VRTL_FTR_MBR_BANK_CC_UPDT; IS_BANK_TYPE_CHNG_VRTL_FTR
 **********************************************************/
 TYPE REF_CURSOR IS REF CURSOR;
 
@@ -26,7 +27,8 @@ PROCEDURE VRTL_FTR_MBR_BANK_CC_UPDT(
 /******************************************************************************
     This procedure will update the virtual future member details with the current records
     updated details
-    Note: Previously this Procedure was named as UPDT_VIRTUAL_FTR_MBR_STR_DTLS and was part of member_maintenance_pkg
+    Note: Previously this Procedure was named as UPDT_VIRTUAL_FTR_MBR_STR_DTLS and 
+           was part of member_maintenance_pkg
 
 Created : 07/31/2017 RXA457 CCN Project....
 *******************************************************************************/
