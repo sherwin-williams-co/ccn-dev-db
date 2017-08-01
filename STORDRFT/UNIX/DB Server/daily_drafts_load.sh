@@ -13,6 +13,8 @@
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 01/12/2016 axk326 CCN Project Team.....
 #            Added shell script call to rename the .ok file to .not_ok file in case of error
+#          : 08/01/2017 nxk927 CCN Project Team.....
+#            calling the new package
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -49,7 +51,7 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
      cd $HOME/dailyLoad
-	 echo "Processing FAILED for $proc at $TIME on $DATE"
+     echo "Processing FAILED for $proc at $TIME on $DATE"
      ./send_err_status_email.sh DAILY_DRAFTS_LOAD_ERROR
      ./rename_file_ok_to_notok.sh batch_dependency
      exit 1;
@@ -63,7 +65,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-#MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
+MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_END');
  Exception
  when others then
  :exitCode := 2;

@@ -20,6 +20,8 @@
 #            Left the time variable where needed. Deleted rest of the un necessary TIME variable
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            added error message for errors
+#          : 08/01/2017 nxk927 CCN Project Team.....
+#            calling new shell scripts that checks for the data that needs to be loaded
 ##############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -63,7 +65,6 @@ fi
 ##############################################################################
 # Load the daily drafts data from files into stordrft database
 ##############################################################################
-#./daily_drafts_load.sh
 ./sd_data_status_check.sh
 
 ##############################################################################
