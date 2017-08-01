@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 ###############################################################################################################################
 # Script name   : process_message_queue.sh
 #
@@ -12,8 +12,8 @@
 
 PROC_NAME="process_message_queue.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
-FILENAME=COST_CENTER_DEQUEUE.queue
-TRGRFILE="COST_CENTER_DEQUEUE.TRGRFILE"
+FILENAME=$CCD.queue
+TRGRFILE=$CCD.TRGRFILE
 
 #Go the class file path and call the java method by passing .ccdt file as parameters
 PATH=/usr/jdk/jdk1.6.0_31/bin:$PATH
@@ -32,30 +32,24 @@ if [ ! -z "$QueueMessage" ]; then
         [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
         [[ "$QueueMessage" == *"Error"* ]];
     then
-
         #Log the Error Message.
+        TIME=$(date +"%H%M%S")
         echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
         $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
         exit 1
-
     else
-
         #No issues so generating a file with message in the queue.
+        TIME=$(date +"%H%M%S")
         echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 
         echo " $PROC_NAME --> Created a Message file $DATADIR/$FILENAME at $DATE $TIME " 
         echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " 
         $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE"
         $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE"
-        sleep 300
-        $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$FILENAME"	
     fi
     
 else
-
+    TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> There is no data in the queue at $DATE $TIME "
-
 fi
-
-echo " $PROC_NAME --> Process completed successfully at $DATE $TIME "
 
 exit 0

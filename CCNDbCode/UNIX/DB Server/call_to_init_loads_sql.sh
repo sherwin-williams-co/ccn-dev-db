@@ -27,7 +27,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 
 BEGIN
-   POS_DATA_GENERATION.INIT_LOAD_STR_TERR_PARAM_SP();
+   POS_DATA_GENERATION.NEW_STORES_INIT_LOAD_PROCESS;
 
 END;
 /
@@ -44,10 +44,9 @@ then
     TIME=`date +"%H:%M:%S"`
     echo " $PROC --> processing failed at ${TIME} on ${DATE}"
     exit 1
-else
-    TIME=`date +"%H:%M:%S"`
-    echo " $PROC --> process finished successfully at ${TIME} on ${DATE} "
 fi
 
+TIME=`date +"%H:%M:%S"`
+echo " $PROC --> process finished successfully at ${TIME} on ${DATE} "
 
 exit 0
