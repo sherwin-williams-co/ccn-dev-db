@@ -44,7 +44,7 @@ EOF
 status=$?
 if [ $status -ne 0 ]
 then
-    ./send_mail.sh "POLLING_FAILURE_MAIL" 
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Polling process failed while calling POS_DATA_GENERATION.NEW_STORES_INIT_LOAD_PROCESS"
     TIME=`date +"%H:%M:%S"`
     echo " $PROC --> processing failed at ${TIME} on ${DATE}"
     exit 1
