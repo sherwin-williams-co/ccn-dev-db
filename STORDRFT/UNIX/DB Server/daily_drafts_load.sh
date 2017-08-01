@@ -14,7 +14,7 @@
 #          : 01/12/2016 axk326 CCN Project Team.....
 #            Added shell script call to rename the .ok file to .not_ok file in case of error
 #          : 08/01/2017 nxk927 CCN Project Team.....
-#            calling the new package
+#            passing the daily_load_rundate as parameter
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
