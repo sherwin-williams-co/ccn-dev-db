@@ -12,11 +12,9 @@
 # if datacheck is READY then create LOAD_READY.TRG file
 # if datacheck is NOTREADY send mail once and check for the file.
 #####################################################################
-proc="Pos_daily_load"
-LOGDIR=$HOME/dailyLoad/logs
+proc="sd_data_status_check"
 TIME=`date +"%H:%M:%S"`
 DATE=`date '+%Y-%m-%d'`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE"
 while true;
@@ -27,10 +25,10 @@ exit;
 EOF`
    if [ $data = READY ]
    then
-      DATE=`date +"%m/%d/%Y"`
       TIME=`date +"%H:%M:%S"`
       echo "Processing Started for $proc at $TIME on $DATE"
      ./daily_drafts_load.sh
+      exit 0
    fi
-exit 0
-done 
+done
+exit 1

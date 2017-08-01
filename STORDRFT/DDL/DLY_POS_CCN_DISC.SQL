@@ -1,10 +1,8 @@
 /*
 created : nxk927 06/12/2017 
-          table to load pnp data for the customer data to compare it with the legacy data
+          table to load pos data
 */
-
-
-CREATE TABLE POS_CCN_DISC
+  CREATE TABLE DLY_POS_CCN_DISC 
    (DISCFLAG      NUMBER,
     DISCPR        NUMBER,
     DISCRSN       VARCHAR2(20),
@@ -24,4 +22,4 @@ CREATE TABLE POS_CCN_DISC
     LOAD_DATE     DATE
    );
 
-  CREATE INDEX STORDRFT.CCN_DISC_INDEX ON STORDRFT.POS_CCN_DISC (TRAN_GUID, SEQNBR);
+CREATE INDEX POS_CCN_DISC_INDEX ON DLY_POS_CCN_DISC (TRAN_GUID, SEQNBR);
