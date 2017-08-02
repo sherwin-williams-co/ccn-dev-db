@@ -2905,6 +2905,9 @@ Modified: 03/31/2016 jxc517 CCN Project....
           Added parameter to deal with futures
           Added code to push the record into future tables, if it is a future record
           Added business rule to stop creating a future if a future already exists
+          04/21/2017 sxh487 CCN Project...
+          Added business rule to stop allowing effective/expiration dates in the past 
+          (less than SYSDATE) for PRICE_DISTRICT hierarchy
 Modified: 06/13/2017 rxv940 CCN Project Team....
         : Added a conditional call to POS_DATA_GENERATION
 **********************************************************/
@@ -2915,10 +2918,18 @@ IS
     V_CONTEXT                  VARCHAR2(3000);
     FTR_EXISTS_EXCEPTION       EXCEPTION;
     HRCHY_FTR_NOT_ALLOWED_EXC  EXCEPTION; 
+    PAST_DATES_NOT_ALLOWED_EXC EXCEPTION;
 BEGIN
     V_CONTEXT := 'Calling BUILD_INSERT_COMPOSITE_KEYS';
     BUILD_INSERT_COMPOSITE_KEYS(IN_XML,
                                 V_HIERARCHY_DETAIL_ROW);
+    V_CONTEXT := 'Validate Effective and Expiration Dates';
+    --Check if the Dates are valid for PRICE_DISTRICT hierarchy
+    --For PRICE_DISTRICT hierarchy, If the effective/expiration Date is in the Past we need to throw an error 
+    IF CCN_HIER_BUSINESS_RULES_PKG.IS_HRCHY_EFFCTV_EXP_PAST(V_HIERARCHY_DETAIL_ROW) = 'Y' THEN
+       RAISE PAST_DATES_NOT_ALLOWED_EXC;
+    END IF;
+    
     V_CONTEXT := 'Validate future existence';
     --Check if futures are allowed for the hierarchy, before proceeding further
     --This is going to check whether we can add the Hierarchy or not for a cost center.
@@ -2928,7 +2939,6 @@ BEGIN
         RAISE HRCHY_FTR_NOT_ALLOWED_EXC;
     END IF;
     --Check if the cost center level being inserted is having a future
-
     IF CCN_HIER_BUSINESS_RULES_PKG.IS_FTR_HRCHY_DTL_EXSTS(V_HIERARCHY_DETAIL_ROW) = 'Y' THEN
         --First time UI will pass "N" as flag and we throw error for user to confirm
         --If future exists and the user wants to proceed creating new future, we need to delete existing future
@@ -2962,6 +2972,9 @@ EXCEPTION
                         ,'HIERARCHY_DETAIL_INSERT ','The cost center ' || 
                                               V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL ||
                                               ' has a future hierarchy already in place');
+    WHEN PAST_DATES_NOT_ALLOWED_EXC THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.en_past_dates_not_allowed_err
+                        ,'HIERARCHY_DETAIL_INSERT ','Past Dates are not allowed for this hierarchy');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_INSERT ',V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM);
 END HIERARCHY_DETAIL_INSERT;
@@ -3059,6 +3072,9 @@ This Procedure will validate business rules before processing the
 hierarchy tranfer
 
 Created : 02/03/2017 gxg192 CCN Project
+Changed : 04/21/2017 sxh487 CCN Project...
+          Added business rule to stop allowing effective/expiration dates in the past 
+          (less than SYSDATE) for PRICE_DISTRICT hierarchy
 ************************************************************/
     IN_XML            IN CLOB,
     IN_OVERWRITE_FLAG IN VARCHAR2)
@@ -3073,6 +3089,7 @@ IS
     FTR_EXISTS_EXCEPTION           EXCEPTION;
     HRCHY_FTR_NOT_ALLOWED_EXC      EXCEPTION;
     HRCHY_TO_AND_FROM_EQUAL_EXC    EXCEPTION;
+    PAST_DATES_NOT_ALLOWED_EXC     EXCEPTION;
 BEGIN
 
     V_HEADER_NAME :=V_ROW_DATA.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
@@ -3096,6 +3113,11 @@ BEGIN
             BUILD_TO_COMPOSITE_KEYS(IN_XML,
                                     V_COUNT,
                                     V_HIERARCHY_DETAIL_ROW_TO);
+        END IF;
+        --Check if the Dates are valid for PRICE_DISTRICT hierarchy
+        --For PRICE_DISTRICT hierarchy, If the effective/expiration Date is in the Past we need to throw an error 
+        IF CCN_HIER_BUSINESS_RULES_PKG.IS_HRCHY_EFFCTV_EXP_PAST(V_HIERARCHY_DETAIL_ROW_TO) = 'Y' THEN
+           RAISE PAST_DATES_NOT_ALLOWED_EXC;
         END IF;
         
          --Check if Hierarchy "TO" is equal to Hierarchy "FROM" (i.e. Source and Destination are same), before proceeding further.
@@ -3137,6 +3159,9 @@ EXCEPTION
         ERRPKG.RAISE_ERR(ERRNUMS.en_hrchy_cc_ftr_exists_err
                          ,'VALIDATE_TRNSFR_BUSINESS_RULES','The cost centers has a future hierarchy already in place : '
                              ||V_FUTURE_COST_CENTER_LIST);
+     WHEN PAST_DATES_NOT_ALLOWED_EXC THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.en_past_dates_not_allowed_err
+                        ,'VALIDATE_TRNSFR_BUSINESS_RULES ','Past Dates are not allowed for this hierarchy');
     WHEN OTHERS THEN
         V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM;
         ERRPKG.RAISE_ERR(-20004,'VALIDATE_TRNSFR_BUSINESS_RULES',V_CONTEXT);
