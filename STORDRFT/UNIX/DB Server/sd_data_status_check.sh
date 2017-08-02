@@ -26,8 +26,12 @@ EOF`
    if [ $data = READY ]
    then
       TIME=`date +"%H:%M:%S"`
+      DATE=`date '+%Y-%m-%d'`
+      #date declared again incase it won't run the load same date
       echo "Processing Started for $proc at $TIME on $DATE"
      ./daily_drafts_load.sh
+      TIME=`date +"%H:%M:%S"`
+      echo "Processing completed for $proc at $TIME on $DATE"
       exit 0
    fi
 done

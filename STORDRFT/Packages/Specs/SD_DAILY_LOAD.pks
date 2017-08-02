@@ -19,10 +19,10 @@ IN_DATE IN DATE);
 
 FUNCTION GET_DISC_AMT_TYPE
 /******************************************************************
-This function will return the hexadecimal conversion of the value passed in
-based on the transaction type passed in
+This function will return the discount and the discount type
+based on the inidcator passed in
 
-created : 11/10/2014 jxc517 CCN Project....
+created : 06/10/2017 nxk927 CCN Project....
 changed :
 ******************************************************************/
 (IN_TRAN_GUID        IN   VARCHAR2
