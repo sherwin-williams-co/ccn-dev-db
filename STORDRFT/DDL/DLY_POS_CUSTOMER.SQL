@@ -28,7 +28,7 @@ created : nxk927 06/12/2017
     POS_TERMINAL_NUMBER             VARCHAR2(5),
     POS_TRANSACTION_NUMBER          VARCHAR2(5),
     DATA_INDICATOR                  VARCHAR2(1),
-    PURCHASE_ORDER_NUMBER           VARCHAR2(20)
+    PURCHASE_ORDER_NUMBER           VARCHAR2(20),
     RUNCYCLE                        VARCHAR2(100),
     LOAD_DATE                       DATE
    );
