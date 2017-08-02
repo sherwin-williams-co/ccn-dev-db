@@ -8,6 +8,7 @@ Created : 06/15/2017 gxg192 CCN Project....
 Changed : 06/21/2017 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
         : 06/26/2017 gxg192 Changed procedure name from LOAD_UAR_GIFT_CARD_POS_TRANS to LOAD_POS_GIFT_CARD_POS_TRANS
+        : 07/31/2017 gxg192 Added function to get store state code based on store number passed.
 ***************************************************************************************/
 
 FUNCTION GET_UAR_TRANS_CODE(
@@ -68,18 +69,67 @@ EXCEPTION
                                  'POS_BANKING_DAILY_LOAD.GET_UAR_TRANS_CODE',
                                   SQLERRM,
                                   SUBSTR(IN_TRAN_GUID,-16,16),
-                                  IN_TRANID,
+                                  SUBSTR(IN_RLS_RUN_CYCLE,-6,6),
                                  'POS_GIFT_CARD_POS_TRANS');
        V_UAR_TRAN_CODE := NULL;
        RETURN V_UAR_TRAN_CODE;
 END GET_UAR_TRANS_CODE;
+
+FUNCTION GET_STORE_STATE_CODE(
+/**************************************************************************************
+GET_STORE_STATE_CODE
+
+This FUNCTION will derive the STORE STATE CODE based on Store number present in CCN_HEADERS table
+in PNP i.e. new pos database. For Barbados, the first two positions of its Postal code will be used
+as state code.
+e.g. Postal code = BB11606 then state code will be "BB".
+If state code is Null in address_vw (for counties like Canada) PROVINCE_CODE will be used as state code
+if it is present. If state code as well as province code is null, function will return state code as Null.
+
+Created : 07/31/2017 gxg192 CCN Project....
+Changed :
+**************************************************************************************/
+            IN_STORE_NO      IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE)
+RETURN ADDRESS_VW.STATE_CODE%TYPE
+IS
+   V_ADDRESS_ROW   ADDRESS_VW%ROWTYPE;
+   V_STATE_CODE    ADDRESS_VW.STATE_CODE%TYPE;
+BEGIN
+   SELECT A.*
+     INTO V_ADDRESS_ROW
+     FROM ADDRESS_VW A, COST_CENTER C
+    WHERE A.COST_CENTER_CODE = C.COST_CENTER_CODE
+      AND C.CATEGORY = 'S'
+      AND A.ADDRESS_TYPE = 'M'
+      AND A.ACTIVE_FLAG = 'Y'
+      AND SUBSTR(A.COST_CENTER_CODE,3) = IN_STORE_NO;
+
+   IF V_ADDRESS_ROW.COUNTRY_CODE = 'BRB'
+   THEN
+      V_STATE_CODE := SUBSTR(V_ADDRESS_ROW.POSTAL_CODE,1,2);
+   ELSE
+      V_STATE_CODE := NVL(V_ADDRESS_ROW.STATE_CODE, V_ADDRESS_ROW.PROVINCE_CODE);
+   END IF;
+
+   RETURN V_STATE_CODE;
+EXCEPTION
+    WHEN OTHERS THEN
+       ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                 'POS_BANKING_DAILY_LOAD.GET_STORE_STATE_CODE',
+                                  SQLERRM,
+                                  '000000000',
+                                  IN_STORE_NO,
+                                  'ADDRESS_VW');
+       V_STATE_CODE := NULL;
+       RETURN V_STATE_CODE;
+END GET_STORE_STATE_CODE;
 
 PROCEDURE LOAD_POS_CCN_LOAD_STATUS(
 /****************************************************************************
 This procedure is used to load the POSXML store drafts temp table
 "POS_CCN_LOAD_STATUS" with data extracted from new interface tables
 Created : 06/12/2017 gxg192 CCN Project....
-Changed :
+Changed : 08/01/2017 gxg192 Added DBMS output to print no. of records inserted into log file.
 *****************************************************************************/
 IN_DATE     IN DATE)
 AS
@@ -94,6 +144,7 @@ BEGIN
                                   FROM POS_CCN_LOAD_STATUS)
       AND STATUS_CODE = 'C';
 
+   DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || SQL%ROWCOUNT);
    COMMIT;
 
 EXCEPTION
@@ -118,6 +169,7 @@ changed : 12/08/2016 vxv336 added STATUS filter in cursor query
         : 06/26/2017 gxg192 Changed table name from UAR_GIFT_CARD_POS_TRANS to
                             POS_GIFT_CARD_POS_TRANS
         : 06/28/2017 gxg192 Changes to use CCN_COMMON_TOOLS instead of SD_COMMON_TOOLS
+        : 07/27/2017 gxg192 Changes to use store's state code and not the customer's state code
 *******************************************************************************/
 IN_DATE DATE)
 AS
@@ -131,10 +183,9 @@ CURSOR GC_CUR IS
         CBS.AREA AREA_NBR,
         CBS.DISTRICT DISTRICT_NBR,
         CH.STORE_NO STORE_NBR,
-        CH.BILLST STORE_STATE_CD,
         CGC.AUTHAMT TRANS_AMOUNT,
-        TO_CHAR(TO_DATE(CH.TRAN_DATE), 'mmddyyyy') TRANS_DATE,
-        REPLACE(SUBSTR(CH.TRAN_TIMESTAMP, 13, 5), ':', '') TRANS_TIME, 
+        TO_CHAR(CH.TRAN_DATE, 'mmddyyyy') TRANS_DATE,
+        TO_CHAR(CH.TRAN_TIMESTAMP,'HH24MI') TRANS_TIME,
         CH.TERMNBR TERM_NBR,
         CH.TRANNBR TRANS_NBR,
         CH.EMP_NO EMPLOYEE_NBR
@@ -168,12 +219,12 @@ BEGIN
            V_TEMP_ROW.DISTRICT_NBR        := rec.DISTRICT_NBR;    
            V_TEMP_ROW.AREA_NBR            := rec.AREA_NBR;        
            V_TEMP_ROW.STORE_NBR           := rec.STORE_NBR;       
-           V_TEMP_ROW.STORE_STATE_CD      := rec.STORE_STATE_CD;  
+           V_TEMP_ROW.STORE_STATE_CD      := GET_STORE_STATE_CODE(rec.STORE_NBR);
            V_TEMP_ROW.TRANS_AMOUNT        := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TRANS_AMOUNT, '0', '14', '2');
            V_TEMP_ROW.TRANS_DATE          := rec.TRANS_DATE;      
            V_TEMP_ROW.TRANS_TIME          := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TRANS_TIME, '0', '8');
            V_TEMP_ROW.TERM_NBR            := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TERM_NBR, '0', '5');
-           V_TEMP_ROW.TRANS_NBR           := rec.TRANS_NBR;       
+           V_TEMP_ROW.TRANS_NBR           := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.TRANS_NBR, '0', '5');
            V_TEMP_ROW.EMPLOYEE_NBR        := CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(rec.EMPLOYEE_NBR, '0', '2');
            V_TEMP_ROW.TRAN_GUID           := rec.TRAN_GUID;
            V_TEMP_ROW.LOAD_DATE           := IN_DATE;
@@ -191,14 +242,15 @@ BEGIN
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                                            'POS_BANKING_DAILY_LOAD.LOAD_POS_GIFT_CARD_POS_TRANS',
                                            SQLERRM,
-                                           '000000', 
-                                           '0000000',  
+                                           SUBSTR(V_TEMP_ROW.TRAN_GUID,-16,16),
+                                           SUBSTR(V_TEMP_ROW.GIFT_CARD_NBR,-16,16),
                                            'POS_GIFT_CARD_POS_TRANS');
                 RAISE;
         END;
      END LOOP;
-COMMIT;
-DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+     COMMIT;
+     DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -360,8 +412,9 @@ BEGIN
             RAISE;
         END;
      END LOOP;
-COMMIT;
-DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+     COMMIT;
+     DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -447,8 +500,9 @@ BEGIN
                  RAISE;
         END;
      END LOOP;
-COMMIT;
-DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
+
+     COMMIT;
+     DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || V_TCOUNT);
 
 EXCEPTION
     WHEN OTHERS THEN

@@ -32,7 +32,8 @@ PROCEDURE LOAD_FF_GIFT_CARD_POS_TRANS(
         into FF_GIFT_CARD_POS_TRANS
 
 Created : 12/06/2016 vxv336 CCN Team
-Changed :
+Changed : 08/01/2017 gxg192 Changes to Load TRANS_AMOUNT and TRANS_TIME
+                            data same as it is received from mainframe
 ************************************************************************/
    IN_LOAD_DATE IN DATE)
 IS
@@ -50,12 +51,12 @@ BEGIN
            ,TRIM(AREA_NBR)
            ,TRIM(STORE_NBR)
            ,TRIM(STORE_STATE_CD)
-           ,TRUNC(TRIM(TRANS_AMOUNT))/100
+           ,TRIM(TRANS_AMOUNT)
            ,TRIM(TRANS_DATE)
-           ,LPAD(TRUNC(TRIM(TRANS_TIME)),4,'0')
+           ,TRIM(TRANS_TIME)
            ,TRIM(TERM_NBR)
            ,TRIM(TRANS_NBR)
-           ,TRUNC(TRIM(EMPLOYEE_NBR))
+           ,TRIM(EMPLOYEE_NBR)
            ,TRUNC(SYSDATE)
            ,NULL   -- COMMENTS
       FROM TEMP_GIFT_CARD_POS_TRANS;
@@ -129,6 +130,9 @@ in Mainframe files from POS data
 Created : 12/16/2016 vxv336 CCN Team
 Changed : 06/06/2016 gxg192 Changes to run the process for current date
         : 07/06/2016 gxg192 Added header for mismatched data
+        : 07/27/2017 gxg192 Changes to use store's state code and not the customer's state code
+                            Changes to compare mainframe data with POS_GIFT_CARD_POS_TRANS table
+                            instead of comparing with data in POS source table.
 ************************************************************************/
 IN_LOAD_DATE DATE)
 IS
@@ -176,29 +180,26 @@ IS
           ,CAST(POS.UAR_TRAN_CODE AS VARCHAR2(12)) UAR_TRAN_CODE2
      FROM (SELECT * FROM FF_GIFT_CARD_POS_TRANS WHERE LOAD_DATE = IN_LOAD_DATE) FF
            LEFT OUTER JOIN 
-          (SELECT TO_CHAR(CH.TRANID) TRANSACTION_TYPE,
-                  POS_BANKING_DAILY_LOAD.GET_UAR_TRANS_CODE(CH.TRANID, CH.RLS_RUN_CYCLE, CH.TRAN_GUID) UAR_TRAN_CODE,
-                  CGC.GIFTCARDNBR GIFT_CARD_NBR,
-                  CBS.DIVISION DIVISION_NBR,
-                  CBS.AREA AREA_NBR,
-                  CBS.DISTRICT DISTRICT_NBR,
-                  CH.STORE_NO STORE_NBR,
-                  CH.BILLST STORE_STATE_CD,
-                  TO_CHAR(CGC.AUTHAMT) TRANS_AMOUNT,
-                  TO_CHAR(TO_DATE(CH.TRAN_DATE), 'mmddyyyy') TRANS_DATE,
-                  TO_CHAR(CH.TRAN_TIMESTAMP, 'HH24MI') TRANS_TIME,
-                  TO_CHAR(CH.TERMNBR) TERM_NBR,
-                  TO_CHAR(CH.TRANNBR) TRANS_NBR,
-                  CH.EMP_NO EMPLOYEE_NBR
-             FROM PNP_CCN_HEADERS CH,
-                  PNP_CCN_BATCH_SUMMARY CBS,
-                  PNP_CCN_GIFT_CARD_LOG CGC
-            WHERE UPPER(CGC.ACTION) IN ('APPROVED', 'MANUAL')
-              AND CH.TRAN_GUID      = CGC.TRAN_GUID
-              AND CH.BATCH_GUID     = CBS.BATCH_GUID) POS
+          (SELECT TRANSACTION_TYPE,
+                  UAR_TRAN_CODE,
+                  GIFT_CARD_NBR,
+                  DIVISION_NBR,
+                  AREA_NBR,
+                  DISTRICT_NBR,
+                  STORE_NBR,
+                  STORE_STATE_CD,
+                  TRANS_AMOUNT,
+                  TRANS_DATE,
+                  TRANS_TIME,
+                  TERM_NBR,
+                  TRANS_NBR,
+                  EMPLOYEE_NBR
+             FROM POS_GIFT_CARD_POS_TRANS
+            WHERE LOAD_DATE = IN_LOAD_DATE
+          ) POS
        ON FF.GIFT_CARD_NBR = POS.GIFT_CARD_NBR
           AND FF.STORE_NBR = POS.STORE_NBR
-          AND FF.TRANS_NBR = LPAD(POS.TRANS_NBR, 5, '0')
+          AND FF.TRANS_NBR = POS.TRANS_NBR
     WHERE POS.GIFT_CARD_NBR IS NULL
           OR POS.STORE_NBR  IS NULL
           OR POS.TRANS_NBR  IS NULL
@@ -311,7 +312,7 @@ BEGIN
 
            V_MISMATCH       := '"'||'LEGACY'||'"'|| C_SEPARATOR
                                ||'"'||V_REC.TRANSACTION_TYPE1||'"'|| C_SEPARATOR
-                               ||'"'||V_REC.GIFT_CARD_NBR1||'"'|| C_SEPARATOR
+                               ||'="'||V_REC.GIFT_CARD_NBR1||'"'|| C_SEPARATOR
                                ||'"'||V_REC.DIVISION_NBR1||'"'|| C_SEPARATOR
                                ||'"'||V_REC.DISTRICT_NBR1||'"'|| C_SEPARATOR
                                ||'"'||V_REC.AREA_NBR1||'"'|| C_SEPARATOR
@@ -330,7 +331,7 @@ BEGIN
 
            V_MISMATCH       := '"'||'POS'||'"'|| C_SEPARATOR
                                ||'"'||V_REC.TRANSACTION_TYPE2||'"'|| C_SEPARATOR
-                               ||'"'||V_REC.GIFT_CARD_NBR2||'"'|| C_SEPARATOR
+                               ||'="'||V_REC.GIFT_CARD_NBR2||'"'|| C_SEPARATOR
                                ||'"'||V_REC.DIVISION_NBR2||'"'|| C_SEPARATOR
                                ||'"'||V_REC.DISTRICT_NBR2||'"'|| C_SEPARATOR
                                ||'"'||V_REC.AREA_NBR2||'"'|| C_SEPARATOR
@@ -353,7 +354,7 @@ BEGIN
           V_ORPHAN       := V_ORPHAN
                             ||'"'||'LEGACY'||'"'||C_SEPARATOR
                             ||'"'||V_REC.TRANSACTION_TYPE1||'"' ||C_SEPARATOR
-                            ||'"'||V_REC.GIFT_CARD_NBR1||'"' ||C_SEPARATOR
+                            ||'="'||V_REC.GIFT_CARD_NBR1||'"' ||C_SEPARATOR
                             ||'"'||V_REC.DIVISION_NBR1||'"' ||C_SEPARATOR
                             ||'"'||V_REC.DISTRICT_NBR1||'"' ||C_SEPARATOR
                             ||'"'||V_REC.AREA_NBR1||'"' ||C_SEPARATOR
