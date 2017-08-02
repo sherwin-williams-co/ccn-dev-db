@@ -24,46 +24,52 @@ BEGIN
     V_HI_DET_ROW.HRCHY_DTL_EXP_DATE         := :NEW.HRCHY_DTL_EXP_DATE;
     V_HI_DET_ROW.HRCHY_DTL_DESC             := :NEW.HRCHY_DTL_DESC;
     V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL     := :NEW.HRCHY_DTL_CURR_ROW_VAL;
-    
-    IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' AND
-       LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND 
-       V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
 
-        IF INSERTING THEN
-            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
-                                                 'HIERARCHY_DETAIL',
-                                                 'ADD',
-                                                 'POS_STORE_UPDATE'
-                                                 );
+    BEGIN
 
-        ELSIF UPDATING THEN
-            -- Check to see if HRCHY_DTL_CURR_LVL_VAL OR HRCHY_DTL_EFF_DATE is changed
-            IF 
-            (
-            NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX') <> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
-            OR 
-                NOT 
-                   (
-                   (:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) 
-                   OR 
-                   (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
-                   )
-            )
-            THEN
+        IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' AND
+           LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND 
+           V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
 
+            IF INSERTING THEN
                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
                                                      'HIERARCHY_DETAIL',
-                                                     'CHANGE',
+                                                     'ADD',
                                                      'POS_STORE_UPDATE'
                                                      );
+
+            ELSIF UPDATING THEN
+                -- Check to see if HRCHY_DTL_CURR_LVL_VAL OR HRCHY_DTL_EFF_DATE is changed
+                IF 
+                (
+                NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX') <> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
+                OR 
+                    NOT 
+                       (
+                       (:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) 
+                       OR 
+                       (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
+                       )
+                )
+                THEN
+
+                    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
+                                                         'HIERARCHY_DETAIL',
+                                                         'CHANGE',
+                                                         'POS_STORE_UPDATE'
+                                                         );
+                END IF;
             END IF;
         END IF;
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-    ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                               'TR_HIER_DETAIL_FUTURE_INS_UPD',
-                               SQLERRM,
-                               V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL
-                               );
+
+    EXCEPTION
+        WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'TR_HIER_DETAIL_FUTURE_UPD',
+                                   SQLERRM,
+                                   V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL
+                                   );
+
+    END;
+
 END TR_HIER_DETAIL_FUTURE_UPD;
