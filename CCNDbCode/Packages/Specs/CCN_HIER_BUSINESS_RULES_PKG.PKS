@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIER_BUSINESS_RULES_PKG AS
+create or replace PACKAGE          CCN_HIER_BUSINESS_RULES_PKG AS
 /******************************************************************************
 	CCN_HIER_BUSINESS_RULES_PKG
 
@@ -87,8 +87,8 @@ procedure Stmnt_Type_Validation_Rules(
  Stmnt_Type_Validation_Rules  
    
   This procedure will validate the business rules for Statement Type   
-  i.e, When a higher node?s Statement_Type changes, all lower nodes will be checked 
-  to make sure that they adhere to business rules. The only exception is the ?NULL? 
+  i.e, When a higher node¿s Statement_Type changes, all lower nodes will be checked 
+  to make sure that they adhere to business rules. The only exception is the ¿NULL¿ 
   which allows all the lower levels and thus does not need validation
 
 created : SH 05/31/2013
@@ -273,11 +273,11 @@ Modified:
 RETURN VARCHAR2;
 
 PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
-/*******************************************************************************
-  This procedure will validate the business rules for adminorg Hierarchy,
-  where duplication of a Cost Center in the same hierarchy is not allowed
+/******************************************************************************* 
+  This procedure will validate the business rules for adminorg Hierarchy, 
+  where duplication of a Cost Center in the same hierarchy is not allowed  
   created : 09/01/2016 MXK766 CCN Project Team....
-  Modified:
+  Modified: 
 ********************************************************************************/
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
 IN_COSTCENTER_YN        IN VARCHAR2);
@@ -292,38 +292,6 @@ Modified:
 ************************************************************/
     IN_HIERARCHY_FROM_REC   IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE,
     IN_HIERARCHY_TO_REC     IN     HIERARCHY_DETAIL_FUTURE%ROWTYPE)
-RETURN VARCHAR2;
-
-FUNCTION CC_EXISTS_IN_HIER_ERROR(
-/***********************************************************
-This function will check if the cost center passed is already in 
-hierarchy_error_log for PRICE_DISTRICT Hierarchy
-
-Returns 'N' if it is existing in the log without re-run
-Returns 'Y' if it does not exist in the log or exists after re-run
-i.e with the EXCEPTION_FLAG of 'Y'
-
-Created : 05/24/2017 sxh487 CCN Project Team....
-Modified:
-************************************************************/
-    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
-RETURN VARCHAR2;
-
-FUNCTION IS_HRCHY_EFFCTV_EXP_PAST(
-/***********************************************************
-This function will check 
-
-  * If a cost center for PRICE_DISTRICT exists 
-   in the hierarchy_error_log with/without re-run to enforce/relax
-   the PAST_DATES_NOT_ALLOWED_EXC business rule.
-
-  * If the Effective/Expiration dates passed are in the past or not
-    for PRICE_DISTRICT Hierarchy
-
-Created : 04/21/2017 sxh487 CCN Project Team....
-Modified:
-************************************************************/
-    IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
 RETURN VARCHAR2;
 
 END CCN_HIER_BUSINESS_RULES_PKG;

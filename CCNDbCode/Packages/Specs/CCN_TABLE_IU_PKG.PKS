@@ -2106,14 +2106,5 @@ created : 04/19/2017 pxb712 CCN Project Team....
 changed :
 *******************************************************************************/
 IN_PCI_TERMINAL_MAIL_ROW IN PCI_TERMINAL_MAIL%ROWTYPE);	
-	
-PROCEDURE HIERARCHY_ERROR_LOG_U_SP(
-/*******************************************************************************
-This procedures takes updates the re-run exception flag
-after a cost center that errored out is re-run
-
-created : 05/24/2017 sxh487 -- CCN Project Team
-*******************************************************************************/
-IN_HIERARCHY_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE);
 
 END CCN_TABLE_IU_PKG;

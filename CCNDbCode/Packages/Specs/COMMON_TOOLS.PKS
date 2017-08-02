@@ -274,24 +274,6 @@ with the execution of rest of the cost centers
                     IN_MODULE  IN VARCHAR2,
                     IN_SQLERRM IN VARCHAR2,
                     IN_SQLCODE IN NUMBER);
-
-PROCEDURE LOG_HIERARCHY_ERROR(
-/******************************************************************************
-LOG_HIERARCHY_ERROR
-
-This procedure is an autonomous transaction that logs the errors and proceeds 
-with the execution of rest of the cost centers for PRICE_DISTRICT hierarchy
-
-Created : sxh487
-
-******************************************************************************/
-                    IN_HIERARCHY_NAME             IN VARCHAR2,
-                    IN_CC                         IN VARCHAR2,
-                    IN_MODULE                     IN VARCHAR2,
-                    IN_HIERARCHY_DTL_CURR_LVL_VAL IN VARCHAR2,
-                    IN_FLAG                       IN VARCHAR2,
-                    IN_SQLERRM                    IN VARCHAR2,
-                    IN_SQLCODE                    IN NUMBER);
                     
 FUNCTION CONVERT_SPECIAL_CHRCTRS(
 /**********************************************************
