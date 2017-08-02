@@ -3,8 +3,9 @@ create or replace TRIGGER TR_HIER_DETAIL_UPD
 This trigger fires on an insert/ update on HIERARCHY_DETAIL table
 
 Created : 06/13/2017 rxv940 CCN Project Team....
-Changed : 06/13/2017 rxv940 CCN Project Team....
-          Changes the NVL condition on a date column
+Changed : 08/02/2017 rxv940 CCN Project Team....
+          Removed calls to POS_DATA_GENERATION (Polling) and added them in 
+          HIERARCHY_DETAIL_FUTURE table
 *******************************************************************************/
 BEFORE INSERT OR UPDATE ON HIERARCHY_DETAIL
 REFERENCING NEW AS NEW OLD AS OLD
@@ -65,7 +66,7 @@ BEGIN
     INTO v_rowdata, v_primaryKey
     FROM DUAL;
 
-    V_KEY := V_HI_DET_ROW.HRCHY_HDR_NAME         || '|' ||
+    V_KEY := V_HI_DET_ROW.HRCHY_HDR_NAME          || '|' ||
               V_HI_DET_ROW.HRCHY_DTL_LEVEL        || '|' ||
               V_HI_DET_ROW.HRCHY_DTL_PREV_LVL_VAL || '|' ||
               V_HI_DET_ROW.HRCHY_DTL_CURR_LVL_VAL || '|' ||
@@ -87,46 +88,4 @@ BEGIN
           V_ROWDATA,
           'TR_HIER_DETAIL_UPD');
                    
-    BEGIN
-        IF V_HI_DET_ROW.HRCHY_HDR_NAME ='PRICE_DISTRICT' THEN 
-            IF INSERTING THEN
-                IF LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~' THEN
-                    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
-                                                        'HIERARCHY_DETAIL',
-                                                        'ADD',
-                                                        'POS_STORE_UPDATE'
-                                                        );
-                END IF;
-        
-            ELSIF UPDATING THEN
-                IF 
-                (
-                NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX')<> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
-                OR 
-                    NOT 
-                       (
-                       (:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) 
-                       OR 
-                       (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
-                       )
-                )
-                AND LENGTH(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL)=6 
-				AND V_HI_DET_ROW.HRCHY_DTL_NEXT_LVL_VAL='~~~'
-                THEN
-                    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL,
-                                                        'HIERARCHY_DETAIL',
-                                                        'CHANGE',
-                                                        'POS_STORE_UPDATE'
-                                                       );
-                END IF;
-            END IF;
-        END IF;
-    EXCEPTION
-        WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'TR_HIER_DETAIL_UPD',
-                                   SQLERRM,
-                                   V_HI_DET_ROW.HRCHY_DTL_CURR_ROW_VAL
-                                   );
-    END;
 END TR_HIER_DETAIL_UPD;
