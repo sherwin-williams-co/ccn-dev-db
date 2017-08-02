@@ -3,7 +3,7 @@ created : nxk927 06/12/2017
           table to load pos data
 */
   CREATE TABLE DLY_POS_INSTLLR_LN_ITM_DATA
-   (TRANGUID                  VARCHAR2(50),
+   (TRANGUID                  VARCHAR2(50) NOT NULL,
     TRANSACTION_SOURCE        VARCHAR2(1),
     TRANSACTION_TYPE          VARCHAR2(1),
     COST_CENTER_CODE          VARCHAR2(4),

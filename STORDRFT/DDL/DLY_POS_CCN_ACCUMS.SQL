@@ -3,7 +3,7 @@ created : nxk927 06/12/2017
           table to load pos data
 */
 CREATE TABLE DLY_POS_CCN_ACCUMS 
-   (TRAN_GUID                      VARCHAR2(50) NOT NULL ENABLE,
+   (TRAN_GUID                      VARCHAR2(50) NOT NULL,
     COST_CENTER_CODE               VARCHAR2(6),
     TERMINAL_NUMBER                VARCHAR2(6),
     TRANSACTION_NUMBER             VARCHAR2(6),

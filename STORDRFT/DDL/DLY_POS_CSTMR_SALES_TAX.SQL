@@ -4,7 +4,7 @@ created : nxk927 06/12/2017
 */
 
   CREATE TABLE DLY_POS_CSTMR_SALES_TAX 
-   (TRANGUID                   VARCHAR2(50),
+   (TRANGUID                   VARCHAR2(50)  NOT NULL,
     COST_CENTER_CODE           VARCHAR2(4),
     TERMINAL_NUMBER            VARCHAR2(5),
     TRANSACTION_NUMBER         VARCHAR2(5),

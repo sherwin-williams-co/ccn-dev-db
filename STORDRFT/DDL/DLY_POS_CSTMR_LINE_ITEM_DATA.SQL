@@ -4,7 +4,7 @@ created : nxk927 06/12/2017
 */
 
   CREATE TABLE DLY_POS_CSTMR_LINE_ITEM_DATA 
-   (TRANGUID                       VARCHAR2(50),
+   (TRANGUID                       VARCHAR2(50)  NOT NULL,
     TRANSACTION_SOURCE             VARCHAR2(1),
     TRANSACTION_TYPE               VARCHAR2(1),
     COST_CENTER_CODE               VARCHAR2(4),
