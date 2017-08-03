@@ -615,26 +615,29 @@ BEGIN
                                                       REPLACE(V_XML_BANK_DEP_TICK_FRAG,'BANK_DEP_TICK>','BANK_DEP_TICK_FUTURE>'),
                                                       O_BANK_DEP_TICK_FUTURE_REC);
             IF TRUNC(O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE) <= TRUNC(SYSDATE) THEN
-            --Fetches the Least active Future Effective date for this Cost Center
-             --Fetches from Lead future if Lead other wise from member bank future if member
-                SELECT NVL(MIN(EFFECTIVE_DATE),O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE)
-                  INTO O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE
-                  FROM (SELECT EFFECTIVE_DATE
-                          FROM LEAD_BANK_CC_FUTURE
-                         WHERE LEAD_STORE_NBR = O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
-                           AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE)
-                           AND NVL(TRUNC(EXPIRATION_DATE), TRUNC(SYSDATE) + 1) > TRUNC(SYSDATE)
-                        UNION
-                        SELECT EFFECTIVE_DATE
-                          FROM MEMBER_BANK_CC_FUTURE
-                         WHERE MEMBER_STORE_NBR = O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
-                           AND TRUNC(EFFECTIVE_DATE) > TRUNC(SYSDATE)
-                           AND NVL(TRUNC(EXPIRATION_DATE), TRUNC(SYSDATE) + 1) > TRUNC(SYSDATE)
-                        ) S
-                 WHERE NOT EXISTS(SELECT 'X' 
-                                     FROM BANK_DEP_TICK_FUTURE BDF
-                                    WHERE BDF.COST_CENTER_CODE = O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE
-                                  );
+               --Check if this is the first time insertion into Future Depoisit Ticket
+               SELECT MIN(FUTURE_ID)
+                 INTO V_FUTURE_ID
+                 FROM BANK_DEP_TICK_FUTURE
+                WHERE COST_CENTER_CODE = O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE;
+               --If it is the first time insert then Fetch the lead or member record from  future tables
+               IF V_FUTURE_ID IS NULL THEN
+               --Fteching Future lead record
+                  V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(O_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                                                                                                O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                                                                                                O_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID
+                                                                                                );
+                 --If it is not a Future lead then chck if it is a Future member
+                  IF V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
+                     V_MEMBER_BANK_CC_FTR_REC  := BANKING_COMMON_TOOLS.GET_MBR_BANK_CC_FUTURE_REC(O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                                                                                                  O_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                                                                                                  O_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID
+                                                                                                  );
+                     O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := NVL(V_MEMBER_BANK_CC_FTR_REC.EFFECTIVE_DATE, O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
+                  ELSE
+                     O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := NVL(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
+                  END IF;
+               END IF;
             END IF;
         ELSE
             TABLE_IU_PKG.BANK_DEP_TICK_ROWTYPE_SP('BANK_DEP_TICK',
