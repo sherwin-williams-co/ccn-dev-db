@@ -6,7 +6,6 @@ Banking Gift Card and deposit ticket/bags.
 Created : 06/15/2017 gxg192 CCN Project....
 Changed : 06/21/2016 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
-        : 07/31/2017 gxg192 Added function to get store state code based on store number passed.
 ***************************************************************************************/
 
 FUNCTION GET_UAR_TRANS_CODE(
@@ -23,19 +22,6 @@ Changed : 06/26/2017 gxg192 Changes in data type.
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
             IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
 RETURN POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
-
-FUNCTION GET_STORE_STATE_CODE(
-/**************************************************************************************
-GET_STORE_STATE_CODE
-
-This FUNCTION will derive the STORE STATE CODE based on Store number present in CCN_HEADERS table
-in PNP.
-
-Created : 07/31/2017 gxg192 CCN Project....
-Changed :
-**************************************************************************************/
-            IN_STORE_NO      IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE)
-RETURN ADDRESS_VW.STATE_CODE%TYPE;
 
 PROCEDURE GENERATE_GIFT_CARD_TRANS_FILE (
 /******************************************************************************
