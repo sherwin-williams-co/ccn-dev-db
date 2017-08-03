@@ -13,8 +13,8 @@ BEGIN
     SELECT COUNT(*)
       INTO V_DATA_CHECK
       FROM PNP_CCN_LOAD_STATUS
-     WHERE TRUNC(START_TS) > (SELECT MAX(TRUNC(END_TS))
-                                FROM POS_CCN_LOAD_STATUS)
+     WHERE RLS_RUN_CYCLE > (SELECT MAX(RLS_RUN_CYCLE)
+                             FROM POS_CCN_LOAD_STATUS)
        and STATUS_CODE = 'C';
 
     IF V_DATA_CHECK = 0 THEN
