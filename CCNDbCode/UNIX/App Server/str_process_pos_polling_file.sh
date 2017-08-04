@@ -22,13 +22,15 @@ do
     #Identify the XMLFILES, REQUESTFILES from the POLLINGDONE file.
     FILENAME="${files//POLLINGDONE/XML}"
     REQUESTNAME="$(basename "${FILENAME//XML/REQUEST}")"
+    PREV_RQST_ID=`cat $files`
     TIME="$(date +"%H%M%S")"
 
     echo " $PROC_NAME --> Sending files to Polling started at $DATE:$TIME " 
     echo " $PROC_NAME --> Request file name is $REQUESTNAME at $DATE:$TIME " 
+    echo " $PROC_NAME --> $PREV_RQST_ID is the previous request id $DATE:$TIME "
     
     cd "$CLASSHOME" || exit
-    REQUESTID=$(java com.webservice.PollingRequest "$STOREUSERNAME" "$STOREPASSWORD" "$STOREENVIRONMENT" "$FILENAME" "$ENVIRON") 
+    REQUESTID=$(java com.webservice.PollingRequest "$STOREUSERNAME" "$STOREPASSWORD" "$STOREENVIRONMENT" "$FILENAME" "$ENVIRON" "$PREV_RQST_ID")
 
 ###################################### ERROR HANDLING ##########################################
 
@@ -38,7 +40,7 @@ do
         [[ "$REQUESTID" == *"Exception"* ]] || 
         [[ "$REQUESTID" == *"Invalid file path provided."* ]] || 
         [[ "$REQUESTID" == *"Error"* ]];
-    then    
+    then
         $SCRIPT_DIR/polling_dwnld_files_error_rqst_id.sh $files $FILENAME $REQUESTID
     else 
         $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID

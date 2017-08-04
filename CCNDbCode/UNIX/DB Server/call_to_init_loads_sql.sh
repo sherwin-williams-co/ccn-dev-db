@@ -23,13 +23,15 @@ set heading off;
 set serveroutput on;
 set verify off;
 var exitCode NUMBER;
+var exitCode NUMBER;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 
 BEGIN
     :exitCode := 0;
-    POS_DATA_GENERATION.NEW_STORES_INIT_LOAD_PROCESS;
-EXCEPTION
+    POS_DATA_GENERATION.NEW_STORES_INIT_LOAD_PROCESS();
+	
+Exception
 when others then
     :exitCode := 1;
 
@@ -44,7 +46,7 @@ EOF
 status=$?
 if [ $status -ne 0 ]
 then
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Polling process failed while calling POS_DATA_GENERATION.NEW_STORES_INIT_LOAD_PROCESS"
+    ./send_mail.sh "POLLING_FAILURE_MAIL" 
     TIME=`date +"%H:%M:%S"`
     echo " $PROC --> processing failed at ${TIME} on ${DATE}"
     exit 1

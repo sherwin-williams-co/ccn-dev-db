@@ -22,15 +22,19 @@ do
     #Identify the XMLFILES, REQUESTFILES from the POLLINGDONE file.
     FILENAME="${files//POLLINGDONE/XML}"
     REQUESTNAME="$(basename "${FILENAME//XML/REQUEST}")"
+    PREV_RQST_ID=`cat $files`
     TIME="$(date +"%H%M%S")"
 
     echo " $PROC_NAME --> Sending files to Polling started at $DATE:$TIME " 
-    echo " $PROC_NAME --> Request file name is $REQUESTNAME at $DATE:$TIME " 
+    echo " $PROC_NAME --> Request file name is $REQUESTNAME at $DATE:$TIME "
+    echo " $PROC_NAME --> $PREV_RQST_ID is the previous request id $DATE:$TIME "
     
     cd "$CLASSHOME" || exit
     REQUESTID=$(java com.webservice.PollingRequest "$PARAMUSERNAME" "$PARAMPASSWORD" "$PARAMENVIRONMENT" "$FILENAME" "$ENVIRON") 
 
 ###################################### ERROR HANDLING ##########################################
+
+    echo " $PROC_NAME --> Request id is $REQUESTID at $DATE:$TIME "
     
     if  [[ "$REQUESTID" == *"Invalid Number of arguments passed."* ]] || 
         [[ "$REQUESTID" == *"Exception"* ]] || 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ###############################################################################################################################
 # Script name   : process_message_queue.sh
 #
@@ -32,12 +32,15 @@ if [ ! -z "$QueueMessage" ]; then
         [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
         [[ "$QueueMessage" == *"Error"* ]];
     then
+
         #Log the Error Message.
         TIME=$(date +"%H%M%S")
         echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
         $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
         exit 1
+
     else
+
         #No issues so generating a file with message in the queue.
         TIME=$(date +"%H%M%S")
         echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 

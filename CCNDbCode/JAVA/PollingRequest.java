@@ -20,6 +20,7 @@ import com.sherwin.polling.api.PollingFileMetadata;
 import com.sherwin.polling.api.PollingHeaderMetadata;
 import com.sherwin.polling.api.RestAdapter;
 import com.sherwin.polling.api.RestAdapter.Environment;
+import com.sherwin.polling.api.RestAdapter.Prerequisite;
 
 public class PollingRequest {
     private static String username = "";
@@ -28,15 +29,17 @@ public class PollingRequest {
     private static String filename = "";
     private static String environment = "";
     private static String initLoadStore = "";
+    private static String prev_rqst_id = "";
 
     public static void main(String[] args) throws Exception {
         String requestId = "";
-        if (args.length == 5) {
+        if (args.length == 6) {
             username    = args[0];
             password    = args[1];
             application = args[2];
             filename    = args[3];
             environment = args[4];
+            prev_rqst_id= args[5];
             
             initLoadStore = "/app/ccn/POSdownloads/POSxmls/COST_CENTER_DEQUEUE.queue"; 
             // The COST_CENTER_DEQUEUE.queue file gets created by calling the ReadMessageQueue.java
@@ -163,14 +166,27 @@ public class PollingRequest {
     private static PollingHeaderMetadata getPollingHdrMetadata()  {
         // This method by natural selection uses the DEV environment. Later, it checks to see if the 
         // environment matches with QA or PROD. If the match is found, the selection is changed to the 
-        // corresponding environment gets picked. else, dev becomes the forced selection
-        PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application);
-        if (environment.equals("QA")) {
-            pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application);
-        } else if (environment.equals("PROD")) {
-            pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application);
+        // corresponding environment gets picked. else, dev becomes the forced selectionThis is used
+        // only for NON INIT LOADS
+        if (prev_rqst_id.equals("NULL_RQST_ID")) {
+
+            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application);
+            if (environment.equals("QA")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application);
+            } else if (environment.equals("PROD")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application);
+            }
+            return pollingHdrMetadata;
+        } else {
+
+            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+            if (environment.equals("QA")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+            } else if (environment.equals("PROD")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+            }
+            return pollingHdrMetadata;
         }
-        return pollingHdrMetadata;
     }
     
     private static List<String> readFile(String filename)  {
