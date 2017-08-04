@@ -586,6 +586,56 @@ BEGIN
            
 END DEPOSIT_TICKET_MNTNC_UI_SP;
 
+FUNCTION GET_DEPOSIT_TKT_FTR_EFF_DT(
+/*******************************************************************************
+This fucntion is intended to return the Future Lead or Memebr effective date 
+for the cost center that has been passed in
+
+Created : 08/04/2017 rxa457 CCN Project Team...
+*******************************************************************************/
+IN_COST_CENTER_CODE    IN      VARCHAR2,
+IN_BANK_ACCT_NBR       IN      VARCHAR2,
+IN_FUTURE_ID           IN      NUMBER) RETURN BANK_DEP_TICK_FUTURE.EFFECTIVE_DATE%TYPE
+IS
+    V_RETURN_VAL DATE;
+    V_FUTURE_ID                     NUMBER;
+    V_LEAD_BANK_CC_FUTURE_REC       LEAD_BANK_CC_FUTURE%ROWTYPE;
+    V_MEMBER_BANK_CC_FTR_REC        MEMBER_BANK_CC_FUTURE%ROWTYPE;
+BEGIN
+     --Check if this is the first time insertion into Future Depoisit Ticket
+    BEGIN
+       SELECT FUTURE_ID
+         INTO V_FUTURE_ID
+         FROM BANK_DEP_TICK_FUTURE
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION 
+         WHEN OTHERS THEN
+             NULL; 
+    END;
+    --If it is the first time insert then Fetch the lead or member record from future tables
+    IF  V_FUTURE_ID IS NULL THEN
+       --Fteching Future lead record
+        V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(IN_BANK_ACCT_NBR,
+                                                                                      IN_COST_CENTER_CODE,
+                                                                                      IN_FUTURE_ID
+                                                                                      );
+       --If it is not a Future lead then chck if it is a Future member
+        IF  V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
+            V_MEMBER_BANK_CC_FTR_REC  := BANKING_COMMON_TOOLS.GET_MBR_BANK_CC_FUTURE_REC(IN_COST_CENTER_CODE,
+                                                                                         IN_BANK_ACCT_NBR,
+                                                                                         IN_FUTURE_ID
+                                                                                         );
+            V_RETURN_VAL := V_MEMBER_BANK_CC_FTR_REC.EFFECTIVE_DATE;
+        ELSE
+            V_RETURN_VAL := V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE;
+        END IF;
+    END IF;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+         RETURN NULL;
+END GET_DEPOSIT_TKT_FTR_EFF_DT;
+
 PROCEDURE BUILD_TABLE_TYPES(
 /******************************************************************************
 This procedure is intended to build all the table types from input xml
@@ -614,30 +664,13 @@ BEGIN
             TABLE_IU_PKG.BANK_DEP_TICK_FTR_ROWTYPE_SP('BANK_DEP_TICK_FUTURE',
                                                       REPLACE(V_XML_BANK_DEP_TICK_FRAG,'BANK_DEP_TICK>','BANK_DEP_TICK_FUTURE>'),
                                                       O_BANK_DEP_TICK_FUTURE_REC);
-            IF TRUNC(O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE) <= TRUNC(SYSDATE) THEN
-               --Check if this is the first time insertion into Future Depoisit Ticket
-               SELECT MIN(FUTURE_ID)
-                 INTO V_FUTURE_ID
-                 FROM BANK_DEP_TICK_FUTURE
-                WHERE COST_CENTER_CODE = O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE;
-               --If it is the first time insert then Fetch the lead or member record from  future tables
-               IF V_FUTURE_ID IS NULL THEN
-               --Fteching Future lead record
-                  V_LEAD_BANK_CC_FUTURE_REC := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_FUTURE_REC(O_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                                                                                                O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
-                                                                                                O_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID
-                                                                                                );
-                 --If it is not a Future lead then chck if it is a Future member
-                  IF V_LEAD_BANK_CC_FUTURE_REC.LEAD_BANK_ACCOUNT_NBR IS NULL THEN
-                     V_MEMBER_BANK_CC_FTR_REC  := BANKING_COMMON_TOOLS.GET_MBR_BANK_CC_FUTURE_REC(O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
-                                                                                                  O_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
-                                                                                                  O_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID
-                                                                                                  );
-                     O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := NVL(V_MEMBER_BANK_CC_FTR_REC.EFFECTIVE_DATE, O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
-                  ELSE
-                     O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := NVL(V_LEAD_BANK_CC_FUTURE_REC.EFFECTIVE_DATE,O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE);
-                  END IF;
-               END IF;
+            IF  TRUNC(O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE) <= TRUNC(SYSDATE) THEN
+                O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE := NVL(GET_DEPOSIT_TKT_FTR_EFF_DT(O_BANK_DEP_TICK_FUTURE_REC.COST_CENTER_CODE,
+                                                                                            O_BANK_DEP_TICK_FUTURE_REC.BANK_ACCOUNT_NBR,
+                                                                                            O_BANK_DEP_TICK_FUTURE_REC.FUTURE_ID
+                                                                                            ),
+                                                                 O_BANK_DEP_TICK_FUTURE_REC.EFFECTIVE_DATE
+                                                                );
             END IF;
         ELSE
             TABLE_IU_PKG.BANK_DEP_TICK_ROWTYPE_SP('BANK_DEP_TICK',
@@ -1205,7 +1238,7 @@ END DEPOSIT_TKT_FUTURE_UPSERT_SP;
 
 PROCEDURE DEPOSIT_TKT_MNTNC_UI_UPSERT_SP( 
 /******************************************************************************
-    This procedure performs the core process for Deposit Ticket Maintenance Window
+	This procedure performs the core process for Deposit Ticket Maintenance Window
 
 Created : 07/14/2015 jxc517 CCN Project....
 Changed : 08/13/2015 nxk927 CCN Project....
