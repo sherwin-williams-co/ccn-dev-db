@@ -30,7 +30,7 @@ do
     echo " $PROC_NAME --> $PREV_RQST_ID is the previous request id $DATE:$TIME "
     
     cd "$CLASSHOME" || exit
-    REQUESTID=$(java com.webservice.PollingRequest "$PARAMUSERNAME" "$PARAMPASSWORD" "$PARAMENVIRONMENT" "$FILENAME" "$ENVIRON") 
+    REQUESTID=$(java com.webservice.PollingRequest "$PARAMUSERNAME" "$PARAMPASSWORD" "$PARAMENVIRONMENT" "$FILENAME" "$ENVIRON" "$PREV_RQST_ID") 
 
 ###################################### ERROR HANDLING ##########################################
 
