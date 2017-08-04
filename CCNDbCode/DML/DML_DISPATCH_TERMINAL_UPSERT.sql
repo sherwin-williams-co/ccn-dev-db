@@ -15,6 +15,35 @@ Modified: 08/03/2017 rxa457 CCN Project Team...
             and make all previous audits, i.e 'R" records as processed "C" records to avoid compare 
             and sending it back into backfeed through audit processing
 ********************************************************************************/
+/***************************************************************************************************
+This Part of the script below to be manually executed in DEV and TEST environments alone
+
+REM Deleting DISPATCH_TERMINAL Records from AUDIT_LOG TABLE WITH table name inserted AS DISPATCH_TERMINAL
+DELETE FROM AUDIT_LOG WHERE TABLE_NAME = 'DISPATCH_TERMINAL';
+
+REM Previously processed "R" Audit records as complete "C"
+UPDATE AUDIT_LOG
+   SET AUDIT_REC_FLAG     = 'C',
+       AUDIT_REC_EFF_DATE = SYSDATE
+ WHERE TABLE_NAME = 'STORE'
+       AND EXISTS(SELECT 'X' 
+                     FROM DISPATCH_TERMINAL D 
+                    WHERE D.COST_CENTER_CODE = REPLACE(TRANSACTION_ID,'|','')
+                  )
+       AND AUDIT_REC_FLAG = 'R';
+       
+REM Updating Pending for Audit process records as Processed "R"
+UPDATE AUDIT_LOG
+   SET AUDIT_REC_FLAG = 'R'
+ WHERE TABLE_NAME = 'STORE'
+       AND EXISTS(SELECT 'X' 
+                     FROM DISPATCH_TERMINAL D 
+                    WHERE D.COST_CENTER_CODE = REPLACE(TRANSACTION_ID,'|','')
+                  )
+       AND AUDIT_REC_FLAG IS NULL;
+       
+COMMIT;
+*****************************************************************************************************/
 SET DEFINE OFF;
 
 REM INSERTING into CODE_DETAIL
