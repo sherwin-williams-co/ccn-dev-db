@@ -32,12 +32,16 @@
 cmd_path="$HOME/initLoad"
 # Search for the file named cmd_start.sh
 while true; do
-   if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/stores_ach.txt ]
-      then
-         sleep 60
-         #This above sleep command will prevent not to miss some records while ftp is still going on
-         sh $HOME/SRA11000_dailyRun.sh
-      fi
+   if [ -f $cmd_path/SRA10510_*.TXT ]
+   then
+       day=`date +%a`
+       if [ $day = Sat ] || [ -f $init_path/stores_ach.txt ]
+          then
+              sleep 60
+              #This above sleep command will prevent not to miss some records while ftp is still going on
+              ./SRA11000_dailyRun.sh
+        fi
+    fi
 done
 
 echo "process completed - but should not come to this point"
