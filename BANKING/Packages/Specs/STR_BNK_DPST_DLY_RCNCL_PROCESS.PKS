@@ -58,7 +58,6 @@ Changed :
 IN_TCODE         IN VARCHAR2
 ) RETURN VARCHAR2;
 
-
 PROCEDURE LOAD_DATA(
 /******************************************************************************
   This procedure will load the table that will be used to generate the data
@@ -99,6 +98,8 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           logging the error before raising the error if any error occurs
         : 07/25/2017 nxk927 CCN Project....
           calling the function to get the bank account number
+        : 07/27/2017 nxk927 CCN Project....
+          loading the table with load date as of the passed date rather than using sysdate
 *****************************************************************************/
     IN_DATE            IN         DATE);
 
