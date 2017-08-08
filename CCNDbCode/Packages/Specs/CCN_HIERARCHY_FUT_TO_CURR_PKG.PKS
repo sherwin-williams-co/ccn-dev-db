@@ -7,6 +7,9 @@ AS
 created : 03/29/2016 jxc517 CCN Project....
 changed :
 **********************************************************/
+
+G_BATCH_FLAG VARCHAR2(1) := 'N';
+
 PROCEDURE PROCESS
 /******************************************************************************
   This procedure will move the future hierarchy details records into
