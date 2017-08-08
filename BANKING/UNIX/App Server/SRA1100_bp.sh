@@ -16,6 +16,8 @@
 #            changed the files that we consider for this process
 #          : 04/20/2017 nxk927 CCN Project Team.....
 #            source file changed. Using the source file provided by marcy Lee.
+#          : 08/08/2017 nxk927 CCN Project Team.....
+#            source file changed. Using the ach file from smart team. Also removed the condition to check for the misctran file
 #################################################################
 #Run below command to make the process run in the background even after shutdown
 #nohup sh /app/banking/dev/SRA1100_bp.sh > /app/banking/dev/SRA1100_bp.log 2>&1 &
@@ -28,10 +30,9 @@
 
 #path where the Command file is stored
 cmd_path="$HOME/initLoad"
-msctran_path="$HOME/datafiles/ccn_users"
 # Search for the file named cmd_start.sh
 while true; do
-   if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/SRA10910_*.TXT ]  && [ -f $msctran_path/misctran.*.txt ]
+   if [ -f $cmd_path/SRA10510_*.TXT ] &&  [ -f $cmd_path/stores_ach.txt ]
       then
          sleep 60
          #This above sleep command will prevent not to miss some records while ftp is still going on
