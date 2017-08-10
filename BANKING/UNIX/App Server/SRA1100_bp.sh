@@ -34,7 +34,7 @@ while true; do
    if [ -f $initload_path/SRA10510_*.TXT ]
    then
        day=`date +%a`
-       if [ $day = Sat ] || [ -f $initload_path/stores_ach.txt ]
+       if [ $day = Sat ] || [ -f $initload_path/stores_ach_*.txt ]
           then
               sleep 60
               #This above sleep command will prevent not to miss some records while ftp is still going on

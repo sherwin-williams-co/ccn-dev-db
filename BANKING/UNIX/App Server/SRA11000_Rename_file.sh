@@ -25,6 +25,13 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                               Rename the files 
 #################################################################
+if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist to rename"
+    cat $DATA_FILES_PATH/SRA10510_*.TXT >> $DATA_FILES_PATH/SRA10510.TXT
+else
+    echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist to rename"
+fi
+
 if ls $DATA_FILES_PATH/stores_ach_*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/stores_ach.txt files exist to rename"
     cat $DATA_FILES_PATH/stores_ach_*.txt >> $DATA_FILES_PATH/stores_ach.txt

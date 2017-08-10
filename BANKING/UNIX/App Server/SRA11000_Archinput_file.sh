@@ -28,6 +28,12 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                        Archive files to folder
 #################################################################
+if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
+    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist"
+    mv $DATA_FILES_PATH/SRA10510_*.TXT $ARCHIVE_PATH/$FOLDER
+else
+    echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist"
+fi
 
 if ls $DATA_FILES_PATH/stores_ach_*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/stores_ach.txt files exist "

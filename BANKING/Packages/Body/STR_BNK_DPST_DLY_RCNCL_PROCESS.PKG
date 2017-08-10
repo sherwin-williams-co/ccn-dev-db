@@ -647,6 +647,8 @@ Changed : 10/07/2015 nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
         : 07/26/2017 nxk927 CCN Project....
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 08/10/2017 nxk927 CCN Project....
+          Loading of ACH will happen same day when the process should run even though we recieve the file early
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR     IN     VARCHAR2,
 IN_DATE                 IN     DATE,
@@ -670,7 +672,7 @@ IS
                          BANK_ACCOUNT_NBR
                     FROM ACH_DRFTS_EXT_CTRL A
                    WHERE A.BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
-                     AND A.LOAD_DATE        = IN_DATE -1
+                     AND A.LOAD_DATE        = IN_DATE
                      AND BANK_ACCOUNT_NBR  IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                                  FROM BANK_ACCOUNT
                                                 WHERE BANK_AUTO_RECON_IND = 'Y'))
@@ -776,6 +778,8 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
         : 07/25/2017 nxk927 CCN Project....
           Recieving the current ach_draft data and we use the same data for next day process
           Reverting the code back to use BANK_ACCOUNT_NBR instead of ORIGINATED_BANK_ACCNT_NBR
+        : 08/10/2017 nxk927 CCN Project....
+          Loading of ACH will happen same day when the process should run even though we recieve the file early
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -786,7 +790,7 @@ IS
          UNION
         SELECT DISTINCT BANK_ACCOUNT_NBR
           FROM ACH_DRFTS_EXT_CTRL
-         WHERE LOAD_DATE = IN_DATE -1
+         WHERE LOAD_DATE = IN_DATE
            AND BANK_ACCOUNT_NBR IN (SELECT LPAD(REPLACE(BANK_ACCOUNT_NBR, '-',''),17,0)
                                       FROM BANK_ACCOUNT
                                      WHERE BANK_AUTO_RECON_IND = 'Y')
@@ -937,14 +941,15 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
         : 08/09/2017 nxk927 CCN Project....
           handling the error if the oracle error is 29400
           We want this to run even when we don't have the file present
+          We will load the ach_draft data the next day after we recieve the file.
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
     CURSOR ACH_INS_CUR IS
         SELECT A.*,
-               TO_DATE(IN_DATE)-1 AS TRANSACTION_DATE,
+               TO_DATE(IN_DATE)-2 AS TRANSACTION_DATE,
                IN_DATE AS LOAD_DATE,
-               GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,IN_DATE-1) AS ORIGINAL_BANK_ACCOUNT_NBR
+               GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,IN_DATE-2) AS ORIGINAL_BANK_ACCOUNT_NBR
           FROM TEMP_ACH_DRFTS_EXT_CTRL A;
 
     V_COUNT NUMBER := 0;
@@ -1596,6 +1601,8 @@ WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING
 ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
 
 CREATED : 06/08/2017 CCN PROJECT TEAM..
+Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
+          removing the raise error if the cost center is not present and returning the 4 digit cost center back
 **********************************************************/
 IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
 IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
@@ -1649,10 +1656,7 @@ BEGIN
 EXCEPTION
 
     WHEN INVALID_COST_CENTER_ERR THEN
-        ERRPKG.RAISE_ERR(ERRNUMS.EN_INVALID_COST_CENTER_ERR
-                         ,'COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC' ||'ENTERED COST_CENTER_CODE WAS "' ||  IN_COST_CENTER || '". '
-                           ||'CCN_TABLE_IU_PKG ' || 'COST CENTER IS NOT FOUND - WOULD YOU LIKE TO ADD? ' );
-
+        RETURN IN_COST_CENTER;
     WHEN MULTI_COSTCNTR_ERROR THEN
         ERRPKG.RAISE_ERR(ERRNUMS.EN_DUP_MAINFRAME_COSTCNTR_ERR
                          ,'COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC'
@@ -1660,13 +1664,7 @@ EXCEPTION
                  NULL;
 
     WHEN OTHERS THEN
-         IF IN_ERROR_FLAG = 'Y' THEN
-                     RETURN IN_COST_CENTER;
-                 ELSE
-                     V_COST_CENTER_CODE := IN_COST_CENTER;
-             ERRPKG.RAISE_ERR(SQLCODE
-                             ,'COST CENTER NOT FOUND COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC ERROR');
-         END IF;
+          RETURN IN_COST_CENTER;
 
 END COST_CENTER_LOOK_UP_FNC;
 
