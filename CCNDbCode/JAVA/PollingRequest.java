@@ -21,6 +21,7 @@ import com.sherwin.polling.api.PollingHeaderMetadata;
 import com.sherwin.polling.api.RestAdapter;
 import com.sherwin.polling.api.RestAdapter.Environment;
 import com.sherwin.polling.api.RestAdapter.Prerequisite;
+import com.sherwin.polling.enums.FixType;
 
 public class PollingRequest {
     private static String username = "";
@@ -29,7 +30,7 @@ public class PollingRequest {
     private static String filename = "";
     private static String environment = "";
     private static String initLoadStore = "";
-    private static String prev_rqst_id = "";
+    private static String request_id = "";
 
     public static void main(String[] args) throws Exception {
         String requestId = "";
@@ -39,7 +40,7 @@ public class PollingRequest {
             application = args[2];
             filename    = args[3];
             environment = args[4];
-            prev_rqst_id= args[5];
+            request_id= args[5];
             
             initLoadStore = "/app/ccn/POSdownloads/POSxmls/COST_CENTER_DEQUEUE.queue"; 
             // The COST_CENTER_DEQUEUE.queue file gets created by calling the ReadMessageQueue.java
@@ -73,7 +74,7 @@ public class PollingRequest {
                 requestId = RestAdapter.writeFileToPolling(
                         username,
                         password,
-                        getPollingHdrMetadata(),
+                        getPollingHdrMetadataInit(),
                         PollingDestMetadata.createDestinationList(storeList),
                         PollingFileMetadata.create(filename));
                 return requestId+ " Polling information sent to stores :" + storeList;
@@ -168,7 +169,7 @@ public class PollingRequest {
         // environment matches with QA or PROD. If the match is found, the selection is changed to the 
         // corresponding environment gets picked. else, dev becomes the forced selectionThis is used
         // only for NON INIT LOADS
-        if (prev_rqst_id.equals("NULL_RQST_ID")) {
+        if (request_id.equals("NULL_RQST_ID")) {
 
             PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application);
             if (environment.equals("QA")) {
@@ -179,11 +180,37 @@ public class PollingRequest {
             return pollingHdrMetadata;
         } else {
 
-            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application, Prerequisite.REQUIREMENTS.afterRequest(request_id));
             if (environment.equals("QA")) {
-                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application, Prerequisite.REQUIREMENTS.afterRequest(request_id));
             } else if (environment.equals("PROD")) {
-                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application, Prerequisite.REQUIREMENTS.afterRequest(prev_rqst_id));
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application, Prerequisite.REQUIREMENTS.afterRequest(request_id));
+            }
+            return pollingHdrMetadata;
+        }
+    }
+    
+    private static PollingHeaderMetadata getPollingHdrMetadataInit()  {
+        // This method by natural selection uses the DEV environment. Later, it checks to see if the 
+        // environment matches with QA or PROD. If the match is found, the selection is changed to the 
+        // corresponding environment gets picked. else, dev becomes the forced selectionThis is used
+        // only for INIT LOADS
+        if (request_id.equals("NULL_EQVL_RQST_ID")) {
+
+            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application);
+            if (environment.equals("QA")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application);
+            } else if (environment.equals("PROD")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application);
+            }
+            return pollingHdrMetadata;
+        } else {
+
+            PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application, request_id, FixType.equivalent_to);
+            if (environment.equals("QA")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.qa.name(), application, request_id, FixType.equivalent_to);
+            } else if (environment.equals("PROD")) {
+                pollingHdrMetadata = PollingHeaderMetadata.create(Environment.prod.name(), application, request_id, FixType.equivalent_to);
             }
             return pollingHdrMetadata;
         }
