@@ -41,7 +41,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Adding CASE expressions to STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER columns.
          : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE & STATUS_CODE ahead of other code
          : 04/27/2017 gxg192 Adding PERP_INV_START_DATE columm from the store table.
-         : 08/11/2017 gxg192 Adding TYPE_CODE_DESCRIPTION columm from the store table.
+         : 08/11/2017 gxg192 Added TYPE_CODE_DESCRIPTION columm.
 ********************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
