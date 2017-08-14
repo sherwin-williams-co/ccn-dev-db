@@ -231,29 +231,6 @@ changed :
 in_SCHEMA     IN   VARCHAR2)
 RETURN VARCHAR2;
 
-PROCEDURE WRITE_CLOB_ON_SERVER(
-/******************************************************************************
-This procedure will create file on server and dump the passed BLOB data Into the file created
-IN_FILEPATH  - Directory path
-IN_FILENAME  - Name of the file
-IN_CLOB      - File data
-created : 12/21/2016 vxv336 CCN Project
-Modified:
-******************************************************************************/
-IN_DIRECTORY    IN       VARCHAR2,
-IN_FILENAME    IN       VARCHAR2,
-IN_CLOB        IN       CLOB);
-
-FUNCTION RETURN_HEADER_STRING(
-/***********************************************************************
-        This Function is used to return the file header for a passed table name.
-
-created : 12/21/2016 MXK766/NXK927 POS XML Conversion
-changed :
-************************************************************************/
-IN_TABLE_NAME IN VARCHAR2)
-RETURN VARCHAR2;
-
 FUNCTION RETURN_FIRST_WKDAY_OF_MNTH(
 /******************************************************************
 This procedure will return the first week day of the month for the date
