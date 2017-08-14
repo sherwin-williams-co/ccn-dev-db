@@ -26,9 +26,9 @@ if [ $FTP_INDICATOR == Y ]
    file=stores_cashflowadj_*
    if [ `ls -l $file | awk '{print $5}'` -ne 0 ]
    then
-ftp -inv ${uar_cfa_qa_host} <<FTP_MF
-quote user ${uar_cfa_qa_user}
-quote pass ${uar_cfa_qa_pw}
+ftp -inv ${smart_host} <<FTP_MF
+quote user ${smart_user}
+quote pass ${smart_pw}
 cd /sw/smart_adm/loads/uar-adjustments/data
 put stores_cashflowadj_*
 bye
