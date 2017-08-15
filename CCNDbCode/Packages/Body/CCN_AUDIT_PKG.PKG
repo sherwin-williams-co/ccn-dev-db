@@ -2,10 +2,12 @@ CREATE OR REPLACE PACKAGE BODY CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 created : 02/29/2012 tal CCN project
-revisions: 
+revisions: 08/10/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
+                             Declared v_before_max_tran_id as public variable instead of private.
 ************************************************************/
 
     V_ATRIBUTE_TAG_VALUE       VARCHAR2(100) := 'attributes';-- 'ATTRIBUTES';
+    v_before_max_tran_id       AUDIT_LOG.LOG_ID%TYPE;
 
 FUNCTION XML_EXTRACT_NO_EXCEPTION
 /**********************************************************
@@ -950,6 +952,7 @@ modified : 08/05/2015 nxk927 CCN Project Team . . .
 modified : 11/14/2016 jxc517 CCN Project Team . . . 
            added code to check if a field with in a table is excluded from audit or not
            if it is excluded, we should not build the diff tag fragment for that column
+         : 08/10/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs
 *******************************************************/
 
 ( IN_TABLE_NAME IN VARCHAR2
@@ -1010,7 +1013,8 @@ BEGIN
                                          FROM AUDIT_LOG AL1
                                         WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
                                           AND AL1.TRANSACTION_ID = IN_KEY
-                                          AND AL1.AUDIT_REC_FLAG = 'R')
+                                          AND AL1.AUDIT_REC_FLAG = 'R'
+                                          AND AL1.LOG_ID <= v_before_max_tran_id)
            AND BATCH.BATCH_JOB_LAST_RUN_DATE IN(SELECT MAX(B1.BATCH_JOB_LAST_RUN_DATE)
                                                   FROM BATCH_JOB B1
                                                  WHERE B1.BATCH_JOB_NAME= 'BACKFEED_AUDIT_LOG')
@@ -1031,11 +1035,14 @@ BEGIN
        AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
                                      FROM AUDIT_LOG AL1
                                     WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
-                                      AND AL1.TRANSACTION_ID = IN_KEY)
+                                      AND AL1.TRANSACTION_ID = IN_KEY
+                                      AND AL1.LOG_ID <= v_before_max_tran_id)
        AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
                           FROM	AUDIT_LOG AL2
                          WHERE AL2.TABLE_NAME = AL.TABLE_NAME
-                           AND AL2.TRANSACTION_ID = IN_KEY)
+                           AND AL2.TRANSACTION_ID = IN_KEY
+                           AND AL2.LOG_ID <= v_before_max_tran_id
+                           )
        AND ROWNUM < 2;
 
     V_CONTEXT := 'Parsing the XMLType';
@@ -1359,6 +1366,7 @@ modified: 03/29/2016 jxc517 CCN Project Team....
           Price District Hierarchy, Credit Hierarchy
 modified: 04/19/2016 jxc517 CCN Project Team....
           Added condition not to send audit for future addresses
+        : 08/10/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -1416,7 +1424,8 @@ BEGIN
                SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
              WHERE TRANSACTION_ID             = IN_TRANSACTION_ID
                AND TABLE_NAME                 = IN_TABLE_NAME
-               AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y';
+               AND GLOBAL_HIERARCHY_SKIP_FLAG = 'Y'
+               AND LOG_ID <= v_before_max_tran_id;
         ELSE
             --set the GLOBAL_HIERARCHY_SKIP_FLAG to 'Y', which means pick again in further batch processing
             UPDATE AUDIT_LOG
@@ -1424,7 +1433,8 @@ BEGIN
             WHERE TRANSACTION_ID             = IN_TRANSACTION_ID
               AND TABLE_NAME                 = IN_TABLE_NAME
               AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
-              AND AUDIT_REC_FLAG             IS NULL;
+              AND AUDIT_REC_FLAG             IS NULL
+              AND LOG_ID <= v_before_max_tran_id;
         END IF;
     END IF;
     OUT_CC_CODE := V_CC_CODE;
@@ -1441,6 +1451,8 @@ This function returns the maximum log id from 'AUDIT_LOG' table.
 Created : 03/14/2017 gxg192 CCN Project Team . . .
 Modified: 03/17/2017 gxg192 Changes to consider only records after last run date
                             Also added condition for TABLE_NAME
+        : 08/14/2017 gxg192 Changes to consider records with GLOBAL_HIERARCHY_SKIP_FLAG
+                            as Y
 **********************************************************/
 RETURN audit_log.log_id%TYPE
 IS
@@ -1452,9 +1464,10 @@ BEGIN
       FROM AUDIT_LOG
      WHERE AUDIT_REC_FLAG IS NULL
        AND TABLE_NAME = NVL(IN_TABLE_NAME,TABLE_NAME)
-       AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                  FROM BATCH_JOB
-                                 WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG');
+       AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                   FROM BATCH_JOB
+                                  WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
+        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
 
     RETURN L_LOG_ID;
 
@@ -1476,6 +1489,7 @@ Modified : 02/07/2014 jxc517 CCN Project Team . . .
                              are added in audit log while the initial process was running
          : 03/20/2017 gxg192 Changes to re-run audit process only if v_after_max_tran_id is
                              greater than v_before_max_tran_id.
+         : 08/10/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -1499,7 +1513,6 @@ V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
-v_before_max_tran_id AUDIT_LOG.LOG_ID%TYPE;
 v_after_max_tran_id  AUDIT_LOG.LOG_ID%TYPE;
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
@@ -1561,6 +1574,7 @@ Modified : 02/07/2014 jxc517 CCN Project Team . . .
                              are added in audit log while the initial process was running
          : 03/17/2017 gxg192 Changes to re-run audit process only if v_after_max_tran_id is
                              greater than v_before_max_tran_id.
+         : 08/10/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -1583,7 +1597,6 @@ V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
-v_before_max_tran_id AUDIT_LOG.LOG_ID%TYPE;
 v_after_max_tran_id  AUDIT_LOG.LOG_ID%TYPE;
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
