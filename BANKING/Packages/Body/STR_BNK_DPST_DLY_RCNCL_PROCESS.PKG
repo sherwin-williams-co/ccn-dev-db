@@ -90,6 +90,51 @@ EXCEPTION
                                    IN_TABLE_NAME);
 END GNRTE_BNK_ACT_MISMTH_RPT;
 
+PROCEDURE GNRTE_NO_CONCERNTRATION_RPT(
+/******************************************************************************
+  This procedure generates Report if the cost center do not fall under
+  any concentration
+
+Created : 08/15/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_DATE       IN    DATE)
+IS
+  CURSOR CUR IS
+      SELECT COST_CENTER_CODE, ORIGINATED_BANK_ACCNT_NBR
+        FROM SUMMARY_EXTRCT_CNTRL_FL
+       WHERE LOAD_DATE = IN_DATE
+         AND BANK_ACCOUNT_NBR = '00000000000000000'
+       UNION
+      SELECT COST_CENTER_CODE, ORIGINATED_BANK_ACCNT_NBR
+        FROM MISCTRAN
+       WHERE LOAD_DATE = IN_DATE
+         AND BANK_ACCOUNT_NBR = '00000000000000000'
+       UNION
+      SELECT COST_CENTER_CODE, ORIGINATED_BANK_ACCNT_NBR
+        FROM ACH_DRFTS_EXT_CTRL
+       WHERE LOAD_DATE = IN_DATE
+         AND BANK_ACCOUNT_NBR = '00000000000000000';
+  V_CLOB                CLOB;
+BEGIN
+    FOR REC IN CUR LOOP
+       V_CLOB := REC.COST_CENTER_CODE  ||','||
+                 REC.ORIGINATED_BANK_ACCNT_NBR || CHR(10) ||V_CLOB;
+
+    END LOOP;
+    IF V_CLOB <> EMPTY_CLOB() THEN
+       MAIL_PKG.SEND_MAIL('SRA11000_MISSING_CC',NULL, NULL, V_CLOB);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.GNRTE_NO_CONCERNTRATION_RPT',
+                                   SQLERRM,
+                                   '2222222222',
+                                   '222222',
+                                   'CNCNTRTION_NOT_FOUND');
+END GNRTE_NO_CONCERNTRATION_RPT;
+
 FUNCTION FORMAT_INPUT_FOR_FILE(
 /*****************************************************************************
 	This function will return the formatted data as requested  
@@ -1077,8 +1122,8 @@ BEGIN
                                          REC.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
 
-        IF (REC.TCODE = '2551' AND V_SRC_BANK_ACCOUNT_NBR = '00000004600146239')
-            OR (REC.TCODE = '2550' AND V_SRC_BANK_ACCOUNT_NBR = '00000004600146212') THEN
+        IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
+            OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
             V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
         ELSE
            V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
@@ -1183,7 +1228,8 @@ PROCEDURE GENERATE_FILES(
   This procedure will generate the uar.position file and the serail.dat file
 
 Created : 07/27/2015 nxk927 CCN Project....
-Changed :
+Changed : 08/15/2017 nxk927 CCN Project....
+          Added the process to generate the report if the concentration is not present in our database
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1204,6 +1250,9 @@ BEGIN
         --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
         GENERATE_UAR_POS_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_POS_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+        GNRTE_NO_CONCERNTRATION_RPT(IN_DATE);
+        DBMS_OUTPUT.PUT_LINE('GNRTE_NO_CONCERNTRATION_RPT : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
     EXCEPTION
         WHEN OTHERS THEN
@@ -1331,8 +1380,8 @@ BEGIN
                                          rec.CODE1,
                                          rec.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
-        IF (REC.TCODE = '2551' AND V_SRC_BANK_ACCOUNT_NBR = '00000004600146239')
-            OR (REC.TCODE = '2550' AND V_SRC_BANK_ACCOUNT_NBR = '00000004600146212') THEN
+        IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
+            OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
             V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
         ELSE
            V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
