@@ -12,6 +12,8 @@
 #            added the ftp_indicator to control ftp of the file
 # Modified : 06/16/2017 nxk927 CCN Project Team.....
 #             added a check to see if the file has data
+# Modified : 08/15/2017 nxk927 CCN Project Team.....
+#            Path changed. This needs to be changed only in Prod
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -34,7 +36,7 @@ then
 ftp -inv ${uar_host} <<FTP_MF
 quote user ${uar_user}
 quote pass ${uar_pw}
-cd "/reconnet/uardata/rt1/TEST INPUT"
+cd "/reconnet/uardata/rt1/input"
 put SMIS1.SRA10060_* serial.dat
 put SMIS1.SRA12060_* uar.pos
 bye
