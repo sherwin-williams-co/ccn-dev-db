@@ -1,0 +1,5 @@
+-- craeted by rxv940
+-- 08/15/2017
+-- To be run in COSTCNTR
+
+GRANT SELECT ON PRCSR_INTRNTL_GRP_DTLS TO CCN_UTILITY;
