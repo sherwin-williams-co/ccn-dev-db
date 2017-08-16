@@ -5,7 +5,7 @@ Created : 08/15/2017 jxc517 CCN Project Team....
 Changed : 08/15/2017 gxg192 Changes to correct FROM_P data
 *****************************************************************************/
 SELECT * FROM MAILING_GROUP WHERE GROUP_ID = 71;
-INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID) VALUES ('71', 'ccnoracle.team@sherwin.com');
+INSERT INTO MAILING_GROUP (GROUP_ID, MAIL_ID) VALUES ('71', 'ccnoracle.team@sherwin.com;jmkeating@sherwin.com;baeverden@sherwin.com');
 SELECT * FROM MAILING_GROUP WHERE GROUP_ID = 71;
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
