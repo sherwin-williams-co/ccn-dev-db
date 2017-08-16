@@ -101,4 +101,13 @@ Changed :
 *********************************************************************************/
 ;
 
+PROCEDURE NEW_STORES_INIT_LOAD_PROCESS
+/*******************************************************************************
+This procedure is used to create an Initload for STORE, TERR and PARAM all at once
+
+Created : 04/10/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+;
+
 END POS_DATA_GENERATION;
