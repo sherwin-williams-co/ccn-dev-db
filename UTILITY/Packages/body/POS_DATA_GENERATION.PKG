@@ -52,41 +52,7 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VAL;
-END GET_PRI_DSC_CODE;
-
-FUNCTION RETURN_PREVIOUS_REQUEST_ID(
-/*******************************************************************************
-This function is used to return the Previous Request id information based upon
-filetype info. This computation doesn't include the INIT loads
-
-Created : 08/03/2016 rxv940 CCN Project....
-Changed :
-*******************************************************************************/ 
-    IN_FILE_TYPE        IN VARCHAR2) RETURN VARCHAR2
-IS
-    V_PREV_RQST_ID VARCHAR2(36) := 'NULL_RQST_ID';
-BEGIN
-
-    SELECT POLLING_REQUEST_ID
-      INTO V_PREV_RQST_ID
-      FROM POS_DOWNLOADS
-     WHERE POS_ID = ( SELECT MAX(POS_ID)
-                        FROM POS_DOWNLOADS
-                       WHERE POLLING_REQUEST_ID IS NOT NULL
-                         AND FILE_TYPE = IN_FILE_TYPE
-                         AND DATA_SOURCE <> 'MANUAL_LOAD'
-                    );
-
-    RETURN V_PREV_RQST_ID;
-
-EXCEPTION
-WHEN OTHERS THEN
-    CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                   'RETURN_PREVIOUS_REQUEST_ID',
-                                   SQLERRM,
-                                   '000000');
-    RETURN V_PREV_RQST_ID;
-END RETURN_PREVIOUS_REQUEST_ID;
+END GET_PRI_DSC_CODE;						   
 
 FUNCTION RETURN_COST_CENTER_CODE(
 /*******************************************************************************
@@ -629,6 +595,7 @@ EXCEPTION
         RETURN V_PHONE_REC;
 END RETURN_PHONE_INFO; 
 
+
 FUNCTION CHECK_COST_CENTER_CATEGORY(
 /*******************************************************************************
 This function is used to return the category from the cost center table.
@@ -652,9 +619,8 @@ PROCEDURE POS_DOWNLOADS_UPD_SP(
 /*******************************************************************************
 This procedure is used do update on the table POS_DOWNLOADS 
 
-Created : 10/17/2016 rxv940 CCN Project....
-Changed : 06/02/2017 rxv940 CCN Project....
-        : Selecting only the first 36 characters of Request_id.                    
+Created : 10/17/2016 MXK766 CCN Project....
+Changed :
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
 IS
@@ -671,9 +637,7 @@ BEGIN
            FILE_TYPE          = IN_POS_DOWNLOADS.FILE_TYPE,
            COMMENTS           = IN_POS_DOWNLOADS.COMMENTS,
            FILE_NAME          = IN_POS_DOWNLOADS.FILE_NAME,
-           -- The Java code outputs the request id along with the list of stores for which the XML
-           -- file was sent (if any). Hence using substr to load just the POLLING_REQUEST_ID
-           POLLING_REQUEST_ID = SUBSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, 1, 36),
+           POLLING_REQUEST_ID = IN_POS_DOWNLOADS.POLLING_REQUEST_ID,
            UPDATE_DT          = IN_POS_DOWNLOADS.UPDATE_DT
      WHERE FILE_NAME = IN_POS_DOWNLOADS.FILE_NAME
         OR POS_ID    = IN_POS_DOWNLOADS.POS_ID;
@@ -688,7 +652,6 @@ EXCEPTION
                                        'POS_DOWNLOADS_UPD_SP',
                                        V_ERROR,
                                        '000000');
-        RAISE;
 END POS_DOWNLOADS_UPD_SP;
           
 FUNCTION RETURN_POS_DOWNLOADS_INSERT_YN(
@@ -938,8 +901,6 @@ Changed : 06/20/2017 rxv940 CCN Project....
         : removed real_cntry from XSD and XML generation as requested by the user
 Changed : 06/26/2017 rxv940 CCN Project....
         : Changed the XML tag store-number to cost-center
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have the prev request id passed on to done file
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
 IS
@@ -1053,7 +1014,7 @@ BEGIN
     V_PHONE_REC := RETURN_PHONE_INFO (V_COSTCENTER_REC.COST_CENTER_CODE, 'FAX');          
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PHONE_REC.PHONE_AREA_CODE ||
                                                          V_PHONE_REC.PHONE_NUMBER), 'fax') || CHR(10);  
-    --build division area and ccn-district
+    --build division area and ccn-district         
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DIVISION), 'division') || CHR(10);
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_AREA), 'area') || CHR(10);
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DISTRICT), 'ccn-district') || CHR(10);
@@ -1076,9 +1037,9 @@ BEGIN
 
     --build currency
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.CURRENCY_CODE), 'currency') || CHR(10);
-    --build dsc-code
+    --build dsc-code       
     V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(V_COSTCENTER_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
-    --build acct-cntry,gnrc
+    --build acct-cntry,gnrc,real-cntry
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.STATEMENT_TYPE), 'gnrc') || CHR(10);
     --build terminals
@@ -1137,7 +1098,7 @@ BEGIN
     V_DONE_FILE := REPLACE(V_FILE_NAME,
                           '.XML',
                           '.POLLINGDONE');
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE'),
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
                                 'CCN_DATAFILES',
                                 V_DONE_FILE);
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
@@ -1229,8 +1190,6 @@ Changed : 02/23/2017 rxv940 CCN Project Team....
           Updated the Terr XSD in the comments (above)
 Changed : 03/02/2017 rxv940 CCN Project Team....
           Handling XML special characters
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have the prev request id passed on to done file
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
 IS
@@ -1301,7 +1260,7 @@ BEGIN
     V_DONE_FILE := REPLACE(V_FILE_NAME,
                            '.XML',
                            '.POLLINGDONE');
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE'),
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
                                 'CCN_DATAFILES',
                                 V_DONE_FILE);
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
@@ -1394,8 +1353,6 @@ Changed : 06/30/2017 rxv940 CCN Project....
         : bank account number and name
 Changed : 07/17/2017 rxv940 CCN Project....
         : Changes to retrirve bank details using GET_POS_BANK_DETAILS
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have the prev request id passed on to done file
 *******************************************************************************/
     IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
 IS
@@ -1420,10 +1377,9 @@ BEGIN
 
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
 
-
-    GET_POS_BANK_DETAILS(V_REC_POSDATA.COST_CENTER_CODE, 
-                         V_POS_BANK_ACCNT_NBR, 
-                         V_BANK_ACCOUNT_NM);
+    GET_POS_BANK_DETAILS(V_REC_POSDATA.COST_CENTER_CODE,
+                        V_POS_BANK_ACCNT_NBR,
+                        V_BANK_ACCOUNT_NM);
     
     --step 1
     --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
@@ -1494,7 +1450,7 @@ BEGIN
     V_DONE_FILE := REPLACE(V_FILE_NAME,
                            '.XML',
                            '.POLLINGDONE');
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_PARAM_UPDATE'),
+    DBMS_XSLPROCESSOR.CLOB2FILE('Done',
                                 'CCN_DATAFILES',
                                 V_DONE_FILE);
 
@@ -1670,10 +1626,6 @@ Changed : 03/02/2017 rxv940 CCN Project Team....
           Handling XML special characters
 Changed : 03/02/2017 rxv940 CCN Project Team....
           <r_u_flag> is changed to 'R' from 'U'
-Changed : 04/06/2017 rxv940 CCN Project....
-        : Added code to create the .POLLINGDONE file
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have NULL passed on to done file        
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -1690,7 +1642,6 @@ IS
     V_REC_COUNT            PLS_INTEGER :=0;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
-    V_DONE_FILE            VARCHAR2(100);
     
 BEGIN
     V_COMMENTS := 'GEN_POS_TERRITORY_DATA_SP Procedure started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -1749,14 +1700,6 @@ BEGIN
     DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                 'CCN_DATAFILES',
                                 V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME,
-                               '.XML',
-                               '.POLLINGDONE');
-
-    -- The below call is to equivalent req id 
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE'),
-                                'CCN_DATAFILES',
-                                V_DONE_FILE);                                     
                                 
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
@@ -1775,7 +1718,6 @@ EXCEPTION
                                        'INIT_LOAD_TERR_SP',
                                        V_ERROR,
                                        '000000');
-        RAISE;        
 END INIT_LOAD_TERR_SP;
 
 PROCEDURE INIT_LOAD_STORE_SP
@@ -1894,8 +1836,6 @@ Changed : 06/20/2017 rxv940 CCN Project....
         : removed real_cntry from XSD and XML generation as requested by the user
 Changed : 06/26/2017 rxv940 CCN Project....
         : Changed the XML tag store-number to cost-center
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have NULL passed on to done file        
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -1923,7 +1863,7 @@ IS
     V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE;
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
-    V_DONE_FILE            VARCHAR2(100);
+
 BEGIN  
     V_COMMENTS := 'GENERATE_POS_STORE_DATA Procedure started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
 
@@ -2023,7 +1963,7 @@ BEGIN
         V_PHONE_REC := RETURN_PHONE_INFO (STORE_REC.COST_CENTER_CODE, 'FAX');          
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PHONE_REC.PHONE_AREA_CODE ||
                                                              V_PHONE_REC.PHONE_NUMBER), 'fax') || CHR(10);  
-        --build division area and ccn-district
+        --build division area and ccn-district         
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DIVISION), 'division') || CHR(10);
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_AREA), 'area') || CHR(10);
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DISTRICT), 'ccn-district') || CHR(10);
@@ -2046,9 +1986,9 @@ BEGIN
 
         --build currency
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(STORE_REC.CURRENCY_CODE), 'currency') || CHR(10);
-        --build dsc-code
+        --build dsc-code         
         V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(STORE_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
-        --build acct-cntry,gnrc
+        --build acct-cntry,gnrc,real-cntry
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(STORE_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
         V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(STORE_REC.STATEMENT_TYPE), 'gnrc') || CHR(10);
         --build terminals
@@ -2090,11 +2030,11 @@ BEGIN
         V_DIST_EFF_DT   := NULL;
         V_REC_COUNT     := V_REC_COUNT + 1;
     END LOOP;
-
-    V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+    
+    V_COMMENTS := V_COMMENTS || 'XML CLOB creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10); 
 
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
-                                ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
+                                ' creation Started at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);    
     V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
                    '<storeUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
                    RETURN_HEADER_RECORD('STORE1',
@@ -2103,20 +2043,10 @@ BEGIN
                                         'R') || CHR(10) ||
                    V_XMLOUTPUT ||
                    '</storeUpdtMsg>';
-
+ 
     DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                'CCN_DATAFILES',
                                V_FILE_NAME);
-
-    V_DONE_FILE := REPLACE(V_FILE_NAME,
-                               '.XML',
-                               '.POLLINGDONE');
-
-    -- The below call is to return equivalent req id 
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE'),
-                                'CCN_DATAFILES',
-                                V_DONE_FILE);
-
 
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
                                 ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -2138,7 +2068,6 @@ EXCEPTION
                                        'INIT_LOAD_STORE_SP',
                                        V_ERROR,
                                        '000000');
-        RAISE;
 END INIT_LOAD_STORE_SP;
 
 
@@ -2204,8 +2133,6 @@ the order of the XML elements.
 
 Created : 03/30/2017 rxv940 CCN Project....
 Changed : 04/06/2017 rxv940 CCN Project....
-        : Added code to create the .POLLINGDONE file
-Changed : 04/06/2017 rxv940 CCN Project....
         : Added a condition to pick only Polling stores
 Changed : 06/26/2017 rxv940 CCN Project....
         : Changed the XML tag store-number to cost-center and removed the
@@ -2215,8 +2142,6 @@ Changed : 06/30/2017 rxv940 CCN Project....
         : bank account number and name
 Changed : 07/17/2017 rxv940 CCN Project....
         : Changes to retrirve bank details using GET_POS_BANK_DETAILS
-Changed : 08/03/2017 rxv940 CCN Project....
-        : Changes to have NULL passed on to done file
 *******************************************************************************/
 IS
     V_XMLOUTPUT            CLOB;
@@ -2235,7 +2160,6 @@ IS
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
     V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
-    V_DONE_FILE            VARCHAR2(100);
 
 BEGIN
 
@@ -2260,12 +2184,13 @@ BEGIN
                     ) LOOP
 
 
+
+        GET_POS_BANK_DETAILS(PARAM_REC.COST_CENTER_CODE,
+                            V_POS_BANK_ACCNT_NBR,
+                            V_BANK_ACCOUNT_NM);
+
         --step 1
         --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
-        GET_POS_BANK_DETAILS(PARAM_REC.COST_CENTER_CODE, 
-                             V_POS_BANK_ACCNT_NBR, 
-                             V_BANK_ACCOUNT_NM);
-
         V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_POS_BANK_ACCNT_NBR), 'P-cval') || CHR(10);
         V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_NM), 'P-cval') || CHR(10);
     
@@ -2312,8 +2237,7 @@ BEGIN
         V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
         V_XMLDATA       := NULL;
         V_REC_COUNT     := V_REC_COUNT+1;
-
-
+            
 
     END LOOP;
 
@@ -2335,15 +2259,6 @@ BEGIN
     DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT,
                                'CCN_DATAFILES',
                                V_FILE_NAME);
-
-    V_DONE_FILE := REPLACE(V_FILE_NAME,
-                           '.XML',
-                           '.POLLINGDONE');
-
-    -- The below call is to return equivalent req id 
-    DBMS_XSLPROCESSOR.CLOB2FILE(RETURN_PREVIOUS_REQUEST_ID('POS_PARAM_UPDATE'),
-                                'CCN_DATAFILES',
-                                V_DONE_FILE);
 
     V_COMMENTS := V_COMMENTS || 'File  ' || V_FILE_NAME ||
                                 ' creation ended at [ ' || TO_CHAR(SYSDATE,'DD-MON-YYYY HH:MI:SS AM') || ' ] ' || CHR(10);
@@ -2368,49 +2283,6 @@ EXCEPTION
                                        V_ERROR,
                                        '000000');
         RAISE;
-END INIT_LOAD_PARAM_SP;
-
-PROCEDURE NEW_STORES_INIT_LOAD_PROCESS
-/*******************************************************************************
-This procedure is used to create an Initload for STORE, TERR and PARAM all at once
-
-Created : 04/10/2017 rxv940 CCN Project....
-Changed :
-*********************************************************************************/
-IS
-    V_ERR_FLG  VARCHAR2(1) := 'N';
-    EXCEP_XML_GEN EXCEPTION;
-BEGIN
-    BEGIN 
-        POS_DATA_GENERATION.INIT_LOAD_STORE_SP;
-    EXCEPTION 
-        WHEN OTHERS THEN 
-            MAIL_PKG.SEND_MAIL('XML_GEN_FAILURE_STR');
-            V_ERR_FLG := 'Y';
-    END;
-
-    BEGIN	
-        POS_DATA_GENERATION.INIT_LOAD_TERR_SP;
-    EXCEPTION 
-        WHEN OTHERS THEN 
-            MAIL_PKG.SEND_MAIL('XML_GEN_FAILURE_TER');
-            V_ERR_FLG := 'Y';
-    END;
-
-    BEGIN	
-        POS_DATA_GENERATION.INIT_LOAD_PARAM_SP;
-    EXCEPTION 
-        WHEN OTHERS THEN 
-            MAIL_PKG.SEND_MAIL('XML_GEN_FAILURE_PRM');
-            V_ERR_FLG := 'Y';
-    END;
-    
-    IF V_ERR_FLG = 'Y' THEN 
-        RAISE EXCEP_XML_GEN;
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-    RAISE;
-END NEW_STORES_INIT_LOAD_PROCESS;
+END INIT_LOAD_PARAM_SP;                   
 
 END POS_DATA_GENERATION;
