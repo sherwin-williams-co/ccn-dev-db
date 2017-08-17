@@ -12,6 +12,7 @@
 PROC_NAME="prm_process_pos_polling_file.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
 CLASSHOME="$HOME/POSdownloads/java"
+ARCHIVEDIR=$DATADIR/archivefiles
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
 
@@ -47,6 +48,16 @@ do
     fi
 
 done
+
+TIME="$(date +"%H%M%S")"
+if [[ -e $DATADIR/$CCD.queue ]]
+then
+   $SCRIPT_DIR/polling_dwnld_files_archive_process.sh $CCD.queue
+   echo " $PROC_NAME --> QUEUE file archived at $ARCHIVEDIR/$CCD.queue $DATE:$TIME "
+   mv "$ARCHIVEDIR"/"$CCD".queue "$ARCHIVEDIR"/"$CCD"_"$DATE"_"$TIME".queue
+   echo " $PROC_NAME --> $ARCHIVEDIR/$CCD.queue renamed to "$ARCHIVEDIR"/"$CCD"_"$DATE"_"$TIME".queue at $DATE:$TIME "
+fi
+
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "
 exit 0
