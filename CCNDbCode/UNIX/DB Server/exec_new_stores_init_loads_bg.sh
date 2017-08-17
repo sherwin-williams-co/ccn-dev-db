@@ -20,6 +20,8 @@ if [ $(ls "$DATADIR/$CCD.TRGRFILE" 2>/dev/null | wc -l) -gt 0 ]
 then
     mv "$DATADIR/$CCD.TRGRFILE" "$ARCHIVEDIR"
     $HOME/call_to_init_loads_sql.sh
+    echo "Trigger file to denote the completion of Init loads. " > "$DATADIR/$CCD.queue_trgrfile"
+    $HOME/polling_dwnld_files_ftp_to_app_server.sh "$CCD.queue_trgrfile"
 fi
 
 done
