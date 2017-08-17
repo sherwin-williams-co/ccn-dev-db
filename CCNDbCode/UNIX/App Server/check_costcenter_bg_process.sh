@@ -48,7 +48,7 @@ status=$?
 if test $status -ne 0
 then
     echo " $PROC_NAME --> Processing of "$PROC_NAME " failed at $DATE:$TIME">> $LOGDIR/${LOG_NAME}
-    exit 1;
+    exit 1
 else
     echo " $PROC_NAME --> Mailing process status is "$status >> $LOGDIR/${LOG_NAME}
 fi
