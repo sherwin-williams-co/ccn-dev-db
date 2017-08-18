@@ -21,7 +21,7 @@ while(true)
 do
 
 #Check for .POLLINGDONE files. If present, call prm_process_pos_polling_file.sh
-if [ "$(ls "$DATADIR/$PRM_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l)" -gt 0 ] && [ "$(ls "$DATADIR/$CCD"*".queue" 2>/dev/null | wc -l)" -eq 0 ]
+if [ "$(ls "$DATADIR/$CCD"*".queue" 2>/dev/null | wc -l)" -eq 0 ] &&[ "$(ls "$DATADIR/$PRM_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l)" -gt 0 ] 
 then
     $SCRIPT_DIR/prm_process_pos_polling_file.sh
 fi

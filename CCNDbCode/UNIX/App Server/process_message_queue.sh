@@ -12,6 +12,7 @@
 
 PROC_NAME="process_message_queue.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
+LOGDIR="$HOME/POSdownloads/log"
 FILENAME=$CCD.queue
 TRGRFILE=$CCD.TRGRFILE
 
@@ -26,7 +27,7 @@ TIME=$(date +"%H%M%S")
 if [ ! -z "$QueueMessage" ]; then
     echo "$QueueMessage"  >> $DATADIR/$FILENAME
 
-
+    TIME=$(date +"%H%M%S")
     #If the response has errors, then log the error and move it to the error folder.
     if  [[ "$QueueMessage" == *"Invalid Number of arguments passed."* ]] ||  
         [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
@@ -34,7 +35,6 @@ if [ ! -z "$QueueMessage" ]; then
     then
 
         #Log the Error Message.
-        TIME=$(date +"%H%M%S")
         echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
         $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
         exit 1
@@ -48,6 +48,7 @@ if [ ! -z "$QueueMessage" ]; then
         echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " 
         $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE"
         $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE"
+        nohup sh $SCRIPT_DIR/call_polling_for_init_loads_bg.sh > $LOGDIR/call_polling_for_init_loads_bg.log 2>&1 &
     fi
     
 else

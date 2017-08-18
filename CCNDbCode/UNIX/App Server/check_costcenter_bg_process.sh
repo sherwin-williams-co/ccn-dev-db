@@ -19,9 +19,13 @@ LOG_NAME=${PROC_NAME}_${DATE}_${TIME}.log
 BG_PROCESSES_EXECUTING=TRUE
 HOSTNAME=`hostname`
 
-echo " $PROC_NAME --> Processing Started for "$PROC_NAME " at $DATE:$TIME" >> $LOGDIR/${LOG_NAME}
+echo " $PROC_NAME --> Processing Started for "$PROC_NAME " at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
+
+#######################################
+#  Start of background process check  #
+#######################################
 MAIL_MESSAGE=""
-bg_process_name=`cat $HOME/background_processname.txt`
+bg_process_name=`cat $HOME/background_process.txt`
 for bg_name in $bg_process_name
 do
     FIND=`ps -eaf | grep $bg_name | grep -v grep`
@@ -47,7 +51,7 @@ TIME=`date +"%H:%M:%S"`
 status=$? 
 if test $status -ne 0
 then
-    echo " $PROC_NAME --> Processing of "$PROC_NAME " failed at $DATE:$TIME">> $LOGDIR/${LOG_NAME}
+    echo " $PROC_NAME --> Processing of "$PROC_NAME " failed at ${TIME} on ${DATE}">> $LOGDIR/${LOG_NAME}
     exit 1
 else
     echo " $PROC_NAME --> Mailing process status is "$status >> $LOGDIR/${LOG_NAME}
@@ -56,3 +60,6 @@ fi
 echo " $PROC_NAME --> Ending check_costcenter_bg_process.sh script at $DATE:$TIME" >> $LOGDIR/${LOG_NAME}
 
 exit 0
+##############################
+#  end of script             #
+##############################
