@@ -27,13 +27,13 @@ TIME=$(date +"%H%M%S")
 if [ ! -z "$QueueMessage" ]; then
     echo "$QueueMessage"  >> $DATADIR/$FILENAME
 
-    TIME=$(date +"%H%M%S")
+    
     #If the response has errors, then log the error and move it to the error folder.
     if  [[ "$QueueMessage" == *"Invalid Number of arguments passed."* ]] ||  
         [[ "$QueueMessage" == *"Invalid file path provided."* ]] || 
         [[ "$QueueMessage" == *"Error"* ]];
     then
-
+        TIME=$(date +"%H%M%S")
         #Log the Error Message.
         echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME" 
         $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
