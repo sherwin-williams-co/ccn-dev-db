@@ -31,17 +31,6 @@ Changed :
 *******************************************************************************/
    IN_COST_CENTER_CODE             IN  POS_DOWNLOADS.COST_CENTER_CODE%TYPE);
 
-FUNCTION RETURN_COST_CENTER_CODE(
-/*******************************************************************************
-This function is used to return the COST_CENTER information
-
-Created : 10/17/2016 MXK766 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_APPLICATION IN VARCHAR2,
-    IN_DATA        IN XMLTYPE, 
-    IN_XPATH       IN VARCHAR2) RETURN VARCHAR2;
-
 FUNCTION CHECK_COST_CENTER_CATEGORY(
 /*******************************************************************************
 This function is used to return the category from the cost center table.
