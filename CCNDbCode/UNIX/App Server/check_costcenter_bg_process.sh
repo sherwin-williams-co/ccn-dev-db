@@ -25,7 +25,7 @@ echo " $PROC_NAME --> Processing Started for "$PROC_NAME " at "$TIME "on "$DATE 
 #  Start of background process check  #
 #######################################
 MAIL_MESSAGE=""
-bg_process_name=`cat $HOME/background_process.txt`
+bg_process_name=`cat $HOME/background_processname.txt`
 for bg_name in $bg_process_name
 do
     FIND=`ps -eaf | grep $bg_name | grep -v grep`
