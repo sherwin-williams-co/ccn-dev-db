@@ -119,11 +119,11 @@ CASE WHEN C.PRIM_COST_IDENTIFIER IS NULL AND C.STATEMENT_TYPE IN ('CN','AC') AND
  -- added swp in front of STORE_NUMBER otherwise added sw in front of STORE_NUMBER
  (CASE
      WHEN
+         C.COUNTRY_CODE IN ('USA','CAN') AND 
          C.COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
-                                  FROM HIERARCHY_DETAIL_VIEW
-                                 WHERE HRCHY_HDR_NAME ='FACTS_DIVISION'
-                                   AND DIVISION IN ('C522','C400'))
-         AND C.COUNTRY_CODE IN ('USA','CAN') THEN
+                                  FROM FACTS_DIVISION_DETAIL_VIEW
+                                 WHERE DIVISION IN ('C522','C400'))
+         THEN
             ('swp'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
      ELSE
          ('sw'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
