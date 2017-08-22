@@ -14,6 +14,8 @@
 #            source file changed. Using the source file provided by marcy Lee.
 # Modified : 06/15/2017 nxk927 CCN Project Team.....
 #            ftping the cash flow/corrects file to another server on top of the old one
+# Modified : 08/22/2017 nxk927 CCN Project Team.....
+#            removing the ftp call to ftp the cash flow/corrects file to UAR server
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -110,7 +112,6 @@ echo "Archiving input concatenated files finished at ${TIME} on ${DATE}"
 #################################################################
 #         FTP files stores_cashflowadj_*
 #################################################################
-./SRA11000_corrects_FTP.sh
 ./SRA11000_cashflow_corrects_FTP.sh
 
 #################################################################
