@@ -4,7 +4,8 @@
 # Description   : This script is to process Store polling files that moved to app server and send it to polling.
 #
 # Created  : 07/03/2017 rxv940 CCN Project Team.....
-# Modified : 
+# Modified : # Modified : 08/23/2017 rxv940 CCN Project Team.....
+#          : Added double quotes around $REQUESTID
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
