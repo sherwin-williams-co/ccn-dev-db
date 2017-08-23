@@ -12,7 +12,6 @@
 PROC_NAME="prm_process_pos_polling_file.sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
 CLASSHOME="$HOME/POSdownloads/java"
-ARCHIVEDIR=$DATADIR/archivefiles
 DATE=$(date +"%d%m%Y")
 TIME=$(date +"%H%M%S")
 
