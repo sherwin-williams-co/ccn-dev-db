@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.jdom.Document;
@@ -22,6 +23,13 @@ import com.sherwin.polling.api.RestAdapter;
 import com.sherwin.polling.api.RestAdapter.Environment;
 import com.sherwin.polling.api.RestAdapter.Prerequisite;
 import com.sherwin.polling.enums.FixType;
+
+import java.rmi.RemoteException;
+import java.util.Date;
+import javax.xml.rpc.holders.StringHolder;
+import p2storelkup.sherwin_p2storelkup.POLLING2_APPSTt_polling2_apps;
+import p2storelkup.sherwin_p2storelkup.holders.POLLING2_APPSHolder;
+import sherwin_p2storelkup.P2StorelkupObjProxy;
 
 public class PollingRequest {
     private static String username = "";
@@ -40,14 +48,14 @@ public class PollingRequest {
             application = args[2];
             filename    = args[3];
             environment = args[4];
-            request_id= args[5];
+            request_id  = args[5];
             
             initLoadStore = "/app/ccn/POSdownloads/POSxmls/COST_CENTER_DEQUEUE.queue"; 
             // The COST_CENTER_DEQUEUE.queue file gets created by calling the ReadMessageQueue.java
             // which gets called by the process_message_quesue.sh script
             String fileStatus = "";
             // We check to see if the COST_CENTER_DEQUEUE.queue file exists, 
-            //     a. If it exists, we send the init load to stores in the queue
+            //  a. If it exists, we send the init load to stores in the queue
             //  b. else, we send to ALL stores (except param)
             fileStatus = fileExists(initLoadStore);
             if (fileStatus.equals("FILE_EXISTS")) {
@@ -94,8 +102,12 @@ public class PollingRequest {
         // goes only to a specific store
         String requestId = "";
         String fileExists = "";
-        //by default send to all stores
-        PollingDestMetadata pollingMetadata = PollingDestMetadata.createDestinationFullChain();
+        String PrmStoreNbr = "";
+        //The below line by default send to all stores
+        //PollingDestMetadata pollingMetadata = PollingDestMetadata.createDestinationFullChain();
+        PollingDestMetadata pollingMetadata;
+        // For the pilot, send it to the below list only
+        List<String> PltStoreList = new ArrayList<String>();
         // Check for file existence
         fileExists = fileExists(filename);
         if (fileExists.equals("FILE_EXISTS")) {
@@ -105,8 +117,24 @@ public class PollingRequest {
                     String storeNumber = "";
                     storeNumber = return_Store_Number(filename, "parmUpdtRcd", "cost-center");
                     List<String> storeList = new ArrayList<String>();
-                    storeList.add(storeNumber);
-                    pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
+                    storeList.add(storeNumber.substring(2, 6));
+                    PltStoreList = PltReturnStoreNbr("PARAM");
+                    PrmStoreNbr = storeNumber.substring(2, 6);
+                    // Check to see if the changed CC is one of the pilot store. 
+                    // Else, return a null and no Polling is necessary
+                    if (PltStoreList.contains(PrmStoreNbr)) {
+                    	pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
+                    } else {
+                    	return "";
+                    }
+                } else if (application.equals("STORE")){
+                	PltStoreList = PltReturnStoreNbr("STORE");
+                	pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
+                } else if (application.equals("TERR")){
+                	PltStoreList = PltReturnStoreNbr("TERR");
+                	pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
+                } else {
+                	pollingMetadata = PollingDestMetadata.createDestinationFullChain();
                 }
                 requestId = RestAdapter.writeFileToPolling(
                         username,
@@ -114,7 +142,11 @@ public class PollingRequest {
                         getPollingHdrMetadata(),
                         pollingMetadata,
                         PollingFileMetadata.create(filename));
-                return requestId;
+                if (application.equals("PARAM")){
+                	return requestId+ " Polling information sent to stores :" + PrmStoreNbr;
+                } else {
+                	return requestId+ " Polling information sent to stores :" + PltStoreList;
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 requestId = e.getMessage()+"Exception in the RestAdapter calling method section.";
@@ -124,6 +156,32 @@ public class PollingRequest {
         }
         return requestId;
     }
+    
+	private static List<String> PltReturnStoreNbr(String inpApp_id){
+		try {
+			String inpStore_nbr = "";
+			Date inpEffDt = new Date();
+
+			StringHolder result = new StringHolder();
+			StringHolder storeList  = new StringHolder();
+			StringHolder appList  = new StringHolder();
+
+			POLLING2_APPSTt_polling2_apps apps =
+				new POLLING2_APPSTt_polling2_apps(inpStore_nbr, inpApp_id, inpEffDt);
+			p2storelkup.sherwin_p2storelkup.POLLING2_APPSTt_polling2_apps[] valueApps =
+				new p2storelkup.sherwin_p2storelkup.POLLING2_APPSTt_polling2_apps[1];
+			valueApps[0] = apps;
+			POLLING2_APPSHolder POLLING2_APPS = new POLLING2_APPSHolder(valueApps);
+			P2StorelkupObjProxy wat = new P2StorelkupObjProxy();
+
+			wat.p2Storelkup(inpStore_nbr, inpApp_id, result, POLLING2_APPS, storeList, appList);
+			List<String> PltStrLst = Arrays.asList(storeList.value.split("\\s*,\\s*"));
+			return PltStrLst;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
 
     private static String fileExists(String filepath) {
         // Below method checks to see if the file given in the 
@@ -167,7 +225,7 @@ public class PollingRequest {
     private static PollingHeaderMetadata getPollingHdrMetadata()  {
         // This method by natural selection uses the DEV environment. Later, it checks to see if the 
         // environment matches with QA or PROD. If the match is found, the selection is changed to the 
-        // corresponding environment gets picked. else, dev becomes the forced selectionThis is used
+        // corresponding environment gets picked. else, dev becomes the forced selection. This is used
         // only for NON INIT LOADS
         if (request_id.equals("NULL_RQST_ID")) {
 
@@ -193,9 +251,9 @@ public class PollingRequest {
     private static PollingHeaderMetadata getPollingHdrMetadataInit()  {
         // This method by natural selection uses the DEV environment. Later, it checks to see if the 
         // environment matches with QA or PROD. If the match is found, the selection is changed to the 
-        // corresponding environment gets picked. else, dev becomes the forced selectionThis is used
+        // corresponding environment gets picked. else, dev becomes the forced selection. This is used
         // only for INIT LOADS
-        if (request_id.equals("NULL_EQVL_RQST_ID")) {
+        if (request_id.equals("NULL_RQST_ID")) {
 
             PollingHeaderMetadata pollingHdrMetadata = PollingHeaderMetadata.create(Environment.dev.name(), application);
             if (environment.equals("QA")) {

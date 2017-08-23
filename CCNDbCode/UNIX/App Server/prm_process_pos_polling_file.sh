@@ -44,19 +44,10 @@ do
     then    
         $SCRIPT_DIR/polling_dwnld_files_error_rqst_id.sh $files $FILENAME $REQUESTID
     else 
-        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID
+        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME "$REQUESTID"
     fi
 
 done
-
-TIME="$(date +"%H%M%S")"
-if [[ -e $DATADIR/$CCD.queue ]]
-then
-   $SCRIPT_DIR/polling_dwnld_files_archive_process.sh $CCD.queue
-   echo " $PROC_NAME --> QUEUE file archived at $ARCHIVEDIR/$CCD.queue $DATE:$TIME "
-   mv "$ARCHIVEDIR"/"$CCD".queue "$ARCHIVEDIR"/"$CCD"_"$DATE"_"$TIME".queue
-   echo " $PROC_NAME --> $ARCHIVEDIR/$CCD.queue renamed to "$ARCHIVEDIR"/"$CCD"_"$DATE"_"$TIME".queue at $DATE:$TIME "
-fi
 
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "

@@ -30,6 +30,7 @@ do
     echo " $PROC_NAME --> "$PREV_RQST_ID" is the previous request id $DATE:$TIME "
     
     cd "$CLASSHOME" || exit
+     
     REQUESTID=$(java com.webservice.PollingRequest "$TERRUSERNAME" "$TERRPASSWORD" "$TERRENVIRONMENT" "$FILENAME" "$ENVIRON" "$PREV_RQST_ID") 
     
 ###################################### ERROR HANDLING ##########################################
@@ -43,7 +44,7 @@ do
     then
         $SCRIPT_DIR/polling_dwnld_files_error_rqst_id.sh $files $FILENAME $REQUESTID
     else 
-        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID
+        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME "$REQUESTID"
     fi
 	
 done

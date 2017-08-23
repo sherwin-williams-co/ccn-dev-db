@@ -43,7 +43,7 @@ do
     then
         $SCRIPT_DIR/polling_dwnld_files_error_rqst_id.sh $files $FILENAME $REQUESTID
     else 
-        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME $REQUESTID
+        $SCRIPT_DIR/polling_dwnld_files_process_rqst_id.sh $files $FILENAME $REQUESTNAME "$REQUESTID"
     fi
 
 done
