@@ -47,7 +47,6 @@ do
     fi
 
 done
-
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> Call to get the requestid ended at $DATE : $TIME "
 exit 0
