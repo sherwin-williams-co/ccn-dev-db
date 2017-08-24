@@ -6,7 +6,6 @@ Banking Gift Card and deposit ticket/bags.
 Created : 06/15/2017 gxg192 CCN Project....
 Changed : 06/21/2016 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
-        : 08/24/2016 gxg192 
 ***************************************************************************************/
 
 FUNCTION GET_UAR_TRANS_CODE(
