@@ -1056,6 +1056,111 @@ EXCEPTION
         END IF;
 END LOAD_ACH_DRFTS_EXTRCT;
 
+FUNCTION GET_MISC_SRC_ACCNT_NBR(
+/*****************************************************************************
+	This function will return the misctran_source bank account number
+
+Created : CCN Project....
+Changed : 08/24/2017 nxk927 CCN Project....
+          created the function outside the procedure
+*****************************************************************************/
+  IN_LINE_NUMBER     IN      NUMBER) RETURN VARCHAR2
+IS
+  V_RET_VAL          VARCHAR2(17);
+BEGIN
+    SELECT BANK_ACCOUNT_NBR_FILE
+      INTO V_RET_VAL
+      FROM TEMP_UAR_MISCTRAN_HDR B
+     WHERE TO_NUMBER(B.LINE_NUMBER) = (SELECT MAX(TO_NUMBER(C.LINE_NUMBER))
+                                         FROM TEMP_UAR_MISCTRAN_HDR C
+                                        WHERE TO_NUMBER(C.LINE_NUMBER) < IN_LINE_NUMBER);
+    RETURN V_RET_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+       RETURN V_RET_VAL;
+END GET_MISC_SRC_ACCNT_NBR;
+
+PROCEDURE UPDATE_MISTRAN_DUP (
+/*****************************************************************************
+	This procedure will update the misctran_details table for the duplicate record
+  that came in the refeed file as sysdate for the load_date field
+
+Created : 08/24/2017 nxk927 CCN Project....
+Changed :
+*****************************************************************************/
+    IN_DATE            IN         DATE)
+IS
+    CURSOR CUR IS
+        SELECT COST_CENTER_CODE,
+               AMOUNT,
+               TO_DATE(TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
+               TCODE,
+               DISTRICT,
+               AREA,
+               DIVISION,
+               TRAN_SEQNUM,
+               DB_CR_CODE,
+               SNZ_SAM_CODE,
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,TO_DATE(TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
+               TO_NUMBER(LINE_NUMBER) LINE_NUMBER
+          FROM TEMP_UAR_MISCTRAN MT
+         WHERE EXISTS (SELECT 1
+                         FROM UAR_MISCTRAN
+                        WHERE COST_CENTER_CODE     = MT.COST_CENTER_CODE
+                          AND TRAN_SEQNUM          = MT.TRAN_SEQNUM
+                          AND NVL(TCODE, 'AAA')    = NVL(MT.TCODE,'AAA')
+                          AND AMOUNT               = MT.AMOUNT
+                          AND TRANSACTION_DATE     = TO_DATE(MT.TRANSACTION_DATE,'YYMMDD')
+                          AND NVL(DB_CR_CODE,'X')  = NVL(MT.DB_CR_CODE,'X')
+                          AND NVL(SNZ_SAM_CODE,'A')= NVL(MT.SNZ_SAM_CODE,'A')
+                          AND LOAD_DATE            < IN_DATE);
+
+        V_COUNT NUMBER := 0;
+        V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
+        V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+BEGIN
+  FOR REC IN CUR LOOP
+     V_SRC_BANK_ACCOUNT_NBR := GET_MISC_SRC_ACCNT_NBR(REC.LINE_NUMBER);
+     IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
+            OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
+            V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
+     ELSE
+         V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
+     END IF;
+     UPDATE MISCTRAN_DETAILS
+        SET LOAD_DATE = IN_DATE
+      WHERE SUBSTR(COST_CENTER_CODE,-4) = REC.COST_CENTER_CODE
+        AND AMOUNT                      = TO_NUMBER(REC.AMOUNT/100)
+        AND TRANSACTION_DATE            = REC.TRANSACTION_DATE
+        AND ORIGINATED_BANK_ACCNT_NBR   = V_SRC_BANK_ACCOUNT_NBR
+        AND BANK_ACCOUNT_NBR            = V_BANK_ACCOUNT_NBR
+        AND TCODE                       = REC.TCODE
+        AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
+        AND DB_CR_CODE                  = REC.DB_CR_CODE
+        AND SNZ_SAM_CODE                = REC.SNZ_SAM_CODE
+        AND LOAD_DATE                   < IN_DATE;
+     V_COUNT := V_COUNT +1;
+     IF V_COUNT = 1000 THEN
+        COMMIT;
+        V_COUNT := 0;
+     END IF;
+  END LOOP;
+  COMMIT;
+EXCEPTION
+   WHEN OTHERS THEN
+       IF SQLCODE IN ('-29400','-29913') THEN--File not present for external table to access data
+           DBMS_OUTPUT.PUT_LINE('FILE NOT PRESENT TO LOAD');
+       ELSE
+           ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                      'STR_BNK_DPST_DLY_RCNCL_PROCESS.UPDATE_MISTRAN_DUP',
+                                      SQLERRM,
+                                      '2222222222',
+                                      '222222',
+                                      'MISCTRAN');
+           RAISE;
+       END IF;
+END UPDATE_MISTRAN_DUP;
+
 PROCEDURE LOAD_MISCTRAN(
 /*****************************************************************************
 	This procedure will load the data into UAR_MISCTRAN, MISCTRAN table from
@@ -1087,6 +1192,10 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           NSF BANK ACCOUNT NUMBER CONDITION
           IF TCODE IS 2551 and bank account number is 00000004600146239 and
           IF TCODE IS 2550 and bank account number is 00000004600146212
+        : 08/24/2017 nxk927 CCN Project....
+          Removed the function from the procedure
+          Calling the UPDATE_MISTRAN_DUP to update the duplicate records in
+          misctran_detail table
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -1120,26 +1229,10 @@ IS
     V_COUNT NUMBER := 0;
     V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
-    
-    FUNCTION GET_SRC_ACCNT_NBR(IN_LINE_NUMBER     IN      NUMBER)
-    RETURN VARCHAR2
-    IS
-        V_RET_VAL          VARCHAR2(17);
-    BEGIN
-        SELECT BANK_ACCOUNT_NBR_FILE
-          INTO V_RET_VAL
-          FROM TEMP_UAR_MISCTRAN_HDR B
-         WHERE TO_NUMBER(B.LINE_NUMBER) = (SELECT MAX(TO_NUMBER(C.LINE_NUMBER))
-                                             FROM TEMP_UAR_MISCTRAN_HDR C
-                                            WHERE TO_NUMBER(C.LINE_NUMBER) < IN_LINE_NUMBER);
-         RETURN V_RET_VAL;
-    EXCEPTION
-        WHEN OTHERS THEN
-            RETURN V_RET_VAL;
-    END GET_SRC_ACCNT_NBR;
 BEGIN
+    UPDATE_MISTRAN_DUP(IN_DATE);
     FOR REC IN JV_MISCTRAN LOOP
-        V_SRC_BANK_ACCOUNT_NBR := GET_SRC_ACCNT_NBR(REC.LINE_NUMBER);
+        V_SRC_BANK_ACCOUNT_NBR := GET_MISC_SRC_ACCNT_NBR(REC.LINE_NUMBER);
         INSERT INTO UAR_MISCTRAN VALUES (REC.COST_CENTER_CODE,
                                          REC.AMOUNT,
                                          REC.TRANSACTION_DATE,
@@ -1307,6 +1400,113 @@ EXCEPTION
                                    'OTHER');
 END GENERATE_FILES;
 
+FUNCTION GET_OVERSRT_SRC_ACCNT_NBR(
+/*****************************************************************************
+	This function will return the overshrt bank account number
+
+Created : CCN Project....
+Changed : 08/24/2017 nxk927 CCN Project....
+          created the function outside the procedure
+*****************************************************************************/
+  IN_LINE_NUMBER     IN      NUMBER) RETURN VARCHAR2
+IS
+   V_RET_VAL          VARCHAR2(17);
+BEGIN
+   SELECT BANK_ACCOUNT_NBR_FILE
+     INTO V_RET_VAL
+     FROM TEMP_UAR_OVERSHRT_HDR B
+    WHERE TO_NUMBER(B.LINE_NUMBER) = (SELECT MAX(TO_NUMBER(C.LINE_NUMBER))
+                                        FROM TEMP_UAR_OVERSHRT_HDR C
+                                       WHERE TO_NUMBER(C.LINE_NUMBER) < IN_LINE_NUMBER);
+   RETURN V_RET_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+       RETURN V_RET_VAL;
+END GET_OVERSRT_SRC_ACCNT_NBR;
+
+PROCEDURE UPDATE_OVERSHRT_DUP(
+/*****************************************************************************
+	This procedure will update the misctran_details table for the duplicate record
+  that came in the overshrt file as sysdate for the load_date field
+
+Created : 08/24/2017 nxk927 CCN Project....
+Changed :
+*****************************************************************************/
+    IN_DATE            IN         DATE)
+IS
+    CURSOR CFA_OVERSHRT IS
+        SELECT COST_CENTER_CODE,
+               AMOUNT,
+               TO_DATE(TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
+               TCODE,
+               DISTRICT,
+               AREA,
+               DIVISION,
+               TRAN_SEQNUM,
+               TRAN_CODE,
+               TO_DATE(TRAN_DATE1,'YYMMDD') TRAN_DATE1,
+               UNKNOWN_FIELD,
+               CODE1,
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,TO_DATE(TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
+               TO_NUMBER(LINE_NUMBER) LINE_NUMBER
+          FROM TEMP_UAR_OVERSHRT MT
+         WHERE EXISTS (SELECT 1
+                         FROM UAR_OVERSHRT
+                        WHERE COST_CENTER_CODE        = MT.COST_CENTER_CODE
+                          AND TRAN_SEQNUM             = MT.TRAN_SEQNUM
+                          AND NVL(TCODE, 'AAA')       = NVL(MT.TCODE,'AAA')
+                          AND AMOUNT                  = MT.AMOUNT
+                          AND TRANSACTION_DATE        = TO_DATE(MT.TRANSACTION_DATE,'YYMMDD')
+                          AND NVL(TRAN_CODE,'X')      = NVL(MT.TRAN_CODE,'X')
+                          AND NVL(UNKNOWN_FIELD,'X')  = NVL(MT.UNKNOWN_FIELD,'X')
+                          AND NVL(CODE1,'A')          = NVL(MT.CODE1,'A')
+                          AND LOAD_DATE               < IN_DATE);
+    V_COUNT NUMBER := 0;
+    V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
+BEGIN
+    FOR rec IN CFA_OVERSHRT LOOP
+        V_SRC_BANK_ACCOUNT_NBR := GET_OVERSRT_SRC_ACCNT_NBR(rec.LINE_NUMBER);
+        IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
+            OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
+            V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
+        ELSE
+           V_BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.ORIG_BANK_ACCOUNT_NBR,'-'), '0', 17);
+        END IF;
+        UPDATE MISCTRAN_DETAILS
+           SET LOAD_DATE = IN_DATE
+         WHERE SUBSTR(COST_CENTER_CODE,-4) = REC.COST_CENTER_CODE
+           AND AMOUNT                      = TO_NUMBER(REC.AMOUNT/100)
+           AND TRANSACTION_DATE            = REC.TRANSACTION_DATE
+           AND ORIGINATED_BANK_ACCNT_NBR   = V_SRC_BANK_ACCOUNT_NBR
+           AND BANK_ACCOUNT_NBR            = V_BANK_ACCOUNT_NBR
+           AND TCODE                       = REC.TCODE
+           AND NVL(SNZ_SAM_CODE,'AAA')     = NVL(REC.TRAN_CODE,'AAA')
+           AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
+           AND LOAD_DATE                  < IN_DATE;
+
+        V_COUNT := V_COUNT +1;
+        IF V_COUNT = 1000 THEN
+           COMMIT;
+            V_COUNT := 0;
+        END IF;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+   WHEN OTHERS THEN
+       IF SQLCODE IN ('-29400','-29913') THEN--File not present for external table to access data
+          DBMS_OUTPUT.PUT_LINE('FILE NOT PRESENT TO LOAD');
+       ELSE
+           ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                      'STR_BNK_DPST_DLY_RCNCL_PROCESS.UPDATE_OVERSHRT_DUP',
+                                      SQLERRM,
+                                      '2222222222',
+                                      '222222',
+                                      'OVERSHRT');
+           RAISE;
+       END IF;
+END UPDATE_OVERSHRT_DUP;
+
 PROCEDURE LOAD_OVERSHRT(
 /*****************************************************************************
 	This procedure will load the data into UAR_OVERSHRT, OVERSHRT table from
@@ -1340,6 +1540,10 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           NSF BANK ACCOUNT NUMBER CONDITION
           IF TCODE IS 2551 and bank account number is 00000004600146239 and
           IF TCODE IS 2550 and bank account number is 00000004600146212
+        : 08/15/2017 nxk927 CCN Project....
+          removed the function from the procedure
+          Calling the UPDATE_OVERSHRT_DUP to update the duplicate records in
+          misctran_detail table
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -1376,27 +1580,10 @@ IS
     V_COUNT NUMBER := 0;
     V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_SRC_BANK_ACCOUNT_NBR VARCHAR2(17);
-
-    FUNCTION GET_SRC_ACCNT_NBR(IN_LINE_NUMBER     IN      NUMBER)
-    RETURN VARCHAR2
-    IS
-        V_RET_VAL          VARCHAR2(17);
-    BEGIN
-        SELECT BANK_ACCOUNT_NBR_FILE
-          INTO V_RET_VAL
-          FROM TEMP_UAR_OVERSHRT_HDR B
-         WHERE TO_NUMBER(B.LINE_NUMBER) = (SELECT MAX(TO_NUMBER(C.LINE_NUMBER))
-                                             FROM TEMP_UAR_OVERSHRT_HDR C
-                                            WHERE TO_NUMBER(C.LINE_NUMBER) < IN_LINE_NUMBER);
-         RETURN V_RET_VAL;
-    EXCEPTION
-        WHEN OTHERS THEN
-            RETURN V_RET_VAL;
-    END GET_SRC_ACCNT_NBR;
-
 BEGIN
+    UPDATE_OVERSHRT_DUP(IN_DATE);
     FOR rec IN CFA_OVERSHRT LOOP
-        V_SRC_BANK_ACCOUNT_NBR := GET_SRC_ACCNT_NBR(rec.LINE_NUMBER);
+        V_SRC_BANK_ACCOUNT_NBR := GET_OVERSRT_SRC_ACCNT_NBR(rec.LINE_NUMBER);
         INSERT INTO UAR_OVERSHRT VALUES (rec.COST_CENTER_CODE,
                                          rec.AMOUNT,
                                          rec.TRANSACTION_DATE,
