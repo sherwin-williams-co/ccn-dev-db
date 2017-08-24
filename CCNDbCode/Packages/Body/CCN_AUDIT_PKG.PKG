@@ -2,11 +2,12 @@ CREATE OR REPLACE PACKAGE BODY CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 created : 02/29/2012 tal CCN project
-revisions: 08/21/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
+revisions:08/21/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs. 
 ************************************************************/
 
     V_ATRIBUTE_TAG_VALUE       VARCHAR2(100) := 'attributes';-- 'ATTRIBUTES';
-    v_before_max_tran_id       AUDIT_LOG.LOG_ID%TYPE;
+    v_max_tran_id_last_batch    AUDIT_LOG.LOG_ID%TYPE;
+    v_max_tran_id_current_batch AUDIT_LOG.LOG_ID%TYPE;
 
 FUNCTION XML_EXTRACT_NO_EXCEPTION
 /**********************************************************
@@ -709,7 +710,6 @@ BEGIN
        AND LOG_ID         = IN_LOG_ID_CURR
        AND TRANSACTION_ID = IN_KEY
        AND AUDIT_REC_FLAG IS NULL;
-
 --Exceptions handled in calling procedure
 END UPDATE_AUDIT_REC_FLAG;
 
@@ -1036,12 +1036,12 @@ BEGIN
                                      FROM AUDIT_LOG AL1
                                     WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
                                       AND AL1.TRANSACTION_ID = IN_KEY
-                                      AND AL1.LOG_ID <= v_before_max_tran_id)
+                                      AND AL1.LOG_ID <= v_max_tran_id_current_batch)
        AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
                           FROM	AUDIT_LOG AL2
                          WHERE AL2.TABLE_NAME = AL.TABLE_NAME
                            AND AL2.TRANSACTION_ID = IN_KEY
-                           AND AL2.LOG_ID <= v_before_max_tran_id)
+                           AND AL2.LOG_ID <= v_max_tran_id_current_batch)
        AND ROWNUM < 2;
 
     V_CONTEXT := 'Parsing the XMLType';
@@ -1365,7 +1365,8 @@ modified: 03/29/2016 jxc517 CCN Project Team....
           Price District Hierarchy, Credit Hierarchy
 modified: 04/19/2016 jxc517 CCN Project Team....
           Added condition not to send audit for future addresses
-        : 08/21/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
+        : 08/21/2017 gxg192 Added code to not consider the newly added audit log records
+          while current audit log process is running.
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -1381,14 +1382,6 @@ V_LOG_ID_PREV       NUMBER; --Previous log id
 V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_CHANGE_TYPE       varchar2(1) := 'A';
 BEGIN
-
-    --Update the audit rec flag as Null to process the newly logged records when previous audit log was in running.
-    UPDATE AUDIT_LOG
-       SET AUDIT_REC_FLAG  = NULL
-     WHERE TRANSACTION_ID  = IN_TRANSACTION_ID
-       AND TABLE_NAME      = IN_TABLE_NAME
-       AND AUDIT_REC_FLAG  = 'N';
-
     --Check if audit process is needed for the current table and if cost center is part of global hierarchy  
     IF REQUIRED_TABLE_CHECK(IN_TABLE_NAME) = 'Y' THEN
         --Process the record only if cost center in the key is associated with global
@@ -1440,7 +1433,7 @@ BEGIN
               AND TABLE_NAME                 = IN_TABLE_NAME
               AND GLOBAL_HIERARCHY_SKIP_FLAG IS NULL
               AND AUDIT_REC_FLAG             IS NULL
-              AND LOG_ID <= v_before_max_tran_id;
+              AND LOG_ID <= v_max_tran_id_current_batch;
         END IF;
     END IF;
     OUT_CC_CODE := V_CC_CODE;
@@ -1448,17 +1441,14 @@ BEGIN
 --Exceptions handled in calling procedure
 END PROCESS_AUDIT_LOG;
 
-FUNCTION GET_MAX_TRANS_ID(IN_TABLE_NAME IN AUDIT_LOG.TABLE_NAME%TYPE DEFAULT NULL)
+FUNCTION GET_MAX_TRANS_ID_LAST_BATCH(IN_TABLE_NAME IN AUDIT_LOG.TABLE_NAME%TYPE DEFAULT NULL)
 /**********************************************************
-GET_MAX_TRANS_ID
+GET_MAX_TRANS_ID_LAST_BATCH
 
-This function returns the maximum log id from 'AUDIT_LOG' table.
+This function returns the maximum log id from 'AUDIT_LOG' table that is processed and marked as R.
 
-Created : 03/14/2017 gxg192 CCN Project Team . . .
-Modified: 03/17/2017 gxg192 Changes to consider only records after last run date
-                            Also added condition for TABLE_NAME
-        : 08/14/2017 gxg192 Changes to consider records with GLOBAL_HIERARCHY_SKIP_FLAG
-                            as Y and newly added records in previous audit cycle
+Created : 08/23/2017 gxg192 CCN Project Team . . .
+Modified:
 **********************************************************/
 RETURN audit_log.log_id%TYPE
 IS
@@ -1468,20 +1458,48 @@ BEGIN
     SELECT MAX(LOG_ID)
       INTO L_LOG_ID
       FROM AUDIT_LOG
-     WHERE (AUDIT_REC_FLAG IS NULL
-       AND TABLE_NAME = NVL(IN_TABLE_NAME,TABLE_NAME)
-       AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                   FROM BATCH_JOB
-                                  WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-        OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y'))
-        OR AUDIT_REC_FLAG = 'N';
+     WHERE AUDIT_REC_FLAG = 'R'
+       AND TABLE_NAME = NVL(IN_TABLE_NAME,TABLE_NAME);
 
     RETURN L_LOG_ID;
 
 EXCEPTION
     WHEN OTHERS THEN
         RETURN L_LOG_ID;
-END GET_MAX_TRANS_ID;
+END GET_MAX_TRANS_ID_LAST_BATCH;
+
+FUNCTION GET_MAX_TRANS_ID_CURRENT_BATCH(IN_TABLE_NAME IN AUDIT_LOG.TABLE_NAME%TYPE DEFAULT NULL)
+/**********************************************************
+GET_MAX_TRANS_ID_CURRENT_BATCH
+
+This function returns the maximum log id from 'AUDIT_LOG' table.
+
+Created : 03/14/2017 gxg192 CCN Project Team . . .
+Modified: 03/17/2017 gxg192 Changes to consider only records after last run date
+                            Also added condition for TABLE_NAME
+        : 08/23/2017 gxg192 Changes to get max log id of records that are eligible for processing
+                            in current audit log process.
+**********************************************************/
+RETURN audit_log.log_id%TYPE
+IS
+    L_LOG_ID audit_log.log_id%TYPE;
+BEGIN
+
+    SELECT MAX(LOG_ID)
+      INTO L_LOG_ID
+      FROM AUDIT_LOG
+     WHERE AUDIT_REC_FLAG IS NULL
+       AND TABLE_NAME = NVL(IN_TABLE_NAME,TABLE_NAME)
+       AND (LOG_ID > v_max_tran_id_last_batch
+            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y'
+            );
+
+    RETURN L_LOG_ID;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN L_LOG_ID;
+END GET_MAX_TRANS_ID_CURRENT_BATCH;
 
 PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
 /**********************************************************
@@ -1496,20 +1514,17 @@ Modified : 02/07/2014 jxc517 CCN Project Team . . .
                              are added in audit log while the initial process was running
          : 03/20/2017 gxg192 Changes to re-run audit process only if v_after_max_tran_id is
                              greater than v_before_max_tran_id.
-         : 08/15/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
+         : 08/23/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
         SELECT DISTINCT TABLE_NAME,
                TRANSACTION_ID
           FROM AUDIT_LOG
-         WHERE TABLE_NAME = 'HIERARCHY_DETAIL'
-           AND ((   AUDIT_REC_FLAG IS NULL
-                AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                           FROM BATCH_JOB
-                                          WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-                 OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y'))
-                 OR AUDIT_REC_FLAG = 'N');
+         WHERE AUDIT_REC_FLAG IS NULL
+           AND TABLE_NAME = 'HIERARCHY_DETAIL'
+           AND (LOG_ID > v_max_tran_id_last_batch
+            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
@@ -1521,7 +1536,6 @@ V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
-
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
@@ -1535,7 +1549,8 @@ BEGIN
            AND AUDIT_REC_FLAG IS NULL;
     END LOOP;
 
-    v_before_max_tran_id := get_max_trans_id('HIERARCHY_DETAIL');
+    v_max_tran_id_last_batch := get_max_trans_id_last_batch('HIERARCHY_DETAIL');
+    v_max_tran_id_current_batch := get_max_trans_id_current_batch('HIERARCHY_DETAIL');
     FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
         BEGIN
             SAVEPOINT NEXT_AUDIT_REC;
@@ -1550,21 +1565,6 @@ BEGIN
                 errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_HIERARCHY_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT'));
         END;
     END LOOP;
-
-    --Update the rec flag as 'N' for the new audit transactions while current audit log is running.
-    --New transactions will be processed in next audit cycle.
-    UPDATE AUDIT_LOG
-       SET AUDIT_REC_FLAG = 'N'
-     WHERE LOG_ID > v_before_max_tran_id;
-
-    --Update the rec flag as Null for the records that failed to process successfully in current audit log.
-    --If PROCESS_AUDIT_LOG fails, system rolls back. Thus failed records need to be updated so that these will not
-    --be processed again in next audit log cycle.
-    UPDATE AUDIT_LOG
-       SET AUDIT_REC_FLAG = NULL
-     WHERE LOG_ID <= v_before_max_tran_id
-       AND TABLE_NAME = 'HIERARCHY_DETAIL'
-       AND AUDIT_REC_FLAG = 'N';
 
     V_CONTEXT:='Updating the Status in batch_job table';
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
@@ -1588,19 +1588,16 @@ Modified : 02/07/2014 jxc517 CCN Project Team . . .
                              are added in audit log while the initial process was running
          : 03/17/2017 gxg192 Changes to re-run audit process only if v_after_max_tran_id is
                              greater than v_before_max_tran_id.
-         : 08/15/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
+         : 08/23/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
         SELECT DISTINCT TABLE_NAME,
                TRANSACTION_ID
           FROM AUDIT_LOG
-         WHERE (AUDIT_REC_FLAG IS NULL
-           AND (TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                       FROM BATCH_JOB
-                                      WHERE BATCH_JOB_NAME = 'BACKFEED_AUDIT_LOG')
-            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y'))
-            OR AUDIT_REC_FLAG = 'N';
+         WHERE AUDIT_REC_FLAG IS NULL
+           AND (LOG_ID > v_max_tran_id_last_batch
+            OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y');
 
 V_CONTEXT	VARCHAR2(200);
 SQ		INTEGER;
@@ -1612,7 +1609,6 @@ V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
-
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER);
@@ -1626,7 +1622,8 @@ BEGIN
            AND AUDIT_REC_FLAG IS NULL;
     END LOOP;
 
-    v_before_max_tran_id := get_max_trans_id();
+    v_max_tran_id_last_batch := get_max_trans_id_last_batch();
+    v_max_tran_id_current_batch := get_max_trans_id_current_batch();
     FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
         BEGIN
             SAVEPOINT NEXT_AUDIT_REC;
@@ -1641,20 +1638,6 @@ BEGIN
                 errpkg.INSERT_ERROR_LOG_SP(v_code, 'SELECT_AUDIT_LOG', v_errm, NVL(V_CC_CODE,'AUDIT'));
         END;
     END LOOP;
-
-    --Update the rec flag as 'N' for the new audit transactions while current audit log is running.
-    --New transactions will be processed in next audit cycle.
-    UPDATE AUDIT_LOG
-       SET AUDIT_REC_FLAG = 'N'
-     WHERE LOG_ID > v_before_max_tran_id;
-
-    --Update the rec flag as Null for the records that failed to process successfully.
-    --If PROCESS_AUDIT_LOG fails, system rolls back. Thus failed records need to be updated so that these will not
-    --be processed again in next audit log cycle.
-    UPDATE AUDIT_LOG
-       SET AUDIT_REC_FLAG = NULL
-     WHERE LOG_ID <= v_before_max_tran_id
-       AND AUDIT_REC_FLAG = 'N';
 
     V_CONTEXT:='Updating the Status in batch_job table';
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('BACKFEED_AUDIT_LOG', V_BATCH_NUMBER, V_TRANS_STATUS);
