@@ -15,51 +15,71 @@ FUNCTION GET_UAR_TRANS_CODE(
 /**************************************************************************************
 GET_UAR_TRANS_CODE
 
-This FUNCTION will derive the UAT TRANS CODE based on Accum id present in CCN_ACCUMS table
-in POS.
-Example
-    UAR_TRANS_CODE	Tran ID	    SMIS2 posAccum              posAccum
-    101102	        10	        no 76-->default to 11       ac-->convert to 02
-    107601	        10	        76                          ad-->convert to 01
+UAR TRAN CODE is derived using data in 3 fields.
+1. TRANSACTION_TYPE
+2. SMIS2 posAccum and
+3. posAccum
 
-    IF 76 is not present, then 11
-    IF ac is present,     then 02
+1. TRANSACTION_TYPE:
+        This field is nothing but data in TRANID field in CCN_HEADERS tables on POS db.
+
+2. SALES/Form of Pay
+        This field is derived using data in ccn_sales_lines table on POS db.
+        For a Gift card number, if PRODDESCR field contains the first 12 digit of the gift card number, and NON_MERCH_CODE as 11
+        in ccn_sales_lines table then this field will be considered as 11 (i.e. Sales) else 76 (i.e. Form of Pay).
+
+3. TYPE (Credit / Debit)
+        This field is derived based on data in CCN_ACCUMS table on POS db.
+        So for a gift card number, if accum_id field (from CCN_ACCUMS table) is present as "AC" then this field is defaulted to 02.
+        If accum_id field as AC is NOT present then this field is defaulted to 01
+
+Data in above 3 fields is concatenated to create UAT_TRANS_CODE value.
 
 Created : 05/19/2017 gxg192 CCN Project....
 Changed : 06/26/2017 gxg192 Changes in logic for finding uar tran code.
+        : 06/26/2017 gxg192 Changes in logic for finding uar tran code based on data in ccn_sales_lines table.
+                            Added IN_GIFT_CARD_NBR as in parameter.
 **************************************************************************************/
             IN_TRANID        IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
-            IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
+            IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE,
+            IN_GIFT_CARD_NBR IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
 RETURN POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE
 IS
     V_UAR_TRAN_CODE POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
-    CNT_ACCUM_ID_76 NUMBER;
-    CNT_ACCUM_ID_AC NUMBER;
-
+    V_sales_fop_id   VARCHAR2(2);
+    V_type_id        VARCHAR2(2);
 BEGIN
-    SELECT COUNT(DECODE(accum_id,'76',1,NULL)),
-           COUNT(DECODE(accum_id,'ac',1,NULL))
-      INTO CNT_ACCUM_ID_76, CNT_ACCUM_ID_AC
+
+    --Check if atleast 1 record with PRODDESCR field contaning first 12 digits of the Gift card number is found in pnp_ccn_sales_lines table
+    --if record is found then default V_sales_fop_id to 11 (i.e. sales) else 76 (i.e. Form of pay).
+    SELECT CASE WHEN COUNT(0) > 0
+               THEN '11'
+               ELSE '76'
+               END
+      INTO V_sales_fop_id
+      FROM pnp_ccn_sales_lines
+     WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
+       AND TRAN_GUID = IN_TRAN_GUID
+       AND NON_MERCH_CODE = '11'
+       AND PRODDESCR LIKE 'GIFTCARD '|| SUBSTR(IN_GIFT_CARD_NBR,1, 4) ||
+                                  '-'|| SUBSTR(IN_GIFT_CARD_NBR,5, 4) ||
+                                  '-'|| SUBSTR(IN_GIFT_CARD_NBR,9, 4) || '%';
+
+    --Check if atleast 1 record with ACCUM_ID as "ac" is present in PNP_CCN_ACCUMS table
+    --then default V_type_id to 02 else 01.
+    SELECT CASE WHEN COUNT(0) > 0
+           THEN '02'
+           ELSE '01'
+           END
+      INTO V_type_id
       FROM PNP_CCN_ACCUMS
      WHERE TRAN_GUID = IN_TRAN_GUID
-       AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
+       AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
+       AND ACCUM_ID = 'ac';
 
-    --IF accum id as 76 is present then default SMIS2 posAccum to 76 else 11
-    IF CNT_ACCUM_ID_76 > 0 THEN
-       V_UAR_TRAN_CODE := '76';
-    ELSE
-       V_UAR_TRAN_CODE := '11';
-    END IF;
-
-    --IF accum id as ac is present then default posAccum to 02 else 01
-    IF CNT_ACCUM_ID_AC > 0 THEN
-       V_UAR_TRAN_CODE := V_UAR_TRAN_CODE|| '02';
-    ELSE
-       V_UAR_TRAN_CODE := V_UAR_TRAN_CODE|| '01';
-    END IF;
-
-    V_UAR_TRAN_CODE := IN_TRANID || V_UAR_TRAN_CODE;
+    --V_UAR_TRAN_CODE is the nothing but concatenated value of above 3 fields.
+    V_UAR_TRAN_CODE := IN_TRANID || V_sales_fop_id || V_type_id;
 
     RETURN V_UAR_TRAN_CODE;
 
@@ -215,7 +235,7 @@ BEGIN
      LOOP
         BEGIN
            V_TEMP_ROW.TRANSACTION_TYPE    := rec.TRANSACTION_TYPE;
-           V_TEMP_ROW.UAR_TRAN_CODE       := GET_UAR_TRANS_CODE(rec.TRANSACTION_TYPE, rec.RLS_RUN_CYCLE, rec.TRAN_GUID);
+           V_TEMP_ROW.UAR_TRAN_CODE       := GET_UAR_TRANS_CODE(rec.TRANSACTION_TYPE, rec.RLS_RUN_CYCLE, rec.TRAN_GUID, rec.GIFT_CARD_NBR);
            V_TEMP_ROW.GIFT_CARD_NBR       := rec.GIFT_CARD_NBR;   
            V_TEMP_ROW.DIVISION_NBR        := rec.DIVISION_NBR;    
            V_TEMP_ROW.DISTRICT_NBR        := rec.DISTRICT_NBR;    
