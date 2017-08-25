@@ -1,9 +1,18 @@
-CREATE TABLE STR_BNK_DPST_DLY_RCNCL_TBL_RR
-AS
-SELECT * 
-  FROM STR_BNK_DPST_DLY_RCNCL_TBL
-  WHERE 1=2;
+/*
+Created := nxk927 CCN project
+           one time scrript to create the temp table and load the data.
+		   generate the file using the temp table
+*/
 
+DECLARE
+TEMP_TABLE VARCHAR2(500);
+BEGIN
+TEMP_TABLE := 'CREATE TABLE STR_BNK_DPST_DLY_RCNCL_TBL_RR AS
+                        SELECT * 
+                          FROM STR_BNK_DPST_DLY_RCNCL_TBL
+                         WHERE 1=2';
+    EXECUTE IMMEDIATE TEMP_TABLE;
+END;
 /
 DECLARE
 IN_DATE DATE := TRUNC(SYSDATE);
@@ -41,7 +50,9 @@ IN_DATE DATE := TRUNC(SYSDATE);
     V_BANK_ACCOUNT_REC BANK_ACCOUNT%ROWTYPE;
     V_COUNT            NUMBER := 0;
     V_DATE             DATE;
-    V_RUNDATE     DATE;
+    V_RUNDATE          DATE;
+    TEMP_TABLE         VARCHAR2(500);
+
     FUNCTION FORMAT_INPUT_FOR_FILE(
     /*****************************************************************************
 	  This function will return the formatted data as requested  
@@ -250,9 +261,9 @@ IN_DATE DATE := TRUNC(SYSDATE);
             RETURN V_RETURN_VALUE;
     END GET_RUNDATE;
     
-   BEGIN
+    BEGIN
     V_RUNDATE := GET_RUNDATE(IN_DATE);
-    EXECUTE IMMEDIATE 'TRUNCATE TABLE STR_BNK_DPST_DLY_RCNCL_TBL_RR';
+    
     --Loop through all the store/other category cost centers that are open currently (or) closed in last 6 months
     FOR rec IN main_cur LOOP
         V_LEAD_BANK_CC_REC := NULL;
@@ -361,7 +372,5 @@ IN_DATE DATE := TRUNC(SYSDATE);
     END LOOP;
     UTL_FILE.FCLOSE(UAR_SERIAL_OTPT_FL);
 END;
+    EXECUTE IMMEDIATE 'DROP TABLE STR_BNK_DPST_DLY_RCNCL_TBL_RR';
 END;
-/
-DROP TABLE STR_BNK_DPST_DLY_RCNCL_TBL_RR;
-/
