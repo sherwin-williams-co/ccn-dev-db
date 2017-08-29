@@ -1478,62 +1478,59 @@ IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2
 IS
 
-  V_CITY                      ADDRESS_VW.CITY%TYPE;
   V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
   V_COUNTRY_CODE              ADDRESS_VW.COUNTRY_CODE%TYPE;
   V_ZIP_CODE                  ADDRESS_VW.ZIP_CODE%TYPE;
-  V_ZIP_CODE_4                ADDRESS_VW.ZIP_CODE_4%TYPE;
   V_TIMEZONE_CODE             TIMEZONE.TZ_CD_VALUE%TYPE;
   V_TIMEZONE_DESC             CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
 
-  CURSOR address_cur IS
-    SELECT CITY, 
-           STATE_CODE, 
-           COUNTRY_CODE, 
-           ZIP_CODE, 
-           ZIP_CODE_4
-      FROM ADDRESS_VW
-     WHERE ADDRESS_TYPE = 'M'
-       AND EXPIRATION_DATE IS NULL
-       AND COST_CENTER_CODE = IN_COST_CNTR_CD;
-
-  CURSOR timezone_zip IS
-    SELECT TZ_CD_VALUE
-      FROM TIMEZONE
-    WHERE  COUNTRY = V_COUNTRY_CODE
-       AND ZIPCODE = V_ZIP_CODE;
-
-  --Look up Timezone based on State only when there is a single timezone attached for the State
-  --Otherwise the Look up returns NULL when a State has more than one timezone associated
-  CURSOR timezone_state IS
-    SELECT MIN(TZ_CD_VALUE) TZ_CD_VALUE
-      FROM TIMEZONE
-    WHERE  COUNTRY = V_COUNTRY_CODE
-       AND STATE   = V_STATE_CODE
-  GROUP BY COUNTRY, 
-           STATE 
-    HAVING COUNT(DISTINCT TZ_CD_VALUE) =1;
-
 BEGIN
     --Fetch default address mailing information for the cost center
-    FOR rec_addr IN address_cur LOOP
-        V_CITY                      := rec_addr.CITY;
-        V_STATE_CODE                := rec_addr.STATE_CODE;
-        V_COUNTRY_CODE              := rec_addr.COUNTRY_CODE;
-        V_ZIP_CODE                  := rec_addr.ZIP_CODE;
-        V_ZIP_CODE_4                := rec_addr.ZIP_CODE_4;
-    END LOOP;
+    BEGIN
+      SELECT STATE_CODE, 
+             COUNTRY_CODE, 
+             ZIP_CODE
+        INTO V_STATE_CODE,
+             V_COUNTRY_CODE,
+             V_ZIP_CODE
+        FROM ADDRESS_VW
+       WHERE ADDRESS_TYPE = 'M'
+         AND EXPIRATION_DATE IS NULL
+         AND COST_CENTER_CODE = IN_COST_CNTR_CD;
+    EXCEPTION
+      WHEN OTHERS THEN
+           NULL;
+    END;
     
     --Look up Timezone table based on Zip code and country code
-    FOR rec_tzz IN timezone_zip LOOP
-        V_TIMEZONE_CODE       := rec_tzz.TZ_CD_VALUE;
-    END LOOP;       
-    
+    BEGIN
+      SELECT TZ_CD_VALUE
+        INTO V_TIMEZONE_CODE
+        FROM TIMEZONE
+      WHERE  COUNTRY = V_COUNTRY_CODE
+         AND ZIPCODE = V_ZIP_CODE;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+           NULL;
+    END;
+       
     --If No match is found based on Zip code then look up based on country and state code
     IF V_TIMEZONE_CODE IS NULL THEN
-        FOR rec_tzs IN timezone_state LOOP
-            V_TIMEZONE_CODE   := rec_tzs.TZ_CD_VALUE;
-        END LOOP;       
+        BEGIN
+            --Look up Timezone based on State only when there is a single timezone attached for the State
+            --Otherwise the Look up returns NULL when a State has more than one timezone associated
+            SELECT MIN(TZ_CD_VALUE) TZ_CD_VALUE
+              INTO V_TIMEZONE_CODE
+              FROM TIMEZONE
+             WHERE COUNTRY = V_COUNTRY_CODE
+               AND STATE   = V_STATE_CODE
+          GROUP BY COUNTRY, 
+                   STATE 
+            HAVING COUNT(DISTINCT TZ_CD_VALUE) =1;
+        EXCEPTION
+          WHEN NO_DATA_FOUND THEN
+            NULL;
+        END;
     END IF;         
     
     --Look up Timezone description based on timezone code value
