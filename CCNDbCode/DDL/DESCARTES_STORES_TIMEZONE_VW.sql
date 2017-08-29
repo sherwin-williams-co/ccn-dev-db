@@ -10,5 +10,5 @@ CREATE OR REPLACE VIEW DESCARTES_STORES_TIMEZONE_VW AS
 
         ********************************************************************************/
         COST_CENTER_CODE,
-        COMMON_TOOLS.GET_TIMEZONE(COST_CENTER_CODE) TIMEZONE
+        COMMON_TOOLS.GET_TIMEZONE(COST_CENTER_CODE) TIME_ZONE
     FROM COST_CENTER;
