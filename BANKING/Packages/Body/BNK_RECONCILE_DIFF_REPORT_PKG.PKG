@@ -513,6 +513,73 @@ EXCEPTION
          RAISE;
 END LOAD_FF_INTERIM_DEPST;
 
+PROCEDURE LOAD_FF_SUMMARY_EXTRCT_CNTRL(
+/*****************************************************************************
+	This procedure will load the data into UAR_SUMMARY_EXTRCT_CNTRL_FL from
+  TEMP_SUMMARY_EXTRCT_CNTRL_FL [using SRA10510 file ].
+  This is done to exclude camparing prevously loaded data
+
+Created : 08/29/2017 gxg192 CCN Project....
+Changed :
+*****************************************************************************/
+    IN_LOAD_DATE IN DATE)
+IS
+CURSOR SUM_CUR IS
+   SELECT COST_CENTER_CODE,
+          CENTURY,
+          BANK_DEP_AMT,
+          NULL FILLER,
+          TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR') TRANSACTION_DATE,
+          IN_LOAD_DATE LOAD_DATE,
+          BANK_ACCOUNT_NBR ORIGINATED_BANK_ACCNT_NBR
+     FROM TEMP_SUMMARY_EXTRCT_CNTRL_FL SM
+     ---This is done to avoid loading duplicates. We don't want to insert same record again if they sent it next day.
+     ---Usually they are sending the same data with the new date for a certain time
+     ---this should not be sent
+    WHERE NOT EXISTS (SELECT 1
+                        FROM UAR_SUMMARY_EXTRCT_CNTRL_FL
+                       WHERE COST_CENTER_CODE = SM.COST_CENTER_CODE
+                         AND CENTURY          = SM.CENTURY
+                         AND BANK_DEP_AMT     = SM.BANK_DEP_AMT
+                         --bank account here refers to the originated bank account number
+                         --this comparisio is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL
+                         AND BANK_ACCOUNT_NBR = SM.BANK_ACCOUNT_NBR
+                         AND TRANSACTION_DATE = TO_DATE(MONTH||'-'||DAY||'-'||YEAR, 'MM-DD-RRRR'));
+    V_COUNT NUMBER := 0;
+BEGIN
+    FOR REC IN SUM_CUR LOOP
+        INSERT INTO UAR_SUMMARY_EXTRCT_CNTRL_FL (COST_CENTER_CODE,
+                                                 CENTURY,
+                                                 BANK_DEP_AMT,
+                                                 FILLER,
+                                                 BANK_ACCOUNT_NBR,
+                                                 TRANSACTION_DATE,
+                                                 LOAD_DATE)
+        VALUES (REC.COST_CENTER_CODE,
+                REC.CENTURY,
+                REC.BANK_DEP_AMT,
+                REC.FILLER,
+                REC.ORIGINATED_BANK_ACCNT_NBR,
+                REC.TRANSACTION_DATE,
+                REC.LOAD_DATE);
+        V_COUNT := V_COUNT +1;
+        IF V_COUNT = 1000 THEN
+            COMMIT;
+            V_COUNT := 0;
+        END IF;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'BNK_RECONCILE_DIFF_REPORT_PKG.LOAD_FF_SUMMARY_EXTRCT_CNTRL',
+                                   SQLERRM,
+                                   '2222222222',
+                                   '222222',
+                                   'LOAD_FF_SUMMARY_EXTRCT_CNTRL');
+        RAISE;
+END LOAD_FF_SUMMARY_EXTRCT_CNTRL;
+
 PROCEDURE RESET_GLOBAL_VARIABLES_SP
 /**************************************************************** 
 This Procedure is used reset the global variables.
@@ -670,6 +737,122 @@ WHEN OTHERS THEN
         RAISE;
 END DEPOSIT_TICKET_DIFF_SP;
 
+PROCEDURE SRA1100_SUMMARY_FL_DIFF_SP(
+/***********************************************************************
+   This Procedure is used compare the legacy Summary file and the
+   POS Summary data and creats a Difference file.
+
+Created : 08/29/2017 gxg192
+Changed :
+************************************************************************/
+   IN_LOAD_DATE DATE)
+IS
+
+CURSOR c_legacy IS
+  SELECT DLY.ROWID TGT_ROWID,
+         DLY.COST_CENTER_CODE AS COST_CENTER_CODE1,
+         DLY.BANK_DEP_AMT AS BANK_DEP_AMT1,
+         DLY.TRANSACTION_DATE AS TRANSACTION_DATE1,
+         DLY.BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR1,
+         POS.COST_CENTER_CODE AS COST_CENTER_CODE2,
+         POS.BANK_DEP_AMT AS BANK_DEP_AMT2,
+         POS.TRANSACTION_DATE AS TRANSACTION_DATE2,
+         POS.BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR2
+   FROM  (SELECT COST_CENTER_CODE,
+                 CENTURY,
+                 BANK_DEP_AMT/100 BANK_DEP_AMT,
+                 TRANSACTION_DATE,
+                 BANK_ACCOUNT_NBR
+            FROM UAR_SUMMARY_EXTRCT_CNTRL_FL SM
+           WHERE LOAD_DATE = IN_LOAD_DATE
+         ) DLY
+            LEFT OUTER JOIN
+            (SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
+                    BANK_DEP_AMT,
+                    BANK_ACCOUNT_NBR,
+                    TRANSACTION_DATE
+               FROM SUMMARY_EXTRCT_CNTRL_FL SM
+              WHERE LOAD_DATE = IN_LOAD_DATE) POS
+    ON (DLY.COST_CENTER_CODE  = POS.COST_CENTER_CODE
+   AND DLY.BANK_DEP_AMT       = POS.BANK_DEP_AMT
+   AND DLY.BANK_ACCOUNT_NBR   = POS.BANK_ACCOUNT_NBR
+   AND DLY.TRANSACTION_DATE   = POS.TRANSACTION_DATE)
+ WHERE POS.COST_CENTER_CODE IS NULL OR
+       POS.BANK_DEP_AMT IS NULL OR
+       POS.BANK_ACCOUNT_NBR IS NULL OR
+       NVL(DLY.BANK_DEP_AMT,C_CHAR) <> NVL(POS.BANK_DEP_AMT,C_CHAR) OR
+       NVL(DLY.TRANSACTION_DATE,SYSDATE) <> NVL(POS.TRANSACTION_DATE,SYSDATE+1)
+       ;
+v_file_name                         VARCHAR2(100) := 'POS_SRA11000_DIFF';
+V_HEADER                            CLOB;
+BEGIN
+    RESET_GLOBAL_VARIABLES_SP;
+    G_DB_DIRECTORY := CCN_COMMON_TOOLS.GET_DATAFILE_PATH_FNC(C_SCHEMA);
+    V_HEADER   :=  'IN_TABLE, COST_CENTER_CODE, BANK_ACCOUNT_NBR,TRANSACTION_DATE,BANK_DEP_AMT';
+
+    FOR REC IN c_legacy LOOP
+        IF  REC.COST_CENTER_CODE2 IS NULL OR REC.BANK_ACCOUNT_NBR2 IS NULL OR REC.TRANSACTION_DATE2 IS NULL  OR REC.BANK_DEP_AMT2 IS NULL THEN
+            G_REC1 := G_REC1  ||'LEGACY'||C_SEPARATOR
+                              ||'"'||REC.COST_CENTER_CODE1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||REC.BANK_ACCOUNT_NBR1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.TRANSACTION_DATE1)||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.BANK_DEP_AMT1)||'"'|| CHR(10);
+            G_ORPHAN_COUNT := G_ORPHAN_COUNT + 1;
+
+        ELSIF REC.BANK_DEP_AMT1 <> REC.BANK_DEP_AMT2 THEN
+            REC.BANK_DEP_AMT1 := C_MISMATCH_IND || TO_CHAR(REC.BANK_DEP_AMT1);
+            REC.BANK_DEP_AMT2 := C_MISMATCH_IND || TO_CHAR(REC.BANK_DEP_AMT2);
+            G_MISMATCH_COLUMN_NAME:= 'BANK_DEP_AMT';
+            G_REC2 := G_REC2  ||'LEGACY'||C_SEPARATOR
+                              ||'"'||REC.COST_CENTER_CODE1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||REC.BANK_ACCOUNT_NBR1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.TRANSACTION_DATE1)||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.BANK_DEP_AMT1)
+                              ||'POS'||C_SEPARATOR
+                              ||'"'||REC.COST_CENTER_CODE2||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||REC.BANK_ACCOUNT_NBR2||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.TRANSACTION_DATE2)||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.BANK_DEP_AMT2)||'"'|| CHR(10);
+            G_UNMATCHED_COUNT := G_UNMATCHED_COUNT + 1;
+         ELSIF REC.TRANSACTION_DATE1 <> REC.TRANSACTION_DATE2 THEN
+            REC.TRANSACTION_DATE1 := C_MISMATCH_IND || TO_CHAR(REC.TRANSACTION_DATE1);
+            REC.TRANSACTION_DATE2 := C_MISMATCH_IND || TO_CHAR(REC.TRANSACTION_DATE2);
+            G_MISMATCH_COLUMN_NAME:= 'TRANSACTION_DATE';
+            G_REC2 := G_REC2  ||'LEGACY'||C_SEPARATOR
+                              ||'"'||REC.COST_CENTER_CODE1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||REC.BANK_ACCOUNT_NBR1||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.TRANSACTION_DATE1)||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.BANK_DEP_AMT1)
+                              ||'POS'||C_SEPARATOR
+                              ||'"'||REC.COST_CENTER_CODE2||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||REC.BANK_ACCOUNT_NBR2||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.TRANSACTION_DATE2)||'"'|| CHR(9) ||C_SEPARATOR
+                              ||'"'||TO_CHAR(REC.BANK_DEP_AMT2)||'"'|| CHR(10);
+            G_UNMATCHED_COUNT := G_UNMATCHED_COUNT + 1;
+         END IF;
+    END LOOP;
+     G_REPORT := C_FILE_HEADER||CHR(10)||
+                    C_FILE_RECONCILE_LEGACY||CHR(10)||
+                    V_HEADER||CHR(10)||
+                    G_REC2||CHR(10)||
+                    C_FILE_LEGACY_ORPHAN_HEADER||CHR(10)||
+                    V_HEADER||CHR(10)||
+                    G_REC1||CHR(10)||
+                    C_FILE_SUMMARY_HEADER||CHR(10)||
+                RETURN_SUMMARY_STRING('UAR_SUMMARY_EXTRCT_CNTRL_FL',IN_LOAD_DATE,G_UNMATCHED_COUNT,G_ORPHAN_COUNT);
+
+       CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(G_DB_DIRECTORY,V_FILE_NAME || TO_CHAR(SYSDATE,'_MMDDYY') ||'.csv',G_REPORT);
+EXCEPTION
+WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE
+                                   ,'BNK_RECONCILE_DIFF_REPORT_PKG.SRA1100_SUMMARY_FL_DIFF_SP'
+                                   ,SQLERRM
+                                   ,'000000'
+                                   ,'0000000000'
+                                   ,NULL);
+        RAISE;
+END SRA1100_SUMMARY_FL_DIFF_SP;
+
 PROCEDURE INTERIM_DEPST_DIFF_SP(
 /*********************************************************************** 
    This Procedure is used compare the legacy Interim Deposit Daily load 
@@ -788,7 +971,7 @@ This Procedure is used to build the data required for the
 reconciliation of data for the Banking gift card and ticket/bag feed.
 
 Created : 06/21/2017 gxg192 CCN Project....
-Changed : 
+Changed : 08/29/2017 gxg192 Added code to load data from Mainframe for SRA1100 Summary file
 *****************************************************************/
     IN_LOAD_DATE IN DATE)
 IS
@@ -806,6 +989,9 @@ BEGIN
    --Load Deposit ticket Interim data from Mainframe
    LOAD_FF_INTERIM_DEPST(IN_LOAD_DATE);
    
+   --Load SUMMARY_EXTRCT_CNTRL_FL data from Mainframe
+   LOAD_FF_SUMMARY_EXTRCT_CNTRL(IN_LOAD_DATE);
+   
 END BANKING_MF_FF_DATA_LOAD_SP;
 
 PROCEDURE GEN_DELTA_FILES_SP(
@@ -814,7 +1000,7 @@ This Procedure is Wrapper procedure, which is used to generate
 all difference files in server.
 
 Created : 06/21/2017 gxg192 CCN Project....
-Changed : 
+Changed : 08/29/2017 gxg192 Added code to generate SRA1100 Summary diff file
 ************************************************************************/
 IN_LOAD_DATE IN DATE)
 IS
@@ -839,6 +1025,12 @@ BEGIN
     G_START_TIME := DBMS_UTILITY.GET_TIME;
     G_CONTEXT := 'DEPOSIT_TICKET_DIFF_SP';
     DEPOSIT_TICKET_DIFF_SP(V_LOAD_DATE);
+    DBMS_OUTPUT.PUT_LINE(G_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - G_START_TIME)/100 || ' Seconds');
+
+    -- Call to SRA1100_SUMMARY_FL_DIFF_SP to create SRA1100 Summary diff file.
+    G_START_TIME := DBMS_UTILITY.GET_TIME;
+    G_CONTEXT := 'SRA1100_SUMMARY_FL_DIFF_SP';
+    SRA1100_SUMMARY_FL_DIFF_SP(V_LOAD_DATE);
     DBMS_OUTPUT.PUT_LINE(G_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - G_START_TIME)/100 || ' Seconds');
 
 END GEN_DELTA_FILES_SP;
