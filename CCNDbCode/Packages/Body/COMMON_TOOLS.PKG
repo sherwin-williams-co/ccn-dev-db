@@ -1469,70 +1469,82 @@ END GET_FORMATTED_PHONE_NUMBER;
 FUNCTION GET_TIMEZONE(
 /***********************************************
 Fucntion to get Timezone Information for the cost center 
-based on the cost center's address information.
-Currently returns Timezone Information for US only
+based on the cost center's Polling information.
+
+1. Refer Polling Table Timezone field for the cost center's home store passed in if 
+    Cost center category is "D" or "T"
+2. If step 1 is not true or does not result data then 
+    Refer Polling Table Timezone field for the cost center passed in
 
 created : 08/28/2017  rxa457 CCN Project..
 ***********************************************/
 IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2
 IS
-
-  V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
-  V_COUNTRY_CODE              ADDRESS_VW.COUNTRY_CODE%TYPE;
-  V_ZIP_CODE                  ADDRESS_VW.ZIP_CODE%TYPE;
-  V_TIMEZONE_CODE             TIMEZONE.TZ_CD_VALUE%TYPE;
+  V_CATEGORY                  COST_CENTER.CATEGORY%TYPE;
+  V_HOME_STORE                TERRITORY.HOME_STORE%TYPE;	
+  V_TIMEZONE_CODE             CODE_DETAIL.CODE_DETAIL_VALUE%TYPE;
   V_TIMEZONE_DESC             CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
 
 BEGIN
-    --Fetch default address mailing information for the cost center
+
+    --Fetch Cost Center category Information
     BEGIN
-      SELECT STATE_CODE, 
-             COUNTRY_CODE, 
-             ZIP_CODE
-        INTO V_STATE_CODE,
-             V_COUNTRY_CODE,
-             V_ZIP_CODE
-        FROM ADDRESS_VW
-       WHERE ADDRESS_TYPE = 'M'
-         AND EXPIRATION_DATE IS NULL
-         AND COST_CENTER_CODE = IN_COST_CNTR_CD;
+      SELECT CATEGORY 
+        INTO V_CATEGORY
+        FROM COST_CENTER 
+       WHERE COST_CENTER_CODE = IN_COST_CNTR_CD;
     EXCEPTION
-      WHEN OTHERS THEN
-           NULL;
+        WHEN NO_DATA_FOUND THEN
+             NULL;
     END;
     
-    --Look up Timezone table based on Zip code and country code
-    BEGIN
-      SELECT TZ_CD_VALUE
-        INTO V_TIMEZONE_CODE
-        FROM TIMEZONE
-      WHERE  COUNTRY = V_COUNTRY_CODE
-         AND ZIPCODE = V_ZIP_CODE;
-    EXCEPTION
-      WHEN NO_DATA_FOUND THEN
-           NULL;
-    END;
-       
-    --If No match is found based on Zip code then look up based on country and state code
-    IF V_TIMEZONE_CODE IS NULL THEN
+    IF V_CATEGORY ='D' THEN
         BEGIN
-            --Look up Timezone based on State only when there is a single timezone attached for the State
-            --Otherwise the Look up returns NULL when a State has more than one timezone associated
-            SELECT MIN(TZ_CD_VALUE) TZ_CD_VALUE
-              INTO V_TIMEZONE_CODE
-              FROM TIMEZONE
-             WHERE COUNTRY = V_COUNTRY_CODE
-               AND STATE   = V_STATE_CODE
-          GROUP BY COUNTRY, 
-                   STATE 
-            HAVING COUNT(DISTINCT TZ_CD_VALUE) =1;
+           SELECT HOME_STORE
+             INTO V_HOME_STORE
+             FROM DISPATCH_TERMINAL 
+            WHERE COST_CENTER_CODE =  IN_COST_CNTR_CD;
         EXCEPTION
-          WHEN NO_DATA_FOUND THEN
-            NULL;
+            WHEN NO_DATA_FOUND THEN
+                 NULL;
         END;
-    END IF;         
+    ELSIF V_CATEGORY ='T' THEN
+        BEGIN
+           SELECT HOME_STORE
+             INTO V_HOME_STORE
+             FROM TERRITORY 
+            WHERE COST_CENTER_CODE =  IN_COST_CNTR_CD;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                 NULL;
+        END;
+    END IF;
     
+    IF V_HOME_STORE IS NOT NULL THEN
+        BEGIN
+            SELECT TIME_ZONE
+              INTO V_TIMEZONE_CODE
+              FROM POLLING
+             WHERE COST_CENTER_CODE = V_HOME_STORE
+               AND CURRENT_FLAG     = 'Y';
+        EXCEPTION
+            WHEN OTHERS THEN
+                 NULL;
+        END;
+    ELSE
+        BEGIN
+            SELECT TIME_ZONE
+              INTO V_TIMEZONE_CODE
+              FROM POLLING
+             WHERE COST_CENTER_CODE = IN_COST_CNTR_CD
+               AND CURRENT_FLAG     = 'Y';
+        EXCEPTION
+            WHEN OTHERS THEN
+                 NULL;
+        END;
+    END IF;    
+        
     --Look up Timezone description based on timezone code value
     V_TIMEZONE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TIME_ZONE',
                                                                            'COD',
