@@ -1158,20 +1158,22 @@ Changed : 08/29/2017 nxk927 CCN Project....
     IN_DATE            IN         DATE)
 IS
     CURSOR CUR IS
-        SELECT COST_CENTER_CODE,
-               AMOUNT,
-               TO_DATE(TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
-               TCODE,
-               DISTRICT,
-               AREA,
-               DIVISION,
-               TRAN_SEQNUM,
-               DB_CR_CODE,
-               SNZ_SAM_CODE,
-               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,TO_DATE(TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
-               TO_NUMBER(LINE_NUMBER) LINE_NUMBER
-          FROM TEMP_UAR_MISCTRAN MT
-         WHERE EXISTS (SELECT 1
+        SELECT MT.COST_CENTER_CODE,
+               MT.AMOUNT,
+               TO_DATE(MT.TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
+               MT.TCODE,
+               MT.DISTRICT,
+               MT.AREA,
+               MT.DIVISION,
+               MT.TRAN_SEQNUM,
+               PS.DB_CR_CODE,
+               PS.PRIME_SUB,
+               MT.SNZ_SAM_CODE,
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(MT.COST_CENTER_CODE,TO_DATE(MT.TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
+               TO_NUMBER(MT.LINE_NUMBER) LINE_NUMBER
+          FROM TEMP_UAR_MISCTRAN MT, PRIME_SUB_DETAIL PS
+         WHERE MT.TCODE                     = PS.TCODE(+)
+           AND EXISTS (SELECT 1
                          FROM UAR_MISCTRAN
                         WHERE COST_CENTER_CODE     = MT.COST_CENTER_CODE
                           AND TRAN_SEQNUM          = MT.TRAN_SEQNUM
@@ -1202,8 +1204,10 @@ BEGIN
         AND ORIGINATED_BANK_ACCNT_NBR   = V_SRC_BANK_ACCOUNT_NBR
         AND BANK_ACCOUNT_NBR            = V_BANK_ACCOUNT_NBR
         AND TCODE                       = REC.TCODE
+        AND DB_CR_CODE                  = REC.DB_CR_CODE
+        AND PRIME_SUB                   = REC.PRIME_SUB
         AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
-        AND SNZ_SAM_CODE                = REC.SNZ_SAM_CODE
+        AND NVL(SNZ_SAM_CODE,'XXX')     = NVL(REC.SNZ_SAM_CODE,'XXX')
         AND LOAD_DATE                   < IN_DATE;
      V_COUNT := V_COUNT +1;
      IF V_COUNT = 1000 THEN
@@ -1417,7 +1421,7 @@ PROCEDURE GENERATE_FILES(
 /******************************************************************************
   This procedure will generate the uar.position file and the serail.dat file
 
-Created : 07/27/2015 nxk927 CCN Project....
+Created : 07/27/2017 nxk927 CCN Project....
 Changed : 08/15/2017 nxk927 CCN Project....
           Added the process to generate the report if the concentration is not present in our database
 *******************************************************************************/
@@ -1496,36 +1500,41 @@ PROCEDURE UPDATE_OVERSHRT_DUP(
   that came in the overshrt file as sysdate for the load_date field
 
 Created : 08/24/2017 nxk927 CCN Project....
-Changed :
-*****************************************************************************/
+Changed : 08/30/2017 nxk927 CCN Project....
+          Getting PRIME_SUB and DB_CR_CODE from the PRIME_SUB_DETAIL table to use them to update
+          MISCTRAN_DETAIL TABLE
+*****************************************************************************/ 
     IN_DATE            IN         DATE)
 IS
     CURSOR CFA_OVERSHRT IS
-        SELECT COST_CENTER_CODE,
-               AMOUNT,
-               TO_DATE(TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
-               TCODE,
-               DISTRICT,
-               AREA,
-               DIVISION,
-               TRAN_SEQNUM,
-               TRAN_CODE,
-               TO_DATE(TRAN_DATE1,'YYMMDD') TRAN_DATE1,
-               UNKNOWN_FIELD,
-               CODE1,
-               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,TO_DATE(TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
-               TO_NUMBER(LINE_NUMBER) LINE_NUMBER
-          FROM TEMP_UAR_OVERSHRT MT
-         WHERE EXISTS (SELECT 1
+        SELECT OS.COST_CENTER_CODE,
+               OS.AMOUNT,
+               TO_DATE(OS.TRANSACTION_DATE,'YYMMDD') TRANSACTION_DATE,
+               OS.TCODE,
+               OS.DISTRICT,
+               OS.AREA,
+               OS.DIVISION,
+               OS.TRAN_SEQNUM,
+               OS.TRAN_CODE, 
+               PS.DB_CR_CODE,
+               PS.PRIME_SUB,
+               TO_DATE(OS.TRAN_DATE1,'YYMMDD') TRAN_DATE1,
+               OS.UNKNOWN_FIELD,
+               OS.CODE1,
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(OS.COST_CENTER_CODE,TO_DATE(OS.TRANSACTION_DATE,'YYMMDD')) AS ORIG_BANK_ACCOUNT_NBR,
+               TO_NUMBER(OS.LINE_NUMBER) LINE_NUMBER
+          FROM TEMP_UAR_OVERSHRT OS,PRIME_SUB_DETAIL PS
+         WHERE OS.TCODE                     = PS.TCODE(+)
+           AND EXISTS (SELECT 1
                          FROM UAR_OVERSHRT
-                        WHERE COST_CENTER_CODE        = MT.COST_CENTER_CODE
-                          AND TRAN_SEQNUM             = MT.TRAN_SEQNUM
-                          AND NVL(TCODE, 'AAA')       = NVL(MT.TCODE,'AAA')
-                          AND AMOUNT                  = MT.AMOUNT
-                          AND TRANSACTION_DATE        = TO_DATE(MT.TRANSACTION_DATE,'YYMMDD')
-                          AND NVL(TRAN_CODE,'X')      = NVL(MT.TRAN_CODE,'X')
-                          AND NVL(UNKNOWN_FIELD,'X')  = NVL(MT.UNKNOWN_FIELD,'X')
-                          AND NVL(CODE1,'A')          = NVL(MT.CODE1,'A')
+                        WHERE COST_CENTER_CODE        = OS.COST_CENTER_CODE
+                          AND TRAN_SEQNUM             = OS.TRAN_SEQNUM
+                          AND NVL(TCODE, 'AAA')       = NVL(OS.TCODE,'AAA')
+                          AND AMOUNT                  = OS.AMOUNT
+                          AND TRANSACTION_DATE        = TO_DATE(OS.TRANSACTION_DATE,'YYMMDD')
+                          AND NVL(TRAN_CODE,'X')      = NVL(OS.TRAN_CODE,'X')
+                          AND NVL(UNKNOWN_FIELD,'X')  = NVL(OS.UNKNOWN_FIELD,'X')
+                          AND NVL(CODE1,'A')          = NVL(OS.CODE1,'A')
                           AND LOAD_DATE               < IN_DATE);
     V_COUNT NUMBER := 0;
     V_BANK_ACCOUNT_NBR LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
@@ -1547,6 +1556,8 @@ BEGIN
            AND ORIGINATED_BANK_ACCNT_NBR   = V_SRC_BANK_ACCOUNT_NBR
            AND BANK_ACCOUNT_NBR            = V_BANK_ACCOUNT_NBR
            AND TCODE                       = REC.TCODE
+           AND DB_CR_CODE                  = REC.DB_CR_CODE
+           AND PRIME_SUB                   = REC.PRIME_SUB
            AND NVL(SNZ_SAM_CODE,'AAA')     = NVL(REC.TRAN_CODE,'AAA')
            AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
            AND LOAD_DATE                  < IN_DATE;
@@ -1664,6 +1675,7 @@ BEGIN
                                          rec.CODE1,
                                          rec.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
+
         IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
             OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
             V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
