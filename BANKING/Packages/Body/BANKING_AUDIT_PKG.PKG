@@ -3,8 +3,10 @@ CREATE OR REPLACE PACKAGE BODY BANKING_AUDIT_PKG AS
 This package has procedures and functions related to the audit_log table
 
 Created : 09/15/2015 jcx517 CCN project....
-Changed :
+Changed : 08/30/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 ************************************************************/
+    v_max_tran_id_last_batch    AUDIT_LOG.LOG_ID%TYPE;
+    v_max_tran_id_current_batch AUDIT_LOG.LOG_ID%TYPE;
 
 FUNCTION XML_EXTRACT_NO_EXCEPTION(
 /**********************************************************
@@ -260,11 +262,13 @@ BEGIN
        AND AL.TRANSACTION_DATE IN (SELECT MAX(AL1.TRANSACTION_DATE)
                                      FROM AUDIT_LOG AL1
                                     WHERE AL1.TABLE_NAME     = AL.TABLE_NAME
-                                      AND AL1.TRANSACTION_ID = IN_KEY)
+                                      AND AL1.TRANSACTION_ID = IN_KEY
+                                      AND AL1.LOG_ID        <= v_max_tran_id_current_batch)
        AND AL.LOG_ID = (SELECT MAX( AL2.LOG_ID)
                           FROM AUDIT_LOG AL2
                          WHERE AL2.TABLE_NAME = AL.TABLE_NAME
-                           AND AL2.TRANSACTION_ID = IN_KEY)
+                           AND AL2.TRANSACTION_ID = IN_KEY
+                           AND AL2.LOG_ID <= v_max_tran_id_current_batch)
        AND ROWNUM < 2;
     V_CONTEXT := 'Data comparision ignoring some generic columns that always change';
     IF IS_ROW_DATA_DIFFERENT(IN_TABLE_NAME, ROW_PREV, ROW_CURR) THEN
@@ -439,14 +443,39 @@ BEGIN
     OUT_CONTEXT          := V_CONTEXT;
 END PROCESS_AUDIT_LOG;
 
-FUNCTION GET_MAX_TRANS_ID
+FUNCTION GET_MAX_TRANS_ID_LAST_BATCH
 /**********************************************************
-GET_MAX_TRANS_ID
+GET_MAX_TRANS_ID_LAST_BATCH
+
+This function returns the maximum log id from 'AUDIT_LOG' table that is processed and marked as R.
+
+Created : 08/30/2017 gxg192 CCN Project Team . . .
+Modified:
+**********************************************************/
+RETURN audit_log.log_id%TYPE
+IS
+    L_LOG_ID audit_log.log_id%TYPE;
+BEGIN
+
+    SELECT MAX(LOG_ID)
+      INTO L_LOG_ID
+      FROM AUDIT_LOG
+     WHERE AUDIT_REC_FLAG = 'R';
+
+    RETURN L_LOG_ID;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN L_LOG_ID;
+END GET_MAX_TRANS_ID_LAST_BATCH;
+
+FUNCTION GET_MAX_TRANS_ID_CURRENT_BATCH
+/**********************************************************
+GET_MAX_TRANS_ID_CURRENT_BATCH
 
 This function returns the maximum log id from 'AUDIT_LOG' table.
 
-Created : 03/14/2017 gxg192 CCN Project Team . . .
-Modified: 03/17/2017 gxg192 Changes to consider only records after last run date
+Created : 08/30/2017 gxg192 CCN Project Team . . .
 **********************************************************/
 RETURN audit_log.log_id%TYPE
 IS
@@ -457,16 +486,14 @@ BEGIN
       INTO L_LOG_ID
       FROM AUDIT_LOG
      WHERE AUDIT_REC_FLAG IS NULL
-       AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                  FROM BATCH_JOB
-                                 WHERE BATCH_JOB_NAME = 'BANKING_AUDIT_LOG');
+       AND LOG_ID > v_max_tran_id_last_batch;
 
     RETURN L_LOG_ID;
 
 EXCEPTION
     WHEN OTHERS THEN
         RETURN L_LOG_ID;
-END GET_MAX_TRANS_ID;
+END GET_MAX_TRANS_ID_CURRENT_BATCH;
 
 PROCEDURE SELECT_AUDIT_LOG
 /**********************************************************
@@ -478,6 +505,7 @@ Changed : 03/15/2017 gxg192 Changes to run the audit log process again if new re
                             are added in audit log while the initial process was running
         : 03/17/2017 gxg192 Changes to re-run audit process only if v_after_max_tran_id is
                             greater than v_before_max_tran_id.
+        : 08/21/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -485,49 +513,40 @@ IS
                TRANSACTION_ID
           FROM AUDIT_LOG
          WHERE AUDIT_REC_FLAG IS NULL
-           AND TRANSACTION_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                       FROM BATCH_JOB
-                                      WHERE BATCH_JOB_NAME = 'BANKING_AUDIT_LOG');
+           AND LOG_ID > v_max_tran_id_last_batch;
     V_CONTEXT	VARCHAR2(200);
     V_CC_CODE           COST_CENTER.COST_CENTER_CODE%TYPE;
     V_BANK_ACCOUNT_NBR  BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE;
     V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BATCH_JOB_STATUS  BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
-    v_before_max_tran_id AUDIT_LOG.LOG_ID%TYPE := get_max_trans_id();
-    v_after_max_tran_id  AUDIT_LOG.LOG_ID%TYPE;
+
 BEGIN
     V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BANKING_AUDIT_LOG', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    LOOP
-        FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
-            BEGIN
-                SAVEPOINT NEXT_AUDIT_REC;
-                PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID,
-                                  SEL_AUDIT_REC.TABLE_NAME,
-                                  V_BANK_ACCOUNT_NBR,
-                                  V_CC_CODE,
-                                  V_CONTEXT);
-            EXCEPTION
-                WHEN OTHERS THEN
-                    ROLLBACK TO NEXT_AUDIT_REC;
-                    V_TRANS_STATUS := 'ERROR';
-                    errpkg.INSERT_ERROR_LOG_SP(SQLCODE,
-                                               'SELECT_AUDIT_LOG', --proc name
-                                               SUBSTR(SQLERRM,1,500),
-                                               NVL(V_BANK_ACCOUNT_NBR, 'BANK_ACCOUNT_NBR'),
-                                               NVL(V_CC_CODE, 'AUDIT'),
-                                               'BANKING_AUDIT_LOG');
-            END;
-        END LOOP;
 
-        v_after_max_tran_id := get_max_trans_id();
-        IF v_after_max_tran_id > v_before_max_tran_id THEN
-            v_before_max_tran_id := v_after_max_tran_id;
-        ELSE
-            EXIT;
-        END IF;
+    v_max_tran_id_last_batch := get_max_trans_id_last_batch();
+    v_max_tran_id_current_batch := get_max_trans_id_current_batch();
+    FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
+        BEGIN
+            SAVEPOINT NEXT_AUDIT_REC;
+            PROCESS_AUDIT_LOG(SEL_AUDIT_REC.TRANSACTION_ID,
+                              SEL_AUDIT_REC.TABLE_NAME,
+                              V_BANK_ACCOUNT_NBR,
+                              V_CC_CODE,
+                              V_CONTEXT);
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO NEXT_AUDIT_REC;
+                V_TRANS_STATUS := 'ERROR';
+                errpkg.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'SELECT_AUDIT_LOG', --proc name
+                                           SUBSTR(SQLERRM,1,500),
+                                           NVL(V_BANK_ACCOUNT_NBR, 'BANK_ACCOUNT_NBR'),
+                                           NVL(V_CC_CODE, 'AUDIT'),
+                                           'BANKING_AUDIT_LOG');
+        END;
     END LOOP;
 
     V_CONTEXT:='Updating the Status in batch_job table';
