@@ -4,12 +4,13 @@
 # Description   : This shell script will send email  for the passed category as parameter
 #
 # Created  : 10/03/2016 MXK766 CCN Project ....
-# Modified : 
+# Modified : 08/31/2017 rxv940 CCN Project ....
+#          : Call to send_mail now has positional parameters 
 #################################################################
 . /app/ccn/host.sh
 
 
-proc_name="send_mail.sh";
+proc_name="send_mail.sh"
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
@@ -24,7 +25,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail(IN_MAIL_CATEGORY=>'$1',IN_CLOB=>'$2');
+MAIL_PKG.send_mail('$1', NULL, NULL, '$2');
 Exception
 when others then
 :exitCode := 2;
@@ -41,7 +42,7 @@ if test $status -ne 0
 then
     TIME=`date +"%H:%M:%S"`
     echo "processing FAILED for Sending Mail at ${TIME} on ${DATE}"
-    exit 1;
+    exit 1
 fi
 
 TIME=`date +"%H:%M:%S"`

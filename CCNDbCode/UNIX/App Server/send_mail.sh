@@ -9,11 +9,13 @@
 # Modified : 06/22/2017 rxv940 CCN Project Team.....
 #          : Included positional parameters for MAIL_PKG call and 
 #          : corrected the config file name.
+# Modified : 08/31/2017 rxv940 CCN Project ....
+#          : Call to send_mail now has positional parameters
 #################################################################
 . /app/ccn/ccn_app_server.config
 
 
-proc_name="send_mail.sh";
+proc_name="send_mail.sh"
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
@@ -29,7 +31,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-MAIL_PKG.send_mail(IN_MAIL_CATEGORY=>'$1',IN_CLOB=>'$2');
+MAIL_PKG.send_mail('$1', NULL, NULL, '$2');
 Exception
  when others then
  :exitCode := 2;
