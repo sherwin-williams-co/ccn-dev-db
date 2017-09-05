@@ -18,6 +18,16 @@ changed :
 (IN_TRANSACTION_TYPE    IN     VARCHAR2
 ,IN_AMOUNT              IN     NUMBER) RETURN VARCHAR2;
 
+PROCEDURE GENERATE_FIRST_WEEKDAY
+/******************************************************************
+This procedure will return the run date for the monthly process which should be
+1st business day
+
+Created : 09/05/2017 nxk927 CCN Project....
+Changed :
+******************************************************************/
+;
+
 PROCEDURE GENERATE_SECOND_WEEKDAY
 /******************************************************************
 This procedure will return the run date for the monthly process which should be 
