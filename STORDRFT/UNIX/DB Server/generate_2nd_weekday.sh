@@ -8,6 +8,8 @@
 # Created       : 03/01/2016 nxk927 CCN Project Team.....
 # Modified      : 03/18/2016 nxk927 CCN Project Team.....
 #                 Added Error message
+# Modified      : 09/05/2017 nxk927 CCN Project Team.....
+#                 Added call to generate the 1st week day
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -29,6 +31,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
+SD_COMMON_TOOLS.GENERATE_FIRST_WEEKDAY();
 SD_COMMON_TOOLS.GENERATE_SECOND_WEEKDAY();
 EXCEPTION
  when others then
