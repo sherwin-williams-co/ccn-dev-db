@@ -7,7 +7,8 @@
 #
 # Created  : 06/20/2017 gxg192 CCN Project Team....
 # Modified : 06/26/2017 Changes to copy all mainframe files from QA.
-#          : 08/29/2017 Added code to copy SRA11000 file from QA.
+#          : 08/29/2017 rxa457 CCN Project Team...
+#             Added code to copy SRA11000 file from QA
 ###################################################################################
 . /app/banking/dev/banking.config
 
