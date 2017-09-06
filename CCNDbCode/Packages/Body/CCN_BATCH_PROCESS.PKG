@@ -645,7 +645,8 @@ Filters:
 POLLING_STATUS_CODE = 'P'
 CATEGORY IN ('S','O')
 created : 05/25/2017 sxp130 ASP-795
-modified:
+modified: 09/06/2017 sxp130 ASP-795 - Incorporated code changes for PAT E-Mail on
+        : Tuesday, September 05, 2017 10:54AM - PAT's E-mail.
 *******************************************************************************************/
 AS
    CURSOR CUR_COST_CENTER IS
@@ -654,16 +655,61 @@ AS
         WHERE CLOSE_DATE IS NULL
           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
           AND CATEGORY IN ('S', 'O');
+
+   CURSOR CUR_POLLING(P_COST_CENTER_CODE VARCHAR2)  IS
+      SELECT COST_CENTER_CODE
+        FROM POLLING
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND UPPER(POLLING_STATUS_CODE) IN ('P')
+         AND EXPIRATION_DATE IS NULL
+         AND CURRENT_FLAG ='Y';
+
    CURSOR CUR_BANK_CARD (P_COST_CENTER_CODE VARCHAR2) IS
-      SELECT BANK_CARD.*
-        FROM POLLING,
-             BANK_CARD
-       WHERE POLLING.COST_CENTER_CODE = P_COST_CENTER_CODE
-         AND POLLING.COST_CENTER_CODE = BANK_CARD.COST_CENTER_CODE
-         AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P')
-         AND POLLING.POLLING_STATUS_CODE = BANK_CARD.POLLING_STATUS_CODE
-         AND POLLING.EXPIRATION_DATE IS NULL AND POLLING.CURRENT_FLAG ='Y'
-         AND BANK_CARD.EXPIRATION_DATE IS NULL;
+      SELECT MERCHANT_ID
+        FROM BANK_CARD
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND POLLING_STATUS_CODE = 'P'
+         AND EXPIRATION_DATE IS NULL
+         AND NOT REGEXP_LIKE(MERCHANT_ID, '^[9-9]+$' )
+         AND NOT REGEXP_LIKE(MERCHANT_ID, '^[0-0]+$' )
+         --IF MERCHANT_ID all digits are 9's or 0's excluding those recs ex : 999999999 or 000000000 etc.,
+      UNION
+      SELECT PCI_MERCHANT_ID
+       FROM BANK_CARD
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND POLLING_STATUS_CODE = 'P'
+         AND EXPIRATION_DATE IS NULL
+         AND NOT REGEXP_LIKE(PCI_MERCHANT_ID, '^[9-9]+$' )
+         AND NOT REGEXP_LIKE(PCI_MERCHANT_ID, '^[0-0]+$' )
+         --IF PCI_MERCHANT_ID all digits are 9's or 0's excluding those recs ex : 999999999 or 000000000 etc.,
+      UNION
+      SELECT DISCOVER_ID
+        FROM BANK_CARD
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND POLLING_STATUS_CODE = 'P'
+         AND EXPIRATION_DATE IS NULL
+         AND NOT REGEXP_LIKE(DISCOVER_ID, '^[9-9]+$' )
+         AND NOT REGEXP_LIKE(DISCOVER_ID, '^[0-0]+$' )
+         --IF DISCOVER_ID all digits are 9's or 0's excluding those recs ex : 999999999 or 000000000 etc.,
+      UNION
+      SELECT PCI_DISCOVER_ID
+        FROM BANK_CARD
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND POLLING_STATUS_CODE = 'P'
+         AND EXPIRATION_DATE IS NULL
+         AND NOT REGEXP_LIKE(PCI_DISCOVER_ID, '^[9-9]+$' )
+         AND NOT REGEXP_LIKE(PCI_DISCOVER_ID, '^[0-0]+$' )
+         --IF PCI_DISCOVER_ID all digits are 9's or 0's excluding those recs ex : 999999999 or 000000000 etc.,
+      UNION
+      SELECT AMEX_SE_ID
+        FROM BANK_CARD
+       WHERE COST_CENTER_CODE = P_COST_CENTER_CODE
+         AND POLLING_STATUS_CODE = 'P'
+         AND EXPIRATION_DATE IS NULL
+         AND NOT REGEXP_LIKE(AMEX_SE_ID, '^[9-9]+$' )
+         AND NOT REGEXP_LIKE(AMEX_SE_ID, '^[0-0]+$' ) 
+         --IF AMEX_SE_ID all digits are 9's or 0's excluding those recs ex : 999999999 or 000000000 etc.,
+         ;
 
    --Variable Declaration
    PATH                VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
@@ -672,48 +718,40 @@ AS
    V_CLOB              CLOB;
    V_CLOB_FOR_EMAIL    CLOB;
    V_MERCHANT_ID       VARCHAR2(200);
-   V_PCI_MERCHANT_ID   VARCHAR2(200);
-   V_DISCOVER_ID       VARCHAR2(200);
-   V_PCI_DISCOVER_ID   VARCHAR2(200);
-   V_AMEX_SE_ID        VARCHAR2(200);
+   V_COST_CENTER_CODE  VARCHAR2(6);
+   V_COST_CENTER_4_DIGIT  VARCHAR2(4);
 BEGIN
    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
                                  ,FILENAME
                                  , 'W' --BINARY
                                  , 32767);
    FOR REC_CC IN CUR_COST_CENTER LOOP
+      FOR REC_POLLING IN CUR_POLLING (REC_CC.COST_CENTER_CODE)  LOOP
+         V_COST_CENTER_CODE := REC_POLLING.COST_CENTER_CODE;
+      END LOOP;
+
       --Variable initialize to NULL
-      V_MERCHANT_ID       := NULL;
-      V_PCI_MERCHANT_ID   := NULL;
-      V_DISCOVER_ID       := NULL;
-      V_PCI_DISCOVER_ID   := NULL;
-      V_AMEX_SE_ID        := NULL;
-      V_CLOB              := NULL;
-     /*Fetch Bank_Card Information for MERCHANT_ID, PCI_MERCHANT_ID, DISCOVER_ID, PCI_DISCOVER_ID and AMEX_SE_ID*/
-         FOR REC_BC IN CUR_BANK_CARD (REC_CC.COST_CENTER_CODE)  LOOP
-            V_MERCHANT_ID      := REC_BC.MERCHANT_ID;
-            V_PCI_MERCHANT_ID  := REC_BC.PCI_MERCHANT_ID;
-            V_DISCOVER_ID      := REC_BC.DISCOVER_ID;
-            V_PCI_DISCOVER_ID  := REC_BC.PCI_DISCOVER_ID;
-            V_AMEX_SE_ID       := REC_BC.AMEX_SE_ID;
-         END LOOP;
-      IF V_MERCHANT_ID IS NOT NULL THEN
-         V_CLOB :=  V_MERCHANT_ID               || ',' ||
-                    SUBSTR(V_MERCHANT_ID, 7, 4) || ',' ||
-                    V_PCI_MERCHANT_ID           || ',' ||
-                    V_DISCOVER_ID               || ',' ||
-                    V_PCI_DISCOVER_ID           || ',' ||
-                    V_AMEX_SE_ID                ;
-      END IF;
-      IF V_CLOB <> EMPTY_CLOB() THEN
-         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+      V_MERCHANT_ID         := NULL;
+      V_COST_CENTER_4_DIGIT := NULL;
+     /*Fetch Bank_Card Information for each Store*/
+      FOR REC_BC IN CUR_BANK_CARD (V_COST_CENTER_CODE)  LOOP
+         V_MERCHANT_ID      := REC_BC.MERCHANT_ID;
+         V_COST_CENTER_4_DIGIT := SubStr(V_COST_CENTER_CODE, 3);
+         IF V_MERCHANT_ID IS NOT NULL THEN
+            V_CLOB :=  V_MERCHANT_ID         || ',' ||
+                       V_COST_CENTER_4_DIGIT ;
+         END IF;
+         IF V_CLOB <> EMPTY_CLOB() THEN
+            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
             IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
                V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
             ELSE
                V_CLOB_FOR_EMAIL := V_CLOB;
             END IF;
-      END IF;
-   END LOOP;
+         END IF;
+      END LOOP;
+
+    END LOOP;
    UTL_FILE.FCLOSE(OUTPUT_FILE);
    --Sending mail for the category 'STORE_BANK_CARD_MERCHANT'
    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
