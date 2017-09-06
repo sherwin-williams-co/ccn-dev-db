@@ -6,7 +6,7 @@ Script Name: DML_mail_banking_dataload_and_diff_process.SQL
 
 Created  : 05/23/2017 gxg192 CCN Project....
 Modified : 06/23/2017 gxg192 Removed setup for success email.
-         : 08/30/2017 gxg192 Added setup for SRA11000 summary file.
+         : 08/30/2017 rxa457 Added setup for SRA11000 summary file.
 *****************************************************************************/
 
 SET DEFINE OFF;
