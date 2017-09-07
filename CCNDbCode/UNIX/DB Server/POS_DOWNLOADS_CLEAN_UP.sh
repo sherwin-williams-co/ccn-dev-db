@@ -14,7 +14,7 @@ IN_FILE_TYPE=$1
 
 echo " Connecting to the DB .... "
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<EOF
+sqlplus -s -l $ccn_utility_un/$ccn_utility_pwd <<EOF
 set heading off;
 set serveroutput on;
 set verify off;
