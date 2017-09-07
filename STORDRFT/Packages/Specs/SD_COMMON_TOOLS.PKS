@@ -38,18 +38,4 @@ Changed :
 ******************************************************************/
 ;
 
-FUNCTION FORMAT_INPUT_FOR_FILE(
-/*****************************************************************************
-This function will return the formatted data as requested
-
-Created : jxc517 CCN Project....
-Changed : 04/29/2016 axk326 Used the same code snippet and created a separate
-          function for POSXML load purpose.
-*****************************************************************************/
-IN_VALUE         IN VARCHAR2,
-IN_PADDING_VALUE IN VARCHAR2,
-IN_LENGTH        IN NUMBER,
-IN_PRECISION     IN NUMBER DEFAULT 0
-) RETURN VARCHAR2;
-
 END SD_COMMON_TOOLS;
