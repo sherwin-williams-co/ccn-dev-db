@@ -5,7 +5,8 @@
 # Description   : This script is to call polling process for TERR, STORE and PARAM 
 #               : inits on arrival of .queue and .queue_trgr files in the APP Server
 # Created  : 08/17/2017 rxv940 CCN Project Team.....
-# Modified : 
+# Modified : 09/07/2017 rxv940 CCN Project Team.....
+#          : Added a missing double quote
 #####################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -47,6 +48,6 @@ echo " $PROC_NAME --> Archiving $CCD.queue_trgrfile completed at $DATE:$TIME "
 
 mv "$ARCHIVEDIR"/"$CCD".queue "$ARCHIVEDIR"/"$CCD"_"$DATE".queue
 TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Renaming $ARCHIVEDIR"/"$CCD".queue to "$ARCHIVEDIR"/"$CCD"_"$DATE".queue completed at $DATE:$TIME "
+echo " $PROC_NAME --> Renaming "$ARCHIVEDIR"/"$CCD".queue to "$ARCHIVEDIR"/"$CCD"_"$DATE".queue completed at $DATE:$TIME "
 
 exit 0
