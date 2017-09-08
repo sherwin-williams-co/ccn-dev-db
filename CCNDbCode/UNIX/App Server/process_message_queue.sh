@@ -24,10 +24,10 @@ echo " $PROC_NAME --> Processing started at $DATE $TIME"  > "$LOGDIR/process_mes
 
 #Go the class file path and call the java method by passing .ccdt file as parameters
 QueueMessage=$(java \
--Djavax.net.ssl.keyStore=/app/ccn/PollingQueue/mq-ccn-keys.jks \
--Djavax.net.ssl.trustStore=/app/ccn/PollingQueue/mq-ccn-keys.jks \
--Djavax.net.ssl.keyStorePassword=ccn \
--Djavax.net.ssl.trustStorePassword=ccn \
+-Djavax.net.ssl.keyStore="$MQ_CCN_KEY_UN" \
+-Djavax.net.ssl.trustStore="$MQ_CCN_KEY_UN" \
+-Djavax.net.ssl.keyStorePassword="$MQ_CCN_KEY_PWD" \
+-Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
 -classpath .:../PollingQueue/lib/com.ibm.dhbcore.jar:../PollingQueue/lib/com.ibm.mq.jar:../PollingQueue/lib/com.ibm.mqjms.jar:../PollingQueue/lib/connector.jar:../PollingQueue/lib/javax.jms.jar:../PollingQueue com.webservice.ReadMessageQueue "/app/ccn/PollingQueue/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
 
 TIME=$(date +"%H%M%S")
@@ -47,14 +47,18 @@ if [ ! -z "$QueueMessage" ]; then
 
     else
 
-        #No issues so generating a file with message in the queue.
-        TIME=$(date +"%H%M%S")
-        echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 
-        echo " $PROC_NAME --> Created a Message file $DATADIR/$FILENAME at $DATE $TIME " > "$LOGDIR/process_message_queue.log"
-        echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " > "$LOGDIR/process_message_queue.log"
-        $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE" > "$LOGDIR/process_message_queue.log"
-        $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE" > "$LOGDIR/process_message_queue.log"
-        nohup sh $SCRIPT_DIR/call_polling_for_init_loads_bg.sh > $LOGDIR/call_polling_for_init_loads_bg.log 2>&1 &
+        if [ -s $DATADIR/$FILENAME ] then
+            #No issues so generating a file with message in the queue.
+            TIME=$(date +"%H%M%S")
+            echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 
+            echo " $PROC_NAME --> Created a Message file $DATADIR/$FILENAME at $DATE $TIME " > "$LOGDIR/process_message_queue.log"
+            echo " $PROC_NAME --> Starting FTP of Trigger file to DB Server at $DATE $TIME " > "$LOGDIR/process_message_queue.log"
+            $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$TRGRFILE" > "$LOGDIR/process_message_queue.log"
+            $SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$TRGRFILE" > "$LOGDIR/process_message_queue.log"
+            nohup sh $SCRIPT_DIR/call_polling_for_init_loads_bg.sh > $LOGDIR/call_polling_for_init_loads_bg.log 2>&1 &
+        else
+            echo " $PROC_NAME --> queue file hasn't created " > "$LOGDIR/process_message_queue.log"
+        fi
     fi
     
 else
