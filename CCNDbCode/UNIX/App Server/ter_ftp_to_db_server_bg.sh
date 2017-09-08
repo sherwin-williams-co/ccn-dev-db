@@ -22,7 +22,7 @@ while(true)
 do
 
 #Check for .REQUEST file 
-if [ $(ls "$DATADIR/$TER_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
+if [ -f "$DATADIR/$TER_FILE_NAME"*".REQUEST"  ] 
 then
     $SCRIPT_DIR/ter_mv_rqst_to_db_server.sh
 fi

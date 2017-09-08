@@ -23,7 +23,7 @@ while(true)
 do
 
 #Check for .POLLINGDONE file 
-if [ $(ls "$DATADIR/$GL_PS_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l) -gt 0 ] 
+if [ -f "$DATADIR/$GL_PS_FILE_NAME"*".POLLINGDONE" ] 
 then
     $HOME/gl_ps_mv_posfiles_to_app_server.sh
 fi

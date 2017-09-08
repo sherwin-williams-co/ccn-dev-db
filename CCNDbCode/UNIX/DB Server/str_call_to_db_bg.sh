@@ -22,7 +22,7 @@ while(true)
 do
 
 #Check for .REQUEST file
-if [ $(ls "$DATADIR/$STR_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
+if [ -f "$DATADIR/$STR_FILE_NAME"*".REQUEST" ] 
 then
     $HOME/str_upd_pos_rqst_id.sh
 fi
