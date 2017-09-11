@@ -19,10 +19,11 @@
 . /app/ccn/host.sh
 DATADIR="$HOME"/datafiles
 
-while true;do
+while(true)
+do
 
 #Check for .POLLINGDONE file 
-if [ -f "$DATADIR/$STR_FILE_NAME"*".POLLINGDONE" ] 
+if [ $(ls "$DATADIR/$STR_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l) -gt 0 ] 
 then
     $HOME/str_mv_posfiles_to_app_server.sh
 fi

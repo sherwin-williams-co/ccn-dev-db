@@ -22,7 +22,7 @@ while(true)
 do
 
 #Check for .REQUEST file 
-if [ -f "$DATADIR/$GL_PS_FILE_NAME"*".REQUEST" ] 
+if [ $(ls "$DATADIR/$GL_PS_FILE_NAME"*".REQUEST" 2>/dev/null | wc -l) -gt 0 ] 
 then
     $SCRIPT_DIR/gl_ps_mv_rqst_to_db_server.sh
 fi

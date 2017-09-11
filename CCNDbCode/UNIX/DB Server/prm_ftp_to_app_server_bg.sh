@@ -23,7 +23,7 @@ while(true)
 do
 
 #Check for .POLLINGDONE file 
-if [ -f "$DATADIR/$PRM_FILE_NAME"*".POLLINGDONE" ] 
+if [ $(ls "$DATADIR/$PRM_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l) -gt 0 ] 
 then
     $HOME/prm_mv_posfiles_to_app_server.sh
 fi

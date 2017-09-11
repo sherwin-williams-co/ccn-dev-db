@@ -16,7 +16,7 @@ ARCHIVEDIR=$DATADIR/polling/archive
 while(true)
 do
 
-if [ -f "$DATADIR/$CCD.TRGRFILE" ]
+if [ $(ls "$DATADIR/$CCD.TRGRFILE" 2>/dev/null | wc -l) -gt 0 ]
 then
     mv "$DATADIR/$CCD.TRGRFILE" "$ARCHIVEDIR"
     $HOME/call_to_init_loads_sql.sh
