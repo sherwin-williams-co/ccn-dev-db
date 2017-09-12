@@ -17,7 +17,7 @@ DATADIR="$HOME/POSdownloads/POSxmls"
 LOGDIR="$HOME/POSdownloads/log"
 FILENAME=$CCD.queue
 TRGRFILE=$CCD.TRGRFILE
-
+ERRORDIR="$HOME/POSdownloads/error"
 DATE=$(date +"%d%m%Y")
 
 echo " $PROC_NAME --> Processing started at $DATE $TIME"  > "$LOGDIR/process_message_queue.log"
@@ -30,11 +30,12 @@ QueueMessage=$(java \
 -Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
 -classpath .:../PollingQueue/lib/com.ibm.dhbcore.jar:../PollingQueue/lib/com.ibm.mq.jar:../PollingQueue/lib/com.ibm.mqjms.jar:../PollingQueue/lib/connector.jar:../PollingQueue/lib/javax.jms.jar:../PollingQueue com.webservice.ReadMessageQueue "/app/ccn/PollingQueue/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
 
+QueueMessage="some randomexceoption generated error"
 TIME=$(date +"%H%M%S")
 #Print the output of java program
 if [ ! -z "$QueueMessage" ]; then
     echo "$QueueMessage"  >> $DATADIR/$FILENAME
-
+   
     TIME=$(date +"%H%M%S")
     #If the response has errors, then log the error and move it to the error folder.
     if  [[ `echo "$QueueMessage" | egrep -i 'invalid number of arguments passed|invalid file path provided|exception|error'` > 0 ]];
@@ -42,12 +43,14 @@ if [ ! -z "$QueueMessage" ]; then
         TIME=$(date +"%H%M%S")
         #Log the Error Message.
         echo " $PROC_NAME --> Error in Reading Message queue from com.webservice.ReadMessageQueue :$QueueMessage at $DATE $TIME"  > "$LOGDIR/process_message_queue.log"
+        mv "$DATADIR/$FILENAME" "$ERRORDIR" 
         $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
         exit 1
 
     else
 
-        if [ -s $DATADIR/$FILENAME ] then
+        if [ -s $DATADIR/$FILENAME ] 
+        then
             #No issues so generating a file with message in the queue.
             TIME=$(date +"%H%M%S")
             echo "This is a Trigger File" > "$DATADIR/$TRGRFILE" 
