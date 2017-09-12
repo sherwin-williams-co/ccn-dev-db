@@ -30,7 +30,6 @@ QueueMessage=$(java \
 -Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
 -classpath .:../PollingQueue/lib/com.ibm.dhbcore.jar:../PollingQueue/lib/com.ibm.mq.jar:../PollingQueue/lib/com.ibm.mqjms.jar:../PollingQueue/lib/connector.jar:../PollingQueue/lib/javax.jms.jar:../PollingQueue com.webservice.ReadMessageQueue "/app/ccn/PollingQueue/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
 
-QueueMessage="some randomexceoption generated error"
 TIME=$(date +"%H%M%S")
 #Print the output of java program
 if [ ! -z "$QueueMessage" ]; then
