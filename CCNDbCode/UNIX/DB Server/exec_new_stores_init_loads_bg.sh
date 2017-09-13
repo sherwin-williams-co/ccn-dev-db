@@ -23,7 +23,7 @@ then
     $HOME/call_to_init_loads_sql.sh
     echo "Trigger file to denote the completion of Init loads. " > "$DATADIR/$CCD.queue_trgrfile"
     $HOME/polling_dwnld_files_ftp_to_app_server.sh "$CCD.queue_trgrfile"
-    mv "$CCD.queue_trgrfile" "$ARCHIVEDIR"
+    mv "$DATADIR/$CCD.queue_trgrfile" "$ARCHIVEDIR"
 fi
 
 done
