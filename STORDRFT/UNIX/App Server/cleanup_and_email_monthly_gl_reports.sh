@@ -3,6 +3,9 @@
 # Script to Cleanup the generated files after completion of process or during errors
 # and send email if any errors or exceptions found in the log file
 # Created:  5/16/2017 rxa457
+# Modified: 09/13/2017 rxa457 CCN Project Team...
+#              Removing tail function to extract current log information from BP log
+#              and removing single quotes from current log before sending email
 ##########################################################
 
 ###############################################

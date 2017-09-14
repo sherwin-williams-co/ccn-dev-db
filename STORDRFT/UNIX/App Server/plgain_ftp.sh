@@ -9,6 +9,9 @@
 # modified: 05/16/2017 rxa457 - asp-781 CCN Project Team... 
 # Added conditions to ftp the file only when no errors or exceptions found in the log file, 
 # else will email the error log file
+#         : 09/14/2017 rxa457 CCN Project Team...
+#               Checking current run's log information for any errors instead of checking the 
+#                main BP log which accumulates all the month's run log into the same file
 ##########################################################
 dt=`date +"%m%d%Y"`
 #check for existance of glreport.txt in the folder. Cleanup and Email if report file not found
