@@ -8,13 +8,13 @@
 ###############################################
 # Cleanup the Generated report TXT and PDF files; and then email the generated error LOG file
 ###############################################
+dt=`date +"%m%d%Y"`
 echo "\nSTART CLEANUP_AND_EMAIL: Errors / Exceptions occured -- Removing generated report Files and Emailing the Log File.."
 
 #Invoke cleanup function to remove the generated files
 ./cleanup_monthly_gl_reports.sh
 
-#Cat Current Run's Log Information into variable
-logfile=`cat /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current.log`
+logfile=`sed "s/'//g" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current_${dt}.log`
 
 #Emailing the Current run's Log File
 ./send_mail.sh MONTHLY_REPORTS_RUN_BP "$logfile"
