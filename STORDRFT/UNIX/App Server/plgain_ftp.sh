@@ -10,6 +10,9 @@
 # Added conditions to ftp the file only when no errors or exceptions found in the log file, 
 # else will email the error log file
 ##########################################################
+#Extract Current Run's log information
+./extract_current_run_log.sh
+
 #check for existance of glreport.txt in the folder. Cleanup and Email if report file not found
 if [ ! -f /app/strdrft/sdReport/reports/final/glreport.txt ]
 then
@@ -19,8 +22,8 @@ then
 fi
     
 #Check for Exceptions or Errors in the log file. Cleanup and Email if errors or exception found
-val=`grep -i "Exception" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp.log`
-vale=`grep -i "Error" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp.log`
+val=`grep -i "Exception" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current.log`
+vale=`grep -i "Error" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current.log`
 if [ ! -z "$val" ] || [ ! -z "$vale" ]
 then
     echo "Exceptions found in the Log file.. skipping FTP process.  Starting cleanup_and_email now.. Please check the Log File for more details\n"

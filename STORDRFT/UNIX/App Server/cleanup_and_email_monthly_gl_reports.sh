@@ -13,10 +13,8 @@ echo "\nSTART CLEANUP_AND_EMAIL: Errors / Exceptions occured -- Removing generat
 #Invoke cleanup function to remove the generated files
 ./cleanup_monthly_gl_reports.sh
 
-#Identify starting Line number of current run from the log file
-curlineno=`grep -n "sd_monthly_load.trg trigger file found at" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp.log|cut -f1 -d:|tail -1`
-#Tail the current run log file content
-logfile=`sed -n -e ''''$curlineno''',$p' /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp.log`
+#Cat Current Run's Log Information into variable
+logfile=`cat /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current.log`
 
 #Emailing the Current run's Log File
 ./send_mail.sh MONTHLY_REPORTS_RUN_BP "$logfile"
