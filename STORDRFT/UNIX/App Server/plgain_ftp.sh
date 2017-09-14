@@ -23,8 +23,8 @@ then
 fi
     
 #Check for Exceptions or Errors in the log file. Cleanup and Email if errors or exception found
-val=`grep -i "Exception" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current_${dt}.log`
-vale=`grep -i "Error" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current_${dt}.log`
+val=`grep -i "Exception" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_${dt}.log`
+vale=`grep -i "Error" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_${dt}.log`
 if [ ! -z "$val" ] || [ ! -z "$vale" ]
 then
     echo "Exceptions found in the Log file.. skipping FTP process.  Starting cleanup_and_email now.. Please check the Log File for more details\n"

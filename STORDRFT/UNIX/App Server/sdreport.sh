@@ -19,7 +19,7 @@ TIME=`date +"%H:%M:%S"`
 dt=`date +"%m%d%Y"`
 echo "\nStarted running files at $TIME on $DATE "
 
-./pl_gain.sh /app/strdrft/sdReport/data/run1.txt > /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current_${dt}.log 2>&1
+./pl_gain.sh /app/strdrft/sdReport/data/run1.txt > /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_${dt}.log 2>&1
 
 #Verify status code and the log file for any instance of Exceptions or errors; If true then exit with status code 1
 status=$?

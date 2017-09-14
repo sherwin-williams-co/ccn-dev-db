@@ -17,7 +17,8 @@ echo "\nSTART CLEANUP_AND_EMAIL: Errors / Exceptions occured -- Removing generat
 #Invoke cleanup function to remove the generated files
 ./cleanup_monthly_gl_reports.sh
 
-logfile=`sed "s/'//g" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_Current_${dt}.log`
+#Replace any single quotes with " ''' " before passing into send_mail pkg to avoid errors
+logfile=`sed "s/'/'''/g" /app/strdrft/sdReport/logs/Monthly_Reports_Run_bp_${dt}.log`
 
 #Emailing the Current run's Log File
 ./send_mail.sh MONTHLY_REPORTS_RUN_BP "$logfile"
