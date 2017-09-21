@@ -1365,7 +1365,15 @@ FUNCTION GET_FIPS_CODE(
     This function will get the FIPS code based on state 
 
 Created : 09/07/2016 jxc517 CCN Project Team....
-Modified:
+modified :09/21/2017 sxh487
+          1) Get the FIPS code based on the zip code and state code passed
+          2) Get the STATE_CD based on State Description passed
+          3) Get the COUNTY_CD based on County Description passed
+             If nothing found the FIPS code will just be State FIPS Code, Else it will be State FIPS Code concatenated with County FIPS Code
+          4) Get the City Code based on City Description passed 
+             If nothing found the FIPS code will just be State FIPS Code concatenated with Country FIPS Code,Else it will be State FIPS Code 
+             concatenated with County FIPS Code concatenated with City FIPS Code.
+          5) If we get multiple records based on above conditions we go with the NULL ZIP Code record.
 *******************************************************************************/
     IN_STATE_CODE      IN    VARCHAR2,
     IN_COUNTY          IN    VARCHAR2,
@@ -1373,36 +1381,66 @@ Modified:
     IN_ZIP_CODE        IN    VARCHAR2)
 RETURN VARCHAR2
 IS
-    V_FIPS_CODE      VARCHAR2(50);
+    V_FIPS_CODE            VARCHAR2(50);
+    V_STATE_CD             VARCHAR2(50);
+    V_COUNTY_CD            VARCHAR2(50);
+    V_CITY_CD              VARCHAR2(50);
 BEGIN
-    --Get the FIPS_CODE from HEARS view based on State, County and City
-    BEGIN
-        SELECT DISTINCT FIPS_CD
-          INTO V_FIPS_CODE
-          FROM FIPS_CODE_DETAILS
-         WHERE STATE_DESC = IN_STATE_CODE
-           AND UPPER(COUNTY_DESC) = NVL(UPPER(IN_COUNTY), UPPER(IN_CITY))
-           AND UPPER(CITY_DESC) = UPPER(IN_CITY)
-           AND ROWNUM < 2;
-    EXCEPTION
+     --Get the FIPS Code based on ZIP CODE passed
+     BEGIN
+         SELECT DISTINCT FIPS_CD
+           INTO V_FIPS_CODE
+           FROM FIPS_CODE_DETAILS
+          WHERE STATE_DESC            = IN_STATE_CODE
+            AND NVL(ZIP_CODE, 'XXX')  = NVL(IN_ZIP_CODE,'YYY')
+            AND ROWNUM < 2;
+     EXCEPTION
         WHEN OTHERS THEN
-            V_FIPS_CODE := NULL;
-    END;
+            NULL;
+     END;
+     
+     IF V_FIPS_CODE IS NULL THEN
+         --Get the State Code based on State Description passed
+         SELECT DISTINCT STATE_CD
+           INTO V_STATE_CD
+           FROM FIPS_CODE_DETAILS
+          WHERE STATE_DESC = IN_STATE_CODE
+            AND ROWNUM < 2;
+         V_FIPS_CODE := V_STATE_CD;
 
-    --If above criteria doesn't return anything, take the first record from HEARS view based on State and Zip Code
-    IF V_FIPS_CODE IS NULL AND IN_ZIP_CODE IS NOT NULL THEN
-        BEGIN
-            SELECT DISTINCT FIPS_CD
-              INTO V_FIPS_CODE
-              FROM FIPS_CODE_DETAILS
-             WHERE STATE_DESC = IN_STATE_CODE
-               AND NVL(ZIP_CODE, 'XXX') = IN_ZIP_CODE
-               AND ROWNUM < 2;
-        EXCEPTION
+         --Get the COUNTY_CD based on County Description passed
+         SELECT DISTINCT COUNTY_CD
+           INTO V_COUNTY_CD
+           FROM FIPS_CODE_DETAILS
+          WHERE STATE_CD = V_STATE_CD
+            AND UPPER(regexp_replace(COUNTY_DESC, '[^a-zA-Z]')) = UPPER(regexp_replace(IN_COUNTY, '[^a-zA-Z]'))
+            AND ROWNUM < 2;
+         V_FIPS_CODE := V_STATE_CD || V_COUNTY_CD;
+
+         --Get the City Code based on City Description passed
+         BEGIN
+           SELECT DISTINCT CITY_CD
+             INTO V_CITY_CD
+             FROM FIPS_CODE_DETAILS
+            WHERE STATE_CD = V_STATE_CD
+              AND COUNTY_CD = V_COUNTY_CD
+              AND UPPER(regexp_replace(CITY_DESC, '[^a-zA-Z]')) = UPPER(regexp_replace(IN_CITY, '[^a-zA-Z]'));
+         EXCEPTION
+             WHEN NO_DATA_FOUND THEN
+                 NULL;
              WHEN OTHERS THEN
-                 V_FIPS_CODE := NULL;
-        END;
-    END IF;
+                 SELECT DISTINCT FIPS_CD
+                   INTO V_FIPS_CODE
+                   FROM FIPS_CODE_DETAILS
+                  WHERE STATE_CD  = V_STATE_CD
+                    AND COUNTY_CD = V_COUNTY_CD
+                    AND UPPER(regexp_replace(CITY_DESC, '[^a-zA-Z]')) = UPPER(regexp_replace(IN_CITY, '[^a-zA-Z]'))
+                    AND ZIP_CODE IS NULL
+                    AND ROWNUM < 2;
+         END;
+         V_FIPS_CODE := V_STATE_CD || V_COUNTY_CD || V_CITY_CD;
+     END IF;        
+     
     RETURN V_FIPS_CODE;
 EXCEPTION
     WHEN OTHERS THEN
