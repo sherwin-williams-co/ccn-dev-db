@@ -6,8 +6,6 @@
 # Created  : 06/21/2017 gxg192 CCN Project Team
 # Modified : 06/26/2017 gxg192 Removed SENDEMAIL function. Changes to pass only category
 #                              while calling send_mail.sh
-#           : 09/21/2017 rxa457 CCN Project Team...
-#             Removed renaming and archive process for Mainframe input files
 #####################################################################################
 . /app/banking/dev/banking.config
 
@@ -17,6 +15,20 @@ TIME=`date +"%H:%M:%S"`
 RUNDATE=`date +"%d-%b-%Y"`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
+
+#####################################################################################
+# Copy the mainframe files from qa on banking app server to load the data 
+# so that data is available in external tables used for creating the diff report.
+#####################################################################################
+./copy_mainframe_files.sh
+
+status=$?
+if [ $status -ne 0 ]; then
+     TIME=`date +"%H:%M:%S"`
+     echo "Processing failed for copy_mainframe_files.sh at $TIME on $DATE"
+     ./send_mail.sh BANKING_DIFF_PROCESS_ERROR
+     exit 1
+fi
 
 #####################################################################################
 # Load data from Main frame into FF tables for Gift card and Ticket/Bag
