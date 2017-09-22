@@ -5,6 +5,9 @@
 #                 Gift Card and Ticket/Bag.
 # Created  : 06/22/2017 gxg192 CCN Project Team....
 # Modified : 06/26/2017 gxg192 Changes to archive all files on single folder.
+# Modifled : 09/21/2017 rxa457 CCN Project Team...
+#              Gift card file SRA30000_D$YYMMDD* is no longer downloaded into 
+#                lower envs and the archive of this file is done by a spearate archive process in QA
 ###########################################################################
 . /app/banking/dev/banking.config
 
@@ -17,8 +20,7 @@ YYMMDD=`date +"%y%m%d"`
 filename_dept_tick="STE03062_DEPST.TXT"
 filename_interim_dep="STE03064_DEPST.TXT"
 filename_flatfile_gc="GIFT_CARD_POS_TRANS_FILE.TXT"
-filename_mf_file_gc="SRA30000_D$YYMMDD*"
-
+filename_sra11000="SRA10510.TXT"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 
@@ -67,18 +69,29 @@ else
     exit 1
 fi
 
-if ls $INITLOADPATH/$filename_mf_file_gc &> /dev/null; then
-    echo "$INITLOADPATH/$filename_mf_file_gc files exist "
-    mv $INITLOADPATH/$filename_mf_file_gc $ARCHIVE_PATH/$FOLDER
-else
-    echo "$INITLOADPATH/$filename_mf_file_gc files does not exist"
-    exit 1
-fi
-
 TIME=`date +"%H:%M:%S"`
 echo "Archiving finished for Gift Card at ${TIME} on ${DATE}"
 
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for $proc_name at $TIME on $DATE"
+
+#################################################################
+#         Archive SRA10510 File
+#################################################################
+if ls $INITLOADPATH/$filename_sra11000 &> /dev/null; then
+    echo "$INITLOADPATH/$filename_sra11000 files exist "
+    mv $INITLOADPATH/$filename_sra11000 $ARCHIVE_PATH/$FOLDER
+else
+    echo "$INITLOADPATH/$filename_sra11000 files does not exist"
+    exit 1
+fi
+
+TIME=`date +"%H:%M:%S"`
+echo "Archiving finished for SRA10510 at ${TIME} on ${DATE}"
+
+
+TIME=`date +"%H:%M:%S"`
+echo "Processing Finished for $proc_name at $TIME on $DATE"
+
 exit 0

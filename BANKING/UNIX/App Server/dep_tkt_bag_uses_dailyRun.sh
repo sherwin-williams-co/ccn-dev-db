@@ -8,14 +8,14 @@
 #                 2. invoke the procedure that performs the core process
 #                 3. archieve the files in it's corresponding folder
 #
-# Created  : 09/09/2016 nxk927 CCN Project Team.....
+# Created  : 09/09/2016 nxk927 CCN Project Team...
+# Modified : 09/21/2017 rxa457 CCN Project Team...
+#                renamed and archive steps moved to separate Cron process "rename_archive_mf_input_files"
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
 proc_name="dep_tkt_bag_uses_dailyRun"
-DATA_FILES_PATH="$HOME/initLoad"
-ARCHIVE_PATH="$HOME/initLoad/archieve/DEP_TKT_BAG"
 LOGDIR=$HOME/logs
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
@@ -23,33 +23,6 @@ TimeStamp=`date '+%Y%m%d%H%M%S'`
 FOLDER=`date +"%m%d%Y"`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
-
-#################################################################
-#          Control will output if directory with that date exists
-#################################################################
-if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
-   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
-else
-  echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
-  mkdir $ARCHIVE_PATH/$FOLDER
-fi
-
-#################################################################
-#                                          Rename the input files
-#################################################################
-TIME=`date +"%H:%M:%S"`
-echo "Processing Started for Renaming deposit files at $TIME on $DATE"
-if [ -f $DATA_FILES_PATH/STE03062_DEPST_D*.TXT ] 
-then
-    echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/STE03062_DEPST_D*.TXT >> $DATA_FILES_PATH/STE03062_DEPST.TXT
-else
-    echo "$DATA_FILES_PATH/STE03062_DEPST_D*.TXT files does not exist to rename"
-fi
-
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for Renaming deposit files at ${TIME} on ${DATE}"
-
 
 #################################################################
 #                  DPST_TCKTS_UPDATE_BATCH_PKG.DPST_TKT_PROCESS
@@ -86,19 +59,6 @@ then
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for Dep tickets and bags batch process at ${TIME} on ${DATE}"
-
-#################################################################
-#                                       Archive files to folder
-#################################################################
-TIME=`date +"%H:%M:%S"`
-echo "Processing Started for archiving the files at $TIME on $DATE"
-if [ -f $DATA_FILES_PATH/STE03062_DEPST.TXT ]
-then
-    echo "$DATA_FILES_PATH/STE03064_DEPST.TXT files exist to rename"
-    mv $DATA_FILES_PATH/STE03062_DEPST*.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/STE03062_DEPST.TXT files does not exist"
-fi
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for archiving the files at ${TIME} on ${DATE}"

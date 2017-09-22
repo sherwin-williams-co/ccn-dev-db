@@ -9,6 +9,8 @@
 # Modified : 06/26/2017 Changes to copy all mainframe files from QA.
 #          : 08/29/2017 rxa457 CCN Project Team...
 #             Added code to copy SRA11000 file from QA
+#          : 09/22/2017 rxa457 CCN Project Team...
+#             Renamed file to be copied into lower envs from QA for Gift card
 ###################################################################################
 . /app/banking/dev/banking.config
 
@@ -24,8 +26,7 @@ qa_tktbag_path="/app/banking/qa/initLoad/archieve/DEP_TKT_BAG/$FOLDER"
 qa_sra11000_path="/app/banking/qa/SRA11000/$FOLDER"
 qa_initload_path="/app/banking/qa/initLoad"
 
-filename_mainframe_gc="SRA30000_D$YYMMDD*"
-filename_flatfile_gc="GIFT_CARD_POS_TRANS_FILE.TXT"
+filename_mainframe_gc="GIFT_CARD_POS_TRANS_FILE.TXT"
 
 filename_dept_tick="STE03062_DEPST.TXT"
 filename_interim_dep="STE03064_DEPST.TXT"
@@ -76,10 +77,8 @@ fi
 
 if [ ! -e $INITLOADPATH/$filename_mainframe_gc ]
 then
-   echo "The transfer of $filename_flatfile_gc from qa to this server FAILED at ${TIME} on ${DATE}"
+   echo "The transfer of $filename_mainframe_gc from qa to this server FAILED at ${TIME} on ${DATE}"
    exit 1
-else
-   cp $INITLOADPATH/$filename_mainframe_gc $INITLOADPATH/$filename_flatfile_gc
 fi
 
 if [ ! -e $INITLOADPATH/$filename_sra11000 ]

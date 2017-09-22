@@ -9,6 +9,8 @@
 #            removed the error status check
 #          : 08/23/2016 nxk927 CCN Project Team.....
 #            changed the files that we consider for this process
+#           : 09/21/2017 rxa457 CCN Project Team...
+#                renamed and archive steps moved to separate Cron process "rename_archive_mf_input_files"
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -23,13 +25,6 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                       Archive files to folder
 #################################################################
-if ls $DATA_FILES_PATH/SRA10510.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510.TXT files exist"
-    mv $DATA_FILES_PATH/SRA10510.TXT $ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA10510.TXT files does not exist"
-fi
-
 if ls $DATA_FILES_PATH/stores_ach.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/stores_ach.txt files exist "
     mv $DATA_FILES_PATH/stores_ach.txt $ARCHIVE_PATH/$FOLDER

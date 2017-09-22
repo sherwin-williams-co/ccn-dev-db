@@ -12,6 +12,8 @@
 #            source file changed. Using the source file provided by marcy Lee.
 #          : 07/20/2017 nxk927 CCN Project Team.....
 #            source file changed. Using the source file provided by treasury.
+#           : 09/21/2017 rxa457 CCN Project Team...
+#                renamed and archive steps moved to separate Cron process "rename_archive_mf_input_files"
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -25,12 +27,6 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 #                                               Rename the files 
 #################################################################
-if ls $DATA_FILES_PATH/SRA10510_*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist to rename"
-    cat $DATA_FILES_PATH/SRA10510_*.TXT >> $DATA_FILES_PATH/SRA10510.TXT
-else
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files does not exist to rename"
-fi
 
 if ls $DATA_FILES_PATH/stores_ach_*.txt &> /dev/null; then
     echo "$DATA_FILES_PATH/stores_ach.txt files exist to rename"
