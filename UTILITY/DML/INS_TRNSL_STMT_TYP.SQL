@@ -83,3 +83,49 @@ SELECT 'STATEMENT_COMPNY_NM', 'TR', 25, 'S-W SHERWIN-WILLIAMS', 'N' FROM DUAL;
 COMMIT;
 
 
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+-- added by rxv940 on 09/22/2017'
+-- The below code alters the calues added by the above insert scripts.
+-- Run this in the UTILITY schema 
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+
+UPDATE TRANSLATION_DETAIL
+SET DETAIL_TRANSLATION = TRIM(SUBSTR(DETAIL_TRANSLATION, INSTR(DETAIL_TRANSLATION, ' ')))
+WHERE HEADER_NAME = 'STATEMENT_COMPNY_NM';
+
+
+INSERT INTO TRANSLATION_HEADER
+(
+  HEADER_NAME
+, HEADER_DESCRIPTION
+, HEADER_EXPIRE_FLAG
+)
+SELECT 
+  'STMNT_TYP_TO_CMP_ABBRV'
+, 'STATEMENT_TYPE to Company Abbreviation'
+, 'N'
+FROM DUAL;
+
+INSERT INTO TRANSLATION_DETAIL 
+(
+  HEADER_NAME
+, DETAIL_VALUE
+, DETAIL_SEQ_NUMBER
+, DETAIL_TRANSLATION
+, DETAIL_EXPIRE_FLAG
+) 
+SELECT 
+  'STMNT_TYP_TO_CMP_ABBRV'
+, DETAIL_VALUE
+, DETAIL_SEQ_NUMBER
+, TRIM(SUBSTR(DETAIL_TRANSLATION, 1, INSTR(DETAIL_TRANSLATION, ' ')-1 ))
+, DETAIL_EXPIRE_FLAG
+FROM TRANSLATION_DETAIL
+WHERE HEADER_NAME = 'STATEMENT_COMPNY_NM';
+
+
+COMMIT;
