@@ -7,45 +7,6 @@ AS
 created : 04/18/2016 jxc517 CCN Project....
 Changed :
 **********************************************************/
-PROCEDURE UPDATE_STATUS_TYPE_FOR_RELO_CC(
-/******************************************************************************
-  This procedure will update the status type code to "3" for future address types
-  moving to current mailing type
-
-created : 04/19/2016 jxc517 CCN Project....
-revised :
-*******************************************************************************/
-    in_cost_center_code    IN     VARCHAR2,
-    in_effective_date      IN     DATE)
-IS
-   v_xml_status_frag CLOB;
-   v_status_rowtype  STATUS%ROWTYPE;
-BEGIN
-    --build the status xml to be inserted/updated with status code "3" - RELO. COMP. CC
-    --Note that below insert/update will update cost center move_date as well (Existing logic)
-    SELECT XMLELEMENT("STATUS",
-                      XMLFOREST(in_cost_center_code AS COST_CENTER_CODE,
-                                '3' AS STATUS_CODE,
-                                TO_CHAR(in_effective_date,'MM-DD-YYYY') AS EFFECTIVE_DATE,
-                                NULL AS EXPIRATION_DATE)).getCLOBVAL()
-      INTO v_xml_status_frag
-      FROM DUAL;
-    BEGIN
-        CCN_TABLE_IU_PKG.STATUS_I_SP('STATUS',
-                                     v_xml_status_frag,
-                                     v_status_rowtype);
-    EXCEPTION
-        WHEN DUP_VAL_ON_INDEX THEN
-            BEGIN
-                CCN_TABLE_IU_PKG.STATUS_U_SP('STATUS',
-                                             v_xml_status_frag,
-                                             v_status_rowtype );
-            EXCEPTION
-                WHEN OTHERS THEN
-                    ERRPKG.RAISE_ERR(SQLCODE, 'CCN_ADDRESS_FUT_TO_CURR_PKG.PROCESS ' || SQLERRM || ' Status Update Error ' );
-            END;
-    END;
-END UPDATE_STATUS_TYPE_FOR_RELO_CC;
 
 PROCEDURE BUILD_SELECT_CLASS_FOR_TABLE(
 /******************************************************************************
@@ -81,7 +42,9 @@ PROCEDURE PROCESS_ADDRESS(
   This procedure will performs the core upsert process for the passed cost center
 
 created : 04/20/2016 jxc517 CCN Project....
-revised :
+revised : 09/20/2017 axt754 CCN Project....
+          Removed code to update status code as '3' and added code to insert the future address also as address type "P"
+          and changed clob to have status effective date instead future address effective date
 *******************************************************************************/
     in_cost_center_code    IN     VARCHAR2,
     in_effective_date      IN     DATE,
@@ -108,6 +71,13 @@ BEGIN
     --close the context
     DBMS_XMLGEN.CLOSECONTEXT(v_context);
 
+    -- Update EFFECTIVE_DATE IN THE XML to status EFFECTIVE_DATE..
+    SELECT  UPDATEXML(XMLTYPE(v_clob),
+                      '/ADDRESS_UI_UPSERT/'||in_table_name||'/EFFECTIVE_DATE/text()',
+                      TO_CHAR(in_effective_date,'MM-DD-YYYY')).getClobVal()
+      INTO  v_clob
+      FROM  DUAL;
+
     --Proceed further only if the XML is generated for upsert
     IF v_clob <> EMPTY_CLOB() THEN
         --Replace the future address type "F" to mailing address type "M"
@@ -119,9 +89,14 @@ BEGIN
         --Call the upsert procedure to perform update/insert
         CCN_UI_INTERFACE_APP_PKG.ADDRESS_UI_UPSERT_SP(v_clob);
 
-        --Now we need to update the status of the cost center to "3" and move date to address effective date
-        UPDATE_STATUS_TYPE_FOR_RELO_CC(in_cost_center_code,
-                                       in_effective_date);
+        --Replace the mailing address type to Physical Address "P"
+         v_clob := REPLACE(v_clob,
+                          '<ADDRESS_TYPE>M</ADDRESS_TYPE>',
+                          '<ADDRESS_TYPE>P</ADDRESS_TYPE>');
+        --DBMS_OUTPUT.PUT_LINE('XML : ' ||  v_clob);
+
+        --Call the upsert procedure to perform update/insert
+        CCN_UI_INTERFACE_APP_PKG.ADDRESS_UI_UPSERT_SP(v_clob);
 
         --Finally delete the future address as it is no longer needed
         EXECUTE IMMEDIATE
@@ -139,48 +114,50 @@ PROCEDURE PROCESS
 created : 04/18/2016 jxc517 CCN Project....
 revised : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+        : 09/20/2017 axt754 CCN Project Team....
+          Changed code to :
+          Move future to current if status is '3'
+          effective date as the status effective date rather than future address effective date
 *******************************************************************************/
 IS
    v_batch_number    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
    v_trans_status    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
    v_clob            CLOB;
+   V_STATUS_CODE     VARCHAR2(20);
+   V_EFFECTIVE_DATE  DATE;
+
 
    CURSOR add_info_cur IS
        SELECT 'ADDRESS_USA' AS TABLE_NAME,
-              COST_CENTER_CODE,
-              EFFECTIVE_DATE
+              COST_CENTER_CODE
          FROM ADDRESS_USA
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
        UNION
        SELECT 'ADDRESS_CAN' AS TABLE_NAME,
-              COST_CENTER_CODE,
-              EFFECTIVE_DATE
+              COST_CENTER_CODE
          FROM ADDRESS_CAN
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_MEX' AS TABLE_NAME,
-              COST_CENTER_CODE,
-              EFFECTIVE_DATE
+              COST_CENTER_CODE
          FROM ADDRESS_MEX
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_OTHER' AS TABLE_NAME,
-              COST_CENTER_CODE,
-              EFFECTIVE_DATE
+              COST_CENTER_CODE
          FROM ADDRESS_OTHER
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_BRB' AS TABLE_NAME,
-              COST_CENTER_CODE,
-              EFFECTIVE_DATE
+              COST_CENTER_CODE
          FROM ADDRESS_BRB
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
@@ -190,11 +167,22 @@ BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     BEGIN
         --Loop through all the records in the future table that are going effective today
-        --ADDRESS_USA
         FOR rec IN add_info_cur LOOP
             BEGIN
-                PROCESS_ADDRESS(rec.COST_CENTER_CODE, rec.EFFECTIVE_DATE, rec.TABLE_NAME);
-                COMMIT;
+                -- Select status code and effective date from status, for a cost center code
+                SELECT STATUS_CODE
+                       ,EFFECTIVE_DATE
+                  INTO V_STATUS_CODE
+                       ,V_EFFECTIVE_DATE
+                  FROM STATUS
+                 WHERE UPPER(COST_CENTER_CODE) = UPPER(rec.COST_CENTER_CODE)
+                   AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE >= TRUNC(SYSDATE));
+                -- check the condition, if the status code is 3, then start
+                -- processing the address from future to current.
+                IF (NVL(V_STATUS_CODE,'X') = '3') THEN
+                    PROCESS_ADDRESS(rec.COST_CENTER_CODE, V_EFFECTIVE_DATE, rec.TABLE_NAME);
+                    COMMIT;
+                END IF;
             EXCEPTION
                 WHEN OTHERS THEN
                     COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE, 'CCN_ADDRESS_FUT_TO_CURR_PKG.PROCESS - ' || rec.TABLE_NAME, SQLERRM, SQLCODE);
