@@ -7,7 +7,7 @@
 # Modified : 06/26/2017 gxg192 Removed SENDEMAIL function. Changes to pass only category
 #                              while calling send_mail.sh
 #           : 09/21/2017 rxa457 CCN Project Team...
-#                renamed and archive steps moved to separate Cron process "rename_archive_mf_input_files"
+#             Removed renaming and archive process for Mainframe input files
 #####################################################################################
 . /app/banking/dev/banking.config
 

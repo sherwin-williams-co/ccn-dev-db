@@ -7,7 +7,7 @@
 # Modified : 06/26/2017 gxg192 Changes to archive all files on single folder.
 # Modifled : 09/21/2017 rxa457 CCN Project Team...
 #              Gift card file SRA30000_D$YYMMDD* is no longer downloaded into 
-#                lower envs and the archive of this file is done by a spearate archive process in QA
+#              lower envs and the archive of this file is done by a spearate archive process in QA
 ###########################################################################
 . /app/banking/dev/banking.config
 

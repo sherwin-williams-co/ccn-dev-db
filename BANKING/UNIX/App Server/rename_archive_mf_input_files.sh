@@ -7,7 +7,6 @@
 #                  This has to be setup in QA or higher environments where files are received only
 #                  *Scheduled to run in Cron 
 # Created  : 09/21/2017 rxa457 CCN Project Team....
-# 
 ###################################################################################
 
 # below command will get the path for banking.config respective to the environment from which it is run from
