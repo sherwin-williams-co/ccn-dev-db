@@ -5,7 +5,7 @@
 #                 reconcile diff report for Gift Cards and deposit ticket/bag process
 # Created  : 06/21/2017 gxg192 CCN Project Team
 # Modified : 06/26/2017 gxg192 Removed SENDEMAIL function. Changes to pass only category
-#                              while calling send_mail.sh
+#                              while calling send_mail.sh 
 #####################################################################################
 . /app/banking/dev/banking.config
 
