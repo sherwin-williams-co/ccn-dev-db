@@ -10,7 +10,10 @@ DECLARE
           AND EXISTS (SELECT 1 
             		FROM COST_CENTER 
             	       WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-            	         AND CATEGORY IN ('A'));
+            	         AND CATEGORY IN ('A'))
+          AND NOT EXISTS(SELECT 1 
+                           FROM CC_DELETION_GUIDS
+                          WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE));
 V_COUNT NUMBER := 0;
 BEGIN
     FOR REC IN CUR LOOP

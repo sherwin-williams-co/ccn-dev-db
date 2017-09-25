@@ -15,7 +15,10 @@ BEGIN
                 WHERE EXISTS (SELECT 1 
                                 FROM COST_CENTER 
                                WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-                                 AND CATEGORY IN ('D', 'T'))) LOOP
+                                 AND CATEGORY IN ('D', 'T'))
+               AND NOT EXISTS(SELECT 1 
+            		   	FROM CC_DELETION_GUIDS
+            		       WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE))) LOOP
                                  
        DELETE FROM ADDRESS_USA WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
    END LOOP;
@@ -24,7 +27,10 @@ BEGIN
                 WHERE EXISTS (SELECT 1 
                                 FROM COST_CENTER 
                                WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-                                 AND CATEGORY IN ('D', 'T'))) LOOP
+                                 AND CATEGORY IN ('D', 'T'))
+                AND NOT EXISTS(SELECT 1 
+            		   	FROM CC_DELETION_GUIDS
+            		       WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE))) LOOP
                                  
        DELETE FROM ADDRESS_CAN WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
    END LOOP;
@@ -33,7 +39,10 @@ BEGIN
                 WHERE EXISTS (SELECT 1 
                                 FROM COST_CENTER 
                                WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-                                 AND CATEGORY IN ('D', 'T'))) LOOP
+                                 AND CATEGORY IN ('D', 'T'))
+                AND NOT EXISTS(SELECT 1 
+            		   	FROM CC_DELETION_GUIDS
+            		       WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE))) LOOP
                                  
        DELETE FROM ADDRESS_BRB WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
    END LOOP;
@@ -42,7 +51,10 @@ BEGIN
                 WHERE EXISTS (SELECT 1 
                                 FROM COST_CENTER 
                                WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-                                 AND CATEGORY IN ('D', 'T'))) LOOP
+                                 AND CATEGORY IN ('D', 'T'))
+                AND NOT EXISTS(SELECT 1 
+            		   	FROM CC_DELETION_GUIDS
+            		       WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE))) LOOP
                                  
        DELETE FROM ADDRESS_MEX WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
    END LOOP;
@@ -51,7 +63,10 @@ BEGIN
                 WHERE EXISTS (SELECT 1 
                                 FROM COST_CENTER 
                                WHERE COST_CENTER_CODE = A.COST_CENTER_CODE 
-                                 AND CATEGORY IN ('D', 'T'))) LOOP
+                                 AND CATEGORY IN ('D', 'T'))
+                AND NOT EXISTS(SELECT 1 
+            		   	FROM CC_DELETION_GUIDS
+            		       WHERE UPPER(COST_CENTER_CODE) = UPPER(A.COST_CENTER_CODE))) LOOP
                                  
        DELETE FROM ADDRESS_OTHER WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
    END LOOP;
