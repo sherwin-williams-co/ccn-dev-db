@@ -9,6 +9,9 @@
 # Modified : 03/27/2017 gxg192 Changes to capture ftp status correctly
 #          : 06/16/2017 gxg192 Changes to add Time after ftp status check.
 #          : 06/23/2017 gxg192 Changes to remove FTPLOG file after ftp status check.
+#          : 09/25/2017 rxa457 CCN Project Team...
+#             Added conditions to send ftp based on ftp_indicator and also changed the ftp file name 
+#             to actual gift card output file genreated.. Previously the mainframe file was being sent to the uar
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -18,32 +21,44 @@ FTPLOG=$HOME/logs/SRA30000_dailyRun_ftplogfile.log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 YYMMDD=`date +"%y%m%d"`
+gc_filename="SMIS1.UAR.POSGFTCD_"
+DDMONYYYY=`date '+%d%^b%Y'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
-
+if [ $FTP_INDICATOR == Y ] 
+then
+   file=$gc_filename$DDMONYYYY*
+   if [ `ls -l /app/banking/dev/initLoad/$file | awk '{print $5}'` -ne 0 ]
+   then
 ############################################################################
-# ftp the SRA30000
+# ftp the SRA30000 SMIS1.UAR.POSGFTCD_*
 # files to stuar2hq.sw.sherwin.com server
 ############################################################################
 ftp -inv ${uar_host} <<FTP_MF > $FTPLOG
 quote user ${uar_user}
 quote pass ${uar_pw}
 cd "/reconnet/uardata/rt1/TEST INPUT"
-put $HOME/initLoad/SRA30000_D$YYMMDD* uar_gift_card.pos
+put $HOME/initLoad/$gc_filename$DDMONYYYY* uar_gift_card.pos
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
-
-############################################################################
-#                           ERROR STATUS CHECK
-############################################################################
-./check_ftp_status.sh $FTPLOG
-status=$?
-if test $status -ne 0
-then
-   TIME=`date +"%H:%M:%S"`
-   echo "The transfer of SRA30000_D$YYMMDD* to uar FAILED at ${TIME} on ${DATE}"
-   exit 1
+        ############################################################################
+        #                           ERROR STATUS CHECK
+        ############################################################################
+     ./check_ftp_status.sh $FTPLOG
+     status=$?
+     if test $status -ne 0
+     then
+       TIME=`date +"%H:%M:%S"`
+       echo "The transfer of $gc_filename$DDMONYYYY* to uar FAILED at ${TIME} on ${DATE}"
+       exit 1
+     fi
+   else
+     echo "File don't have any data to be FTPed."
+   fi
+else
+   echo "FTP Not allowed in this environment. FTP Indicator must be set to Y to FTP the file"
+   echo "Existing the process without ftp'ing the file"
 fi
 
 ############################################################################
