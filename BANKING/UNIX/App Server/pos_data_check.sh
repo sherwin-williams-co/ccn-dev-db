@@ -5,6 +5,8 @@
 #     Created : 07/20/2017 nxk927
 #             : 07/25/2017 nxk927
 #                added a check to see if it is saturday, run it regardles of stores_ach file being present or not
+#             : 09/25/2017 nxk927
+#               removed the condition to check for stores_ach file
 ########################################################################################################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -27,15 +29,12 @@ EOF`
    if [ "$data" = READY ]
    then
       day=`date +%a`
-      if [ $day = Sat ] || [ -f $init_path/stores_ach.txt  ]
-      then
-         TIME=`date +"%H:%M:%S"`
-         echo "Processing Started for $proc at $TIME on $DATE"
-         ./SRA11000_dailyRun.sh
-         TIME=`date +"%H:%M:%S"`
-         echo "Processing finished for $proc at $TIME on $DATE"
-         exit 0
-      fi
+      TIME=`date +"%H:%M:%S"`
+      echo "Processing Started for $proc at $TIME on $DATE"
+      ./SRA11000_dailyRun.sh
+      TIME=`date +"%H:%M:%S"`
+      echo "Processing finished for $proc at $TIME on $DATE"
+      exit 0
    fi
 done
 exit 1

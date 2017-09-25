@@ -14,6 +14,8 @@
 #            source file changed. Using the source file provided by treasury.
 #           : 09/21/2017 rxa457 CCN Project Team...
 #             Removed renaming and archive process for Mainframe input files
+#           : 09/25/2017 rxa457 CCN Project Team...
+#             We will be recieving the stores_ach file in the ccn_users folder
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -28,11 +30,11 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #                                               Rename the files 
 #################################################################
 
-if ls $DATA_FILES_PATH/stores_ach_*.txt &> /dev/null; then
-    echo "$DATA_FILES_PATH/stores_ach.txt files exist to rename"
-    cat $DATA_FILES_PATH/stores_ach_*.txt >> $DATA_FILES_PATH/stores_ach.txt
+if ls $MSCTRAN_PATH/stores_ach*.txt &> /dev/null; then
+    echo "$MSCTRAN_PATH/stores_ach.txt files exist to rename"
+    mv $MSCTRAN_PATH/stores_ach*.txt >> $DATA_FILES_PATH/stores_ach.txt
 else
-    echo "$DATA_FILES_PATH/stores_ach.txt files does not exist to rename"
+    echo "$MSCTRAN_PATH/stores_ach.txt files does not exist to rename"
 fi
 
 
@@ -46,4 +48,3 @@ fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 exit 0
-
