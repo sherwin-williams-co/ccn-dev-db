@@ -32,7 +32,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 
 if ls $MSCTRAN_PATH/stores_ach.txt &> /dev/null; then
     echo "$MSCTRAN_PATH/stores_ach.txt files exist to rename"
-    mv $MSCTRAN_PATH/stores_ach.txt >> $DATA_FILES_PATH/stores_ach.txt
+    mv $MSCTRAN_PATH/stores_ach.txt $DATA_FILES_PATH/stores_ach.txt
 else
     echo "$MSCTRAN_PATH/stores_ach.txt files does not exist to rename"
 fi
