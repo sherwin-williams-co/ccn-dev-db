@@ -98,7 +98,7 @@ echo "Processing finished for Renaming SRA10510 files at ${TIME} on ${DATE}"
 #################################################################
 echo "Processing Started for Renaming Gift Card file at $TIME on $DATE"
 if ls $DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA10510_*.TXT files exist to rename"
+    echo "$DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT files exist to rename"
     cat $DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT >> $DATA_FILES_PATH/GIFT_CARD_POS_TRANS_FILE.TXT
 else
     echo "$DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT files does not exist to rename"
@@ -148,20 +148,6 @@ else
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for archiving SRA10510 Mainframe Input files at ${TIME} on ${DATE}"
-
-#################################################################
-# Archive SRA30000_D*.TXT
-#################################################################
-TIME=`date +"%H:%M:%S"`
-echo "Processing Started for archiving the Mainframe Gift Card files at $TIME on $DATE"
-if ls $DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT &> /dev/null; then
-    echo "$DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT files exist "
-    mv $DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT $GC_ARCHIVE_PATH/$FOLDER
-else
-    echo "$DATA_FILES_PATH/SRA30000_D$YYMMDD*.TXT files does not exist"
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Archiving finished for Mainframe Gift Card at ${TIME} on ${DATE}"
 
 
 TIME=`date +"%H:%M:%S"`
