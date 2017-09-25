@@ -8,7 +8,7 @@ THIS PACKAGE CONTAINS ERROR NUMBERS FROM
                    -20500 ONWARDS FOR HIERARCHY
 
 created : 12/02/2011 blr CCN Project
-revisions:
+revisions: 09/22/2017 sxh487 Removed en_invalid_fips_code_err
 
 ************************************************************/
 
@@ -1855,19 +1855,6 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_county_err , -20135);
 
 /*********************************************************** 
-The "invalid_fips_code_err" passes a numerical error of -20136.
-This message would be used when the fips_code is not a valid value.
-
-created : 08/09/2012 cbd CCN Project
-revisions: 
-
-************************************************************/
-en_invalid_fips_code_err CONSTANT NUMBER := -20136;
-exc_invalid_fips_code_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_fips_code_err , -20136);
-
-/*********************************************************** 
 The "invalid_dest_point_err" passes a numerical error of -20137.
 This message would be used when the destiniation_point is not a valid value.
 
@@ -2806,7 +2793,7 @@ exc_past_dates_not_allowed_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_past_dates_not_allowed_err , -20541);
 
-/*********************************************************** 
+/***********************************************************
 The "en_unkown_error" passes a numerical error of -20999.
 If the error passed was outside the scope of numeric error
 definitions, then we denote it as an unknown error, this says
@@ -2909,7 +2896,6 @@ revisions:
 ************************************************************/
 en_invalid_terminal_count_err CONSTANT NUMBER := -20178;
 exc_invalid_terminal_count_err EXCEPTION;
-
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 END ERRNUMS;
