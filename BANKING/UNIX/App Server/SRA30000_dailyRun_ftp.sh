@@ -10,8 +10,10 @@
 #          : 06/16/2017 gxg192 Changes to add Time after ftp status check.
 #          : 06/23/2017 gxg192 Changes to remove FTPLOG file after ftp status check.
 #          : 09/25/2017 rxa457 CCN Project Team...
-#             Added conditions to send ftp based on ftp_indicator and also changed the ftp file name 
-#             to actual gift card output file genreated.. Previously the mainframe file was being sent to the uar
+#            Added conditions to send ftp based on ftp_indicator and also changed the ftp file name
+#            to actual gift card output file genreated.. Previously the mainframe file was being sent to the uar
+#          : 09/26/2017 nxk927 CCN Project Team...
+#            changed conditions to send ftp based on GIFTCARD_FTP_INDICATOR and also changed the ftp file name and path
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -23,8 +25,9 @@ DATE=`date +"%m/%d/%Y"`
 YYMMDD=`date +"%y%m%d"`
 gc_filename="SMIS1.UAR.POSGFTCD_"
 DDMONYYYY=`date '+%d%^b%Y'`
+DT=`date '+%m%d%y'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
-if [ $FTP_INDICATOR == Y ] 
+if [ $GIFTCARD_FTP_INDICATOR == Y ]
 then
    file=$gc_filename$DDMONYYYY*
    if [ `ls -l /app/banking/dev/initLoad/$file | awk '{print $5}'` -ne 0 ]
@@ -36,8 +39,8 @@ then
 ftp -inv ${uar_host} <<FTP_MF > $FTPLOG
 quote user ${uar_user}
 quote pass ${uar_pw}
-cd "/reconnet/uardata/rt1/TEST INPUT"
-put $HOME/initLoad/$gc_filename$DDMONYYYY* uar_gift_card.pos
+cd "$gift_card_dst_path"
+put $HOME/initLoad/$gc_filename$DDMONYYYY* uar.posgfcd_"$DT".txt
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
