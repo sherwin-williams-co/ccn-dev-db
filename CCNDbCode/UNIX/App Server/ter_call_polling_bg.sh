@@ -21,7 +21,7 @@ while(true)
 do
 
 #Check for .POLLINGDONE files. If present, call ter_process_pos_polling_file.sh
-if [ "$(ls "$DATADIR/$CCD"*".queue" 2>/dev/null | wc -l)" -eq 0 ] && [ "$(ls "$DATADIR/$TER_FILE_NAME"*".POLLINGDONE" 2>/dev/null | wc -l)" -gt 0 ]
+if ! ls "$DATADIR/$CCD"*".queue" 1>/dev/null 2>&1 && ls "$DATADIR/$TER_FILE_NAME"*".POLLINGDONE" 1>/dev/null 2>&1
 then
     $SCRIPT_DIR/ter_process_pos_polling_file.sh
 fi
