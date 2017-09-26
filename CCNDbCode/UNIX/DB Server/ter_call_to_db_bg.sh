@@ -10,7 +10,7 @@
 ############################################################################
 
 #Run below command to make the process run in the background even after shutdown
-#nohup sh /app/ccn/scripts/ter_call_to_db_bg.sh > /app/ccn/POSdownloads/log/ter_call_to_db_bg.log 2>&1 &
+#nohup sh /app/ccn/ter_call_to_db_bg.sh > /app/ccn/datafiles/log/ter_call_to_db_bg.log 2>&1 &
 
 #Below statement will be used to check if the process is running in the background
 #ps -eaf | grep ter_call_to_db_bg.sh
