@@ -434,4 +434,13 @@ IN_COST_CNTR_CD   IN COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_COST_CNTR_CATG IN COST_CENTER.CATEGORY%TYPE)
 RETURN VARCHAR2;
 
+FUNCTION GET_ACTIVE_STATUS(
+/***********************************************
+Function to get Active status record for a cost center
+
+created : 09/25/2017  axt754 CCN Project..
+***********************************************/
+IN_COST_CENTER   IN COST_CENTER.COST_CENTER_CODE%TYPE)
+RETURN STATUS%ROWTYPE;
+
 END COMMON_TOOLS;

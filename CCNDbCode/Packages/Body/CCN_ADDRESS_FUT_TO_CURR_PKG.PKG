@@ -8,34 +8,63 @@ created : 04/18/2016 jxc517 CCN Project....
 Changed :
 **********************************************************/
 
-PROCEDURE BUILD_SELECT_CLASS_FOR_TABLE(
+PROCEDURE BUILD_ADDRESS_CLOB(
 /******************************************************************************
-  This procedure will build the select clause based on the input table for date formatting
-  to 'MM-DD-YYYY format
+  This procedure will performs the core upsert process for the passed cost center
 
-created : 04/20/2016 jxc517 CCN Project....
+created : 09/26/2017 axt754 CCN Project....
 revised :
+
 *******************************************************************************/
+    in_cost_center_code    IN     VARCHAR2,
+    in_effective_date      IN     DATE,
     in_table_name          IN     VARCHAR2,
-    o_select_clause           OUT CLOB)
+    o_clob                    OUT CLOB)
 IS
-    CURSOR table_fields_cur IS
-        SELECT column_name,
-               data_type
-          FROM user_tab_columns
-          WHERE table_name = in_table_name
-          ORDER BY column_id ASC;
+    v_context          DBMS_XMLGEN.ctxHandle;
+    v_ref_cursor       SYS_REFCURSOR;
 BEGIN
-    FOR rec IN table_fields_cur LOOP
-        IF rec.data_type = 'DATE' THEN
-            o_select_clause := o_select_clause ||
-                 'TO_CHAR(' || rec.column_name || ', ''MM-DD-YYYY'') AS ' || rec.column_name || ',';
-        ELSE
-            o_select_clause := o_select_clause || rec.column_name || ',';
-        END IF;
-    END LOOP;
-    o_select_clause := RTRIM(o_select_clause, ',');
-END BUILD_SELECT_CLASS_FOR_TABLE;
+    OPEN v_ref_cursor FOR
+        'SELECT *
+           FROM ' || in_table_name || '
+          WHERE ADDRESS_TYPE = ''F''
+            AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''
+         UNION ALL
+         SELECT *
+           FROM ' || in_table_name || '
+          WHERE ADDRESS_TYPE = ''F''
+            AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''';
+    --build the xml context to be used with DBMS_XMLGEN
+    --The context will be bult form the result set of the dynamic sql query
+    v_context := DBMS_XMLGEN.NEWCONTEXT(v_ref_cursor);
+    --Set the rowset tag name as below, else default <ROWSET> tag will be used
+    DBMS_XMLGEN.SETROWSETTAG(v_context, 'ADDRESS_UI_UPSERT');
+    --Set the row tag name as below, else default <ROW> tag will be used
+    DBMS_XMLGEN.SETROWTAG(v_context, in_table_name);
+    --Convert the context into a clob xml
+    SELECT DBMS_XMLGEN.GETXML(v_context) INTO o_clob FROM DUAL;
+    --close the context
+    DBMS_XMLGEN.CLOSECONTEXT(v_context);
+
+    --Proceed further only if the XML is generated for upsert
+    IF o_clob <> EMPTY_CLOB() THEN
+         -- Update EFFECTIVE_DATE IN THE XML to status EFFECTIVE_DATE..
+         SELECT  UPDATEXML(XMLTYPE(o_clob),
+                           '/ADDRESS_UI_UPSERT/'||in_table_name||'/EFFECTIVE_DATE/text()',
+                           TO_CHAR(in_effective_date,'MM-DD-YYYY')).getClobVal()
+           INTO  o_clob
+           FROM  DUAL;
+        --Replace the first future address type "F" to mailing address type "M"
+        o_clob := REGEXP_REPLACE(o_clob,
+                                '<ADDRESS_TYPE>F</ADDRESS_TYPE>',
+                                '<ADDRESS_TYPE>M</ADDRESS_TYPE>',1,1);
+
+        --Replace the next future address type "F" to Physical address type "P"
+        o_clob := REPLACE(o_clob,
+                          '<ADDRESS_TYPE>F</ADDRESS_TYPE>',
+                          '<ADDRESS_TYPE>P</ADDRESS_TYPE>');
+    END IF;
+END BUILD_ADDRESS_CLOB;
 
 PROCEDURE PROCESS_ADDRESS(
 /******************************************************************************
@@ -54,48 +83,12 @@ IS
     v_clob             CLOB;
     v_select_clause    CLOB;
 BEGIN
-    --build the select clause for date formatting
-    BUILD_SELECT_CLASS_FOR_TABLE(in_table_name, v_select_clause);
-    --build the xml context to be used with DBMS_XMLGEN
-    --The context will be bult form the result set of the dynamic sql query
-    v_context := DBMS_XMLGEN.NEWCONTEXT('SELECT ' || v_select_clause || '
-                                           FROM ' || in_table_name || '
-                                          WHERE ADDRESS_TYPE = ''F''
-                                            AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''');
-    --Set the rowset tag name as below, else default <ROWSET> tag will be used
-    DBMS_XMLGEN.SETROWSETTAG(v_context, 'ADDRESS_UI_UPSERT');
-    --Set the row tag name as below, else default <ROW> tag will be used
-    DBMS_XMLGEN.SETROWTAG(v_context, in_table_name);
-    --Convert the context into a clob xml
-    SELECT DBMS_XMLGEN.GETXML(v_context) INTO v_clob FROM DUAL;
-    --close the context
-    DBMS_XMLGEN.CLOSECONTEXT(v_context);
+    BUILD_ADDRESS_CLOB(in_cost_center_code,
+                       in_effective_date,
+                       in_table_name,
+                       v_clob);
 
-    -- Update EFFECTIVE_DATE IN THE XML to status EFFECTIVE_DATE..
-    SELECT  UPDATEXML(XMLTYPE(v_clob),
-                      '/ADDRESS_UI_UPSERT/'||in_table_name||'/EFFECTIVE_DATE/text()',
-                      TO_CHAR(in_effective_date,'MM-DD-YYYY')).getClobVal()
-      INTO  v_clob
-      FROM  DUAL;
-
-    --Proceed further only if the XML is generated for upsert
     IF v_clob <> EMPTY_CLOB() THEN
-        --Replace the future address type "F" to mailing address type "M"
-        v_clob := REPLACE(v_clob,
-                          '<ADDRESS_TYPE>F</ADDRESS_TYPE>',
-                          '<ADDRESS_TYPE>M</ADDRESS_TYPE>');
-        --DBMS_OUTPUT.PUT_LINE('XML : ' ||  v_clob);
-
-        --Call the upsert procedure to perform update/insert
-        CCN_UI_INTERFACE_APP_PKG.ADDRESS_UI_UPSERT_SP(v_clob);
-
-        --Replace the mailing address type to Physical Address "P"
-         v_clob := REPLACE(v_clob,
-                          '<ADDRESS_TYPE>M</ADDRESS_TYPE>',
-                          '<ADDRESS_TYPE>P</ADDRESS_TYPE>');
-        --DBMS_OUTPUT.PUT_LINE('XML : ' ||  v_clob);
-
-        --Call the upsert procedure to perform update/insert
         CCN_UI_INTERFACE_APP_PKG.ADDRESS_UI_UPSERT_SP(v_clob);
 
         --Finally delete the future address as it is no longer needed
@@ -105,6 +98,7 @@ BEGIN
               WHERE ADDRESS_TYPE = ''F''
                 AND COST_CENTER_CODE = '''|| in_cost_center_code ||'''';
     END IF;
+    COMMIT;
 END PROCESS_ADDRESS;
 
 PROCEDURE PROCESS
@@ -125,39 +119,45 @@ IS
    v_clob            CLOB;
    V_STATUS_CODE     VARCHAR2(20);
    V_EFFECTIVE_DATE  DATE;
+   V_STATUS_REC      STATUS%ROWTYPE;
 
 
    CURSOR add_info_cur IS
        SELECT 'ADDRESS_USA' AS TABLE_NAME,
-              COST_CENTER_CODE
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
          FROM ADDRESS_USA
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
        UNION
        SELECT 'ADDRESS_CAN' AS TABLE_NAME,
-              COST_CENTER_CODE
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
          FROM ADDRESS_CAN
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_MEX' AS TABLE_NAME,
-              COST_CENTER_CODE
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
          FROM ADDRESS_MEX
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_OTHER' AS TABLE_NAME,
-              COST_CENTER_CODE
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
          FROM ADDRESS_OTHER
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
           AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE > TRUNC(SYSDATE))
         UNION
        SELECT 'ADDRESS_BRB' AS TABLE_NAME,
-              COST_CENTER_CODE
+              COST_CENTER_CODE,
+              EFFECTIVE_DATE
          FROM ADDRESS_BRB
         WHERE ADDRESS_TYPE = 'F'
           AND EFFECTIVE_DATE <= TRUNC(SYSDATE)
@@ -168,20 +168,15 @@ BEGIN
     BEGIN
         --Loop through all the records in the future table that are going effective today
         FOR rec IN add_info_cur LOOP
-            BEGIN
-                -- Select status code and effective date from status, for a cost center code
-                SELECT STATUS_CODE
-                       ,EFFECTIVE_DATE
-                  INTO V_STATUS_CODE
-                       ,V_EFFECTIVE_DATE
-                  FROM STATUS
-                 WHERE UPPER(COST_CENTER_CODE) = UPPER(rec.COST_CENTER_CODE)
-                   AND (EXPIRATION_DATE IS NULL OR EXPIRATION_DATE >= TRUNC(SYSDATE));
+             BEGIN
+                -- Get Active status row for a cost center
+                V_STATUS_REC := COMMON_TOOLS.GET_ACTIVE_STATUS(rec.COST_CENTER_CODE);
                 -- check the condition, if the status code is 3, then start
                 -- processing the address from future to current.
-                IF (NVL(V_STATUS_CODE,'X') = '3') THEN
-                    PROCESS_ADDRESS(rec.COST_CENTER_CODE, V_EFFECTIVE_DATE, rec.TABLE_NAME);
-                    COMMIT;
+                IF (NVL(V_STATUS_REC.STATUS_CODE,'XXX') = '3') THEN
+                    PROCESS_ADDRESS(rec.COST_CENTER_CODE,
+                                    V_STATUS_REC.EFFECTIVE_DATE,
+                                    rec.TABLE_NAME);
                 END IF;
             EXCEPTION
                 WHEN OTHERS THEN
