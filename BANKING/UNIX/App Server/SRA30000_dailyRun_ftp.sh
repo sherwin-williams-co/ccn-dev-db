@@ -22,15 +22,12 @@ proc_name="SRA30000_dailyRun_ftp"
 FTPLOG=$HOME/logs/SRA30000_dailyRun_ftplogfile.log
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
-YYMMDD=`date +"%y%m%d"`
-gc_filename="SMIS1.UAR.POSGFTCD_"
-DDMONYYYY=`date '+%d%^b%Y'`
+gc_filename="SMIS1.UAR.POSGFTCD_"`date '+%d%^b%Y'`*
 DT=`date '+%m%d%y'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
-if [ $GIFTCARD_FTP_INDICATOR == Y ]
+if [ $GFCD_FTP_INDICATOR == Y ]
 then
-   file=$gc_filename$DDMONYYYY*
-   if [ `ls -l /app/banking/dev/initLoad/$file | awk '{print $5}'` -ne 0 ]
+   if [ `ls -l /app/banking/dev/initLoad/$gc_filename | awk '{print $5}'` -ne 0 ]
    then
 ############################################################################
 # ftp the SRA30000 SMIS1.UAR.POSGFTCD_*
@@ -39,8 +36,7 @@ then
 ftp -inv ${uar_host} <<FTP_MF > $FTPLOG
 quote user ${uar_user}
 quote pass ${uar_pw}
-cd "$gift_card_dst_path"
-put $HOME/initLoad/$gc_filename$DDMONYYYY* uar.posgfcd_"$DT".txt
+put $HOME/initLoad/$gc_filename "$gfcd_dst_path"/"$gfcd_filename""$DT".txt
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
