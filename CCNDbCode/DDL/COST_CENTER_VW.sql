@@ -45,6 +45,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
          : 08/21/2017 gxg192 Added STORE_EMAIL columm.
          : 09/05/2017 sxh487 Added STORE MGR for the job title and removed ASST MGR
            (also selecting based on hire_date) to be consistent with GLOBAL_HIERARCHY_ATTRBT_VW and ECOMM view
+         : 09/06/2017 axt754 Added BOOK_PLAN_PROFILE_CD
 ********************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -141,7 +142,8 @@ CASE WHEN C.PRIM_COST_IDENTIFIER IS NULL AND C.STATEMENT_TYPE IN ('CN','AC') AND
             ('swp'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
      ELSE
          ('sw'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
-  END) AS STORE_EMAIL
+  END) AS STORE_EMAIL,
+C.BOOK_PLN_PROFILE_CD
 FROM COST_CENTER C LEFT JOIN
 (SELECT COST_CENTER_CODE,CATEGORY,TERRITORY_TYPE_BUSN_CODE FROM TERRITORY ) T
 ON (T.COST_CENTER_CODE=C.COST_CENTER_CODE AND  T.CATEGORY='T');
