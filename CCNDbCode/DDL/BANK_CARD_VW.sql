@@ -1,4 +1,5 @@
-CREATE OR REPLACE VIEW BANK_CARD_VW 
+CREATE OR REPLACE VIEW BANK_CARD_VW
+AS
   SELECT
 /*******************************************************************************
 This view will provide the BANK_CARD information.
