@@ -150,6 +150,8 @@ This procedure is used to load the POSXML store drafts temp table
 "POS_CCN_LOAD_STATUS" with data extracted from new interface tables
 Created : 06/12/2017 gxg192 CCN Project....
 Changed : 08/01/2017 gxg192 Added DBMS output to print no. of records inserted into log file.
+Changed : 09/27/2017 rxa457 CCN Project Team...
+          Load date will be inserted as SYSDATE to keep track of data loaded date
 *****************************************************************************/
 IN_DATE     IN DATE)
 AS
@@ -158,10 +160,9 @@ BEGIN
 
    INSERT INTO POS_CCN_LOAD_STATUS
    SELECT CH.*,
-          IN_DATE LOAD_DATE
+          SYSDATE LOAD_DATE
      FROM PNP_CCN_LOAD_STATUS CH
-    WHERE TRUNC(CH.START_TS) > (SELECT MAX(TRUNC(END_TS))
-                                  FROM POS_CCN_LOAD_STATUS)
+    WHERE TRUNC(CH.START_TS) = TRUNC(IN_DATE)
       AND STATUS_CODE = 'C';
 
    DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || SQL%ROWCOUNT);
@@ -192,6 +193,8 @@ changed : 12/08/2016 vxv336 added STATUS filter in cursor query
         : 07/27/2017 gxg192 Changes to use store's state code and not the customer's state code
         : 08/03/2017 gxg192 Removed formatting on few fields. Required Formatting is done
                             while generating gift card file.
+changed : 09/27/2017 rxa457 CCN project team
+          Load date will always be inserted as SYDATE							
 *******************************************************************************/
 IN_DATE DATE)
 AS
@@ -216,7 +219,7 @@ CURSOR GC_CUR IS
         PNP_CCN_GIFT_CARD_LOG CGC
   WHERE CGC.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
                                 FROM POS_CCN_LOAD_STATUS
-                               WHERE LOAD_DATE = IN_DATE)
+                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE))
     AND UPPER(CGC.ACTION) IN ('APPROVED', 'MANUAL')                               
     AND CH.RLS_RUN_CYCLE = CGC.RLS_RUN_CYCLE 
     AND CH.TRAN_GUID = CGC.TRAN_GUID
@@ -228,8 +231,6 @@ CURSOR GC_CUR IS
 
 BEGIN
 
-     DELETE POS_GIFT_CARD_POS_TRANS
-      WHERE LOAD_DATE = IN_DATE;
 
      FOR REC IN GC_CUR
      LOOP
@@ -249,7 +250,7 @@ BEGIN
            V_TEMP_ROW.TRANS_NBR           := rec.TRANS_NBR;
            V_TEMP_ROW.EMPLOYEE_NBR        := rec.EMPLOYEE_NBR;
            V_TEMP_ROW.TRAN_GUID           := rec.TRAN_GUID;
-           V_TEMP_ROW.LOAD_DATE           := IN_DATE;
+           V_TEMP_ROW.LOAD_DATE           := SYSDATE;
 
            INSERT INTO POS_GIFT_CARD_POS_TRANS VALUES V_TEMP_ROW;
 
@@ -293,11 +294,13 @@ This procedure will generate UAR GIFT CARD TRANSACTION FILE [SRA30060] file
 Created : 10/28/2016 vxv336/gxg192 CCN Project
 Changed : 06/14/2017 gxg192 Changes to add header, trailor and summary record
         : 08/03/2017 gxg192 Changes to format required field for generating gift card file.
-Changed : 09/27/2017 jxc517 CCN Project Team....
-          Moved transaction time to the end as requested by Pat on 26Sep2017
+changed : 09/27/2017 rxa457 CCN project team
+          Load date will always be inserted as SYDATE
+          Pick all data that was not generated 	as part of the previous run	  
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
+  V_LAST_BATCH_RUN_DATE DATE;
   CURSOR main_cur IS
       SELECT TRANSACTION_TYPE,
              UAR_TRAN_CODE,
@@ -314,7 +317,7 @@ IS
              CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(TRANS_NBR, '0', '5') AS TRANS_NBR,
              CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(EMPLOYEE_NBR, '0', '2') AS EMPLOYEE_NBR
         FROM POS_GIFT_CARD_POS_TRANS
-       WHERE LOAD_DATE = IN_DATE;
+       WHERE LOAD_DATE > NVL(V_LAST_BATCH_RUN_DATE,TRUNC(SYSDATE)-1);
       
   PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
   UAR_GIFT_CARD_TRANS_FL_NM    VARCHAR2(50) := 'SMIS1.UAR.POSGFTCD_' ||
@@ -325,8 +328,14 @@ IS
 
   V_RECORD_COUNT               NUMBER := 0;
   V_TOTAL_TRANS_AMOUNT         NUMBER := 0;
+  V_BATCH_NUMBER  BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+  V_TRANS_STATUS  BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 
 BEGIN
+   V_LAST_BATCH_RUN_DATE := CCN_COMMON_TOOLS.GET_LAST_BATCH_RUNDATE('POS_GIFT_CARD_GENERATION');
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('POS_GIFT_CARD_GENERATION', V_BATCH_NUMBER);
+   CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+   
   UAR_GIFT_CARD_TRANS_FL := UTL_FILE.FOPEN (PATH
                                          ,UAR_GIFT_CARD_TRANS_FL_NM
                                          ,'W' --BINARY
@@ -350,10 +359,10 @@ BEGIN
                         || rec.STORE_STATE_CD
                         || rec.TRANS_AMOUNT
                         || rec.TRANS_DATE
+                        || rec.TRANS_TIME
                         || rec.TERM_NBR
                         || rec.TRANS_NBR
                         || rec.EMPLOYEE_NBR
-                        || rec.TRANS_TIME
                         || CHR(13);
                         
       IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -381,6 +390,9 @@ BEGIN
 
   UTL_FILE.FCLOSE(UAR_GIFT_CARD_TRANS_FL);
 
+  CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_GIFT_CARD_GENERATION', V_BATCH_NUMBER, V_TRANS_STATUS);
+  CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+
 EXCEPTION
    WHEN OTHERS THEN
       IF UTL_FILE.IS_OPEN(UAR_GIFT_CARD_TRANS_FL) THEN
@@ -401,7 +413,8 @@ PROCEDURE LOAD_POS_DPST_TICKET_COUNTS(
 This procedure is used to load the POS data into
 "POS_DPST_TICKET_COUNTS" with data extracted from PNP_CCN_BATCH_SUMMARY table
 created : 01/17/2017 AXK326 CCN Project....
-changed :
+changed : 09/27/2017 rxa457 CCN project team
+          Load date will always be inserted as SYDATE							
 *******************************************************************************/
 IN_DATE DATE)
 AS
@@ -414,14 +427,13 @@ CURSOR POS_DT_CUR IS
        FROM PNP_CCN_BATCH_SUMMARY CBS
       WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
                                 FROM POS_CCN_LOAD_STATUS
-                               WHERE LOAD_DATE = IN_DATE);
+                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE));
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
    V_TEMP_ROW   POS_DPST_TICKET_COUNTS%ROWTYPE;
 
 BEGIN
-     DELETE FROM POS_DPST_TICKET_COUNTS WHERE LOAD_DATE = IN_DATE;
      FOR REC IN POS_DT_CUR
      LOOP
         BEGIN
@@ -430,7 +442,7 @@ BEGIN
             V_TEMP_ROW.POS_COUNT            := CASE NVL(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.POS_COUNT), 0) WHEN '0' THEN '0000' ELSE '0001' END;
             V_TEMP_ROW.FILLER               := NULL;
             V_TEMP_ROW.DATA_SOURCE          := 'NEW_POS';
-            V_TEMP_ROW.LOAD_DATE            := IN_DATE;
+            V_TEMP_ROW.LOAD_DATE            := SYSDATE;
            INSERT INTO POS_DPST_TICKET_COUNTS VALUES V_TEMP_ROW;
 
            V_COUNT   := V_COUNT + 1;
@@ -473,6 +485,8 @@ This procedure is used to load the POS data into
 Created : 01/17/2017 AXK326 CCN Project....
 Changed : 06/28/2017 gxg192 Changes to use CCN_COMMON_TOOLS instead of SD_COMMON_TOOLS
         : 08/03/2017 gxg192 Removed formatting on amount and emp no fields.
+changed : 09/27/2017 rxa457 CCN project team
+          Load date will always be inserted as SYDATE									
 *******************************************************************************/
 IN_DATE DATE)
 AS
@@ -494,14 +508,13 @@ CURSOR POS_INTERIM_CUR IS
         FROM PNP_CCN_INTERIM_DEPOSITS CID
        WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
                                 FROM POS_CCN_LOAD_STATUS
-                               WHERE LOAD_DATE = IN_DATE);
+                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE));
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
    V_TEMP_ROW   BANKING.POS_INTERIM_DEPST%ROWTYPE;
 
 BEGIN
-     DELETE FROM POS_INTERIM_DEPST WHERE LOAD_DATE = IN_DATE;
      FOR REC IN POS_INTERIM_CUR
      LOOP
         BEGIN
@@ -519,7 +532,7 @@ BEGIN
             V_TEMP_ROW.EMP_NO             := rec.EMP_NO;
             V_TEMP_ROW.DEPST_AMOUNT       := rec.DEPST_AMOUNT;
             V_TEMP_ROW.DATA_SOURCE        := 'NEW_POS';
-            V_TEMP_ROW.LOAD_DATE          := IN_DATE;
+            V_TEMP_ROW.LOAD_DATE          := SYSDATE;
             INSERT INTO POS_INTERIM_DEPST VALUES V_TEMP_ROW;
 
            V_COUNT   := V_COUNT + 1;
