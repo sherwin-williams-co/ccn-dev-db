@@ -16,4 +16,13 @@ changed : 09/28/2017 nxk927 CCN Project....
 ******************************************************************/
 ;
 
+FUNCTION GET_LOAD_RUNCYCLE
+/******************************************************************************
+  This function will get the runcycle for the days load
+
+Created : 09/28/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+RETURN VARCHAR2;
+
 END POS_SD_DAILY_LOAD;
