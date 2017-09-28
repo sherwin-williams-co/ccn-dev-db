@@ -413,27 +413,6 @@ IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
 RETURN VARCHAR2;
 
-FUNCTION GET_HOMESTORE(
-/***********************************************
-Function to get Homestore Information for the cost center 
-based on the cost center's Category
-
-created : 08/30/2017  rxa457 CCN Project..
-***********************************************/
-IN_COST_CNTR_CD   IN COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_COST_CNTR_CATG IN COST_CENTER.CATEGORY%TYPE)
-RETURN VARCHAR2;
-
-FUNCTION GET_TIMEZONE(
-/***********************************************
-Function to get Timezone Information for the cost center 
-
-created : 08/28/2017  rxa457 CCN Project..
-***********************************************/
-IN_COST_CNTR_CD   IN COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_COST_CNTR_CATG IN COST_CENTER.CATEGORY%TYPE)
-RETURN VARCHAR2;
-
 FUNCTION GET_ACTIVE_STATUS(
 /***********************************************
 Function to get Active status record for a cost center
