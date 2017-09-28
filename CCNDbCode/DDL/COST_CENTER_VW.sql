@@ -46,6 +46,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
          : 09/05/2017 sxh487 Added STORE MGR for the job title and removed ASST MGR
            (also selecting based on hire_date) to be consistent with GLOBAL_HIERARCHY_ATTRBT_VW and ECOMM view
          : 09/06/2017 axt754 Added BOOK_PLAN_PROFILE_CD
+         : 09/27/2017 axt754 Put back POLLING_IND which was removed
 ********************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -76,6 +77,10 @@ CCN_HIERARCHY.GET_TYPE_FNC(C.COST_CENTER_CODE) TYPE_CODE,
    FROM STATUS
   WHERE COST_CENTER_CODE = C.COST_CENTER_CODE
     AND EXPIRATION_DATE IS NULL) STATUS_CODE,
+(SELECT POLLING_IND
+   FROM POLLING
+  WHERE CURRENT_FLAG = 'Y'
+    AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_IND,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
