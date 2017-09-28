@@ -6,6 +6,9 @@ Banking Gift Card and deposit ticket/bags.
 Created : 06/15/2017 gxg192 CCN Project....
 Changed : 06/21/2016 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
+Changed : 09/27/2017 rxa457 CCN project....
+           Added new function GET_LATEST_POS_RUN_CYCLE to return the
+           oldest run cycle that's pending to be loaded into POS tables
 ***************************************************************************************/
 
 FUNCTION GET_UAR_TRANS_CODE(
@@ -42,5 +45,14 @@ Changed :
 ***********************************************************************/
 IN_DATE DATE
 );
+
+FUNCTION GET_LATEST_POS_RUN_CYCLE
+/**************************************************************************************
+Function returns the oldest run cycle from PNP 
+that is pending to be loaded into local POS tables
+Created : 09/27/2017 RXA457 CCN Project....
+Changed : 
+**************************************************************************************/
+RETURN POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE;
 
 END POS_BANKING_DAILY_LOAD;

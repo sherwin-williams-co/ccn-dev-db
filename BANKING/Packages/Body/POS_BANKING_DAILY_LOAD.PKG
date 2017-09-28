@@ -9,7 +9,47 @@ Changed : 06/21/2017 gxg192 Changes to use single procedure for loading pos data
                             for gift cards and ticket/bags
         : 06/26/2017 gxg192 Changed procedure name from LOAD_UAR_GIFT_CARD_POS_TRANS to LOAD_POS_GIFT_CARD_POS_TRANS
         : 07/31/2017 gxg192 Added function to get store state code based on store number passed.
+        : 09/27/2017 rxa457 CCN Project....
+           Added new function GET_LATEST_POS_RUN_CYCLE
 ***************************************************************************************/
+FUNCTION GET_LATEST_POS_RUN_CYCLE
+/**************************************************************************************
+Function returns the oldest run cycle from PNP 
+that is pending to be loaded into local POS tables
+Created : 09/27/2017 RXA457 CCN Project....
+Changed : 
+**************************************************************************************/
+RETURN POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE
+IS
+   V_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE;
+
+BEGIN
+
+   SELECT RLS_RUN_CYCLE
+     INTO V_RLS_RUN_CYCLE
+     FROM (SELECT CH.*
+             FROM PNP_CCN_LOAD_STATUS CH
+            WHERE CH.START_TS >= NVL((SELECT MAX(END_TS)
+                                       FROM POS_CCN_LOAD_STATUS),
+                                     CH.START_TS)
+              AND STATUS_CODE = 'C'
+         ORDER BY CH.START_TS
+          )
+    WHERE ROWNUM = 1;
+   
+    RETURN V_RLS_RUN_CYCLE;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'POS_BANKING_DAILY_LOAD.GET_LATEST_POS_RUN_CYCLE',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000',
+                                    'POS_CCN_LOAD_STATUS');
+        RAISE;
+
+END GET_LATEST_POS_RUN_CYCLE;
+
 
 FUNCTION GET_UAR_TRANS_CODE(
 /**************************************************************************************
@@ -153,7 +193,8 @@ Changed : 08/01/2017 gxg192 Added DBMS output to print no. of records inserted i
 Changed : 09/27/2017 rxa457 CCN Project Team...
           Load date will be inserted as SYSDATE to keep track of data loaded date
 *****************************************************************************/
-IN_DATE     IN DATE)
+IN_DATE     IN DATE,
+IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 AS
 
 BEGIN
@@ -162,8 +203,7 @@ BEGIN
    SELECT CH.*,
           SYSDATE LOAD_DATE
      FROM PNP_CCN_LOAD_STATUS CH
-    WHERE TRUNC(CH.START_TS) = TRUNC(IN_DATE)
-      AND STATUS_CODE = 'C';
+    WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
 
    DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || SQL%ROWCOUNT);
    COMMIT;
@@ -196,7 +236,8 @@ changed : 12/08/2016 vxv336 added STATUS filter in cursor query
 changed : 09/27/2017 rxa457 CCN project team
           Load date will always be inserted as SYDATE							
 *******************************************************************************/
-IN_DATE DATE)
+IN_DATE DATE,
+IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 AS
 
 CURSOR GC_CUR IS
@@ -217,9 +258,7 @@ CURSOR GC_CUR IS
    FROM PNP_CCN_HEADERS CH,
         PNP_CCN_BATCH_SUMMARY CBS,
         PNP_CCN_GIFT_CARD_LOG CGC
-  WHERE CGC.RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
-                                FROM POS_CCN_LOAD_STATUS
-                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE))
+  WHERE CGC.RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
     AND UPPER(CGC.ACTION) IN ('APPROVED', 'MANUAL')                               
     AND CH.RLS_RUN_CYCLE = CGC.RLS_RUN_CYCLE 
     AND CH.TRAN_GUID = CGC.TRAN_GUID
@@ -296,7 +335,7 @@ Changed : 06/14/2017 gxg192 Changes to add header, trailor and summary record
         : 08/03/2017 gxg192 Changes to format required field for generating gift card file.
 changed : 09/27/2017 rxa457 CCN project team
           Load date will always be inserted as SYDATE
-          Pick all data that was not generated 	as part of the previous run	  
+          Pick all data that was not generated 	as part of the previous runs	  
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -317,7 +356,7 @@ IS
              CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(TRANS_NBR, '0', '5') AS TRANS_NBR,
              CCN_COMMON_TOOLS.FORMAT_INPUT_FOR_FILE(EMPLOYEE_NBR, '0', '2') AS EMPLOYEE_NBR
         FROM POS_GIFT_CARD_POS_TRANS
-       WHERE LOAD_DATE > NVL(V_LAST_BATCH_RUN_DATE,TRUNC(SYSDATE)-1);
+       WHERE LOAD_DATE >= NVL(V_LAST_BATCH_RUN_DATE,LOAD_DATE);
       
   PATH                         VARCHAR2(50) := 'BANKING_LOAD_FILES';
   UAR_GIFT_CARD_TRANS_FL_NM    VARCHAR2(50) := 'SMIS1.UAR.POSGFTCD_' ||
@@ -332,8 +371,8 @@ IS
   V_TRANS_STATUS  BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 
 BEGIN
-   V_LAST_BATCH_RUN_DATE := CCN_COMMON_TOOLS.GET_LAST_BATCH_RUNDATE('POS_GIFT_CARD_GENERATION');
-   CCN_BATCH_PKG.INSERT_BATCH_JOB('POS_GIFT_CARD_GENERATION', V_BATCH_NUMBER);
+   V_LAST_BATCH_RUN_DATE := CCN_COMMON_TOOLS.GET_LAST_BATCH_RUNDATE('POS_GIFT_CARD_GEN');
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('POS_GIFT_CARD_GEN', V_BATCH_NUMBER);
    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
    
   UAR_GIFT_CARD_TRANS_FL := UTL_FILE.FOPEN (PATH
@@ -359,10 +398,10 @@ BEGIN
                         || rec.STORE_STATE_CD
                         || rec.TRANS_AMOUNT
                         || rec.TRANS_DATE
-                        || rec.TRANS_TIME
                         || rec.TERM_NBR
                         || rec.TRANS_NBR
                         || rec.EMPLOYEE_NBR
+                        || rec.TRANS_TIME
                         || CHR(13);
                         
       IF V_OUT_CLOB <> EMPTY_CLOB() THEN
@@ -390,7 +429,7 @@ BEGIN
 
   UTL_FILE.FCLOSE(UAR_GIFT_CARD_TRANS_FL);
 
-  CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_GIFT_CARD_GENERATION', V_BATCH_NUMBER, V_TRANS_STATUS);
+  CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_GIFT_CARD_GEN', V_BATCH_NUMBER, V_TRANS_STATUS);
   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
 EXCEPTION
@@ -416,7 +455,8 @@ created : 01/17/2017 AXK326 CCN Project....
 changed : 09/27/2017 rxa457 CCN project team
           Load date will always be inserted as SYDATE							
 *******************************************************************************/
-IN_DATE DATE)
+IN_DATE DATE,
+IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 AS
 
 CURSOR POS_DT_CUR IS
@@ -425,9 +465,7 @@ CURSOR POS_DT_CUR IS
             CBS.BANK_DEP_BATCH POS_COUNT,
             NULL FILLER
        FROM PNP_CCN_BATCH_SUMMARY CBS
-      WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
-                                FROM POS_CCN_LOAD_STATUS
-                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE));
+      WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
@@ -488,7 +526,8 @@ Changed : 06/28/2017 gxg192 Changes to use CCN_COMMON_TOOLS instead of SD_COMMON
 changed : 09/27/2017 rxa457 CCN project team
           Load date will always be inserted as SYDATE									
 *******************************************************************************/
-IN_DATE DATE)
+IN_DATE DATE,
+IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 AS
 
 CURSOR POS_INTERIM_CUR IS
@@ -506,9 +545,7 @@ CURSOR POS_INTERIM_CUR IS
              CID.EMPNBR AS EMP_NO,
              CID.TOTTRANAMT AS DEPST_AMOUNT
         FROM PNP_CCN_INTERIM_DEPOSITS CID
-       WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
-                                FROM POS_CCN_LOAD_STATUS
-                               WHERE TRUNC(START_TS) = TRUNC(IN_DATE));
+       WHERE RLS_RUN_CYCLE  = IN_RLS_RUN_CYCLE;
 
    V_COUNT      NUMBER := 0;
    V_TCOUNT     NUMBER := 0;
@@ -575,8 +612,9 @@ This Procedure is a wrapper for loading gift card and ticket/bags related data
 from POS Interface tables to Banking tables.
 
 Created : 06/21/2016 gxg192 CCN Project....
-Changed :
-
+Changed : 09/28/2017 rxa457 CCN Project...
+           Finding out new run cycle available and passing it in to 
+          other Loading Procedures
 ***********************************************************************/
 IN_DATE DATE
 )
@@ -585,6 +623,7 @@ IS
    V_TRANS_STATUS  BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
    V_CONTEXT       VARCHAR2(200);
    V_START_TIME    NUMBER;
+   V_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE;
 BEGIN
 
    CCN_BATCH_PKG.INSERT_BATCH_JOB('POS_BANKING_DLY_LOAD', V_BATCH_NUMBER);
@@ -594,33 +633,42 @@ BEGIN
 -- Call to LOAD_POS_CCN_LOAD_STATUS to load Records from PNP.CCN_load_status into pos ccn load status table
    V_START_TIME := DBMS_UTILITY.GET_TIME;
    V_CONTEXT := 'LOAD_POS_CCN_LOAD_STATUS';
-   LOAD_POS_CCN_LOAD_STATUS(IN_DATE);
-   DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+   V_RLS_RUN_CYCLE := POS_BANKING_DAILY_LOAD.GET_LATEST_POS_RUN_CYCLE;
+   IF V_RLS_RUN_CYCLE IS NOT NULL THEN
+       LOAD_POS_CCN_LOAD_STATUS(IN_DATE, V_RLS_RUN_CYCLE);
+       DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
--- STEP 2
--- Call to perform DailyLoad from POS new interface tables to POS_GIFT_CARD_POS_TRANS table
-   V_START_TIME := DBMS_UTILITY.GET_TIME;
-   V_CONTEXT := 'LOAD_POS_GIFT_CARD_POS_TRANS';
-   LOAD_POS_GIFT_CARD_POS_TRANS(IN_DATE);
-   DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+    -- STEP 2
+    -- Call to perform DailyLoad from POS new interface tables to POS_GIFT_CARD_POS_TRANS table
+       V_START_TIME := DBMS_UTILITY.GET_TIME;
+       V_CONTEXT := 'LOAD_POS_GIFT_CARD_POS_TRANS';
+       LOAD_POS_GIFT_CARD_POS_TRANS(IN_DATE, V_RLS_RUN_CYCLE);
+       DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
--- STEP 3
--- Call to Generate UAR GIFT CARD TRANSACTION FILE
-   V_START_TIME := DBMS_UTILITY.GET_TIME;
-   V_CONTEXT := 'LOAD_POS_DPST_TICKET_COUNTS';
-   LOAD_POS_DPST_TICKET_COUNTS(IN_DATE);
-   DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+    -- STEP 3
+    -- Call to Generate UAR GIFT CARD TRANSACTION FILE
+       V_START_TIME := DBMS_UTILITY.GET_TIME;
+       V_CONTEXT := 'LOAD_POS_DPST_TICKET_COUNTS';
+       LOAD_POS_DPST_TICKET_COUNTS(IN_DATE, V_RLS_RUN_CYCLE);
+       DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
--- STEP 4
--- Call to Generate UAR GIFT CARD TRANSACTION FILE
-   V_START_TIME := DBMS_UTILITY.GET_TIME;
-   V_CONTEXT := 'LOAD_POS_INTERIM_DEPST';
-   LOAD_POS_INTERIM_DEPST(IN_DATE);
-   DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+    -- STEP 4
+    -- Call to Generate UAR GIFT CARD TRANSACTION FILE
+       V_START_TIME := DBMS_UTILITY.GET_TIME;
+       V_CONTEXT := 'LOAD_POS_INTERIM_DEPST';
+       LOAD_POS_INTERIM_DEPST(IN_DATE, V_RLS_RUN_CYCLE);
+       DBMS_OUTPUT.PUT_LINE(V_CONTEXT|| ' completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
+   ELSE
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'POS_BANKING_DAILY_LOAD.POS_BANKING_DAILY_LOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000',
+                                    'POS_BANKING_DAILY_LOAD_SP');
+   END IF;
    CCN_BATCH_PKG.UPDATE_BATCH_JOB('POS_BANKING_DLY_LOAD', V_BATCH_NUMBER, V_TRANS_STATUS);
    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-
 END POS_BANKING_DAILY_LOAD_SP;
 
 END POS_BANKING_DAILY_LOAD;
