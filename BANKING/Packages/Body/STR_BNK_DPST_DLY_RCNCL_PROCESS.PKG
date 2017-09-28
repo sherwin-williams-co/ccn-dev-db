@@ -443,7 +443,7 @@ PROCEDURE GENERATE_UAR_SERIAL_FILE(
 Created : 06/23/2015 jxc517 CCN Project....
 Changed : 08/15/2017 nxk927 CCN Project....
           Added a new line to make the file readable in notepad
-          Removed the condition to wait for 50 records before writing the data
+          removed the condition to wait for 50 records before writing the data
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -990,8 +990,7 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           loading the table with load date as of the passed date rather than using sysdate.
           Passing the transaction date to get the bank account number rather than the in_date
 *****************************************************************************/
-    IN_DATE            IN         DATE,
-    IN_RLS_RUN_CYCLE   IN         VARCHAR2)
+    IN_DATE            IN         DATE)
 IS
 CURSOR SUM_CUR IS
     SELECT STORE_NO STORENBR,
@@ -1001,10 +1000,14 @@ CURSOR SUM_CUR IS
            RLS_RUN_CYCLE,
            IN_DATE AS LOAD_DATE
       FROM PNP.CCN_BATCH_SUMMARY SM
-     WHERE RLS_RUN_CYCLE >= IN_RLS_RUN_CYCLE - DECODE(TO_CHAR(IN_DATE, 'D'),3,3,1) --(Need logic modification for the friday's run)
-       AND RLS_RUN_CYCLE <  IN_RLS_RUN_CYCLE
+     WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                               FROM PNP_CCN_LOAD_STATUS
+                              WHERE TRUNC(START_TS) >= IN_DATE - DECODE(TO_CHAR(TRUNC(SYSDATE), 'D'),3,3,1)
+                                AND TRUNC(START_TS) < IN_DATE) --(Need logic modification for the friday's run)
+       --(Need logic modification for the friday's run)
        AND BANK_DEP_BATCH <> '0'
      GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE;
+  
 
      V_COUNT NUMBER := 0;
      V_COUNT1 NUMBER := 0;
@@ -1369,9 +1372,13 @@ IS
 BEGIN
     SELECT RLS_RUN_CYCLE
       INTO V_RETURN_VALUE
-      FROM POS_CCN_LOAD_STATUS
-     WHERE LOAD_DATE = IN_DATE;
-
+      FROM (SELECT CH.*
+              FROM PNP_CCN_LOAD_STATUS CH
+              WHERE CH.START_TS  > (SELECT MAX(START_TS)
+                                      FROM POS_CCN_LOAD_STATUS)
+                AND STATUS_CODE = 'C'
+              ORDER BY CH.START_TS)
+     WHERE ROWNUM < 2;
     RETURN V_RETURN_VALUE;
 EXCEPTION
     WHEN OTHERS THEN
@@ -1392,16 +1399,13 @@ IS
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_REF_CUR           REF_CURSOR;
     V_START_TIME        NUMBER;
-    V_RLS_RUN_CYCLE     VARCHAR2(5);
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BDP_DLY_RCNCL_PRCSS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
     BEGIN
-        V_RLS_RUN_CYCLE := GET_RUNCYCLE(IN_DATE);
-
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --load the current SUMMARY CONTROL SRA10510 file for use in next run
-        LOAD_SUMMARY_EXTRCT_CNTRL_FL(IN_DATE, V_RLS_RUN_CYCLE);
+        LOAD_SUMMARY_EXTRCT_CNTRL_FL(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('LOAD_SUMMARY_EXTRCT_CNTRL_FL : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
         V_START_TIME := DBMS_UTILITY.GET_TIME;
@@ -1470,10 +1474,9 @@ BEGIN
         --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
         GENERATE_UAR_POS_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_POS_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
+        
         GNRTE_NO_CONCERNTRATION_RPT(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GNRTE_NO_CONCERNTRATION_RPT : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
     EXCEPTION
         WHEN OTHERS THEN
            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
@@ -1587,7 +1590,7 @@ BEGIN
            AND NVL(SNZ_SAM_CODE,'AAA')     = NVL(REC.TRAN_CODE,'AAA')
            AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
            AND LOAD_DATE                  < IN_DATE;
-
+        
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 THEN
            COMMIT;
@@ -1701,7 +1704,7 @@ BEGIN
                                          rec.CODE1,
                                          rec.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
-
+        
         IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
             OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
             V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
@@ -1994,7 +1997,7 @@ THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
 WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING COST CENTER CODE IS NOT FOUND
 ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
 
-CREATED : 06/08/2017 CCN PROJECT TEAM..
+Created : 06/08/2017 CCN PROJECT TEAM..
 Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
           removing the raise error if the cost center is not present and returning the 4 digit cost center back
 **********************************************************/

@@ -68,4 +68,22 @@ IN_BLOB        IN       BLOB,
 IN_FILE_NAME   IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
+FUNCTION GET_LAST_BATCH_RUNDATE(
+/******************************************************************
+This function will return the LAST BATCH RUN DATE for the batch name passed
+
+created : 09/27/2017 nxk927 CCN Project....
+changed :
+******************************************************************/
+IN_BATCH_NAME       IN   VARCHAR2) RETURN DATE;
+
+FUNCTION GET_LAST_BATCH_STARTDATE(
+/******************************************************************
+This function will return the LAST BATCH START DATE for the batch name passed
+
+created : 09/28/2017 nxk927 CCN Project....
+changed :
+******************************************************************/
+IN_BATCH_NAME       IN   VARCHAR2) RETURN DATE;
+
 END CCN_BATCH_PKG;
