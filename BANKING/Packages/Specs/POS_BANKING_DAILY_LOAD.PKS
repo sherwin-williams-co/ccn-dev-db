@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE POS_BANKING_DAILY_LOAD AS
+create or replace PACKAGE POS_BANKING_DAILY_LOAD AS
 /**************************************************************************************
 This package is for loading data from POS to CCN for
 Banking Gift Card and deposit ticket/bags.
@@ -46,7 +46,7 @@ Changed :
 IN_DATE DATE
 );
 
-FUNCTION GET_LATEST_POS_RUN_CYCLE
+FUNCTION GET_POS_RUN_CYCLE
 /**************************************************************************************
 Function returns the oldest run cycle from PNP 
 that is pending to be loaded into local POS tables
