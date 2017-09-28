@@ -68,7 +68,7 @@ IN_BLOB        IN       BLOB,
 IN_FILE_NAME   IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
-FUNCTION GET_LAST_BATCH_RUNDATE(
+FUNCTION GET_LAST_RUNDATE(
 /******************************************************************
 This function will return the LAST BATCH RUN DATE for the batch name passed
 
@@ -77,7 +77,7 @@ changed :
 ******************************************************************/
 IN_BATCH_NAME       IN   VARCHAR2) RETURN DATE;
 
-FUNCTION GET_LAST_BATCH_STARTDATE(
+FUNCTION GET_LAST_STARTDATE(
 /******************************************************************
 This function will return the LAST BATCH START DATE for the batch name passed
 
