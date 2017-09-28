@@ -608,11 +608,15 @@ This procedure is used do update on the table POS_DOWNLOADS
 
 Created : 10/17/2016 rxv940 CCN Project....
 Changed : 06/02/2017 rxv940 CCN Project....
-        : Selecting only the first 36 characters of Request_id.                    
+        : Selecting only the first 36 characters of Request_id.
+Changed : 09/02/2017 rxv940 CCN Project....
+        : Temporary code for maintaining old version of store list from web services
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
 IS
-   V_ERROR VARCHAR2(1000);
+   V_ERROR          VARCHAR2(1000);
+   V_STR_LST        VARCHAR2(1000);
+   V_NEW_FILE_TYPE  VARCHAR2(1000);
 
 BEGIN
 
@@ -623,7 +627,7 @@ BEGIN
            DATA_OPERATION     = IN_POS_DOWNLOADS.DATA_OPERATION, 
            FILE_PROCESSED     = IN_POS_DOWNLOADS.FILE_PROCESSED,
            FILE_TYPE          = IN_POS_DOWNLOADS.FILE_TYPE,
-           COMMENTS           = IN_POS_DOWNLOADS.COMMENTS,
+           COMMENTS           = IN_POS_DOWNLOADS.COMMENTS, 
            FILE_NAME          = IN_POS_DOWNLOADS.FILE_NAME,
            -- The Java code outputs the request id along with the list of stores for which the XML
            -- file was sent (if any). Hence using substr to load just the POLLING_REQUEST_ID
@@ -631,6 +635,54 @@ BEGIN
            UPDATE_DT          = IN_POS_DOWNLOADS.UPDATE_DT
      WHERE FILE_NAME = IN_POS_DOWNLOADS.FILE_NAME
         OR POS_ID    = IN_POS_DOWNLOADS.POS_ID;
+    
+    
+    -- The below script is just for handling new stores in web services.
+    -- This code is temporary and needs to be removed after all waves of 
+    -- stores are deployed
+    SELECT CASE WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_STORE_UPDATE' 
+                THEN 'STORE'
+                WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_TERRITORY_UPDATE' 
+                THEN 'TERR'
+                WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_PARAM_UPDATE' 
+                THEN 'PARAM'
+                END 
+    INTO V_NEW_FILE_TYPE
+     FROM DUAL;
+    
+    V_STR_LST := SUBSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, INSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, '[')+1 , LENGTH(IN_POS_DOWNLOADS.POLLING_REQUEST_ID)-1);
+    
+    IF V_STR_LST IS NOT NULL THEN
+         
+        INSERT INTO POS_INIT_LOAD_LIST(FILE_TYPE, COST_CENTER_CODE)
+        WITH T AS 
+        (
+        SELECT V_STR_LST T_LIST 
+          FROM DUAL
+        )
+        , LVL AS
+        (
+        SELECT LEVEL LVL, MOD(LEVEL,6) ML 
+          FROM DUAL CONNECT BY LEVEL <= 605
+        )
+        , FNL_SET AS 
+        (
+        SELECT SUBSTR(T_LIST, LVL, 4) CC 
+          FROM LVL, T 
+         WHERE ML = 1
+        )
+        SELECT V_NEW_FILE_TYPE, CC 
+          FROM FNL_SET 
+         WHERE CC IS NOT NULL
+         MINUS
+        SELECT FILE_TYPE, COST_CENTER_CODE 
+          FROM POS_INIT_LOAD_LIST
+         WHERE FILE_TYPE = V_NEW_FILE_TYPE
+        ;
+    
+    END IF;
+    
+    -- End of code that is temporary
 
 EXCEPTION
     WHEN OTHERS THEN
