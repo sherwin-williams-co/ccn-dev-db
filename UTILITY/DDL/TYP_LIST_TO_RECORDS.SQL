@@ -1,1 +1,3 @@
+-- created by rxv940 on 09/29/2017
+-- Run in utility 
 CREATE TYPE TYP_LIST_TO_RECORDS AS TABLE OF VARCHAR2(6);
