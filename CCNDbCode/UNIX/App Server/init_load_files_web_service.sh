@@ -13,7 +13,6 @@
 APPL=$1
 # APPL can have values of "STORE"/ "TERR"/ "PARAM"
 JAVA_DIR=/app/ccn/POSdownloads/java
-PROC_NAME=".sh"
 DATADIR="$HOME/POSdownloads/POSxmls"
 DATE=$(date +"%d%m%Y")
 FILENAME=CCD_LIST.queue
@@ -29,4 +28,6 @@ TIME=$(date +"%H%M%S")
 echo "Moving the .queue file to DB Server started at $DATE:$TIME "
 $SCRIPT_DIR/polling_dwnld_files_ftp_to_db_server.sh "$FILENAME"
 TIME=$(date +"%H%M%S") 
-echo "Moving the .queue file to DB Server completed at $DATE:$TIME "
+echo "Moving the .queue file to DB Server completed at $DATE:$TIME " 
+
+exit 0

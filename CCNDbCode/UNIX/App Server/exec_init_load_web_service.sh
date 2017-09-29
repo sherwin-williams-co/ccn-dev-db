@@ -3,6 +3,7 @@
 # Script name   : exec_init_load_web_service.sh
 #
 # Description   : This script is to call polling process for based on the input paramt
+#               : The input parameters possible are "STORE", "TERR", "PARAM"
 # Created  : 09/28/2017 rxv940 CCN Project Team.....
 # Modified : 
 #####################################################################################

@@ -277,4 +277,26 @@ IN_LENGTH        IN NUMBER,
 IN_PRECISION     IN NUMBER DEFAULT 0
 ) RETURN VARCHAR2;
 
+FUNCTION LIST_TO_RECORDS(
+/***********************************************
+Function that gets a list of 4 digit cost center as input and returns 6 digit cost center 
+as induvidual records
+
+created : 09/29/2017  rxv940 CCN Project..
+***********************************************/
+IN_LIST   IN VARCHAR2
+) RETURN TYP_LIST_TO_RECORDS;  
+
+PROCEDURE LOAD_POS_INIT_LOAD_LIST_SP(
+/*******************************************************************************
+This procedure is used do update the POS_INIT_LOAD_LIST table based on 
+file type
+
+Created : 09/29/2016 rxv940 CCN Project....
+        : This is a temp code used to insert into POS_INIT_LOAD_LIST table
+Changed : 
+*******************************************************************************/
+IN_FILE_TYPE   POS_DOWNLOADS.FILE_TYPE%TYPE,
+IN_REQUEST_ID  POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE);
+
 END CCN_COMMON_TOOLS;

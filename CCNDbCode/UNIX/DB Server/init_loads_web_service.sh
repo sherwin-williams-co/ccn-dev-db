@@ -2,7 +2,7 @@
 ###############################################################################################################################
 # Script name   : init_loads_web_service.sh
 # Description   : This script is to connect to DB and generate the .queue file, archive the two .queue files and calls
-#               : the Init loads
+#               : the Init loads : The input parameters possible are "STORE", "TERR", "PARAM"
 #
 # Created  : 09/27/2017 rxv940 CCN Project Team.....
 # Modified : 
@@ -31,7 +31,7 @@ WHENEVER SQLERROR EXIT 1
 
 BEGIN
 :exitCode := 0;
-P_GENERATE_STORE_LIST('$IN_FILE_NAME');
+POS_DATA_GENERATION.GENERATE_STORE_LIST_FROM_WS_SP('$IN_FILE_NAME');
 Exception
 when others then
     :exitCode := 1;
@@ -49,7 +49,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $PROC_NAME --> processing FAILED while executing CCN_UTILITY.P_GENERATE_STORE_LIST at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling CCN_UTILITY.P_GENERATE_STORE_LIST"
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling GENERATE_STORE_LIST_SP "
      exit 1
 fi
 TIME=$(date +"%H%M%S")
@@ -180,3 +180,5 @@ else
     echo " $CCD.queue file is not created "
 
 fi
+
+exit 0

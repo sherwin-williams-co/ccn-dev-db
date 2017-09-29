@@ -919,4 +919,83 @@ EXCEPTION
         RETURN NULL;
 END FORMAT_INPUT_FOR_FILE;
 
+FUNCTION LIST_TO_RECORDS(
+/*******************************************************************************
+This function gets a varchar list as input and parses the list based on comma
+and generates one new record for eveyr field seperated by comma
+Created : 09/28/2016 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+     IN_LIST IN VARCHAR2)
+    RETURN TYP_LIST_TO_RECORDS
+ AS
+    l_string       VARCHAR2(32767);
+    l_comma_index  PLS_INTEGER;
+    l_index        PLS_INTEGER := 1;
+    l_tab          TYP_LIST_TO_RECORDS := TYP_LIST_TO_RECORDS();
+BEGIN
+    LOOP
+        l_string := REPLACE(REPLACE(IN_LIST, '['), ']') || ',';
+        l_comma_index := INSTR(l_string, ',', l_index);
+        EXIT WHEN l_comma_index = 0;
+        l_tab.EXTEND;
+        l_tab(l_tab.COUNT) := COSTCNTR.COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(l_string, l_index, l_comma_index - l_index)));
+        l_index := l_comma_index + 1;
+    END LOOP;
+    RETURN l_tab;
+END LIST_TO_RECORDS;
+ 
+PROCEDURE LOAD_POS_INIT_LOAD_LIST_SP(
+/*******************************************************************************
+This procedure is used do insert on the table POS_INIT_LOAD_LIST by file type
+This is a temp code which can be purged after all stores are under polling
+
+Created : 09/28/2016 rxv940 CCN Project....
+        : This is a temp code used to insert into POS_INIT_LOAD_LIST table
+Changed : 
+*******************************************************************************/
+    IN_FILE_TYPE   POS_DOWNLOADS.FILE_TYPE%TYPE,
+    IN_REQUEST_ID  POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE)
+IS    
+    V_STR_LST        VARCHAR2(1000);
+    V_NEW_FILE_TYPE  VARCHAR2(1000);
+BEGIN
+
+    SELECT CASE WHEN IN_FILE_TYPE = 'POS_STORE_UPDATE' 
+                THEN 'STORE'
+                WHEN IN_FILE_TYPE = 'POS_TERRITORY_UPDATE' 
+                THEN 'TERR'
+                WHEN IN_FILE_TYPE = 'POS_PARAM_UPDATE' 
+                THEN 'PARAM'
+                END 
+    INTO V_NEW_FILE_TYPE 
+     FROM DUAL;
+    
+    V_STR_LST := REGEXP_REPLACE(SUBSTR(IN_REQUEST_ID, 
+                               INSTR(IN_REQUEST_ID, '[')+1),
+                               ']',''
+                               );
+
+    IF V_STR_LST IS NOT NULL THEN 
+           
+        INSERT INTO POS_INIT_LOAD_LIST (FILE_TYPE, COST_CENTER_CODE)
+        SELECT FT, CVL FROM 
+        (
+        SELECT V_NEW_FILE_TYPE FT, CVL
+          FROM
+             (
+             SELECT CC.COLUMN_VALUE CVL
+               FROM TABLE(CCN_COMMON_TOOLS.LIST_TO_RECORDS(V_STR_LST)) CC
+            )
+         MINUS
+        SELECT FILE_TYPE, COST_CENTER_CODE
+          FROM POS_INIT_LOAD_LIST
+         WHERE FILE_TYPE = V_NEW_FILE_TYPE
+         )
+        ;
+    
+    END IF;
+    
+END LOAD_POS_INIT_LOAD_LIST_SP;
+
 END CCN_COMMON_TOOLS;

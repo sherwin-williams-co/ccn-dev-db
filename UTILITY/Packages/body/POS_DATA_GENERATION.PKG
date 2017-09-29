@@ -615,9 +615,6 @@ Changed : 09/02/2017 rxv940 CCN Project....
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
 IS
    V_ERROR          VARCHAR2(1000);
-   V_STR_LST        VARCHAR2(1000);
-   V_NEW_FILE_TYPE  VARCHAR2(1000);
-
 BEGIN
 
 
@@ -640,47 +637,9 @@ BEGIN
     -- The below script is just for handling new stores in web services.
     -- This code is temporary and needs to be removed after all waves of 
     -- stores are deployed
-    SELECT CASE WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_STORE_UPDATE' 
-                THEN 'STORE'
-                WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_TERRITORY_UPDATE' 
-                THEN 'TERR'
-                WHEN IN_POS_DOWNLOADS.FILE_TYPE = 'POS_PARAM_UPDATE' 
-                THEN 'PARAM'
-                END 
-    INTO V_NEW_FILE_TYPE
-     FROM DUAL;
-    
-    V_STR_LST := SUBSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, INSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, '[')+1 , LENGTH(IN_POS_DOWNLOADS.POLLING_REQUEST_ID)-1);
-    
-    IF V_STR_LST IS NOT NULL THEN
-         
-        INSERT INTO POS_INIT_LOAD_LIST(FILE_TYPE, COST_CENTER_CODE)
-        WITH T AS 
-        (
-        SELECT V_STR_LST T_LIST 
-          FROM DUAL
-        )
-        , LVL AS
-        (
-        SELECT LEVEL LVL, MOD(LEVEL,6) ML 
-          FROM DUAL CONNECT BY LEVEL <= 605
-        )
-        , FNL_SET AS 
-        (
-        SELECT SUBSTR(T_LIST, LVL, 4) CC 
-          FROM LVL, T 
-         WHERE ML = 1
-        )
-        SELECT V_NEW_FILE_TYPE, CC 
-          FROM FNL_SET 
-         WHERE CC IS NOT NULL
-         MINUS
-        SELECT FILE_TYPE, COST_CENTER_CODE 
-          FROM POS_INIT_LOAD_LIST
-         WHERE FILE_TYPE = V_NEW_FILE_TYPE
-        ;
-    
-    END IF;
+    CCN_COMMON_TOOLS.LOAD_POS_INIT_LOAD_LIST_SP(IN_POS_DOWNLOADS.FILE_TYPE,
+                                               IN_POS_DOWNLOADS.POLLING_REQUEST_ID
+                                               );
     
     -- End of code that is temporary
 
@@ -2467,5 +2426,52 @@ EXCEPTION
     WHEN OTHERS THEN
     RAISE;
 END NEW_STORES_INIT_LOAD_PROCESS;
+
+PROCEDURE GENERATE_STORE_LIST_FROM_WS_SP(
+/*******************************************************************************
+This procedure is used to create an Initload for STORE, TERR and PARAM all at once
+
+Created : 04/10/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+          IN_FILE_TYPE VARCHAR2)
+IS
+    V_STR_LST      VARCHAR2(32767); 
+    F1             UTL_FILE.FILE_TYPE; 
+    V_FNL_STR_LST  VARCHAR2(32767); 
+    V_FILE_NAME    VARCHAR2(100);
+BEGIN 
+    V_FILE_NAME := 'COST_CENTER_DEQUEUE.queue';
+    F1 := UTL_FILE.FOPEN('CCN_DATAFILES', 'CCD_LIST.queue', 'R'); 
+    UTL_FILE.GET_LINE(F1,V_STR_LST); 
+    UTL_FILE.FCLOSE(F1); 
+    
+        SELECT LISTAGG(SUBSTR(CC, 3, 4), CHR(10)) WITHIN GROUP (ORDER BY CC)  
+          INTO V_FNL_STR_LST
+          FROM 
+        ( 
+        SELECT CC
+          FROM
+             (
+             SELECT CC.COLUMN_VALUE CC
+               FROM TABLE(CCN_COMMON_TOOLS.LIST_TO_RECORDS(V_STR_LST)) CC
+            )
+         MINUS
+        SELECT COST_CENTER_CODE
+          FROM POS_INIT_LOAD_LIST
+         WHERE FILE_TYPE = IN_FILE_TYPE
+         );
+
+    
+    IF V_FNL_STR_LST IS NULL THEN 
+        DBMS_OUTPUT.PUT_LINE('No differences found');
+    ELSE 
+        DBMS_OUTPUT.PUT_LINE(V_FNL_STR_LST); 
+    
+        DBMS_XSLPROCESSOR.CLOB2FILE(V_FNL_STR_LST,
+                                   'CCN_DATAFILES',
+                                   V_FILE_NAME);
+    END IF;                              
+END GENERATE_STORE_LIST_FROM_WS_SP;
 
 END POS_DATA_GENERATION;
