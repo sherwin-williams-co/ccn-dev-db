@@ -11,8 +11,8 @@
 . /app/ccn/host.sh
 
 IN_FILE_NAME=$1
-echo $IN_FILE_NAME
-PROC_NAME=ter_mv_posfiles_to_app_server.sh
+echo " $PROC_NAME --> File name is $IN_FILE_NAME at $DATE:$TIME " 
+PROC_NAME=init_loads_web_service.sh
 DATADIR="$HOME"/datafiles
 ARCHIVEDIR="$DATADIR"/polling/archive
 DATE=$(date +"%d%m%Y")
