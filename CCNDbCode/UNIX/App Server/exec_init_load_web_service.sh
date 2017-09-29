@@ -54,7 +54,7 @@ echo " $PROC_NAME --> Archiving $CCD.queue completed at $DATE:$TIME "
 
 mv "$ARCHIVEDIR"/"$CCD".queue "$ARCHIVEDIR"/"$CCD"_ws_"$DATE".queue
 TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Renaming "$ARCHIVEDIR"/"$CCD".queue to "$ARCHIVEDIR"/"$CCD"_"$DATE".queue completed at $DATE:$TIME "
+echo " $PROC_NAME --> Renaming "$ARCHIVEDIR"/"$CCD".queue to "$ARCHIVEDIR"/"$CCD"_ws_"$DATE".queue completed at $DATE:$TIME "
 
 exit 0
 
