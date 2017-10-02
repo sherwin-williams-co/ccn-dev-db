@@ -2429,54 +2429,62 @@ END NEW_STORES_INIT_LOAD_PROCESS;
 
 PROCEDURE GENERATE_STORE_LIST_FROM_WS_SP(
 /*******************************************************************************
-This procedure is used to create an Initload for STORE, TERR and PARAM all at once
+This procedure is used to load data into POS_INIT_LOAD_LIST for STORE, TERR and PARAM
+This is a temporary code until all stores go live.
 
 Created : 04/10/2017 rxv940 CCN Project....
 Changed :
 *********************************************************************************/
           IN_FILE_TYPE VARCHAR2)
 IS
-    V_STR_LST      VARCHAR2(32767); 
-    F1             UTL_FILE.FILE_TYPE; 
-    V_FNL_STR_LST  VARCHAR2(32767); 
-    V_FILE_NAME    VARCHAR2(100);
+    V_STR_LST          VARCHAR2(32767); 
+    F1                 UTL_FILE.FILE_TYPE; 
+    V_FNL_STR_LST      VARCHAR2(32767); 
+    V_FILE_NAME        VARCHAR2(100);
+    V_CC_LIST          DBMS_UTILITY.UNCL_ARRAY;
+    V_LIST_CUNT        NUMBER;
+    V_COST_CENTER_CODE VARCHAR2(6);
 BEGIN 
     V_FILE_NAME := 'COST_CENTER_DEQUEUE.queue';
     F1 := UTL_FILE.FOPEN('CCN_DATAFILES', 'CCD_LIST.queue', 'R'); 
     UTL_FILE.GET_LINE(F1,V_STR_LST); 
-    UTL_FILE.FCLOSE(F1); 
-    
-        SELECT LISTAGG(SUBSTR(CC, 3, 4), CHR(10)) WITHIN GROUP (ORDER BY CC)  
-          INTO V_FNL_STR_LST
-          FROM 
-        ( 
-        SELECT CC
-          FROM
-             (
-             SELECT CC.COLUMN_VALUE CC
-               FROM TABLE(CCN_COMMON_TOOLS.LIST_TO_RECORDS(V_STR_LST)) CC
-            )
-         MINUS
-        SELECT COST_CENTER_CODE
-          FROM POS_INIT_LOAD_LIST
-         WHERE FILE_TYPE = IN_FILE_TYPE
-         );
+    UTL_FILE.FCLOSE(F1);
+    V_STR_LST := REPLACE(REPLACE(V_STR_LST, '['), ']');
+    DBMS_UTILITY.COMMA_TO_TABLE('A'||REPLACE(V_STR_LST, ', ', ',A'), V_LIST_CUNT, V_CC_LIST);
+    --DBMS_UTILITY.COMMA_TO_TABLE expects A at the beginning of all list items
+    FOR i IN 1..V_LIST_CUNT LOOP
+        DBMS_OUTPUT.PUT_LINE('V_CC_LIST --> ' || V_CC_LIST(i));
+        V_COST_CENTER_CODE := COSTCNTR.COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(V_CC_LIST(i),2)));
+        BEGIN
+            INSERT INTO POS_INIT_LOAD_LIST
+            VALUES (IN_FILE_TYPE,
+                    V_COST_CENTER_CODE,
+                    SYSTIMESTAMP);
+            V_FNL_STR_LST := V_FNL_STR_LST ||
+                             SUBSTR(V_COST_CENTER_CODE, 3, 4) ||
+                             CHR(10);
+        EXCEPTION
+            WHEN DUP_VAL_ON_INDEX THEN
+                NULL; --this is OK as we already have that record in the table
+            WHEN OTHERS THEN
+                RAISE; --not OK as something else happened
+        END;
+    END LOOP;
 
-    
     IF V_FNL_STR_LST IS NULL THEN 
         DBMS_OUTPUT.PUT_LINE('No differences found');
     ELSE 
-        DBMS_OUTPUT.PUT_LINE(V_FNL_STR_LST); 
+        DBMS_OUTPUT.PUT_LINE('V_FNL_STR_LST --> ' || V_FNL_STR_LST); 
     
         DBMS_XSLPROCESSOR.CLOB2FILE(V_FNL_STR_LST,
                                    'CCN_DATAFILES',
                                    V_FILE_NAME);
     END IF; 
+    
+
 EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-     DBMS_OUTPUT.PUT_LINE('No differences found');
     WHEN OTHERS THEN
-    RAISE;    	
+    RAISE;    
 END GENERATE_STORE_LIST_FROM_WS_SP;
 
 END POS_DATA_GENERATION;

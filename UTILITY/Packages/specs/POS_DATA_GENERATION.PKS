@@ -107,7 +107,7 @@ on the input parameter. This is a temp code for Web Service differencing
 Created : 09/28/2017 rxv940 CCN Project....
 Changed :
 *********************************************************************************/
-    IN_FILE_TYPE VARCHAR2)
+           IN_FILE_TYPE VARCHAR2)
 ;
 
 END POS_DATA_GENERATION;

@@ -49,7 +49,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $PROC_NAME --> processing FAILED while executing CCN_UTILITY.P_GENERATE_STORE_LIST at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling GENERATE_STORE_LIST_SP "
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling POS_DATA_GENERATION.GENERATE_STORE_LIST_FROM_WS_SP "
      exit 1
 fi
 TIME=$(date +"%H%M%S")
@@ -163,7 +163,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $PROC_NAME --> processing FAILED while calling Init load using POS_DATA_GENERATION at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling CCN_UTILITY.P_GENERATE_STORE_LIST"
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while calling Init loads for WebService differencing "
      exit 1
 fi
 TIME=$(date +"%H%M%S")
