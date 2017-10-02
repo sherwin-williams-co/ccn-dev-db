@@ -68,6 +68,16 @@ IN_BLOB        IN       BLOB,
 IN_FILE_NAME   IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
+PROCEDURE FILE_RENAME(
+/******************************************************************************
+Created : 09/29/2017 axt754 CCN Project Team....
+FILE_RENAME
+
+This procedure will rename file on server with datetime attached.
+******************************************************************************/
+IN_FILE_NAME   IN       VARCHAR2,
+IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
+
 FUNCTION GET_LAST_RUNDATE(
 /******************************************************************
 This function will return the LAST BATCH RUN DATE for the batch name passed
