@@ -7,7 +7,7 @@
 # Created           :  sxh487 09/28/2017
 ############################################################################
 # below command will get the path for cstmr_dep.config respective to the environment from which it is run
-. /app/cstmrdpsts/host.sh
+. /app/cstmrdpsts/cstmr_dep.config
 
  proc="cust_dep_initload"
  LOGDIR="$HOME/logs"
@@ -16,7 +16,7 @@
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc at $TIME on $DATE "
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user@$cstmr_dep_sqlplus_sid/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 set serveroutput on;

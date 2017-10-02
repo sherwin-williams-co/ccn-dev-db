@@ -9,14 +9,15 @@
 # Created  : 09/27/2017 sxh487 CCN Project Team.....
 ###############################################################################################################################
 # below command will get the path for cstmr_dep.config respective to the environment from which it is run from
-. /app/cstmrdpsts/host.sh
+. /app/cstmrdpsts/cstmr_dep.config
+
 proc="daily_cstmr_dep_load"
-LOGDIR=$HOME/dailyLoad/logs
+LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc at $TIME on $DATE"
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user@$cstmr_dep_sqlplus_sid/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
@@ -40,7 +41,6 @@ END
 status=$?
 TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]; then
-     cd $HOME/dailyLoad
      echo "Processing Failed for $proc at $TIME on $DATE"
      exit 1;
 fi
