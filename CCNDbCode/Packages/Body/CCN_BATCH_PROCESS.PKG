@@ -647,6 +647,8 @@ CATEGORY IN ('S','O')
 created : 05/25/2017 sxp130 ASP-795
 modified: 09/06/2017 sxp130 ASP-795 - Incorporated code changes for PAT E-Mail on
         : Tuesday, September 05, 2017 10:54AM - PAT's E-mail.
+        : 10/02/2017 rxa457 CCN Project Team...
+          file name changed merchtb.dat
 *******************************************************************************************/
 AS
    CURSOR CUR_COST_CENTER IS
@@ -669,7 +671,7 @@ AS
 
    --Variable Declaration
    PATH                VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-   FILENAME            VARCHAR2(50) := 'STORE_BANK_CARD_MERCHANT_' || TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+   FILENAME            VARCHAR2(50) := 'merchtb_' || TO_CHAR(SYSDATE,'MMDDRR') || '.dat';
    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
    V_CLOB              CLOB;
    V_CLOB_FOR_EMAIL    CLOB;
@@ -907,133 +909,5 @@ BEGIN
     GNRT_STORE_BANK_CARD_MRCHNT_FL;
     GNRT_STORE_BANK_CARD_SERIAL_FL;
 END GENERATE_STORE_BANK_CARD_FILE;
-
-PROCEDURE GENERATE_DESCARTES_HRCHY_FILE
-/**********************************************************
-This process is used to build a pipe delimited hierarchy file for descartes
-
-Created : 09/21/2017 jxc517 CCN Project Team...
-Changed : 09/28/2017 rxa457 CCN project Team...
-           Time format changed to hh24 on the header as per the document
-**********************************************************/
-IS
-    CURSOR driver_cur IS
-        SELECT ED.*
-          FROM EMPLOYEE_DETAILS ED,
-               COST_CENTER C
-         WHERE UPPER(ED.EMP_PAYROLL_STATUS)    = 'ACTIVE'
-           AND UPPER(ED.JOB_TITLE)             = 'DRIVER'
-           AND ED.COST_CENTER_CODE             = C.COST_CENTER_CODE
-           AND C.COUNTRY_CODE                  IN ('USA','CAN','PRI')
-          ORDER BY EMPLOYEE_NAME;
-
-    CURSOR glbl_hrchy_cur(IN_COST_CENTER_CODE    IN    VARCHAR2) IS
-        SELECT *
-          FROM GLOBAL_HIERARCHY_ATTRBT_VW
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-
-    CURSOR cc_mgr_cur(IN_COST_CENTER_CODE    IN    VARCHAR2) IS
-        SELECT EMPLOYEE_NUMBER,
-               EMPLOYEE_NAME,
-               COST_CENTER_CODE
-          FROM (SELECT EMP.*, ROW_NUMBER() OVER (PARTITION BY COST_CENTER_CODE ORDER BY HIRE_DATE)  RN
-                 FROM EMPLOYEE_DETAILS EMP
-                WHERE COST_CENTER_CODE = (SELECT HOME_STORE
-                                            FROM DISPATCH_TERMINAL
-                                           WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE)
-                  AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-                  AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) 
-                                             FROM JOB_TITLE_GROUP 
-                                            WHERE NONMGR_IND = 'Y'
-                                              AND JOB_GRP_EXCLD = 'N'))
-         WHERE RN = 1;
-
-    PATH                      VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME  	              VARCHAR2(50) := 'DESCARTES_HRCHY_FEED_' || TO_CHAR(SYSDATE,'MMDDRRRR') || '.TXT';
-    OUTPUT_FILE               UTL_FILE.FILE_TYPE;
-    V_CLOB                    CLOB;
-    V_DELIMITER               VARCHAR2(1) := '|';
-    V_GLBL_HRCHY_REC          glbl_hrchy_cur%ROWTYPE;
-    V_HOME_STR_MGR_REC        cc_mgr_cur%ROWTYPE;
-BEGIN
-    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
-                                  ,FILENAME
-                                  , 'W' --BINARY
-                                  , 32767);
-    V_CLOB := 'DFH|'|| --DFH Header
-              '001|' || --Syntax Version
-              '|' ||  --Sender Identifier
-              '|' ||  --Receiver Identifier
-              TO_CHAR(SYSDATE,'YYYYMMDD')||  '|' || --Date
-              TO_CHAR(SYSDATE,'HH24MISS') || '|' || --Time
-              '1|' || --Control number (SEQUENCE)***
-              '|' ||  --Doc Type
-              '0|' || --future_use
-              'T|' || --test_indicator.. can be T(test) or P (production)
-              'L'  --DFH format L(labeled), (T)tagged and unlabeled (anything else)
-              ;
-    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-    --Fields Header
-    V_CLOB := 'DriverSHWID|DriverName|StoreNumber|' ||
-              'StoreManagerSHWID|StoreManagerName|StoreEmail|'||
-              'CityCode|CityDesc|CityManagerName|CityManagerSHWID|CityManagerEmail|'||
-              'DistrictCode|DistrictDesc|DistrictManagerName|DistrictManagerSHWID|DistrictManagerEmail|'||
-              'AreaCode|AreaDesc|AreaManagerName|AreaManagerSHWID|AreaManagerEmail|'||
-              'DivisionCode|DivisionDesc|DivisionManagerName|DivisionManagerSHWID|DivisionManagerEmail|'||
-              'GroupCode|GroupDesc|GroupManagerName|GroupManagerSHWID|GroupManagerEmail';
-    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-    FOR rec IN driver_cur LOOP
-        FOR rec1 IN glbl_hrchy_cur(rec.COST_CENTER_CODE) LOOP
-            V_GLBL_HRCHY_REC := rec1;
-        END LOOP;
-        --need to get the manager based on drivers home store
-        FOR rec2 IN cc_mgr_cur(rec.COST_CENTER_CODE) LOOP
-            V_HOME_STR_MGR_REC := rec2;
-        END LOOP;
-        V_CLOB := rec.EMPLOYEE_NUMBER                        || V_DELIMITER ||  --Driver GEMS ID
-                  rec.EMPLOYEE_NAME                          || V_DELIMITER ||  --Driver Name
-                  rec.COST_CENTER_CODE                       || V_DELIMITER ||  --Driver Cost Center (Dispatch Terminal Cost Center)
-                  V_HOME_STR_MGR_REC.EMPLOYEE_NUMBER         || V_DELIMITER ||  --Home Store Manager GEMS ID
-                  V_HOME_STR_MGR_REC.EMPLOYEE_NAME           || V_DELIMITER ||  --Home Store Manager Name
-                  'sw'|| SUBSTR(V_HOME_STR_MGR_REC.COST_CENTER_CODE, 3) ||'@sherwin.com'
-                                                             || V_DELIMITER ||  --Home Store Email ID
-                  V_GLBL_HRCHY_REC.CITY_SALES_MANAGER        || V_DELIMITER ||  --City
-                  V_GLBL_HRCHY_REC.CITY_SALES_MANAGER_NAME   || V_DELIMITER ||  --City Description
-                  V_GLBL_HRCHY_REC.CITY_MGR_GEMS_ID          || V_DELIMITER ||  --City Manager GEMS ID
-                  V_GLBL_HRCHY_REC.CITY_MGR_NAME             || V_DELIMITER ||  --City Manager Name
-                  'citymgr@sherwin.com'                      || V_DELIMITER ||  --City Manager Email ID
-                  V_GLBL_HRCHY_REC.DISTRICT                  || V_DELIMITER ||  --District
-                  V_GLBL_HRCHY_REC.DISTRICT_NAME             || V_DELIMITER ||  --District Description
-                  V_GLBL_HRCHY_REC.DISTRICT_MGR_GEMS_ID      || V_DELIMITER ||  --District Manager GEMS ID
-                  V_GLBL_HRCHY_REC.DISTRICT_MGR_NAME         || V_DELIMITER ||  --District Manager Name
-                  'dstrctmgr@sherwin.com'                    || V_DELIMITER ||  --District Manager Email ID
-                  V_GLBL_HRCHY_REC.AREA                      || V_DELIMITER ||  --Area
-                  V_GLBL_HRCHY_REC.AREA_NAME                 || V_DELIMITER ||  --Area Description
-                  V_GLBL_HRCHY_REC.AREA_MGR_GEMS_ID          || V_DELIMITER ||  --Area Manager GEMS ID
-                  V_GLBL_HRCHY_REC.AREA_MGR_NAME             || V_DELIMITER ||  --Area Manager Name
-                  'areamgr@sherwin.com'                      || V_DELIMITER ||  --Area Manager Email ID
-                  V_GLBL_HRCHY_REC.DIVISION                  || V_DELIMITER ||  --Division
-                  V_GLBL_HRCHY_REC.DIVISION_NAME             || V_DELIMITER ||  --Division Description
-                  V_GLBL_HRCHY_REC.DIV_MGR_GEMS_ID           || V_DELIMITER ||  --Division Manager GEMS ID
-                  V_GLBL_HRCHY_REC.DIV_MGR_NAME              || V_DELIMITER ||  --Division Manager Name
-                  'divmgr@sherwin.com'                       || V_DELIMITER ||  --Division Manager Email ID
-                  V_GLBL_HRCHY_REC."GROUP"                   || V_DELIMITER ||  --Group
-                  V_GLBL_HRCHY_REC.GROUP_NAME                || V_DELIMITER ||  --Group Description
-                  ''                                         || V_DELIMITER ||  --Group Manager GEMS ID will wlays be blank
-                  ''                                         || V_DELIMITER ||  --Group Manager Name will always be blank
-                  'grpmgr@sherwin.com'                                          --Group Manager Email ID
-                  ;
-        IF V_CLOB <> EMPTY_CLOB() THEN
-            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-        END IF;
-        V_CLOB := NULL;
-    END LOOP;
-
-    UTL_FILE.FCLOSE(OUTPUT_FILE);
-EXCEPTION
-   WHEN OTHERS THEN
-      UTL_FILE.FCLOSE(OUTPUT_FILE);
-      RAISE;
-END GENERATE_DESCARTES_HRCHY_FILE;
 
 END CCN_BATCH_PROCESS;

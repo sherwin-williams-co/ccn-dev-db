@@ -1,5 +1,6 @@
 #!/bin/sh
 
+
 ###############################################################################################################################
 # Script name   : generate_store_bank_card_file.sh
 #
@@ -7,7 +8,8 @@
 #                 CCN_BATCH_PROCESS.GENERATE_STORE_BANK_CARD_FILE
 #
 # Created  : 05/25/2017 sxp130 CCN Project Team.....
-# Modified : 
+# Modified : 10/02/2017 rxa457 CCN project Team...
+#            File name changed merchtb.dat
 ###############################################################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -66,11 +68,11 @@ TIME=`date +"%H:%M:%S"`
    exit 1;
 fi
 cd $datafilepath
-csv_files=`ls STORE_BANK_CARD_MERCHANT_$FILEDATE.csv*`
+csv_files=`ls merchtb_$FILEDATE.dat*`
 for file in $csv_files
 do
-   echo renaming $file to "STORE_BANK_CARD_MERCHANT_$TimeStamp.csv"
-   mv $file "STORE_BANK_CARD_MERCHANT_$TimeStamp.csv"
+   echo renaming $file to "merchtb_$TimeStamp.dat"
+   mv $file "merchtb_$TimeStamp.dat"
 done
 
 cd $datafilepath
