@@ -1,0 +1,1 @@
+This folder contains all the root directories for corresponding component types that needs to be placed in for Customer Deposits Project
