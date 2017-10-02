@@ -1,0 +1,330 @@
+create or replace PACKAGE BODY CUSTOMER_DEPOSITS_INITLOAD
+
+/****************************************************************
+This package will load the customer deposits from pnp
+created : 09/08/2017 sxp130 ccn project....
+changed :
+*****************************************************************/
+AS
+
+PROCEDURE TRUNCATE_TABLE(
+/*****************************************************************************
+TRUNCATE_TABLE
+
+This procedure will truncate all loaded data for the table passed in.
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+*****************************************************************************/
+IN_TABLE_NAME IN VARCHAR2)
+IS
+   CURSOR C_CONSTRAINTS is
+      SELECT CONSTRAINT_NAME, TABLE_NAME
+        FROM USER_CONSTRAINTS
+       WHERE R_CONSTRAINT_NAME IN (SELECT CONSTRAINT_NAME
+                                     FROM USER_CONSTRAINTS
+                                    WHERE TABLE_NAME = IN_TABLE_NAME);
+BEGIN
+   FOR REC IN C_CONSTRAINTS LOOP
+      EXECUTE IMMEDIATE 'ALTER TABLE ' || REC.TABLE_NAME ||
+                        ' DISABLE CONSTRAINT ' || REC.CONSTRAINT_NAME;
+   END LOOP;
+
+   EXECUTE IMMEDIATE 'TRUNCATE TABLE ' || in_table_name;
+
+   FOR REC IN C_CONSTRAINTS LOOP
+      EXECUTE IMMEDIATE 'ALTER TABLE ' || REC.TABLE_NAME ||
+                        ' ENABLE CONSTRAINT ' || REC.CONSTRAINT_NAME;
+   END LOOP;
+EXCEPTION
+   WHEN OTHERS THEN
+     RAISE;
+END TRUNCATE_TABLE;
+
+PROCEDURE TRUNCATE_CUST_DEP_TABLES
+/*****************************************************************************
+TRUNCATE_CUST_DEP_TABLES
+This procedure will truncate all loaded data before reloading data from legacy idms database.
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+*****************************************************************************/
+IS
+BEGIN
+   TRUNCATE_TABLE('CUST_DEP_CCN_ACCUMS_T');
+   TRUNCATE_TABLE('CUSTOMER_DEPOSIT_DETAILS');
+   TRUNCATE_TABLE('CUSTOMER_DEPOSIT');
+
+EXCEPTION
+   WHEN OTHERS THEN
+     RAISE;
+END TRUNCATE_CUST_DEP_TABLES;
+
+PROCEDURE LOAD_CUST_DEP_CCN_ACCUMS_T
+/*****************************************************************************
+LOAD_CUST_DEP_CCN_ACCUMS_T
+This procedure will load the cust_dep_ccn_accums_t table from pnp.ccn_accums table.
+   For performance improvement, data loaded in temp tables
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+******************************************************************************/
+IS
+--variable declaration
+C_PRODUCT_CATEGORY_CODE      NUMBER      := 36;
+
+   CURSOR CUR_CCN_ACCUMS_T IS
+      SELECT *
+        FROM PNP.CCN_ACCUMS ACC
+       WHERE EXISTS(SELECT 1
+                      FROM PNP.CCN_SALES_LINES SALES
+                     WHERE ACC.TRAN_GUID = SALES.TRAN_GUID
+                       AND SALES.PRODUCT_CATEGORY_CODE = C_PRODUCT_CATEGORY_CODE);
+
+   --variable declaration
+   V_COMMIT           NUMBER := 0;
+   V_CCN_ACCUMS_T     CUST_DEP_CCN_ACCUMS_T%ROWTYPE;
+BEGIN
+
+   FOR REC IN CUR_CCN_ACCUMS_T LOOP
+      BEGIN
+         V_CCN_ACCUMS_T.TRANSACTION_GUID         :=   REC.TRAN_GUID;
+         V_CCN_ACCUMS_T.AMT                      :=   REC.AMT;
+         V_CCN_ACCUMS_T.ACCUM_ID                 :=   REC.ACCUM_ID;
+         V_CCN_ACCUMS_T.RLS_RUN_CYCLE            :=   REC.RLS_RUN_CYCLE;
+         V_CCN_ACCUMS_T.LOAD_DATE                :=   SYSDATE;
+         
+         INSERT INTO CUST_DEP_CCN_ACCUMS_T VALUES V_CCN_ACCUMS_T;
+
+         V_CCN_ACCUMS_T := null ;
+         V_COMMIT := V_COMMIT + 1;
+         IF V_COMMIT > 5000 then
+            COMMIT;
+            V_COMMIT := 0;
+         END IF;
+      EXCEPTION
+         WHEN OTHERS THEN
+            RAISE;
+      END;
+   END LOOP;
+   COMMIT;
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_CUST_DEP_CCN_ACCUMS_T', SQLERRM, '000000', '000000000', 'CUST_DEP_CCN_ACCUMS_T');
+END LOAD_CUST_DEP_CCN_ACCUMS_T;
+
+PROCEDURE LOAD_CUSTOMER_DEPOSIT
+/*****************************************************************************
+LOAD_CUSTOMER_DEPOSIT
+This procedure will load the customer_deposit table from pnp legacy idms database.
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+******************************************************************************/
+IS
+--variable declaration
+C_PRODUCT_CATEGORY_CODE      NUMBER      := 36;
+C_NET_NON_MERCH_ID           VARCHAR2(5) := '91';
+C_NET_DISCOUNT               VARCHAR2(5) := '92';
+C_NET_SALES_ID               VARCHAR2(5) := '93';
+C_NET_TAX_ID                 VARCHAR2(5) := '94';
+
+   CURSOR temp_cur IS
+      SELECT STORE_NO AS COST_CENTER_CODE,
+             TRAN_DATE AS TRANSACTION_DATE,
+             TERMNBR AS TERMINAL_NUMBER,
+             TRANNBR AS TRANSACTION_NUMBER,
+             TRAN_GUID AS TRANSACTION_GUID,
+             ACCTNBR AS CUSTOMER_ACCOUNT_NUMBER,
+             TRANID AS POS_TRANSACTION_CODE,
+             TRAN_TIMESTAMP,
+             RLS_RUN_CYCLE
+        FROM PNP.CCN_HEADERS H
+        WHERE EXISTS (SELECT 1
+                       FROM PNP.CCN_SALES_LINES S
+                      WHERE H.TRAN_GUID = S.TRAN_GUID
+                        AND H.RLS_RUN_CYCLE = S.RLS_RUN_CYCLE
+                        AND S.PRODUCT_CATEGORY_CODE = C_PRODUCT_CATEGORY_CODE)
+      ORDER BY TRAN_TIMESTAMP, TERMINAL_NUMBER;
+
+   --variable declaration
+   V_COMMIT         NUMBER := 0;
+   V_TEMP_ROW       CUSTOMER_DEPOSIT%ROWTYPE;
+BEGIN
+
+   FOR REC in TEMP_CUR LOOP
+      BEGIN
+         V_TEMP_ROW.COST_CENTER_CODE         :=   COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(REC.COST_CENTER_CODE);
+         V_TEMP_ROW.TRANSACTION_DATE         :=   REC.TRANSACTION_DATE;
+         V_TEMP_ROW.TERMINAL_NUMBER          :=   REC.TERMINAL_NUMBER;
+         V_TEMP_ROW.TRANSACTION_NUMBER       :=   REC.TRANSACTION_NUMBER;
+         V_TEMP_ROW.TRANSACTION_GUID         :=   REC.TRANSACTION_GUID;
+         V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER  :=   REC.CUSTOMER_ACCOUNT_NUMBER;
+         V_TEMP_ROW.POS_TRANSACTION_CODE     :=   REC.POS_TRANSACTION_CODE;
+         V_TEMP_ROW.TRAN_TIMESTAMP           :=   REC.TRAN_TIMESTAMP;
+         V_TEMP_ROW.NET_SALES                :=   COMMON_TOOLS.GET_SALES_AMOUNT(REC.TRANSACTION_GUID,C_NET_SALES_ID);
+         V_TEMP_ROW.NET_TAX                  :=   COMMON_TOOLS.GET_SALES_AMOUNT(REC.TRANSACTION_GUID,C_NET_TAX_ID);
+         V_TEMP_ROW.NET_NON_MERCH            :=   COMMON_TOOLS.GET_SALES_AMOUNT(REC.TRANSACTION_GUID,C_NET_NON_MERCH_ID);
+         V_TEMP_ROW.NET_DISCOUNT             :=   COMMON_TOOLS.GET_SALES_AMOUNT(REC.TRANSACTION_GUID,C_NET_DISCOUNT);
+         V_TEMP_ROW.RLS_RUN_CYCLE            :=   REC.RLS_RUN_CYCLE;
+         V_TEMP_ROW.LOAD_DATE                :=   SYSDATE;
+         
+         INSERT INTO CUSTOMER_DEPOSIT VALUES V_TEMP_ROW;
+
+         V_TEMP_ROW := NULL ;
+         V_COMMIT := V_COMMIT + 1;
+         IF V_COMMIT > 500 THEN
+            COMMIT;
+            V_COMMIT := 0;
+         END IF;
+      EXCEPTION
+         WHEN OTHERS THEN
+            RAISE;
+      END;
+   END LOOP;
+   COMMIT;
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_CUSTOMER_DEPOSIT', SQLERRM, '000000', '000000000', 'CUSTOMER_DEPOSIT');
+END LOAD_CUSTOMER_DEPOSIT;
+
+PROCEDURE LOAD_CUSTOMER_DEPOSIT_DETAILS
+/*****************************************************************************
+LOAD_CUSTOMER_DEPOSIT_DETAILS
+This procedure will load the customer_deposit_details table from pnp legacy idms database.
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+******************************************************************************/
+IS
+   CURSOR TEMP_CUR IS
+      SELECT CD.*,
+         ROW_NUMBER() OVER (PARTITION BY CUSTOMER_ACCOUNT_NUMBER ORDER BY  TRAN_TIMESTAMP, TERMINAL_NUMBER) AS RNUM
+        FROM CUSTOMER_DEPOSIT CD
+       ORDER BY CUSTOMER_ACCOUNT_NUMBER, TRAN_TIMESTAMP, TERMINAL_NUMBER;
+
+   --variable declaration
+   V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
+   V_COMMIT         NUMBER := 0;
+   V_TOTAL_SALES    NUMBER := 0;
+   V_CUM_AMT        NUMBER := 0;
+
+BEGIN
+   FOR REC IN TEMP_CUR LOOP
+      BEGIN
+
+         V_TOTAL_SALES := CASE WHEN REC.POS_TRANSACTION_CODE ='31'  THEN  
+                                  ((ABS(REC.NET_SALES) + ABS(REC.NET_TAX))*-1)
+                          ELSE
+                                  REC.NET_NON_MERCH + REC.NET_SALES + REC.NET_TAX
+                          END;
+         V_TEMP_ROW.COST_CENTER_CODE         :=   REC.COST_CENTER_CODE;
+         V_TEMP_ROW.TRANSACTION_DATE         :=   REC.TRANSACTION_DATE;
+         V_TEMP_ROW.TERMINAL_NUMBER          :=   REC.TERMINAL_NUMBER;
+         V_TEMP_ROW.TRANSACTION_NUMBER       :=   REC.TRANSACTION_NUMBER;
+         V_TEMP_ROW.TRANSACTION_GUID         :=   REC.TRANSACTION_GUID;
+         V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER  :=   REC.CUSTOMER_ACCOUNT_NUMBER;
+         V_TEMP_ROW.POS_TRANSACTION_CODE     :=   REC.POS_TRANSACTION_CODE;
+         V_TEMP_ROW.TRAN_TIMESTAMP           :=   REC.TRAN_TIMESTAMP;
+         V_TEMP_ROW.TRANSACTION_TYPE         :=   CASE WHEN V_TOTAL_SALES > 0 THEN 'DEPOSIT'
+                                                       WHEN V_TOTAL_SALES < 0 THEN 'REDEMPTION'
+                                                       ELSE 'NA'
+                                                  END;
+         V_TEMP_ROW.TOTAL_SALES              :=   V_TOTAL_SALES;
+         V_CUM_AMT                           :=   CASE WHEN REC.RNUM = 1 THEN
+                                                      0
+                                                  ELSE
+                                                      V_CUM_AMT
+                                                  END  + V_TOTAL_SALES;
+         V_TEMP_ROW.CUSTOMER_NET_BALANCE     :=   V_CUM_AMT;
+         V_TEMP_ROW.RLS_RUN_CYCLE            :=   REC.RLS_RUN_CYCLE;
+         V_TEMP_ROW.LOAD_DATE                :=   SYSDATE;
+         
+         INSERT/*+ append nologging */ INTO CUSTOMER_DEPOSIT_DETAILS VALUES V_TEMP_ROW;
+
+         V_TEMP_ROW := NULL ;
+         V_COMMIT := V_COMMIT + 1;
+         IF V_COMMIT > 500 THEN
+            COMMIT;
+            V_COMMIT := 0;
+         END IF;
+      EXCEPTION
+         WHEN OTHERS THEN
+            RAISE;
+      END;
+   END LOOP;
+   COMMIT;
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LOAD_CUSTOMER_DEPOSIT_DETAILS', SQLERRM, '000000', '000000000', 'CUSTOMER_DEPOSIT_DETAILS');
+END LOAD_CUSTOMER_DEPOSIT_DETAILS;
+
+PROCEDURE INITLOAD_CD
+/******************************************************************
+initload_cd
+
+This procedure is a wrapper for the initial load of the customer deposit tables
+   * deletes all the customer deposit tables
+   * loads all the customer deposit tables
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+******************************************************************/
+AS
+   V_CONTEXT    VARCHAR2(200);
+   V_START_TIME NUMBER;
+BEGIN
+
+   --load data from pnp to customer deposits intermediate tables
+   V_START_TIME := DBMS_UTILITY.GET_TIME;
+   V_CONTEXT := 'Load CUST_DEP_CCN_ACCUMS_T Table';
+   LOAD_CUST_DEP_CCN_ACCUMS_T();
+   DBMS_OUTPUT.put_line('CUST_DEP_CCN_ACCUMS_T loaded in : '|| (DBMS_UTILITY.get_time - v_start_time)/100 || ' Seconds');
+
+   --load data from pnp to customer_deposit table
+   V_START_TIME := DBMS_UTILITY.GET_TIME;
+   V_CONTEXT := 'Load CUSTOMER_DEPOSIT Table';
+   LOAD_CUSTOMER_DEPOSIT();
+   DBMS_OUTPUT.PUT_LINE('CUSTOMER_DEPOSIT loaded in : '|| (DBMS_UTILITY.get_time - v_start_time)/100 || ' Seconds');
+
+   --load data from pnp to customer_deposit_details table
+   V_START_TIME := DBMS_UTILITY.GET_TIME;
+   V_CONTEXT := 'Load CUSTOMER_DEPOSIT_DETAILS Table ';
+   LOAD_CUSTOMER_DEPOSIT_DETAILS();
+   DBMS_OUTPUT.put_line('CUSTOMER_DEPOSIT_DETAILS loaded in : '|| (Dbms_Utility.get_time - v_start_time)/100 || ' Seconds');
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INITLOAD_CD', SQLERRM, '000000', '000000000', '0000000000');
+END INITLOAD_CD;
+
+PROCEDURE CCN_CD_INITLOAD_SP
+/******************************************************************
+CCN_CD_INITLOAD_SP
+
+This procedure is a wrapper for the initial load of the customer deposit tables
+   * deletes all the customer deposit tables
+   * loads all the customer deposit tables
+
+created : 09/08/2017 sxp130 ccn project....
+changed :
+******************************************************************/
+AS
+   V_CONTEXT    VARCHAR2(200);
+   V_START_TIME NUMBER;
+BEGIN
+   V_START_TIME := DBMS_UTILITY.GET_TIME;
+   V_CONTEXT := 'truncate customer deposit tables ';
+   TRUNCATE_CUST_DEP_TABLES();
+   DBMS_OUTPUT.PUT_LINE('truncating completed in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' seconds');
+
+   INITLOAD_CD();
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_CD_INITLOAD_SP', SQLERRM, '000000', '000000000', '0000000000');
+END CCN_CD_INITLOAD_SP;
+
+END CUSTOMER_DEPOSITS_INITLOAD;
