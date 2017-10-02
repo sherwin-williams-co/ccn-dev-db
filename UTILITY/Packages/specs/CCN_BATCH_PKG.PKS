@@ -73,9 +73,10 @@ PROCEDURE FILE_RENAME(
 Created : 09/29/2017 axt754 CCN Project Team....
 FILE_RENAME
 
-This procedure will rename file on server with datetime attached.
+This procedure will rename file on server by taking the old name and new name.
 ******************************************************************************/
-IN_FILE_NAME   IN       VARCHAR2,
+IN_OLD_FILE    IN       VARCHAR2,
+IN_NEW_FILE    IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
 FUNCTION GET_LAST_RUNDATE(
