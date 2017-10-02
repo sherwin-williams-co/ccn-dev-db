@@ -37,7 +37,7 @@ INSERT INTO MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_A
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 VALUES ('GIFT_CARD_PROCESS_ERROR',
-        '48',
+        '25',
         'SRA3000 Gift Card Process failed',
         'ccnoracle.team@sherwin.com',
         'Processing of the SRA30000 Gift Card file failed.',
@@ -45,7 +45,7 @@ VALUES ('GIFT_CARD_PROCESS_ERROR',
         
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
 VALUES ('POS_BANK_DATA_LOAD_ERROR',
-        '48',
+        '25',
         'Banking POS Data Load Process failed',
         'ccnoracle.team@sherwin.com',
         'Processing of loading the data from POS failed.',
@@ -53,7 +53,7 @@ VALUES ('POS_BANK_DATA_LOAD_ERROR',
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
 VALUES ('BANKING_DIFF_PROCESS_ERROR',
-        '48',
+        '25',
         'Banking Reconcile Diff Process failed',
         'ccnoracle.team@sherwin.com',
         'Processing of reconcile Diff process for Banking failed.',
