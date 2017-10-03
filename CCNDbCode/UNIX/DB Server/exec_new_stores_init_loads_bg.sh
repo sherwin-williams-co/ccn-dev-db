@@ -6,6 +6,9 @@
 # Created       : rxv940 CCN Project Team.....
 # Modified      : rxv940 CCN Project Team.....
 #               : Added code to archive ".queue_trgrfile"
+# Modified      : 10/03/2017  rxv940 CCN Project Team.....
+#               : Removed the old way of using "|" to check for presence of 
+#               : ".TRGRFILE". 
 #################################################################
 
 #nohup sh /app/ccn/dev/exec_new_stores_init_loads_bg.sh > /app/ccn/dev/datafiles/log/exec_new_stores_init_loads_bg.log 2>&1 &

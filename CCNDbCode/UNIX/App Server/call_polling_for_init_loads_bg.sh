@@ -5,7 +5,9 @@
 # Description   : This script is to call polling process for TERR, STORE and PARAM 
 #               : inits on arrival of .queue and .queue_trgr files in the APP Server
 # Created  : 08/17/2017 rxv940 CCN Project Team.....
-# Modified : 
+# Modified : 10/03/2017 rxv940 CCN Project Team.....
+#          : Removed the old way of using "|" to check for presence of 
+#          : ".TRGRFILE".  
 #####################################################################################
 
 #Run below command to make the process run in the background even after shutdown
