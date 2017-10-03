@@ -21,7 +21,7 @@ while(true)
 do
 
 #Check for .queue and .queue_trgr files. If present, call ter_process_pos_polling_file.sh
-if [ "$(ls "$DATADIR/$CCD"*".queue" 2>/dev/null | wc -l)" -gt 0 ] && [ "$(ls "$DATADIR/$CCD"*".queue_trgrfile" 2>/dev/null | wc -l)" -gt 0 ]
+if ls "$DATADIR/$CCD"*".queue" 1>/dev/null 2>&1 && ls "$DATADIR/$CCD"*".queue_trgrfile" 1>/dev/null 2>&1
 then
     $SCRIPT_DIR/polling_archv_init_loads.sh
     exit 0
