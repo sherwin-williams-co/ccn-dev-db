@@ -6,7 +6,7 @@ changed :
 *****************************************************************/
 IS
 
-PROCEDURE CCN_SD_DAILY_LOAD_SP(
+PROCEDURE CCN_SD_DAILY_LOAD_SP
 /******************************************************************
 This Procedure is a wrapper for the Initial Load of the store drafts tables
     * Loads all the store drafts tables
@@ -14,8 +14,10 @@ This Procedure is a wrapper for the Initial Load of the store drafts tables
 created : 06/11/2013 jxc517 CCN Project....
 changed : 06/10/2017 nxk927 CCN Project....
           Passing the in_date parameter
+changed : 10/03/2017 nxk927 CCN Project....
+          removing the date parameter for the daily load process
 ******************************************************************/
-IN_DATE IN DATE);
+;
 
 FUNCTION GET_DISC_AMT_TYPE
 /******************************************************************

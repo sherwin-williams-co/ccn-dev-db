@@ -15,6 +15,8 @@
 #            Added shell script call to rename the .ok file to .not_ok file in case of error
 #          : 08/01/2017 nxk927 CCN Project Team.....
 #            passing the daily_load_rundate as parameter
+#          : 10/03/2017 nxk927 CCN Project Team.....
+#            reverted the code back to use no parameters.
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -35,7 +37,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 MAIL_PKG.send_mail('SD_DAILY_DRFT_LOAD_START');
-SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP(TO_DATE('$DATE','MM/DD/YYYY'));
+SD_DAILY_LOAD.CCN_SD_DAILY_LOAD_SP();
 Exception
  when others then
  :exitCode := 2;
