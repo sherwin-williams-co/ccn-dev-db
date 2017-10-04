@@ -134,4 +134,16 @@ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE ,
 IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y')
 RETURN VARCHAR2;
 
+FUNCTION GET_DATA_EXISTS_FLAG(
+/******************************************************************************
+  This procedure will get the flag 'Y' for summary data if the data already exists 
+
+Created : 10/04/2017 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE  IN     VARCHAR2,
+IN_AMOUNT            IN     NUMBER,
+IN_BANK_ACCOUNT_NBR  IN     VARCHAR2,
+IN_DATE              IN     DATE) RETURN VARCHAR2;
+
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
