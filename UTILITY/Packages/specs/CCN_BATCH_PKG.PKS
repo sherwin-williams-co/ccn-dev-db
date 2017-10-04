@@ -73,10 +73,10 @@ FUNCTION FILE_EXISTS(
 Created : 10/04/2017 axt754 CCN Project Team....
 FILE_EXISTS
 
-This procedure will check if the file exists in directory and returns true or false
+This procedure will check if the file exists in directory and returns 'Y' or 'N'
 ******************************************************************************/
 IN_FILE_NAME    IN       VARCHAR2,
-IN_DIRECTORY    IN       VARCHAR2) RETURN BOOLEAN;
+IN_DIRECTORY    IN       VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE FILE_RENAME(
 /******************************************************************************
