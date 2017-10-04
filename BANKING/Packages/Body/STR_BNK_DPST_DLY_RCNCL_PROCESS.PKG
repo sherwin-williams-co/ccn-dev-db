@@ -995,8 +995,7 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
     IN_DATE            IN         DATE)
 IS
 CURSOR SUM_CUR IS
-    SELECT SM.*,
-           GET_DATA_EXISTS_FLAG(SM.STORENBR,SM.BANK_DEP_AMT,SM.BANK_ACCOUNT_NBR,SM.TRANSACTION_DATE) AS PREV_LOAD_FLAG
+    SELECT SM.*
       FROM (
             SELECT STORE_NO STORENBR,
                    SUM(BANK_DEP_BATCH) BANK_DEP_AMT,
@@ -1006,43 +1005,48 @@ CURSOR SUM_CUR IS
                    IN_DATE AS LOAD_DATE
               FROM PNP.CCN_BATCH_SUMMARY SM
              WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
-                                       FROM PNP_CCN_LOAD_STATUS
+                                       FROM POS_CCN_LOAD_STATUS
                                       WHERE TRUNC(START_TS) >= IN_DATE - DECODE(TO_CHAR(TRUNC(SYSDATE), 'D'),3,3,1)
                                         AND TRUNC(START_TS) < IN_DATE
                                         AND STATUS_CODE = 'C')
                AND BANK_DEP_BATCH <> '0'
-             GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE) SM;  
+             GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE) SM
+             WHERE NOT EXISTS (SELECT 1
+                         FROM SUMMARY_EXTRCT_CNTRL_FL
+                        WHERE SUBSTR(COST_CENTER_CODE,-4)= SM.STORENBR
+                          AND BANK_DEP_AMT               = SM.BANK_DEP_AMT
+                          --this comparision is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL
+                          AND NVL(BANK_ACCOUNT_NBR,'X')  = NVL(SM.BANK_ACCOUNT_NBR,'X')
+                          AND TRANSACTION_DATE           = SM.TRANSACTION_DATE);
 
      V_COUNT NUMBER := 0;
      V_COUNT1 NUMBER := 0;
      V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
 BEGIN
     FOR REC IN SUM_CUR LOOP
-        IF REC.PREV_LOAD_FLAG = 'N' THEN
-           V_COUNT1 := 0;
-           SELECT COUNT(*)
-             INTO V_COUNT1
-             FROM BANK_ACCOUNT
-            WHERE BANK_ACCOUNT_NBR    = REC.BANK_ACCOUNT_NBR
-              AND BANK_AUTO_RECON_IND = 'Y';
-           
-           IF V_COUNT1 <> 0 THEN
-              REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
-           
-              INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.STORENBR))),
-                                                          '1',
-                                                          REC.BANK_DEP_AMT,
-                                                          REC.BANK_ACCOUNT_NBR,
-                                                          REC.TRANSACTION_DATE,
-                                                          REC.LOAD_DATE,
-                                                          REC.BANK_ACCOUNT_NBR);
-           END IF;
-           
-           V_COUNT := V_COUNT +1;
-           IF V_COUNT = 1000 then
-               COMMIT;
-               V_COUNT := 0;
-           END IF;
+        V_COUNT1 := 0;
+        SELECT COUNT(*)
+          INTO V_COUNT1
+          FROM BANK_ACCOUNT
+         WHERE BANK_ACCOUNT_NBR    = REC.BANK_ACCOUNT_NBR
+           AND BANK_AUTO_RECON_IND = 'Y';
+
+        IF V_COUNT1 <> 0 THEN
+           REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
+
+           INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.STORENBR))),
+                                                       '1',
+                                                       REC.BANK_DEP_AMT,
+                                                       REC.BANK_ACCOUNT_NBR,
+                                                       REC.TRANSACTION_DATE,
+                                                       REC.LOAD_DATE,
+                                                       REC.BANK_ACCOUNT_NBR);
+        END IF;
+
+        V_COUNT := V_COUNT +1;
+        IF V_COUNT = 1000 then
+            COMMIT;
+            V_COUNT := 0;
         END IF;
     END LOOP;
     COMMIT;
@@ -2043,33 +2047,5 @@ EXCEPTION
           RETURN IN_COST_CENTER;
 
 END COST_CENTER_LOOK_UP_FNC;
-
-FUNCTION GET_DATA_EXISTS_FLAG(
-/******************************************************************************
-  This procedure will get the flag 'Y' for summary data if the data already exists 
-
-Created : 10/04/2017 nxk927 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_COST_CENTER_CODE  IN     VARCHAR2,
-IN_AMOUNT            IN     NUMBER,
-IN_BANK_ACCOUNT_NBR  IN     VARCHAR2,
-IN_DATE              IN     DATE) RETURN VARCHAR2
-IS
-  V_RETURN VARCHAR2(1) := 'N';
-BEGIN
-  SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
-    INTO V_RETURN
-    FROM SUMMARY_EXTRCT_CNTRL_FL
-   WHERE SUBSTR(COST_CENTER_CODE,-4)= IN_COST_CENTER_CODE
-     AND BANK_DEP_AMT               = IN_AMOUNT
-     --this comparision is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL 
-     AND NVL(BANK_ACCOUNT_NBR,'X')  = NVL(IN_BANK_ACCOUNT_NBR,'X')
-     AND TRANSACTION_DATE           = IN_DATE;
- RETURN V_RETURN;
-EXCEPTION
-    WHEN OTHERS THEN
-       RETURN V_RETURN;
-END GET_DATA_EXISTS_FLAG;
 
 END STR_BNK_DPST_DLY_RCNCL_PROCESS;
