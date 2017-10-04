@@ -68,6 +68,16 @@ IN_BLOB        IN       BLOB,
 IN_FILE_NAME   IN       VARCHAR2,
 IN_DIRECTORY   IN       VARCHAR2 DEFAULT 'CCN_LOAD_FILES');
 
+FUNCTION FILE_EXISTS(
+/******************************************************************************
+Created : 10/04/2017 axt754 CCN Project Team....
+FILE_EXISTS
+
+This procedure will check if the file exists in directory and returns true or false
+******************************************************************************/
+IN_FILE_NAME    IN       VARCHAR2,
+IN_DIRECTORY    IN       VARCHAR2) RETURN BOOLEAN;
+
 PROCEDURE FILE_RENAME(
 /******************************************************************************
 Created : 09/29/2017 axt754 CCN Project Team....
