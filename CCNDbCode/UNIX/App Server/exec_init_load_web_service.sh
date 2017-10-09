@@ -16,45 +16,40 @@ ARCHIVEDIR=$DATADIR/archivefiles
 DATE=$(date +"%d%m%Y")
 
 IN_FILE_NAME=$1
+CMP_IN_FILE_NAME="$IN_FILE_NAME"_COST_CENTER_DEQUEUE.ws_diff
+echo $CMP_IN_FILE_NAME
 
-if [ "$IN_FILE_NAME" = "STORE" ]
+if [ "$IN_FILE_NAME" = "STORE" ] && [ -s "$DATADIR/StoreUpdate"*".POLLINGDONE" ]
 then
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing STORE started at $DATE:$TIME "
+	cat $DATADIR/$CMP_IN_FILE_NAME > $DATADIR/COST_CENTER_DEQUEUE.queue
     $SCRIPT_DIR/str_process_pos_polling_file.sh
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing STORE completed at $DATE:$TIME "
-elif [ "$IN_FILE_NAME" = "TERR" ]
+elif [ "$IN_FILE_NAME" = "TERR" ] && [ -s "$DATADIR/TerritoryUpdate"*".POLLINGDONE" ]
 then 
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing TERR started at $DATE:$TIME "
+	cat $DATADIR/$CMP_IN_FILE_NAME > $DATADIR/COST_CENTER_DEQUEUE.queue
     $SCRIPT_DIR/ter_process_pos_polling_file.sh
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing TERR completed at $DATE:$TIME "
-elif [ "$IN_FILE_NAME" = "PARAM" ]
+elif [ "$IN_FILE_NAME" = "PARAM" ] && [ -s "$DATADIR/ParamUpdate"*".POLLINGDONE" ]
 then 
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing PARAM started at $DATE:$TIME "
+	cat $DATADIR/$CMP_IN_FILE_NAME > $DATADIR/COST_CENTER_DEQUEUE.queue
     $SCRIPT_DIR/prm_process_pos_polling_file.sh
     TIME=$(date +"%H%M%S")
     echo " $PROC_NAME --> Processing PARAM completed at $DATE:$TIME "
 fi
 
 TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Archiving CCD_LIST.queue started at $DATE:$TIME "
-$SCRIPT_DIR/polling_dwnld_files_archive_process.sh "CCD_LIST.queue"
+echo " $PROC_NAME --> Archiving CCD_LIST.ws_diff started at $DATE:$TIME "
+$SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$CMP_IN_FILE_NAME"
 TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Archiving CCD_LIST.queue completed at $DATE:$TIME "
-
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Archiving $CCD.queue started at $DATE:$TIME "
-$SCRIPT_DIR/polling_dwnld_files_archive_process.sh "$CCD.queue"
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Archiving $CCD.queue completed at $DATE:$TIME "
-
-mv "$ARCHIVEDIR"/"$CCD".queue "$ARCHIVEDIR"/"$CCD"_ws_"$DATE".queue
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Renaming "$ARCHIVEDIR"/"$CCD".queue to "$ARCHIVEDIR"/"$CCD"_ws_"$DATE".queue completed at $DATE:$TIME "
+echo " $PROC_NAME --> Archiving CCD_LIST.ws_diff completed at $DATE:$TIME "
 
 exit 0
 
