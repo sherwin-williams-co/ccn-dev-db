@@ -4,7 +4,8 @@ IS
 This package will contain all the procedures required to  work with employee details
 
 Created : 06/16/2014 jxc517 CCN Project....
-Changed : 
+Changed : 10/05/2017 rxa457 CCN Project....
+						Added new function GET_EMPLOYEE_EMAIL to getemployee email
 ************************************************************/
 
 TYPE REF_CURSOR IS REF CURSOR;
@@ -130,6 +131,17 @@ Created : 07/07/2016 axd783 CCN Project Team...
 Modified:
 *******************************************************************************/
 IN_COST_CENTER_CODE  IN   VARCHAR2
+)
+RETURN VARCHAR2;
+
+FUNCTION GET_EMPLOYEE_EMAIL(
+/*******************************************************************************
+    This function will return the employee email for given employee number as input
+
+Created : 10/05/2017 rxa457 CCN Project Team...
+Modified:
+*******************************************************************************/
+IN_EMP_NBR  IN   VARCHAR2
 )
 RETURN VARCHAR2;
 
