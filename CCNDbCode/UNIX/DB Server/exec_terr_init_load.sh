@@ -10,7 +10,7 @@
 PROC="exec_terr_init_loads.sh"
 DATE=`date +"%Y-%m-%d"`
 TIME=`date +"%H:%M:%S"`
-LOGDIR=/app/ccn/dev/datafiles/log
+LOGDIR=$HOME/datafiles/log
 LOGFILE=exec_terr_init_loads.log
 
 echo " $PROC --> Processing Started at $TIME on $DATE"  >> $LOGDIR/$LOGFILE
