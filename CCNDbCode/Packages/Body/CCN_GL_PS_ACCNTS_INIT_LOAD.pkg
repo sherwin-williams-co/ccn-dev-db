@@ -1,0 +1,187 @@
+create or replace package body CCN_GL_PS_ACCNTS_INIT_LOAD AS 
+/****************************************************************************** 
+This package is intended Load the data into tables gen_ledge_accounts and 
+prime_sub_accounts
+
+Created : 03/15/2017 axt754 -- CCN Project Team...
+Changed : 
+******************************************************************************/
+
+FUNCTION GET_XML_DATA
+/****************************************************************************** 
+This procedures takes care of following things 
+  # Reads the xml file from directory 
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Changed :
+******************************************************************************/
+RETURN CLOB IS
+    v_xml_data      VARCHAR2(500);
+    v_xml           CLOB;
+    v_file          UTL_FILE.FILE_TYPE := UTL_FILE.FOPEN('CCN_LOAD_FILES','prime-sub-updt.xml','R');
+BEGIN
+    LOOP
+       BEGIN
+          UTL_FILE.GET_LINE(v_file,v_xml_data);
+          v_xml := v_xml||v_xml_data;
+       EXCEPTION
+          WHEN no_data_found THEN
+            EXIT;
+       END;
+    END LOOP;
+    UTL_FILE.FCLOSE(v_file);
+    RETURN v_xml;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'GET_XML_DATA ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END GET_XML_DATA;    
+    
+PROCEDURE ALTER_TRIGGERS(
+/****************************************************************************** 
+This procedures ENABLES/DISABLES the triggers on  
+GL_PRIME_SUB_ACCOUNT_DTLS and GENERAL_LEDGER_ACCOUNTS
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Chnaged : 
+******************************************************************************/
+    in_status            IN VARCHAR2) IS
+BEGIN
+    IF UPPER(in_status) IN ('ENABLE','DISABLE') THEN
+       FOR rec IN (SELECT trigger_name
+                     FROM ALL_TRIGGERS
+                    WHERE table_name IN ('GENERAL_LEDGER_ACCOUNTS'
+                                         ,'PRGM_GL_ACCNT_RLTN_DTLS'
+                                         ,'PROGRAMS')) LOOP
+          EXECUTE IMMEDIATE 'ALTER TRIGGER '||rec.trigger_name||' '||IN_STATUS;                                  
+       END LOOP;
+    END IF;  
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'ALTER_TRIGGERS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END ALTER_TRIGGERS;
+
+PROCEDURE TRUNCATE_EXISTING_TABLES
+/****************************************************************************** 
+This procedures care of following steps  
+# DISABLE Referential constraints
+# TRUNCATE table GL_PRIME_SUB_ACCOUNT_DTLS
+# TRUNCATE table GENERAL_LEDGER_ACCOUNTS
+# ENABLE Referential constraints
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Changed :
+******************************************************************************/
+IS
+    CURSOR GET_R_CONSTRAINTS IS 
+        SELECT CONSTRAINT_NAME
+               ,TABLE_NAME
+          FROM ALL_CONSTRAINTS
+         WHERE constraint_type = 'R'
+           AND table_name IN ('GENERAL_LEDGER_ACCOUNTS' ,'PRGM_GL_ACCNT_RLTN_DTLS' ,'PROGRAMS'); 
+BEGIN 
+    -- DISABLE Referential Constraints
+    FOR rec IN GET_R_CONSTRAINTS LOOP
+        EXECUTE IMMEDIATE 'ALTER TABLE '||rec.table_name||' DISABLE CONSTRAINT '||rec.constraint_name;  
+    END LOOP;
+
+    -- TRUNCATE Base Tables
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PRGM_GL_ACCNT_RLTN_DTLS';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE GENERAL_LEDGER_ACCOUNTS';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE PROGRAMS';
+
+    -- TRUNCATE History Tables
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE HST_PRGM_GL_ACCNT_RLTN_DTLS';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE HST_GENERAL_LEDGER_ACCOUNTS';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE HST_PROGRAMS';
+
+    -- ENABLE Referential Constraints
+    FOR rec IN GET_R_CONSTRAINTS LOOP
+        EXECUTE IMMEDIATE 'ALTER TABLE '||rec.table_name||' ENABLE CONSTRAINT '||rec.constraint_name;  
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'TRUNCATE_EXISTING_TABLES ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END TRUNCATE_EXISTING_TABLES;
+
+PROCEDURE PRIME_GL_ACCOUNTS_MAIN_SP
+/****************************************************************************** 
+This procedures takes care of following things 
+  # Reads the xml file from directory 
+  # Disable Triggers on General_ledger_accounts and GL_PRIME_SUB_ACCOUNT_DTLS
+  # Deletes the Data from General_ledger_accounts and GL_PRIME_SUB_ACCOUNT_DTLS
+  # Loads the Data into General_ledger_accounts and GL_PRIME_SUB_ACCOUNT_DTLS
+  # Enable Triggers on General_ledger_accounts and GL_PRIME_SUB_ACCOUNT_DTLS
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Changes :
+******************************************************************************/
+IS
+    v_xml           SYS.XMLTYPE := XMLTYPE(GET_XML_DATA());
+BEGIN
+    -- DISABLE TRIGGERS
+    ALTER_TRIGGERS('DISABLE');
+    -- Truncate the existing tables
+    TRUNCATE_EXISTING_TABLES();
+    -- Begin Process to Load GL_PS_PROGRAMS
+    FOR rec IN (SELECT DISTINCT x.PROGRAM_NAME,
+                                TRUNC(SYSDATE),
+                                'INITLOAD',
+                                NULL
+                  FROM XMLTABLE('/primesubUpdt/primesubUpdtRcd'
+                                PASSING v_xml
+                                COLUMNS PROGRAM_NAME  VARCHAR2(1000) PATH 'ProgName') x) LOOP
+        BEGIN
+            INSERT INTO PROGRAMS VALUES rec;
+        EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('Load_PROGRAMS - Invalid Load PROGRAM_NAME ' 
+                                     || rec.PROGRAM_NAME || ' ' || sqlerrm);
+        END;                       
+    END LOOP;
+     -- Begin Process to load GENERAL_LEDGER_ACCOUNTS
+    FOR rec IN (SELECT A.*,
+                       TRUNC(SYSDATE),
+                       'INITLOAD',
+                       NULL
+                  FROM XMLTABLE('/primesubUpdt/glacctsUpdtRcd'
+                                PASSING v_xml
+                                COLUMNS GL_ACCOUNT_NUMBER VARCHAR2(1000) PATH 'acct-nbr',
+                                        DESCRIPTION       VARCHAR2(1000) PATH 'descr',
+                                        PROFIT_OR_LOSS    VARCHAR2(1000) PATH 'PnL') A) LOOP
+        BEGIN                                
+            INSERT INTO GENERAL_LEDGER_ACCOUNTS VALUES rec;
+        EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('Load_GENERAL_LEDGER_ACCOUNTS - Invalid Load GL_ACCOUNT_NUMBER ' 
+                                     || rec.GL_ACCOUNT_NUMBER || ' ' || sqlerrm);
+        END;
+    END LOOP;
+    -- Begin Process to LOOAD PRGM_GL_ACCNT_RLTN_DTLS
+    FOR rec IN (SELECT A.*,
+                       TRUNC(SYSDATE),
+                       'INITLOAD',
+                       NULL
+                  FROM XMLTABLE('/primesubUpdt/primesubUpdtRcd'
+                                PASSING v_xml
+                                COLUMNS GL_PS_ACCOUNT_NUMBER VARCHAR2(1000) PATH 'pr-sub',
+                                        PROGRAM_NAME         VARCHAR2(1000) PATH 'ProgName',
+                                        SORTED_SEQUENCE      NUMBER         PATH 'SortSeq',
+                                        SHARED               VARCHAR2(1000) PATH 'Shrd') A) LOOP
+                                       
+        BEGIN
+            INSERT INTO PRGM_GL_ACCNT_RLTN_DTLS VALUES rec;
+        EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('Load_PRGM_GL_ACCNT_RLTN_DTLS - Invalid Load GL_PS_ACCOUNT_NUMBER ' 
+                                     || rec.GL_PS_ACCOUNT_NUMBER  || ' - ' || rec.PROGRAM_NAME || ' ' || sqlerrm);
+        END;
+    END LOOP;
+    -- Commit The transactions 
+    COMMIT;
+    -- ENABLE TRIGGERS
+    ALTER_TRIGGERS('ENABLE');
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'PRIME_GL_ACCOUNTS_MAIN_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END PRIME_GL_ACCOUNTS_MAIN_SP;
+END CCN_GL_PS_ACCNTS_INIT_LOAD;
