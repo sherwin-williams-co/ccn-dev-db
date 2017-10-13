@@ -133,6 +133,9 @@ public class PollingRequest {
                 } else if (application.equals("TERR")){
                 	PltStoreList = PltReturnStoreNbr("TERR");
                 	pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
+                } else if (application.equals("PrimeSub")){
+                	PltStoreList = PltReturnStoreNbr("PrimeSub");
+                	pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);	
                 } else {
                 	pollingMetadata = PollingDestMetadata.createDestinationFullChain();
                 }
