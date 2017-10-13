@@ -1,0 +1,3 @@
+-- craeted by rxv940 on 10/12/2017
+-- run this in CCN_Utililty
+CREATE OR REPLACE SYNONYM COMMON_TOOLS FOR COSTCNTR.COMMON_TOOLS;
