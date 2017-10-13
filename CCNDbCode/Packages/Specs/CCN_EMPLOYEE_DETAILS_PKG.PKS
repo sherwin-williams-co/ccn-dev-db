@@ -5,7 +5,7 @@ This package will contain all the procedures required to  work with employee det
 
 Created : 06/16/2014 jxc517 CCN Project....
 Changed : 10/05/2017 rxa457 CCN Project....
-						Added new function GET_EMPLOYEE_EMAIL to getemployee email
+           Added new function GET_EMPLOYEE_EMAIL to getemployee email
 ************************************************************/
 
 TYPE REF_CURSOR IS REF CURSOR;
@@ -134,15 +134,18 @@ IN_COST_CENTER_CODE  IN   VARCHAR2
 )
 RETURN VARCHAR2;
 
-FUNCTION GET_EMPLOYEE_EMAIL(
+PROCEDURE GET_EMPLOYEE_DTLS(
 /*******************************************************************************
-    This function will return the employee email for given employee number as input
+    This procedure will return the employee email and user_id 
+     for given employee number as input
 
 Created : 10/05/2017 rxa457 CCN Project Team...
 Modified:
 *******************************************************************************/
-IN_EMP_NBR  IN   VARCHAR2
+IN_EMP_NBR    IN   VARCHAR2,
+OUT_EMP_EMAIL OUT  VARCHAR2,
+OUT_USER_ID   OUT  VARCHAR2
 )
-RETURN VARCHAR2;
+;
 
 END CCN_EMPLOYEE_DETAILS_PKG;
