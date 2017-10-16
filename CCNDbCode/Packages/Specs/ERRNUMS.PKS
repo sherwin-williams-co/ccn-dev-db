@@ -2898,4 +2898,37 @@ en_invalid_terminal_count_err CONSTANT NUMBER := -20178;
 exc_invalid_terminal_count_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
+/***********************************************************
+The "invalid_accnt_nbr_err" passes a numerical error of -20179.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/02/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_accnt_nbr_err CONSTANT NUMBER := -20179;
+exc_invalid_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_accnt_nbr_err , -20179);
+
+/***********************************************************
+The "invalid_prog_name_err" passes a numerical error of -20180.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_prog_name_err CONSTANT NUMBER := -20180;
+exc_invalid_prog_name_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_prog_name_err , -20180);
+
+/***********************************************************
+The "prog_name_del_err" passes a numerical error of -20181.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_prog_name_del_err CONSTANT NUMBER := -20181;
+exc_prog_name_del_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
+
 END ERRNUMS;
