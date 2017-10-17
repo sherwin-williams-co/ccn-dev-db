@@ -1,10 +1,4 @@
-CREATE OR REPLACE TRIGGER TRIGGER TR_ADDRESS_USA_UPD 
-/***************************************************************************
-   TR_ADDRESS_USA_UPD.TRG
-   This trigger will insert records into audit_log table for logging changes
-   Created:
-   Modified : 09/22/2017 sxh87 Removed FIPS CODE as it should not go in the Audit
-****************************************************************************/
+CREATE OR REPLACE TRIGGER COSTCNTR.TR_ADDRESS_USA_UPD 
 before insert or update ON COSTCNTR.ADDRESS_USA 
 referencing old as old new as new 
 for each row
@@ -29,6 +23,7 @@ begin
     v_address_usa_row.ZIP_CODE          := :NEW.ZIP_CODE;
     v_address_usa_Row.ZIP_CODE_4        := :NEW.ZIP_CODE_4;
     v_address_usa_row.COUNTY            := :NEW.COUNTY;
+    v_address_usa_row.FIPS_CODE         := :NEW.FIPS_CODE;
     v_address_usa_row.DESTINATION_POINT := :NEW.DESTINATION_POINT;
     v_address_usa_row.CHECK_DIGIT       := :NEW.CHECK_DIGIT;
     v_address_usa_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
@@ -52,6 +47,7 @@ begin
         ,v_address_usa_row.ZIP_CODE ZIP_CODE
         ,v_address_usa_row.ZIP_CODE_4 ZIP_CODE_4
         ,v_address_usa_row.COUNTY COUNTY
+        ,v_address_usa_row.FIPS_CODE FIPS_CODE
         ,v_address_usa_row.DESTINATION_POINT DESTINATION_POINT
         ,v_address_usa_row.CHECK_DIGIT CHECK_DIGIT
         ,v_address_usa_row.VALID_ADDRESS VALID_ADDRESS
@@ -73,6 +69,9 @@ begin
 			,v_primaryKey
 			,v_transaction_id
 			FROM DUAL;	
+
+
+
          
      /* -- for   Column -- */
      --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
