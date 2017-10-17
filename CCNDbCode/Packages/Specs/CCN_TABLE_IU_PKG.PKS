@@ -2111,7 +2111,7 @@ PROCEDURE GL_ACCNTS_PROG_NAME_S_SP(
 /******************************************************************************
 This procedures takes program name or accnt number as input and
 retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_accnt_number         IN     VARCHAR2,
     out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
@@ -2120,7 +2120,7 @@ PROCEDURE PROG_GL_ACCOUNTS_S_SP(
 /******************************************************************************
 This procedures takes Program Name as input and
 retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_prog_name            IN     VARCHAR2,
     out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
@@ -2129,7 +2129,7 @@ PROCEDURE PRGRM_GL_ACCOUNTS_U_SP(
 /******************************************************************************
 This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
  updates the data into tables PRGM_GL_ACCNT_RLTN_DTLS
-created : 03/16/2017 axt754 -- CCN Project Team
+Created : 03/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
 
@@ -2137,14 +2137,14 @@ PROCEDURE PRGRM_GL_ACCOUNTS_I_SP(
 /******************************************************************************
 This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
 inserts the data into tables PRGM_GL_ACCNT_RLTN_DTLS
-created : 03/16/2017 axt754 -- CCN Project Team
+Created : 03/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
 
 PROCEDURE PRGRM_GL_ACCOUNTS_ROWTYPE_SP(
 /******************************************************************************
 This procedures takes XML as input and converts into rowtype of PRGM_GL_ACCNT_RLTN_DTLS
-created : 03/15/2017 axt754 -- CCN Project Team
+Created : 03/15/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_prg_accnt_frag IN     CLOB,
     in_table_name     IN     VARCHAR2,
@@ -2154,7 +2154,7 @@ PROCEDURE PRGRM_GL_ACCOUNTS_D_SP(
 /******************************************************************************
 This procedures takes  PRGM_GL_ACCNT_RLTN_DTLSrec as input and deletes the data from
 PRGM_GL_ACCNT_RLTN_DTLS table.
-created : 03/23/2017 axt754 -- CCN Project Team
+Created : 03/23/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
 
@@ -2162,7 +2162,7 @@ PROCEDURE PROGRAMS_S_SP(
 /******************************************************************************
 This procedures takes Program Name as input and
 retreives the data from table PROGRAMS as REF CURSOR.
-created : 08/15/2017 axt754 -- CCN Project Team
+Created : 08/15/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_prog_name IN     VARCHAR2,
     out_prog_rec    OUT SYS_REFCURSOR);
@@ -2172,15 +2172,15 @@ PROCEDURE PROGRAMS_U_SP(
 /******************************************************************************
 This procedures takes PROGRAMS TABLE ROWTYPE as input and
 updates the data into tables PROGRAMS
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
-     program_rec IN PROGRAMS%ROWTYPE);
+    program_rec IN PROGRAMS%ROWTYPE);
 
 PROCEDURE PROGRAMS_I_SP(
 /******************************************************************************
 This procedures takes PROGRAMS ROWTYPE as input and
 inserts the data into tables PROGRAMS
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     program_rec IN PROGRAMS%ROWTYPE);
 
@@ -2188,7 +2188,7 @@ PROCEDURE PROGRAMS_ROWTYPE_SP(
 /******************************************************************************
 This procedures takes XML as input and converts the data into PROGRAMS
 rowtype
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_program_frag  IN     CLOB,
     in_table_name    IN     VARCHAR2,
@@ -2198,7 +2198,7 @@ PROCEDURE PROGRAMS_D_SP(
 /******************************************************************************
 This procedures takes PROGRAM REC  as input and
 deletes the data from table PROGRAMS table.
-created : 08/14/2017 axt754 -- CCN Project Team
+Created : 08/14/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     program_rec IN PROGRAMS%ROWTYPE);
 
@@ -2206,7 +2206,7 @@ PROCEDURE GL_ACCOUNTS_S_SP(
 /******************************************************************************
 This procedures takes GL ACCOUNT NUMBER as input and
 retreives the data from table GENERAL_LEDGER_ACCOUNTS as REF CURSOR.
-created : 03/23/2017 axt754 -- CCN Project Team
+Created : 03/23/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_accnt_nbr IN     VARCHAR2,
     out_gl_accnt    OUT SYS_REFCURSOR);
@@ -2215,7 +2215,7 @@ PROCEDURE GL_ACCOUNTS_U_SP(
 /******************************************************************************
 This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
  updates the data into tables GENERAL_LEDGER_ACCOUNTS
-created : 03/16/2017 axt754 -- CCN Project Team
+Created : 03/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
 
@@ -2223,7 +2223,7 @@ PROCEDURE GL_ACCOUNTS_I_SP(
 /******************************************************************************
 This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
 inserts the data into tables GENERAL_LEDGER_ACCOUNTS
-created : 03/16/2017 axt754 -- CCN Project Team
+Created : 03/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
 
@@ -2232,7 +2232,7 @@ PROCEDURE GL_ACCOUNTS_ROWTYPE_SP(
 /******************************************************************************
 This procedures takes XML as converts the data into
 GENERAL_LEDGER_ACCOUNTS rowtype
-created : 03/15/2017 axt754 -- CCN Project Team
+Created : 03/15/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_gl_accnt_frag IN     CLOB,
     in_table_name    IN     VARCHAR2,

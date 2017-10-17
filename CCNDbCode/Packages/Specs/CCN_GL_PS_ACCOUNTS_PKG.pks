@@ -193,9 +193,9 @@ with the given account and the account information as well.
 Created : 08/15/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
-     in_accnt_nbr             IN      VARCHAR2
-     ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
-     ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR);
+    in_accnt_nbr             IN      VARCHAR2
+    ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR);
 
 PROCEDURE PROG_GL_ACCOUNTS_UI_S_SP(
 /****************************************************************************** 
@@ -205,9 +205,9 @@ related information
 Created : 08/15/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
-     in_prog_name             IN           VARCHAR2
-     ,out_prg_refcursor          OUT        SYS_REFCURSOR
-     ,out_prg_accnt_refcursor    OUT        SYS_REFCURSOR);
+    in_prog_name             IN           VARCHAR2
+    ,out_prg_refcursor          OUT        SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT        SYS_REFCURSOR);
 
 PROCEDURE PROGRAMS_UI_S_SP(
 /****************************************************************************** 
@@ -227,7 +227,7 @@ This procedures takes GL_ACCOUNT_NUMBER as input and retrives the data from
 GENERAL_LEDGER_ACCOUNTS Table, if the GL_ACCOUNT_NUMBER is not passed then retrives all the accounts
 from GENERAL_LEDGER_ACCOUNTS Table
 
-created : 08/16/2017 axt754 -- CCN Project Team
+Created : 08/16/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
     in_accnt_nbr             IN           VARCHAR2
