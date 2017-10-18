@@ -73,6 +73,15 @@ BEGIN
             EXCEPTION
                 WHEN OTHERS THEN
                     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
+                    --ASP_805 Changes
+                    UPDATE BANK_DEP_TICK
+                       SET DEP_TKTS_ONHAND_QTY = NVL(DEP_TKTS_ONHAND_QTY,0) + 1
+                     WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
+                       AND EXISTS (SELECT 1
+                                     FROM POS_DPST_TICKET_COUNTS
+                                    WHERE COST_CENTER_CODE = SUBSTR(rec.COST_CENTER_CODE, 3)
+                                      AND LOAD_DATE >= NVL(V_LAST_BATCH_RUN_DATE, LOAD_DATE)
+                                      AND TO_NUMBER(POS_COUNT) > 0);
             END;
             COMMIT;
         END LOOP;
@@ -102,6 +111,8 @@ Changed : 11/16/2016 nxk927 CCN Project....
                      since data from new POS needs to be considered.
         : 06/28/2017 sxp130 ASP_805 CCN project....
           When exception raised, BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY set back to previous value
+        : 10/27/2017 axt754 CCN project....
+          Converted 4 digit cost center code to 6 digit
 *******************************************************************************/
 IN_SERVER_NAME  IN VARCHAR2,
 IN_LOGFILE      IN VARCHAR2
@@ -122,9 +133,22 @@ BEGIN
                 UPDATE BANK_DEP_TICK
                    SET DEP_TKTS_ONHAND_QTY = NVL(DEP_TKTS_ONHAND_QTY,0) - 1
                  WHERE SUBSTR(COST_CENTER_CODE, 3) = rec.COST_CENTER_CODE;
+
+                --business rule to check the order place date is valid or not
+                BUSINESS_RULES_PKG.PLACE_TCKT_ORDER_BR_SP(STR_BNK_DPST_DLY_RCNCL_PROCESS.COST_CENTER_LOOK_UP_FNC(rec.COST_CENTER_CODE),
+                                                          NULL);   --ASP_805
+
             EXCEPTION
                 WHEN OTHERS THEN
                     ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'INTRM_DPST_TKT_PROC', SQLERRM, '1111111111111111' , rec.COST_CENTER_CODE, 'BANK_ACCOUNT');
+                    --ASP_805 Changes
+                    UPDATE BANK_DEP_TICK
+                       SET DEP_TKTS_ONHAND_QTY = NVL(DEP_TKTS_ONHAND_QTY,0) + 1
+                     WHERE SUBSTR(COST_CENTER_CODE, 3) = rec.COST_CENTER_CODE
+                       AND EXISTS (SELECT 1
+                                     FROM POS_INTERIM_DEPST
+                                    WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
+                                      AND LOAD_DATE >= NVL(V_LAST_BATCH_RUN_DATE, LOAD_DATE));
             END;
             COMMIT;
         END LOOP;
