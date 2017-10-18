@@ -41,12 +41,13 @@ BEGIN
       V_CLOB := '"' || rec.cost_center_code         || '",' ||
                 '"' || rec.depbag_onhand_qty        || '",' ||
                 '"' || rec.depbag_last_order_date   || '"';
-				
       V_FINAL_CLOB := V_FINAL_CLOB || CHR(10) || V_CLOB;
    END LOOP;
 
    --sending mail for the category 'DEP_BAG_TICK_ONHAND_QTY_RPT'
-   MAIL_PKG.send_mail('DEP_BAG_TICK_ONHAND_QTY_RPT', NULL, NULL, V_FINAL_CLOB);
+   IF V_CLOB <> EMPTY_CLOB() THEN
+      MAIL_PKG.send_mail('DEP_BAG_TICK_ONHAND_QTY_RPT', NULL, NULL, V_FINAL_CLOB);
+   END IF;
 
 EXCEPTION
    WHEN OTHERS THEN
