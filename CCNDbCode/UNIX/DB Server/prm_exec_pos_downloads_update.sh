@@ -5,15 +5,18 @@
 #                 with the requestid for the given file name
 #                 The first parameter is filename and 2nd parameter is requestid.   
 # Created       : 07/06/2016 rxv940 CCN Project ....
-# Modified : 08/23/2017 rxv940 CCN Project Team.....
+# Modified      : 08/23/2017 rxv940 CCN Project Team.....
 #               : Added IF condition for  assigning value to V_POS_DOWNLOADS.COMMENTS
-#
+# Modified      : 10/17/2017 rxv940 CCN Project ....
+#               : V_POS_DOWNLOADS.POLLING_REQUEST_ID is to get the first 36 characters of
+#                 request log
 #################################################################
 . /app/ccn/host.sh
 
 proc_name="prm_exec_pos_downloads_update.sh";
 FILENAME=$1
-REQUESTID=$2
+REQLOG=$2
+REQUESTID=`echo $REQLOG| cut -c 1-36`
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 
@@ -38,7 +41,7 @@ V_POS_DOWNLOADS.POLLING_REQUEST_ID:='$REQUESTID';
 IF TRIM(V_POS_DOWNLOADS.POLLING_REQUEST_ID) IS NULL THEN
     V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling not performed as '||V_POS_DOWNLOADS.COST_CENTER_CODE|| ' is not in the p2storelkup webservice. ';
 ELSE
-    V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling response is : '||'$REQUESTID';
+    V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling response is : '||'$REQLOG';
 END IF;
 V_POS_DOWNLOADS.UPDATE_DT:=SYSDATE;
 POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_POS_DOWNLOADS);
@@ -63,7 +66,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $proc_name --> processing FAILED while executing return_pos_downloads.sh at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while updating REQUESTID $REQUESTID for file $FILENAME in to the POS_DOWNLOADS table"
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while updating REQUESTID $REQLOG for file $FILENAME in to the POS_DOWNLOADS table"
      exit 1
 fi
 
