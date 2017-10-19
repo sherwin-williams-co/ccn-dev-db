@@ -15,6 +15,8 @@
 proc_name="str_exec_pos_downloads_update.sh";
 FILENAME=$1
 REQLOG=$2
+REQUESTLOG=`echo $REQLOG| cut -c 1-2400`$'\n'`echo $REQLOG| cut -c 2401-4800`
+# 2499 characters is max for 1 line of input. Hence breaking into 2 lines.
 REQUESTID=`echo $REQLOG| cut -c 1-36`
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
@@ -36,7 +38,7 @@ BEGIN
 :exitCode := 0;
 V_POS_DOWNLOADS := POS_DATA_GENERATION.RETURN_POS_DOWNLOADS(NULL,'$FILENAME');
 V_POS_DOWNLOADS.POLLING_REQUEST_ID:='$REQUESTID';
-V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling response is : '||'$REQLOG';
+V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling response is : '||'$REQUESTLOG';
 V_POS_DOWNLOADS.UPDATE_DT:=SYSDATE;
 
 
@@ -62,7 +64,7 @@ TIME=`date +"%H:%M:%S"`
 if [ $status -ne 0 ]
 then
     echo " $proc_name --> processing FAILED while executing return_pos_downloads.sh at $DATE:$TIME "
-    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while updating REQUESTID $REQLOG for file $FILENAME in to the POS_DOWNLOADS table"
+    ./send_mail.sh "POLLING_FAILURE_MAIL" "Error while updating REQUESTID $REQUESTLOG for file $FILENAME in to the POS_DOWNLOADS table"
      exit 1
 fi
 
