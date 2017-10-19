@@ -81,15 +81,6 @@ Changed :
 *********************************************************************************/
 ;
 
-PROCEDURE INIT_LOAD_PARAM_SP
-/*******************************************************************************
-This procedure is used to create a PARAM Init load file.
-
-Created : 03/30/2017 rxv940 CCN Project....
-Changed :
-*********************************************************************************/
-;
-
 PROCEDURE NEW_STORES_INIT_LOAD_PROCESS
 /*******************************************************************************
 This procedure is used to create an Initload for STORE, TERR and PARAM all at once
