@@ -855,8 +855,6 @@ modified: 02/24/2015 jxc517 CCN Project Team...
 modified: 03/24/2015 jxc517 CCN Project Team...
           Removed code for deleting the existing cost center from copy process
           Removed code for deleting audit for new cost center   the same from old cost center
-modified: 10/10/2017 rxv940 CCN Project Team...
-          Added code to call Polling process 		  
 **********************************************************/
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2) IS
@@ -934,8 +932,7 @@ BEGIN
       --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
       EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
    END LOOP;
-   -- Call to polling process
-   POS_DATA_GENERATION.POS_MASTER_SP(TO_CC);  
+   
    --Commit all the changes in the database
    COMMIT;
    
@@ -970,6 +967,7 @@ BEGIN
             ROLLBACK TO COST_CENTER_COPY_LOAD;
       END;
     END LOOP;
+
 EXCEPTION
    WHEN OTHERS THEN
       COMMON_TOOLS.LOG_ERROR('000000', 'COMMON_TOOLS.BULK_COPY_COST_CENTER', SQLERRM, SQLCODE);      
@@ -987,7 +985,6 @@ that invokes bulk load for copying cost centers from one another
 IN_BLOB          - blob value delimited by , and termianted by new line character
 
 Created by jxc517 02/24/2014
-Modified : 09/29/2017 axt754 Rename file on server for history
 ******************************************************************************/
 IN_BLOB            IN       BLOB
 )
@@ -1000,26 +997,21 @@ IS
     V_TEMP_LENGTH     NUMBER;
     V_TEMP_BLOB       RAW(32000);
     V_CONTEXT   VARCHAR2(3000);
-    SQ          INTEGER;
-    SE          VARCHAR2(1000);
-    V_FILE_NM     VARCHAR2(100)     := 'COST_CENTER_COPY.csv';
-    V_ARC_FILE_NM VARCHAR2(100)     := 'COST_CENTER_COPY_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
+  	SQ          INTEGER;
+  	SE          VARCHAR2(1000);    
 BEGIN
        
-    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,V_FILE_NM);
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
+                              'COST_CENTER_COPY.csv');
 
     BULK_COPY_COST_CENTER();
  
-    -- Rename File on server for History
-    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
-
 EXCEPTION
 
     WHEN OTHERS THEN
        SQ := SQLCODE;
        SE := SQLERRM;
-       -- Rename File on server for History
-       CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+
        V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
        ERRPKG.RAISE_ERR(-20004,'BULK_COPY_COST_CENTER_PROCESS ',V_CONTEXT); 
  
@@ -1272,8 +1264,6 @@ column of TERRITORY table
 IN_BLOB          - blob value delimited by , and termianted by new line character
 
 Created by jxc517 02/19/2015
-Modified : 09/29/2017 axt754 Rename file on server for history
-Modified : 10/10/2017 rxv940 Added a call to Polling on successful update
 ******************************************************************************/
 IN_BLOB            IN       BLOB)
 IS
@@ -1281,11 +1271,10 @@ IS
   	SQ          INTEGER;
   	SE          VARCHAR2(1000);
     V_COUNT     NUMBER;
-    V_FILE_NM     VARCHAR2(100)     := 'TERRITORY_TYPE_BUSN_CODE_UPD.csv';
-    V_ARC_FILE_NM VARCHAR2(100)     := 'TERRITORY_TYPE_BUSN_CODE_UPD_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
     V_EXCEPTION EXCEPTION;
 BEGIN
-    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
+                              'TERRITORY_TYPE_BUSN_CODE_UPD.csv');
     FOR rec IN (SELECT * FROM TERRITORY_TYPE_BUSN_CODE_UPD) LOOP
         BEGIN
             SAVEPOINT TERR_TYP_BUSN_CD_UPD_SP;
@@ -1314,8 +1303,6 @@ BEGIN
                SET TERRITORY_TYPE_BUSN_CODE = rec.TERRITORY_TYPE_BUSN_CODE
              WHERE COST_CENTER_CODE                    = rec.COST_CENTER_CODE
                AND NVL(TERRITORY_TYPE_BUSN_CODE, 'XX') <> rec.TERRITORY_TYPE_BUSN_CODE;
-            -- call to polling
-            POS_DATA_GENERATION.POS_MASTER_SP(rec.COST_CENTER_CODE);
             COMMIT;
         EXCEPTION
            WHEN V_EXCEPTION THEN
@@ -1332,13 +1319,9 @@ BEGIN
               ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
         END;
     END LOOP;
-    --Rename File on server for History
-   CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
 EXCEPTION
     WHEN OTHERS THEN
        V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM; 
-       --Rename File on server for History
-       CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
        ERRPKG.RAISE_ERR(-20004,'BULK_TERR_TYP_BUSN_CD_UPD_PRCS ',V_CONTEXT); 
 END BULK_TERR_TYP_BUSN_CD_UPD_PRCS;
 
@@ -1521,84 +1504,6 @@ EXCEPTION
         RETURN V_NUMBER;
 END GET_FORMATTED_PHONE_NUMBER;
 
-FUNCTION GET_HOMESTORE(
-/***********************************************
-Function to get Homestore Information for the cost center 
-based on the cost center's Category
-
-created : 08/30/2017  rxa457 CCN Project..
-***********************************************/
-IN_COST_CNTR_CD   IN COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_COST_CNTR_CATG IN COST_CENTER.CATEGORY%TYPE)
-RETURN VARCHAR2
-IS
-    V_HOME_STORE                TERRITORY.HOME_STORE%TYPE;	
-BEGIN
-    IF IN_COST_CNTR_CATG ='D' THEN
-        BEGIN
-           SELECT HOME_STORE
-             INTO V_HOME_STORE
-             FROM DISPATCH_TERMINAL 
-            WHERE COST_CENTER_CODE =  IN_COST_CNTR_CD;
-        EXCEPTION
-            WHEN NO_DATA_FOUND THEN
-                 NULL;
-        END;
-    ELSIF IN_COST_CNTR_CATG ='T' THEN
-        BEGIN
-           SELECT HOME_STORE
-             INTO V_HOME_STORE
-             FROM TERRITORY 
-            WHERE COST_CENTER_CODE =  IN_COST_CNTR_CD;
-        EXCEPTION
-            WHEN NO_DATA_FOUND THEN
-                 NULL;
-        END;
-    END IF;
-    RETURN V_HOME_STORE;
-END GET_HOMESTORE;
-
-FUNCTION GET_TIMEZONE(
-/***********************************************
-Fucntion to get Timezone Information for the cost center 
-based on the cost center's Polling information.
-
-1. Refer Polling Table Timezone field based on the cost center's home store
-   for category D and T or based on Cost center code itself
-
-created : 08/28/2017  rxa457 CCN Project..
-***********************************************/
-IN_COST_CNTR_CD   IN COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_COST_CNTR_CATG IN COST_CENTER.CATEGORY%TYPE)
-RETURN VARCHAR2
-IS
-  V_TIMEZONE_CODE             CODE_DETAIL.CODE_DETAIL_VALUE%TYPE;
-  V_TIMEZONE_DESC             CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-  V_HOME_STORE                TERRITORY.HOME_STORE%TYPE;
-BEGIN
-    V_HOME_STORE := GET_HOMESTORE(IN_COST_CNTR_CD, IN_COST_CNTR_CATG);
-
-    BEGIN
-        SELECT TIME_ZONE
-          INTO V_TIMEZONE_CODE
-          FROM POLLING
-         WHERE COST_CENTER_CODE = NVL(V_HOME_STORE, IN_COST_CNTR_CD)
-           AND CURRENT_FLAG     = 'Y';
-    EXCEPTION
-        WHEN OTHERS THEN
-             NULL;
-    END;
-        
-    --Look up Timezone description based on timezone code value
-    V_TIMEZONE_DESC := NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TIME_ZONE',
-                                                                           'COD',
-                                                                           V_TIMEZONE_CODE),
-                           'N/A'
-                           );
-    RETURN V_TIMEZONE_DESC;
-    
-END GET_TIMEZONE;
-
 FUNCTION GET_ACTIVE_STATUS(
 /***********************************************
 Function to get Active status record for a cost center
@@ -1620,6 +1525,5 @@ BEGIN
     RETURN V_STATUS_REC;
 
 END GET_ACTIVE_STATUS;
-
 
 END COMMON_TOOLS;
