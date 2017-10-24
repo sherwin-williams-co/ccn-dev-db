@@ -855,6 +855,8 @@ modified: 02/24/2015 jxc517 CCN Project Team...
 modified: 03/24/2015 jxc517 CCN Project Team...
           Removed code for deleting the existing cost center from copy process
           Removed code for deleting audit for new cost center   the same from old cost center
+modified: 10/10/2017 rxv940 CCN Project Team...
+          Added code to call Polling process 		  
 **********************************************************/
           IN_OLD_CC IN VARCHAR2,
           IN_NEW_CC IN VARCHAR2) IS
@@ -932,7 +934,8 @@ BEGIN
       --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
       EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
    END LOOP;
-   
+   -- Call to polling process
+   POS_DATA_GENERATION.POS_MASTER_SP(TO_CC);  
    --Commit all the changes in the database
    COMMIT;
    
@@ -985,6 +988,7 @@ that invokes bulk load for copying cost centers from one another
 IN_BLOB          - blob value delimited by , and termianted by new line character
 
 Created by jxc517 02/24/2014
+Modified : 09/29/2017 axt754 Rename file on server for history
 ******************************************************************************/
 IN_BLOB            IN       BLOB
 )
@@ -997,21 +1001,25 @@ IS
     V_TEMP_LENGTH     NUMBER;
     V_TEMP_BLOB       RAW(32000);
     V_CONTEXT   VARCHAR2(3000);
-  	SQ          INTEGER;
-  	SE          VARCHAR2(1000);    
+    SQ          INTEGER;
+    SE          VARCHAR2(1000);
+    V_FILE_NM     VARCHAR2(100)     := 'COST_CENTER_COPY.csv';
+    V_ARC_FILE_NM VARCHAR2(100)     := 'COST_CENTER_COPY_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
 BEGIN
        
-    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
-                              'COST_CENTER_COPY.csv');
-
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,V_FILE_NM);
     BULK_COPY_COST_CENTER();
  
+    -- Rename File on server for History
+    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+
 EXCEPTION
 
     WHEN OTHERS THEN
        SQ := SQLCODE;
        SE := SQLERRM;
-
+       -- Rename File on server for History
+       CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
        V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
        ERRPKG.RAISE_ERR(-20004,'BULK_COPY_COST_CENTER_PROCESS ',V_CONTEXT); 
  
@@ -1264,6 +1272,8 @@ column of TERRITORY table
 IN_BLOB          - blob value delimited by , and termianted by new line character
 
 Created by jxc517 02/19/2015
+Modified : 09/29/2017 axt754 Rename file on server for history
+Modified : 10/10/2017 rxv940 Added a call to Polling on successful update
 ******************************************************************************/
 IN_BLOB            IN       BLOB)
 IS
@@ -1271,10 +1281,11 @@ IS
   	SQ          INTEGER;
   	SE          VARCHAR2(1000);
     V_COUNT     NUMBER;
+    V_FILE_NM     VARCHAR2(100)     := 'TERRITORY_TYPE_BUSN_CODE_UPD.csv';
+    V_ARC_FILE_NM VARCHAR2(100)     := 'TERRITORY_TYPE_BUSN_CODE_UPD_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
     V_EXCEPTION EXCEPTION;
 BEGIN
-    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,
-                              'TERRITORY_TYPE_BUSN_CODE_UPD.csv');
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
     FOR rec IN (SELECT * FROM TERRITORY_TYPE_BUSN_CODE_UPD) LOOP
         BEGIN
             SAVEPOINT TERR_TYP_BUSN_CD_UPD_SP;
@@ -1303,6 +1314,8 @@ BEGIN
                SET TERRITORY_TYPE_BUSN_CODE = rec.TERRITORY_TYPE_BUSN_CODE
              WHERE COST_CENTER_CODE                    = rec.COST_CENTER_CODE
                AND NVL(TERRITORY_TYPE_BUSN_CODE, 'XX') <> rec.TERRITORY_TYPE_BUSN_CODE;
+            -- call to polling
+            POS_DATA_GENERATION.POS_MASTER_SP(rec.COST_CENTER_CODE);
             COMMIT;
         EXCEPTION
            WHEN V_EXCEPTION THEN
@@ -1319,9 +1332,13 @@ BEGIN
               ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
         END;
     END LOOP;
+    --Rename File on server for History
+   CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
 EXCEPTION
     WHEN OTHERS THEN
        V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM; 
+       --Rename File on server for History
+       CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
        ERRPKG.RAISE_ERR(-20004,'BULK_TERR_TYP_BUSN_CD_UPD_PRCS ',V_CONTEXT); 
 END BULK_TERR_TYP_BUSN_CD_UPD_PRCS;
 
