@@ -59,7 +59,7 @@ Changed :
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE);
 
-PROCEDURE INIT_LOAD_TERR_SP
+PROCEDURE INIT_LOAD_TERR_SP(
 /*******************************************************************************
 This procedure is used to create a territory Init load file.
 
@@ -70,25 +70,25 @@ the order of the XML elements.
 Created : 10/17/2016 MXK766 CCN Project....
 Changed :
 *********************************************************************************/
-;
+    IN_LOAD_TYPE   IN       VARCHAR2);
 
-PROCEDURE INIT_LOAD_STORE_SP
+PROCEDURE INIT_LOAD_STORE_SP(
 /*******************************************************************************
 This procedure is used to create a Store Init load file.
 
 Created : 02/23/2017 RXV940 CCN Project....
 Changed :
 *********************************************************************************/
-;
+    IN_LOAD_TYPE   IN       VARCHAR2);
 
-PROCEDURE NEW_STORES_INIT_LOAD_PROCESS
+PROCEDURE NEW_STORES_INIT_LOAD_PROCESS(
 /*******************************************************************************
 This procedure is used to create an Initload for STORE, TERR and PARAM all at once
 
 Created : 04/10/2017 rxv940 CCN Project....
 Changed :
 *********************************************************************************/
-;
+    IN_LOAD_TYPE    IN    VARCHAR2);
 
 PROCEDURE GENERATE_STORE_LIST_FROM_WS_SP(
 /*******************************************************************************
@@ -100,5 +100,52 @@ Changed :
 *********************************************************************************/
            IN_FILE_TYPE VARCHAR2)
 ;
+
+PROCEDURE WS_DIFF_BY_FILE_TYPE(
+/*******************************************************************************
+This procedure is used to create an WS diff file with the list of newly added cost centers
+
+Created : 10/12/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+      IN_FILE_TYPE       VARCHAR2,
+      IN_STR_LIST        VARCHAR2,
+      OUT_LIST       OUT VARCHAR2
+      )
+;
+
+PROCEDURE INIT_LOAD_STORE_SP(
+/*******************************************************************************
+This procedure is used to create a Store Init load file fro WS diff
+
+Created : 10/12/2017 rxv CCN Project....
+Changed :
+*********************************************************************************/
+    IN_LOAD_TYPE   IN       VARCHAR2,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2);
+
+PROCEDURE INIT_LOAD_TERR_SP(
+/*******************************************************************************
+This procedure is used to create a territory Init load file.
+
+Created : 10/12/2017 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_LOAD_TYPE   IN       VARCHAR2,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2);
+    
+PROCEDURE POS_DOWNLOADS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+Created : 10/20/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_FILE_NAME POS_DOWNLOADS.FILE_NAME%TYPE,
+    IN_RQST_ID   POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE);    
 
 END POS_DATA_GENERATION;

@@ -1,0 +1,4 @@
+-- created by rxv940 on 10/24/2017
+-- Run this in Utils schema
+ALTER TABLE POS_DOWNLOADS
+ADD PREREQ_EQUIV_RQST_ID	VARCHAR2(4000);
