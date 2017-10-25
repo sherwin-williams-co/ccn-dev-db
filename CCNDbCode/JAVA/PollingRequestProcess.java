@@ -42,9 +42,7 @@ public class PollingRequestProcess {
 
 	private static String callPollingInitMethod(List<String> storeList){
 		String requestId = "";
-		if (storeList.isEmpty()) {
-			requestId = "Store List is empty";
-		} else {
+		if (!storeList.isEmpty()) {
 			try {
 				requestId = RestAdapter.writeFileToPolling(
 						username,
@@ -52,7 +50,7 @@ public class PollingRequestProcess {
 						getPollingHdrMetadata("INITLOAD"),
 						PollingDestMetadata.createDestinationList(storeList),
 						PollingFileMetadata.create(filename));
-				return requestId + " Polling information sent to stores :" + storeList;
+				System.out.println(requestId + " Polling information sent to stores :" + storeList);
 			} catch (Exception e) {
 				e.printStackTrace();
 				requestId = e.getMessage() + "Exception in the RestAdapter calling method section.";
@@ -126,7 +124,7 @@ public class PollingRequestProcess {
 				requestId = e.getMessage() + ". Exception in the RestAdapter calling method section.";
 			}
 		} else {
-			requestId = "Invalid file path provided.";
+			requestId = "Error - Invalid file path provided.";
 		}
 		return requestId;
 	}

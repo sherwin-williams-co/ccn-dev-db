@@ -29,8 +29,10 @@ public class InitialLoadProcess {
 				System.out.println("Processing New Group Load");
 				processNewGroupLoad(appName);
 			}else if(loadType.equals("NEW_STR_LD")){
+				String appName     = args[1];// "STORE" or "TERR"
+				//String appName = "STORE";
 				System.out.println("Processing New Store Load");
-				processNewStoreLoad();
+				processNewStoreLoad(appName, args[2]);
 			}else if(loadType.equals("SYNC_LOAD")){
 				String appName     = args[1];// "STORE" or "TERR"
 				//String appName = "STORE";
@@ -60,18 +62,8 @@ public class InitialLoadProcess {
 		processInitLoad(newStores, appName);
 	}
 
-	private static void processNewStoreLoad() throws Exception{
-		System.out.println("Getting the list of stores from message queue");
-		String newStores = null;
-		try{
-			newStores = MessageQueueProcess.getQueueMessagesAsString();
-		}catch(Exception e){
-			DBConnection.sendMail("QueueDownloadFAILURE", "Error in Queue download process." + e.getMessage());
-		}
-		System.out.println( "newStores : " + newStores);
-		processInitLoad(newStores, "STORE");
-
-		processInitLoad(newStores, "TERR");
+	private static void processNewStoreLoad(String appName, String newStores) throws Exception{
+		processInitLoad(newStores, appName);
 	}
 
 	private static void processSyncLoad(String appName) throws Exception{
@@ -79,7 +71,7 @@ public class InitialLoadProcess {
 	}
 
 	private static void processInitLoad(String stores, String pollingAppName) throws SQLException{
-		if (stores != null) {
+		if (stores != null && !stores.isEmpty()) {
 			System.out.println("Generating initial load file for application "+pollingAppName);
 			DBConnection.callInitLoad(pollingAppName, loadType);
 
@@ -98,8 +90,12 @@ public class InitialLoadProcess {
 			if(pollingRequestId.contains("Exception") || pollingRequestId.contains("Error")){
 				DBConnection.sendMail("RequestidFailure", "Error in the retrieved requestid. The file "+ccnFileName+" has a REQUESTID: "+pollingRequestId);
 			}else{
-				System.out.println("Updating the polling request id");
-				DBConnection.updatePollingRequestId(pollingRequestId);
+				if(pollingRequestId != null && !pollingRequestId.isEmpty()){
+					System.out.println("Updating the polling request id");
+					DBConnection.updatePollingRequestId(pollingRequestId);
+				}else{
+					System.out.println("No request Id to update anything in the database");
+				}
 			}
 		} else {
 			System.out.println( "Warning:- No stores to send the initial load files to");

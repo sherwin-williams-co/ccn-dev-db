@@ -1,0 +1,3 @@
+-- created by rxv9+40 on 10/25/2017
+-- Run this in utils
+CREATE INDEX POS_DOWNLOADS_FILE_NAME_INDX ON POS_DOWNLOADS (FILE_NAME) ;
