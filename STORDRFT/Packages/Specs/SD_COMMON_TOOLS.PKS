@@ -38,4 +38,14 @@ Changed :
 ******************************************************************/
 ;
 
+FUNCTION GET_STORE_DRAFTS_DIVISIONS(
+/******************************************************************
+This procedure will return divisions for store drafts, by taking
+USER_ID as input
+
+Created : 09/26/2017 axt754 CCN Project....
+Changed :
+******************************************************************/
+      IN_USER_ID IN VARCHAR2) RETURN VARCHAR2;
+
 END SD_COMMON_TOOLS;
