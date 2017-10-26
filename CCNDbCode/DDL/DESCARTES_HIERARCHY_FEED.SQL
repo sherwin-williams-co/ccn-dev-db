@@ -1,0 +1,13 @@
+/*
+Created : nxk927 10/26/2017
+          Dropping the old table creating new table for DESCARTES FEED STATUS
+*/
+DROP TABLE DESCARTES_FEED_STATUS;
+/
+
+CREATE TABLE DESCARTES_HIERARCHY_FEED
+(CTRL_SEQ_NBR   NUMBER,
+ FEED_CLOB      CLOB,
+ PROCESS_DATE   DATE);
+
+/

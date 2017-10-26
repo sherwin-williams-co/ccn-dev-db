@@ -45,6 +45,8 @@ Changed : 09/28/2017 rxa457 CCN project Team...
         : 10/19/2017 nxk927/jxc517 CCN Project Team...
           Removed the cursor that was getting the manager details.
           Getting the manager details from the function GET_STORE_MGR_DTLS
+        : 10/25/2017 nxk927 CCN Project Team...
+          Hard coded the values for SENDER_ID, RECEIVER_ID and DOC_TYPE as per Descates
 **********************************************************/
 IS
     CURSOR driver_cur IS
@@ -84,27 +86,152 @@ IS
     V_AREA_MGR_USER_ID        EMPLOYEE_DETAILS.USER_ID%TYPE;
     V_DIVISION_MGR_USER_ID    EMPLOYEE_DETAILS.USER_ID%TYPE;
     V_GRP_MGR_USER_ID         EMPLOYEE_DETAILS.USER_ID%TYPE;
-    V_ENVIRONMENT             VARCHAR2(100);
-    V_TEST_INDICATOR          VARCHAR2(1);
-    V_JOB_NAME                VARCHAR2(100) := 'DESCARTES_CCN_ORG_HRCHY';
-    V_SENDER_ID               VARCHAR2(100) := 'CCN';
-    V_RECEIVER_ID             VARCHAR2(100) := 'DESCARTES';
-    V_DOC_TYPE                VARCHAR2(100) := 'CCN_ORG';
+    V_SENDER_ID               VARCHAR2(100) := '004206397';
+    V_RECEIVER_ID             VARCHAR2(100) := '004206397';
+    V_DOC_TYPE                VARCHAR2(100) := '816';
     V_FEED_CLOB               CLOB;
-    N_CTRL_SEQ_NBR            DESCARTES_FEED_STATUS.CTRL_SEQ_NBR%TYPE;
     V_GROUP_MGR_NAME          VARCHAR2(3000);
     V_GROUP_MGR_GEMS_ID       VARCHAR2(20);
+    V_CTRL_SEQ_NBR            NUMBER;
+    V_CONTEXT                 VARCHAR2(200);
+    V_BATCH_NUMBER            BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS            BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_BATCH_JOB_STATUS        BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
 BEGIN
-    INSERT_FEED_STATUS(V_JOB_NAME,
-                       V_SENDER_ID,
-                       V_RECEIVER_ID,
-                       V_DOC_TYPE,
-                       N_CTRL_SEQ_NBR);
+    V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    BEGIN
+        INSERT INTO DESCARTES_HIERARCHY_FEED VALUES (
+                             (SELECT NVL(MAX(CTRL_SEQ_NBR),0)+1 FROM DESCARTES_HIERARCHY_FEED), --CTRL_SEQ_NBR
+                              NULL,                                                              --FEED_CLOB
+                              SYSDATE                                                            --PROCESS_DATE
+                              )
+            RETURNING CTRL_SEQ_NBR INTO V_CTRL_SEQ_NBR;
 
-    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
-                                  ,FILENAME
-                                  , 'W' --BINARY
-                                  , 32767);
+        OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                      ,FILENAME
+                                      , 'W' --BINARY
+                                      , 32767);
+
+        V_CLOB := 'DFH|'|| --DFH Header (hard coded as requested by Descartes)
+                  '001|' || --Syntax Version (hard coded but need to confirm which one to use 001 or 002 ?)
+                  V_SENDER_ID || '|' || --Sender Identifier (hard coded as requested by Descartes)
+                  V_RECEIVER_ID || '|' || --Receiver Identifier (hard coded as requested by Descartes)
+                  TO_CHAR(SYSDATE,'YYYYMMDD')||  '|' || --Date
+                  TO_CHAR(SYSDATE,'HH24MISS') || '|' || --Time
+                  V_CTRL_SEQ_NBR|| '|'  || --Control number (SEQUENCE)***
+                  V_DOC_TYPE || '|' || --Doc Type (hard coded as requested by Descartes)
+                  '0|' || --future_use (hard coded as requested by Descartes)
+                  CASE
+                      WHEN SYS_CONTEXT('USERENV','DB_NAME') = 'STCCNP' THEN
+                          'P'
+                      ELSE
+                          'T'
+                  END || '|' || --test_indicator.. can be T(test) or P (production)
+                  'L' --DFH format L(labeled), T(tagged) and unlabeled (anything else)?
+                  ;
+        V_FEED_CLOB := V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+        --Fields Header
+        V_CLOB := 'DriverSHWID|DriverName|StoreNumber|' ||
+                  'StoreManagerSHWID|StoreManagerName|StoreEmail|'||
+                  'CityCode|CityDesc|CityManagerName|CityManagerSHWID|CityManagerEmail|'||
+                  'DistrictCode|DistrictDesc|DistrictManagerName|DistrictManagerSHWID|DistrictManagerEmail|'||
+                  'AreaCode|AreaDesc|AreaManagerName|AreaManagerSHWID|AreaManagerEmail|'||
+                  'DivisionCode|DivisionDesc|DivisionManagerName|DivisionManagerSHWID|DivisionManagerEmail|'||
+                  'GroupCode|GroupDesc|GroupManagerName|GroupManagerSHWID|GroupManagerEmail';
+        V_FEED_CLOB := V_FEED_CLOB || CHR(10)|| V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+        FOR rec IN driver_cur LOOP
+            --need to get the manager based on drivers home store
+            V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(rec.COST_CENTER_CODE);
+
+            FOR rec1 IN glbl_hrchy_cur(rec.COST_CENTER_CODE) LOOP
+                V_GLBL_HRCHY_REC := rec1;
+            END LOOP;
+
+            V_GROUP_MGR_NAME    := CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_GLBL_HRCHY_REC.GROUP_UPPER_VALUE, 'ManagerName');
+            V_GROUP_MGR_GEMS_ID := CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_GLBL_HRCHY_REC.GROUP_UPPER_VALUE, 'GEMS_ID');
+
+            --as per 11/10/2017 meeting decided to send as sw(4 digit store)#@sherwin.com
+            --If its a store there wont be home store, so we need to pass that as it is
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(rec.EMPLOYEE_NUMBER,V_DRIVER_EMAIL, V_DRIVER_USER_ID );
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_HOME_STR_MGR_REC.EMPLOYEE_NUMBER, V_HOME_STORE_MGR_EMAIL, V_HOME_STR_MGR_USER_ID );
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.CITY_MGR_GEMS_ID,V_CITY_MGR_EMAIL, V_CITY_MGR_USER_ID );
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.DISTRICT_MGR_GEMS_ID,V_DISTRICT_MGR_EMAIL,V_DISTRICT_MGR_USER_ID);
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.AREA_MGR_GEMS_ID,V_AREA_MGR_EMAIL,V_AREA_MGR_USER_ID );
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.DIV_MGR_GEMS_ID, V_DIVISION_MGR_EMAIL, V_DIVISION_MGR_USER_ID);
+            CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GROUP_MGR_GEMS_ID,V_GRP_MGR_EMAIL, V_GRP_MGR_USER_ID);
+            V_HOME_STORE_EMAIL   := 'sw' || SUBSTR(V_HOME_STR_MGR_REC.COST_CENTER_CODE,3) || '@sherwin.com';
+
+            V_CLOB := V_DRIVER_USER_ID                           || V_DELIMITER ||  --Driver SHWID
+                      rec.EMPLOYEE_NAME                          || V_DELIMITER ||  --Driver Name
+                      --as per 11/10/2017 meeting this should be dispatch terminals home store
+                      --as per 11/10/2017 meeting DAD should still be actual dispatch terminals DAD and not home stores DAD
+                      --If its a store there wont be home store, so we need to pass that as it is
+                      V_HOME_STR_MGR_REC.COST_CENTER_CODE        || V_DELIMITER ||  --Driver Cost Center (Dispatch Terminal Home Store)
+                      V_HOME_STR_MGR_USER_ID                     || V_DELIMITER ||  --Home Store Manager SHWID
+                      V_HOME_STR_MGR_REC.EMPLOYEE_NAME           || V_DELIMITER ||  --Home Store Manager Name
+                      V_HOME_STORE_EMAIL                         || V_DELIMITER ||  --Home Store Email ID
+                      V_GLBL_HRCHY_REC.CITY_SALES_MANAGER        || V_DELIMITER ||  --City
+                      V_GLBL_HRCHY_REC.CITY_SALES_MANAGER_NAME   || V_DELIMITER ||  --City Description
+                      V_GLBL_HRCHY_REC.CITY_MGR_NAME             || V_DELIMITER ||  --City Manager Name
+                      V_CITY_MGR_USER_ID                         || V_DELIMITER ||  --City Manager SHWID
+                      V_CITY_MGR_EMAIL                           || V_DELIMITER ||  --City Manager Email ID
+                      V_GLBL_HRCHY_REC.DISTRICT                  || V_DELIMITER ||  --District
+                      V_GLBL_HRCHY_REC.DISTRICT_NAME             || V_DELIMITER ||  --District Description
+                      V_GLBL_HRCHY_REC.DISTRICT_MGR_NAME         || V_DELIMITER ||  --District Manager Name
+                      V_DISTRICT_MGR_USER_ID                     || V_DELIMITER ||  --District Manager SHWID
+                      V_DISTRICT_MGR_EMAIL                       || V_DELIMITER ||  --District Manager Email ID
+                      V_GLBL_HRCHY_REC.AREA                      || V_DELIMITER ||  --Area
+                      V_GLBL_HRCHY_REC.AREA_NAME                 || V_DELIMITER ||  --Area Description
+                      V_GLBL_HRCHY_REC.AREA_MGR_NAME             || V_DELIMITER ||  --Area Manager Name
+                      V_AREA_MGR_USER_ID                         || V_DELIMITER ||  --Area Manager SHWID
+                      V_AREA_MGR_EMAIL                           || V_DELIMITER ||  --Area Manager Email ID
+                      V_GLBL_HRCHY_REC.DIVISION                  || V_DELIMITER ||  --Division
+                      V_GLBL_HRCHY_REC.DIVISION_NAME             || V_DELIMITER ||  --Division Description
+                      V_GLBL_HRCHY_REC.DIV_MGR_NAME              || V_DELIMITER ||  --Division Manager Name
+                      V_DIVISION_MGR_USER_ID                     || V_DELIMITER ||  --Division Manager SHWID
+                      V_DIVISION_MGR_EMAIL                       || V_DELIMITER ||  --Division Manager Email ID
+                      V_GLBL_HRCHY_REC."GROUP"                   || V_DELIMITER ||  --Group
+                      V_GLBL_HRCHY_REC.GROUP_NAME                || V_DELIMITER ||  --Group Description
+                      V_GROUP_MGR_NAME                           || V_DELIMITER ||  --Group Manager Name will always be blank
+                      V_GRP_MGR_USER_ID                          || V_DELIMITER ||  --Group Manager SHWID
+                      V_GRP_MGR_EMAIL                                               --Group Manager Email ID
+                      ;
+            IF V_CLOB <> EMPTY_CLOB() THEN
+                V_FEED_CLOB := V_FEED_CLOB || CHR(10)|| V_CLOB;
+                UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+            END IF;
+            V_CLOB := NULL;
+        END LOOP;
+
+        UTL_FILE.FCLOSE(OUTPUT_FILE);
+        UPDATE DESCARTES_HIERARCHY_FEED
+           SET FEED_CLOB = V_FEED_CLOB
+         WHERE CTRL_SEQ_NBR = V_CTRL_SEQ_NBR;
+    EXCEPTION
+       WHEN OTHERS THEN
+          UTL_FILE.FCLOSE(OUTPUT_FILE);
+          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_DESCARTES_PROCESS.GENERATE_DESCARTES_HRCHY_FILE', SUBSTR(SQLERRM,1,500), NULL);
+          V_TRANS_STATUS := 'ERROR';
+          V_CONTEXT:='Updating the Status in batch_job table';
+          CCN_BATCH_PKG.UPDATE_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER, V_TRANS_STATUS);
+          CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+          RAISE;
+    END;
+    V_CONTEXT:='Updating the Status in batch_job table';
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+EXCEPTION
+    WHEN OTHERS THEN
+       RAISE;
+END GENERATE_DESCARTES_HRCHY_FILE;
+
+PROCEDURE BUILD_ADDRESS_DATA_HDR(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
 
     SELECT SYS_CONTEXT('USERENV','DB_NAME') 
       INTO V_ENVIRONMENT 
@@ -228,115 +355,5 @@ EXCEPTION
                                  NULL);
       RAISE;
 END GENERATE_DESCARTES_HRCHY_FILE;
-
-FUNCTION GET_CTRL_SEQ_NBR (
-/**********************************************************
-This function is intended to retrun the next control sequence number for the Descartes feed job
-
-Created : 10/06/2017 rxa457 CCN project....
-Modified: 
-**********************************************************/
-    IN_SENDER_ID           IN  DESCARTES_FEED_STATUS.SENDER_ID%TYPE,
-    IN_RECEIVER_ID         IN  DESCARTES_FEED_STATUS.RECEIVER_ID%TYPE,
-    IN_DOC_TYPE            IN  DESCARTES_FEED_STATUS.DOC_TYPE%TYPE)
-RETURN NUMBER
-IS 
-    N_CTRL_SEQ_NBR DESCARTES_FEED_STATUS.CTRL_SEQ_NBR%TYPE;
-BEGIN
-    SELECT NVL(MAX(CTRL_SEQ_NBR),0) + 1
-      INTO N_CTRL_SEQ_NBR
-      FROM DESCARTES_FEED_STATUS
-     WHERE SENDER_ID   = IN_SENDER_ID
-       AND RECEIVER_ID = IN_RECEIVER_ID
-       AND DOC_TYPE    = IN_DOC_TYPE;
-
-    RETURN N_CTRL_SEQ_NBR;
-END GET_CTRL_SEQ_NBR;
-
-PROCEDURE INSERT_FEED_STATUS (
-/**********************************************************
-This procedure is intended to insert a record in the DESCARTES_FEED_STATUS
-table with the details related to the Descartes feed run
-
-Created : 10/06/2017 rxa457 CCN project....
-Modified: 
-**********************************************************/
-    IN_JOB_NAME            IN  DESCARTES_FEED_STATUS.JOB_NAME%TYPE,
-    IN_SENDER_ID           IN  DESCARTES_FEED_STATUS.SENDER_ID%TYPE,
-    IN_RECEIVER_ID         IN  DESCARTES_FEED_STATUS.RECEIVER_ID%TYPE,
-    IN_DOC_TYPE            IN  DESCARTES_FEED_STATUS.DOC_TYPE%TYPE,
-    OUT_CTRL_SEQ_NBR       OUT DESCARTES_FEED_STATUS.CTRL_SEQ_NBR%TYPE)
-IS
-BEGIN
-    OUT_CTRL_SEQ_NBR := GET_CTRL_SEQ_NBR(IN_SENDER_ID,
-                                         IN_RECEIVER_ID,
-                                         IN_DOC_TYPE);
-    INSERT INTO DESCARTES_FEED_STATUS(JOB_NAME,
-                                      SENDER_ID,
-                                      RECEIVER_ID,
-                                      DOC_TYPE,
-                                      CTRL_SEQ_NBR,
-                                      START_DATE,
-                                      END_DATE,
-                                      JOB_STATUS,
-                                      TRANS_STATUS,
-                                      FEED_CLOB)
-    VALUES(IN_JOB_NAME,
-           IN_SENDER_ID,
-           IN_RECEIVER_ID,
-           IN_DOC_TYPE,
-           OUT_CTRL_SEQ_NBR,
-           SYSDATE,
-           NULL,
-           'PROCESSING',
-           NULL,
-           NULL);
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'CCN_DESCARTES_PROCESS.INSERT_FEED_STATUS',
-                                   SUBSTR(SQLERRM,1,500),
-                                   NULL);
-        RAISE;
-END INSERT_FEED_STATUS;
-
-PROCEDURE UPDATE_FEED_STATUS (
-/**********************************************************
-This procedure is intended to update DESCARTES_FEED_STATUS
-table with the details related to the Descartes feed run
-
-Created : 10/06/2017 rxa457 CCN project....
-Modified: 
-**********************************************************/
-    IN_JOB_NAME            IN  DESCARTES_FEED_STATUS.JOB_NAME%TYPE,
-    IN_SENDER_ID           IN  DESCARTES_FEED_STATUS.SENDER_ID%TYPE,
-    IN_RECEIVER_ID         IN  DESCARTES_FEED_STATUS.RECEIVER_ID%TYPE,
-    IN_DOC_TYPE            IN  DESCARTES_FEED_STATUS.DOC_TYPE%TYPE,
-    IN_CTRL_SEQ_NBR        IN  DESCARTES_FEED_STATUS.CTRL_SEQ_NBR%TYPE,
-    IN_TRANS_STATUS        IN  DESCARTES_FEED_STATUS.TRANS_STATUS%TYPE,
-    IN_FEED_CLOB           IN  CLOB)
-IS
-BEGIN
-    UPDATE DESCARTES_FEED_STATUS 
-       SET JOB_STATUS   = 'COMPLETED',
-           TRANS_STATUS = IN_TRANS_STATUS,
-           END_DATE     = SYSDATE,
-           FEED_CLOB    = IN_FEED_CLOB
-     WHERE JOB_NAME     = IN_JOB_NAME
-       AND SENDER_ID    = IN_SENDER_ID
-       AND RECEIVER_ID  = IN_RECEIVER_ID
-       AND DOC_TYPE     = IN_DOC_TYPE
-       AND CTRL_SEQ_NBR = IN_CTRL_SEQ_NBR;
-     
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'CCN_DESCARTES_PROCESS.UPDATE_FEED_STATUS',
-                                   SUBSTR(SQLERRM,1,500),
-                                   NULL);
-        RAISE;
-END UPDATE_FEED_STATUS;
 
 END CCN_DESCARTES_PROCESS;
