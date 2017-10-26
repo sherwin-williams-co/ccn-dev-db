@@ -1,0 +1,109 @@
+create or replace PACKAGE BODY POS_DOWNLOADS_INTERFACE_PKG IS
+
+
+PROCEDURE INIT_LOAD_BY_APP_NAME(
+/*******************************************************************************
+This procedure is used to create an WS diff file with the list of newly added cost centers
+
+Created : 10/26/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+      IN_APP_NAME      IN        VARCHAR2,
+      IN_LOAD_TYPE     IN        VARCHAR2,
+      OUT_XML_DATA          OUT  CLOB,
+      OUT_PRE_REQ_ID        OUT  VARCHAR2,
+      OUT_FILE_NAME         OUT  VARCHAR2)
+IS
+BEGIN 
+
+    IF IN_APP_NAME = 'STORE' THEN 
+        POS_DATA_GENERATION.INIT_LOAD_STORE_SP(IN_LOAD_TYPE, OUT_XML_DATA, OUT_PRE_REQ_ID, OUT_FILE_NAME);
+    ELSIF IN_APP_NAME = 'TERR' THEN 
+        POS_DATA_GENERATION.INIT_LOAD_TERR_SP(IN_LOAD_TYPE, OUT_XML_DATA, OUT_PRE_REQ_ID, OUT_FILE_NAME);
+    ELSIF IN_APP_NAME = 'PrimeSub' THEN 
+        PRIME_SUB_PROCESS.PRIME_SUB_DATA_INIT_LOAD_SP(IN_LOAD_TYPE, OUT_XML_DATA, OUT_PRE_REQ_ID, OUT_FILE_NAME);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END INIT_LOAD_BY_APP_NAME;
+
+PROCEDURE WS_DIFF_BY_FILE_TYPE(
+/*******************************************************************************
+This procedure is used to create an WS diff file with the list of newly added cost centers
+
+Created : 10/12/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+      IN_FILE_TYPE  IN     VARCHAR2,
+      IN_STR_LIST   IN     VARCHAR2,
+      OUT_LIST         OUT VARCHAR2)
+IS
+    V_STR_LST          VARCHAR2(32767) := IN_STR_LIST; 
+    V_FNL_STR_LST      VARCHAR2(32767); 
+    V_CC_LIST          DBMS_UTILITY.UNCL_ARRAY;
+    V_LIST_CUNT        NUMBER;
+    V_COST_CENTER_CODE VARCHAR2(6);
+BEGIN
+    V_STR_LST := REPLACE(REPLACE(V_STR_LST, '['), ']');
+    DBMS_UTILITY.COMMA_TO_TABLE('J'||REPLACE(V_STR_LST, ', ', ',J'), V_LIST_CUNT, V_CC_LIST);
+    --DBMS_UTILITY.COMMA_TO_TABLE expects J at the beginning of all list items
+    FOR i IN 1..V_LIST_CUNT LOOP
+        V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(V_CC_LIST(i),2, 4)));
+        BEGIN
+            INSERT INTO POS_INIT_LOAD_LIST
+            VALUES (IN_FILE_TYPE,
+                    V_COST_CENTER_CODE,
+                    SYSTIMESTAMP);
+            V_FNL_STR_LST := V_FNL_STR_LST ||
+                             SUBSTR(V_COST_CENTER_CODE, 3, 4) ||
+                             ',';
+            OUT_LIST := V_FNL_STR_LST;
+        EXCEPTION
+            WHEN DUP_VAL_ON_INDEX THEN
+                NULL; --this is OK as we already have that record in the table
+            WHEN OTHERS THEN
+                RAISE; --not OK as something else happened
+        END;
+    END LOOP;
+    OUT_LIST := TRIM(TRAILING ',' FROM OUT_LIST);
+EXCEPTION
+    WHEN OTHERS THEN
+    RAISE;        
+END WS_DIFF_BY_FILE_TYPE;
+
+PROCEDURE POS_DOWNLOADS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+IN_APP_NAME can be "STORE", "TERR", "PARAM', "PrimeSub", "TAXCURR"
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_APP_NAME   IN    VARCHAR2,
+    IN_FILE_NAME  IN    POS_DOWNLOADS.FILE_NAME%TYPE,
+    IN_RQST_ID    IN    POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE)
+IS
+   V_ERROR          VARCHAR2(1000);
+BEGIN
+    IF IN_APP_NAME = 'PrimeSub' THEN
+        PRIME_SUB_PROCESS.POS_DOWNLOADS_GL_PS_UPD_SP(IN_FILE_NAME, IN_RQST_ID);
+    ELSE
+        POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(IN_FILE_NAME, IN_RQST_ID);
+    END IF;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_DOWNLOADS_UPD_SP_WRAPPER',
+                                       V_ERROR,
+                                       '000000');
+        RAISE;
+END POS_DOWNLOADS_UPD_SP;
+
+END POS_DOWNLOADS_INTERFACE_PKG;

@@ -81,39 +81,6 @@ Changed :
 *********************************************************************************/
     IN_LOAD_TYPE   IN       VARCHAR2);
 
-PROCEDURE NEW_STORES_INIT_LOAD_PROCESS(
-/*******************************************************************************
-This procedure is used to create an Initload for STORE, TERR and PARAM all at once
-
-Created : 04/10/2017 rxv940 CCN Project....
-Changed :
-*********************************************************************************/
-    IN_LOAD_TYPE    IN    VARCHAR2);
-
-PROCEDURE GENERATE_STORE_LIST_FROM_WS_SP(
-/*******************************************************************************
-This procedure is used to create an Initload for STORE, TERR and PARAM based
-on the input parameter. This is a temp code for Web Service differencing
-
-Created : 09/28/2017 rxv940 CCN Project....
-Changed :
-*********************************************************************************/
-           IN_FILE_TYPE VARCHAR2)
-;
-
-PROCEDURE WS_DIFF_BY_FILE_TYPE(
-/*******************************************************************************
-This procedure is used to create an WS diff file with the list of newly added cost centers
-
-Created : 10/12/2017 rxv940 CCN Project....
-Changed :
-*********************************************************************************/
-      IN_FILE_TYPE       VARCHAR2,
-      IN_STR_LIST        VARCHAR2,
-      OUT_LIST       OUT VARCHAR2
-      )
-;
-
 PROCEDURE INIT_LOAD_STORE_SP(
 /*******************************************************************************
 This procedure is used to create a Store Init load file fro WS diff

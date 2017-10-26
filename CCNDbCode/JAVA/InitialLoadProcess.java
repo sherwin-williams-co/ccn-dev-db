@@ -74,7 +74,7 @@ public class InitialLoadProcess {
 		if (stores != null && !stores.isEmpty()) {
 			System.out.println("Generating initial load file for application "+pollingAppName);
 			DBConnection.callInitLoad(pollingAppName, loadType);
-
+			System.out.println("ccnFileName" + ccnFileName);
 			String fileNameWithPath = prop.getProperty("pollingDownloadFilePath") + ccnFileName;
 			System.out.println("writing the file on server at : " + fileNameWithPath);
 			UtilityProcess.writeToFile(fileNameWithPath,xml);
@@ -92,7 +92,7 @@ public class InitialLoadProcess {
 			}else{
 				if(pollingRequestId != null && !pollingRequestId.isEmpty()){
 					System.out.println("Updating the polling request id");
-					DBConnection.updatePollingRequestId(pollingRequestId);
+					DBConnection.updatePollingRequestId(pollingRequestId, pollingAppName);
 				}else{
 					System.out.println("No request Id to update anything in the database");
 				}

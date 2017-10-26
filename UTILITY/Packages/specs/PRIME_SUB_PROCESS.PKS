@@ -20,7 +20,7 @@ Changed :
 *******************************************************************************/
     IN_POS_DOWNLOADS_GL_PS_REC POS_DOWNLOADS_GL_PS%ROWTYPE);
 
-PROCEDURE PRIME_SUB_DATA_INIT_LOAD_SP(LOAD_TYPE IN VARCHAR2);
+PROCEDURE PRIME_SUB_DATA_INIT_LOAD_SP(
 /*******************************************************************************
 This procedure is used to capture the changes done on tables into pos_downloads_gl_ps 
 table
@@ -28,6 +28,10 @@ table
 Created : 03/24/2017 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
+     IN_LOAD_TYPE   IN      VARCHAR2,  -- "InitLoad" or "nonInitLoad"
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2);
 
 PROCEDURE POS_TRG_EVENT_LOG(
     IN_ACCNT_NBR        IN VARCHAR2,
@@ -50,5 +54,15 @@ for the manual updates done.
 Created : 04/06/2017 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
+
+PROCEDURE POS_DOWNLOADS_GL_PS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS_GL_PS 
+
+Created : 04/03/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+        IN_FILE_NAME POS_DOWNLOADS_GL_PS.FILE_NAME%TYPE,
+        IN_RQST_ID   POS_DOWNLOADS_GL_PS.POLLING_REQUEST_ID%TYPE);   
 
 END PRIME_SUB_PROCESS;

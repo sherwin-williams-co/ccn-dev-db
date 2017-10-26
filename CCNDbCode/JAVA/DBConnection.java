@@ -20,19 +20,16 @@ public class DBConnection {
 	public static void callInitLoad(String appName, String loadType) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
-			if (appName.equals("STORE")) { 
-				cstmt = conn.prepareCall("{call POS_DATA_GENERATION.INIT_LOAD_STORE_SP(?,?,?,?)}");
-			} else if (appName.equals("TERR")) { 
-				cstmt = conn.prepareCall("{call POS_DATA_GENERATION.INIT_LOAD_TERR_SP(?,?,?,?)}");
-			}
-			cstmt.setString(1, loadType);
-			cstmt.registerOutParameter(2,Types.CLOB);
-			cstmt.registerOutParameter(3,Types.VARCHAR);
+			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.INIT_LOAD_BY_APP_NAME(?,?,?,?,?)}");
+			cstmt.setString(1, appName);
+			cstmt.setString(2, loadType);
+			cstmt.registerOutParameter(3,Types.CLOB);
 			cstmt.registerOutParameter(4,Types.VARCHAR);
+			cstmt.registerOutParameter(5,Types.VARCHAR);
 			cstmt.execute();
-			InitialLoadProcess.xml = cstmt.getString(2);
-			InitialLoadProcess.ccnPrevRequestID = cstmt.getString(3);
-			InitialLoadProcess.ccnFileName  = cstmt.getString(4);
+			InitialLoadProcess.xml = cstmt.getString(3);
+			InitialLoadProcess.ccnPrevRequestID = cstmt.getString(4);
+			InitialLoadProcess.ccnFileName  = cstmt.getString(5);
 		} catch (SQLException e) {
 			System.err.println(e.getErrorCode() + e.getMessage());
 		}finally{
@@ -40,13 +37,16 @@ public class DBConnection {
 		}
 	}
 
-	public static void updatePollingRequestId(String pollingRequestId) throws SQLException {
+	public static void updatePollingRequestId(String pollingRequestId, String appName) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
-			cstmt= conn.prepareCall("{call POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(?,?)}");
-			cstmt.setString(1, InitialLoadProcess.ccnFileName);
+			cstmt= conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.POS_DOWNLOADS_UPD_SP(?,?,?)}");
+			cstmt.setString(1, appName);
+			cstmt.setString(2, InitialLoadProcess.ccnFileName);
+			System.out.println(appName);
+			System.out.println(InitialLoadProcess.ccnFileName);
 			System.out.println(pollingRequestId);
-			cstmt.setString(2, pollingRequestId.substring(0,36));
+			cstmt.setString(3, pollingRequestId.substring(0,36));
 			cstmt.execute();
 		} catch (SQLException e) {
 			System.err.println(e.getErrorCode() + e.getMessage());
@@ -59,7 +59,7 @@ public class DBConnection {
 		CallableStatement cstmt = null;
 		String newStores = null;
 		try{
-			cstmt = conn.prepareCall("{call POS_DATA_GENERATION.WS_DIFF_BY_FILE_TYPE(?,?,?)}");
+			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.WS_DIFF_BY_FILE_TYPE(?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, ccWS);
 			cstmt.registerOutParameter(3,Types.CLOB);

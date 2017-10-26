@@ -91,15 +91,13 @@ public class PollingRequestProcess {
 						System.out.println("Pilot phase");
 						PltStoreList = WebServiceProcess.getAppStoresAsList(application);
 						PrmStoreNbr = storeNumber.substring(2, 6);
-						if (PltStoreList.contains(PrmStoreNbr)) {
-							pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
-						}else{
+						if (!PltStoreList.contains(PrmStoreNbr)) {
 							return requestId;
 						}
 					}else{
 						System.out.println("Non Pilot phase");
-						pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
 					}
+					pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
 				} else if (pilotPhaseIndicator.equalsIgnoreCase("Y") && application.matches("STORE|TERR|PrimeSub")){
 					System.out.println("Pilot phase");
 					PltStoreList = WebServiceProcess.getAppStoresAsList(application);

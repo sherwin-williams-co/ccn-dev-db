@@ -5,7 +5,8 @@
 #
 #
 # Created  : 10/16/2017 jxc517 CCN Project Team.....
-# Modified : 
+# Modified : 10/26/2017 rxv940 CCN Project Team.....
+#          : Added calls to PrimeSub
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -27,6 +28,11 @@ TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 
 feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_GRP_LD" "TERR")
+
+TIME=$(date +"%H%M%S")
+echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
+
+feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_GRP_LD" "PrimeSub")
 
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
