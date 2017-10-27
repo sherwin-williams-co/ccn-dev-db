@@ -43,9 +43,6 @@ public class DBConnection {
 			cstmt= conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.POS_DOWNLOADS_UPD_SP(?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, InitialLoadProcess.ccnFileName);
-			System.out.println(appName);
-			System.out.println(InitialLoadProcess.ccnFileName);
-			System.out.println(pollingRequestId);
 			cstmt.setString(3, pollingRequestId.substring(0,36));
 			cstmt.execute();
 		} catch (SQLException e) {

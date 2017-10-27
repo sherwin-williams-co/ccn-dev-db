@@ -67,14 +67,14 @@ public class InitialLoadProcess {
 	}
 
 	private static void processSyncLoad(String appName) throws Exception{
-		processInitLoad("SYNC_LOAD",appName);
+		processInitLoad("SYNC_LOAD", appName);
 	}
 
 	private static void processInitLoad(String stores, String pollingAppName) throws SQLException{
 		if (stores != null && !stores.isEmpty()) {
 			System.out.println("Generating initial load file for application "+pollingAppName);
 			DBConnection.callInitLoad(pollingAppName, loadType);
-			System.out.println("ccnFileName" + ccnFileName);
+
 			String fileNameWithPath = prop.getProperty("pollingDownloadFilePath") + ccnFileName;
 			System.out.println("writing the file on server at : " + fileNameWithPath);
 			UtilityProcess.writeToFile(fileNameWithPath,xml);
