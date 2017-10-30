@@ -18,11 +18,14 @@ GET_UAR_TRANS_CODE
 Created : 05/19/2017 gxg192 CCN Project....
 Changed : 06/26/2017 gxg192 Changes in logic for finding uar tran code.
         : 08/24/2017 gxg192 Added IN_GIFT_CARD_NBR as in parameter.
+        : 10/30/2017 nxk927 CCN Project team....
+          Signature changed. Added IN_SEQNBR
 **************************************************************************************/
             IN_TRANID        IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
             IN_TRAN_GUID     IN PNP_CCN_HEADERS.TRAN_GUID%TYPE,
-            IN_GIFT_CARD_NBR IN PNP_CCN_HEADERS.TRAN_GUID%TYPE)
+            IN_GIFT_CARD_NBR IN PNP_CCN_HEADERS.TRAN_GUID%TYPE,
+            IN_SEQNBR        IN PNP_CCN_GIFT_CARD_LOG.SEQNBR%TYPE)
 RETURN POS_GIFT_CARD_POS_TRANS.UAR_TRAN_CODE%TYPE;
 
 PROCEDURE GENERATE_GIFT_CARD_TRANS_FILE (
