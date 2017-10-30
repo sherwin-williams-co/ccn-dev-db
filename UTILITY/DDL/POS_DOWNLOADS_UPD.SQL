@@ -35,8 +35,9 @@ BEGIN
     -- Update for today prod failure
     DBMS_OUTPUT.PUT_LINE('Update Completed ...');
     
-    COMMIT;
-    
+
     POS_DATA_GENERATION.POS_MASTER_SP('721107');
+	
+	COMMIT;
 
 END;
