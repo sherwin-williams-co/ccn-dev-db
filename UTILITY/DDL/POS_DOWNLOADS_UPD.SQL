@@ -25,7 +25,7 @@ BEGIN
             ,'ADD'
             ,'POS_PARAM_UPDATE'
             ,'N'
-            ,SYSDATE)
+            ,SYSDATE);
 
     DBMS_OUTPUT.PUT_LINE('Insert Completed ...');
 
