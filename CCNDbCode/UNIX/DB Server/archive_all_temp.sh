@@ -9,64 +9,46 @@
 ###################################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
-
 . /app/ccn/host.sh
 
-# Debug
-# set -x
-
-save_dir=`date +%B-%Y`
-
 base_dir="$HOME"
-#base_dir="/app/ccn/dev/Test"
 
 cd $base_dir
 
-# Find all directories in corrent Location :
+   for file in `find . -iname archive -prune -o \( -name '*.log' -o -name 'cmd_start*.sh' -o -name '*.csv' -o -name '*.dat' \) -print`
+   do
+       #Get a New Directory name from log file timestamp
+      
+     dir_year=`perl -MPOSIX -le 'print strftime "%Y",
+       localtime((lstat)[9]) for @ARGV' $file`
 
-#for dir_one in `ls -l |grep ^d |grep -vi scripts |awk '{print $NF}'`
- for dir_one in `ls -l |grep ^d |grep -vi archive|awk '{print $NF}'`
-do
-       cd "$base_dir/$dir_one"
+       dir_month=`perl -MPOSIX -le 'print strftime "%B",
+       localtime((lstat)[9]) for @ARGV' $file`
 
-           for file in `find . -name archive -prune -o \( -name '*.log' -o -name 'cmd_start*.sh' -o -name '*.csv' -o -name '*.dat' \) -print`
-           #for file in `find . -name .archive -prune -o -name '*log' -print`
+       dir_year="$base_dir/archive/$dir_year"
+       dir_month="$dir_year/$dir_month"
 
-       do
-               #Create a New Directory with log file timestamp
+       echo "create a new directory If it not exist:$dir_month"
+       # Create an archive directory if not exist
 
-               save_dir=`perl -MPOSIX -le 'print strftime "%B-%Y",
-          localtime((lstat)[9]) for @ARGV' $file`
-               dir_two="$base_dir/archive/$save_dir"
-               
-echo "create the new directory If it not exist:$save_dir"
-
-            # Create an archive directory if not exist
-
-               if [ ! -d $dir_two ];  then
-               # create the directory
-                       mkdir -p $dir_two
-
-      echo "Directory created : $dir_two"
-               fi
-
-
-               if [ -e $file ]; then
-               #Move the files to archive
-                       mv $file $dir_two
-echo " File : $file has been moved to $dir_two"     
-                                    
-                                 
-               fi
-
-       
-       done
-
-done
+       if [ ! -d $dir_year ];  then
+           # create the directory
+           mkdir -p $dir_year
+           echo "Year-Directory created : $dir_year"
+       fi
+       if [ ! -d $dir_month ];  then
+           # create the directory
+           mkdir -p $dir_month
+           echo "Month-Directory created-MONTH : $dir_month"
+       fi
+       if [ -e $file ]; then
+           #Move the files to archive
+           mv $file $dir_month
+           echo " File : $file has been moved to $dir_month"
+       fi
+    done
 
 exit 0
-
 ######################################################################################################################################
 # END of PROGRAM.  
 ######################################################################################################################################
- 
