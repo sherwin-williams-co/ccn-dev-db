@@ -17,5 +17,5 @@ T.COST_CENTER_CODE
  WHERE T.EXPIRATION_DATE IS NULL 
    AND T.POLLING_STATUS_CODE IN (SELECT P.POLLING_STATUS_CODE
                                    FROM POLLING P
-                                  WHERE UPPER(T.COST_CENTER_CODE) = UPPER(P.COST_CENTER_CODE)
+                                  WHERE T.COST_CENTER_CODE = P.COST_CENTER_CODE
                                     AND P.CURRENT_FLAG = 'Y' );
