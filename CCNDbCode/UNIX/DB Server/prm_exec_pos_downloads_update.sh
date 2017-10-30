@@ -9,6 +9,8 @@
 #               : Added IF condition for  assigning value to V_POS_DOWNLOADS.COMMENTS
 # Modified      : 10/17/2017 rxv940 CCN Project ....
 #               :  Code to remove update to COMMENTS
+# Modified      : 10/30/2017 rxv940 CCN Project ....
+#               :  Removed all references to COMMENTS column
 #################################################################
 . /app/ccn/host.sh
 
@@ -35,10 +37,6 @@ BEGIN
 :exitCode := 0;
 V_POS_DOWNLOADS := POS_DATA_GENERATION.RETURN_POS_DOWNLOADS(NULL,'$FILENAME');
 V_POS_DOWNLOADS.POLLING_REQUEST_ID:='$REQUESTID';
-
-IF TRIM(V_POS_DOWNLOADS.POLLING_REQUEST_ID) IS NULL THEN
-    V_POS_DOWNLOADS.COMMENTS:=V_POS_DOWNLOADS.COMMENTS||CHR(10)||'. Polling not performed as '||V_POS_DOWNLOADS.COST_CENTER_CODE|| ' is not in the p2storelkup webservice. ';
-END IF;
 V_POS_DOWNLOADS.UPDATE_DT:=SYSDATE;
 POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_POS_DOWNLOADS);
 
