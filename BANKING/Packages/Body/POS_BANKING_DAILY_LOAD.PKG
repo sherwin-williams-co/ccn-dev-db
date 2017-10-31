@@ -50,6 +50,69 @@ EXCEPTION
 
 END GET_POS_RUN_CYCLE;
 
+FUNCTION GET_UAR_TRANS_TYPE_CODE(
+/**************************************************************************************
+GET_UAR_TRANS_TYPE_CODE
+
+This function will get the type code for the UAR_TRAN_CODE( last two characters)
+
+Created : 10/31/2017 nxk927 CCN Project team....
+Changed : 
+**************************************************************************************/
+            IN_RLS_RUN_CYCLE  IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
+            IN_TRAN_GUID      IN PNP_CCN_HEADERS.TRAN_GUID%TYPE,
+            IN_SALES_FORM_PAY IN VARCHAR2,
+            IN_AMOUNT         IN NUMBER,
+            IN_SEQNBR         IN PNP_CCN_GIFT_CARD_LOG.SEQNBR%TYPE)
+RETURN VARCHAR2
+IS
+    V_UAR_TRAN_TYPE_CODE VARCHAR2(2);
+BEGIN
+    IF IN_SALES_FORM_PAY  = '11' THEN --Line Item
+       IF IN_AMOUNT < 0 THEN
+          V_UAR_TRAN_TYPE_CODE := '01';
+       ELSE
+          --Check if atleast 1 record with ACCUM_ID as "ac" is present in PNP_CCN_ACCUMS table
+          --then default V_TYPE to 02 else 01.
+          SELECT CASE WHEN COUNT(0) > 0 THEN '02'
+                      ELSE '01'
+                 END
+            INTO V_UAR_TRAN_TYPE_CODE
+            FROM PNP_CCN_ACCUMS
+           WHERE TRAN_GUID     = IN_TRAN_GUID
+             AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
+             AND ACCUM_ID      = 'ac';
+       END IF;
+    ELSIF IN_SALES_FORM_PAY = '76' THEN --FOP
+        IF IN_SEQNBR = '0' THEN
+            V_UAR_TRAN_TYPE_CODE := '01';
+        ELSE
+            SELECT CASE WHEN AMT < 0 THEN '01'
+                        ELSE '02'
+                   END
+              INTO V_UAR_TRAN_TYPE_CODE
+              FROM PNP_CCN_ACCUMS
+             WHERE TRAN_GUID     = IN_TRAN_GUID
+               AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
+               AND SEQNBR        = IN_SEQNBR
+               AND ACCUM_ID IN ('ac','ad','76','86');
+        END IF;
+    END IF;
+
+    RETURN V_UAR_TRAN_TYPE_CODE;
+
+EXCEPTION
+    WHEN OTHERS THEN
+       ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                 'POS_BANKING_DAILY_LOAD.GET_UAR_TRANS_TYPE_CODE',
+                                  SQLERRM,
+                                  SUBSTR(IN_TRAN_GUID,-16,16),
+                                  SUBSTR(IN_RLS_RUN_CYCLE,-6,6),
+                                 'POS_GIFT_CARD_POS_TRANS');
+       V_UAR_TRAN_TYPE_CODE := NULL;
+       RETURN V_UAR_TRAN_TYPE_CODE;
+END GET_UAR_TRANS_TYPE_CODE;
+
 FUNCTION GET_UAR_TRANS_CODE(
 /**************************************************************************************
 GET_UAR_TRANS_CODE
@@ -82,6 +145,7 @@ Changed : 06/26/2017 gxg192 Changes in logic for finding uar tran code.
           Signature changed.Added IN_SEQNBR
           added a logic to check if the sales_form_of_pay and newly added parameter to determine the type
           which is used to get the tran_code
+          Added new function to get the type code for the uar_tran_code
 **************************************************************************************/
             IN_TRANID        IN POS_GIFT_CARD_POS_TRANS.TRANSACTION_TYPE%TYPE,
             IN_RLS_RUN_CYCLE IN PNP_CCN_HEADERS.RLS_RUN_CYCLE%TYPE,
@@ -118,36 +182,7 @@ BEGIN
            V_AMOUNT         := '0';
     END;
 
-    IF V_SALES_FORM_PAY  = '11' THEN --Line Item
-        IF V_AMOUNT < 0 THEN
-            V_TYPE := '01';
-        ELSE
-            --Check if atleast 1 record with ACCUM_ID as "ac" is present in PNP_CCN_ACCUMS table
-            --then default V_TYPE to 02 else 01.
-            SELECT CASE WHEN COUNT(0) > 0 THEN '02'
-                        ELSE '01'
-                   END
-              INTO V_TYPE
-              FROM PNP_CCN_ACCUMS
-             WHERE TRAN_GUID     = IN_TRAN_GUID
-               AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
-               AND ACCUM_ID      = 'ac';
-        END IF;
-    ELSIF V_SALES_FORM_PAY = '76' THEN --FOP
-        IF IN_SEQNBR = '0' THEN
-            V_TYPE := '01';
-        ELSE
-            SELECT CASE WHEN AMT < 0 THEN '01'
-                        ELSE '02'
-                   END
-              INTO V_TYPE
-              FROM PNP_CCN_ACCUMS
-             WHERE TRAN_GUID     = IN_TRAN_GUID
-               AND RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE
-               AND SEQNBR        = IN_SEQNBR
-               AND ACCUM_ID IN ('ac','ad','76','86');
-        END IF;
-    END IF;
+    V_TYPE := GET_UAR_TRANS_TYPE_CODE(IN_RLS_RUN_CYCLE, IN_TRAN_GUID,V_SALES_FORM_PAY,V_AMOUNT,IN_SEQNBR);
 
     --V_UAR_TRAN_CODE is equal to concatenated value of above 3 fields.
     V_UAR_TRAN_CODE := IN_TRANID || V_SALES_FORM_PAY || V_TYPE;
