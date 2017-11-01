@@ -15,22 +15,18 @@ base_dir="$HOME"
 
 cd $base_dir
 
-   for file in `find . -iname archive -prune -o \( -name '*.log' -o -name 'cmd_start*.sh' -o -name '*.csv' -o -name '*.dat' \) -print`
+   for file in `find . -path ./archive -prune -o \( -name '*.log' -o -name 'cmd_start*.sh' -o -name '*.csv' -o -name '*_backfeed*' -o -name '*_backfeed.txt.' -o -name '*.dat' \) -print`
    do
        #Get a New Directory name from log file timestamp
       
-     dir_year=`perl -MPOSIX -le 'print strftime "%Y",
-       localtime((lstat)[9]) for @ARGV' $file`
-
-       dir_month=`perl -MPOSIX -le 'print strftime "%B",
-       localtime((lstat)[9]) for @ARGV' $file`
+       dir_year=`perl -MPOSIX -le 'print strftime "%Y",localtime((lstat)[9]) for @ARGV' $file`
+       dir_month=`perl -MPOSIX -le 'print strftime "%B",localtime((lstat)[9]) for @ARGV' $file`
 
        dir_year="$base_dir/archive/$dir_year"
        dir_month="$dir_year/$dir_month"
 
        echo "create a new directory If it not exist:$dir_month"
-       # Create an archive directory if not exist
-
+       
        if [ ! -d $dir_year ];  then
            # create the directory
            mkdir -p $dir_year
@@ -42,7 +38,6 @@ cd $base_dir
            echo "Month-Directory created-MONTH : $dir_month"
        fi
        if [ -e $file ]; then
-           #Move the files to archive
            mv $file $dir_month
            echo " File : $file has been moved to $dir_month"
        fi
