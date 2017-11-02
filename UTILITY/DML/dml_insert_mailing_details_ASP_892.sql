@@ -11,16 +11,6 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) values ('99','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
-VALUES ('LOAD_MEMER_BANK_CONCENT_CC_COMPLETE',
-        '99',
-        'New Banking Concentration Data Load Process Done.',
-        'ccnoracle.team@sherwin.com',
-        'New Banking Concentration data has been loaded into MEMBER_BANK_CONCENTRATION_CC Table.',
-        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
-
-
-
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
 Values ('LOAD_MEMER_BANK_CONCENT_CC_ERROR',
         '99',
         'New banking concentration data load failed.',

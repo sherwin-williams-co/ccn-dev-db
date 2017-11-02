@@ -36,8 +36,6 @@ WHENEVER SQLERROR EXIT 1
 
 BEGIN
 :exitCode := 0;
-DELETE  FROM MEMBER_BANK_CONCENTRATION_CC WHERE LOAD_DATE = '$INPUT_DATE';
-commit;
 BANKING_BATCH_PKG.LOAD_MEMER_BANK_CONCENT_CC('$INPUT_DATE');
 Exception
 when others then
@@ -65,19 +63,7 @@ then
         exit 1
     fi
 exit 1
-else
-
-    $HOME/send_mail.sh "LOAD_MEMER_BANK_CONCENT_CC_COMPLETE">>$LOGDIR/${LOG_NAME}
-    status=$?
-
-    if [ $status -ne $EQUAL_VAL ]
-    then
-
-        echo "Mailing process failed for Mail category LOAD_MEMER_BANK_CONCENT_CC_ERROR ">>$LOGDIR/${LOG_NAME}
-        exit 1
-    fi
 fi
-
 exit 0
 
 ######################################################################################################################

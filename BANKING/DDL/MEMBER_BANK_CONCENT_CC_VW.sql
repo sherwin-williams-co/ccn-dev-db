@@ -4,5 +4,5 @@ SELECT
 Created  : 10/31/2015 SXG151 CCN
 *******************************************************************************/
 *
-FROM MEMBER_BANK_CONCENTRATION_CC
-WHERE LOAD_DATE in (SELECT MAX(LOAD_DATE) FROM MEMBER_BANK_CONCENTRATION_CC);
+From Member_Bank_Concentration_Cc
+WHERE LOAD_DATE = (SELECT MAX(LOAD_DATE) FROM MEMBER_BANK_CONCENTRATION_CC);
