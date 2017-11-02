@@ -2,7 +2,7 @@
 ########################################################################################################################
 # Script name   : Load_member_bank_concentration_cc.sh
 #
-# Description   : This shell program will execute a SQL script to load data in MEMBER_BANK_CONCENTRATION_CC table.
+# Description   : This shell program will execute a SQL script to load the data in MEMBER_BANK_CONCENTRATION_CC table.
 #                 
 #                 
 # Created       : 10/31/2017 sxg151 CCN Project Team
@@ -11,41 +11,73 @@
 ########################################################################################################################
 . /app/banking/dev/banking.config
 
-proc_name="Load_member_bank_concentration_cc"
+#Read Variables
+PROC_NAME="BANKING_BATCH_PKG.LOAD_MEMER_BANK_CONCENT_CC"
 LOGDIR=$HOME/logs
-DATE=`date +"%m/%d/%Y"`
-TIME=`date +"%H:%M:%S"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
+THISSCRIPT="Load_member_bank_concentration_cc"
+DATE=`date +"%m%d%Y"`
+TIME=`date +"%H%M%S"` 
+INPUT_DATE=`date +"%d-%b-%y"`
+LOG_NAME=${THISSCRIPT}_${DATE}_${TIME}.log
+EQUAL_VAL=0
+SERVER_NAME=$HOSTNAME
+touch $LOGDIR/$LOG_NAME
+LOGFILEPATH=$LOGDIR/$LOG_NAME
 
-echo "Processing Started for $proc_name at $TIME on $DATE"
-   ########################################################################
-   #               Loading MEMBER_BANK_CONCENTRATION_CC table
-   ########################################################################
-   echo "Processing Started to load LEAD_STORE_AUTO_RCNCLTN_DATA table at $TIME on $DATE"
+echo "Processing Started for "$PROC_NAME " at "$TIME "on "$DATE >> $LOGDIR/${LOG_NAME}
 
-sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<END > $LOGDIR/$proc_name"_"$TimeStamp.log
+sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw <<EOF >> $LOGDIR/${LOG_NAME}
+set heading off;
 set serveroutput on;
+set verify off;
+var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
-var exitCode number;
-exec :exitCode := 0;
-@$HOME/sql/load_memer_bank_concentration_cc.sql
-exit :exitCode;
-END
 
-   status=$?
-   TIME=`date +"%H:%M:%S"`
-   if test $status -ne 0
-   then
-      echo "Processing FAILED to load the MEMBER_BANK_CONCENTRATION_CC table at ${TIME} on ${DATE}"
-      exit 1;
-   fi
-   echo "Processing completed to load the MEMBER_BANK_CONCENTRATION_CC table at ${TIME} on ${DATE}"
+BEGIN
+:exitCode := 0;
+DELETE  FROM MEMBER_BANK_CONCENTRATION_CC WHERE LOAD_DATE = '$INPUT_DATE';
+commit;
+BANKING_BATCH_PKG.LOAD_MEMER_BANK_CONCENT_CC('$INPUT_DATE');
+Exception
+when others then
+if sqlcode = -20001 then
+:exitCode:=2;
+else
+:exitCode:=3;
+end if;
+END;
+/
+exit :exitCode
+EOF
 
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at $TIME on $DATE"
+status=$?
+echo "Status code is "$status >> $LOGDIR/${LOG_NAME}
+
+if [ $status -ne $EQUAL_VAL ]
+then
+
+    $HOME/send_mail.sh "LOAD_MEMER_BANK_CONCENT_CC_ERROR">>$LOGDIR/${LOG_NAME}
+    status=$?
+    if [ $status -ne $EQUAL_VAL ]
+    then
+        echo "Mailing process failed for Mail category LOAD_MEMER_BANK_CONCENT_CC_ERROR ">>$LOGDIR/${LOG_NAME}
+        exit 1
+    fi
+exit 1
+else
+
+    $HOME/send_mail.sh "LOAD_MEMER_BANK_CONCENT_CC_COMPLETE">>$LOGDIR/${LOG_NAME}
+    status=$?
+
+    if [ $status -ne $EQUAL_VAL ]
+    then
+
+        echo "Mailing process failed for Mail category LOAD_MEMER_BANK_CONCENT_CC_ERROR ">>$LOGDIR/${LOG_NAME}
+        exit 1
+    fi
+fi
 
 exit 0
-######################################################################
-#                            Process END 
-######################################################################
+
+######################################################################################################################
