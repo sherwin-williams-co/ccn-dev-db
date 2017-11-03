@@ -1,6 +1,6 @@
 /*****************************************************************
   This script will generate the excel report for Deposit Bags.
-  Which describes Store #, OnHand Quantity and Last Order Date and
+  Which describes Store #,Store name ,  OnHand Quantity, Last Order Date and Last Maintenance Date and
   send email to the SMIS group
 
   This excel should generate after DPST_BAGS_UPDT_BTCH daily batch job,
@@ -13,8 +13,10 @@ modified: axt754 10/18/2017 Filter Cost Centers Which are Active and polling sta
 DECLARE
    CURSOR dep_bag_cur IS
       SELECT bt.cost_center_code cost_center_code,
+             cc.cost_center_name cost_center_name,
              bt.depbag_onhand_qty depbag_onhand_qty,
-             bt.depbag_last_order_date depbag_last_order_date
+             bt.depbag_last_order_date depbag_last_order_date,
+             bt.depbag_last_order_date last_maintenance_date
         FROM bank_dep_bag_tick bt, cost_center cc
        WHERE bt.cost_center_code = cc.cost_center_code
          AND NVL(cc.OPEN_DATE,SYSDATE) <> '01-JAN-2099'
@@ -34,13 +36,17 @@ BEGIN
 
    --building the header
    V_FINAL_CLOB := 'Store No,'        ||
+                   'Store Name,'       ||
                    'OnHand Quantity,' ||
-                   'Last Order Date'  ;
+                   'Last Order Date,'  ||
+                   'Last Maintenance Date';
 
    FOR rec IN dep_bag_cur LOOP
       V_CLOB := '"' || rec.cost_center_code         || '",' ||
+                '"' || rec.cost_center_name         || '",' ||
                 '"' || rec.depbag_onhand_qty        || '",' ||
-                '"' || rec.depbag_last_order_date   || '"';
+                '"' || rec.depbag_last_order_date   || '",' ||
+                '"' || rec.last_maintenance_date    || '"';
       V_FINAL_CLOB := V_FINAL_CLOB || CHR(10) || V_CLOB;
    END LOOP;
 
