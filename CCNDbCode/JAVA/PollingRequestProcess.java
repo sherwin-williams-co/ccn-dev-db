@@ -98,10 +98,10 @@ public class PollingRequestProcess {
 						System.out.println("Non Pilot phase");
 					}
 					pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
-				} else if (pilotPhaseIndicator.equalsIgnoreCase("Y") && application.matches("STORE|TERR|PrimeSub")){
+				} else if (pilotPhaseIndicator.equalsIgnoreCase("Y") && application.matches("STORE|TERR|PrimeSub|TAXCURR")){
 					System.out.println("Pilot phase");
 					PltStoreList = WebServiceProcess.getAppStoresAsList(application);
-					pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);	
+					pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
 				} else {
 					System.out.println("Non Pilot phase");
 					pollingMetadata = PollingDestMetadata.createDestinationFullChain();
