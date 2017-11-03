@@ -6,22 +6,20 @@ This function will return the store manager for the cost center passed in
 for Dispatch Temrinals it returns Home Store Managers details
 
 Created : 10/19/2017 jxc517 CCN Project Team...
-Changed : 
+Changed : 10/31/2017 jxc517 CCN Project Team...
+          Modified query to pass the home store as input instead of actual driver store
 **********************************************************/
 IN_COST_CENTER_CODE     IN       VARCHAR2)
 RETURN EMPLOYEE_DETAILS%ROWTYPE
 IS
     V_RETURN_VAL EMPLOYEE_DETAILS%ROWTYPE;
 BEGIN
-    V_RETURN_VAL.COST_CENTER_CODE := IN_COST_CENTER_CODE;
     SELECT *
       INTO V_RETURN_VAL
       FROM (SELECT EMP.*
               FROM EMPLOYEE_DETAILS EMP
-             WHERE COST_CENTER_CODE = NVL((SELECT HOME_STORE
-                                             FROM DISPATCH_TERMINAL
-                                            WHERE COST_CENTER_CODE = V_RETURN_VAL.COST_CENTER_CODE), V_RETURN_VAL.COST_CENTER_CODE)
-                                              AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
                AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) 
                                           FROM JOB_TITLE_GROUP 
                                          WHERE NONMGR_IND = 'Y'
@@ -31,9 +29,44 @@ BEGIN
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
-         V_RETURN_VAL.COST_CENTER_CODE := IN_COST_CENTER_CODE;
          RETURN V_RETURN_VAL;
 END GET_STORE_MGR_DTLS;
+
+PROCEDURE INS_DESCARTES_HRCHY_FEED(
+/**********************************************************
+This procedure will insert record into the DESCARTES_HIERARCHY_FEED table
+to track the control sequence numbers being sent
+
+Created : 10/31/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    OUT_CTRL_SEQ_NUMBER      OUT       NUMBER)
+IS
+BEGIN
+    INSERT INTO DESCARTES_HIERARCHY_FEED VALUES (
+                         (SELECT NVL(MAX(CTRL_SEQ_NBR),0)+1 FROM DESCARTES_HIERARCHY_FEED),  --CTRL_SEQ_NBR
+                          NULL,                                                              --FEED_CLOB
+                          SYSDATE                                                            --PROCESS_DATE
+                          )
+         RETURNING CTRL_SEQ_NBR INTO OUT_CTRL_SEQ_NUMBER;
+END INS_DESCARTES_HRCHY_FEED;
+
+PROCEDURE UPD_DESCARTES_HRCHY_FEED(
+/**********************************************************
+This procedure will update DESCARTES_HIERARCHY_FEED table
+with the clob being sent
+
+Created : 10/31/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_CTRL_SEQ_NUMBER      IN       NUMBER,
+    IN_FEED_CLOB            IN       CLOB)
+IS
+BEGIN
+        UPDATE DESCARTES_HIERARCHY_FEED
+           SET FEED_CLOB    = IN_FEED_CLOB
+         WHERE CTRL_SEQ_NBR = IN_CTRL_SEQ_NUMBER;
+END UPD_DESCARTES_HRCHY_FEED;
 
 PROCEDURE GENERATE_DESCARTES_HRCHY_FILE
 /**********************************************************
@@ -47,10 +80,13 @@ Changed : 09/28/2017 rxa457 CCN project Team...
           Getting the manager details from the function GET_STORE_MGR_DTLS
         : 10/25/2017 nxk927 CCN Project Team...
           Hard coded the values for SENDER_ID, RECEIVER_ID and DOC_TYPE as per Descates
+Changed : 10/31/2017 jxc517 CCN Project Team...
+          Modified code to add comments, fix home store issue for territory/dispatch terminals
 **********************************************************/
 IS
     CURSOR driver_cur IS
-        SELECT ED.*
+        SELECT ED.*,
+               C.CATEGORY
           FROM EMPLOYEE_DETAILS ED,
                COST_CENTER C
          WHERE UPPER(ED.EMP_PAYROLL_STATUS)    = 'ACTIVE'
@@ -93,84 +129,142 @@ IS
     V_GROUP_MGR_NAME          VARCHAR2(3000);
     V_GROUP_MGR_GEMS_ID       VARCHAR2(20);
     V_CTRL_SEQ_NBR            NUMBER;
-    V_CONTEXT                 VARCHAR2(200);
+    V_HOME_STORE              COST_CENTER.COST_CENTER_CODE%TYPE;
     V_BATCH_NUMBER            BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS            BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BATCH_JOB_STATUS        BATCH_JOB.BATCH_JOB_STATUS%TYPE := 'PROCESSING';
 BEGIN
-    V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
+    --Log the batch start time
     CCN_BATCH_PKG.INSERT_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+
     BEGIN
-        INSERT INTO DESCARTES_HIERARCHY_FEED VALUES (
-                             (SELECT NVL(MAX(CTRL_SEQ_NBR),0)+1 FROM DESCARTES_HIERARCHY_FEED), --CTRL_SEQ_NBR
-                              NULL,                                                              --FEED_CLOB
-                              SYSDATE                                                            --PROCESS_DATE
-                              )
-            RETURNING CTRL_SEQ_NBR INTO V_CTRL_SEQ_NBR;
+        --Insert record into DESCARTES_HIERARCHY_FEED to hold the control sequence number for future runs
+        INS_DESCARTES_HRCHY_FEED(V_CTRL_SEQ_NBR);
 
         OUTPUT_FILE := UTL_FILE.FOPEN (PATH
                                       ,FILENAME
                                       , 'W' --BINARY
                                       , 32767);
 
-        V_CLOB := 'DFH|'|| --DFH Header (hard coded as requested by Descartes)
-                  '001|' || --Syntax Version (hard coded but need to confirm which one to use 001 or 002 ?)
-                  V_SENDER_ID || '|' || --Sender Identifier (hard coded as requested by Descartes)
-                  V_RECEIVER_ID || '|' || --Receiver Identifier (hard coded as requested by Descartes)
-                  TO_CHAR(SYSDATE,'YYYYMMDD')||  '|' || --Date
-                  TO_CHAR(SYSDATE,'HH24MISS') || '|' || --Time
-                  V_CTRL_SEQ_NBR|| '|'  || --Control number (SEQUENCE)***
-                  V_DOC_TYPE || '|' || --Doc Type (hard coded as requested by Descartes)
-                  '0|' || --future_use (hard coded as requested by Descartes)
+        --Descartes Header information to identify the source company
+        V_CLOB := 
+                  --DFH Header (hard coded as requested by Descartes)
+                  'DFH'                       || V_DELIMITER ||
+                  --Syntax Version (hard coded but need to confirm which one to use 001 or 002 ?)
+                  '001'                       || V_DELIMITER ||
+                  --Sender Identifier (hard coded as requested by Descartes)
+                  V_SENDER_ID                 || V_DELIMITER ||
+                  --Receiver Identifier (hard coded as requested by Descartes)
+                  V_RECEIVER_ID               || V_DELIMITER ||
+                  --Date
+                  TO_CHAR(SYSDATE,'YYYYMMDD') || V_DELIMITER ||
+                  --Time
+                  TO_CHAR(SYSDATE,'HH24MISS') || V_DELIMITER ||
+                  --Control number (SEQUENCE)***
+                  V_CTRL_SEQ_NBR              || V_DELIMITER ||
+                  --Doc Type (hard coded as requested by Descartes)
+                  V_DOC_TYPE                  || V_DELIMITER ||
+                  --future_use (hard coded as requested by Descartes)
+                  '0'                         || V_DELIMITER ||
+                  --test_indicator.. can be T(test) or P (production)
                   CASE
                       WHEN SYS_CONTEXT('USERENV','DB_NAME') = 'STCCNP' THEN
                           'P'
                       ELSE
                           'T'
-                  END || '|' || --test_indicator.. can be T(test) or P (production)
-                  'L' --DFH format L(labeled), T(tagged) and unlabeled (anything else)?
+                  END                         || V_DELIMITER ||
+                  --DFH format L(labeled), T(tagged) and unlabeled (anything else)?
+                  'L'
                   ;
+
         V_FEED_CLOB := V_CLOB;
+
         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-        --Fields Header
-        V_CLOB := 'DriverSHWID|DriverName|StoreNumber|' ||
-                  'StoreManagerSHWID|StoreManagerName|StoreEmail|'||
-                  'CityCode|CityDesc|CityManagerName|CityManagerSHWID|CityManagerEmail|'||
-                  'DistrictCode|DistrictDesc|DistrictManagerName|DistrictManagerSHWID|DistrictManagerEmail|'||
-                  'AreaCode|AreaDesc|AreaManagerName|AreaManagerSHWID|AreaManagerEmail|'||
-                  'DivisionCode|DivisionDesc|DivisionManagerName|DivisionManagerSHWID|DivisionManagerEmail|'||
-                  'GroupCode|GroupDesc|GroupManagerName|GroupManagerSHWID|GroupManagerEmail';
+        
+        --Fields Headers for Descartes to identify the values populated in the file
+        V_CLOB := 'DriverSHWID'                       || V_DELIMITER ||  --Driver SHWID
+                  'DriverName'                        || V_DELIMITER ||  --Driver Name
+                  'StoreNumber'                       || V_DELIMITER ||  --Driver Cost Center (Dispatch Terminal Home Store)
+                  'StoreManagerSHWID'                 || V_DELIMITER ||  --Home Store Manager SHWID
+                  'StoreManagerName'                  || V_DELIMITER ||  --Home Store Manager Name
+                  'StoreEmail'                        || V_DELIMITER ||  --Home Store Email ID
+                  'CityCode'                          || V_DELIMITER ||  --City
+                  'CityDesc'                          || V_DELIMITER ||  --City Description
+                  'CityManagerName'                   || V_DELIMITER ||  --City Manager Name
+                  'CityManagerSHWID'                  || V_DELIMITER ||  --City Manager SHWID
+                  'CityManagerEmail'                  || V_DELIMITER ||  --City Manager Email ID
+                  'DistrictCode'                      || V_DELIMITER ||  --District
+                  'DistrictDesc'                      || V_DELIMITER ||  --District Description
+                  'DistrictManagerName'               || V_DELIMITER ||  --District Manager Name
+                  'DistrictManagerSHWID'              || V_DELIMITER ||  --District Manager SHWID
+                  'DistrictManagerEmail'              || V_DELIMITER ||  --District Manager Email ID
+                  'AreaCode'                          || V_DELIMITER ||  --Area
+                  'AreaDesc'                          || V_DELIMITER ||  --Area Description
+                  'AreaManagerName'                   || V_DELIMITER ||  --Area Manager Name
+                  'AreaManagerSHWID'                  || V_DELIMITER ||  --Area Manager SHWID
+                  'AreaManagerEmail'                  || V_DELIMITER ||  --Area Manager Email ID
+                  'DivisionCode'                      || V_DELIMITER ||  --Division
+                  'DivisionDesc'                      || V_DELIMITER ||  --Division Description
+                  'DivisionManagerName'               || V_DELIMITER ||  --Division Manager Name
+                  'DivisionManagerSHWID'              || V_DELIMITER ||  --Division Manager SHWID
+                  'DivisionManagerEmail'              || V_DELIMITER ||  --Division Manager Email ID
+                  'GroupCode'                         || V_DELIMITER ||  --Group
+                  'GroupDesc'                         || V_DELIMITER ||  --Group Description
+                  'GroupManagerName'                  || V_DELIMITER ||  --Group Manager Name will always be blank
+                  'GroupManagerSHWID'                 || V_DELIMITER ||  --Group Manager SHWID
+                  'GroupManagerEmail'                                    --Group Manager Email ID
+                  ;
         V_FEED_CLOB := V_FEED_CLOB || CHR(10)|| V_CLOB;
+
         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+        
+        --Loop through all the drivers we have from GEMS and start generating the pipe delimited file
         FOR rec IN driver_cur LOOP
+            --Get the home store for the drivers cost center
+            V_HOME_STORE       := NVL(COMMON_TOOLS.GET_HOMESTORE(rec.COST_CENTER_CODE, rec.CATEGORY), rec.COST_CENTER_CODE);
+            
             --need to get the manager based on drivers home store
-            V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(rec.COST_CENTER_CODE);
+            V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(V_HOME_STORE);
 
             FOR rec1 IN glbl_hrchy_cur(rec.COST_CENTER_CODE) LOOP
                 V_GLBL_HRCHY_REC := rec1;
             END LOOP;
-
+         
             V_GROUP_MGR_NAME    := CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_GLBL_HRCHY_REC.GROUP_UPPER_VALUE, 'ManagerName');
             V_GROUP_MGR_GEMS_ID := CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(V_GLBL_HRCHY_REC.GROUP_UPPER_VALUE, 'GEMS_ID');
 
             --as per 11/10/2017 meeting decided to send as sw(4 digit store)#@sherwin.com
             --If its a store there wont be home store, so we need to pass that as it is
+            --Get Driver details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(rec.EMPLOYEE_NUMBER,V_DRIVER_EMAIL, V_DRIVER_USER_ID );
+            
+            --Get Store Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_HOME_STR_MGR_REC.EMPLOYEE_NUMBER, V_HOME_STORE_MGR_EMAIL, V_HOME_STR_MGR_USER_ID );
+
+            --Get City Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.CITY_MGR_GEMS_ID,V_CITY_MGR_EMAIL, V_CITY_MGR_USER_ID );
+
+            --Get District Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.DISTRICT_MGR_GEMS_ID,V_DISTRICT_MGR_EMAIL,V_DISTRICT_MGR_USER_ID);
+
+            --Get Area Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.AREA_MGR_GEMS_ID,V_AREA_MGR_EMAIL,V_AREA_MGR_USER_ID );
+
+            --Get Division Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GLBL_HRCHY_REC.DIV_MGR_GEMS_ID, V_DIVISION_MGR_EMAIL, V_DIVISION_MGR_USER_ID);
+
+            --Get Group Manager details
             CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_DTLS(V_GROUP_MGR_GEMS_ID,V_GRP_MGR_EMAIL, V_GRP_MGR_USER_ID);
-            V_HOME_STORE_EMAIL   := 'sw' || SUBSTR(V_HOME_STR_MGR_REC.COST_CENTER_CODE,3) || '@sherwin.com';
+
+            V_HOME_STORE_EMAIL   := 'sw' || SUBSTR(V_HOME_STORE,3) || '@sherwin.com';
 
             V_CLOB := V_DRIVER_USER_ID                           || V_DELIMITER ||  --Driver SHWID
                       rec.EMPLOYEE_NAME                          || V_DELIMITER ||  --Driver Name
                       --as per 11/10/2017 meeting this should be dispatch terminals home store
                       --as per 11/10/2017 meeting DAD should still be actual dispatch terminals DAD and not home stores DAD
                       --If its a store there wont be home store, so we need to pass that as it is
-                      V_HOME_STR_MGR_REC.COST_CENTER_CODE        || V_DELIMITER ||  --Driver Cost Center (Dispatch Terminal Home Store)
+                      V_HOME_STORE                               || V_DELIMITER ||  --Driver Cost Center (Dispatch Terminal Home Store)
                       V_HOME_STR_MGR_USER_ID                     || V_DELIMITER ||  --Home Store Manager SHWID
                       V_HOME_STR_MGR_REC.EMPLOYEE_NAME           || V_DELIMITER ||  --Home Store Manager Name
                       V_HOME_STORE_EMAIL                         || V_DELIMITER ||  --Home Store Email ID
@@ -200,6 +294,8 @@ BEGIN
                       V_GRP_MGR_USER_ID                          || V_DELIMITER ||  --Group Manager SHWID
                       V_GRP_MGR_EMAIL                                               --Group Manager Email ID
                       ;
+
+            --write the data to the file one record at a time
             IF V_CLOB <> EMPTY_CLOB() THEN
                 V_FEED_CLOB := V_FEED_CLOB || CHR(10)|| V_CLOB;
                 UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
@@ -208,25 +304,390 @@ BEGIN
         END LOOP;
 
         UTL_FILE.FCLOSE(OUTPUT_FILE);
-        UPDATE DESCARTES_HIERARCHY_FEED
-           SET FEED_CLOB = V_FEED_CLOB
-         WHERE CTRL_SEQ_NBR = V_CTRL_SEQ_NBR;
+        
+        --Save the clob for our future reference
+        UPD_DESCARTES_HRCHY_FEED(V_CTRL_SEQ_NBR, V_FEED_CLOB);
     EXCEPTION
        WHEN OTHERS THEN
           UTL_FILE.FCLOSE(OUTPUT_FILE);
           ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_DESCARTES_PROCESS.GENERATE_DESCARTES_HRCHY_FILE', SUBSTR(SQLERRM,1,500), NULL);
           V_TRANS_STATUS := 'ERROR';
-          V_CONTEXT:='Updating the Status in batch_job table';
           CCN_BATCH_PKG.UPDATE_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER, V_TRANS_STATUS);
-          CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+          CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
           RAISE;
     END;
-    V_CONTEXT:='Updating the Status in batch_job table';
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('DESCARTES_HRCHY_FEED', V_BATCH_NUMBER, V_TRANS_STATUS);
-    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
 EXCEPTION
     WHEN OTHERS THEN
-       RAISE;
+       RAISE;       
 END GENERATE_DESCARTES_HRCHY_FILE;
+
+PROCEDURE BUILD_ADDRESS_DATA_HDR(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE  IN     VARCHAR2,
+    IN_INS_UPD_IND       IN     VARCHAR2,
+    OUT_CLOB                OUT CLOB)
+IS
+    V_PASSWORD        VARCHAR2(100);
+    V_USER            VARCHAR2(100);
+BEGIN
+    --Set the user name and password in the header based on environment
+    CCN_COMMON_TOOLS.GET_APPLICATION_CREDENTIALS('DESCARTES', 'ADDRESS_FEED', V_USER, V_PASSWORD);
+    
+    --Build the header for Descartes address feed xml
+    OUT_CLOB := '<DocFWImport>' ||
+                    '<Header '||
+                        --hard coded value as provided by Descartes
+                        ' EchoData="false"' ||
+                        --hard coded value (need to talk about handling this)
+                        ' Password="' || V_PASSWORD || '"' ||
+                        --hard coded value as provided by Descartes
+                        ' LoginName="' || V_USER || '"' ||
+                        --hard coded value as provided by Descartes
+                        ' CompanyName="SHW"' ||
+                        --hard coded value as provided by Descartes
+                        ' ReceiverID="RP"' ||
+                        --hard coded value as provided by Descartes
+                        ' SenderID="CCN"' ||
+                        ' SendDateTime="' || TO_CHAR(SYSDATE, 'YY-MM-DD HH24:MI:SS') || '"' ||
+                        --1002(create record), 1004(update record)
+                        ' ExtDocControlID="' || IN_COST_CENTER_CODE || '_' ||
+                             CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('DSCRTS_CTRL_ID_CD', IN_INS_UPD_IND) || '_' ||
+                             TO_CHAR(SYSTIMESTAMP,'YYYYMMDDHH24MMSSFF') ||'"/>' ||
+                    '<Request>';
+END BUILD_ADDRESS_DATA_HDR;
+
+PROCEDURE BUILD_ADDRESS_DATA_FOR_CC(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 09/28/2017 rxa457 CCN project Team...
+           Time format changed to hh24 on the header as per the document
+**********************************************************/
+    IN_COST_CENTER_CODE  IN     VARCHAR2,
+    IN_INS_UPD_IND       IN     VARCHAR2,
+    OUT_CLOB                OUT CLOB)
+IS
+    V_ADDRESS_REC             ADDRESS_VW%ROWTYPE;
+    V_COST_CENTER_REC         COST_CENTER%ROWTYPE;
+    V_HOME_STR_MGR_REC        EMPLOYEE_DETAILS%ROWTYPE;
+    V_PHONE_REC               CCN_PHONE_INFO_VW%ROWTYPE;
+    V_HOME_STORE              COST_CENTER.COST_CENTER_CODE%TYPE;
+BEGIN
+    --Get the address details for the input cost center
+    --Note: Address View already handled home store conditions to return home stores address
+    BEGIN
+        SELECT *
+          INTO V_ADDRESS_REC
+          FROM ADDRESS_VW
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND ADDRESS_TYPE = 'M'
+           AND EXPIRATION_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    
+    --If address is present then proceed further, else there eill be nothing to report in the DocLocation file
+    --Note: These details are needed only for USA/PRI/CAN cost centers
+    IF V_ADDRESS_REC.COST_CENTER_CODE IS NOT NULL
+      AND V_ADDRESS_REC.COUNTRY_CODE IN ('USA', 'PRI', 'CAN') THEN
+        --Get cost center details for the input cost center
+        BEGIN
+            SELECT *
+              INTO V_COST_CENTER_REC
+              FROM COST_CENTER
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+        
+        --Get home store for the input cost center
+        V_HOME_STORE       := NVL(COMMON_TOOLS.GET_HOMESTORE(IN_COST_CENTER_CODE, V_COST_CENTER_REC.CATEGORY), IN_COST_CENTER_CODE);
+        
+        --Get home store managert details
+        V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(V_HOME_STORE);
+        BEGIN
+            SELECT *
+              INTO V_PHONE_REC
+              FROM CCN_PHONE_INFO_VW
+             WHERE COST_CENTER_CODE = V_HOME_STORE;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+        
+        --Build the DocLocation tag with all required attribtues as requested by Descrates
+        OUT_CLOB := '<DocLocation' ||
+                        --Cost Center Name
+                        ' Company="' || CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.COST_CENTER_NAME) || '"' ||
+                        --Cost Center Name
+                        ' Name="' || CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.COST_CENTER_NAME) || '"' ||
+                        --2 digit country code wher the cost center resides, default is US
+                        ' Country="' || NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('COUNTRY_CODE',V_ADDRESS_REC.COUNTRY_CODE), 'US') || '"' ||
+                        --Zip Code for the cost center
+                        CASE
+                            WHEN V_ADDRESS_REC.COUNTRY_CODE = 'CAN' THEN
+                                ' Zip="' || V_ADDRESS_REC.POSTAL_CODE || '"'
+                            ELSE
+                                ' Zip="' || V_ADDRESS_REC.ZIP_CODE || '"'
+                        END ||
+                        --State Code for the cost center
+                        CASE
+                            WHEN V_ADDRESS_REC.COUNTRY_CODE = 'CAN' THEN
+                                ' State="' || V_ADDRESS_REC.PROVINCE_CODE || '"'
+                            ELSE
+                                ' State="' || V_ADDRESS_REC.STATE_CODE || '"'
+                        END ||
+                        --City where the cost center is located
+                        ' City="' || CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.CITY) || '"' ||
+                        ' Address2="' || CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.ADDRESS_LINE_2) || '"' ||
+                        ' Address="' || CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.ADDRESS_LINE_1) || '"' ||
+                        --hard coded value as requested by Descrates
+                        ' GeocodingPolicy="2"' ||
+                        ' PhoneNumber="' || COMMON_TOOLS.GET_PHONE_NUMBER(IN_COST_CENTER_CODE,'PRI') || '"' ||
+                        --Type code has been stores under translation table as requested by Descartes
+                        --'S' = CUSTOMER/ 'D' = DEPOT
+                        ' Type="' || CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('DSCRTS_CTGRY_TYP_CD', V_COST_CENTER_REC.CATEGORY) || '"' ||
+                        --hard coded value as requested by Descrates
+                        ' ProcessCode="20"' ||
+                        --1002(create record), 1004(update record)
+                        ' MessagePurpose="' || CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('DSCRTS_CTRL_ID_CD', IN_INS_UPD_IND) || '"' ||
+                        --Cost center category description
+                        ' UDFString6="' || NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CATEGORY','COD',V_COST_CENTER_REC.CATEGORY),'N/A') || '"' ||
+                        ' ContactFirstName="' || V_HOME_STR_MGR_REC.FIRST_NAME || '"' ||
+                        ' ContactLastName="' || V_HOME_STR_MGR_REC.LAST_NAME || '"' ||
+                        ' ContactPhone="' || V_PHONE_REC.PRIMARY_PHONE_NUMBER || '"' ||
+                        ' ContactEmail="' || 'sw' || SUBSTR(V_HOME_STORE,3) || '@sherwin.com' || '"' ||
+                        ' LocationRefNo="'|| IN_COST_CENTER_CODE ||'" />';
+        --DBMS_OUTPUT.PUT_LINE(V_CLOB);
+    END IF;
+END BUILD_ADDRESS_DATA_FOR_CC;
+
+PROCEDURE BUILD_ADDRESS_DATA_TRLR(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    OUT_CLOB                OUT CLOB)
+IS
+BEGIN
+    OUT_CLOB := '</Request>' ||
+              '</DocFWImport>';
+END BUILD_ADDRESS_DATA_TRLR;
+
+PROCEDURE INS_DESCARTES_ADRS_FEED_CC(
+/**********************************************************
+This procedure will insert record into the DESCARTES_ADRS_FEED_CC table
+to track the GUID being sent
+
+Created : 10/31/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN           VARCHAR2,
+    IN_ACTION              IN           VARCHAR2,
+    OUT_GUID                  OUT       VARCHAR2)
+IS
+BEGIN
+    INSERT INTO DESCARTES_ADRS_FEED_CC
+        (COST_CENTER_CODE,
+         TRIGGERED_DATE,
+         TRIGGER_ACTION,
+         GUID)
+    VALUES(IN_COST_CENTER_CODE,
+           TRUNC(SYSDATE),
+           IN_ACTION,
+           REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'))
+    RETURNING GUID INTO OUT_GUID;
+END INS_DESCARTES_ADRS_FEED_CC;
+
+PROCEDURE UPD_DESCARTES_ADRS_FEED_CC(
+/**********************************************************
+This procedure will update UPD_DESCARTES_ADRS_FEED_CC table
+with the clob being sent
+
+Created : 10/31/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE       IN           VARCHAR2,
+    IN_REQUEST                IN           CLOB)
+IS
+BEGIN
+    UPDATE DESCARTES_ADRS_FEED_CC
+       SET PROCESS_DATE = SYSDATE,
+           REQUEST      = IN_REQUEST
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND PROCESS_DATE IS NULL;
+END UPD_DESCARTES_ADRS_FEED_CC;
+
+PROCEDURE GNRT_DSCRTS_ADDRESS_INIT_FILE(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 09/28/2017 rxa457 CCN project Team...
+           Time format changed to hh24 on the header as per the document
+**********************************************************/
+    OUT_CLOB       OUT  CLOB,
+    OUT_GUID       OUT  VARCHAR2)
+IS
+    V_CLOB                    CLOB;
+    V_COST_CENTER_CODE        VARCHAR2(6) := 'INITLD';
+    V_ACTION                  VARCHAR2(6) := 'INSERT';
+
+    CURSOR main_cur IS
+        --Get all the active cost centers in USA/CAN/PRI with category as S (or) D
+        SELECT COST_CENTER_CODE
+          FROM COST_CENTER
+         WHERE CLOSE_DATE IS NULL
+           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+           AND CATEGORY IN ('S', 'D')
+           AND COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
+BEGIN
+    --Insert record into DESCARTES_ADRS_FEED_CC to hold the GUID of the request being sent
+    INS_DESCARTES_ADRS_FEED_CC(V_COST_CENTER_CODE, V_ACTION, OUT_GUID);
+
+    --Build the header tags for Descartes DocLocartion xml request
+    BUILD_ADDRESS_DATA_HDR(V_COST_CENTER_CODE, V_ACTION, V_CLOB);
+    
+    OUT_CLOB := V_CLOB;
+    --Loop through all the cost centers anf build the DocLocation tags one for each cost center
+    FOR rec IN main_cur LOOP
+        V_CLOB := NULL;
+
+        --Build the DocLocation tag
+        BUILD_ADDRESS_DATA_FOR_CC(rec.COST_CENTER_CODE, 'INSERT', V_CLOB);
+
+        IF V_CLOB <> EMPTY_CLOB() THEN
+            OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
+        END IF;
+    END LOOP;
+
+    --Build the trailer tags for Descartes DocLocartion xml request
+    BUILD_ADDRESS_DATA_TRLR(V_CLOB);
+    OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
+
+    --Save the request XML being sent
+    UPD_DESCARTES_ADRS_FEED_CC(V_COST_CENTER_CODE, OUT_CLOB);
+EXCEPTION
+   WHEN OTHERS THEN  
+      ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_DESCARTES_PROCESS.GNRT_DSCRTS_ADDRESS_INIT_FILE', SUBSTR(SQLERRM,1,500), NULL);
+      RAISE;
+END GNRT_DSCRTS_ADDRESS_INIT_FILE;
+
+PROCEDURE GNRT_DSCRTS_ADDRESS_CC_FILE(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE  IN      VARCHAR2,
+    IN_TRIGGER_ACTION    IN      VARCHAR2,
+    OUT_CLOB                OUT  CLOB)
+IS
+    V_CLOB                    CLOB;
+BEGIN
+    --Insert record into DESCARTES_ADRS_FEED_CC to hold the GUID of the request being sent
+    BUILD_ADDRESS_DATA_HDR(IN_COST_CENTER_CODE, IN_TRIGGER_ACTION, V_CLOB);
+    OUT_CLOB := V_CLOB;
+    
+    --Build the DocLocation tag
+    BUILD_ADDRESS_DATA_FOR_CC(IN_COST_CENTER_CODE, IN_TRIGGER_ACTION, V_CLOB);
+    IF V_CLOB <> EMPTY_CLOB() THEN
+        OUT_CLOB := OUT_CLOB || V_CLOB;
+    END IF;
+    
+    --Build the trailer tags for Descartes DocLocartion xml request
+    BUILD_ADDRESS_DATA_TRLR(V_CLOB);
+    OUT_CLOB := OUT_CLOB || V_CLOB;
+
+    --Save the request XML being sent
+    UPD_DESCARTES_ADRS_FEED_CC(IN_COST_CENTER_CODE, OUT_CLOB);
+EXCEPTION
+   WHEN OTHERS THEN  
+      ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_DESCARTES_PROCESS.GNRT_DSCRTS_ADDRESS_CC_FILE', SUBSTR(SQLERRM,1,500), NULL);
+      RAISE;
+END GNRT_DSCRTS_ADDRESS_CC_FILE;
+
+PROCEDURE DESCARTES_ADRS_FEED_CC_SP(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 10/18/2017 jxc517 CCN Project Team...
+          Based on discussion with Keith we need to send details only for
+          Dispatch Terminal and Store category cost centers
+**********************************************************/
+    IN_DATE       IN      DATE,  
+    OUT_REF_CUR      OUT  SYS_REFCURSOR)
+IS
+BEGIN
+    OPEN OUT_REF_CUR FOR
+        --Get all the cost centers that got address added/maintained the previous day
+        SELECT *
+          FROM DESCARTES_ADRS_FEED_CC A
+         WHERE TRIGGERED_DATE = IN_DATE - 1
+           AND PROCESS_DATE IS NULL
+           AND EXISTS (SELECT 1
+                         FROM COST_CENTER
+                        WHERE COST_CENTER_CODE = A.COST_CENTER_CODE
+                          AND CATEGORY IN ('S','D'));
+END DESCARTES_ADRS_FEED_CC_SP;
+
+PROCEDURE DESCARTE_ADRS_FEED_RESP_CC_UPD(
+/**********************************************************
+This process is used to build a pipe delimited hierarchy file for descartes
+
+Created : 09/21/2017 jxc517 CCN Project Team...
+Changed : 
+**********************************************************/
+    IN_GUID       IN      VARCHAR2,
+    IN_CLOB       IN      CLOB)
+IS
+BEGIN
+    UPDATE DESCARTES_ADRS_FEED_CC
+       SET RESPONSE = IN_CLOB
+     WHERE GUID = IN_GUID;
+END DESCARTE_ADRS_FEED_RESP_CC_UPD;
+
+PROCEDURE INSERT_DESCARTES_ADRS_FEED_CC (
+/**********************************************************
+This procedure is intended to insert into INSERT_DESCARTES_ADRS_FEED_CC
+table with the details related to the Descartes address details feed run
+
+Created : 10/11/2017 rxa457 CCN project....
+Modified: 
+**********************************************************/
+    IN_COST_CENTER_CODE            IN  DESCARTES_ADRS_FEED_CC.COST_CENTER_CODE%TYPE,
+    IN_TRIGGER_ACTION              IN  DESCARTES_ADRS_FEED_CC.TRIGGER_ACTION%TYPE)
+IS 
+    V_DESCARTES_ADRS_FEED_CC DESCARTES_ADRS_FEED_CC%ROWTYPE;
+BEGIN
+    INSERT INTO DESCARTES_ADRS_FEED_CC(COST_CENTER_CODE,
+                                       TRIGGERED_DATE,
+                                       TRIGGER_ACTION,
+                                       GUID)
+    VALUES(IN_COST_CENTER_CODE,
+           TRUNC(SYSDATE),
+           IN_TRIGGER_ACTION,
+           REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'));
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        --This is OK as we need to use the oldest INSERT/UPDATE trigger for that day
+        NULL;
+    WHEN OTHERS THEN
+        RAISE;
+END INSERT_DESCARTES_ADRS_FEED_CC;
 
 END CCN_DESCARTES_PROCESS;

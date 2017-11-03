@@ -1,4 +1,10 @@
-CREATE OR REPLACE TRIGGER COSTCNTR.TR_ADDRESS_CAN_UPD
+create or replace TRIGGER COSTCNTR.TR_ADDRESS_CAN_UPD
+/***************************************************************************
+   TR_ADDRESS_CAN_UPD.TRG
+   This trigger will insert records into audit_log table for logging changes
+   Modified : 10/11/2017 rxa457 CCN Project Team...
+              Code added to insert Descartes Address feed trigger action table
+****************************************************************************/
 BEFORE INSERT or UPDATE ON COSTCNTR.ADDRESS_CAN
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -102,6 +108,23 @@ ELSIF UPDATING THEN
    END IF;
 END IF;
 END IF;
+
+---START -- CODE TO HANDLE DESCARTES ADDRESS FEED 
+IF :NEW.EXPIRATION_DATE IS NULL AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' THEN
+    IF UPDATING THEN
+        IF NVL(:NEW.COUNTRY_CODE,'XXX')   <> NVL(:OLD.COUNTRY_CODE,'XXX')   OR
+           NVL(:NEW.POSTAL_CODE,'XXX')    <> NVL(:OLD.POSTAL_CODE,'XXX')    OR
+           NVL(:NEW.PROVINCE_CODE,'XXX')  <> NVL(:OLD.PROVINCE_CODE,'XXX')  OR
+           NVL(:NEW.CITY,'XXX')           <> NVL(:OLD.CITY,'XXX')           OR
+           NVL(:NEW.ADDRESS_LINE_1,'XXX') <> NVL(:OLD.ADDRESS_LINE_1,'XXX') OR
+           NVL(:NEW.ADDRESS_LINE_2,'XXX') <> NVL(:OLD.ADDRESS_LINE_2,'XXX') THEN
+            CCN_DESCARTES_PROCESS.INSERT_DESCARTES_ADRS_FEED_CC(:NEW.COST_CENTER_CODE, 'UPDATE');
+        END IF;
+    ELSIF INSERTING THEN
+       CCN_DESCARTES_PROCESS.INSERT_DESCARTES_ADRS_FEED_CC(:NEW.COST_CENTER_CODE, 'INSERT');
+    END IF;
+END IF;
+---END-- CODE TO HANDLE DESCARTES ADDRESS FEED 
 EXCEPTION
 WHEN OTHERS THEN
 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
