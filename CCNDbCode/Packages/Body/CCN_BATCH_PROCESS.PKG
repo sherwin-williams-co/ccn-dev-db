@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_BATCH_PROCESS AS
+create or replace PACKAGE BODY CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package body will have procedures and functions related 
 to the batch process
@@ -90,7 +90,9 @@ PROCEDURE GENERATE_USA_SELLING_STR_FILE(
 /**********************************************************
 This process takes care of generating USA/PRI selling store file
 
-Database type ADDRESS_USA_OT is used to create header and details.
+Database type 
+
+is used to create header and details.
 1 - The CONSTRUCTOR FUNCTION address_usa_ot is used to initialize member variables.
 2 - The MEMBER FUNCTION print_header_delimited is used to create a Header for the DELIMITER passed
 3 - The MEMBER FUNCTION print_values_delimited prints the values with the DELIMITER passed
@@ -696,7 +698,9 @@ PROCEDURE APPEND_CLOB(
    IN_COST_CENTER   IN     VARCHAR2,
    IN_OUT_MAIL_CLOB IN OUT CLOB)
 IS
-   V_CLOB              CLOB;
+   
+   
+       V_CLOB          CLOB;
 BEGIN
    IF IN_VALUE IS NOT NULL AND NOT REGEXP_LIKE(IN_VALUE, '^[9-9]+$' ) AND NOT REGEXP_LIKE(IN_VALUE, '^[0-0]+$' ) THEN
       V_CLOB := IN_VALUE || ',' || SUBSTR(IN_COST_CENTER, 3) || CHR(13);
@@ -813,7 +817,7 @@ AS
    V_CLOB                   CLOB;
    V_CLOB_FOR_EMAIL         CLOB;
 BEGIN
-   OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+     OUTPUT_FILE := UTL_FILE.FOPEN (PATH
                                  ,FILENAME
                                  , 'W' --BINARY
                                  , 32767);
@@ -924,5 +928,170 @@ BEGIN
     GNRT_STORE_BANK_CARD_MRCHNT_FL;
     GNRT_STORE_BANK_CARD_SERIAL_FL;
 END GENERATE_STORE_BANK_CARD_FILE;
+
+PROCEDURE  GENERATE_VALUE_LINK_PROCESS
+/**********************************************************
+The procedure is intended to generate below files which  describes the merchant details.
+1.VALUELINK_SRA31000.TXT. 
+Filters:
+1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'P', 'Q' )
+Created : 11/03/2017 sxp130 CCN project Team.... - ASP-795
+Changed :
+**********************************************************/
+IS
+    CURSOR CUR_COST_CENTER IS
+        SELECT CC.*,
+               COMMON_TOOLS.GET_PHONE_NUMBER(CC.COST_CENTER_CODE,'PRI') AS PHONE_NUMBER
+          FROM COST_CENTER CC
+         WHERE CLOSE_DATE  IS NULL                                                 /* Closed date as NULL */
+           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+           AND STATEMENT_TYPE     NOT  IN ('CN','AC')                              /* Excludes the canadian tickets */
+           AND EXISTS       (  SELECT    *
+                                 FROM    POLLING             
+                                WHERE    UPPER(POLLING_STATUS_CODE) IN ('P','Q')    /* checks for the polling status as 'P' or 'Q' */
+                                  AND    CC.COST_CENTER_CODE =POLLING.COST_CENTER_CODE
+                                  AND    EXPIRATION_DATE  IS NULL 
+                                       
+                          )ORDER BY 2;
+  
+    CURSOR CUR_ADDRESS IS
+    SELECT COST_CENTER_CODE,
+           ADDRESS_LINE_1,
+           CITY,
+           STATE_CODE,
+           ZIP_CODE
+     FROM  ADDRESS_VW
+    WHERE  ADDRESS_TYPE   = 'M'
+      AND  EXPIRATION_DATE IS NULL;
+
+    TYPE   ADDRESS_VW_REC_TYPE
+    IS
+    RECORD
+          (
+          COST_CENTER_CODE VARCHAR2(6),
+          ADDRESS_LINE_1   VARCHAR2(2000),
+          CITY             VARCHAR2(100),
+          STATE_CODE       VARCHAR2(100),
+          ZIP_CODE         VARCHAR2(100));
+    TYPE  RT_ADDRESS_VW
+    IS
+    TABLE OF ADDRESS_VW_REC_TYPE INDEX BY VARCHAR2(6);
+             AAT_ADDRESS_VW RT_ADDRESS_VW;
+    PATH     VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME VARCHAR2(50) := 'SRA31000_' || TO_CHAR(SYSDATE,'MMDDRR') || '.TXT'; --File Name
+    OUTPUT_FILE UTL_FILE.FILE_TYPE;
+ 
+ 
+  
+          V_ADDRESS_LINE_1   VARCHAR2(200);
+          V_CITY             VARCHAR2(200);
+          V_STATE_CODE       VARCHAR2(200);
+          V_ZIP_CODE         VARCHAR2(200);
+          V_CLOB             CLOB;
+          V_CLOB_HEADER      CLOB;
+          V_CLOB_TRAILER     CLOB;
+          V_COUNT             VARCHAR2(2000);
+  
+    BEGIN
+          OUTPUT_FILE := UTL_FILE.FOPEN (PATH ,
+                                   FILENAME,
+                                   'W' --BINARY
+                                   ,32767);
+         --Header details are generated
+         V_CLOB_HEADER := '1' ||                                   --Header indicator
+                     TO_CHAR(SYSDATE,'YYYY')||                     --Current year 
+                     SUBSTR(TO_CHAR(SYSDATE,'J'),1,3) ||           -- zero values
+                     '0' ||                                        -- Zero filled 
+                     to_char(sysdate,'HHMMSS') ||                  -- Timestamp of file craetion
+                     LPAD(' ',1)||                                 -- space filled
+                     '005'||                                       -- Format version number
+                     RPAD('SHERWIN-WILLIAMS COMPANY',30) ||        -- Header name 
+                     LPAD(' ',200)||                               -- space filled
+                     LPAD(' ',50)                                  -- space filled
+                     ;
+    
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB_HEADER, TRUE);
+    
+    FOR rec IN CUR_ADDRESS LOOP
+        AAT_ADDRESS_VW(REC.COST_CENTER_CODE) := rec;
+    END LOOP;
+
+    FOR REC_CC IN CUR_COST_CENTER LOOP
+                    --Variable initialize to NULL
+        V_ADDRESS_LINE_1 := NULL;
+        V_CITY           := NULL;
+        V_STATE_CODE     := NULL;
+        V_ZIP_CODE       := NULL;
+        V_CLOB           := NULL;
+        V_CLOB_HEADER    := NULL;
+        V_CLOB_TRAILER   := NULL;
+        V_COUNT          := V_COUNT+1;
+
+    /*Fetch Address Information*/
+    IF AAT_ADDRESS_VW.EXISTS(REC_CC.COST_CENTER_CODE) THEN
+        V_ADDRESS_LINE_1 := RPAD(NVL(AAT_ADDRESS_VW(REC_CC.COST_CENTER_CODE).ADDRESS_LINE_1,' '),30,' ');
+        V_CITY           := RPAD(NVL(AAT_ADDRESS_VW(REC_CC.COST_CENTER_CODE).CITY,' '),20,' ');
+        V_STATE_CODE     := RPAD(NVL(AAT_ADDRESS_VW(REC_CC.COST_CENTER_CODE).STATE_CODE,' '),2);
+        V_ZIP_CODE       := RPAD(NVL(AAT_ADDRESS_VW(REC_CC.COST_CENTER_CODE).ZIP_CODE,' '),9,0);
+    END IF;
+    IF Trim(REC_CC.COST_CENTER_CODE) IS NOT NULL THEN
+        V_CLOB :=               '2'||                                                                                                               -- Record type indicator 
+                               FILL_SPACES(5)||                                                                                                     -- Filled spaces
+                              '000000000'||                                                                                                         -- Merchnat expansion
+                               LPAD(0,7,0)||                                                                                                        -- Merchnat number 
+                               LPAD(SUBSTR(REC_CC.COST_CENTER_CODE,-4),4)||                                                                         -- Cost center code
+                               RPAD(NVL(REC_CC.COST_CENTER_NAME,' '),30,' ')||                                                                      -- Cost center name
+                               V_ADDRESS_LINE_1||                                                                                                   -- Address 
+                               V_CITY||                                                                                                             -- City name
+                               V_STATE_CODE||                                                                                                       -- State info       
+                               V_ZIP_CODE||                                                                                                         -- Zip cide
+                               CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('COUNTRY_CODE_ISO','USA')||                                          -- ISO numeric country code
+                               FILL_SPACES(30)||                                                                                                    -- Filled spaces
+                               NVL(NVL('('||SUBSTR(REC_CC.PHONE_NUMBER,1,3)||')'||
+                               ' '|| SUBSTR(REC_CC.PHONE_NUMBER,4,3)||'-'||
+                               SUBSTR(REC_CC.PHONE_NUMBER,7),' '),' ')||                                                                                 -- Phone Numer   
+                               FILL_SPACES(30)||                                                                                                    -- Filled spaces
+                               FILL_SPACES(22)||                                                                                                    -- FDMS merchant number
+                               LPAD('97134700004',20,0)||                                                                                           -- Filled spaces
+                               FILL_SPACES(20)||                                                                                                    -- Grouping store location
+                               FILL_SPACES(20)||                                                                                                    -- Grouping store location
+                               '0000'||                                                                                                             -- Rule No for service fee
+                               '0000'||                                                                                                             -- Exp Rule No for service fee
+                               FILL_SPACES(3)||                                                                                                     -- Providence location   
+                               FILL_SPACES(5)||                                                                                                     -- space filled    
+                               '00000000000000000000'||                                                                                             -- Banking Account No.     
+                               '00000000000000000000'||                                                                                             -- Banking act Routing No.
+                               FILL_SPACES(50)||                                                                                                    -- Bank Name     
+                               FILL_SPACES(30)||                                                                                                    -- Bank Address
+                               FILL_SPACES(20)||                                                                                                    -- Bank City Name
+                               FILL_SPACES(2)||                                                                                                     -- Bank Abbrevation
+                               FILL_SPACES(9)||                                                                                                     -- Postal Code
+                               FILL_SPACES(20)||                                                                                                    -- Branch Location
+                               FILL_SPACES(1)||                                                                                                     -- ACH Flag
+                               '000' ||                                                                                                             -- Filled Zeros
+                               FILL_SPACES(20)||                                                                                                    -- ACH Roll Up
+                               FILL_SPACES(4)||                                                                                                     -- Filled Spaces
+                               FILL_SPACES(1)                                                                                                       -- New Line      
+                               ;
+    END IF;
+    IF V_CLOB <> EMPTY_CLOB() THEN
+       UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    END IF;
+    END LOOP;
+    /* Trailer details are generated alongh with adding the header and tariler value count*/
+        V_COUNT      :=   V_COUNT+2;
+        V_CLOB_TRAILER := '9' ||                            --Record Type
+                          LPAD(V_COUNT,9,0) ||              --Count of records
+                          LPAD(' ',200)||                   --Forced Spaces    
+                          LPAD(' ',200)||                   --Forced Spaces 
+                          LPAD(' ',89)                      --Forced Spaces 
+                          ;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB_TRAILER, TRUE);
+        UTL_FILE.FCLOSE(OUTPUT_FILE);
+   EXCEPTION 
+   WHEN OTHERS THEN
+        UTL_FILE.FCLOSE(OUTPUT_FILE);
+        
+END GENERATE_VALUE_LINK_PROCESS ;
 
 END CCN_BATCH_PROCESS;
