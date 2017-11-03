@@ -12,6 +12,6 @@ VALUES ('DESCARTES_ADDR_FEED_FAIL',
         'Descartes Address feed failure',
         'ccnoracle.team@sherwin.com',
         'Descartes Address feed failed. Please check "DESCARTES_ADRS_FEED_CC" table for failure status',
-        'Thanks' || CHR(10) || 'Keith D. Parker' || CHR(10) || 'IT Manager' ||CHR(10) || Sherwin Williams - Stores IT');
+        'Thanks' || CHR(10) || 'Keith D. Parker' || CHR(10) || 'IT Manager' ||CHR(10) || 'Sherwin Williams - Stores IT');
 
 COMMIT;
