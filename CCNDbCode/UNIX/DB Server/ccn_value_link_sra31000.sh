@@ -4,8 +4,7 @@
 #
 # Description   : This script is to run the generate_value_link procedure
 #
-# Created  : 10/31/2017
-# 
+# Created  		: 11/06/2017 BXA919 CCN Project Team.....
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/ccn/host.sh

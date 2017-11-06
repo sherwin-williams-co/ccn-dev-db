@@ -3,7 +3,7 @@
 # Script name   : ccn_value_link_sra31000_ftp.sh
 # Description   : This script will FTP VALUELINK FILE from db server to app server. This runs on DB Server
 #
-# Created  : 10/31/2017 rxv940 CCN Project Team.....
+# Created  		: 11/06/2017 BXA919 CCN Project Team.....
 # Modified : 
 ###############################################################################################################################
 . /app/ccn/host.sh
