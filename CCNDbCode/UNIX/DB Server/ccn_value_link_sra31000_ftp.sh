@@ -21,7 +21,6 @@ quit
 END_SCRIPT
 
 status=$?
-DATE=`date +"%m%d%y"`
 TIME=$(date +"%H%M%S")
 if [ $status -gt 0 ]
 then
