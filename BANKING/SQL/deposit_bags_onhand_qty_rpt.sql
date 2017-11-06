@@ -9,6 +9,7 @@
 
 created : sxp130 06/22/2017 ASP_805
 modified: axt754 10/18/2017 Filter Cost Centers Which are Active and polling status as 'P'
+modified: mxv711 11/03/2017 added 2 new columns Store Name and Last Maintenance Date
 **********************************************************/
 DECLARE
    CURSOR dep_bag_cur IS
