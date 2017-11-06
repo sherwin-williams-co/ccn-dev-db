@@ -37,6 +37,7 @@ This procedure is used to create an WS diff file with the list of newly added co
 Created : 10/12/2017 rxv940 CCN Project....
 Changed : 11/06/2017 rxv940 CCN Project....
         : Added a if statement to create the list only when the list is not empty
+        : Added a check to see if the store number present in Web service is valid
 *********************************************************************************/
       IN_FILE_TYPE  IN     VARCHAR2,
       IN_STR_LIST   IN     VARCHAR2,
@@ -47,17 +48,21 @@ IS
     V_CC_LIST          DBMS_UTILITY.UNCL_ARRAY;
     V_LIST_CUNT        NUMBER;
     V_COST_CENTER_CODE VARCHAR2(6);
+    V_INVALID_CC_LIST  CLOB;
+    V_MAIL_TXT         VARCHAR2(250);
 BEGIN
     IF V_STR_LST <> '[]' THEN
         V_STR_LST := REPLACE(REPLACE(V_STR_LST, '['), ']');
         DBMS_UTILITY.COMMA_TO_TABLE('J'||REPLACE(V_STR_LST, ', ', ',J'), V_LIST_CUNT, V_CC_LIST);
         --DBMS_UTILITY.COMMA_TO_TABLE expects J at the beginning of all list items
-        DBMS_OUTPUT.PUT_LINE(V_CC_LIST.COUNT);
-         DBMS_OUTPUT.PUT_LINE(V_CC_LIST(1));
-         DBMS_OUTPUT.PUT_LINE('Test ' ||V_CC_LIST(2));
-        
         FOR i IN 1..V_LIST_CUNT LOOP
-            V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(V_CC_LIST(i),2, 4)));
+            BEGIN
+                V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(V_CC_LIST(i),2, 4)));
+            EXCEPTION
+                WHEN OTHERS THEN
+                    V_INVALID_CC_LIST := V_INVALID_CC_LIST || TRIM(SUBSTR(V_CC_LIST(i),2, 4)) || ',';
+                    CONTINUE;
+            END;
             BEGIN
                 INSERT INTO POS_INIT_LOAD_LIST
                 VALUES (IN_FILE_TYPE,
@@ -73,10 +78,14 @@ BEGIN
                 WHEN OTHERS THEN
                     RAISE; --not OK as something else happened
             END;
+            V_COST_CENTER_CODE := NULL;
         END LOOP;
         OUT_LIST := TRIM(TRAILING ',' FROM OUT_LIST);
-    
-    END IF ;
+    END IF;
+    IF V_INVALID_CC_LIST IS NOT NULL THEN
+        V_MAIL_TXT := 'Invalid stores ' || TRIM(TRAILING ',' FROM V_INVALID_CC_LIST) || ' found in the Web Service for ' || IN_FILE_TYPE || ' downloads..';
+        MAIL_PKG.SEND_MAIL('RequestidFailure', NULL, NULL, V_MAIL_TXT);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
     RAISE;        
