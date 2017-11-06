@@ -5,6 +5,8 @@ Purpose    : For dropping and creating the COST_CENTER_DISPATCH_TERMINAL table.
              loaded through batch process.
 
 Created    : 06/23/2017 rxa457 CCN Project....
+Changed    : 11/06/2017 axt754 CCN Project....
+             Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
 */
 
   DROP TABLE COST_CENTER_DISPATCH_TERMINAL;
@@ -83,7 +85,10 @@ Created    : 06/23/2017 rxa457 CCN Project....
     ALTERNATE_DAD VARCHAR2(100), 
     FACTS_DIVISION VARCHAR2(100), 
     LEGACY_GL_DIVISION VARCHAR2(100), 
-    GLOBAL_HIERARCHY VARCHAR2(100), 
+    GLOBAL_HIERARCHY VARCHAR2(100),  
+    PRICE_DISTRICT VARCHAR2(100),
+    PRICE_DIST_EFFECTIVE_DT VARCHAR2(8),
+    CREDIT_HIERARCHY VARCHAR2(100),
     MANAGER_ID VARCHAR2(100 )
    ) 
    ORGANIZATION EXTERNAL 
@@ -170,6 +175,9 @@ Created    : 06/23/2017 rxa457 CCN Project....
                                         FACTS_DIVISION,
                                         LEGACY_GL_DIVISION,
                                         GLOBAL_HIERARCHY,
+                                        PRICE_DISTRICT,
+                                        PRICE_DIST_EFFECTIVE_DT,
+                                        CREDIT_HIERARCHY,
                                         MANAGER_ID)
                                         )
       LOCATION
