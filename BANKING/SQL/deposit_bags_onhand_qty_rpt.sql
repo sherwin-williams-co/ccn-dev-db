@@ -9,7 +9,9 @@
 
 created : sxp130 06/22/2017 ASP_805
 modified: axt754 10/18/2017 Filter Cost Centers Which are Active and polling status as 'P'
-modified: mxv711 11/03/2017 added 2 new columns Store Name and Last Maintenance Date
+modified: mxv711 11/03/2017 added 2 new columns Store Name and Last Maintenance Date( added last maintenance date as 
+          depbag_last_order_date as the last maintenance date from child table matched 
+          exactly with depbag_last_order_date in prod for all records)
 **********************************************************/
 DECLARE
    CURSOR dep_bag_cur IS
