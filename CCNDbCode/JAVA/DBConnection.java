@@ -51,23 +51,24 @@ public class DBConnection {
 		}
 	}
 	
-	public static String isMaintenanceNeeded() throws SQLException {
-		Statement stmt = null;
-		String cnt = null;
-		String query=("SELECT POS_DOWNLOADS_INTERFACE_PKG.IS_MAINTENANCE_RQRD_FNC CNT FROM DUAL");
-		try{
-			stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery(query);
-			while (rs.next()) {
-			cnt = rs.getString("CNT");
-			}
-		} catch (SQLException e) {
-			System.err.println(e.getErrorCode() + e.getMessage());
-		}finally{
-			stmt.close();
-		}
-		return cnt;
-	}
+    public static boolean isMaintenanceNeeded() throws SQLException {
+        CallableStatement cstmt = null;
+        boolean maintenanceRequired = false;
+        try{
+            cstmt = conn.prepareCall("{?= call POS_DOWNLOADS_INTERFACE_PKG.INIT_LOAD_BY_APP_NAME}");
+            cstmt.registerOutParameter(1,Types.VARCHAR);
+            cstmt.execute();
+            String output = cstmt.getString(1);
+            if (output.equals("Y")) {
+                maintenanceRequired = true;
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getErrorCode() + e.getMessage());
+        }finally{
+            cstmt.close();
+        }
+        return maintenanceRequired;
+    }
 
 	public static void updatePollingRequestId(String pollingRequestId, String appName) throws SQLException {
 		CallableStatement cstmt = null;
@@ -138,24 +139,23 @@ public class DBConnection {
 		Map<String,String> requests = new LinkedHashMap<String,String>();
         String posId = null;
         String appName = null;
+        CallableStatement pstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.GET_POLLING_MAINTENANCE_DTLS(?)}");
         try {
-        	CallableStatement pstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.GET_POLLING_MAINTENANCE_DTLS(?)}");
             pstmt.registerOutParameter(1,OracleTypes.CURSOR);
             pstmt.execute();
             ResultSet rset =((OracleCallableStatement) pstmt).getCursor(1);
             while (rset.next()){
             	posId = rset.getString(1);
             	appName = rset.getString(3);
-//                System.out.println(posId);
-//                System.out.println(appName);
                 requests.put(posId, appName);
             }
             rset.close();
-            pstmt.close();
         } catch (SQLException e) {
             System.err.println(e.getErrorCode() + e.getMessage());
+        } finally {
+        	pstmt.close();
+        	return requests;
         }
-		return requests;
 	}
 	
 	public static void processMaintenanceForPOSId(String PosID, String appName) throws SQLException {

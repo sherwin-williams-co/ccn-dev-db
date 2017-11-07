@@ -28,7 +28,7 @@ public class MaintenanceLoadProcess {
 
 			// Check if there are items to process
 			// Main logic starts
-			if (DBConnection.isMaintenanceNeeded().equals("Y")) {
+			if (DBConnection.isMaintenanceNeeded()) {
 				Map<String,String> posIdAppName = new LinkedHashMap<String,String>();
 				posIdAppName = DBConnection.getPollingRequestsToBeProcessed();
 				System.out.println("**********************************************************************************************");
@@ -59,7 +59,6 @@ public class MaintenanceLoadProcess {
 							if(pollingRequestId != null && !pollingRequestId.isEmpty()){
 								System.out.println("Updating the polling request id");
 								DBConnection.updateMaintenancePollingRequestId(pollingRequestId, pollingAppName);
-								DBConnection.conn.commit();
 								System.out.println("PosID = " + posId + " , appName = " + pollingAppName + " , pollingRequestId = " + pollingRequestId + " PrevReqId = " + ccnPrevRequestID);
 								System.out.println("\n");
 							}else{
@@ -70,6 +69,7 @@ public class MaintenanceLoadProcess {
 						e.printStackTrace();
 						DBConnection.conn.rollback();
 					}
+					DBConnection.conn.commit();
 				}
 				System.out.println("**********************************************************************************************");
 			} else {
