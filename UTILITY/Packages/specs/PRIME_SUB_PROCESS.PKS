@@ -8,8 +8,8 @@ This Function is used to return the POS_DOWNLOADS information
 Created : 04/03/2017 rxv940 CCN Project....
 Changed :
 *******************************************************************************/
-    IN_POS_ID    IN NUMBER,
-    IN_FILE_NAME IN VARCHAR2) RETURN POS_DOWNLOADS_GL_PS%ROWTYPE;
+    IN_POS_ID           IN NUMBER,
+    IN_FILE_NAME        IN VARCHAR2) RETURN POS_DOWNLOADS_GL_PS%ROWTYPE;
 
 PROCEDURE POS_DOWNLOADS_GL_PS_UPD_SP(
 /*******************************************************************************
@@ -46,7 +46,7 @@ Created : 03/31/2017 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
 
-PROCEDURE GEN_POS_DATA_GL_PS_UPD_SP;
+PROCEDURE GEN_POS_DATA_GL_PS_UPD_SP(
 /*******************************************************************************
 This procedure is used to create a GENERAL_LEDGER and PRIME_SUB init load file 
 for the manual updates done.
@@ -54,6 +54,10 @@ for the manual updates done.
 Created : 04/06/2017 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
+    IN_POS_ID            IN      POS_DOWNLOADS_GL_PS.POS_ID%TYPE,
+    OUT_XML_VALUE           OUT  CLOB,
+    OUT_REQ_VALUE           OUT  VARCHAR2,
+    OUT_FILE_NAME           OUT  VARCHAR2);
 
 PROCEDURE POS_DOWNLOADS_GL_PS_UPD_SP(
 /*******************************************************************************

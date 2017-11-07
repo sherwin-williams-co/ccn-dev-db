@@ -16,20 +16,24 @@ FILENAME=SRA31000_${DATE}.TXT
 ftp -inv "${CCNAPPSERVER_HOST}"<<END_SCRIPT
 quote USER ${CCNAPPSERVER_USERNAME}
 quote PASS ${CCNAPPSERVER_PASSWORD}
-put $DATADIR/$FILENAME ${SRA31000_APP_SRVR_PATH}/SRA31000
+put $DATADIR/$FILENAME ${SRA31000_APP_SRVR_PATH}/VALUE_LINK
 quit
 END_SCRIPT
 
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
 status=$?
-TIME=$(date +"%H%M%S")
-if [ $status -gt 0 ]
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]
 then
-    $HOME/send_mail.sh "VALUELINK_FILE_FAILURE" 
-    echo " $PROC_NAME -->  processing FAILED while ftping the files VALUELINK_SRA31000 at $DATE:$TIME "
-       exit 1
+    echo " $proc_name --> processing FAILED while executing ccn_value_link_sra31000_ftp.sh at $DATE:$TIME "
+    ./send_mail.sh "VALUELINK_FILE_FAILURE"
+     exit 1
 fi
-
 echo " $PROC_NAME -->  Files $FILENAME  are transferred to the app server on $DATE:$TIME "
-
 exit 0
 
+###############################################################################################################################
+							END OF THE SCRIPT
+###############################################################################################################################

@@ -128,4 +128,94 @@ EXCEPTION
         RAISE;
 END POS_DOWNLOADS_UPD_SP;
 
+FUNCTION IS_MAINTENANCE_RQRD_FNC 
+/************************************************************************
+This Function checks the file processed status in POS_DOWNLOADS  table and returns 'Y' if 
+there are any unprocessed records 
+
+Created : 11/7/2017  bxa919 CCN Project....
+Changed :
+************************************************************************/
+RETURN VARCHAR2
+IS
+    V_FLAG     VARCHAR2(1) := 'N';
+    V_COUNT    NUMBER := 0;
+BEGIN
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM (SELECT *
+              FROM POS_DOWNLOADS
+              /* Checks the Unprocessed files status*/
+             WHERE FILE_PROCESSED = 'N'
+             UNION
+            SELECT *
+              FROM POS_DOWNLOADS_GL_PS
+              /* Checks the Unprocessed files status*/
+             WHERE FILE_PROCESSED = 'N');
+    IF V_COUNT > 0 THEN
+        V_FLAG := 'Y';
+    END IF;
+    RETURN V_FLAG;
+END IS_MAINTENANCE_RQRD_FNC;
+ 
+ PROCEDURE GET_POLLING_MAINTENANCE_DTLS (
+/*******************************************************************************
+This Function checks the Unprocessed records in POS_DOWNLOAD table and returns the 
+Pos_ID and APPLICATION_NAME details .
+
+Created : 11/7/2017  bxa919 CCN Project....
+Changed :
+*******************************************************************************/
+   OUT_REF_CUR     OUT SYS_REFCURSOR)
+IS
+BEGIN
+    OPEN OUT_REF_CUR FOR
+	      SELECT POS_ID,
+               COST_CENTER_CODE,
+               DECODE(FILE_TYPE, 'POS_STORE_UPDATE', 'STORE',
+                                 'POS_PARAM_UPDATE', 'PARAM',
+                                 'POS_TERRITORY_UPDATE', 'TERR',
+                                 NULL) AS APP_NAME
+          FROM POS_DOWNLOADS
+          /* Checks the Unprocessed files status*/
+         WHERE FILE_PROCESSED = 'N'
+           AND COST_CENTER_CODE NOT IN ('TERRIL', 'STORIL', 'PARAIL')           
+         UNION
+        SELECT POS_ID, ACCNT_NBR, 'PrimeSub' APP_NAME
+         FROM POS_DOWNLOADS_GL_PS
+         /* Checks the Unprocessed files status*/
+        WHERE FILE_PROCESSED = 'N'
+          AND ACCNT_NBR IS NOT NULL
+       ORDER BY 1;
+END GET_POLLING_MAINTENANCE_DTLS;
+
+PROCEDURE PROCESS_POLLING_REQUEST_ID(
+/*******************************************************
+This pocedure passes the POS_ID and invokes the corresponding procedures based
+on the Application name.
+
+Created : 11/7/2017  bxa919 CCN Project....
+Changed :
+*******************************************************/
+    IN_POS_ID		  IN       VARCHAR2,
+    IN_APP_NAME		IN 	     VARCHAR2,
+    OUT_XML			      OUT  CLOB,
+    OUT_FILE_NAME	    OUT  VARCHAR2,
+    OUT_PREV_REQ_ID   OUT  VARCHAR2)
+IS
+BEGIN	
+    IF IN_APP_NAME = 'STORE' THEN
+        POS_DATA_GENERATION.GENERATE_POS_STORE_UPD_SP (IN_POS_ID, OUT_XML, OUT_FILE_NAME, OUT_PREV_REQ_ID);
+    ELSIF IN_APP_NAME = 'PARAM' THEN 
+        POS_DATA_GENERATION.GEN_PARAM_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
+    ELSIF IN_APP_NAME = 'TERR' THEN
+        POS_DATA_GENERATION.GEN_POS_TERRITORY_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
+    ELSIF IN_APP_NAME = 'PrimeSub' THEN
+        PRIME_SUB_PROCESS.GEN_POS_DATA_GL_PS_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
+    END IF;
+EXCEPTION 
+    WHEN OTHERS THEN
+       RAISE;
+END PROCESS_POLLING_REQUEST_ID;		
+ 
 END POS_DOWNLOADS_INTERFACE_PKG;
