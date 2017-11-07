@@ -59,15 +59,6 @@ Changed :
     OUT_REQ_VALUE      OUT  VARCHAR2,
     OUT_FILE_NAME      OUT  VARCHAR2);
 
---PROCEDURE POS_MASTER_SP(
---/*******************************************************************************
---This procedure is used to generate file based upon the costcentercode and filetype.
---
---Created : 10/17/2016 MXK766 CCN Project....
---Changed :
---*******************************************************************************/
---   IN_COST_CENTER_CODE             IN  POS_DOWNLOADS.COST_CENTER_CODE%TYPE);
-
 FUNCTION CHECK_COST_CENTER_CATEGORY(
 /*******************************************************************************
 This function is used to return the category from the cost center table.
