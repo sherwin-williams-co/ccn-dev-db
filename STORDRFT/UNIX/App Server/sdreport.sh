@@ -12,8 +12,10 @@
 #            : 09/13/2017 rxa457 CCN Project Team...
 #                redirecting strerror and stdout to a separate log file to capture
 #                  current report run error information
+# modified: mxv711 11/07/2017 added unset Display for fixing the display issues JIRA : ASP-906
 ##########################################################
 
+unset DISPLAY 
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 dt=`date +"%m%d%Y"`
