@@ -18,11 +18,6 @@ public class MessageQueueProcess {
 	public static Properties prop = new Properties();
 	public static void main(String[] args) throws Exception {
 		if (args.length == 3) {
-			// Invoke Configuration file to set properties
-			InputStream input = new FileInputStream("config.properties");
-			prop.load(input);
-			// Connect to DB
-			DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 			MQConnectionFactory f = new MQConnectionFactory();
 			f.setCCDTURL(new URL("file:///"+args[0]));               
 			// CCDT file (Client Channel Definition Table) - IBM-proprietary format configuration file for connection details 
@@ -57,13 +52,24 @@ public class MessageQueueProcess {
 			if (out_message != null 
 					&& out_message.length() > 0
 					&& out_message.charAt(out_message.length() - 1) == ',') {
-				out_message = out_message.substring(0, out_message.length() - 1);
+				
+				try {
+					out_message = out_message.substring(0, out_message.length() - 1);
+					// Invoke Configuration file to set properties
+					InputStream input = new FileInputStream("config.properties");
+					prop.load(input);
+					// Connect to DB
+					DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
+					String validatedMessage = DBConnection.validateQueueMessages(out_message);
+					if (validatedMessage != null && !validatedMessage.isEmpty()) {
+						System.out.println("["+validatedMessage+"]");
+					} 
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					DBConnection.closeConnection();
+				}
 			}
-			String validatedMessage = DBConnection.validateQueueMessages(out_message);
-			if (validatedMessage != null && !validatedMessage.isEmpty()) {
-				System.out.println("["+validatedMessage+"]");
-			}
-			
 		} else {
 			System.out.println("Invalid Number of arguments passed.");
 		}
