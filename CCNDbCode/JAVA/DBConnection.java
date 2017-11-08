@@ -51,11 +51,28 @@ public class DBConnection {
 		}
 	}
 	
+	public static String validateQueueMessages(String queueMessage) throws SQLException {
+		CallableStatement cstmt = null;
+		String validStores = null;
+		try{
+			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.VALIDATE_POS_QUEUE_MESSAGE(?,?)}");
+			cstmt.setString(1, queueMessage);
+			cstmt.registerOutParameter(2,Types.VARCHAR);
+			cstmt.execute();
+			validStores = cstmt.getString(2);
+		} catch (SQLException e) {
+			System.err.println(e.getErrorCode() + e.getMessage());
+		}finally{
+			cstmt.close();
+		}
+		return validStores;
+	}
+	
     public static boolean isMaintenanceNeeded() throws SQLException {
         CallableStatement cstmt = null;
         boolean maintenanceRequired = false;
         try{
-            cstmt = conn.prepareCall("{?= call POS_DOWNLOADS_INTERFACE_PKG.INIT_LOAD_BY_APP_NAME}");
+            cstmt = conn.prepareCall("{?=call POS_DOWNLOADS_INTERFACE_PKG.IS_MAINTENANCE_RQRD_FNC}");
             cstmt.registerOutParameter(1,Types.VARCHAR);
             cstmt.execute();
             String output = cstmt.getString(1);

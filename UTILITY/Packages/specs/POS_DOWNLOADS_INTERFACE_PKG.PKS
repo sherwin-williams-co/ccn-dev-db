@@ -39,8 +39,8 @@ Changed : 06/02/2017 rxv940 CCN Project....
 *******************************************************************************/
     IN_APP_NAME  VARCHAR2, -- can be "STORE", "TERR", "PARAM', "PrimeSub", "TAXCURR"
     IN_FILE_NAME POS_DOWNLOADS.FILE_NAME%TYPE,
-    IN_RQST_ID   POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE);
-
+    IN_RQST_ID   POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE); 
+    
 FUNCTION IS_MAINTENANCE_RQRD_FNC 
 /************************************************************************
 This Function checks the file processed status in POS_DOWNLOADS  table and returns 'Y' if 
@@ -75,6 +75,15 @@ OUT_XML			     OUT CLOB,
 OUT_FILE_NAME	   OUT VARCHAR2,
 OUT_PREV_REQ_ID	 OUT VARCHAR2
 ); 
- 
+
+PROCEDURE VALIDATE_POS_QUEUE_MESSAGE(
+/*******************************************************************************
+This procedure is used to create an WS diff file with the list of newly added cost centers
+
+Created : 11/08/2017 rxv940 CCN Project....
+Changed : 
+*********************************************************************************/
+      IN_STR_LIST   IN     VARCHAR2,
+      OUT_LIST         OUT VARCHAR2);
 
 END POS_DOWNLOADS_INTERFACE_PKG;

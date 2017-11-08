@@ -220,4 +220,68 @@ EXCEPTION
        RAISE;
 END PROCESS_POLLING_REQUEST_ID;        
 
+PROCEDURE VALIDATE_POS_QUEUE_MESSAGE(
+/*******************************************************************************
+This procedure is used to create an WS diff file with the list of newly added cost centers
+
+Created : 11/08/2017 rxv940 CCN Project....
+Changed : 
+*********************************************************************************/
+      IN_STR_LIST   IN     VARCHAR2,
+      OUT_LIST         OUT VARCHAR2)
+IS
+    V_STR_LST          VARCHAR2(32767) := IN_STR_LIST; 
+    V_FNL_STR_LST      VARCHAR2(32767); 
+    V_CC_LIST          DBMS_UTILITY.UNCL_ARRAY;
+    V_LIST_CUNT        NUMBER;
+    V_COST_CENTER_CODE VARCHAR2(6);
+    V_INVALID_CC_LIST  CLOB;
+    V_MAIL_TXT         VARCHAR2(250);
+BEGIN
+    IF V_STR_LST <> '[]' THEN
+        V_STR_LST := REPLACE(REPLACE(V_STR_LST, '['), ']');
+        DBMS_UTILITY.COMMA_TO_TABLE('J'||REPLACE(V_STR_LST, ', ', ',J'), V_LIST_CUNT, V_CC_LIST);
+        --DBMS_UTILITY.COMMA_TO_TABLE expects J at the beginning of all list items
+        FOR i IN 1..V_LIST_CUNT LOOP
+            BEGIN
+                V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(TRIM(SUBSTR(V_CC_LIST(i),2, 4)));
+            EXCEPTION
+                WHEN OTHERS THEN
+                    V_INVALID_CC_LIST := V_INVALID_CC_LIST || TRIM(SUBSTR(V_CC_LIST(i),2, 4)) || ',';
+                    CONTINUE;
+            END;
+            BEGIN
+                FOR rec IN (SELECT 'STORE' AS APP_NAME FROM DUAL
+                            UNION
+                            SELECT 'TERR' AS APP_NAME FROM DUAL
+                            UNION
+                            SELECT 'PrimeSub' AS APP_NAME FROM DUAL
+                            UNION
+                            SELECT 'TAXCURR' AS APP_NAME FROM DUAL) LOOP
+                     INSERT INTO POS_NEW_STORES_LOAD_LIST (COST_CENTER_CODE, APPLICATION_NAME, PROCESS_DATE, PROCESSED_IND)
+                     VALUES (V_COST_CENTER_CODE, rec.APP_NAME, SYSTIMESTAMP, 'N');
+                END LOOP;
+                V_FNL_STR_LST := V_FNL_STR_LST ||
+                                 SUBSTR(V_COST_CENTER_CODE, 3, 4) ||
+                                 ',';
+                OUT_LIST := V_FNL_STR_LST;
+            EXCEPTION
+                WHEN DUP_VAL_ON_INDEX THEN
+                    NULL; --this is OK as we already have that record in the table
+                WHEN OTHERS THEN
+                    RAISE; --not OK as something else happened
+            END;
+            V_COST_CENTER_CODE := NULL;
+        END LOOP;
+        OUT_LIST := TRIM(TRAILING ',' FROM OUT_LIST);
+    END IF;
+    IF V_INVALID_CC_LIST IS NOT NULL THEN
+        V_MAIL_TXT := 'Invalid stores ' || TRIM(TRAILING ',' FROM V_INVALID_CC_LIST) || ' found in the Queue Message for downloads.';
+        MAIL_PKG.SEND_MAIL('RequestidFailure', NULL, NULL, V_MAIL_TXT);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+    RAISE;        
+END VALIDATE_POS_QUEUE_MESSAGE;
+
 END POS_DOWNLOADS_INTERFACE_PKG;

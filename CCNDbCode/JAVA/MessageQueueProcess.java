@@ -1,5 +1,7 @@
 package com.polling.downloads;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.Properties;
 
@@ -10,11 +12,17 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 
 import com.ibm.mq.jms.MQConnectionFactory;
+import com.polling.dbcalls.DBConnection;
 
 public class MessageQueueProcess {
 	public static Properties prop = new Properties();
 	public static void main(String[] args) throws Exception {
 		if (args.length == 3) {
+			// Invoke Configuration file to set properties
+			InputStream input = new FileInputStream("config.properties");
+			prop.load(input);
+			// Connect to DB
+			DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 			MQConnectionFactory f = new MQConnectionFactory();
 			f.setCCDTURL(new URL("file:///"+args[0]));               
 			// CCDT file (Client Channel Definition Table) - IBM-proprietary format configuration file for connection details 
@@ -35,7 +43,7 @@ public class MessageQueueProcess {
 						out_message = tm.getText();
 						if (out_message.length() > 0) {
 							if(! out_message.contains(tm.getText())){
-								out_message = out_message + tm.getText() + ",";
+								out_message = out_message + tm.getText() + ", ";
 							}
 						} 
 					}
@@ -51,7 +59,11 @@ public class MessageQueueProcess {
 					&& out_message.charAt(out_message.length() - 1) == ',') {
 				out_message = out_message.substring(0, out_message.length() - 1);
 			}
-			System.out.println(out_message);
+			String validatedMessage = DBConnection.validateQueueMessages(out_message);
+			if (validatedMessage != null && !validatedMessage.isEmpty()) {
+				System.out.println("["+validatedMessage+"]");
+			}
+			
 		} else {
 			System.out.println("Invalid Number of arguments passed.");
 		}
