@@ -12,7 +12,9 @@
 #            : 09/13/2017 rxa457 CCN Project Team...
 #                redirecting strerror and stdout to a separate log file to capture
 #                  current report run error information
-# modified: mxv711 11/07/2017 added unset Display for fixing the display issues JIRA : ASP-906
+# modified: mxv711 11/07/2017 added unset Display for fixing the display issues JIRA : ASP-906(PuTTY X11 proxy: unable to connect to forwarded X server: 
+#           Network error: Connection refused  com.crystaldecisions.sdk.occa.report.lib.ReportSDKException: Can't connect to X11 window server using 'localhost:10.0' as the value of the DISPLAY variable.
+#           Error code:-2147467259 Error code name:failed ) this error cannot be produced in DEV,test or QA environments.
 ##########################################################
 
 unset DISPLAY 
