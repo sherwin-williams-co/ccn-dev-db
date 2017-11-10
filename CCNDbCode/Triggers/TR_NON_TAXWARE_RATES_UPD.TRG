@@ -1,7 +1,8 @@
-CREATE OR REPLACE TRIGGER TR_NON_TAXWARE_RATES_UPD
+create or replace TRIGGER TR_NON_TAXWARE_RATES_UPD
 /**********************************************************
 created : 09/11/2017  rxv940 CCN Project Team....
-Modified: 
+Modified: 11/10/2017 rxv940 CCN Project Team....
+        : Changed condition for processing Dates
 **********************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.NON_TAXWARE_RATES
 REFERENCING NEW AS NEW OLD AS OLD
@@ -41,14 +42,16 @@ BEGIN
                NVL(:OLD.STATEMENT_TYPE,'XX')               <> NVL(:NEW.STATEMENT_TYPE,'XX') OR
                NVL(:OLD.TAX_TYPE,'XXX')                    <> NVL(:NEW.TAX_TYPE,'XXX') OR
                NVL(:OLD.REGISTRATION_NUMBER,'-99999999')   <> NVL(:NEW.REGISTRATION_NUMBER,'-99999999') OR
-               NOT(
-                  (:OLD.EFFECTIVE_DATE           = :NEW.EFFECTIVE_DATE) OR 
-                  (:OLD.EFFECTIVE_DATE IS NULL AND :NEW.EFFECTIVE_DATE IS NULL)
-                  ) OR
-               NOT(
-                  (:OLD.EXPIRATION_DATE          = :NEW.EXPIRATION_DATE) OR 
-                  (:OLD.EXPIRATION_DATE IS NULL AND :NEW.EXPIRATION_DATE IS NULL)
-                  ) THEN      
+               (
+               (:OLD.EFFECTIVE_DATE               <> :NEW.EFFECTIVE_DATE) OR 
+               (:OLD.EFFECTIVE_DATE IS NULL AND :NEW.EFFECTIVE_DATE IS NOT NULL) OR
+               (:OLD.EFFECTIVE_DATE IS NOT NULL AND :NEW.EFFECTIVE_DATE IS NULL)
+               ) OR
+               (
+               (:OLD.EXPIRATION_DATE              <> :NEW.EXPIRATION_DATE) OR 
+               (:OLD.EXPIRATION_DATE IS NULL AND :NEW.EXPIRATION_DATE IS NOT NULL) OR
+               (:OLD.EXPIRATION_DATE IS NOT NULL AND :NEW.EXPIRATION_DATE IS NULL)
+               ) THEN    
                
                    POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_row.COUNTRY_CODE,
                                                                    'NON_TAXWARE_RATES', 

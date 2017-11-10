@@ -1,9 +1,10 @@
-CREATE OR REPLACE TRIGGER TR_HIER_DETAIL_FUTURE_UPD 
+create or replace TRIGGER TR_HIER_DETAIL_FUTURE_UPD 
 /*******************************************************************************
 This trigger fires on an insert/ update on HIERARCHY_DETAIL_FUTURE table
 
 Created : 08/02/2017 rxv940 CCN Project Team....
-Changed : 
+Modified: 11/10/2017 rxv940 CCN Project Team....
+        : Changed condition for processing Dates
 
 *******************************************************************************/
 BEFORE INSERT OR UPDATE ON HIERARCHY_DETAIL_FUTURE
@@ -44,12 +45,11 @@ BEGIN
                 (
                 NVL(:OLD.HRCHY_DTL_CURR_LVL_VAL,'XXX') <> NVL(:NEW.HRCHY_DTL_CURR_LVL_VAL,'XXX')
                 OR 
-                    NOT 
-                       (
-                       (:OLD.HRCHY_DTL_EFF_DATE = :NEW.HRCHY_DTL_EFF_DATE) 
-                       OR 
-                       (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
-                       )
+                (
+                (:OLD.HRCHY_DTL_EFF_DATE               <> :NEW.HRCHY_DTL_EFF_DATE) OR 
+                (:OLD.HRCHY_DTL_EFF_DATE IS NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NOT NULL) OR
+                (:OLD.HRCHY_DTL_EFF_DATE IS NOT NULL AND :NEW.HRCHY_DTL_EFF_DATE IS NULL)
+                ) 
                 )
                 THEN
 
