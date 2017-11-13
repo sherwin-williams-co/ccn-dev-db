@@ -5,6 +5,7 @@
 # Description   : This script is to run the generate_value_link procedure
 #
 # Created  		: 11/06/2017 BXA919 CCN Project Team.....
+# Modified 		: 11/13/2017 bxa919 Added exit condition
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -44,7 +45,7 @@ fi
 
 $HOME/ccn_value_link_sra31000_ftp.sh 
 
-exit 0;
+exit 0
 
 ###############################################################################################################################
 							END OF THE SCRIPT
