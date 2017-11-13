@@ -2942,16 +2942,4 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
-/*********************************************************** 
-The "en_currency_code_null_err" passes a numerical error of -20185.
-This error will state the currency code is missing for Stores. 
-
-created : 11/10/2017 sxg151  CCN Project Team...
-revisions: 
-************************************************************/
-en_currency_code_null_err CONSTANT NUMBER := -20185;
-exc_invalid_duns_number_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_duns_number_err , -20185);
-
 END ERRNUMS;
