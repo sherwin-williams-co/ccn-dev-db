@@ -261,6 +261,24 @@ created : TAL 06/01/2012
  ,inTERRITORY_ROWTYPE      IN   TERRITORY%ROWTYPE )
 ;	
 -- 
+
+PROCEDURE CHECK_ADDRESS_TAG ( 
+/*****************************************************************************
+	CHECK_ADDRESS_TAG
+
+	This procedure is intended to enforce the Business Rules
+	for Cost center insert/update to have atleast one address element:
+  
+  1.)  Check if cost center insert or update have atleast one address element added.
+
+
+created : mxv711 11/09/2017 ASP-909
+
+******************************************************************************/	
+  in_COST_CENTER_CATEGORY IN COST_CENTER.CATEGORY%TYPE
+ ,in_Row_data    IN xmltype)	;
+--
+
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                        TABLE SPECIFIC BUSINESS RULES SECTION
 **++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/

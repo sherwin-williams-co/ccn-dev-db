@@ -2931,6 +2931,17 @@ en_prog_name_del_err CONSTANT NUMBER := -20181;
 exc_prog_name_del_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
 
+/***********************************************************
+The "no_address_element_err" passes a numerical error of -20182.
+An error occurs when cost center insert or update do not have address element.
+
+created : 11/09/2017 mxv711 ASP-909 CCN Project Team....
+revisions:
+************************************************************/
+en_no_address_element_err CONSTANT NUMBER := -20182;
+exc_no_address_element_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
+
 /*********************************************************** 
 The "en_currency_code_null_err" passes a numerical error of -20185.
 This error will state the currency code is missing for Stores. 
