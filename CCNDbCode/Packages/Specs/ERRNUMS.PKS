@@ -2931,4 +2931,16 @@ en_prog_name_del_err CONSTANT NUMBER := -20181;
 exc_prog_name_del_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
 
+/*********************************************************** 
+The "en_currency_code_null_err" passes a numerical error of -20185.
+This error will state the currency code is missing for Stores. 
+
+created : 11/10/2017 sxg151  CCN Project Team...
+revisions: 
+************************************************************/
+en_currency_code_null_err CONSTANT NUMBER := -20185;
+exc_invalid_duns_number_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_duns_number_err , -20185);
+
 END ERRNUMS;
