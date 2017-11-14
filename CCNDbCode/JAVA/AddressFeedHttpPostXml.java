@@ -14,15 +14,9 @@ import java.util.Properties;
 
 import com.descartes.dbcalls.DBConnectionDscrts;
 
-public class AddressFeedHttpPostXml {
-	private static String date = "";
-	//    private static String initLoadInd = "";
+public class AddressFeedHttpPostXml{
 	public static Properties prop = new Properties();
 	public static void main(String[] args){
-		date = args[0];
-		//		initLoadInd = args[1];
-		//date = "2017-11-01"; //yyyy-mm-dd
-		//initLoadInd = "N";
 		try{
 			System.out.println("Configuring properties");
 			InputStream input = new FileInputStream("config.properties");
@@ -31,12 +25,8 @@ public class AddressFeedHttpPostXml {
 			System.out.println("Connecting to database");
 			DBConnectionDscrts.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 			Map<String,String> requests;
-			//			if(initLoadInd.equalsIgnoreCase("Y")){
-			//				requests = DBConnection.getInitlaodRequest();
-			//			}else{
 			System.out.println("Getting all the requests to process");
-			requests = DBConnectionDscrts.getRequests(date);
-			//			}
+			requests = DBConnectionDscrts.getRequests();
 			String response;
 			for (Map.Entry<String, String> request : requests.entrySet()) {
 				DBConnectionDscrts.conn.setAutoCommit(false);

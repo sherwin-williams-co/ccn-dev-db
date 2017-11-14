@@ -82,6 +82,12 @@ Changed : 09/28/2017 rxa457 CCN project Team...
           Hard coded the values for SENDER_ID, RECEIVER_ID and DOC_TYPE as per Descates
 Changed : 10/31/2017 jxc517 CCN Project Team...
           Modified code to add comments, fix home store issue for territory/dispatch terminals
+Changed : 11/7/2017 jxc517 CCN Project Team...
+          As per email from 11/6/2017, we are supposed to send home stores hierarchy details and
+          not actual dispatch/terminal stores hierarchy details
+        : 11/09/2017 nxk927 CCN Project Team...
+          Restricting the drivers with the Dispatch terminal cost centers only.
+          Hierarchy details needs to be based on the home store
 **********************************************************/
 IS
     CURSOR driver_cur IS
@@ -91,6 +97,7 @@ IS
                COST_CENTER C
          WHERE UPPER(ED.EMP_PAYROLL_STATUS)    = 'ACTIVE'
            AND UPPER(ED.JOB_TITLE)             = 'DRIVER'
+           AND C.CATEGORY                      = 'D'
            AND ED.COST_CENTER_CODE             = C.COST_CENTER_CODE
            AND C.COUNTRY_CODE                  IN ('USA','CAN','PRI')
           ORDER BY EMPLOYEE_NAME;
@@ -227,7 +234,8 @@ BEGIN
             --need to get the manager based on drivers home store
             V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(V_HOME_STORE);
 
-            FOR rec1 IN glbl_hrchy_cur(rec.COST_CENTER_CODE) LOOP
+            --Need to get the home store hierarchy details instead of dispatch terminal/territory hierarchy details
+            FOR rec1 IN glbl_hrchy_cur(V_HOME_STORE) LOOP
                 V_GLBL_HRCHY_REC := rec1;
             END LOOP;
          
@@ -370,6 +378,8 @@ This process is used to build a pipe delimited hierarchy file for descartes
 Created : 09/21/2017 jxc517 CCN Project Team...
 Changed : 09/28/2017 rxa457 CCN project Team...
            Time format changed to hh24 on the header as per the document
+        : 11/09/2017 nxk927 CCN project Team...
+          no need to get the home store as the store being passed will be home store
 **********************************************************/
     IN_COST_CENTER_CODE  IN     VARCHAR2,
     IN_INS_UPD_IND       IN     VARCHAR2,
@@ -411,15 +421,15 @@ BEGIN
         END;
         
         --Get home store for the input cost center
-        V_HOME_STORE       := NVL(COMMON_TOOLS.GET_HOMESTORE(IN_COST_CENTER_CODE, V_COST_CENTER_REC.CATEGORY), IN_COST_CENTER_CODE);
+        --V_HOME_STORE       := NVL(COMMON_TOOLS.GET_HOMESTORE(IN_COST_CENTER_CODE, V_COST_CENTER_REC.CATEGORY), IN_COST_CENTER_CODE);
         
         --Get home store managert details
-        V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(V_HOME_STORE);
+        V_HOME_STR_MGR_REC := GET_STORE_MGR_DTLS(IN_COST_CENTER_CODE);
         BEGIN
             SELECT *
               INTO V_PHONE_REC
               FROM CCN_PHONE_INFO_VW
-             WHERE COST_CENTER_CODE = V_HOME_STORE;
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
         EXCEPTION
             WHEN OTHERS THEN
                 NULL;
@@ -466,7 +476,7 @@ BEGIN
                         ' ContactFirstName="' || V_HOME_STR_MGR_REC.FIRST_NAME || '"' ||
                         ' ContactLastName="' || V_HOME_STR_MGR_REC.LAST_NAME || '"' ||
                         ' ContactPhone="' || V_PHONE_REC.PRIMARY_PHONE_NUMBER || '"' ||
-                        ' ContactEmail="' || 'sw' || SUBSTR(V_HOME_STORE,3) || '@sherwin.com' || '"' ||
+                        ' ContactEmail="' || 'sw' || SUBSTR(IN_COST_CENTER_CODE,3) || '@sherwin.com' || '"' ||
                         ' LocationRefNo="'|| IN_COST_CENTER_CODE ||'" />';
         --DBMS_OUTPUT.PUT_LINE(V_CLOB);
     END IF;
@@ -537,6 +547,10 @@ This process is used to build a pipe delimited hierarchy file for descartes
 Created : 09/21/2017 jxc517 CCN Project Team...
 Changed : 09/28/2017 rxa457 CCN project Team...
            Time format changed to hh24 on the header as per the document
+        : 11/09/2017 nxk927 CCN project Team...
+          Only home store should be considered for the address feed
+        : 11/13/2017 nxk927 CCN project Team...
+          inserting all the store cost center for the initial run.
 **********************************************************/
     OUT_CLOB       OUT  CLOB,
     OUT_GUID       OUT  VARCHAR2)
@@ -545,18 +559,51 @@ IS
     V_COST_CENTER_CODE        VARCHAR2(6) := 'INITLD';
     V_ACTION                  VARCHAR2(6) := 'INSERT';
 
-    CURSOR main_cur IS
-        --Get all the active cost centers in USA/CAN/PRI with category as S (or) D
+    CURSOR store_cur IS
+        --Get all the active cost centers in USA/CAN/PRI with category as S
         SELECT COST_CENTER_CODE
-          FROM COST_CENTER
-         WHERE CLOSE_DATE IS NULL
-           AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
-           AND CATEGORY IN ('S', 'D')
-           AND COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
+          FROM COST_CENTER C
+         WHERE C.CATEGORY = 'S'
+           AND C.CLOSE_DATE IS NULL
+           AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
+
+    CURSOR main_cur IS
+        --Get all the Dispatch Terminal Home Stores for Initial load process
+        SELECT HOME_STORE 
+          FROM DISPATCH_TERMINAL DT,
+               COST_CENTER C
+         WHERE C.COST_CENTER_CODE = DT.HOME_STORE
+           AND C.CLOSE_DATE IS NULL
+           AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
 BEGIN
+/*
+Steps:
+1) We need to truncate the trigger/tracking table for initial load
+2) Since a store can become a home store at any point just by attaching it to a dispatch terminal,
+   we need to store all existing stores as INSERT and Not-Processed
+3) Then we need to take all home stores and loop through them and mark them as Processed,
+   which helps us identify the subsequent changes as UPDATE requests
+4) We need to tie back all initial load processed cost centers with its bulk request GUID
+*/
+    --Initial load to clean up the trigger/tracking table
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE DESCARTES_ADRS_FEED_CC';
+    
     --Insert record into DESCARTES_ADRS_FEED_CC to hold the GUID of the request being sent
     INS_DESCARTES_ADRS_FEED_CC(V_COST_CENTER_CODE, V_ACTION, OUT_GUID);
 
+    --Insert alll store records into DESCARTES_ADRS_FEED_CC table for future reference of INSERT/UPDATE
+    FOR rec1 IN store_cur LOOP
+       --Marking home store as processed
+       INSERT INTO DESCARTES_ADRS_FEED_CC(COST_CENTER_CODE,
+                                          TRIGGERED_DATE,
+                                          TRIGGER_ACTION,
+                                          GUID)
+       VALUES(rec1.COST_CENTER_CODE,
+              TRUNC(SYSDATE) - 1,
+              'INSERT',
+              REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'));
+    END LOOP;
+    
     --Build the header tags for Descartes DocLocartion xml request
     BUILD_ADDRESS_DATA_HDR(V_COST_CENTER_CODE, V_ACTION, V_CLOB);
     
@@ -566,19 +613,24 @@ BEGIN
         V_CLOB := NULL;
 
         --Build the DocLocation tag
-        BUILD_ADDRESS_DATA_FOR_CC(rec.COST_CENTER_CODE, 'INSERT', V_CLOB);
+        BUILD_ADDRESS_DATA_FOR_CC(rec.HOME_STORE, 'INSERT', V_CLOB);
 
         IF V_CLOB <> EMPTY_CLOB() THEN
             OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
         END IF;
+        
+        --Update request details for the home store as part of initial load
+        --Since the request is not per store, we are referencing using the GUIS of "INITLD" cost center
+        UPD_DESCARTES_ADRS_FEED_CC(rec.HOME_STORE, 'Initial Load : bulk xml can be referenced using GUID : ' || OUT_GUID);
     END LOOP;
 
     --Build the trailer tags for Descartes DocLocartion xml request
     BUILD_ADDRESS_DATA_TRLR(V_CLOB);
     OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
 
-    --Save the request XML being sent
+    --Save the request XML being sent and mark the initial load as processed
     UPD_DESCARTES_ADRS_FEED_CC(V_COST_CENTER_CODE, OUT_CLOB);
+    COMMIT;
 EXCEPTION
    WHEN OTHERS THEN  
       ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_DESCARTES_PROCESS.GNRT_DSCRTS_ADDRESS_INIT_FILE', SUBSTR(SQLERRM,1,500), NULL);
@@ -628,21 +680,35 @@ Created : 09/21/2017 jxc517 CCN Project Team...
 Changed : 10/18/2017 jxc517 CCN Project Team...
           Based on discussion with Keith we need to send details only for
           Dispatch Terminal and Store category cost centers
+        : 11/09/2017 nxk927 CCN Project Team...
+          only home store should be considered for the descartes address feed
+        : 11/13/2017 nxk927 CCN Project Team...
+          Changed the signature to remove the date parameter
+          if a store is attached as home store to a dispatch terminal at later point,
+          we need to send that cost center as well. We need to send everything that
+          is not processed
 **********************************************************/
-    IN_DATE       IN      DATE,  
     OUT_REF_CUR      OUT  SYS_REFCURSOR)
 IS
 BEGIN
+/*
+1) If cost center is added newly and attached to a new dispatch terminal --> INSERT
+2) If an existing home store attached to a new dispatch terminal, but no address change on home store --> NOTHING TO SEND
+3) If an existing home store attached to a new dispatch terminal, but there is an address change on home store --> UPDATE
+4) If existing cost center is attached to a new dispatch terminal --> INSERT
+*/
     OPEN OUT_REF_CUR FOR
-        --Get all the cost centers that got address added/maintained the previous day
+        --Get all the home store cost centers that got non-processed address added/maintained
         SELECT *
           FROM DESCARTES_ADRS_FEED_CC A
-         WHERE TRIGGERED_DATE = IN_DATE - 1
-           AND PROCESS_DATE IS NULL
-           AND EXISTS (SELECT 1
-                         FROM COST_CENTER
-                        WHERE COST_CENTER_CODE = A.COST_CENTER_CODE
-                          AND CATEGORY IN ('S','D'));
+         WHERE COST_CENTER_CODE IN (SELECT HOME_STORE
+                                      FROM DISPATCH_TERMINAL DT,
+                                           COST_CENTER C
+                                     WHERE C.COST_CENTER_CODE = A.COST_CENTER_CODE
+                                       AND C.COST_CENTER_CODE = DT.HOME_STORE
+                                       AND C.CLOSE_DATE IS NULL
+                                       AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN'))
+          AND PROCESS_DATE IS NULL;
 END DESCARTES_ADRS_FEED_CC_SP;
 
 PROCEDURE DESCARTE_ADRS_FEED_RESP_CC_UPD(
@@ -667,21 +733,49 @@ This procedure is intended to insert into INSERT_DESCARTES_ADRS_FEED_CC
 table with the details related to the Descartes address details feed run
 
 Created : 10/11/2017 rxa457 CCN project....
-Modified: 
+Modified: 11/13/2017 nxk927 CCN project....
+          Code change to inclide only S category store and only insert record if the old record
+          is processed
 **********************************************************/
     IN_COST_CENTER_CODE            IN  DESCARTES_ADRS_FEED_CC.COST_CENTER_CODE%TYPE,
     IN_TRIGGER_ACTION              IN  DESCARTES_ADRS_FEED_CC.TRIGGER_ACTION%TYPE)
 IS 
     V_DESCARTES_ADRS_FEED_CC DESCARTES_ADRS_FEED_CC%ROWTYPE;
+    V_COUNT                  NUMBER := 0;
+    V_CATEGORY               COST_CENTER.CATEGORY%TYPE;
 BEGIN
-    INSERT INTO DESCARTES_ADRS_FEED_CC(COST_CENTER_CODE,
-                                       TRIGGERED_DATE,
-                                       TRIGGER_ACTION,
-                                       GUID)
-    VALUES(IN_COST_CENTER_CODE,
-           TRUNC(SYSDATE),
-           IN_TRIGGER_ACTION,
-           REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'));
+    --Check if the cost center category is "S", if not we do nothing as Descartes cares only about home stores
+    BEGIN
+        SELECT CATEGORY
+          INTO V_CATEGORY
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND COUNTRY_CODE IN ('USA', 'CAN', 'PRI');
+    EXCEPTION
+        WHEN OTHERS THEN NULL;
+    END;
+
+    IF V_CATEGORY = 'S' THEN
+        --Check if the record already exists in our trigger table that is not processed
+        --If it does we do not need to insert one more trigger record
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM DESCARTES_ADRS_FEED_CC
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND PROCESS_DATE IS NULL;
+
+        IF V_COUNT = 0 THEN
+            --If there is not unprocessed record, then we will insert one from trigger
+            INSERT INTO DESCARTES_ADRS_FEED_CC(COST_CENTER_CODE,
+                                               TRIGGERED_DATE,
+                                               TRIGGER_ACTION,
+                                               GUID)
+            VALUES(IN_COST_CENTER_CODE,
+                   TRUNC(SYSDATE),
+                   IN_TRIGGER_ACTION,
+                   REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'));
+        END IF;
+    END IF;
 EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN
         --This is OK as we need to use the oldest INSERT/UPDATE trigger for that day

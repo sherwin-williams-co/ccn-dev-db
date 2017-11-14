@@ -5,7 +5,8 @@
 #
 #
 # Created  : 10/16/2017 jxc517 CCN Project Team.....
-# Modified : 
+# Modified : 11/13/2017 jxc517 CCN Project Team.....
+#            Removed date parameter in the Java call
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -21,7 +22,7 @@ TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Call to the JAVA class started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
 cd "$CLASSHOME" || exit
-feedLog=$(java com.descartes.httppost.AddressFeedHttpPostXml "$DATE")
+feedLog=$(java com.descartes.httppost.AddressFeedHttpPostXml)
 
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE

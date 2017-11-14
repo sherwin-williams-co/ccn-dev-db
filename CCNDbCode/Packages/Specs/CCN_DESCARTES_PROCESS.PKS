@@ -36,9 +36,9 @@ PROCEDURE DESCARTES_ADRS_FEED_CC_SP(
 This process is used to build a pipe delimited hierarchy file for descartes
 
 Created : 09/21/2017 jxc517 CCN Project Team...
-Changed : 
+Changed : 11/13/2017 nxk927 CCN Project Team...
+          Changed the signature to remove the date parameter
 **********************************************************/
-    IN_DATE       IN      DATE,  
     OUT_REF_CUR      OUT  SYS_REFCURSOR);
 
 PROCEDURE DESCARTE_ADRS_FEED_RESP_CC_UPD(
