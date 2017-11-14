@@ -36,24 +36,15 @@ BEGIN
                                                             'POS_NON_TXWR_RT_UPDATE'
                                                             );
         ELSIF UPDATING THEN
-            IF NVL(:OLD.DISPLAY_VAT_FLAG,'XXX')   <> NVL(:NEW.DISPLAY_VAT_FLAG,'XXX') OR 
-               NVL(:OLD.CURRENCY_TYPE,'XXX')      <> NVL(:NEW.CURRENCY_TYPE,'XXX') OR
-               NVL(:OLD.TAXID_NUMBER,'XXX')       <> NVL(:NEW.TAXID_NUMBER,'XXX') OR
-               NVL(:OLD.TAXID_DESCRIPTION,'XXX')  <> NVL(:NEW.TAXID_DESCRIPTION,'XXX') OR
-               NVL(:OLD.VAT_TAX_ID,'XXX')         <> NVL(:NEW.VAT_TAX_ID,'XXX') OR
-               NVL(:OLD.CONVERSION_RATE,'-99.999')<> NVL(:NEW.CONVERSION_RATE,'-99.999') OR
-               NVL(:OLD.COUNTRY_CODE, 'XXX')      <> NVL(:NEW.COUNTRY_CODE, 'XXX') OR
-               (
-               (:OLD.EFFECTIVE_DATE               <> :NEW.EFFECTIVE_DATE) OR 
-               (:OLD.EFFECTIVE_DATE IS NULL AND :NEW.EFFECTIVE_DATE IS NOT NULL) OR
-               (:OLD.EFFECTIVE_DATE IS NOT NULL AND :NEW.EFFECTIVE_DATE IS NULL)
-               ) OR
-               (
-               (:OLD.EXPIRATION_DATE              <> :NEW.EXPIRATION_DATE) OR 
-               (:OLD.EXPIRATION_DATE IS NULL AND :NEW.EXPIRATION_DATE IS NOT NULL) OR
-               (:OLD.EXPIRATION_DATE IS NOT NULL AND :NEW.EXPIRATION_DATE IS NULL)
-               ) THEN      
-               
+            IF NVL(:OLD.DISPLAY_VAT_FLAG,'XXX')         <>       NVL(:NEW.DISPLAY_VAT_FLAG,'XXX')         OR 
+               NVL(:OLD.CURRENCY_TYPE,'XXX')            <>       NVL(:NEW.CURRENCY_TYPE,'XXX')            OR
+               NVL(:OLD.TAXID_NUMBER,'XXX')             <>       NVL(:NEW.TAXID_NUMBER,'XXX')             OR
+               NVL(:OLD.TAXID_DESCRIPTION,'XXX')        <>       NVL(:NEW.TAXID_DESCRIPTION,'XXX')        OR
+               NVL(:OLD.VAT_TAX_ID,'XXX')               <>       NVL(:NEW.VAT_TAX_ID,'XXX')               OR
+               NVL(:OLD.CONVERSION_RATE,'-99.999')      <>       NVL(:NEW.CONVERSION_RATE,'-99.999')      OR
+               NVL(:OLD.COUNTRY_CODE, 'XXX')            <>       NVL(:NEW.COUNTRY_CODE, 'XXX')            OR
+               NVL(:OLD.EFFECTIVE_DATE, '12-JAN-1112')  <>       NVL(:NEW.EFFECTIVE_DATE, '12-JAN-1112')  OR 
+               NVL(:OLD.EXPIRATION_DATE, '12-JAN-1112') <>       NVL(:NEW.EXPIRATION_DATE,'12-JAN-1112')  THEN       
                    POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_currency_conv_row.COUNTRY_CODE,'CURRENCY_CONVERSION', 'CHANGE', 'POS_NON_TXWR_RT_UPDATE');
             END IF;
     

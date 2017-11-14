@@ -44,16 +44,8 @@ BEGIN
                NVL(:OLD.STATE_CODE,'XX')                   <> NVL(:NEW.STATE_CODE,'XX') OR
                NVL(:OLD.STATEMENT_TYPE,'XX')               <> NVL(:NEW.STATEMENT_TYPE,'XX') OR               
                NVL(:OLD.TAX_TYPE,'XXX')                    <> NVL(:NEW.TAX_TYPE,'XXX') OR               
-               (
-               (:OLD.EFFECTIVE_DATE               <> :NEW.EFFECTIVE_DATE) OR 
-               (:OLD.EFFECTIVE_DATE IS NULL AND :NEW.EFFECTIVE_DATE IS NOT NULL) OR
-               (:OLD.EFFECTIVE_DATE IS NOT NULL AND :NEW.EFFECTIVE_DATE IS NULL)
-               ) OR
-               (
-               (:OLD.EXPIRATION_DATE              <> :NEW.EXPIRATION_DATE) OR 
-               (:OLD.EXPIRATION_DATE IS NULL AND :NEW.EXPIRATION_DATE IS NOT NULL) OR
-               (:OLD.EXPIRATION_DATE IS NOT NULL AND :NEW.EXPIRATION_DATE IS NULL)
-               ) THEN      
+               NVL(:OLD.EFFECTIVE_DATE, '12-JAN-1112')     <> NVL(:NEW.EFFECTIVE_DATE, '12-JAN-1112')  OR 
+               NVL(:OLD.EXPIRATION_DATE, '12-JAN-1112')    <> NVL(:NEW.EXPIRATION_DATE,'12-JAN-1112')  THEN     
                
                    POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_usa_row.COUNTRY_CODE,
                                                                    'NON_TAXWARE_RATES', 

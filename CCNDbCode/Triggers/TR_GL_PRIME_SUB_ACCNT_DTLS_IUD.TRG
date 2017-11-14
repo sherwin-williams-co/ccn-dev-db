@@ -15,22 +15,11 @@ BEGIN
     IF INSERTING THEN
         PRIME_SUB_PROCESS.POS_TRG_EVENT_LOG(:NEW.GL_PS_ACCOUNT_NUMBER, 'PRGM_GL_ACCNT_RLTN_DTLS', 'ADD', 'POS_PRIMESUB_UPDATE' );
     ELSIF UPDATING THEN 
-        IF  NVL(:OLD.SORTED_SEQUENCE, '-999.99')    <>       NVL(:NEW.SORTED_SEQUENCE, '999.99')  OR
-            NVL(:OLD.SHARED, 'XXX')                 <>       NVL(:NEW.SHARED, 'XXX')              OR 
-            (
-            (:OLD.EFFECTIVE_DATE <> :NEW.EFFECTIVE_DATE) 
-            OR 
-            (:OLD.EFFECTIVE_DATE IS NULL AND :NEW.EFFECTIVE_DATE IS NOT NULL)
-            OR 
-            (:OLD.EFFECTIVE_DATE IS NOT NULL AND :NEW.EFFECTIVE_DATE IS NULL)
-            ) OR
-            (
-            (:OLD.EXPIRATION_DATE <> :NEW.EXPIRATION_DATE) 
-            OR 
-            (:OLD.EXPIRATION_DATE IS NOT NULL AND :NEW.EXPIRATION_DATE IS NULL)
-            OR 
-            (:OLD.EXPIRATION_DATE IS NULL AND :NEW.EXPIRATION_DATE IS NOT NULL)
-            ) THEN  
+        IF  NVL(:OLD.SORTED_SEQUENCE, '-999.99')     <>       NVL(:NEW.SORTED_SEQUENCE, '999.99')      OR
+            NVL(:OLD.SHARED, 'XXX')                  <>       NVL(:NEW.SHARED, 'XXX')                  OR 
+            NVL(:OLD.SHARED, 'XXX')                  <>       NVL(:NEW.SHARED, 'XXX')                  OR 
+            NVL(:OLD.EFFECTIVE_DATE, '12-JAN-1112')  <>       NVL(:NEW.EFFECTIVE_DATE, '12-JAN-1112')  OR 
+            NVL(:OLD.EXPIRATION_DATE, '12-JAN-1112') <>       NVL(:NEW.EXPIRATION_DATE,'12-JAN-1112')  THEN  
                 PRIME_SUB_PROCESS.POS_TRG_EVENT_LOG(NVL(:NEW.GL_PS_ACCOUNT_NUMBER, :OLD.GL_PS_ACCOUNT_NUMBER), 'PRGM_GL_ACCNT_RLTN_DTLS', 'CHANGE', 'POS_PRIMESUB_UPDATE' );
         END IF;
     ELSE
