@@ -60,9 +60,9 @@ PROCEDURE INSERT_DESCARTES_ADRS_FEED_CC (
         table with the details related to the Descartes address details feed run
 
 created : 10/11/2017 rxa457 CCN project....
-Modified: 
+Modified: 11/15/2017 nxk927 CCN project....
+          Modified signature to handle address insert/updates
 **********************************************************/
-    IN_COST_CENTER_CODE            IN  DESCARTES_ADRS_FEED_CC.COST_CENTER_CODE%TYPE,
-    IN_TRIGGER_ACTION              IN  DESCARTES_ADRS_FEED_CC.TRIGGER_ACTION%TYPE
+    IN_COST_CENTER_CODE            IN  DESCARTES_ADRS_FEED_CC.COST_CENTER_CODE%TYPE
                                          );												 
 END CCN_DESCARTES_PROCESS;
