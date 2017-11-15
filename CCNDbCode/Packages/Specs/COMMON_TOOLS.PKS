@@ -445,7 +445,7 @@ RETURN STATUS%ROWTYPE;
 
 FUNCTION IS_CC_HAVING_CSTMR_ACCNTS_FNC(
 /**********************************************************
-This function will check the cost center present in CPR_CUSTOMER_TAXID_VW view.
+This function will check the cost center present in CUSTOMER_TAXID_VW_COSTCNTR Table
 If the cost centers is having active customer accoutns in CPR this function should
 return "Y" else "N"
 
