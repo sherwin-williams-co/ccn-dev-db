@@ -2943,16 +2943,16 @@ exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
 /*********************************************************** 
-The "en_cstmr_accnts_close_err" passes a numerical error of -20183.
+The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur when trying to close the cost centers
 which are present in customer_taxid_vw_costcntr table 
 
 created : 11/13/2017 bxa919 ASP-898 CCN Project Team....
 revisions: 
 ************************************************************/
-en_cstmr_accnts_close_err  CONSTANT NUMBER  := -20183;
+en_cstmr_accnts_close_err  CONSTANT NUMBER  := -20185;
 exc_cstmr_accnts_close_err  EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_cstmr_accnts_close_err, -20183);
+PRAGMA EXCEPTION_INIT(exc_cstmr_accnts_close_err, -20185);
 
 
 END ERRNUMS;
