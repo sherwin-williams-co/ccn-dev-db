@@ -1,4 +1,4 @@
-create or replace PACKAGE          errnums
+﻿create or replace PACKAGE          errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -2909,4 +2909,15 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/*********************************************************** 
+The "EN_CSTMR_ACCNTS_CLOSE_ERR" passes a numerical error of -20185.
+An error will occur while trying to close the cost centers
+which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
+
+created : 11/13/2017 bxa919  CCN Project Team...
+revisions: 
+************************************************************/
+en_cstmr_accnts_close_err  CONSTANT NUMBER := -20185;
+exc_en_cstmr_accnts_close_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_en_cstmr_accnts_close_err , -20185);
 END ERRNUMS;
