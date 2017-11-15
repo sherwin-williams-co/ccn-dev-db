@@ -14,6 +14,8 @@
 #            Added Error handling calls to send email when ever the script errors out due to any of the OSERROR or SQLERROR
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            added the error message
+#		   : 11/15/2017 bxa919 CCN Project Team..... 
+#		   : Added ORA_COSTCTR column in CUSTOMER_TAXID_VW table as part of CPR change
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -82,7 +84,8 @@ INSERT INTO CUSTOMER_TAXID_VW
            NVL(SSN,TAXID),
            PARENT_STORE,
            CUSTNAME,
-           DCO_NUMBER
+           DCO_NUMBER,
+		   ORA_COSTCTR
       FROM COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR;
 COMMIT;
 EXCEPTION

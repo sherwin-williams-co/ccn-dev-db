@@ -443,4 +443,16 @@ created : 09/25/2017  axt754 CCN Project..
 IN_COST_CENTER   IN COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN STATUS%ROWTYPE;
 
+FUNCTION IS_CC_HAVING_CSTMR_ACCNTS_FNC(
+/**********************************************************
+This function will check the cost center present in CPR_CUSTOMER_TAXID_VW view.
+If the cost centers is having active customer accoutns in CPR this function should
+return "Y" else "N"
+
+created : 11/13/2017 bxa919 CCN Project Team...
+**********************************************************/
+IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
+RETURN VARCHAR2; 
+END COMMON_TOOLS;
+
 END COMMON_TOOLS;
