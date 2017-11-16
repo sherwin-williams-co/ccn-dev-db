@@ -1,4 +1,4 @@
-﻿create or replace PACKAGE          errnums
+create or replace PACKAGE          errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
