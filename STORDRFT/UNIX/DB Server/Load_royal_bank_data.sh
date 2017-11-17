@@ -1,4 +1,3 @@
-#!/bin/sh
 ##################################################################################################################################
 # Script name   : Load_royal_bank_data.sh
 #
@@ -15,15 +14,13 @@
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
 
-proc_name="Royal_Bank_Report"
-LOGDIR=$HOME/initLoad/logs
-ARCHIVDIR=$HOME/datafiles/archieve/royal_bank_files
-DATA_FILE="DAREPORT.567"
+proc_name="Load_royal_bank_data"
+LOGDIR=$HOME/dailyLoad/logs
+ARCHIVE_PATH="$HOME/datafiles/archieve/royal_bank_files/"
+DATA_FILES_PATH="$HOME/datafiles"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
-
-echo "PROCESSING STARTED FOR $proc_name AT $TIME ON $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
@@ -48,64 +45,35 @@ END
 ############################################################################
 status=$?
 if [ $status -ne 0 ]; then
-   
    TIME=`date +"%H:%M:%S"`
-   echo "PROCESSING FAILED FOR $proc_name AT ${TIME} ON ${DATE}"
-   
-   echo "Sending email about process failure to concerned mailing group.."
-   
+   echo "PROCESSING FAILED for $proc_name at ${TIME} on ${DATE}"
    cd $HOME/dailyLoad
    ./send_err_status_email.sh ROYAL_BANK_REPORT_ERROR
-   
-   emailstatus=$?
-   TIME=`date +"%H:%M:%S"`
-    
-   if test $emailstatus -ne 0
-   then
-      echo "Processing FAILED while sending email for ROYAL_BANK_REPORT_ERROR at $TIME on $DATE"
-   fi
-      echo "Email script executed at $TIME on $DATE "
-   
    exit 1;
-   
-else
-
-   ############################################################################
-   #                 FTP the trigger file on application server
-   ############################################################################
-   ./ftp_royal_bank_rpt_trg.sh
-   
-   trgftpstatus=$?
-   TIME=`date +"%H:%M:%S"`
-    
-   if test $trgftpstatus -ne 0
-   then
-      echo "Processing FAILED for ftp_royal_bank_rpt_trg.sh at $TIME on $DATE"
-      exit 1;
-   fi
-      echo "Completed execution of ftp_royal_bank_rpt_trg.sh at $TIME on $DATE "
-
-   ############################################################################
-   #                           ARCHIVING THE DATA FILE
-   ############################################################################
-   
-   mv $HOME/datafiles/$DATA_FILE.txt "$ARCHIVDIR/$DATA_FILE"_$TimeStamp.txt
-   status=$?
-   TIME=`date +"%H:%M:%S"`
-
-   if test $status -ne 0
-   then
-      echo "Processing FAILED while archiving the data file at $TIME on $DATE"
-      exit 1;
-   fi
-      echo "Data file $DATA_FILE.txt archived successfully at $TIME on $DATE "
 fi
+echo "Completed execution of Loading data at $TIME on $DATE "
+
+##########################################################################
+# Removing DAREPORT.txt
+##########################################################################
+rm -f $DATA_FILES_PATH/DAREPORT.txt
+
+#################################################################
+# Archiving input files to archive folder
+#################################################################
+echo "Archiving input files started at ${TIME} on ${DATE}"
+if ls $DATA_FILES_PATH/DAREPORT.* &> /dev/null; then
+   mv $DATA_FILES_PATH/DAREPORT.* $ARCHIVE_PATH
+else
+    echo "$DATA_FILES_PATH/DAREPORT*.txt files does not exist"
+fi
+echo "Archiving input files finished at ${TIME} on ${DATE}"
 
 TIME=`date +"%H:%M:%S"`
-echo "PROCESSING FINISHED FOR $proc_name AT $TIME ON $DATE"
-
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
 exit 0
 
+exit 0
 #############################################################
 # END of PROGRAM.
 #############################################################

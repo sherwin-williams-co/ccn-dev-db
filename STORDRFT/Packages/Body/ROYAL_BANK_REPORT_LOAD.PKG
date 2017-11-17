@@ -3,23 +3,71 @@ create or replace PACKAGE BODY ROYAL_BANK_REPORT_LOAD
 This package is intended to load Royal Bank Report files from mainframe into the 
 Royal Bank Report Main tables
 
-created : 10/20/2016 MXR916 CCN PROJECT..
-modified: 12/01/2016 gxg192 CCN PROJECT..
-          Removed below procedures from the package
-          i.   LOAD_ROYAL_BNK_INTRMDT_TABLES
-          ii.  LOAD_DEBIT_TTL_DATA
-          iii. LOAD_TRANSIT_TYPS_DATA
+created : 11/17/207SXH487 CCN PROJECT..
 *******************************************************************************/
 AS
 
-PROCEDURE ROYAL_BANK_REPORT_LOAD_MAIN_SP
+PROCEDURE ROYAL_BANK_REPORT_DBT_LOAD_SP
 /******************************************************************************
 This Procedure loads Royal bank report data into ROYAL_BANK_RPT_MAIN table.
 
-created : 10/20/2016 MXR916 CCN PROJECT..
-modified: 12/05/2016 gxg192 CCN PROJECT..
-          Changes to insert data into ROYAL_BANK_RPT_MAIN from external table
-          for all transit types
+created : 11/17/207SXH487 CCN PROJECT..
+*******************************************************************************/
+IS  
+    V_CODE NUMBER;
+    V_ERRM VARCHAR2(500);
+    V_COMMIT NUMBER := 0;
+    V_ROYAL_RPT_MAIN   ROYAL_BANK_RPT_MAIN%ROWTYPE;    
+    
+    CURSOR ROYAL_BANK_RPT_CUR is
+            SELECT  TRANSIT_NUMBER,    
+                    ACCOUNT_NUMBER,     
+                    TRANSIT_TYPE,      
+                    DESCRIPTION,
+                    DB_AMOUNT
+            FROM ROYAL_BANK_DEBITS_EXT_TBL;
+BEGIN   
+   --Removing records for current date to make sure no duplicate data is inserted on single day.
+   DELETE ROYAL_BANK_RPT_MAIN 
+   WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
+   
+   FOR REC IN ROYAL_BANK_RPT_CUR 
+   LOOP
+      BEGIN
+         V_ROYAL_RPT_MAIN.TRANSIT_NUMBER := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_NUMBER);
+         V_ROYAL_RPT_MAIN.ACCOUNT_NUMBER := TRIM(SUBSTR(rec.ACCOUNT_NUMBER,1,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,4,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,7));
+         V_ROYAL_RPT_MAIN.TRANSIT_TYPE   := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_TYPE);
+         V_ROYAL_RPT_MAIN.DESCRIPTION    := TRIM(REC.DESCRIPTION);
+         V_ROYAL_RPT_MAIN.DB_AMOUNT      := TRIM(REC.DB_AMOUNT);
+         V_ROYAL_RPT_MAIN.LOAD_DATE      := SYSDATE;
+         
+         INSERT INTO ROYAL_BANK_RPT_MAIN
+              VALUES V_ROYAL_RPT_MAIN;
+         
+         IF V_COMMIT > 100 THEN 
+            COMMIT;
+            V_COMMIT := 0;
+         ELSE
+            V_COMMIT := V_COMMIT + 1;
+         END IF;
+      EXCEPTION
+         WHEN OTHERS THEN
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'ROYAL_BANK_REPORT_DBT_LOAD_SP',SQLERRM,'000000','0000000000');
+      END;
+   END LOOP;
+        COMMIT;
+EXCEPTION
+  WHEN OTHERS THEN
+       V_CODE  := SQLCODE;
+       V_ERRM  := SUBSTR(SQLERRM,1,200);
+       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_DBT_LOAD_SP' || V_ERRM );
+END ROYAL_BANK_REPORT_DBT_LOAD_SP;
+
+PROCEDURE ROYAL_BANK_REPORT_DTL_LOAD_SP
+/******************************************************************************
+This Procedure loads Royal bank report data into ROYAL_BANK_RPT_MAIN table.
+
+created : 11/17/207SXH487 CCN PROJECT..
 *******************************************************************************/
 IS  
     V_CODE NUMBER;
@@ -33,31 +81,24 @@ IS
                     TRANSIT_TYPE,      
                     SUB_CODE,           
                     SERIAL_NUMBER,    
-                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,AMOUNT) AMOUNT,           
+                    AMOUNT,           
                     STATUS_FLAG,         
-                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,ISSUE_DATE) ISSUE_DATE,
-                    DECODE(TRANSIT_TYPE,'00',NULL,'05',NULL,'99',NULL,PAID_DATE) PAID_DATE,
+                    ISSUE_DATE,
+                    PAID_DATE,
                     TRANS_CODE,       
                     CHECK_NUMBER,        
                     STATUS,           
                     TOLRNC_AMOUNT,
                     DESCRIPTION,
                     DB_AMOUNT
-            FROM ROYAL_BANK_REPORT_EXT_TBL;
+            FROM ROYAL_BANK_DTL_EXT_TBL;
 BEGIN   
-
-/*
-Removing records for current date to make sure no duplicate data is inserted on single day.
-*/
-   DELETE ROYAL_BANK_RPT_MAIN 
-   WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
-   
    FOR REC IN ROYAL_BANK_RPT_CUR 
    LOOP
       BEGIN
          V_ROYAL_RPT_MAIN.TRANSIT_NUMBER := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_NUMBER);
          V_ROYAL_RPT_MAIN.ACCOUNT_NUMBER := TRIM(SUBSTR(rec.ACCOUNT_NUMBER,1,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,4,3)||'-'||SUBSTR(rec.ACCOUNT_NUMBER,7));
-         V_ROYAL_RPT_MAIN.TRANSIT_TYPE   := CASE WHEN rec.TRANSIT_TYPE = '00' THEN '00' ELSE CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_TYPE) END;
+         V_ROYAL_RPT_MAIN.TRANSIT_TYPE   := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANSIT_TYPE);
          V_ROYAL_RPT_MAIN.SUB_CODE       := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.SUB_CODE);
          V_ROYAL_RPT_MAIN.SERIAL_NUMBER  := substr(REC.SERIAL_NUMBER,1,4)||'-'||substr(REC.SERIAL_NUMBER,5);
          V_ROYAL_RPT_MAIN.AMOUNT         := TRIM(CCN_COMMON_TOOLS.RETURN_NUMBER(REC.AMOUNT,11,2));
@@ -66,15 +107,15 @@ Removing records for current date to make sure no duplicate data is inserted on 
          V_ROYAL_RPT_MAIN.PAID_DATE      := TO_CHAR(TO_DATE(CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(REC.PAID_DATE),'YYMMDD'),'MM-DD-YY');
          V_ROYAL_RPT_MAIN.TRANS_CODE     := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.TRANS_CODE);
          V_ROYAL_RPT_MAIN.CHECK_NUMBER   := CASE WHEN REC.CHECK_NUMBER IS NOT NULL THEN 
-                                            TRIM(SUBSTR(REC.CHECK_NUMBER,1,4)||'-'||SUBSTR(REC.CHECK_NUMBER,5,4)||'-'||SUBSTR(REC.CHECK_NUMBER,9,1))
+                                                 TRIM(SUBSTR(REC.CHECK_NUMBER,1,4)||'-'||SUBSTR(REC.CHECK_NUMBER,5,4)||'-'||SUBSTR(REC.CHECK_NUMBER,9,1))
                                             ELSE
-                                            REC.CHECK_NUMBER
+                                                REC.CHECK_NUMBER
                                             END;
          V_ROYAL_RPT_MAIN.STATUS         := CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(rec.STATUS);
          V_ROYAL_RPT_MAIN.TOLRNC_AMOUNT  := REC.TOLRNC_AMOUNT;
-         V_ROYAL_RPT_MAIN.DESCRIPTION       := TRIM(REC.DESCRIPTION);
-         V_ROYAL_RPT_MAIN.DB_AMOUNT         := TRIM(REC.DB_AMOUNT);
-         V_ROYAL_RPT_MAIN.LOAD_DATE         := SYSDATE;
+         V_ROYAL_RPT_MAIN.DESCRIPTION    := TRIM(REC.DESCRIPTION);
+         V_ROYAL_RPT_MAIN.DB_AMOUNT      := TRIM(REC.DB_AMOUNT);
+         V_ROYAL_RPT_MAIN.LOAD_DATE      := SYSDATE;
          
          INSERT INTO ROYAL_BANK_RPT_MAIN
               VALUES V_ROYAL_RPT_MAIN;
@@ -87,7 +128,7 @@ Removing records for current date to make sure no duplicate data is inserted on 
          END IF;
       EXCEPTION
          WHEN OTHERS THEN
-            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'ROYAL_BANK_REPORT_LOAD_MAIN_SP',SQLERRM,'000000','0000000000');
+            ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'ROYAL_BANK_REPORT_DTL_LOAD_SP',SQLERRM,'000000','0000000000');
       END;
    END LOOP;
         COMMIT;
@@ -95,7 +136,31 @@ EXCEPTION
   WHEN OTHERS THEN
        V_CODE  := SQLCODE;
        V_ERRM  := SUBSTR(SQLERRM,1,200);
-       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_LOAD_MAIN_SP' || V_ERRM );
+       errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_DTL_LOAD_SP' || V_ERRM );
+END ROYAL_BANK_REPORT_DTL_LOAD_SP;
+
+PROCEDURE ROYAL_BANK_REPORT_LOAD_MAIN_SP
+/******************************************************************************
+This Procedure loads Royal bank report data into ROYAL_BANK_RPT_MAIN table from 
+    1. ROYAL_BANK_DEBITS_EXT_TBL
+    2. ROYAL_BANK_DTL_EXT_TBL
+
+created : 11/17/207SXH487 CCN PROJECT..
+*******************************************************************************/
+IS 
+    V_CONTEXT    VARCHAR2(200);
+    V_START_TIME NUMBER;
+BEGIN
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Loading from ROYAL_BANK_DEBITS_EXT_TBL Table ';
+      ROYAL_BANK_REPORT_DBT_LOAD_SP();
+      DBMS_OUTPUT.PUT_LINE('ROYAL_BANK_RPT_MAIN from DBT loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Loading from ROYAL_BANK_DTL_EXT_TBL Table ';
+      ROYAL_BANK_REPORT_DTL_LOAD_SP();
+      DBMS_OUTPUT.PUT_LINE('ROYAL_BANK_RPT_MAIN from DTLS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 END ROYAL_BANK_REPORT_LOAD_MAIN_SP;
 
 END ROYAL_BANK_REPORT_LOAD;
