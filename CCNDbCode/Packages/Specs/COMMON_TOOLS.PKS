@@ -449,7 +449,7 @@ This function will check the cost center present in CUSTOMER_TAXID_VW_COSTCNTR T
 If the cost center is having active customer accoutns in CPR this function should
 return "Y" else "N"
 
-created : 11/13/2017 bxa919 CCN Project Team...
+created : 11/17/2017 bxa919 CCN Project Team...
 **********************************************************/
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2; 
