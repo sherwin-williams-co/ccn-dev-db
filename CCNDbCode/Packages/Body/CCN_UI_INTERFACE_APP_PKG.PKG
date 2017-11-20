@@ -776,7 +776,7 @@ IS
 v_row_data               XMLTYPE := sys.XMLTYPE(in_Row_data);
 v_xml_frag               CLOB;
 v_cost_center_code       cost_center.cost_center_code%TYPE;
-v_cost_center_category   cost_center.catgeory%TYPE;
+v_cost_center_category   cost_center.category%TYPE;
 v_address_type           address_usa.address_type%TYPE;
 v_xml_address_can_frag   CLOB;
 v_xml_address_usa_frag   CLOB;
@@ -787,9 +787,6 @@ v_xml_taxware_frag       CLOB;
 v_xml_address_frag       CLOB;
 v_taxware_rowtype        TAXWARE%ROWTYPE;
 v_count                  NUMBER := 1;
-v_code                   NUMBER;
-
-cctr_must_be_ent_exp            EXCEPTION;
 
 BEGIN
     FOR address_table_rec IN address_tables_cur LOOP
@@ -801,185 +798,172 @@ BEGIN
 		END IF;
 	END LOOP;
 	
-	IF v_cost_center_code IS NULL THEN
-		 RAISE cctr_must_be_ent_exp;
-	END IF;
-
-	
 	BEGIN
 	    SELECT category INTO v_cost_center_category
 	        FROM COST_CENTER 
 	     WHERE COST_CENTER_CODE = v_cost_center_code;
 	EXCEPTION
-	    WHEN NO_DATA_FOUND THEN
-		    ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_UI_UPSERT_SP ' || SQLERRM || 'No Category data for Cost Center' || v_cost_center_code );
 	    WHEN OTHERS THEN
-            ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_UI_UPSERT_SP ' || SQLERRM || ' In Category Get ' );
+            NULL;
 	END;
   
 
 	IF v_cost_center_category IN ( 'T', 'D') THEN
-	   RETURN;
-	END IF;
 	
-    --Validating Business Rules
-    VALIDATE_BUSINESS_RULES('ADDRESS',in_row_data);
+		--Validating Business Rules
+		VALIDATE_BUSINESS_RULES('ADDRESS',in_row_data);
 
-    --Removing fragments to send to individual procedures.
-    FOR tables_rec IN tables_cur LOOP 
-        IF (v_row_data.EXISTSNODE('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name) = 1) THEN
-            v_xml_frag := v_row_data.EXTRACT('/ADDRESS_UI_UPSERT').GETCLOBVAL();
-            CASE tables_rec.table_name
-                WHEN 'ADDRESS_CAN'
-                    THEN v_xml_ADDRESS_CAN_frag   := v_xml_frag;
-                WHEN 'ADDRESS_USA'
-                    THEN v_xml_ADDRESS_USA_frag   := v_xml_frag;
-                WHEN 'ADDRESS_MEX'
-                    THEN v_xml_ADDRESS_MEX_frag   := v_xml_frag;
-                WHEN 'ADDRESS_BRB'
-                    THEN v_xml_address_brb_frag   := v_xml_frag;
-                WHEN 'ADDRESS_OTHER'
-                    THEN v_xml_ADDRESS_OTH_frag   := v_xml_frag;
-                WHEN 'TAXWARE'
-                    THEN v_xml_TAXWARE_frag   := v_row_data.EXTRACT('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name).GETCLOBVAL();
-                ELSE
-                    NULL;
-            END CASE;
+		--Removing fragments to send to individual procedures.
+		FOR tables_rec IN tables_cur LOOP 
+			IF (v_row_data.EXISTSNODE('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name) = 1) THEN
+				v_xml_frag := v_row_data.EXTRACT('/ADDRESS_UI_UPSERT').GETCLOBVAL();
+				CASE tables_rec.table_name
+					WHEN 'ADDRESS_CAN'
+						THEN v_xml_ADDRESS_CAN_frag   := v_xml_frag;
+					WHEN 'ADDRESS_USA'
+						THEN v_xml_ADDRESS_USA_frag   := v_xml_frag;
+					WHEN 'ADDRESS_MEX'
+						THEN v_xml_ADDRESS_MEX_frag   := v_xml_frag;
+					WHEN 'ADDRESS_BRB'
+						THEN v_xml_address_brb_frag   := v_xml_frag;
+					WHEN 'ADDRESS_OTHER'
+						THEN v_xml_ADDRESS_OTH_frag   := v_xml_frag;
+					WHEN 'TAXWARE'
+						THEN v_xml_TAXWARE_frag   := v_row_data.EXTRACT('/ADDRESS_UI_UPSERT/'|| tables_rec.table_name).GETCLOBVAL();
+					ELSE
+						NULL;
+				END CASE;
 
-            BEGIN --ADDRESS Processing
-                BEGIN --ADDRESS_CAN Insert Process 
-                    IF v_xml_address_can_frag IS NOT NULL THEN
-                        -- Looping throught the XML fragment each time when multiple addresses are passed in the fragment.
-                        WHILE XMLTYPE(v_xml_address_can_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_CAN[' || v_count || ']') = 1 LOOP
-                            v_xml_address_frag := SYS.XMLTYPE(v_xml_address_can_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_CAN[' || v_count || ']').GETCLOBVAL();
-                            CCN_TABLE_IU_PKG.ADDRESS_CAN_I_SP ( NULL          --in_cost_center
-                                                              , NULL          --in_address_type
-                                                              , NULL          --in_effective_date
-                                                              , 'ADDRESS_CAN' --in_table_name
-                                                              , NULL          --in_row_date
-                                                              , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
-                            -- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M'
-                            v_address_type:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_CAN/ADDRESS_TYPE/text()').GETSTRINGVAL();
-                            IF v_address_type = 'M' THEN
-                                v_cost_center_code:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_CAN/COST_CENTER_CODE/text()').GETSTRINGVAL();
-                                CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );	
-                            END IF;
-                            v_count := v_count + 1;
-                        END LOOP;
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_CAN_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_CAN Insert Error ' );
-                END; --ADDRESS_CAN Insert Process 
+				BEGIN --ADDRESS Processing
+					BEGIN --ADDRESS_CAN Insert Process 
+						IF v_xml_address_can_frag IS NOT NULL THEN
+							-- Looping throught the XML fragment each time when multiple addresses are passed in the fragment.
+							WHILE XMLTYPE(v_xml_address_can_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_CAN[' || v_count || ']') = 1 LOOP
+								v_xml_address_frag := SYS.XMLTYPE(v_xml_address_can_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_CAN[' || v_count || ']').GETCLOBVAL();
+								CCN_TABLE_IU_PKG.ADDRESS_CAN_I_SP ( NULL          --in_cost_center
+																  , NULL          --in_address_type
+																  , NULL          --in_effective_date
+																  , 'ADDRESS_CAN' --in_table_name
+																  , NULL          --in_row_date
+																  , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
+								-- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M'
+								v_address_type:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_CAN/ADDRESS_TYPE/text()').GETSTRINGVAL();
+								IF v_address_type = 'M' THEN
+									v_cost_center_code:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_CAN/COST_CENTER_CODE/text()').GETSTRINGVAL();
+									CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );	
+								END IF;
+								v_count := v_count + 1;
+							END LOOP;
+						END IF;
+					EXCEPTION
+						WHEN OTHERS THEN
+							ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_CAN_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_CAN Insert Error ' );
+					END; --ADDRESS_CAN Insert Process 
 
-                BEGIN --ADDRESS_USA Insert Process 
-                    IF v_xml_address_usa_frag  IS NOT NULL  THEN
-                        -- Looping throught the XML fragment each time when multiple addresses are passed.
-                        WHILE XMLTYPE(v_xml_address_usa_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_USA[' || v_count || ']') = 1 LOOP
-                            v_xml_address_frag := XMLTYPE(v_xml_address_usa_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_USA[' || v_count || ']').GETCLOBVAL();
-                            CCN_TABLE_IU_PKG.ADDRESS_USA_I_SP (NULL          --in_cost_center
-                                                             , NULL          --in_address_type
-                                                             , NULL          --in_effective_date
-                                                             , 'ADDRESS_USA' --in_table_name
-                                                             , NULL          --in_row_date
-                                                             , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT')); --in_row_data   xml
-                            -- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M' 
-                            v_address_type:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_USA/ADDRESS_TYPE/text()').GETSTRINGVAL();
-                            IF v_address_type = 'M' THEN 
-                                v_cost_center_code:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_USA/COST_CENTER_CODE/text()').GETSTRINGVAL();
-                                CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );
-                            END IF;
-                            v_count := v_count + 1;
-                        END LOOP;
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_USA_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_USA Insert Error ' );
-                END; --ADDRESS_USA Insert Process 
+					BEGIN --ADDRESS_USA Insert Process 
+						IF v_xml_address_usa_frag  IS NOT NULL  THEN
+							-- Looping throught the XML fragment each time when multiple addresses are passed.
+							WHILE XMLTYPE(v_xml_address_usa_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_USA[' || v_count || ']') = 1 LOOP
+								v_xml_address_frag := XMLTYPE(v_xml_address_usa_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_USA[' || v_count || ']').GETCLOBVAL();
+								CCN_TABLE_IU_PKG.ADDRESS_USA_I_SP (NULL          --in_cost_center
+																 , NULL          --in_address_type
+																 , NULL          --in_effective_date
+																 , 'ADDRESS_USA' --in_table_name
+																 , NULL          --in_row_date
+																 , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT')); --in_row_data   xml
+								-- Extracting the address type from the xml fragment and invoking the check when the address_type is only 'M' 
+								v_address_type:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_USA/ADDRESS_TYPE/text()').GETSTRINGVAL();
+								IF v_address_type = 'M' THEN 
+									v_cost_center_code:= XMLTYPE(v_xml_address_frag).EXTRACT('/ADDRESS_USA/COST_CENTER_CODE/text()').GETSTRINGVAL();
+									CCN_BUSINESS_RULES_PKG.COMPARE_ZIPCODE_SP ( v_cost_center_code );
+								END IF;
+								v_count := v_count + 1;
+							END LOOP;
+						END IF;
+					EXCEPTION
+						WHEN OTHERS THEN
+							ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_USA_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_USA Insert Error ' );
+					END; --ADDRESS_USA Insert Process 
 
-                BEGIN --ADDRESS_MEX Insert Process 
-                    IF v_xml_address_mex_frag  IS NOT NULL  THEN
-                        -- Looping through the XML fragment each time when multiple addresses are passed.
-                        WHILE XMLTYPE(v_xml_address_mex_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_MEX[' || v_count || ']') = 1 LOOP
-                            v_xml_address_frag := XMLTYPE(v_xml_address_mex_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_MEX[' || v_count || ']').GETCLOBVAL();
-                            CCN_TABLE_IU_PKG.ADDRESS_MEX_I_SP (NULL          --in_cost_center
-                                                             , NULL          --in_address_type
-                                                             , NULL          --in_effective_date
-                                                             , 'ADDRESS_MEX' --in_table_name
-                                                             , NULL          --in_row_date
-                                                             , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT')); --in_row_data   xml
-                             v_count := v_count + 1;
-                        END LOOP;
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_MEX_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_MEX Insert Error ' );
-                END;--ADDRESS_MEX Insert Process 
+					BEGIN --ADDRESS_MEX Insert Process 
+						IF v_xml_address_mex_frag  IS NOT NULL  THEN
+							-- Looping through the XML fragment each time when multiple addresses are passed.
+							WHILE XMLTYPE(v_xml_address_mex_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_MEX[' || v_count || ']') = 1 LOOP
+								v_xml_address_frag := XMLTYPE(v_xml_address_mex_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_MEX[' || v_count || ']').GETCLOBVAL();
+								CCN_TABLE_IU_PKG.ADDRESS_MEX_I_SP (NULL          --in_cost_center
+																 , NULL          --in_address_type
+																 , NULL          --in_effective_date
+																 , 'ADDRESS_MEX' --in_table_name
+																 , NULL          --in_row_date
+																 , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT')); --in_row_data   xml
+								 v_count := v_count + 1;
+							END LOOP;
+						END IF;
+					EXCEPTION
+						WHEN OTHERS THEN
+							ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_MEX_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_MEX Insert Error ' );
+					END;--ADDRESS_MEX Insert Process 
 
-                BEGIN --ADDRESS_OTH Insert Process 
-                    IF v_xml_address_oth_frag  IS NOT NULL  THEN
-                        -- Looping through the XML fragment each time when multiple addresses are passed.
-                        WHILE XMLTYPE(v_xml_address_oth_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_OTHER[' || v_count || ']') = 1 LOOP
-                            v_xml_address_frag := SYS.XMLTYPE(v_xml_address_oth_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_OTHER[' || v_count || ']').GETCLOBVAL();
-                            CCN_TABLE_IU_PKG.ADDRESS_OTHER_I_SP (NULL             --in_cost_center
-                                                               , NULL             --in_address_type
-                                                               , NULL             --in_effective_date
-                                                               , 'ADDRESS_OTHER'  --in_table_name
-                                                               , NULL             --in_row_date
-                                                               , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
-                            v_count := v_count + 1;
-                        END LOOP;
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_OTH_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_OTH Insert Error ' );
-                END; --ADDRESS_OTH Insert Process 
+					BEGIN --ADDRESS_OTH Insert Process 
+						IF v_xml_address_oth_frag  IS NOT NULL  THEN
+							-- Looping through the XML fragment each time when multiple addresses are passed.
+							WHILE XMLTYPE(v_xml_address_oth_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_OTHER[' || v_count || ']') = 1 LOOP
+								v_xml_address_frag := SYS.XMLTYPE(v_xml_address_oth_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_OTHER[' || v_count || ']').GETCLOBVAL();
+								CCN_TABLE_IU_PKG.ADDRESS_OTHER_I_SP (NULL             --in_cost_center
+																   , NULL             --in_address_type
+																   , NULL             --in_effective_date
+																   , 'ADDRESS_OTHER'  --in_table_name
+																   , NULL             --in_row_date
+																   , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
+								v_count := v_count + 1;
+							END LOOP;
+						END IF;
+					EXCEPTION
+						WHEN OTHERS THEN
+							ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_OTH_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_OTH Insert Error ' );
+					END; --ADDRESS_OTH Insert Process 
 
-                BEGIN --ADDRESS_BRB Insert Process 
-                    IF v_xml_address_brb_frag  IS NOT NULL  THEN
-                        -- Looping through the XML fragment each time when multiple addresses are passed.
-                        WHILE XMLTYPE(v_xml_address_brb_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_BRB[' || v_count || ']') = 1 LOOP
-                            v_xml_address_frag := SYS.XMLTYPE(v_xml_address_brb_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_BRB[' || v_count || ']').GETCLOBVAL();
-                            CCN_TABLE_IU_PKG.ADDRESS_BRB_I_SP (NULL             --in_cost_center
-                                                               , NULL             --in_address_type
-                                                               , NULL             --in_effective_date
-                                                               , 'ADDRESS_BRB'  --in_table_name
-                                                               , NULL             --in_row_date
-                                                               , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
-                            v_count := v_count + 1;
-                        END LOOP;
-                    END IF;
-                EXCEPTION
-                    WHEN OTHERS THEN
-                        ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_OTH_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_BRB Insert Error ' );
-                END; --ADDRESS_BRB Insert Process 
+					BEGIN --ADDRESS_BRB Insert Process 
+						IF v_xml_address_brb_frag  IS NOT NULL  THEN
+							-- Looping through the XML fragment each time when multiple addresses are passed.
+							WHILE XMLTYPE(v_xml_address_brb_frag).EXISTSNODE('/ADDRESS_UI_UPSERT/ADDRESS_BRB[' || v_count || ']') = 1 LOOP
+								v_xml_address_frag := SYS.XMLTYPE(v_xml_address_brb_frag).EXTRACT('/ADDRESS_UI_UPSERT/'|| 'ADDRESS_BRB[' || v_count || ']').GETCLOBVAL();
+								CCN_TABLE_IU_PKG.ADDRESS_BRB_I_SP (NULL             --in_cost_center
+																   , NULL             --in_address_type
+																   , NULL             --in_effective_date
+																   , 'ADDRESS_BRB'  --in_table_name
+																   , NULL             --in_row_date
+																   , CCN_COMMON_TOOLS.BUILD_TAG(v_xml_address_frag,'ADDRESS_UI_UPSERT') ); --in_row_data   xml
+								v_count := v_count + 1;
+							END LOOP;
+						END IF;
+					EXCEPTION
+						WHEN OTHERS THEN
+							ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_OTH_UI_UPSERT_SP ' || SQLERRM || ' ADDRESS_BRB Insert Error ' );
+					END; --ADDRESS_BRB Insert Process 
 
-                BEGIN --TAXWARE insert/update process
-                    IF v_xml_taxware_frag  IS NOT NULL THEN
-                        CCN_TABLE_IU_PKG.TAXWARE_I_SP('TAXWARE',
-                                                      v_xml_taxware_frag,
-                                                      v_taxware_rowtype);
-                    END IF;
-                EXCEPTION
-                    WHEN DUP_VAL_ON_INDEX THEN
-                        BEGIN
-                            CCN_TABLE_IU_PKG.TAXWARE_U_SP('TAXWARE',
-                                                          v_xml_taxware_frag,
-                                                          v_taxware_rowtype);
-                        EXCEPTION 
-                            WHEN OTHERS THEN 
-                                ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_UI_UPSERT_SP ' || SQLERRM || ' TAXWARE Update Error ' );
-                        END;
-                END; --TAXWARE insert/update process
-            END; --ADDRESS Processing
-        END IF; --if (v_row_data.existsNode('/ADDRESS_UI_UPSERT/'
-    END LOOP; --TABLES_CUR
+					BEGIN --TAXWARE insert/update process
+						IF v_xml_taxware_frag  IS NOT NULL THEN
+							CCN_TABLE_IU_PKG.TAXWARE_I_SP('TAXWARE',
+														  v_xml_taxware_frag,
+														  v_taxware_rowtype);
+						END IF;
+					EXCEPTION
+						WHEN DUP_VAL_ON_INDEX THEN
+							BEGIN
+								CCN_TABLE_IU_PKG.TAXWARE_U_SP('TAXWARE',
+															  v_xml_taxware_frag,
+															  v_taxware_rowtype);
+							EXCEPTION 
+								WHEN OTHERS THEN 
+									ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_UI_UPSERT_SP ' || SQLERRM || ' TAXWARE Update Error ' );
+							END;
+					END; --TAXWARE insert/update process
+				END; --ADDRESS Processing
+			END IF; --if (v_row_data.existsNode('/ADDRESS_UI_UPSERT/'
+		END LOOP; --TABLES_CUR
+   	END IF;
 EXCEPTION
-    WHEN cctr_must_be_ent_exp     THEN
-		v_code := errnums.en_cctr_must_be_ent_err; 
-		 errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.cctr_must_be_ent_exp ' ,
-	    'Cost_Center_Code must be entered , can not be "null" or "spaces", ' ||
-	    'and must be 6 digits numeric.' );  
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'ADDRESS_UI_UPSERT_SP ' || SQLERRM || ' in Others ' );
 END ADDRESS_UI_UPSERT_SP;
