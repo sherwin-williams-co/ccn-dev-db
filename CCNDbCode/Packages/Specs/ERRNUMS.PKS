@@ -2943,7 +2943,7 @@ exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
 /*********************************************************** 
-The "EN_CSTMR_ACCNTS_CLOSE_ERR" passes a numerical error of -20185.
+The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
 which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
 

@@ -8,5 +8,4 @@ Created    : bxa919 11/17/2017
 
 **********************************************************/
 ALTER TABLE CUSTOMER_TAXID_VW
-ADD ORA_COSTCTR  VARCHAR2(6 CHAR) ;
-COMMIT;
+ADD ORA_COSTCTR  VARCHAR2(6) ;
