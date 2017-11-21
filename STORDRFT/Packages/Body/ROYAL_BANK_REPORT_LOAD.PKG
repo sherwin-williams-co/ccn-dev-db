@@ -27,10 +27,6 @@ IS
                     DB_AMOUNT
             FROM ROYAL_BANK_DEBITS_EXT_TBL;
 BEGIN   
-   --Removing records for current date to make sure no duplicate data is inserted on single day.
-   DELETE ROYAL_BANK_RPT_MAIN 
-   WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
-   
    FOR REC IN ROYAL_BANK_RPT_CUR 
    LOOP
       BEGIN
@@ -139,6 +135,57 @@ EXCEPTION
        errpkg.raise_err(v_code, 'ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_DTL_LOAD_SP' || V_ERRM );
 END ROYAL_BANK_REPORT_DTL_LOAD_SP;
 
+PROCEDURE TRUNCATE_ROYAL_BANK_RPT_MAIN
+/*****************************************************************************
+    This procedure will truncate ROYAL_BANK_RPT_MAIN
+    before reloading data 
+
+Created : 11/20/2017 jxc517 CCN Project....
+Changed : 
+*****************************************************************************/
+IS
+BEGIN
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE ROYAL_BANK_RPT_MAIN';
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END TRUNCATE_ROYAL_BANK_RPT_MAIN;
+
+PROCEDURE ROYAL_BANK_HST_LOAD_SP
+/******************************************************************
+ROYAL_BANK_HST_LOAD_SP
+
+This Procedure will load Royal Bank history table
+
+created : 11/20/2017 sxh487 CCN Project....
+changed :
+******************************************************************/
+AS
+    V_RUN_NBR    NUMBER := 0;
+BEGIN
+      --insert the current records from ROYAL_BANK_RPT_MAIN into ROYAL_BANK_HIST
+      BEGIN
+        SELECT MAX(RUN_NBR)
+          INTO V_RUN_NBR
+          FROM ROYAL_BANK_HIST
+         WHERE TRUNC(LOAD_DATE) = TRUNC(SYSDATE);
+      EXCEPTION
+          WHEN OTHERS THEN
+              V_RUN_NBR := NULL;
+      END;
+      INSERT INTO ROYAL_BANK_HIST
+        SELECT RBM.*, NVL(V_RUN_NBR,0) + 1 FROM ROYAL_BANK_RPT_MAIN RBM;
+      COMMIT;
+       
+EXCEPTION
+    WHEN OTHERS THEN
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                    'ROYAL_BANK_HST_LOAD_SP',
+                                    SQLERRM,
+                                    '000000',
+                                    '0000000000'); 
+END ROYAL_BANK_HST_LOAD_SP;
+
 PROCEDURE ROYAL_BANK_REPORT_LOAD_MAIN_SP
 /******************************************************************************
 This Procedure loads Royal bank report data into ROYAL_BANK_RPT_MAIN table from 
@@ -151,7 +198,11 @@ IS
     V_CONTEXT    VARCHAR2(200);
     V_START_TIME NUMBER;
 BEGIN
-
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Truncating ROYAL_BANK_RPT_MAIN Table ';
+      TRUNCATE_ROYAL_BANK_RPT_MAIN();
+      DBMS_OUTPUT.PUT_LINE('ROYAL_BANK_RPT_MAIN truncated in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
       V_START_TIME := DBMS_UTILITY.GET_TIME;
       V_CONTEXT := 'Loading from ROYAL_BANK_DEBITS_EXT_TBL Table ';
       ROYAL_BANK_REPORT_DBT_LOAD_SP();
@@ -161,6 +212,11 @@ BEGIN
       V_CONTEXT := 'Loading from ROYAL_BANK_DTL_EXT_TBL Table ';
       ROYAL_BANK_REPORT_DTL_LOAD_SP();
       DBMS_OUTPUT.PUT_LINE('ROYAL_BANK_RPT_MAIN from DTLS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+      
+      V_START_TIME := DBMS_UTILITY.GET_TIME;
+      V_CONTEXT := 'Load ROYAL_BANK_HIST Table ';
+      ROYAL_BANK_HST_LOAD_SP();
+      DBMS_OUTPUT.PUT_LINE('ROYAL_BANK_HIST loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 END ROYAL_BANK_REPORT_LOAD_MAIN_SP;
 
 END ROYAL_BANK_REPORT_LOAD;

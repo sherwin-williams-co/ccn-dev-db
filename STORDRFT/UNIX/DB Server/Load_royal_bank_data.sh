@@ -58,21 +58,6 @@ echo "Completed execution of Loading data at $TIME on $DATE "
 ##########################################################################
 rm -f $DATA_FILES_PATH/DAREPORT.txt
 
-#################################################################
-# Archiving input files to archive folder
-#################################################################
-echo "Archiving input files started at ${TIME} on ${DATE}"
-if ls $DATA_FILES_PATH/DAREPORT.* &> /dev/null; then
-   mv $DATA_FILES_PATH/DAREPORT.* $ARCHIVE_PATH
-else
-    echo "$DATA_FILES_PATH/DAREPORT*.txt files does not exist"
-fi
-echo "Archiving input files finished at ${TIME} on ${DATE}"
-
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
-exit 0
-
 exit 0
 #############################################################
 # END of PROGRAM.

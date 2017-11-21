@@ -2,7 +2,7 @@
 ##########################################################
 # Script to Run the Royal bank reports
 #
-# Created:  10/06/2017 sxh487
+# Created:  11/20/2017 sxh487
 # 
 ##########################################################
 
@@ -11,7 +11,7 @@ TIME=`date +"%H:%M:%S"`
 dt=`date +"%m%d%Y"`
 echo "\nStarted running files at $TIME on $DATE "
 
-./royal_bank_run.sh /app/strdrft/sdReport/data/run2.txt > /app/strdrft/sdReport/logs/royal_bank_rpt_${dt}.log 2>&1
+./royal_bank_run.sh /app/strdrft/sdReport/data/Royal_bank_reports.txt > /app/strdrft/sdReport/logs/royal_bank_rpt_${dt}.log 2>&1
 
 #Verify status code and the log file for any instance of Exceptions or errors; If true then exit with status code 1
 status=$?
