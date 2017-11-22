@@ -7,8 +7,6 @@
 # Created  : 10/16/2017 jxc517 CCN Project Team.....
 # Modified : 10/26/2017 rxv940 CCN Project Team.....
 #          : Added calls to PrimeSub
-# Modified : 11/03/2017 rxv940 CCN Project Team.....
-#          : Added calls to TAXCURR
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -38,6 +36,8 @@ then
     exit 1
 fi
 
+echo "$QueueMessage" >> $LOGDIR/$LOGFILE 
+
 feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "STORE" "$QueueMessage")
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
@@ -47,10 +47,6 @@ TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 
 feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "PrimeSub" "$QueueMessage")
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
-
-feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "TAXCURR" "$QueueMessage")
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 

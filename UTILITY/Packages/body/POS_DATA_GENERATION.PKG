@@ -7,11 +7,12 @@ This package is used to generate XML files and set to the POS system.
 Created : 10/17/2016 rxv940 CCN Project....
 Changed :
 *******************************************************************************/
-IS
+IS 
 
 FUNCTION GET_CANADA_FIPS_CODE (
 /*******************************************************************************
-This function is used to return the Discount code information
+This function is used to return the FIPS code information for CANADA by passing
+in the province_code
 
 Created : 06/07/2017 rxv940 CCN Project....
 Changed :
@@ -19,7 +20,7 @@ Changed :
     IN_PROVIDENCE_CODE IN VARCHAR2) RETURN VARCHAR2
 IS
     V_RETURN_VAL VARCHAR2(10); 
-BEGIN 
+BEGIN
     SELECT FIPS_CODE 
       INTO V_RETURN_VAL
     FROM CANADA_FIPS_CODE
@@ -34,7 +35,9 @@ END GET_CANADA_FIPS_CODE;
 
 FUNCTION GET_PRI_DSC_CODE (
 /*******************************************************************************
-This function is used to return the Discount code information
+This function is used to return the Discount code information by passing in 
+Cost center code 
+COST_CENTER_DSC_CODES is a view on a DB Link
 
 Created : 05/15/2017 rxv940 CCN Project....
 Changed :
@@ -63,7 +66,9 @@ Created : 08/03/2016 rxv940 CCN Project....
 Changed : 10/20/2017 jxc517 CCN Project Team....
           Modified code to separate initial load files based on process
 Changed : 10/30/2017 rxv940 CCN Project Team....
-          Modified code to include cost center code while finding prev req id for PARAM          
+          Modified code to include cost center code while finding prev req id for PARAM
+Changed : 11/22/2017 rxv940 CCN Project Team....
+          Removed logic to ignore records that have a request id of CHR(13)               
 *******************************************************************************/ 
     IN_FILE_TYPE        IN VARCHAR2,
     IN_COST_CENTER_CODE IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2
@@ -79,10 +84,11 @@ BEGIN
          WHERE POS_ID = ( SELECT MAX(POS_ID)
                             FROM POS_DOWNLOADS
                            WHERE POLLING_REQUEST_ID IS NOT NULL
-                             AND POLLING_REQUEST_ID <> CHR(13)
-                             AND COST_CENTER_CODE = IN_COST_CENTER_CODE
+                             -- Keeping cost center code in mind while computing the pre_rqst_id
+                             -- This is only for PARAM
+                             AND COST_CENTER_CODE = IN_COST_CENTER_CODE      
                              AND FILE_TYPE = IN_FILE_TYPE
-                             AND DATA_SOURCE NOT IN ('INITIAL_LD', 'NEW_STR_LD', 'NEW_GRP_LD')
+                             AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD')
                         );
     
     ELSE 
@@ -93,9 +99,8 @@ BEGIN
          WHERE POS_ID = ( SELECT MAX(POS_ID)
                             FROM POS_DOWNLOADS
                            WHERE POLLING_REQUEST_ID IS NOT NULL
-                             AND POLLING_REQUEST_ID <> CHR(13)
                              AND FILE_TYPE = IN_FILE_TYPE
-                             AND DATA_SOURCE NOT IN ('INITIAL_LD', 'NEW_STR_LD', 'NEW_GRP_LD')
+                             AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD')
                         );
         
     END IF; 
@@ -185,7 +190,22 @@ BEGIN
             ,SYSDATE)
     RETURNING POS_ID 
          INTO V_POS_ID;
-								
+
+    IF IN_DATA_SOURCE = 'NEW_STR_LD' THEN 
+
+        -- The below table hold a list of cost centers that got added through the Polling Queue
+        -- This is only for new stores
+        UPDATE POS_NEW_STORES_LOAD_LIST
+           SET PROCESSED_IND = 'Y',
+               POS_ID        = V_POS_ID
+         WHERE APPLICATION_NAME    = DECODE(IN_DATA_OPERATION, 'STOR_INIT_LOAD', 'STORE',
+                                                               'TERR_INIT_LOAD', 'TERR',
+                                                                NULL)
+           AND TRUNC(PROCESS_DATE) = TRUNC(SYSDATE)
+           AND PROCESSED_IND       = 'N';
+
+    END IF;
+    
     RETURN V_POS_ID;
 END INS_POS_DOWNLOADS_FN;            
 
@@ -394,7 +414,7 @@ Changed : 10/19/2017 nxk927 CCN Project Team....
         : Returning back the newly added field WORK_MOBILE
 Changed : 11/17/2017 rxv940 CCN Project Team....
         : Changes to supress "TRAINEE MGR" while other mgrs available 
-        : this change is only for STORE per kdp		
+        : this change is only for STORE per kdp
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2,
     IN_PROCESS_NAME     IN VARCHAR2) RETURN EMPLOYEE_DETAILS%ROWTYPE
@@ -425,6 +445,7 @@ BEGIN
                                                  WHERE NONMGR_IND = 'Y'
                                                    AND JOB_GRP_EXCLD = 'N')
                      ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                     -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
                  )
            WHERE ROWNUM < 2;
         EXCEPTION
@@ -633,6 +654,8 @@ This procedure is used do update on the table POS_DOWNLOADS
 Created : 10/17/2016 rxv940 CCN Project....
 Changed : 06/02/2017 rxv940 CCN Project....
         : Selecting only the first 36 characters of Request_id.
+Changed : 11/07/2017 rxv940 CCN Project....
+        : Reverting of the first 36 characters of Request_id logic
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
 IS
@@ -645,9 +668,7 @@ BEGIN
            FILE_PROCESSED       = IN_POS_DOWNLOADS.FILE_PROCESSED,
            FILE_TYPE            = IN_POS_DOWNLOADS.FILE_TYPE,
            FILE_NAME            = IN_POS_DOWNLOADS.FILE_NAME,
-           -- The Java code outputs the request id along with the list of stores for which the XML
-           -- file was sent (if any). Hence using substr to load just the POLLING_REQUEST_ID
-           POLLING_REQUEST_ID   = SUBSTR(IN_POS_DOWNLOADS.POLLING_REQUEST_ID, 1, 36),
+           POLLING_REQUEST_ID   = IN_POS_DOWNLOADS.POLLING_REQUEST_ID,
            UPDATE_DT            = IN_POS_DOWNLOADS.UPDATE_DT,
            PREREQ_EQUIV_RQST_ID = IN_POS_DOWNLOADS.PREREQ_EQUIV_RQST_ID
      WHERE FILE_NAME = IN_POS_DOWNLOADS.FILE_NAME
@@ -677,9 +698,9 @@ Changed : 11/16/2017 rxv940 CCN Project....
     IN_COST_CENTER_CODE IN VARCHAR2, 
     IN_FILE_TYPE IN VARCHAR2) RETURN VARCHAR2
 IS
-V_COUNT  NUMBER      := 0;
-V_RETURN VARCHAR2(1) := 'N';
-V_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;
+    V_COUNT  NUMBER      := 0;
+    V_RETURN VARCHAR2(1) := 'N';
+    V_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;
 BEGIN
     BEGIN
         SELECT POS_DOWNLOAD_CC_IND
@@ -691,12 +712,13 @@ BEGIN
             NULL;
     END;
     IF NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'Y' THEN
+        -- The cost center is available with a flag 'Y' and hence check the count
         SELECT COUNT(1) 
           INTO V_COUNT 
           FROM POS_DOWNLOADS 
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
            AND FILE_TYPE        = IN_FILE_TYPE
-           AND FILE_PROCESSED   = 'N';
+           AND FILE_PROCESSED   = 'N'; 
 
         IF V_COUNT = 0 THEN
             V_RETURN := 'Y';
@@ -953,7 +975,6 @@ IS
     V_ADDRESS_BRB_REC      ADDRESS_BRB%ROWTYPE;
     V_ADDRESS_OTH_REC      ADDRESS_OTHER%ROWTYPE;
     V_PHONE_REC            PHONE%ROWTYPE;
-    V_TERRITORY            TERRITORY%ROWTYPE;
     V_TAXWARE              TAXWARE%ROWTYPE;
     V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE; 
 BEGIN
@@ -1067,7 +1088,6 @@ BEGIN
     --build currency
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.CURRENCY_CODE), 'currency') || CHR(10);
     --build dsc-code 
---    V_TERRITORY := RETURN_TERRITORY_INFO (V_COSTCENTER_REC.COST_CENTER_CODE);         
     V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(V_COSTCENTER_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
     --build acct-cntry,statement-type
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
@@ -1110,23 +1130,25 @@ END BUILD_STORE_XML;
 
 PROCEDURE GENERATE_POS_STORE_UPD_SP(
 /*******************************************************************************
-This procedure is used to read the changes that happen for any Price district cost centers
+This procedure is used to read the changes that happen for any UI updates
 and generate an XML document with those changes.
 
 Created : 10/17/2016 rxv940 CCN Project....
-Changed : 
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters
 *******************************************************************************/
-    IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
+    IN_POS_ID      IN       POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
     V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
     V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="store.xsd"';
     V_FILE_NAME            VARCHAR2(100);
-    V_DONE_FILE            VARCHAR2(100);
     V_ERROR                VARCHAR2(1000);
     V_REC_COUNT            PLS_INTEGER :=0;
-    V_PREREQ_EQUIV_RQST_ID VARCHAR2(4000);
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
 BEGIN  
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
@@ -1137,15 +1159,17 @@ BEGIN
                    RETURN_HEADER_RECORD('STORE1', 'STORE', V_REC_COUNT, 'U') || CHR(10) ||
                    V_XMLOUTPUT ||
                    '</storeUpdtMsg>';
-    --Generate the output as a file.
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME, '.XML', '.POLLINGDONE');
-    V_PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE');
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_PREREQ_EQUIV_RQST_ID, 'CCN_DATAFILES', V_DONE_FILE);
+
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
-    V_REC_POSDATA.FILE_PROCESSED := 'Y';
-    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := V_PREREQ_EQUIV_RQST_ID;
+    V_REC_POSDATA.FILE_PROCESSED := 'N';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE');
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    
+    OUT_XML_VALUE := V_XMLOUTPUT;
+    OUT_REQ_VALUE := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME := V_FILE_NAME;
+    
+   
 EXCEPTION
     WHEN OTHERS THEN
         V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
@@ -1155,11 +1179,11 @@ END GENERATE_POS_STORE_UPD_SP;
 
 PROCEDURE INIT_LOAD_STORE_SP(
 /*******************************************************************************
-This procedure is used to create a Store Init load file fro WS diff
+This procedure is used to create a Store Init load file 
 
 Created : 10/12/2017 rxv CCN Project....
-Changed : 11/16/2017 rxv940 CCN Project....
-        : Chnages to include checks for POS_DOWNLOAD_CC_IND flag
+Changed : 11/16/2017 rxv CCN Project....
+        : Addded condition to process records with flag = 'Y' for POS_DOWNLOAD_CC_IND
 *********************************************************************************/
     IN_LOAD_TYPE   IN       VARCHAR2,
     OUT_XML_VALUE      OUT  CLOB,
@@ -1183,8 +1207,9 @@ BEGIN
     FOR STORE_REC IN (SELECT *
                         FROM COST_CENTER
                        WHERE CATEGORY = 'S'
-                         AND POS_DOWNLOAD_CC_IND = 'Y'
                          AND CLOSE_DATE IS NULL
+                         AND POS_DOWNLOAD_CC_IND = 'Y'
+                         -- Get only stores that are ready to be picked up
                          AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE 
                                                     FROM POLLING 
                                                    WHERE POLLING_STATUS_CODE IN ('P', 'Q'))) LOOP
@@ -1210,35 +1235,6 @@ EXCEPTION
         ROLLBACK;
         CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_STORE_SP1', V_ERROR, '000000');
         RAISE;                                       
-END INIT_LOAD_STORE_SP;
-
-PROCEDURE INIT_LOAD_STORE_SP(
-/*******************************************************************************
-This procedure is used to create an init load file for Store 
-
-Created : 02/23/2017 RXV940 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_LOAD_TYPE   IN       VARCHAR2)
-IS
-    V_XMLOUTPUT            CLOB;
-    V_REQ_VALUE            VARCHAR2(200);
-    V_FILE_NAME            VARCHAR2(100);
-    V_ERROR                VARCHAR2(1000);
-    V_DONE_FILE            VARCHAR2(100);    
-BEGIN  
-    INIT_LOAD_STORE_SP(IN_LOAD_TYPE, V_XMLOUTPUT, V_REQ_VALUE, V_FILE_NAME);
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME, '.XML', '.POLLINGDONE');
-    -- The below call is to return prev req id 
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_REQ_VALUE, 'CCN_DATAFILES', V_DONE_FILE);                                    
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-        ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_STORE_SP', V_ERROR, '000000');
-        RAISE;
 END INIT_LOAD_STORE_SP;
 
 PROCEDURE BUILD_TERR_XML(
@@ -1347,23 +1343,25 @@ END BUILD_TERR_XML;
 
 PROCEDURE GEN_POS_TERRITORY_UPD_SP(
 /*******************************************************************************
-This procedure is used to read the changes that happen for any Territory
+This procedure is used to read the updates that happen for any Territory in the UI
 and generate an XML document with those changes.
 
 Created : 10/17/2016 rxv940 CCN Project....
-Changed : 
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters
 *******************************************************************************/
-    IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
+    IN_POS_ID       IN  POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
     V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
     V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="ccnterr-updt.xsd"';
     V_FILE_NAME            VARCHAR2(100);
-    V_DONE_FILE            VARCHAR2(100);
     V_ERROR                VARCHAR2(1000);
     V_REC_COUNT            PLS_INTEGER :=0;
-    V_PREREQ_EQUIV_RQST_ID VARCHAR2(4000);
     V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
 BEGIN
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
@@ -1374,15 +1372,15 @@ BEGIN
                    RETURN_HEADER_RECORD('CCNTERR', 'CCNTERR', V_REC_COUNT, 'U') || CHR(10) ||
                    V_XMLOUTPUT ||
                    '</ccnterrUpdtMsg>';                                                                                                                       
-    --Generate the output as a file.
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME, '.XML', '.POLLINGDONE');
-    V_PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE');
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_PREREQ_EQUIV_RQST_ID, 'CCN_DATAFILES', V_DONE_FILE);
+    
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
-    V_REC_POSDATA.FILE_PROCESSED := 'Y';
-    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := V_PREREQ_EQUIV_RQST_ID;
+    V_REC_POSDATA.FILE_PROCESSED := 'N';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE');
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    
+    OUT_XML_VALUE      := V_XMLOUTPUT;
+    OUT_REQ_VALUE      := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME      := V_FILE_NAME;
 EXCEPTION
     WHEN OTHERS THEN
         V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
@@ -1395,8 +1393,8 @@ PROCEDURE INIT_LOAD_TERR_SP(
 This procedure is used to create a territory Init load file.
 
 Created : 10/12/2017 rxv940 CCN Project....
-Changed : 11/16/2017 rxv940 CCN Project....
-        : Chnages to include checks for POS_DOWNLOAD_CC_IND flag
+Changed : 11/16/2017 rxv CCN Project....
+        : Addded condition to process records with flag = 'Y' for POS_DOWNLOAD_CC_IND
 *******************************************************************************/
     IN_LOAD_TYPE   IN       VARCHAR2,
     OUT_XML_VALUE      OUT  CLOB,
@@ -1437,6 +1435,7 @@ BEGIN
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
     V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := OUT_REQ_VALUE;
     POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    
     COMMIT;
 EXCEPTION
     WHEN OTHERS THEN
@@ -1446,39 +1445,9 @@ EXCEPTION
         RAISE;                                       
 END INIT_LOAD_TERR_SP;
 
-PROCEDURE INIT_LOAD_TERR_SP(
-/*******************************************************************************
-This procedure is used to create a territory Init load file.
-
-Created : 10/17/2016 rxv940 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_LOAD_TYPE   IN       VARCHAR2)
-IS
-    V_XMLOUTPUT            CLOB;
-    V_REQ_VALUE            VARCHAR2(200);
-    V_FILE_NAME            VARCHAR2(100);
-    V_ERROR                VARCHAR2(1000);
-    V_DONE_FILE            VARCHAR2(100);
-BEGIN
-    INIT_LOAD_TERR_SP(IN_LOAD_TYPE, V_XMLOUTPUT, V_REQ_VALUE, V_FILE_NAME);
-     --Generate the output as a file.
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME, '.XML', '.POLLINGDONE');
-    -- The below call  to return req id should only return "NULL_RQST_ID" and hence we are passing "INIT_LOAD"
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_REQ_VALUE, 'CCN_DATAFILES', V_DONE_FILE);                                     
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-        ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_TERR_SP', V_ERROR, '000000');
-        RAISE;
-END INIT_LOAD_TERR_SP;
-
 PROCEDURE GEN_PARAM_UPD_SP(
 /*******************************************************************************
-This procedure is used to read the changes that happen for any Territory
+This procedure is used to read the updates that happen for any Param
 and generate an XML document with those changes.
 
 The expected XML should be as given below.
@@ -1548,8 +1517,13 @@ Changed : 07/17/2017 rxv940 CCN Project....
         : Changes to retrirve bank details using GET_POS_BANK_DETAILS
 Changed : 08/03/2017 rxv940 CCN Project....
         : Changes to have the prev request id passed on to done file
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters        
 *******************************************************************************/
-    IN_POS_ID             IN  POS_DOWNLOADS.POS_ID%TYPE)
+    IN_POS_ID      IN  POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
 IS
     V_XMLOUTPUT            CLOB;
     V_XMLDATA              CLOB;
@@ -1565,8 +1539,6 @@ IS
     V_COST_CENTER_REC      COST_CENTER%ROWTYPE;
     V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
     V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
-    V_DONE_FILE            VARCHAR2(100);
-    V_PREREQ_EQUIV_RQST_ID VARCHAR2(4000);
 BEGIN
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
     V_FILE_NAME := 'ParamUpdate_' || V_REC_POSDATA.COST_CENTER_CODE || '_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
@@ -1622,52 +1594,22 @@ BEGIN
                    V_XMLOUTPUT ||
                    '</parmUpdtMsg>';
 
-    --Generate the output as a file.
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_XMLOUTPUT, 'CCN_DATAFILES', V_FILE_NAME);
-    V_DONE_FILE := REPLACE(V_FILE_NAME, '.XML', '.POLLINGDONE');
-    V_PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_PARAM_UPDATE', V_REC_POSDATA.COST_CENTER_CODE);
-    DBMS_XSLPROCESSOR.CLOB2FILE(V_PREREQ_EQUIV_RQST_ID, 'CCN_DATAFILES', V_DONE_FILE);
     --Update the POS-Downloads
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'Y';
-    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := V_PREREQ_EQUIV_RQST_ID;
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_PARAM_UPDATE', V_REC_POSDATA.COST_CENTER_CODE);
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    
+    OUT_XML_VALUE      := V_XMLOUTPUT;
+    OUT_REQ_VALUE      := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME      := V_FILE_NAME;
+    
 EXCEPTION
     WHEN OTHERS THEN
         V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
         ROLLBACK;
         CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'GEN_PARAM_UPD_SP', V_ERROR, '000000');
 END GEN_PARAM_UPD_SP;
-
-PROCEDURE POS_MASTER_SP(
-/*******************************************************************************
-This procedure is used to generate file based upon the costcentercode and filetype.
-
-Created : 10/17/2016 rxv940 CCN Project....
-Changed :
-*******************************************************************************/
-   IN_COST_CENTER_CODE             IN  POS_DOWNLOADS.COST_CENTER_CODE%TYPE)
-IS
-    V_ERROR        VARCHAR2(1000);
-BEGIN
-    FOR FILE IN (SELECT *
-                   FROM POS_DOWNLOADS 
-                  WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-                    AND FILE_PROCESSED   = 'N') LOOP
-        CASE
-        WHEN FILE.FILE_TYPE = 'POS_STORE_UPDATE' THEN
-            GENERATE_POS_STORE_UPD_SP(FILE.POS_ID);
-        WHEN FILE.FILE_TYPE = 'POS_TERRITORY_UPDATE' THEN
-            GEN_POS_TERRITORY_UPD_SP(FILE.POS_ID);
-        WHEN FILE.FILE_TYPE = 'POS_PARAM_UPDATE' THEN
-            GEN_PARAM_UPD_SP(FILE.POS_ID);
-        END CASE;
-    END LOOP;
-EXCEPTION
-    WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_MASTER_SP', V_ERROR, '000000');
-END POS_MASTER_SP;
 
 PROCEDURE POS_DOWNLOADS_UPD_SP(
 /*******************************************************************************
@@ -1683,7 +1625,8 @@ IS
 BEGIN
     UPDATE POS_DOWNLOADS 
        SET POLLING_REQUEST_ID = IN_RQST_ID,
-           UPDATE_DT          = SYSDATE
+           UPDATE_DT          = SYSDATE,
+           FILE_PROCESSED     = 'Y'
      WHERE FILE_NAME          = IN_FILE_NAME;
 EXCEPTION
     WHEN OTHERS THEN

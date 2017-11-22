@@ -1,0 +1,22 @@
+-- created by rxv940 on 11/22/2017
+-- Run this in CCN_UTILITY
+
+DELETE FROM POS_DOWNLOADS 
+WHERE COST_CENTER_CODE = 'PARAIL';
+
+-- PARAIL should not exist as no Init loads for PARAM
+
+COMMIT;
+
+
+UPDATE POS_DOWNLOADS
+   SET DATA_SOURCE = 'NEW_GRP_LD'
+ WHERE DATA_SOURCE = 'INITIAL_LD';
+ 
+ UPDATE POS_DOWNLOADS_GL_PS
+   SET DATA_SOURCE = 'NEW_GRP_LD'
+ WHERE DATA_SOURCE = 'INITIAL_LD';
+ 
+ COMMIT;
+ 
+ -- The literal INITIAL_LD is wrong and should be "NEW_GRP_LD"
