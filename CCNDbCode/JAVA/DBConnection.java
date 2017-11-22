@@ -1,6 +1,5 @@
 package com.polling.dbcalls;
 
-import java.sql.Statement;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -34,6 +33,8 @@ public class DBConnection {
 	public static void callInitLoad(String appName, String loadType) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
+			//Below call will accept the application name and load type to build the xml and
+			//pass back the xml, previous request id and file name as output
 			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.INIT_LOAD_BY_APP_NAME(?,?,?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, loadType);
@@ -55,6 +56,7 @@ public class DBConnection {
 		CallableStatement cstmt = null;
 		String validStores = null;
 		try{
+			//Below call will validate the messages came in the queue process and identify/return valid new store
 			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.VALIDATE_POS_QUEUE_MESSAGE(?,?)}");
 			cstmt.setString(1, queueMessage);
 			cstmt.registerOutParameter(2,Types.VARCHAR);
@@ -72,7 +74,8 @@ public class DBConnection {
         CallableStatement cstmt = null;
         boolean maintenanceRequired = false;
         try{
-            cstmt = conn.prepareCall("{?=call POS_DOWNLOADS_INTERFACE_PKG.IS_MAINTENANCE_RQRD_FNC}");
+            //Below call will check if there are any maintenance requests that needs to be processed
+        	cstmt = conn.prepareCall("{?=call POS_DOWNLOADS_INTERFACE_PKG.IS_MAINTENANCE_RQRD_FNC}");
             cstmt.registerOutParameter(1,Types.VARCHAR);
             cstmt.execute();
             String output = cstmt.getString(1);
@@ -90,6 +93,8 @@ public class DBConnection {
 	public static void updatePollingRequestId(String pollingRequestId, String appName) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
+			//Below call will update the polling request id obtained from API after successful process completion
+			//This looks like duplicate of updateMaintenancePollingRequestId but the file name parameter is class specific
 			cstmt= conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.POS_DOWNLOADS_UPD_SP(?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, InitialLoadProcess.ccnFileName);
@@ -105,6 +110,8 @@ public class DBConnection {
 	public static void updateMaintenancePollingRequestId(String pollingRequestId, String appName) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
+			//Below call will update the polling request id obtained from API after successful process completion
+			//This looks like duplicate of updatePollingRequestId but the file name parameter is class specific
 			cstmt= conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.POS_DOWNLOADS_UPD_SP(?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, MaintenanceLoadProcess.ccnFileName);
@@ -122,6 +129,8 @@ public class DBConnection {
 		CallableStatement cstmt = null;
 		String newStores = null;
 		try{
+			//Below call will accepts the entire list of cost centers from web service
+			//and returns a list of cost centers that are added newly to the web service
 			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.WS_DIFF_BY_FILE_TYPE(?,?,?)}");
 			cstmt.setString(1, appName);
 			cstmt.setString(2, ccWS);
@@ -139,6 +148,7 @@ public class DBConnection {
 	public static void sendMail(String mailCategory, String errorDetails) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
+			//Below call will send email based on the mail category and message passed
 			cstmt= conn.prepareCall("{call MAIL_PKG.send_mail(?,?,?,?)}");
 			cstmt.setString(1, mailCategory);
 			cstmt.setNull(2, Types.NULL);
@@ -156,11 +166,13 @@ public class DBConnection {
 		Map<String,String> requests = new LinkedHashMap<String,String>();
         String posId = null;
         String appName = null;
+        //Below call will get all the polling requests that needs to be processed 
         CallableStatement pstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.GET_POLLING_MAINTENANCE_DTLS(?)}");
         try {
             pstmt.registerOutParameter(1,OracleTypes.CURSOR);
             pstmt.execute();
             ResultSet rset =((OracleCallableStatement) pstmt).getCursor(1);
+            //building requests array to be processed 
             while (rset.next()){
             	posId = rset.getString(1);
             	appName = rset.getString(3);
@@ -171,13 +183,15 @@ public class DBConnection {
             System.err.println(e.getErrorCode() + e.getMessage());
         } finally {
         	pstmt.close();
-        	return requests;
         }
+    	return requests;
 	}
 	
 	public static void processMaintenanceForPOSId(String PosID, String appName) throws SQLException {
 		CallableStatement cstmt = null;
 		try{
+			//Below call will process the passed POSID for tha passed Application
+			//and gets the xml, previous request id and file name as output 
 			cstmt= conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.PROCESS_POLLING_REQUEST_ID(?,?,?,?,?)}");
 			cstmt.setString(1,PosID );
 			cstmt.setString(2,appName);
@@ -195,5 +209,4 @@ public class DBConnection {
 			cstmt.close();
 		}
 	}
-	
 }

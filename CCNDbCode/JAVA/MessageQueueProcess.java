@@ -33,14 +33,12 @@ public class MessageQueueProcess {
 					MessageConsumer consumer = session.createConsumer(session.createQueue(args[2]));
 					// Consumer name is also got as input. 
 					conn.start();              
+					//building a "comma-space" separated message list from queue
 					for (Message m = consumer.receive(waitMillis); m != null; m = consumer.receive(waitMillis)) {                	
 						TextMessage tm = (TextMessage) m;
-						out_message = tm.getText();
-						if (out_message.length() > 0) {
-							if(! out_message.contains(tm.getText())){
-								out_message = out_message + tm.getText() + ", ";
-							}
-						} 
+						if(! out_message.contains(tm.getText())){
+							out_message = out_message + tm.getText() + ", ";
+						}
 					}
 					session.commit();
 				} catch (Exception e) {
@@ -49,20 +47,22 @@ public class MessageQueueProcess {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			if (out_message != null 
-					&& out_message.length() > 0
-					&& out_message.charAt(out_message.length() - 1) == ',') {
-				
+			//Example message string read will be "1001, abcd, test, 1004, "
+			//Stripping the last 2 characters from the above string
+			out_message = out_message.substring(0, out_message.length() - 2);
+			//Example message string after above statement will be "1001, abcd, test, 1004"
+			if (out_message != null && out_message.length() > 0) {
 				try {
-					out_message = out_message.substring(0, out_message.length() - 1);
 					// Invoke Configuration file to set properties
 					InputStream input = new FileInputStream("config.properties");
 					prop.load(input);
 					// Connect to DB
 					DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
+					//Example input "1001, abcd, test, 1004"
 					String validatedMessage = DBConnection.validateQueueMessages(out_message);
+					//Example output "1001, 1004"
 					if (validatedMessage != null && !validatedMessage.isEmpty()) {
-						System.out.println("["+validatedMessage+"]");
+						System.out.println(validatedMessage);
 					} 
 				} catch (Exception e) {
 					e.printStackTrace();

@@ -1,36 +1,13 @@
 package com.polling.downloads;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.List;
 
 public class UtilityProcess {
-	public static List<String> readFile(String filename)  {
-		// The .queue file is passed as an input parameter to this method
-		// which reads the .queue file and creates a list of stores
-		List<String> records = new ArrayList<String>();
-		try{
-			BufferedReader reader = new BufferedReader(new FileReader(filename));
-			String line;
-			while ((line = reader.readLine()) != null){
-				records.add(line);
-			}
-			reader.close();
-			return records;
-		}catch (Exception e){
-			System.err.format("Exception occurred trying to read '%s'.", filename);
-			e.printStackTrace();
-			return null;
-		}
-	}
-
 	public static String fileExists(String filepath) {
 		// Below method checks to see if the file given in the 
 		// input parameter exists. 

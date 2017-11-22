@@ -36,6 +36,7 @@ public class WebServiceProcess {
 		String appStoreList = null;
 		StringHolder storeList  = getAppStores(inpAppId);
 		appStoreList = Arrays.toString(storeList.value.split("\\s*,\\s*"));
+		//Example : [9934, 9950, 9954, 9958, 9959, 9969, 9972, 9989]
 		System.out.println(" Stores in WebService for application "+inpAppId+" : " + appStoreList);
 		return appStoreList;
 	}
@@ -43,6 +44,7 @@ public class WebServiceProcess {
 		List<String> appStoreList = null;
 		StringHolder storeList  = getAppStores(inpAppId);
 		appStoreList = Arrays.asList(storeList.value.split("\\s*,\\s*"));
+		//Example : [9934, 9950, 9954, 9958, 9959, 9969, 9972, 9989]
 		System.out.println(" Stores in WebService for application "+inpAppId+" : " + appStoreList);
 		return appStoreList;
 	}

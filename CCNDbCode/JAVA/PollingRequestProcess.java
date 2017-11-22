@@ -42,6 +42,7 @@ public class PollingRequestProcess {
 
 	private static String callPollingInitMethod(List<String> storeList){
 		String requestId = "";
+		//If input store list is empty we do nothing and return empty string
 		if (!storeList.isEmpty()) {
 			try {
 				requestId = RestAdapter.writeFileToPolling(
@@ -88,10 +89,14 @@ public class PollingRequestProcess {
 					List<String> storeList = new ArrayList<String>();
 					storeList.add(storeNumber.substring(2, 6));
 					if (pilotPhaseIndicator.equalsIgnoreCase("Y")){
+						//For pilot phase, we need to check the PARAM cost center that came in is part of web service or not
+						//We process it only if it is part of the web service
 						System.out.println("Pilot phase");
 						PltStoreList = WebServiceProcess.getAppStoresAsList(application);
 						PrmStoreNbr = storeNumber.substring(2, 6);
 						if (!PltStoreList.contains(PrmStoreNbr)) {
+							//This is very important as for pilot phase as
+							//we exit out of this procedure here itself if cost center is not part of web service
 							return requestId;
 						}
 					}else{
@@ -140,13 +145,17 @@ public class PollingRequestProcess {
 			env = Environment.prod.name();
 		}
 		if (prevRequestId.equals("NULL_RQST_ID")) {
+			//This is the first request for that app/cost center combination, so pass equivalent id
 			System.out.println("Initial Load process with out prerequisite and equivalent id to " + env + " environment");
 			pollingHdrMetadata = PollingHeaderMetadata.create(env, application);
 		} else{
 			if(loadType.equals("INITLOAD")){
+				//This is a pilot stores New Grp Load/New store load
+				//So pass equivalent id
 				System.out.println("Passing equivalent ID to " + env + " environment : "+prevRequestId);
 				pollingHdrMetadata = PollingHeaderMetadata.create(env, application, prevRequestId, FixType.equivalent_to);
 			}else{
+				//This is an actual maintenance, pass prerequisite id
 				System.out.println("Passing prerequisite ID to " + env + " environment : "+prevRequestId);
 				pollingHdrMetadata = PollingHeaderMetadata.create(env, application, Prerequisite.REQUIREMENTS.afterRequest(prevRequestId));
 			}

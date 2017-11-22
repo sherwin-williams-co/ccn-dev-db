@@ -24,7 +24,7 @@ public class MaintenanceLoadProcess {
 
 			// Connect to DB
 			System.out.println("Connecting to Database");
-			DBConnection.setConnection(prop.getProperty("utiluser"), prop.getProperty("utilpwd"), prop.getProperty("dbconn"));
+			DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 
 			// Check if there are items to process
 			// Main logic starts
@@ -32,7 +32,9 @@ public class MaintenanceLoadProcess {
 				Map<String,String> posIdAppName = new LinkedHashMap<String,String>();
 				posIdAppName = DBConnection.getPollingRequestsToBeProcessed();
 				System.out.println("**********************************************************************************************");
+				//loop through the requests that needs to be processed
 				for (java.util.Map.Entry<String, String> entrySet : posIdAppName.entrySet()) {
+					//Get the file path where to place the xml file
 					String fileNameWithPath = prop.getProperty("pollingDownloadFilePath");
 					String posId = null;
 					String pollingAppName = null;
@@ -40,16 +42,21 @@ public class MaintenanceLoadProcess {
 						posId = entrySet.getKey();
 						pollingAppName = entrySet.getValue();
 
+						//Maintaining save points to handle multiple request independant of each other
 						DBConnection.conn.setAutoCommit(false);
 						DBConnection.conn.setSavepoint("SVPT");
+						//Process the request to get xml, previous request id and file name
 						DBConnection.processMaintenanceForPOSId(posId, pollingAppName);
 
 						fileNameWithPath = fileNameWithPath + ccnFileName;
 						System.out.println("writing the file on server at : " + fileNameWithPath);
+						//Write the file on the server
 						UtilityProcess.writeToFile(fileNameWithPath,xml);
 
 						System.out.println("Getting the polling request id");
+						//set the required polling API parameters based on the application
 						PollingRequestProcess pr = new PollingRequestProcess(pollingAppName);
+						//Invoke the polling API with the file and previous request id 
 						String pollingRequestId = pr.callPollingMethod(fileNameWithPath, ccnPrevRequestID);
 
 						if(pollingRequestId.contains("Exception") || pollingRequestId.contains("Error")){
@@ -58,6 +65,7 @@ public class MaintenanceLoadProcess {
 						}else{
 							if(pollingRequestId != null && !pollingRequestId.isEmpty()){
 								System.out.println("Updating the polling request id");
+								//Update the request id received after successful polling process
 								DBConnection.updateMaintenancePollingRequestId(pollingRequestId, pollingAppName);
 								System.out.println("PosID = " + posId + " , appName = " + pollingAppName + " , pollingRequestId = " + pollingRequestId + " PrevReqId = " + ccnPrevRequestID);
 								System.out.println("\n");

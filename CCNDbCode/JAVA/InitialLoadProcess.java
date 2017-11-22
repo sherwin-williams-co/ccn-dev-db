@@ -73,18 +73,23 @@ public class InitialLoadProcess {
 	private static void processInitLoad(String stores, String pollingAppName) throws SQLException{
 		if (stores != null && !stores.isEmpty()) {
 			System.out.println("Generating initial load file for application "+pollingAppName);
+			//Process the request to get xml, previous request id and file name based on load type
 			DBConnection.callInitLoad(pollingAppName, loadType);
 
 			String fileNameWithPath = prop.getProperty("pollingDownloadFilePath") + ccnFileName;
 			System.out.println("writing the file on server at : " + fileNameWithPath);
+			//Write the file on the server
 			UtilityProcess.writeToFile(fileNameWithPath,xml);
 
 			System.out.println("Getting the polling request id");
+			//set the required polling API parameters based on the application
 			PollingRequestProcess pr = new PollingRequestProcess(pollingAppName);
 			String pollingRequestId = null;
 			if(loadType.equals("SYNC_LOAD")){
+				//Invoke the polling API with the file and previous request id 
 				pollingRequestId = pr.callPollingMethod(fileNameWithPath, ccnPrevRequestID);
 			}else{
+				//Invoke the polling API with the file and previous request id, stores list
 				pollingRequestId = pr.callPollingInitMethod(fileNameWithPath, ccnPrevRequestID, stores);
 			}
 			if(pollingRequestId.contains("Exception") || pollingRequestId.contains("Error")){
@@ -92,6 +97,7 @@ public class InitialLoadProcess {
 			}else{
 				if(pollingRequestId != null && !pollingRequestId.isEmpty()){
 					System.out.println("Updating the polling request id");
+					//Update the request id received after successful polling process
 					DBConnection.updatePollingRequestId(pollingRequestId, pollingAppName);
 				}else{
 					System.out.println("No request Id to update anything in the database");
