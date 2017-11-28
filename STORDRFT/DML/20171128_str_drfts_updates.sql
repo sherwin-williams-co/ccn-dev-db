@@ -1,4 +1,9 @@
+/*---------------------------------------
+Below script will manually mark the drafts as paid, or Change the amounts as per email sent by MARY F PATRIK
+(Not to be sent to the Bank as maintenance)
 
+Created: 11/28/2017 axt754
+------------------------------------------*/
 -- 'Mark as paid' as per EMAIL sent by mary   
 SELECT * FROM STORE_DRAFTS WHERE COST_CENTER_CODE = '702825' AND CHECK_SERIAL_NUMBER = '0282510304';
 
@@ -190,7 +195,8 @@ SELECT * FROM STORE_DRAFTS WHERE COST_CENTER_CODE = '703154' AND CHECK_SERIAL_NU
 
 UPDATE STORE_DRAFTS 
    SET PAID_DATE = NULL, 
-       PAY_INDICATOR = 'N' 
+       PAY_INDICATOR = 'N',
+       BANK_PAID_AMOUNT = NULL       
  WHERE COST_CENTER_CODE = '703154' 
    AND CHECK_SERIAL_NUMBER = '0315417873';
    

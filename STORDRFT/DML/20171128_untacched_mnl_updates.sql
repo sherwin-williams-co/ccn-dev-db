@@ -1,4 +1,9 @@
+/*---------------------------------------
+Below script will manually mark the drafts as paid, or Change the amounts as per email sent by MARY F PATRIK
+(Not to be sent to the Bank as maintenance)
 
+Created: 11/28/2017 axt754
+------------------------------------------*/
 -- Update amounts for "Change Amount in CCN to match check amount on this file" as per Email from Mary 
 SELECT * FROM UNATTACHED_MNL_DRFT_DTL WHERE COST_CENTER_CODE = '707751' AND CHECK_SERIAL_NUMBER = '0775123854';
 
