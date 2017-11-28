@@ -26,6 +26,10 @@ Insert into ROLE_DETAILS values ('CCNMU','CCN Marketing User','Y','Y','Y','Y',
    </COST_CENTER_WINDOW>
 </USER_RULES_DESCRIPTION>');
 
+Insert into SECURITY_MATRIX values ('gap54c','gap54c','CCNMU');
+Insert into SECURITY_MATRIX values ('tlc82c','tlc82c','CCNMU');
+Insert into SECURITY_MATRIX values ('beo162','beo162','CCNMU');
+
 COMMIT;
 	 
 	 
