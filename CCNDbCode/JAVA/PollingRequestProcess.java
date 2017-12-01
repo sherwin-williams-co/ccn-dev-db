@@ -97,7 +97,6 @@ public class PollingRequestProcess {
 						if (!PltStoreList.contains(PrmStoreNbr)) {
 							//This is very important as for pilot phase as
 							//we exit out of this procedure here itself if cost center is not part of web service
-							System.out.println("Not working");
 							return requestId;
 						}
 					}else{
