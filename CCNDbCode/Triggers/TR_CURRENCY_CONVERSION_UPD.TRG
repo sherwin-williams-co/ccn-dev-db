@@ -33,7 +33,8 @@ BEGIN
             POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_currency_conv_row.COUNTRY_CODE,
                                                             'CURRENCY_CONVERSION',
                                                             'ADD',
-                                                            'POS_NON_TXWR_RT_UPDATE'
+                                                            'POS_NON_TXWR_RT_UPDATE',
+                                                            NULL
                                                             );
         ELSIF UPDATING THEN
             IF NVL(:OLD.DISPLAY_VAT_FLAG,'XXX')         <>       NVL(:NEW.DISPLAY_VAT_FLAG,'XXX')         OR 

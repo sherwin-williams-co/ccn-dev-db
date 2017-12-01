@@ -32,7 +32,8 @@ BEGIN
             POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_row.COUNTRY_CODE,
                                                             'NON_TAXWARE_RATES',
                                                             'ADD',
-                                                            'POS_NON_TXWR_RT_UPDATE'
+                                                            'POS_NON_TXWR_RT_UPDATE',
+                                                            NULL
                                                             );
         ELSIF UPDATING THEN
             IF NVL(:OLD.TAX_CODE,'-99999999')              <> NVL(:NEW.TAX_CODE,'-99999999') OR 
