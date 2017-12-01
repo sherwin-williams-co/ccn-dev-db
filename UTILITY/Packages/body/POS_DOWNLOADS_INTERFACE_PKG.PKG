@@ -24,9 +24,11 @@ BEGIN
         PRIME_SUB_PROCESS.PRIME_SUB_DATA_INIT_LOAD_SP(IN_LOAD_TYPE, OUT_XML_DATA, OUT_PRE_REQ_ID, OUT_FILE_NAME);
     ELSIF IN_APP_NAME = 'PARAM' THEN 
         --Nothing needs to be done as PARAM is cost center based and bulk file is not applicable
+        --also the newly added cost centers to polling are existing cost centers that already holds the required data
         NULL; 
     ELSIF IN_APP_NAME = 'TAXCURR' THEN
         --Nothing needs to be done as TAXCURR is cost center based and bulk file is not applicable
+        --also the newly added cost centers to polling are existing cost centers that already holds the required data
         NULL;
     END IF;
 EXCEPTION 
@@ -54,6 +56,7 @@ IS
     V_COST_CENTER_CODE VARCHAR2(6);
     V_INVALID_CC_LIST  CLOB;
     V_MAIL_TXT         VARCHAR2(250);
+    V_NEW_STR_CC_CNT   NUMBER := 0;
 BEGIN
     --Sample input : "[1234, 7896, 1001]"
     IF V_STR_LST <> '[]' THEN
@@ -75,7 +78,21 @@ BEGIN
                 -- Below table is used to track the newly added cost centers in the web service
                 -- This table is used for NEW GRP LD only
                 INSERT INTO POS_INIT_LOAD_LIST VALUES (IN_FILE_TYPE, V_COST_CENTER_CODE, SYSTIMESTAMP);
-                V_FNL_STR_LST := V_FNL_STR_LST || SUBSTR(V_COST_CENTER_CODE, 3, 4) || ',';
+                --Do not send the initial load files to new stores again in pilot store list
+                --If so, it sends two requests with equivalent ID, which should be ok but repetitive as per kdp
+                BEGIN
+                    SELECT COUNT(*)
+                      INTO V_NEW_STR_CC_CNT
+                      FROM POS_NEW_STORES_LOAD_LIST
+                     WHERE COST_CENTER_CODE = V_COST_CENTER_CODE;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                IF V_NEW_STR_CC_CNT = 0 THEN
+                    --even found in diff, send it back only if it is not present in new store load
+                    V_FNL_STR_LST := V_FNL_STR_LST || SUBSTR(V_COST_CENTER_CODE, 3, 4) || ',';
+                END IF;
                 OUT_LIST := V_FNL_STR_LST;
             EXCEPTION
                 WHEN DUP_VAL_ON_INDEX THEN
@@ -84,6 +101,7 @@ BEGIN
                     RAISE; --not OK as something else happened
             END;
             V_COST_CENTER_CODE := NULL;
+            V_NEW_STR_CC_CNT   := 0;
         END LOOP;
         OUT_LIST := TRIM(TRAILING ',' FROM OUT_LIST);
     END IF;
@@ -141,8 +159,9 @@ FUNCTION IS_MAINTENANCE_RQRD_FNC
 This Function checks the file processed status in POS_DOWNLOADS  table and returns 'Y' if 
 there are any unprocessed records 
 
-Created : 11/7/2017  bxa919 CCN Project....
-Changed :
+Created : 11/07/2017  bxa919 CCN Project....
+Changed : 11/28/2017 rxv940 CCN Project....
+        : Changes to use POS_ID in select instead of '*'
 ************************************************************************/
 RETURN VARCHAR2
 IS
@@ -151,17 +170,22 @@ IS
 BEGIN
     SELECT COUNT(*)
       INTO V_COUNT
-      FROM (SELECT *
+      FROM (SELECT POS_ID
               FROM POS_DOWNLOADS
               /* Checks the Unprocessed files status*/
              WHERE FILE_PROCESSED = 'N'
                AND COST_CENTER_CODE NOT IN ('TERRIL', 'STORIL')
              UNION
-            SELECT *
+            SELECT POS_ID
               FROM POS_DOWNLOADS_GL_PS
               /* Checks the Unprocessed files status*/
              WHERE FILE_PROCESSED = 'N'
-               AND ACCNT_NBR IS NOT NULL);
+               AND ACCNT_NBR IS NOT NULL
+             UNION
+            SELECT POS_ID
+              FROM POS_DOWNLOADS_NON_TAXWARE
+              /* Checks the Unprocessed files status*/
+             WHERE FILE_PROCESSED = 'N');
     IF V_COUNT > 0 THEN
         V_FLAG := 'Y';
     END IF;
@@ -173,8 +197,9 @@ END IS_MAINTENANCE_RQRD_FNC;
 This Function checks the Unprocessed records in POS_DOWNLOAD table and returns the 
 Pos_ID and APPLICATION_NAME details .
 
-Created : 11/7/2017  bxa919 CCN Project....
-Changed :
+Created : 11/07/2017  bxa919 CCN Project....
+Changed : 11/28/2017  rxv940 CCN Project....
+        : Chnages to add TAXCURR related logic
 *******************************************************************************/
    OUT_REF_CUR     OUT SYS_REFCURSOR)
 IS
@@ -196,6 +221,11 @@ BEGIN
          /* Checks the Unprocessed files status*/
         WHERE FILE_PROCESSED = 'N'
           AND ACCNT_NBR IS NOT NULL
+        UNION
+        SELECT POS_ID, COUNTRY_CODE, 'TAXCURR' APP_NAME
+         FROM POS_DOWNLOADS_NON_TAXWARE
+         /* Checks the Unprocessed files status*/
+        WHERE FILE_PROCESSED = 'N'
        ORDER BY 1;
 END GET_POLLING_MAINTENANCE_DTLS;
 
@@ -204,8 +234,9 @@ PROCEDURE PROCESS_POLLING_REQUEST_ID(
 This pocedure passes the POS_ID and invokes the corresponding procedures based
 on the Application name.
 
-Created : 11/7/2017  bxa919 CCN Project....
-Changed :
+Created : 11/07/2017  bxa919 CCN Project....
+Changed : 11/28/2017  rxv940 CCN Project....
+        : Changes to include TAXCURR logic
 *******************************************************/
     IN_POS_ID        IN      VARCHAR2,
     IN_APP_NAME      IN      VARCHAR2,
@@ -224,6 +255,8 @@ BEGIN
         POS_DATA_GENERATION.GEN_POS_TERRITORY_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
     ELSIF IN_APP_NAME = 'PrimeSub' THEN
         PRIME_SUB_PROCESS.GEN_POS_DATA_GL_PS_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
+    ELSIF IN_APP_NAME = 'TAXCURR' THEN
+        POS_DATA_GENERATION_NON_TAXWAR.TAX_CUR_UPD_SP(IN_POS_ID, OUT_XML,OUT_FILE_NAME,OUT_PREV_REQ_ID);
     END IF;
 EXCEPTION 
     WHEN OTHERS THEN
@@ -235,7 +268,8 @@ PROCEDURE INSRT_POS_TBL_BY_APP_NM(
 This procedure is to insert into the POS Table based on the input App name
 
 Created : 11/21/2017 rxv940 CCN Project....
-Changed : 
+Changed : 12/01/2017 rxv940 CCN Project....
+        : Adding TAXCURR calls
 *********************************************************************************/
       IN_APP_NAME     IN     VARCHAR2,
       IN_COST_CENTER  IN     VARCHAR2)
@@ -245,8 +279,7 @@ BEGIN
     -- table for the APP Names. This helps in running a maintenance immediately after a new 
     -- store was processed by the new store load process
     IF IN_APP_NAME = 'TAXCURR' THEN
-        --TBD
-        NULL;
+        POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(IN_COST_CENTER, 'COST_CENTER', 'ADD', 'POS_NON_TXWR_RT_UPDATE');
     ELSIF IN_APP_NAME = 'STORE' THEN
         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER, 'COST_CENTER', 'ADD', 'POS_STORE_UPDATE');
     ELSIF IN_APP_NAME = 'TERR' THEN
@@ -271,13 +304,13 @@ IS
     SELECT 'STORE' AS APP_NAME FROM DUAL
      UNION
     SELECT 'TERR' AS APP_NAME FROM DUAL
-    --No need to include as primesub is always bulk file and not linked with costc enter
+    --No need to include primesub as it is always bulk file and not linked with costc enter
     --UNION
     --SELECT 'PrimeSub' AS APP_NAME FROM DUAL
      UNION
     SELECT 'PARAM' AS APP_NAME FROM DUAL
-    --UNION
-    --SELECT 'TAXCURR' AS APP_NAME FROM DUAL
+     UNION
+    SELECT 'TAXCURR' AS APP_NAME FROM DUAL
     );
 BEGIN 
     FOR rec IN C_APP_NAME LOOP

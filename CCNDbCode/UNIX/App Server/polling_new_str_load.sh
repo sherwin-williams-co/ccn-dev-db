@@ -7,6 +7,7 @@
 # Created  : 10/16/2017 jxc517 CCN Project Team.....
 # Modified : 10/26/2017 rxv940 CCN Project Team.....
 #          : Added calls to PrimeSub
+#          : For PARAM and TAXCURR, individual records will be loaded into the POS tables.
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -16,6 +17,9 @@ CLASSHOME="$HOME/CcnJavaCode"
 DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
 LOGFILE="polling_new_str_load.log"
+
+DATADIR="$HOME"/POSdownloads/POSxmls
+FILENM=pollingMntncInProcess.trg
 
 echo "*************************************************************************************" >> $LOGDIR/$LOGFILE
 TIME=$(date +"%H%M%S")
@@ -49,6 +53,10 @@ echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " 
 feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "PrimeSub" "$QueueMessage")
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
+
+# Once the New store load is run, we immediately run the maintenance process
+$SCRIPT_DIR/polling_maintenance_process.sh
+# End of call to run the maintenance process
 
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE

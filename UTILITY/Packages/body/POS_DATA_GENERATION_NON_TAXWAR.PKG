@@ -16,21 +16,38 @@ This procedure is used do update on the table POS_DOWNLOADS_NON_TAXWARE
 Created : 09/08/2017 rxv940 CCN Project....
 Changed :
 *******************************************************************************/
-    IN_COUNTRY_CODE IN VARCHAR2,   
-    IN_FILE_TYPE IN VARCHAR2) RETURN VARCHAR2
+    IN_COUNTRY_CODE     IN VARCHAR2,   
+    IN_FILE_TYPE        IN VARCHAR2,
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_STATE_CODE       IN VARCHAR2) RETURN VARCHAR2
 IS
     V_COUNT  NUMBER      := 0;
-    V_RETURN VARCHAR2(1) := 'Y';
+    V_RETURN VARCHAR2(1) := 'N';
+    V_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;    
 BEGIN
-    SELECT COUNT(1) 
-      INTO V_COUNT  
-      FROM POS_DOWNLOADS_NON_TAXWARE 
-     WHERE COUNTRY_CODE     = IN_COUNTRY_CODE 
-       AND FILE_TYPE        = IN_FILE_TYPE
-       AND FILE_PROCESSED   = 'N';
+    BEGIN
+        SELECT POS_DOWNLOAD_CC_IND
+          INTO V_POS_DOWNLOAD_CC_IND
+          FROM COST_CENTER
+        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'Y' THEN
+    -- The cost center is available with a flag 'Y' and hence check the count
+        SELECT COUNT(1) 
+          INTO V_COUNT  
+          FROM POS_DOWNLOADS_NON_TAXWARE 
+         WHERE COUNTRY_CODE          = IN_COUNTRY_CODE 
+           AND FILE_TYPE             = IN_FILE_TYPE
+           AND COST_CENTER_CODE      = IN_COST_CENTER_CODE
+           AND NVL(STATE_CODE, 'ZG') = NVL(IN_STATE_CODE, 'ZG')
+           AND FILE_PROCESSED        = 'N';
     
-    IF V_COUNT > 0 THEN
-        V_RETURN := 'N';
+        IF V_COUNT = 0 THEN
+            V_RETURN := 'Y';
+        END IF;
     END IF;
 
     RETURN V_RETURN;
@@ -45,41 +62,130 @@ Created : 09/08/2017 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
     IN_COUNTRY_CODE     IN VARCHAR2,
-    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2, 
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2, 
+    IN_STATE_CODE       IN VARCHAR2)
+IS
+    V_ERROR              VARCHAR2(500);
+BEGIN 
+    FOR CC_CODE IN (SELECT DISTINCT COST_CENTER_CODE
+                      FROM ADDRESS_VW
+                     WHERE COUNTRY_CODE = IN_COUNTRY_CODE
+                       AND NVL(STATE_CODE, 'ZZ') = NVL(IN_STATE_CODE, 'ZZ')
+                       AND ADDRESS_TYPE = 'M'
+                       AND EXPIRATION_DATE IS NULL) LOOP
+        --Check for cost center and file type operation exists and not yet processed. 
+        --If exists then do not insert. Else Insert if cost_center is also ready for Polling
+        IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_COUNTRY_CODE, 
+                                          IN_FILE_TYPE,
+                                          CC_CODE.COST_CENTER_CODE,
+                                          IN_STATE_CODE)  = 'Y' THEN
+            INSERT
+              INTO POS_DOWNLOADS_NON_TAXWARE(POS_ID
+                                            ,COUNTRY_CODE
+                                            ,DATA_SOURCE
+                                            ,DATA_OPERATION
+                                            ,FILE_TYPE
+                                            ,FILE_PROCESSED
+                                            ,CREATE_DT
+                                            ,STATE_CODE
+                                            ,COST_CENTER_CODE)
+            VALUES (SEQ_POS_DWNLD_NON_TXWR.NEXTVAL
+                    ,IN_COUNTRY_CODE
+                    ,IN_DATA_SOURCE
+                    ,IN_DATA_OPERATION
+                    ,IN_FILE_TYPE
+                    ,'N'
+                    ,SYSDATE
+                    ,IN_STATE_CODE
+                    ,CC_CODE.COST_CENTER_CODE);
+        END IF;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_TRG_EVENT_LOG-NON_TAXWARE', V_ERROR, '000000');
+END POS_TRG_EVENT_LOG;
+
+FUNCTION IS_VALID_FOR_POLLING(
+/*******************************************************************************
+This procedure is used to capture the changes done on tables into pos_downloads 
+table
+
+Created : 09/08/2017 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COUNTRY_CODE     IN VARCHAR2,
+    IN_STATE_CODE       IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_COUNT NUMBER := 0;
+BEGIN 
+    SELECT COUNT(1) 
+      INTO V_COUNT
+      FROM (SELECT COUNTRY_CODE, 'ZG' STATE_CODE 
+              FROM NON_TAXWARE_RATES
+             WHERE COUNTRY_CODE              = IN_COUNTRY_CODE
+             UNION
+            SELECT COUNTRY_CODE, STATE_CODE 
+              FROM NON_TAXWARE_RATES_USA
+             WHERE COUNTRY_CODE              = IN_COUNTRY_CODE
+               AND STATE_CODE                = NVL(IN_STATE_CODE, 'ZG')
+            );
+            
+    IF V_COUNT > 0 THEN 
+        RETURN 'Y';
+    END IF;
+            
+EXCEPTION 
+    WHEN OTHERS THEN
+        RETURN 'N';
+END IS_VALID_FOR_POLLING;
+
+PROCEDURE POS_TRG_EVENT_LOG(
+/*******************************************************************************
+This procedure is used to capture the changes done on tables into pos_downloads 
+table
+
+Created : 09/08/2017 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2, 
     IN_DATA_OPERATION   IN VARCHAR2,
     IN_FILE_TYPE        IN VARCHAR2)
 IS
-    V_ERROR VARCHAR2(500);
+    V_ERROR              VARCHAR2(500);
+    V_COUNTRY_CODE       VARCHAR2(200);
+    V_STATE_CODE         VARCHAR2(50) := NULL;
 BEGIN 
-    --Check for cost center and file type operation exists and not yet processed. 
-    --If exists then do not insert. Else Insert.
-    IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_COUNTRY_CODE, 
-                                      IN_FILE_TYPE) = 'Y' THEN
-        INSERT
-          INTO POS_DOWNLOADS_NON_TAXWARE(POS_ID
-                                        ,COUNTRY_CODE
-                                        ,DATA_SOURCE
-                                        ,DATA_OPERATION
-                                        ,FILE_TYPE
-                                        ,FILE_PROCESSED
-                                        ,CREATE_DT)
-        VALUES (SEQ_POS_DWNLD_NON_TXWR.NEXTVAL
-                ,IN_COUNTRY_CODE
-                ,IN_DATA_SOURCE
-                ,IN_DATA_OPERATION
-                ,IN_FILE_TYPE
-                ,'N'
-                ,SYSDATE);
-    END IF;
+    SELECT CC.COUNTRY_CODE 
+      INTO V_COUNTRY_CODE
+      FROM COST_CENTER CC
+     WHERE CC.COST_CENTER_CODE  = IN_COST_CENTER_CODE;
+     
+     IF V_COUNTRY_CODE = 'USA' THEN 
+        BEGIN
+            SELECT STATE_CODE
+              INTO V_STATE_CODE
+              FROM ADDRESS_USA
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND EXPIRATION_DATE IS NULL
+               AND ADDRESS_TYPE = 'M';
+         EXCEPTION 
+             WHEN OTHERS THEN 
+                 V_STATE_CODE := NULL;
+         END;
+     END IF;
+     
+     IF IS_VALID_FOR_POLLING(V_COUNTRY_CODE, V_STATE_CODE) = 'Y' THEN
+--DBMS_OUTPUT.PUT_LINE(V_COUNTRY_CODE ||'   '||V_STATE_CODE);
+        POS_TRG_EVENT_LOG(V_COUNTRY_CODE, IN_DATA_SOURCE, IN_DATA_OPERATION, IN_FILE_TYPE, V_STATE_CODE);
+    END IF;    
 EXCEPTION
     WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                    'SQLERRM->' || SQLERRM || CHR(10) ||
-                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'POS_TRG_EVENT_LOG-NON_TAXWARE',
-                                       V_ERROR,
-                                       '000000');
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_TRG_EVENT_LOG-NON_TXWR', V_ERROR, '000000');
 END POS_TRG_EVENT_LOG;
 
 FUNCTION RETURN_PREVIOUS_REQUEST_ID(
@@ -90,26 +196,29 @@ filetype info. This computation doesn't include the INIT loads
 Created : 09/19/2017 rxv940 CCN Project....
 Changed :
 *******************************************************************************/ 
-    IN_FILE_TYPE        IN VARCHAR2) RETURN VARCHAR2
+    IN_FILE_TYPE        IN VARCHAR2,
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_STATE_CODE       IN VARCHAR2,
+    IN_COUNTRY_CODE     IN VARCHAR2) RETURN VARCHAR2
 IS
     V_PREV_RQST_ID VARCHAR2(36) := 'NULL_RQST_ID';
 BEGIN
-
     SELECT POLLING_REQUEST_ID
       INTO V_PREV_RQST_ID
       FROM POS_DOWNLOADS_NON_TAXWARE
      WHERE POS_ID = ( SELECT MAX(POS_ID)
                         FROM POS_DOWNLOADS_NON_TAXWARE
                        WHERE POLLING_REQUEST_ID IS NOT NULL
-                         AND FILE_TYPE = IN_FILE_TYPE                     -- Ideally, not needed. This is kept to maintain uniformity.
-                         AND DATA_SOURCE NOT IN ('INITIAL_LD', 'NEW_STR_LD', 'NEW_GRP_LD')
+                         AND FILE_TYPE              = IN_FILE_TYPE                     -- Ideally, not needed. This is kept to maintain uniformity.
+                         AND COST_CENTER_CODE       = IN_COST_CENTER_CODE
+                         AND NVL(STATE_CODE, 'ZG')  = NVL(IN_STATE_CODE, 'ZG') 
+                         AND COUNTRY_CODE           = IN_COUNTRY_CODE
+                         AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD')
                     );
-
     RETURN V_PREV_RQST_ID;
-            
 EXCEPTION
-WHEN OTHERS THEN
-    RETURN V_PREV_RQST_ID;
+    WHEN OTHERS THEN
+        RETURN V_PREV_RQST_ID;
 END RETURN_PREVIOUS_REQUEST_ID;
 
 PROCEDURE POS_DOWNLOADS_UPD_SP(
@@ -140,14 +249,9 @@ BEGIN
 
 EXCEPTION
     WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                    'SQLERRM->' || SQLERRM || CHR(10) ||
-                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
         ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'POS_DOWNLOADS_UPD_SP-NON_TAXWARE',
-                                       V_ERROR,
-                                       '000000');
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_DOWNLOADS_UPD_SP-NON_TAXWARE', V_ERROR, '000000');
         RAISE;
 END POS_DOWNLOADS_UPD_SP;
 
@@ -276,7 +380,7 @@ BEGIN
        <wfd/>
     </dlHeaderRcd>';
 END RETURN_HEADER_RECORD;
-
+ 
 FUNCTION INS_POS_DOWNLOADS_FN(
 /*******************************************************************************
 This function is used to insert into POS_DOWNLOADS_NON_TAXWAR table.
@@ -399,9 +503,13 @@ This Procedure is to generate the Init load process
 </xsd:schema>
 
 Created : 11/03/2017 rxv940 CCN Project....
-Changed : 
+Changed : 11/13/2017 rxv940 CCN Project....
+        : Change to have the dates populated in YYYY-MM-DD format
+Changed : 11/28/2017 rxv940 CCN Project....
+        : Change to have cost_center_code as input parameter        
 *******************************************************************************/
-    OUT_XMLOUTPUT   OUT    CLOB)
+    IN_COST_CENTER_CODE IN          VARCHAR2,
+    OUT_XMLOUTPUT            OUT    CLOB)
 IS
     V_REC_COST_CENTER      COST_CENTER%ROWTYPE;
     V_REC_CURRENCY         CURRENCY_CONVERSION%ROWTYPE;
@@ -411,39 +519,18 @@ IS
     V_TAX_XMLDATA          CLOB;
     V_CUR_XMLDATA          CLOB;
     V_REC_COUNT            PLS_INTEGER :=0;
-    V_FILE_NAME            VARCHAR2(100) := 'NonTaxRateUpdate_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
     V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
     V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
     V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="store.xsd"';
     V_LP_TAX_XML_DATA      CLOB;
-    
-    CURSOR COST_CENTER_LIST IS 
-     SELECT DISTINCT CC.COST_CENTER_CODE 
-       FROM COST_CENTER CC
-      WHERE CLOSE_DATE IS NULL
-        AND COST_CENTER_CODE IN (
-                                 SELECT COST_CENTER_CODE 
-                                   FROM POLLING 
-                                  WHERE POLLING_STATUS_CODE IN ('P', 'Q')
-                                  )
-                             AND 
-                                (
-                                 COUNTRY_CODE IN (
-                                                  SELECT DISTINCT COUNTRY_CODE 
-                                                    FROM NON_TAXWARE_RATES
-                                                 )
-                                 OR COUNTRY_CODE = 'USA' 
-                                 );
-
 BEGIN
-
-    FOR TAX_CURR_REC IN COST_CENTER_LIST  LOOP
-              
-        V_REC_COST_CENTER := RETURN_COST_CENTER_INFO(TAX_CURR_REC.COST_CENTER_CODE);
-        -- Use the country code of cost center to get the currency information
-        V_REC_CURRENCY := RETURN_ACTIVE_CURRENCY_INFO(V_REC_COST_CENTER.COUNTRY_CODE);
-        -- Use the country code of cost center to get the tax information
-        
+    V_REC_COST_CENTER := RETURN_COST_CENTER_INFO(IN_COST_CENTER_CODE);
+    -- Use the country code of cost center to get the currency information
+    V_REC_CURRENCY := RETURN_ACTIVE_CURRENCY_INFO(V_REC_COST_CENTER.COUNTRY_CODE);
+    -- Use the country code of cost center to get the tax information
+    
+    IF V_REC_CURRENCY.COUNTRY_CODE IS NOT NULL THEN 
+    
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.COUNTRY_CODE), 'geo-country') || CHR(10);
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.DISPLAY_VAT_FLAG), 'display-vat') || CHR(10);
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.VAT_TAX_ID), 'vat-tax-id') || CHR(10);
@@ -451,51 +538,49 @@ BEGIN
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.TAXID_NUMBER), 'tax-id-num') || CHR(10);
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.TAXID_DESCRIPTION), 'tax-id-descr') || CHR(10);
         V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.CONVERSION_RATE), 'conversion-rate') || CHR(10);
-        V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.EFFECTIVE_DATE), 'eff-dt') || CHR(10);
-        V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_CURRENCY.EXPIRATION_DATE), 'exp-dt') || CHR(10);
-        
-        IF V_REC_COST_CENTER.COUNTRY_CODE = 'USA' THEN 
-            -- If country code is USA, get the state information by passing in cost_center
-            V_STATE_CODE        := RETURN_USA_STATE_INFO(TAX_CURR_REC.COST_CENTER_CODE); 
-            -- Pass in the derieved state information to get the tax details
-            
-            IF V_STATE_CODE IS NOT NULL THEN
-            
-                V_XMLDATA           := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_COST_CENTER.COST_CENTER_CODE), 'cost-center') || CHR(10);
-                    
-                FOR V_TAX_INFO_USA_REC IN (SELECT *
-                                             FROM NON_TAXWARE_RATES_USA
-                                            WHERE STATE_CODE = V_STATE_CODE
-                                              AND EXPIRATION_DATE IS NULL
-                                           ) LOOP                   
+        V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_REC_CURRENCY.EFFECTIVE_DATE, 'YYYY-MM-DD')), 'eff-dt') || CHR(10);
+        V_CUR_XMLDATA       := V_CUR_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_REC_CURRENCY.EXPIRATION_DATE, 'YYYY-MM-DD')), 'exp-dt') || CHR(10);
+    
+    END IF;
+    
+    IF V_REC_COST_CENTER.COUNTRY_CODE = 'USA' THEN 
+        -- If country code is USA, get the state information by passing in cost_center
+        V_STATE_CODE        := RETURN_USA_STATE_INFO(IN_COST_CENTER_CODE); 
+        -- Pass in the derieved state information to get the tax details
+                                        
+        FOR V_TAX_INFO_USA_REC IN (SELECT *
+                                     FROM NON_TAXWARE_RATES_USA
+                                    WHERE STATE_CODE = V_STATE_CODE
+                                      AND EXPIRATION_DATE IS NULL) LOOP   
+            IF V_TAX_INFO_USA_REC.STATE_CODE IS NOT NULL THEN
+                                       
+                V_XMLDATA           := CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_COST_CENTER.COST_CENTER_CODE), 'cost-center') || CHR(10);
                 
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_TYPE), 'type') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_CODE), 'code') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.STATE_CODE), 'st') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.STATEMENT_TYPE), 'statement-type') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_RATE), 'tax-rate') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_RATE_DESCRIPTION), 'tax-rate-descr') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.REGISTRATION_NUMBER), 'registration-number') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.EFFECTIVE_DATE), 'tax-eff-dt') || CHR(10);
-                    V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.EXPIRATION_DATE), 'tax-exp-dt') || CHR(10);
-                    
-                    V_LP_TAX_XML_DATA   := V_LP_TAX_XML_DATA || V_TAX_XMLDATA;
-                    V_TAX_XMLDATA       := NULL;
-                    
-                END LOOP;
-           
-            END IF;           
-           
-        ELSE 
-        
-            V_XMLDATA           := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_COST_CENTER.COST_CENTER_CODE), 'cost-center') || CHR(10);   
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || '<taxUpdtRcd dtl_trans_type="R">' || CHR(10) ;             
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_TYPE), 'type') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_CODE), 'code') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.STATE_CODE), 'st') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.STATEMENT_TYPE), 'statement-type') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_RATE), 'tax-rate') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.TAX_RATE_DESCRIPTION), 'tax-rate-descr') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_USA_REC.REGISTRATION_NUMBER), 'registration-number') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_TAX_INFO_USA_REC.EFFECTIVE_DATE, 'YYYY-MM-DD')), 'tax-eff-dt') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_TAX_INFO_USA_REC.EXPIRATION_DATE, 'YYYY-MM-DD')), 'tax-exp-dt') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA ||  '</taxUpdtRcd>' || CHR(10) ;
+                 
+            END IF;
+            V_LP_TAX_XML_DATA   := V_LP_TAX_XML_DATA || V_TAX_XMLDATA;
+            V_TAX_XMLDATA       := NULL;
+        END LOOP;
+    ELSE 
+        FOR V_TAX_INFO_REC IN (SELECT *        
+                                 FROM NON_TAXWARE_RATES
+                                WHERE COUNTRY_CODE = V_REC_COST_CENTER.COUNTRY_CODE
+                                  AND EXPIRATION_DATE IS NULL) LOOP  
+            IF V_TAX_INFO_REC.COUNTRY_CODE IS NOT NULL THEN 
+                V_XMLDATA           := CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_COST_CENTER.COST_CENTER_CODE), 'cost-center') || CHR(10); 
                 
-            FOR V_TAX_INFO_REC IN (SELECT *
-                                     FROM NON_TAXWARE_RATES
-                                    WHERE COUNTRY_CODE = V_REC_COST_CENTER.COUNTRY_CODE
-                                      AND EXPIRATION_DATE IS NULL
-                                  ) LOOP                
-            
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || '<taxUpdtRcd dtl_trans_type="R">' || CHR(10) ;          
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.TAX_TYPE), 'type') || CHR(10);
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.TAX_CODE), 'code') || CHR(10);
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(NULL, 'st') || CHR(10);
@@ -503,65 +588,48 @@ BEGIN
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.TAX_RATE), 'tax-rate') || CHR(10);
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.TAX_RATE_DESCRIPTION), 'tax-rate-descr') || CHR(10);
                 V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.REGISTRATION_NUMBER), 'registration-number') || CHR(10);
-                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.EFFECTIVE_DATE), 'tax-eff-dt') || CHR(10);
-                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAX_INFO_REC.EXPIRATION_DATE), 'tax-exp-dt') || CHR(10);
-                
-                V_LP_TAX_XML_DATA   := V_LP_TAX_XML_DATA || V_TAX_XMLDATA;
-                V_TAX_XMLDATA       := NULL;
-                
-            END LOOP;
-        END IF;
-        
-        IF V_LP_TAX_XML_DATA IS NOT NULL THEN 
-            V_LP_TAX_XML_DATA     := '<taxUpdtRcd dtl_trans_type="R">' || CHR(10) ||
-                                     V_LP_TAX_XML_DATA ||
-                                     '</taxUpdtRcd>' ||
-                                     CHR(10);
-        
-        END IF;
-        
-        IF V_CUR_XMLDATA IS NOT NULL THEN 
-            V_CUR_XMLDATA     := '<curUpdtRcd dtl_trans_type="R">' || CHR(10) ||
-                                  V_CUR_XMLDATA ||
-                                  '</curUpdtRcd>' ||
-                                  CHR(10);
-        END IF;
-
-        IF V_CUR_XMLDATA IS NOT NULL OR V_LP_TAX_XML_DATA IS NOT NULL THEN
-            V_XMLDATA           := '<nonTaxware dtl_trans_type="R">' || CHR(10) ||
-                                   V_XMLDATA ||
-                                   V_CUR_XMLDATA ||
-                                   V_LP_TAX_XML_DATA || 
-                                   '</nonTaxware>' ||
-                                   CHR(10);
-                                   
-            V_REC_COUNT     := V_REC_COUNT+1; 
-        END IF;
-                              
-        V_XMLOUTPUT         := V_XMLOUTPUT || V_XMLDATA ;
-        V_XMLDATA           := NULL;
-        V_TAX_XMLDATA       := NULL;
-        V_CUR_XMLDATA       := NULL;
-        V_LP_TAX_XML_DATA   := NULL;
-        
-        
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_TAX_INFO_REC.EFFECTIVE_DATE, 'YYYY-MM-DD')), 'tax-eff-dt') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(TO_CHAR(V_TAX_INFO_REC.EXPIRATION_DATE, 'YYYY-MM-DD')), 'tax-exp-dt') || CHR(10);
+                V_TAX_XMLDATA       := V_TAX_XMLDATA ||  '</taxUpdtRcd>' || CHR(10) ;
+            END IF;
+            V_LP_TAX_XML_DATA   := V_LP_TAX_XML_DATA || V_TAX_XMLDATA;
+            V_TAX_XMLDATA       := NULL;
         END LOOP;
+    END IF;
+    
+    IF V_CUR_XMLDATA IS NOT NULL THEN 
+        V_CUR_XMLDATA     := '<curUpdtRcd dtl_trans_type="R">' || CHR(10) || V_CUR_XMLDATA || '</curUpdtRcd>' || CHR(10);
+    END IF;
 
-        V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
-                       '<taxescurrUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
-                       RETURN_HEADER_RECORD('TAXCURR',
-                                            'TAXCURR',
-                                            V_REC_COUNT,
-                                            'U') || CHR(10) ||
-                                            V_XMLOUTPUT ||
-                                            '</taxescurrUpdtMsg>';
-                                    
-      OUT_XMLOUTPUT := V_XMLOUTPUT;
-
+    IF V_CUR_XMLDATA IS NOT NULL OR V_LP_TAX_XML_DATA IS NOT NULL THEN
+        V_XMLDATA := '<nonTaxware dtl_trans_type="R">' || CHR(10) ||
+                     V_XMLDATA ||
+                     V_CUR_XMLDATA ||
+                     V_LP_TAX_XML_DATA || 
+                     '</nonTaxware>' ||
+                     CHR(10);
+                               
+        V_REC_COUNT     := V_REC_COUNT+1; 
+    END IF;
+                          
+    V_XMLOUTPUT         := V_XMLOUTPUT || V_XMLDATA ;
+    V_XMLDATA           := NULL;
+    V_TAX_XMLDATA       := NULL;
+    V_CUR_XMLDATA       := NULL;
+    V_LP_TAX_XML_DATA   := NULL;
+    
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) ||
+                   '<taxescurrUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
+                   RETURN_HEADER_RECORD('TAXCURR',
+                                        'TAXCURR',
+                                        V_REC_COUNT,
+                                        'U') || CHR(10) ||
+                                        V_XMLOUTPUT ||
+                                        '</taxescurrUpdtMsg>';
+    OUT_XMLOUTPUT    := V_XMLOUTPUT;
 EXCEPTION 
     WHEN OTHERS THEN 
         RAISE;
-
 END BUILD_TAXCURR_XML;
 
 PROCEDURE TAX_CUR_UPD_SP (
@@ -569,7 +637,8 @@ PROCEDURE TAX_CUR_UPD_SP (
 This Procedure is used for Maintenance process
 
 Created : 09/18/2017 rxv940 CCN Project....
-Changed :
+Changed : 11/28/2017 rxv940 CCN Project....
+        : Changed input paraameter for BUILD_TAXCURR_XML
 *******************************************************************************/
     IN_POS_ID      IN       POS_DOWNLOADS_NON_TAXWARE.POS_ID%TYPE,
     OUT_XML_VALUE      OUT  CLOB,
@@ -578,34 +647,29 @@ Changed :
 IS
     V_REC_POSDATA          POS_DOWNLOADS_NON_TAXWARE%ROWTYPE;
     V_XMLOUTPUT            CLOB;
-    V_FILE_NAME            VARCHAR2(100) := 'NonTaxRateUpdate_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
     V_ERROR                VARCHAR2(4000);
-    V_PREREQ_EQUIV_RQST_ID VARCHAR2(4000);
 BEGIN 
 
     V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
-    BUILD_TAXCURR_XML(V_XMLOUTPUT);
+    BUILD_TAXCURR_XML(V_REC_POSDATA.COST_CENTER_CODE, V_XMLOUTPUT);
 
-    V_PREREQ_EQUIV_RQST_ID       := RETURN_PREVIOUS_REQUEST_ID('POS_NON_TXWR_RT_UPDATE');
-    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID       := RETURN_PREVIOUS_REQUEST_ID('POS_NON_TXWR_RT_UPDATE', 
+                                                                           V_REC_POSDATA.COST_CENTER_CODE, 
+                                                                           V_REC_POSDATA.STATE_CODE, 
+                                                                           V_REC_POSDATA.COUNTRY_CODE);
+    V_REC_POSDATA.FILE_NAME      := 'NonTaxRateUpdate_'|| V_REC_POSDATA.COST_CENTER_CODE || '_'||TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF')||'.XML';
     V_REC_POSDATA.FILE_PROCESSED := 'N';
-    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := V_PREREQ_EQUIV_RQST_ID;
     POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
     
     OUT_XML_VALUE := V_XMLOUTPUT;
-    OUT_REQ_VALUE := V_PREREQ_EQUIV_RQST_ID;
-    OUT_FILE_NAME := V_FILE_NAME;
+    OUT_REQ_VALUE := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME := V_REC_POSDATA.FILE_NAME;
      
 EXCEPTION
     WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) ||
-                    'SQLERRM->' || SQLERRM || CHR(10) ||
-                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
         ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'TAX_CUR_UPD_SP',
-                                       V_ERROR,
-                                       '000000');
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'TAX_CUR_UPD_SP', V_ERROR, '000000');
         RAISE;     
 END TAX_CUR_UPD_SP;    
 
@@ -619,7 +683,8 @@ Changed :
     IN_LOAD_TYPE   IN       VARCHAR2,
     OUT_XML_VALUE      OUT  CLOB,
     OUT_REQ_VALUE      OUT  VARCHAR2,
-    OUT_FILE_NAME      OUT  VARCHAR2)
+    OUT_FILE_NAME      OUT  VARCHAR2,
+    OUT_NON_TXWR_STR   OUT  VARCHAR2)
 IS    
     V_POS_ID               NUMBER;
     V_REC_POSDATA          POS_DOWNLOADS_NON_TAXWARE%ROWTYPE;
@@ -633,28 +698,24 @@ BEGIN
     V_REC_POSDATA := POS_DATA_GENERATION_NON_TAXWAR.RETURN_POS_DOWNLOADS(V_POS_ID, NULL);
                                     
     -- Select data that needs to go into the XML
-    BUILD_TAXCURR_XML(V_XMLOUTPUT);                       
+    BUILD_TAXCURR_XML(V_REC_POSDATA.COST_CENTER_CODE, V_XMLOUTPUT);                       
                
     V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
     V_REC_POSDATA.FILE_PROCESSED := 'N';
     POS_DATA_GENERATION_NON_TAXWAR.POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
     
     OUT_XML_VALUE      := V_XMLOUTPUT;
-    OUT_REQ_VALUE      := RETURN_PREVIOUS_REQUEST_ID('POS_NON_TXWR_RT_UPDATE');
+    OUT_REQ_VALUE      := RETURN_PREVIOUS_REQUEST_ID('POS_NON_TXWR_RT_UPDATE',
+                                                    V_REC_POSDATA.COST_CENTER_CODE, 
+                                                    V_REC_POSDATA.STATE_CODE, 
+                                                    V_REC_POSDATA.COUNTRY_CODE);
     OUT_FILE_NAME      := V_FILE_NAME;
-
     COMMIT;
-
 EXCEPTION
     WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) ||
-                    'SQLERRM->' || SQLERRM || CHR(10) ||
-                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
         ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'INIT_LOAD_NON_TXWR_RT_SP',
-                                       V_ERROR,
-                                       '000000');
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_NON_TXWR_RT_SP', V_ERROR, '000000');
         RAISE;                                       
 END INIT_LOAD_NON_TXWR_RT_SP;
 

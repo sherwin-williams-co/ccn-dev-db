@@ -20,7 +20,8 @@ Changed :
     IN_COUNTRY_CODE     IN VARCHAR2, 
     IN_DATA_SOURCE      IN VARCHAR2, 
     IN_DATA_OPERATION   IN VARCHAR2,
-    IN_FILE_TYPE        IN VARCHAR2);
+    IN_FILE_TYPE        IN VARCHAR2,
+    IN_STATE_CODE      IN VARCHAR2);
     
 PROCEDURE TAX_CUR_UPD_SP (
  /*******************************************************************************
@@ -64,7 +65,8 @@ Changed :
     IN_LOAD_TYPE   IN       VARCHAR2,
     OUT_XML_VALUE      OUT  CLOB,
     OUT_REQ_VALUE      OUT  VARCHAR2,
-    OUT_FILE_NAME      OUT  VARCHAR2);
+    OUT_FILE_NAME      OUT  VARCHAR2,
+    OUT_NON_TXWR_STR   OUT  VARCHAR2);
     
 PROCEDURE POS_DOWNLOADS_UPD_SP(
 /*******************************************************************************
@@ -74,6 +76,19 @@ Created : 11/03/2016 rxv940 CCN Project....
 Changed :                   
 *******************************************************************************/
     IN_FILE_NAME  IN    POS_DOWNLOADS_NON_TAXWARE.FILE_NAME%TYPE,
-    IN_RQST_ID    IN    POS_DOWNLOADS_NON_TAXWARE.POLLING_REQUEST_ID%TYPE);       
-        
+    IN_RQST_ID    IN    POS_DOWNLOADS_NON_TAXWARE.POLLING_REQUEST_ID%TYPE);
+    
+PROCEDURE POS_TRG_EVENT_LOG(
+/*******************************************************************************
+This procedure is used to capture the changes done on tables into pos_downloads 
+table
+
+Created : 09/08/2017 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2, 
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2);
+
 END POS_DATA_GENERATION_NON_TAXWAR;

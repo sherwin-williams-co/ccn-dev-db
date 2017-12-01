@@ -1,4 +1,4 @@
-create or replace TRIGGER COSTCNTR.TR_CURRENCY_CONVERSION_UPD
+CREATE OR REPLACE TRIGGER TR_CURRENCY_CONVERSION_UPD
 /**********************************************************
 created : 09/11/2017 rxv940 CCN Project Team....
 Modified: 11/10/2017 rxv940 CCN Project Team....
@@ -45,7 +45,7 @@ BEGIN
                NVL(:OLD.COUNTRY_CODE, 'XXX')            <>       NVL(:NEW.COUNTRY_CODE, 'XXX')            OR
                NVL(:OLD.EFFECTIVE_DATE, '12-JAN-1112')  <>       NVL(:NEW.EFFECTIVE_DATE, '12-JAN-1112')  OR 
                NVL(:OLD.EXPIRATION_DATE, '12-JAN-1112') <>       NVL(:NEW.EXPIRATION_DATE,'12-JAN-1112')  THEN       
-                   POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_currency_conv_row.COUNTRY_CODE,'CURRENCY_CONVERSION', 'CHANGE', 'POS_NON_TXWR_RT_UPDATE');
+                   POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_currency_conv_row.COUNTRY_CODE,'CURRENCY_CONVERSION', 'CHANGE', 'POS_NON_TXWR_RT_UPDATE', NULL);
             END IF;
     
         END IF;

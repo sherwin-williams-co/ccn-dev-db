@@ -1,4 +1,4 @@
-create or replace TRIGGER TR_NON_TAXWARE_RATES_USA_UPD
+CREATE OR REPLACE TRIGGER TR_NON_TAXWARE_RATES_USA_UPD
 /**********************************************************
 created : 09/11/2017  rxv940 CCN Project Team....
 Modified: 11/10/2017 rxv940 CCN Project Team....
@@ -33,7 +33,8 @@ BEGIN
             POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_usa_row.COUNTRY_CODE,
                                                             'NON_TAXWARE_RATES',
                                                             'ADD',
-                                                            'POS_NON_TXWR_RT_UPDATE'
+                                                            'POS_NON_TXWR_RT_UPDATE',
+                                                            v_non_taxware_rates_usa_row.STATE_CODE
                                                             );
         ELSIF UPDATING THEN
             IF NVL(:OLD.TAX_CODE,'-99999999')              <> NVL(:NEW.TAX_CODE,'-99999999') OR 
@@ -50,7 +51,8 @@ BEGIN
                    POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_usa_row.COUNTRY_CODE,
                                                                    'NON_TAXWARE_RATES', 
                                                                    'CHANGE', 
-                                                                   'POS_NON_TXWR_RT_UPDATE'
+                                                                   'POS_NON_TXWR_RT_UPDATE',
+                                                                   v_non_taxware_rates_usa_row.STATE_CODE
                                                                    );
             END IF;
     

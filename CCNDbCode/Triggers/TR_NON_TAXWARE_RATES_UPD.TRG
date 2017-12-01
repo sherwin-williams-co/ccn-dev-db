@@ -1,4 +1,4 @@
-create or replace TRIGGER TR_NON_TAXWARE_RATES_UPD
+CREATE OR REPLACE TRIGGER TR_NON_TAXWARE_RATES_UPD
 /**********************************************************
 created : 09/11/2017  rxv940 CCN Project Team....
 Modified: 11/10/2017 rxv940 CCN Project Team....
@@ -47,8 +47,9 @@ BEGIN
                    POS_DATA_GENERATION_NON_TAXWAR.POS_TRG_EVENT_LOG(v_non_taxware_rates_row.COUNTRY_CODE,
                                                                    'NON_TAXWARE_RATES', 
                                                                    'CHANGE', 
-                                                                   'POS_NON_TXWR_RT_UPDATE'
-                                                                   );
+                                                                   'POS_NON_TXWR_RT_UPDATE',
+                                                                   NULL
+                                                                   ); 
             END IF;
     
         END IF;

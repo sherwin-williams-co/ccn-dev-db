@@ -5,6 +5,12 @@ PURPOSE    : INIT LOAD FOR NON_TAXWARE_DETAILS
 CREATED : 08/28/2017 axt754 CCN PROJECT....
 CHANGED : 
 */
+
+-- TRUNCATE TABLES BEFORE LOADING (IF NOT INIT LOAD)
+TRUNCATE TABLE CURRENCY_CONVERSION;
+TRUNCATE TABLE NON_TAXWARE_RATES;
+TRUNCATE TABLE NON_TAXWARE_RATES_USA;
+
 -- INSERT INTO CURRENCY_CONVERSION
 INSERT INTO CURRENCY_CONVERSION VALUES ('ABW',	To_Date('04/01/2014','mm/dd/yyyy'),	NULL,	1.790	,	'yes',	'AWG',	'5034215'	      ,	'TAX ID #',	 NULL,'INITLOAD');
 INSERT INTO CURRENCY_CONVERSION VALUES ('ANT',	To_Date('04/01/2014','mm/dd/yyyy'),	NULL,	1.790	,	'yes',	'NAF',	'435.144.595'	  ,	'CRIB No #',	null,'INITLOAD');
@@ -17,20 +23,20 @@ INSERT INTO CURRENCY_CONVERSION VALUES ('TTO',	To_Date('12/01/2016','mm/dd/yyyy'
 COMMIT;
 
 -- INSERT INTO NON_TAXWARE_RATES
-INSERT INTO NON_TAXWARE_RATES VALUES('CUW','CW','VAT'           ,70002      ,6.000     ,'6.000%',        NULL      ,To_Date('2016/10/31','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('BRB','BB','VAT'           ,84002      ,17.500    ,'17.50%',       20401654   ,To_Date('2016/07/20','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('ABW','AW','VAT'           ,70001      ,1.500     ,'1.500%',        NULL      ,To_Date('2015/12/01','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('TTO','TR','VAT'           ,84001      ,12.500    ,'12.50%',       124204     ,To_Date('2016/02/01','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('ANT','AN','Sales Tax'     ,70001      ,0.000     ,'NOTAX' ,       NULL       ,To_Date('2009/03/18','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('GRD','GD','VAT'           ,84001      ,15.000    ,'15.00%',       NULL       ,To_Date('2013/06/26','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('LCA','LC','VAT'           ,84001      ,12.500    ,'12.50%',       NULL       ,To_Date('2017/02/02','yyyy/mm/dd'),null,'INITLOAD');
-INSERT INTO NON_TAXWARE_RATES VALUES('ABW','AW','Health Care'   ,NULL       ,2.000     ,'2.000%',       NULL       ,To_Date('2015/08/25','yyyy/mm/dd'),NULL,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('CUW','CW','VAT'           ,'70002'      ,6.000     ,'6.000%',        NULL      ,To_Date('2016/10/31','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('BRB','BB','VAT'           ,'84002'      ,17.500    ,'17.50%',       '20401654' ,To_Date('2016/07/20','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('ABW','AW','VAT'           ,'70001'      ,1.500     ,'1.500%',        NULL      ,To_Date('2015/12/01','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('TTO','TR','VAT'           ,'84001'      ,12.500    ,'12.50%',       '124204'   ,To_Date('2016/02/01','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('ANT','AN','Sales Tax'     ,'70001'      ,0.000     ,'NOTAX' ,       NULL       ,To_Date('2009/03/18','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('GRD','GD','VAT'           ,'84001'      ,15.000    ,'15.00%',       NULL       ,To_Date('2013/06/26','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('LCA','LC','VAT'           ,'84001'      ,12.500    ,'12.50%',       NULL       ,To_Date('2017/02/02','yyyy/mm/dd'),null,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES VALUES('ABW','AW','Health Care'   ,'H'          ,2.000     ,'HEALTH TAX',   NULL       ,To_Date('2015/08/25','yyyy/mm/dd'),NULL,'INITLOAD');
 
 
 COMMIT;
 
 -- INSERT INTO NON_TAXWARE_RATES_USA
-INSERT INTO NON_TAXWARE_RATES_USA VALUES('USA','HI', 'US', 'Excise Tax'           ,11001      ,0.005     ,'0.005%',        NULL      ,To_Date('01/01/1998','mm/dd/yyyy'),NULL,'INITLOAD');
+INSERT INTO NON_TAXWARE_RATES_USA VALUES('USA','HI', 'US', 'Excise Tax'           ,'11001'      ,0.005     ,'0.005%',        NULL      ,To_Date('01/01/1998','mm/dd/yyyy'),NULL,'INITLOAD');
 
 COMMIT;
 

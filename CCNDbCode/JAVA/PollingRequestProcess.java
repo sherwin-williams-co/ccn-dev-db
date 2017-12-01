@@ -83,9 +83,9 @@ public class PollingRequestProcess {
 		String fileExists = UtilityProcess.fileExists(filename);
 		if (fileExists.equals("FILE_EXISTS")) {
 			try {
-				if (application.equals("PARAM")){
+				if (application.matches("PARAM|TAXCURR")){
 					// Read and get the store number from XML file name to pass for polling
-					String storeNumber = filename.substring(filename.lastIndexOf( '/' )+13,filename.lastIndexOf( '/' )+13+6);
+					String storeNumber = filename.substring(filename.length()-32,filename.length()-26);
 					List<String> storeList = new ArrayList<String>();
 					storeList.add(storeNumber.substring(2, 6));
 					if (pilotPhaseIndicator.equalsIgnoreCase("Y")){
@@ -97,13 +97,14 @@ public class PollingRequestProcess {
 						if (!PltStoreList.contains(PrmStoreNbr)) {
 							//This is very important as for pilot phase as
 							//we exit out of this procedure here itself if cost center is not part of web service
+							System.out.println("Not working");
 							return requestId;
 						}
 					}else{
 						System.out.println("Non Pilot phase");
 					}
 					pollingMetadata = PollingDestMetadata.createDestinationList(storeList);
-				} else if (pilotPhaseIndicator.equalsIgnoreCase("Y") && application.matches("STORE|TERR|PrimeSub|TAXCURR")){
+				} else if (pilotPhaseIndicator.equalsIgnoreCase("Y") && application.matches("STORE|TERR|PrimeSub")){
 					System.out.println("Pilot phase");
 					PltStoreList = WebServiceProcess.getAppStoresAsList(application);
 					pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
