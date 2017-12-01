@@ -54,20 +54,6 @@ Changed :
 *******************************************************************************/
     IN_POS_DOWNLOADS POS_DOWNLOADS_NON_TAXWARE%ROWTYPE);    
     
-PROCEDURE INIT_LOAD_NON_TXWR_RT_SP(
-/*******************************************************************************
-This procedure is used to capture the changes done on tables into 
-pos_downloads_non_taxware table
-
-Created : 09/08/2017 rxv940 CCN Project....
-Changed : 
-*******************************************************************************/
-    IN_LOAD_TYPE   IN       VARCHAR2,
-    OUT_XML_VALUE      OUT  CLOB,
-    OUT_REQ_VALUE      OUT  VARCHAR2,
-    OUT_FILE_NAME      OUT  VARCHAR2,
-    OUT_NON_TXWR_STR   OUT  VARCHAR2);
-    
 PROCEDURE POS_DOWNLOADS_UPD_SP(
 /*******************************************************************************
 This procedure is used do update on the table POS_DOWNLOADS_NON_TAXWARE 
