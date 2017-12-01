@@ -18,9 +18,6 @@ DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
 LOGFILE="polling_new_str_load.log"
 
-DATADIR="$HOME"/POSdownloads/POSxmls
-FILENM=pollingMntncInProcess.trg
-
 echo "*************************************************************************************" >> $LOGDIR/$LOGFILE
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Call to the JAVA class started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
