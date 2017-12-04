@@ -2956,16 +2956,16 @@ PRAGMA EXCEPTION_INIT
 (exc_en_cstmr_accnts_close_err , -20185);
 
 /*********************************************************** 
-The "invalid_taxware_err" passes a numerical error of -20186.
+The "NO_TAXWARE_NONTAXWARE_INFO" passes a numerical error of -20186.
 An error will occur while update polling status code to "Q"
-When taxware/nontaxwasre values are null 
+When taxware/nontaxware values are not present for  the cost center 
 
 created :  11/30/2017 sxg151  ASP-911 CCN Project Team...
 revisions: 
 ************************************************************/
-en_invalid_taxware_err      CONSTANT NUMBER := -20186;
-exc_invalid_taxware_err EXCEPTION;
+en_no_taxware_nontaxware_info      CONSTANT NUMBER := -20186;
+exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
-(exc_invalid_taxware_err , -20186);
+(exc_no_taxware_nontaxware_info , -20186);
 
 END ERRNUMS;
