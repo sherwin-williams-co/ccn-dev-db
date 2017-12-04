@@ -9,6 +9,7 @@
 # Created       : 10/25/2016 mxr916 CCN Project Team.....
 # Modified      : 11/22/2016 gxg192 1. Added logic to FTP the trigger file on application server (from db server).
 #                                   2. Added logic to send email if Load data process fails.
+#               : 12/04/2017 sxh487 Removing the DAREPORT.txt file from datafiles
 #                  
 #################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -49,7 +50,6 @@ if [ $status -ne 0 ]; then
    echo "PROCESSING FAILED for $proc_name at ${TIME} on ${DATE}"
    cd $HOME/dailyLoad
    ./send_err_status_email.sh ROYAL_BANK_REPORT_ERROR
-   exit 1;
 fi
 echo "Completed execution of Loading data at $TIME on $DATE "
 

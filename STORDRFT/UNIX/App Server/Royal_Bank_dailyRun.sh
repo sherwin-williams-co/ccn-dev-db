@@ -10,7 +10,7 @@
 # Created     : 11/17/2015 sxh487 CCN Project Team.....
 #           
 #################################################################
-# below command will get the path for banking.config respective to the environment from which it is run from
+# below command will get the path for storedraft.config respective to the environment from which it is run from
 cd /app/strdrft/sdReport/scripts
 
 . /app/strdrft/storedraft.config
@@ -18,7 +18,9 @@ cd /app/strdrft/sdReport/scripts
 proc_name="Royal_Bank_dailyRun"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
-password="st04d1"
+TimeStamp=`date '+%Y%m%d%H%M%S'`
+DLY_LOAD_PATH="/app/stordrft/dev/dailyLoad"
+db_proc_name="Load_royal_bank_data.sh"
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #################################################################
@@ -37,25 +39,25 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing finished for Royal_Bank_datafile_ftp script at ${TIME} on ${DATE}"
 
 #################################################################
-# executing ROYAL_BANK_REPORT_LOAD.ROYAL_BANK_REPORT_LOAD_MAIN_SP
+# executing Royal_Bank_dailyRun.sh on the remote server
 #################################################################
-
+TIME=`date +"%H:%M:%S"`
 echo "Processing started for Royal Bank data load at ${TIME} on ${DATE}"
-/usr/bin/expect >> /app/strdrft/log_file_ssh.txt << EOD
-spawn /usr/bin/ssh -o Port=22 -o StrictHostKeyChecking=no stordrft@extddb01
+/usr/bin/expect >> /app/strdrft/sdReport/logs/$db_proc_name"_"$TimeStamp.log << EOD 
+spawn /usr/bin/ssh -o Port=22 -o StrictHostKeyChecking=no $dbserver_user@$dbserver_host
 expect "password:"
-send "$password\r"
+send "$dbserver_pw\r"
 expect "$ "
 send "pwd\r"
 expect "$ "
-send "cd /app/stordrft/dev/dailyLoad\r"
+send "cd $DLY_LOAD_PATH\r"
 expect "$ "
-send "sh Load_royal_bank_data.sh\r"
+send "sh $db_proc_name\r"
 expect "$ "
 send -- "exit\r"
 send -- "exit\r"
 exit 0
 EOD
 
-echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
+echo "Processing finished for $proc_name at ${TIME} on ${DATE}" 
 exit 0
