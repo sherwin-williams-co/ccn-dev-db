@@ -2955,4 +2955,17 @@ exc_en_cstmr_accnts_close_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_en_cstmr_accnts_close_err , -20185);
 
+/*********************************************************** 
+The "invalid_taxware_err" passes a numerical error of -20186.
+An error will occur while update polling status code to "Q"
+When taxware/nontaxwasre values are null 
+
+created :  11/30/2017 sxg151  ASP-911 CCN Project Team...
+revisions: 
+************************************************************/
+en_invalid_taxware_err      CONSTANT NUMBER := -20186;
+exc_invalid_taxware_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_taxware_err , -20186);
+
 END ERRNUMS;

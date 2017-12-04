@@ -1702,6 +1702,7 @@ PROCEDURE QUALITY_CTRL_STATUS_CHKS_SP (
 	TRD  Section: 3.3.7 
 
 created : BLR 6/13/2012
+changed : 11/28/2017 sxg151 CCN Team.... ASP-911
 *******************************************************************************/	
      inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE  
     ,inPOLLING_ROWTYPE        IN POLLING%ROWTYPE
@@ -1720,6 +1721,7 @@ created : BLR 6/13/2012
  inactive_type_err        EXCEPTION;
  inactive_terminal_err    EXCEPTION;
  inactive_bank_card_err   EXCEPTION;
+ invalid_taxware_err      EXCEPTION; --ASP-911
 -- inactive_hierarchy_err   EXCEPTION;
  -- invalid_sgldate_err              EXCEPTION;
 
@@ -1730,6 +1732,10 @@ created : BLR 6/13/2012
 --  v_terminal_rowtype              TERMINAL%ROWTYPE; 
 --  v_bank_card_rowtype             BANK_CARD%ROWTYPE; 
  -- v_hierarchy_rowtype             HIERARCHY%ROWTYPE;
+ V_TAXWARE_COUNT        NUMBER := 0; --ASP-911
+ V_NONTAXWARE_USA_COUNT NUMBER := 0; --ASP-911
+ V_NONTAXWARE_COUNT     NUMBER := 0; --ASP-911
+ V_ADDRESS_REC          ADDRESS_VW%ROWTYPE; --ASP-911
   
  v_curr_date           date := sysdate; 
  v_code number;
@@ -1914,6 +1920,68 @@ END;
          
         
      END;
+     
+/***************************************************************************************************
+   -- ASP-911 Taxware/NonTaxware information should be present when changing a polling status to "Q"
+****************************************************************************************************/	
+
+    BEGIN
+        --Check TAXWARE details for USA/CAN/PRI
+        --Check Non Taxware for USA, if TAXWARE details are not availbale
+        IF inCOST_CENTER_ROWTYPE.country_code IN ('USA','CAN','PRI') THEN
+            --Check for TAXWARE rates for the cost center passed
+            BEGIN
+                SELECT COUNT(*)
+                  INTO V_TAXWARE_COUNT
+                  FROM TAXWARE
+                 WHERE COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.COST_CENTER_CODE;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+            --If country is USA and not a TAXWARE, we need to check if it is NON TAXWARE
+            IF inCOST_CENTER_ROWTYPE.country_code IN ('USA', 'PRI') AND V_TAXWARE_COUNT = 0 THEN
+                --Get the address details to get the state code
+                BEGIN
+                    SELECT *
+                      INTO V_ADDRESS_REC
+                      FROM ADDRESS_VW
+                     WHERE COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.COST_CENTER_CODE
+                       AND ADDRESS_TYPE = 'M'
+                       AND EXPIRATION_DATE IS NULL;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+                --useing the country code and state code check for USA rates
+                BEGIN
+                    SELECT COUNT(*)
+                      INTO V_NONTAXWARE_USA_COUNT
+                      FROM NON_TAXWARE_RATES_USA
+                     WHERE COUNTRY_CODE = inCOST_CENTER_ROWTYPE.COUNTRY_CODE
+                       AND STATE_CODE = V_ADDRESS_REC.STATE_CODE;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        NULL;
+                END;
+            END IF;
+        ELSE
+            --If country other than USA/CAN/PRI we need to check NON TAXWARE details            
+            BEGIN
+                SELECT COUNT(*)
+                  INTO V_NONTAXWARE_COUNT
+                  FROM NON_TAXWARE_RATES
+                 WHERE COUNTRY_CODE = inCOST_CENTER_ROWTYPE.COUNTRY_CODE;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END; 
+        END IF; 
+        --If no TAXWARE as well as NON TAXWARE details are present, changing the status to Q is not valid
+        IF V_NONTAXWARE_USA_COUNT = 0 AND V_NONTAXWARE_COUNT = 0 AND V_TAXWARE_COUNT = 0 THEN
+             RAISE invalid_taxware_err;
+        END IF;
+    END;     
 
 /*******************************************************************************
   EXCEPTION ERROR PROCESSING :
@@ -1972,6 +2040,11 @@ END;
 --		    v_code := errnums.en_inactive_hierarchy_err;
 --		    errpkg.raise_err(v_code, 'QUALITY_CTRL_STATUS_CHKS_SP.inactive_hierarchy_err ',
 --        'CCN_BUSINESS_RULES_PKG - Must have an effective_date <= 0 and expiration_date > 0'); 
+
+        WHEN invalid_taxware_err THEN  --ASP-911
+        v_code := errnums.en_invalid_taxware_err;
+                    errpkg.raise_err(v_code, 'QUALITY_CTRL_STATUS_CHKS_SP.invalid_taxware_err ',
+        'CCN_BUSINESS_RULES_PKG - Taxware/NonTaxware cannot be null');
 		 
 -- Error #09 
 		WHEN OTHERS THEN
