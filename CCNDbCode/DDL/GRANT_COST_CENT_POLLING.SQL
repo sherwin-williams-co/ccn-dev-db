@@ -1,0 +1,4 @@
+-- created by rxv940 on 12/05/2017
+-- Run this in COSTCNTR
+
+GRANT SELECT, UPDATE ON COST_CENTER TO CCN_UTILITY;

@@ -6,7 +6,10 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
    happened on cost_center table.
    Modified : 02/15/2017 gxg192 Added missing fields
             : 06/23/2017 rxa457 CCN Project Team..
-                Override category "D" for dispatch_terminal category with "S" - Store type in order to continue to send the back feed to mainframe as "S" category
+                Override category "D" for dispatch_terminal category with "S" - Store type in order to 
+                continue to send the back feed to mainframe as "S" category
+            : 12/05/2017 rxv940 CCN Project Team..
+              reference to Global variable (G_MUT_POS_DOWNLOAD_CC_IND) to handle mutating trigger error
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -152,6 +155,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
          );
       --END IF;
       BEGIN
+         POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := :OLD.POS_DOWNLOAD_CC_IND;
          IF :NEW.CATEGORY IN ('S','T') THEN
             IF INSERTING THEN
                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(
@@ -169,9 +173,10 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                END IF;
             END IF;
          END IF;
+         POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := NULL;
       EXCEPTION
-      WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_COST_CENTER_UPD', SQLERRM,
-         v_cost_center_row.COST_CENTER_CODE );
+          WHEN OTHERS THEN
+              ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_COST_CENTER_UPD', SQLERRM, v_cost_center_row.COST_CENTER_CODE );
+              POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := NULL;
       END;
    END TR_COST_CENTER_UPD;

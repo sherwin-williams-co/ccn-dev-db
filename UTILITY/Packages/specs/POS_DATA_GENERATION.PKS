@@ -9,6 +9,9 @@ Created : 10/17/2016 MXK766 CCN Project....
 Changed : 
 *******************************************************************************/
 
+G_MUT_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;
+-- Global variable to handle mutating trigger error caused by TR_COST_CENTER_UPD
+
 PROCEDURE POS_TRG_EVENT_LOG(
 /*******************************************************************************
 This procedure is used to capture the changes done on tables into pos_downloads 
