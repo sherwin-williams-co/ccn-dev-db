@@ -1,4 +1,4 @@
-create or replace TRIGGER TR_GENERAL_LEDGER_ACCOUNTS_IUD
+CREATE OR REPLACE TRIGGER TR_GENERAL_LEDGER_ACCOUNTS_IUD
 /***************************************************************************
 ***
 TR_GENERAL_LEDGER_ACCOUNTS_IUD.TRG
