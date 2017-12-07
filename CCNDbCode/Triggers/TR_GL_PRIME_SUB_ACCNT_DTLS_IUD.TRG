@@ -5,16 +5,18 @@ TR_GL_PRIME_SUB_ACCNT_DTLS_IUD.TRG
 This trigger will insert records into POS_DOWNLOADS_GL_PS table for logging changes
 happened on GEN_LEDGE_ACCOUNTS table.
 Created : 03/31/2017 rxv940 CCN Project....
+Modified: 12/06/2017 rxv940 CCN Project....
+        : Delete part of trigger removed
 ****************************************************************************
 **/
-BEFORE INSERT OR UPDATE OR DELETE ON PRGM_GL_ACCNT_RLTN_DTLS
+BEFORE INSERT OR UPDATE ON PRGM_GL_ACCNT_RLTN_DTLS
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
 
 BEGIN
     IF INSERTING THEN
         PRIME_SUB_PROCESS.POS_TRG_EVENT_LOG(:NEW.GL_PS_ACCOUNT_NUMBER, 'PRGM_GL_ACCNT_RLTN_DTLS', 'ADD', 'POS_PRIMESUB_UPDATE' );
-    ELSIF UPDATING THEN 
+    ELSE 
         IF  NVL(:OLD.SORTED_SEQUENCE, '-999.99')     <>       NVL(:NEW.SORTED_SEQUENCE, '999.99')      OR
             NVL(:OLD.SHARED, 'XXX')                  <>       NVL(:NEW.SHARED, 'XXX')                  OR 
             NVL(:OLD.EFFECTIVE_DATE, '12-JAN-1112')  <>       NVL(:NEW.EFFECTIVE_DATE, '12-JAN-1112')  OR 
