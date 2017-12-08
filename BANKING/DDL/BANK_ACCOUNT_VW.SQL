@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW AS BANK_ACCOUNT_VW
+CREATE OR REPLACE VIEW BANK_ACCOUNT_VW AS
   SELECT 
 /*******************************************************************************
 This view will provide the BANK_ACCOUNT information.
