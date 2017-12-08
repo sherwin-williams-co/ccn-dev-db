@@ -14,4 +14,4 @@ Modified :
     ,BANK_BRANCH_NBR        
     ,UPDATE_DATE            
     ,LAST_UPD_USER_ID 
-  FROM MEMBER_BANK_CC
+  FROM MEMBER_BANK_CC;

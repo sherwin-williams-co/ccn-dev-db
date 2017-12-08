@@ -20,4 +20,4 @@ Modified :
     ,ROUTING_NBR           
     ,UPDATE_DATE           
     ,LAST_UPD_USER_ID  
-  FROM  BANK_ACCOUNT
+  FROM  BANK_ACCOUNT;

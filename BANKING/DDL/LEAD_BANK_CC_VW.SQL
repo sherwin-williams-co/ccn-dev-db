@@ -13,4 +13,4 @@ Modified :
     ,BANK_TYPE_CODE       
     ,UPDATE_DATE          
     ,LAST_UPD_USER_ID 
-  FROM LEAD_BANK_CC
+  FROM LEAD_BANK_CC;
