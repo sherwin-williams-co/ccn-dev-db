@@ -3,6 +3,7 @@ package com.polling.downloads;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -31,20 +32,21 @@ public class MaintenanceLoadProcess {
 			if (DBConnection.isMaintenanceNeeded()) {
 				Map<String,String> posIdAppName = new LinkedHashMap<String,String>();
 				posIdAppName = DBConnection.getPollingRequestsToBeProcessed();
-				System.out.println("**********************************************************************************************");
+				System.out.println("##############################################################################################");
 				//loop through the requests that needs to be processed
 				for (java.util.Map.Entry<String, String> entrySet : posIdAppName.entrySet()) {
 					//Get the file path where to place the xml file
 					String fileNameWithPath = prop.getProperty("pollingDownloadFilePath");
 					String posId = null;
 					String pollingAppName = null;
+					Savepoint spt1 = null;
 					try {
 						posId = entrySet.getKey();
 						pollingAppName = entrySet.getValue();
 
 						//Maintaining save points to handle multiple request independant of each other
 						DBConnection.conn.setAutoCommit(false);
-						DBConnection.conn.setSavepoint("SVPT");
+						spt1 = DBConnection.conn.setSavepoint("svpt1");
 						//Process the request to get xml, previous request id and file name
 						DBConnection.processMaintenanceForPOSId(posId, pollingAppName);
 
@@ -68,18 +70,17 @@ public class MaintenanceLoadProcess {
 								//Update the request id received after successful polling process
 								DBConnection.updateMaintenancePollingRequestId(pollingRequestId, pollingAppName);
 								System.out.println("PosID = " + posId + " , appName = " + pollingAppName + " , pollingRequestId = " + pollingRequestId + " PrevReqId = " + ccnPrevRequestID);
-								System.out.println("\n");
 							}else{
 								System.out.println("No request Id to update anything in the database");
 							}
 						}
 					} catch(Exception e) {
 						e.printStackTrace();
-						DBConnection.conn.rollback();
+						DBConnection.conn.rollback(spt1);
 					}
 					DBConnection.conn.commit();
 				}
-				System.out.println("**********************************************************************************************");
+				System.out.println("##############################################################################################");
 			} else {
 				System.out.println("No new data to process ... ");
 			}
