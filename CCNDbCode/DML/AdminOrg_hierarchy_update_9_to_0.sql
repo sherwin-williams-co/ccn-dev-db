@@ -1,3 +1,4 @@
+SET SERVEROUTPUT ON
 /*
 Admin Org Hierarchy data clean up for domain, group and division
 Updated domain, group and division levels to replace 9's with 0's for admin org hierarchy record. 
@@ -14,6 +15,9 @@ DECLARE
           FROM HIERARCHY_DETAIL A
          WHERE HRCHY_HDR_NAME  = 'ADMINORG_HIERARCHY';
 BEGIN
+
+    DBMS_OUTPUT.PUT_LINE('script AdminOrg_hierarchy_update_9_to_0 started at : ' || TO_CHAR(SYSDATE, 'mm/dd/yyyy hh:mi:ss'));
+
     FOR REC IN main_cur LOOP
         v_hrchy_dtl_curr_lvl_val := NULL;
         v_hrchy_dtl_prev_lvl_val := NULL;
@@ -54,4 +58,5 @@ BEGIN
     END LOOP;
     COMMIT;
     DBMS_OUTPUT.PUT_LINE('No of records updated for ADMINORG HIERARCHY : ' || v_count);
+    DBMS_OUTPUT.PUT_LINE('script AdminOrg_hierarchy_update_9_to_0 ended at : ' || TO_CHAR(SYSDATE, 'mm/dd/yyyy hh:mi:ss'));
 END;
