@@ -32,7 +32,6 @@ public class MaintenanceLoadProcess {
 			if (DBConnection.isMaintenanceNeeded()) {
 				Map<String,String> posIdAppName = new LinkedHashMap<String,String>();
 				posIdAppName = DBConnection.getPollingRequestsToBeProcessed();
-				System.out.println("##############################################################################################");
 				//loop through the requests that needs to be processed
 				for (java.util.Map.Entry<String, String> entrySet : posIdAppName.entrySet()) {
 					//Get the file path where to place the xml file
@@ -80,7 +79,6 @@ public class MaintenanceLoadProcess {
 					}
 					DBConnection.conn.commit();
 				}
-				System.out.println("##############################################################################################");
 			} else {
 				System.out.println("No new data to process ... ");
 			}

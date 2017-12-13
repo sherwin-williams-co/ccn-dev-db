@@ -8,6 +8,8 @@
 # Modified : 10/26/2017 rxv940 CCN Project Team.....
 #          : Added calls to PrimeSub
 #          : For PARAM and TAXCURR, individual records will be loaded into the POS tables.
+# Modified : 12/13/2017 rxv940 CCN Project Team.....
+#          : Call to polling only when a new store is present
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -39,23 +41,29 @@ fi
 
 echo "$QueueMessage" >> $LOGDIR/$LOGFILE 
 
-feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "STORE" "$QueueMessage")
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
+if [[ ! -z $errorstatus ]]
+then 
 
-feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "TERR" "$QueueMessage")
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
+    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "STORE" "$QueueMessage")
+    TIME=$(date +"%H%M%S")
+    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 
-feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "PrimeSub" "$QueueMessage")
-TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
+    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "TERR" "$QueueMessage")
+    TIME=$(date +"%H%M%S")
+    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 
-# Once the New store load is run, we immediately run the maintenance process
-$SCRIPT_DIR/polling_maintenance_process.sh
-# End of call to run the maintenance process
+    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "PrimeSub" "$QueueMessage")
+    TIME=$(date +"%H%M%S")
+    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
 
-TIME="$(date +"%H%M%S")"
-echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
+    # Once the New store load is run, we immediately run the maintenance process
+    $SCRIPT_DIR/polling_maintenance_process.sh
+    # End of call to run the maintenance process
+
+    TIME="$(date +"%H%M%S")"
+    echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
+
+fi
+
 exit 0
 

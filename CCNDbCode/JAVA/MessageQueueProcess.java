@@ -32,7 +32,7 @@ public class MessageQueueProcess {
 					Session session = conn.createSession(true, Session.AUTO_ACKNOWLEDGE);
 					MessageConsumer consumer = session.createConsumer(session.createQueue(args[2]));
 					// Consumer name is also got as input. 
-					conn.start();              
+					conn.start();
 					//building a "comma-space" separated message list from queue
 					for (Message m = consumer.receive(waitMillis); m != null; m = consumer.receive(waitMillis)) {                	
 						TextMessage tm = (TextMessage) m;
@@ -47,11 +47,15 @@ public class MessageQueueProcess {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+			
 			//Example message string read will be "1001, abcd, test, 1004, "
 			//Stripping the last 2 characters from the above string
-			out_message = out_message.substring(0, out_message.length() - 2);
+			// Do substring only when there is a message present. 
+			if (out_message != null && !out_message.isEmpty()) {
+				out_message = out_message.substring(0, out_message.length() - 2);
+			}
 			//Example message string after above statement will be "1001, abcd, test, 1004"
-			if (out_message != null && out_message.length() > 0) {
+			if (!out_message.isEmpty() && out_message.length() > 0) {
 				try {
 					// Invoke Configuration file to set properties
 					InputStream input = new FileInputStream("config.properties");
