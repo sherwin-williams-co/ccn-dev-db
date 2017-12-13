@@ -1,12 +1,11 @@
-
-  CREATE OR REPLACE VIEW ADMINORG_HIERARCHY_ATTRBT_VW (STATEMENT_TYPE, HRCHY_HDR_NAME, COST_CENTER_CODE, HRCHY_DTL_EFF_DATE, HRCHY_DTL_EXP_DATE, DOMAIN, "GROUP", DIVISION, AREA, DISTRICT, CITY, "ZONE", COST_CENTER, DOMAIN_NAME, GROUP_NAME, DIVISION_NAME, AREA_NAME, DISTRICT_NAME, CITY_NAME, ZONE_NAME, COST_CENTER_NAME,
-                                                       DOMAIN_EMP_NAME, GROUP_GEMS_ID, GROUP_EMP_NAME, DIVISION_GEMS_ID, DIVISION_EMP_NAME, AREA_GEMS_ID, AREA_EMP_NAME, DISTRICT_GEMS_ID, DISTRICT_EMP_NAME, CITY_GEMS_ID, CITY_EMP_NAME, ZONE_GEMS_ID, ZONE_EMP_NAME) AS 
-  SELECT /*+ first_rows(10) */ 
+CREATE OR REPLACE VIEW ADMINORG_HIERARCHY_ATTRBT_VW
+AS 
+SELECT  
 /*******************************************************************************
 This View will give all the Admin Org Hierarchy details for the cost center passed
 
 Created  : 01/09/2017 vxv336 CCN Project
-Modified : 
+Modified : 12/13/2017 mxv711 CCN Project 
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -101,7 +100,7 @@ Modified :
                                                                                      H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||H.ZONE_VAL||H.COST_CENTER_CODE,
                                                                                      H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL),
                                                 'EmployeeName') ZONE_VAL_EMP_NAME
-  FROM COST_CENTER CC,
+FROM COST_CENTER CC,
         --inner sub query "T" gives all the hierarchy details with all the levels
         --present in the CCN system by joining the header, description and detail tables
        (WITH T AS (SELECT HDESC.HRCHY_HDR_LVL_DESC DESCRIPTION,
@@ -148,5 +147,5 @@ Modified :
                                                                      'Zone' AS "ZONE"))) H
 --Finally result of the above two steps(WITH T and PIVOT) will be a new result set "H" which can be used as any other
 --table in a join condition
- WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
- ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
+WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
+ORDER BY COST_CENTER_CODE, HRCHY_HDR_NAME;
