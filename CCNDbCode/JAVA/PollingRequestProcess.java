@@ -109,7 +109,9 @@ public class PollingRequestProcess {
 					pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
 				} else {
 					System.out.println("Non Pilot phase");
-					pollingMetadata = PollingDestMetadata.createDestinationFullChain();
+					// createDestinationFullChain        - Original Destination 
+					// createDestinationFullChainWithCis - New destination (probably interim)
+					pollingMetadata = PollingDestMetadata.createDestinationFullChainWithCis();
 				}
 				requestId = RestAdapter.writeFileToPolling(
 						username,
