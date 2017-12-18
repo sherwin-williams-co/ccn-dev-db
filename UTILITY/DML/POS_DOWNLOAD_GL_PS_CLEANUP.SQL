@@ -10,7 +10,7 @@ BEGIN
               ) LOOP
 
         UPDATE POS_DOWNLOADS_GL_PS
-           SET POS_ID = SEQ_TST.NEXTVAL
+           SET POS_ID = SEQ_POS_DOWNLOADS_PRIME_SUB.NEXTVAL
          WHERE POS_ID = J.POS_ID;  
 
     END LOOP;
