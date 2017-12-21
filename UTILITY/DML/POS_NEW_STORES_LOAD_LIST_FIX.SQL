@@ -1,23 +1,38 @@
+-- created by rxv940 on 12/20/2017
+-- This is to fix POS_NEW_STORES_LOAD_LIST by addin PrimeSub records 
+
 SET SERVEROUTPUT ON
 BEGIN   
     FOR J IN (SELECT DISTINCT COST_CENTER_CODE, PROCESS_DATE
                 FROM POS_NEW_STORES_LOAD_LIST
               )
     LOOP
-        INSERT INTO POS_NEW_STORES_LOAD_LIST  
-        (
-          COST_CENTER_CODE
-        , APPLICATION_NAME
-        , POS_ID
-        , PROCESS_DATE
-        , PROCESSED_IND
-        )
-        SELECT DISTINCT J.COST_CENTER_CODE, 'PrimeSub', NULL, J.PROCESS_DATE, 'Y' 
-          FROM POS_NEW_STORES_LOAD_LIST;
+	
+	    BEGIN 
+            INSERT INTO POS_NEW_STORES_LOAD_LIST  
+            (
+              COST_CENTER_CODE
+            , APPLICATION_NAME
+            , POS_ID
+            , PROCESS_DATE
+            , PROCESSED_IND
+            )
+            SELECT DISTINCT J.COST_CENTER_CODE, 'PrimeSub', NULL, J.PROCESS_DATE, 'Y' 
+              FROM POS_NEW_STORES_LOAD_LIST;
+		      
+		EXCEPTION 
+		    WHEN OTHERS THEN 
+                NULL;
+		END;
+		
     END LOOP;  
     COMMIT;
 
-EXCEPTION  
-    WHEN OTHERS THEN 
-        NULL;
 END;
+
+-- Validation
+
+SELECT DISTINCT COST_CENTER_CODE FROM POS_NEW_STORES_LOAD_LIST 
+MINUS
+SELECT DISTINCT COST_CENTER_CODE FROM POS_NEW_STORES_LOAD_LIST 
+WHERE APPLICATION_NAME = 'PrimeSub'
