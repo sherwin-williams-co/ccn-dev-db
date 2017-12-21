@@ -92,6 +92,9 @@ public class InitialLoadProcess {
 				//Invoke the polling API with the file and previous request id, stores list
 				pollingRequestId = pr.callPollingInitMethod(fileNameWithPath, ccnPrevRequestID, stores);
 			}
+			
+			System.out.println("pollingRequestId generated is :-" + pollingRequestId);
+			
 			if(pollingRequestId.contains("Exception") || pollingRequestId.contains("Error")){
 				DBConnection.sendMail("RequestidFailure", "Error in the retrieved requestid. The file "+ccnFileName+" has a REQUESTID: "+pollingRequestId);
 			}else{

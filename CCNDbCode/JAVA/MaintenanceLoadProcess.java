@@ -38,14 +38,13 @@ public class MaintenanceLoadProcess {
 					String fileNameWithPath = prop.getProperty("pollingDownloadFilePath");
 					String posId = null;
 					String pollingAppName = null;
-					Savepoint spt1 = null;
+					//Maintaining save points to handle multiple request independant of each other
+					DBConnection.conn.setAutoCommit(false);
+					Savepoint spt1 = DBConnection.conn.setSavepoint("svpt1");
 					try {
 						posId = entrySet.getKey();
 						pollingAppName = entrySet.getValue();
 
-						//Maintaining save points to handle multiple request independant of each other
-						DBConnection.conn.setAutoCommit(false);
-						spt1 = DBConnection.conn.setSavepoint("svpt1");
 						//Process the request to get xml, previous request id and file name
 						DBConnection.processMaintenanceForPOSId(posId, pollingAppName);
 
@@ -59,6 +58,8 @@ public class MaintenanceLoadProcess {
 						PollingRequestProcess pr = new PollingRequestProcess(pollingAppName);
 						//Invoke the polling API with the file and previous request id 
 						String pollingRequestId = pr.callPollingMethod(fileNameWithPath, ccnPrevRequestID);
+						
+						System.out.println("pollingRequestId generated is :-" + pollingRequestId);
 
 						if(pollingRequestId.contains("Exception") || pollingRequestId.contains("Error")){
 							DBConnection.sendMail("RequestidFailure", "Error in the retrieved requestid. The file "+ccnFileName+" has a REQUESTID: "+pollingRequestId);
