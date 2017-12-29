@@ -1,6 +1,6 @@
 #!/bin/sh
 ###################################################################################################################################
-# Script name   : Archive_all_temp.sh (CCN-DBSERVER)
+# Script name   : Archive_all_temp.sh (CCN-APP Server)
 #
 # Description   : This shell program will Archive All file's from the log folder.
 #                 This shell runs every 1st of the month to archive all the temporary files to archive folder by year/month.
@@ -9,7 +9,7 @@
 ###################################################################################################################################
 
 # below command will get the path for stordrft.config respective to the environment from which it is run from
-. /app/ccn/host.sh
+. /app/ccn/ccn_app_server.config
 
 base_dir="$HOME"
 
@@ -18,7 +18,7 @@ cd $base_dir
  
    for file_ext in `cat archive_all_temp.config`
    do       
-     for file in `find . -path ./archive -prune -o -name "$file_ext" -print`
+     for file in `find . -iname 'archive' -prune -o -name "$file_ext" -print`
       do 
           #Get a New Directory name from log file timestamp
          dir_year=`perl -MPOSIX -le 'print strftime "%Y",localtime     ((lstat)[9]) for @ARGV' $file`
