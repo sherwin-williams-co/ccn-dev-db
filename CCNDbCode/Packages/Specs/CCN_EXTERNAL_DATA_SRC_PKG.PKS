@@ -10,7 +10,7 @@ from COST_CENTER_DSC_CODES table
 Created : 12/13/2017 SXG151 CCN Project....
 Modified:
 *******************************************************************************/
-    IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
-    OUT_DSC_CODES          OUT REF_CURSOR);   
+IN_COST_CENTER_CODE IN           COST_CENTER.COST_CENTER_CODE%TYPE,
+OUT_DSC_CODES                     OUT REF_CURSOR); 
     
 END CCN_EXTERNAL_DATA_SRC_PKG;
