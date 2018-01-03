@@ -680,5 +680,15 @@ Created : 08/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_accnt_nbr             IN           VARCHAR2
     ,out_gl_accnt_refcursor     OUT          SYS_REFCURSOR);
+    
+PROCEDURE COST_CENTER_DSC_CODES_SP(
+/******************************************************************************
+    COST_CENTER_DSC_CODES_SP -  DSC (Primary and Secondary) fields to Cost Center 
+    This procedure is intended to return a ref cursor with data from COST_CENTER_DSC_CODES 
+    created : 12/13/2017 SXG151 CCN Project....
+    modified:
+*******************************************************************************/
+ IN_COST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
+, OUT_DSC_CODES OUT REF_CURSOR);     
 
 END CCN_UI_INTERFACE_APP_PKG;
