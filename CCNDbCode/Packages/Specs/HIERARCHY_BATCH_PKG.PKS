@@ -15,4 +15,12 @@ Created : 10/02/2015 SX410 CCN Project....
 Changed :
 *******************************************************************************/
 ;
+PROCEDURE HIERARCHY_DETAIL_SNAPSHOT
+/******************************************************************************************************
+  This procedure will load the data in HIERARCHY_DETAIL_SNAP  table from HIERARCHY_DETAIL table.
+
+Created : sxg151 12/20/2017
+Changed :
+********************************************************************************************************/
+;
 END HIERARCHY_BATCH_PKG;
