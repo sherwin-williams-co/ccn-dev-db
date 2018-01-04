@@ -288,5 +288,15 @@ Modified:
     IN_APPLICATION_PRCS   IN      VARCHAR2,
     OUT_USER_NAME            OUT  VARCHAR2,
     OUT_PASSWORD             OUT  VARCHAR2);
+    
+FUNCTION GET_CURRENCY_CODE(
+/*****************************************************************************
+	This function will take the country code as input and gets the respective 
+    currency code from translation detail table.
+
+Created : 12/02/2017 axt754 CCN Project Team....
+Modified: 
+*****************************************************************************/
+    IN_COUNTRY_CODE     IN        VARCHAR2) RETURN VARCHAR2;
 
 END CCN_COMMON_TOOLS;
