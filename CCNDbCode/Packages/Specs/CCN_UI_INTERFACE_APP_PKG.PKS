@@ -696,13 +696,11 @@ Modified:
 
 PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
 /*******************************************************************************
-    NON_TAXWARE_CURR_CONV_UI_SP   --    NON_TAXWARE_CURR_CONV_UI_SP Stored Procedure
+This procedure is intended to return a ref cursor with data from
+from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
+Country code as input
 
-    This procedure is intended to return a ref cursor with data from
-    from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
-    Country code as input
-
-created : 11/01/2017 axt754 CCN Project....
+Created : 11/01/2017 axt754 CCN Project....
 *******************************************************************************/
     IN_COUNTRY_CODE                   IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
     IN_STATE_CODE                     IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,

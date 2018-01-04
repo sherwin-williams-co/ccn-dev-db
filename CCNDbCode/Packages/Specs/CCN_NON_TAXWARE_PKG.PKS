@@ -3,11 +3,9 @@ AS
 TYPE REF_CURSOR IS REF CURSOR;
 PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
 /*******************************************************************************
-    NON_TAXWARE_CURR_CONV_UI_SP   --    NON_TAXWARE_CURR_CONV_UI_SP Stored Procedure
-
-    This procedure is intended to return a ref cursor with data from
-    from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
-    Country code as input
+This procedure is intended to return a ref cursor with data from
+from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
+Country code as input
 
 created : 11/01/2017 axt754 CCN Project....
 *******************************************************************************/
@@ -19,18 +17,15 @@ created : 11/01/2017 axt754 CCN Project....
 
 PROCEDURE NON_TW_CURR_CONV_CC_UI_SP(
 /*******************************************************************************
-    NON_TAXWARE_CURR_CONV_UI_SP   --    NON_TAXWARE_CURR_CONV_UI_SP Stored Procedure
-
-    This procedure is intended to return a ref cursor with data from
-    from the currency_conversion, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
-    cost center code as input
+This procedure is intended to return a ref cursor with data from
+from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
+cost center code as input
 
 created : 11/01/2017 axt754 CCN Project....
 *******************************************************************************/
     IN_COST_CENTER                   IN      COST_CENTER.COST_CENTER_CODE%TYPE,
-    OUT_CURR_CONV_REF_CUR                    OUT REF_CURSOR,
-    OUT_NON_TW_RATES_REF_CUR                 OUT REF_CURSOR);
-/************************************************************************************************/
+    OUT_CURR_CONV_REF_CUR                OUT REF_CURSOR,
+    OUT_NON_TW_RATES_REF_CUR             OUT REF_CURSOR);
 
 PROCEDURE NON_TAXWARE_UI_UPSERT_SP(
 /******************************************************************************

@@ -2238,13 +2238,10 @@ Created : 03/15/2017 axt754 -- CCN Project Team
     in_table_name    IN     VARCHAR2,
     out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
     
-/*****************************************************************************************************/
---NON_TAX_CURR_CONV_ROWTYPE_SP
+
 PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
 /*******************************************************************************
-	NON_TAX_CURR_CONV_ROWTYPE_SP
-
-	This procedure is intended to build the currency_conversion record type
+This procedure is intended to build the currency_conversion record type
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2255,9 +2252,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_ROWTYPE_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_ROWTYPE_SP
-
-	This procedure is intended to build the NON_TAXWARE_RATES record type
+This procedure is intended to build the NON_TAXWARE_RATES record type
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2268,9 +2263,7 @@ Changed :
 
 PROCEDURE NON_TAX_RATES_USA_ROWTYPE_SP (
 /*******************************************************************************
-	NON_TAX_RATES_USA_ROWTYPE_SP
-
-	This procedure is intended to build the NON_TAXWARE_RATES_USA record type
+This procedure is intended to build the NON_TAXWARE_RATES_USA record type
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2282,9 +2275,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_CURR_CONV_S_SP (
 /*******************************************************************************
-	NON_TAXWARE_CURR_CONV_S_SP
-
-	This procedure is intended to select records from CURRENCY_CONVERSION table
+This procedure is intended to select records from CURRENCY_CONVERSION table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2294,9 +2285,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_S_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_S_SP
-
-	This procedure is intended to select records from NON_TAXWARE_RATES table
+This procedure is intended to select records from NON_TAXWARE_RATES table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2309,9 +2298,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_USA_S_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_USA_S_SP
-
-	This procedure is intended to select records from NON_TAXWARE_RATES_USA table
+This procedure is intended to select records from NON_TAXWARE_RATES_USA table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2323,9 +2310,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_CURR_CONV_U_SP (
 /*******************************************************************************
-	NON_TAXWARE_CURR_CONV_U_SP
-
-	This procedure is intended to updates records in CURRENCY_CONVERSION table
+This procedure is intended to updates records in CURRENCY_CONVERSION table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2335,9 +2320,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_U_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_U_SP
-
-	This procedure is intended to updates records in NON_TAXWARE_RATES table
+This procedure is intended to updates records in NON_TAXWARE_RATES table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2347,9 +2330,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_USA_U_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_USA_U_SP
-
-	This procedure is intended to updates records in NON_TAXWARE_RATES_USA table
+This procedure is intended to updates records in NON_TAXWARE_RATES_USA table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2359,9 +2340,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_CURR_CONV_I_SP (
 /*******************************************************************************
-	NON_TAXWARE_CURR_CONV_I_SP
-
-	This procedure is intended to insert records into CURRENCY_CONVERSION table
+This procedure is intended to insert records into CURRENCY_CONVERSION table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2371,9 +2350,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_I_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_I_SP
-
-	This procedure is intended to insert records into NON_TAXWARE_RATES table
+This procedure is intended to insert records into NON_TAXWARE_RATES table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
@@ -2383,9 +2360,7 @@ Changed :
 
 PROCEDURE NON_TAXWARE_RATES_USA_I_SP (
 /*******************************************************************************
-	NON_TAXWARE_RATES_USA_I_SP
-
-	This procedure is intended to insert records into NON_TAXWARE_RATES_USA table
+This procedure is intended to insert records into NON_TAXWARE_RATES_USA table
 
 Created : 09/05/2017 axt754 CCN Project....
 Changed :
