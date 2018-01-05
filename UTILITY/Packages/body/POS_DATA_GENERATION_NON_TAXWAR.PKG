@@ -77,10 +77,10 @@ BEGIN
     --If a state becomes part of non taxware we anyways have to send those details to all the stores in that state
     --The above details explains the reason for not having "HI" condition to consider Hawaii state alone for USA
     FOR CC_CODE IN (SELECT DISTINCT COST_CENTER_CODE
-                      FROM ADDRESS_VW
+                        FROM ADDRESS_VW
                      WHERE COUNTRY_CODE = IN_COUNTRY_CODE
                        --If USA compare the state code, else ignore state code comparision
-                       AND NVL(STATE_CODE, 'ZG') = NVL(DECODE(IN_COUNTRY_CODE, 'USA', IN_STATE_CODE, STATE_CODE), 'ZG')
+                       AND NVL(STATE_CODE, 'ZG') = DECODE(IN_COUNTRY_CODE, 'USA', IN_STATE_CODE, NVL(STATE_CODE, 'ZG'))
                        AND ADDRESS_TYPE = 'M'
                        AND EXPIRATION_DATE IS NULL) LOOP
         --Check for cost center and file type operation exists and not yet processed. 
@@ -116,7 +116,7 @@ EXCEPTION
         CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_TRG_EVENT_LOG-NON_TAXWARE', V_ERROR, '000000');
 END POS_TRG_EVENT_LOG;
 
-FUNCTION IS_VALID_FOR_POLLING(
+FUNCTION IS_NON_TAXWARE_COUNTRY_ST(
 /*******************************************************************************
 This procedure is used to capture the changes done on tables into pos_downloads 
 table
@@ -150,7 +150,7 @@ BEGIN
 EXCEPTION 
     WHEN OTHERS THEN
         RETURN V_RETURN;
-END IS_VALID_FOR_POLLING;
+END IS_NON_TAXWARE_COUNTRY_ST;
 
 PROCEDURE POS_TRG_EVENT_LOG(
 /*******************************************************************************
@@ -188,10 +188,34 @@ BEGIN
          END;
      END IF;
      
-     IF IS_VALID_FOR_POLLING(V_COUNTRY_CODE, V_STATE_CODE) = 'Y' THEN
+     IF IS_NON_TAXWARE_COUNTRY_ST(V_COUNTRY_CODE, V_STATE_CODE) = 'Y' THEN
 --DBMS_OUTPUT.PUT_LINE(V_COUNTRY_CODE ||'   '||V_STATE_CODE);
-        POS_TRG_EVENT_LOG(V_COUNTRY_CODE, IN_DATA_SOURCE, IN_DATA_OPERATION, IN_FILE_TYPE, V_STATE_CODE);
-    END IF;    
+        --POS_TRG_EVENT_LOG(V_COUNTRY_CODE, IN_DATA_SOURCE, IN_DATA_OPERATION, IN_FILE_TYPE, V_STATE_CODE);
+        IF RETURN_POS_DOWNLOADS_INSERT_YN(V_COUNTRY_CODE, 
+                                          IN_FILE_TYPE,
+                                          IN_COST_CENTER_CODE,
+                                          V_STATE_CODE) = 'Y' THEN
+            INSERT
+              INTO POS_DOWNLOADS_NON_TAXWARE(POS_ID
+                                            ,COUNTRY_CODE
+                                            ,DATA_SOURCE
+                                            ,DATA_OPERATION
+                                            ,FILE_TYPE
+                                            ,FILE_PROCESSED
+                                            ,CREATE_DT
+                                            ,STATE_CODE
+                                            ,COST_CENTER_CODE)
+            VALUES (SEQ_POS_DWNLD_NON_TXWR.NEXTVAL
+                    ,V_COUNTRY_CODE
+                    ,IN_DATA_SOURCE
+                    ,IN_DATA_OPERATION
+                    ,IN_FILE_TYPE
+                    ,'N'
+                    ,SYSDATE
+                    ,V_STATE_CODE
+                    ,IN_COST_CENTER_CODE);
+        END IF;
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
         V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
@@ -204,7 +228,8 @@ This function is used to return the Previous Request id information based upon
 filetype info. This computation doesn't include the INIT loads
 
 Created : 09/19/2017 rxv940 CCN Project....
-Changed :
+Changed : 12/21/2017 rxv940 CCN Project Team....
+          Added logic to compute pre_req id using update_dt instead of POS_ID  
 *******************************************************************************/ 
     IN_FILE_TYPE        IN VARCHAR2,
     IN_COST_CENTER_CODE IN VARCHAR2,
@@ -213,18 +238,28 @@ Changed :
 IS
     V_PREV_RQST_ID VARCHAR2(36) := 'NULL_RQST_ID';
 BEGIN
+
     SELECT POLLING_REQUEST_ID
       INTO V_PREV_RQST_ID
       FROM POS_DOWNLOADS_NON_TAXWARE
-     WHERE POS_ID = ( SELECT MAX(POS_ID)
+     WHERE UPDATE_DT = ( SELECT MAX(UPDATE_DT)
                         FROM POS_DOWNLOADS_NON_TAXWARE
                        WHERE POLLING_REQUEST_ID IS NOT NULL
+                         AND UPDATE_DT IS NOT NULL
                          AND FILE_TYPE              = IN_FILE_TYPE                     -- Ideally, not needed. This is kept to maintain uniformity.
                          AND COST_CENTER_CODE       = IN_COST_CENTER_CODE
                          AND NVL(STATE_CODE, 'ZG')  = NVL(IN_STATE_CODE, 'ZG') 
                          AND COUNTRY_CODE           = IN_COUNTRY_CODE
                          AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD')
-                    );
+                    )
+       AND POLLING_REQUEST_ID IS NOT NULL
+       AND UPDATE_DT IS NOT NULL
+       AND FILE_TYPE              = IN_FILE_TYPE                    
+       AND COST_CENTER_CODE       = IN_COST_CENTER_CODE
+       AND NVL(STATE_CODE, 'ZG')  = NVL(IN_STATE_CODE, 'ZG') 
+       AND COUNTRY_CODE           = IN_COUNTRY_CODE
+       AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD');
+
     RETURN V_PREV_RQST_ID;
 EXCEPTION
     WHEN OTHERS THEN
@@ -650,7 +685,7 @@ Created : 09/18/2017 rxv940 CCN Project....
 Changed : 11/28/2017 rxv940 CCN Project....
         : Changed input paraameter for BUILD_TAXCURR_XML
         : 01/05/2018 rxv940 CCN Project....
-        : Changed V_REC_POSDATA.FILE_PROCESSED to 'Y' from 'N'		
+        : Changed V_REC_POSDATA.FILE_PROCESSED to 'Y' from 'N'
 *******************************************************************************/
     IN_POS_ID      IN       POS_DOWNLOADS_NON_TAXWARE.POS_ID%TYPE,
     OUT_XML_VALUE      OUT  CLOB,
