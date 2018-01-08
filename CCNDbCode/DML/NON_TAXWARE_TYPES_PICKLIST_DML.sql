@@ -1,7 +1,7 @@
 /*
-This script inserts data into code Header and code Detail tables to handle non taxware tax types
+This script inserts data into code Header and code Detail tables to handle non taxware tax types.
 
-Created : 11/15/2017 axt754 CCN Project Team....
+Created : 01/05/2018 axt754 CCN Project Team....
 Changed :
 */
 
