@@ -15,6 +15,8 @@
 # modified: mxv711 11/07/2017 added unset Display for fixing the display issues JIRA : ASP-906(PuTTY X11 proxy: unable to connect to forwarded X server: 
 #           Network error: Connection refused  com.crystaldecisions.sdk.occa.report.lib.ReportSDKException: Can't connect to X11 window server using 'localhost:10.0' as the value of the DISPLAY variable.
 #           Error code:-2147467259 Error code name:failed ) this error cannot be produced in DEV,test or QA environments.
+# modified: 01/09/2018 nxk927
+#           add the sed command in this script after the concatination of the files are done to handle the page break issue.
 ##########################################################
 
 unset DISPLAY 
@@ -38,7 +40,7 @@ TIME=`date +"%H:%M:%S"`
 # Description: Script to concatenate the files 
 # and copy the file as a backup for future reference
 ###############################################
-FPATH="/app/strdrft/sdReport/reports/final"
+FPATH="/app/strdrft/sdReport/reports/"
 
 echo "\n Concatenating files"
 
@@ -52,17 +54,19 @@ fi
 cat $FPATH/plreport.txt $FPATH/unbooked_PL.txt $FPATH/Store_gl_report.txt $FPATH/Unbooked_Store_gl_report.txt > $FPATH/glreport.txt
 echo "\n Done Concatenating files"
 
+sed  's/x/ /g' /app/strdrft/sdReport/reports/glreport.txt >  /app/strdrft/sdReport/reports/final/glreport.txt 
+
 DATE=`date +"%m%d%Y"`
 
 #Check for proper existance of the concatenated file glreport.txt
-if [ ! -f $FPATH/glreport.txt ]
+if [ ! -f $FPATH/final/glreport.txt ]
 then
     echo "Exception occured while trying to copy $FPATH/glreport.txt file to a tmp folder as backup - File not found"
     exit 1
 fi
 
 echo "\n Copying file to tmp folder as a backup"
-cp $FPATH/glreport.txt $FPATH/tmp/glreport"_"$DATE.txt
+cp $FPATH/final/glreport.txt $FPATH/final/tmp/glreport"_"$DATE.txt
 
 echo "\n Done Copying file to tmp folder as a backup"
 
