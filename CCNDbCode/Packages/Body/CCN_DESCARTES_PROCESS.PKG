@@ -380,6 +380,10 @@ Changed : 09/28/2017 rxa457 CCN project Team...
            Time format changed to hh24 on the header as per the document
         : 11/09/2017 nxk927 CCN project Team...
           no need to get the home store as the store being passed will be home store
+Created : 01/10/2018 jxc517/sxg151 CCN Project Team...
+          Modified code to have below logic:
+              Dispatch Terminal Home Store => Type=DEPOT, UDFString6=DISPATCH TERMINAL
+              Regular Store => Type=CUSTOMER, UDFString6=STORE	  
 **********************************************************/
     IN_COST_CENTER_CODE  IN     VARCHAR2,
     IN_INS_UPD_IND       IN     VARCHAR2,
@@ -390,6 +394,7 @@ IS
     V_HOME_STR_MGR_REC        EMPLOYEE_DETAILS%ROWTYPE;
     V_PHONE_REC               CCN_PHONE_INFO_VW%ROWTYPE;
     V_HOME_STORE              COST_CENTER.COST_CENTER_CODE%TYPE;
+	V_DSPTCH_TRMNL_HOME_STORE_IND VARCHAR2(1) := 'N';
 BEGIN
     --Get the address details for the input cost center
     --Note: Address View already handled home store conditions to return home stores address
@@ -434,6 +439,19 @@ BEGIN
             WHEN OTHERS THEN
                 NULL;
         END;
+		
+		BEGIN
+            --Check if there are any records in dispatch terminal table for this store
+            --If present => its a dispatch terminal home store
+            SELECT DECODE(COUNT(*), 0, 'N', 'Y')
+              INTO V_DSPTCH_TRMNL_HOME_STORE_IND
+              FROM DISPATCH_TERMINAL
+             WHERE HOME_STORE = IN_COST_CENTER_CODE;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+        --Get all the Dispatch Terminal Home Stores for Initial load process
         
         --Build the DocLocation tag with all required attribtues as requested by Descrates
         OUT_CLOB := '<DocLocation' ||
@@ -464,15 +482,27 @@ BEGIN
                         --hard coded value as requested by Descrates
                         ' GeocodingPolicy="2"' ||
                         ' PhoneNumber="' || COMMON_TOOLS.GET_PHONE_NUMBER(IN_COST_CENTER_CODE,'PRI') || '"' ||
-                        --Type code has been stores under translation table as requested by Descartes
-                        --'S' = CUSTOMER/ 'D' = DEPOT
-                        ' Type="' || CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('DSCRTS_CTGRY_TYP_CD', V_COST_CENTER_REC.CATEGORY) || '"' ||
+			--Type code has been stores under translation table as requested by Descartes
+                        --'S' = CUSTOMER/ 'D' = DEPOT <<this no longer holds as per 01/10/2018 meeting with descarets>>
+                        --Dispatch Terminal Home Store = 'DEPOT', Regular Store = 'CUSTOMER'
+                        CASE
+                            WHEN V_DSPTCH_TRMNL_HOME_STORE_IND = 'Y' THEN
+                                ' Type="DEPOT"'
+                            ELSE
+                                ' Type="CUSTOMER"'
+                        END ||
                         --hard coded value as requested by Descrates
                         ' ProcessCode="20"' ||
                         --1002(create record), 1004(update record)
                         ' MessagePurpose="' || CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('DSCRTS_CTRL_ID_CD', IN_INS_UPD_IND) || '"' ||
-                        --Cost center category description
-                        ' UDFString6="' || NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CATEGORY','COD',V_COST_CENTER_REC.CATEGORY),'N/A') || '"' ||
+                        --Cost center category description <<this no longer holds as per 01/10/2018 meeting with descarets>>
+                        --Dispatch Terminal Home Store = 'DISPATCH TERMINAL', Regular Store = 'STORE'
+                        CASE
+                            WHEN V_DSPTCH_TRMNL_HOME_STORE_IND = 'Y' THEN
+                                ' UDFString6="DISPATCH TERMINAL"'
+                            ELSE
+                                ' UDFString6="STORE"'
+                        END ||
                         ' ContactFirstName="' || V_HOME_STR_MGR_REC.FIRST_NAME || '"' ||
                         ' ContactLastName="' || V_HOME_STR_MGR_REC.LAST_NAME || '"' ||
                         ' ContactPhone="' || V_PHONE_REC.PRIMARY_PHONE_NUMBER || '"' ||
@@ -553,6 +583,9 @@ Changed : 09/28/2017 rxa457 CCN project Team...
           inserting all the store cost center for the initial run.
         : 11/15/2017 nxk927 CCN project Team...
           avoiding duplicate home stores in the initial load xml
+Created : 01/10/2018 jxc517/sxg151 CCN Project Team...
+          Modified code to include every store in the initial load file
+          Also take only cost centers with polling status as P/Q		  
 **********************************************************/
     OUT_CLOB       OUT  CLOB,
     OUT_GUID       OUT  VARCHAR2)
@@ -563,18 +596,13 @@ IS
 
     CURSOR store_cur IS
         --Get all the active cost centers in USA/CAN/PRI with category as S
-        SELECT COST_CENTER_CODE
+        SELECT COST_CENTER_CODE,
+               (SELECT POLLING_STATUS_CODE
+                  FROM POLLING P
+                 WHERE P.COST_CENTER_CODE = C.COST_CENTER_CODE
+                   AND P.EXPIRATION_DATE IS NULL) AS POLLING_STATUS_CODE
           FROM COST_CENTER C
          WHERE C.CATEGORY = 'S'
-           AND C.CLOSE_DATE IS NULL
-           AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
-
-    CURSOR main_cur IS
-        --Get all the Dispatch Terminal Home Stores for Initial load process
-        SELECT DISTINCT HOME_STORE 
-          FROM DISPATCH_TERMINAL DT,
-               COST_CENTER C
-         WHERE C.COST_CENTER_CODE = DT.HOME_STORE
            AND C.CLOSE_DATE IS NULL
            AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN');
 BEGIN
@@ -593,39 +621,39 @@ Steps:
     --Insert record into DESCARTES_ADRS_FEED_CC to hold the GUID of the request being sent
     INS_DESCARTES_ADRS_FEED_CC(V_COST_CENTER_CODE, V_ACTION, OUT_GUID);
 
-    --Insert alll store records into DESCARTES_ADRS_FEED_CC table for future reference of INSERT/UPDATE
-    FOR rec1 IN store_cur LOOP
+    --Build the header tags for Descartes DocLocartion xml request
+    BUILD_ADDRESS_DATA_HDR(V_COST_CENTER_CODE, V_ACTION, V_CLOB);
+    
+    OUT_CLOB := V_CLOB;
+
+    --Insert all store records into DESCARTES_ADRS_FEED_CC table for future reference of INSERT/UPDATE
+    --Loop through all the cost centers anf build the DocLocation tags one for each cost center
+    FOR rec IN store_cur LOOP
        --Marking home store as processed
        INSERT INTO DESCARTES_ADRS_FEED_CC(COST_CENTER_CODE,
                                           TRIGGERED_DATE,
                                           TRIGGER_ACTION,
                                           GUID)
-       VALUES(rec1.COST_CENTER_CODE,
+       VALUES(rec.COST_CENTER_CODE,
               TRUNC(SYSDATE) - 1,
               'INSERT',
               REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '([A-F0-9]{8})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{4})([A-F0-9]{12})', '\1-\2-\3-\4-\5'));
-    END LOOP;
-    
-    --Build the header tags for Descartes DocLocartion xml request
-    BUILD_ADDRESS_DATA_HDR(V_COST_CENTER_CODE, V_ACTION, V_CLOB);
-    
-    OUT_CLOB := V_CLOB;
-    --Loop through all the cost centers anf build the DocLocation tags one for each cost center
-    FOR rec IN main_cur LOOP
-        V_CLOB := NULL;
 
-        --Build the DocLocation tag
-        BUILD_ADDRESS_DATA_FOR_CC(rec.HOME_STORE, 'INSERT', V_CLOB);
+        IF NVL(rec.POLLING_STATUS_CODE, 'X') IN ('P','Q') THEN
+            V_CLOB := NULL;
+            --Build the DocLocation tag
+            BUILD_ADDRESS_DATA_FOR_CC(rec.COST_CENTER_CODE, 'INSERT', V_CLOB);
 
-        IF V_CLOB <> EMPTY_CLOB() THEN
-            OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
-        END IF;
+            IF V_CLOB <> EMPTY_CLOB() THEN
+                OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
+            END IF;
         
-        --Update request details for the home store as part of initial load
-        --Since the request is not per store, we are referencing using the GUIS of "INITLD" cost center
-        UPD_DESCARTES_ADRS_FEED_CC(rec.HOME_STORE, 'Initial Load : bulk xml can be referenced using GUID : ' || OUT_GUID);
+            --Update request details for the home store as part of initial load
+            --Since the request is not per store, we are referencing using the GUIS of "INITLD" cost center
+            UPD_DESCARTES_ADRS_FEED_CC(rec.COST_CENTER_CODE, 'Initial Load : bulk xml can be referenced using GUID : ' || OUT_GUID);
+        END IF;
     END LOOP;
-
+    
     --Build the trailer tags for Descartes DocLocartion xml request
     BUILD_ADDRESS_DATA_TRLR(V_CLOB);
     OUT_CLOB := OUT_CLOB || CHR(10)|| V_CLOB;
@@ -691,6 +719,9 @@ Changed : 10/18/2017 jxc517 CCN Project Team...
           is not processed
         : 12/05/2017 jxc517 CCN Project Team...
           Added conditions to consider only active mailing addresses
+Created : 01/10/2018 jxc517/sxg151 CCN Project Team...
+          consider cost centers with polling status as P/Q
+          Also modified mailing address check to consider all stores instead of just home stores
 **********************************************************/
     OUT_REF_CUR      OUT  SYS_REFCURSOR)
 IS
@@ -705,17 +736,21 @@ BEGIN
         --Get all the home store cost centers that got non-processed address added/maintained
         SELECT *
           FROM DESCARTES_ADRS_FEED_CC A
-         WHERE COST_CENTER_CODE IN (SELECT HOME_STORE
-                                      FROM DISPATCH_TERMINAL DT,
-                                           COST_CENTER C,
+         WHERE COST_CENTER_CODE IN (SELECT C.COST_CENTER_CODE
+                                      FROM COST_CENTER C,
                                            ADDRESS_VW AV
                                      WHERE C.COST_CENTER_CODE = A.COST_CENTER_CODE
-                                       AND C.COST_CENTER_CODE = DT.HOME_STORE
                                        AND C.CLOSE_DATE IS NULL
                                        AND C.COUNTRY_CODE IN ('USA', 'PRI', 'CAN')
+                                       AND C.COST_CENTER_CODE = AV.COST_CENTER_CODE
                                        AND AV.ADDRESS_TYPE = 'M'
                                        AND AV.EXPIRATION_DATE IS NULL)
-          AND PROCESS_DATE IS NULL;
+           AND EXISTS (SELECT 1
+                         FROM POLLING P
+                        WHERE P.COST_CENTER_CODE = A.COST_CENTER_CODE
+                          AND NVL(P.POLLING_STATUS_CODE, 'X') IN ('P','Q')
+                          AND P.EXPIRATION_DATE IS NULL)
+           AND PROCESS_DATE IS NULL;
 END DESCARTES_ADRS_FEED_CC_SP;
 
 PROCEDURE DESCARTE_ADRS_FEED_RESP_CC_UPD(
@@ -760,9 +795,10 @@ BEGIN
     BEGIN
         SELECT CATEGORY
           INTO V_CATEGORY
-          FROM COST_CENTER
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND COUNTRY_CODE IN ('USA', 'CAN', 'PRI');
+          FROM COST_CENTER C
+         WHERE C.COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND C.CLOSE_DATE IS NULL
+           AND C.COUNTRY_CODE IN ('USA', 'CAN', 'PRI');
     EXCEPTION
         WHEN OTHERS THEN NULL;
     END;
