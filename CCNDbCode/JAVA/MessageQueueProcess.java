@@ -69,10 +69,10 @@ public class MessageQueueProcess {
 			}
 	}
 	
-	public static String validateQueueMessages(String out_message) throws SQLException {
+	public static String validateQueueMessages(String in_message) throws SQLException {
 		//Example message string after above statement will be "1001, abcd, test, 1004"
 		String validatedMessage = null;
-		if (!out_message.isEmpty() && out_message.length() > 0) {
+		if (!in_message.isEmpty() && in_message.length() > 0) {
 			try {
 				// Invoke Configuration file to set properties
 				InputStream input = new FileInputStream("config.properties");
@@ -80,7 +80,7 @@ public class MessageQueueProcess {
 				// Connect to DB
 				DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 				//Example input "1001, abcd, test, 1004"
-				validatedMessage = DBConnection.validateQueueMessages(out_message);
+				validatedMessage = DBConnection.validateQueueMessages(in_message);
 				//Example output "1001, 1004"
 				if (validatedMessage != null && !validatedMessage.isEmpty()) {
 					System.out.println(validatedMessage);
