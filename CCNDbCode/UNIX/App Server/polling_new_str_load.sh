@@ -4,66 +4,33 @@
 # Description   : 
 #
 #
-# Created  : 10/16/2017 jxc517 CCN Project Team.....
-# Modified : 10/26/2017 rxv940 CCN Project Team.....
-#          : Added calls to PrimeSub
-#          : For PARAM and TAXCURR, individual records will be loaded into the POS tables.
-# Modified : 12/13/2017 rxv940 CCN Project Team.....
-#          : Call to polling only when a new store is present
+# Created  : 01/16/2018 rxv940 CCN Project Team.....
+# Modified : 
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
 
 PROC_NAME="polling_new_str_load.sh"
-CLASSHOME="$HOME/CcnJavaCode"
 DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
 LOGFILE="polling_new_str_load.log"
 
-echo "*************************************************************************************" >> $LOGDIR/$LOGFILE
 TIME=$(date +"%H%M%S")
-echo " $PROC_NAME --> Call to the JAVA class started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
+echo " $PROC_NAME --> Processing New Store Downloads started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
-cd "$CLASSHOME" || exit
-QueueMessage=$(java \
--Djavax.net.ssl.keyStore="$MQ_CCN_KEY_UN" \
--Djavax.net.ssl.trustStore="$MQ_CCN_KEY_UN" \
--Djavax.net.ssl.keyStorePassword="$MQ_CCN_KEY_PWD" \
--Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
-com.polling.downloads.MessageQueueProcess "/app/ccn/CcnJavaCode/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
+TIME=$(date +"%H%M%S")
+$SCRIPT_DIR/polling_download_queue_messages.sh 
+echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
-#If the response has errors, then log the error and move it to the error folder.
-if  [[ `echo "$QueueMessage" | egrep -i 'invalid number of arguments passed|invalid file path provided|exception|error'` > 0 ]];
-then
-    $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
-    exit 1
-fi
+TIME=$(date +"%H%M%S")
+$SCRIPT_DIR/polling_validate_queue_messages.sh 
+echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
-echo "$QueueMessage" >> $LOGDIR/$LOGFILE 
+TIME=$(date +"%H%M%S")
+$SCRIPT_DIR/polling_process_queue_messages.sh 
+echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
-if [[ ! -z $errorstatus ]]
-then 
-
-    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "STORE" "$QueueMessage")
-    TIME=$(date +"%H%M%S")
-    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
-
-    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "TERR" "$QueueMessage")
-    TIME=$(date +"%H%M%S")
-    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
-
-    feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "PrimeSub" "$QueueMessage")
-    TIME=$(date +"%H%M%S")
-    echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
-
-    # Once the New store load is run, we immediately run the maintenance process
-    $SCRIPT_DIR/polling_maintenance_process.sh
-    # End of call to run the maintenance process
-
-    TIME="$(date +"%H%M%S")"
-    echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
-
-fi
+TIME=$(date +"%H%M%S")
+echo " $PROC_NAME --> Processing New Store Downloads completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
 exit 0
-
