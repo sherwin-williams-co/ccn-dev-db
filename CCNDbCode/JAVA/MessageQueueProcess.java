@@ -23,9 +23,6 @@ public class MessageQueueProcess {
 		// Invoke Configuration file to set properties 
 		InputStream input = new FileInputStream("config.properties");
 		prop.load(input);
-		// Connect to DB
-		DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
-		//Example input "1001, abcd, test, 1004"
 		if (args[0].equals("downloadQueueMessages")) {
 			downloadQueueMessages(args[1], args[2], args[3]);
 		} else if (args[0].equals("validateQueueMessages")){
@@ -35,12 +32,12 @@ public class MessageQueueProcess {
 		}
 	}
 
-	public static void downloadQueueMessages(String ccdturl, String qmgr, String cnsmr) throws JMSException, MalformedURLException {
+	public static void downloadQueueMessages(String CCDTUrl, String QueueManager, String Consumer) throws JMSException, MalformedURLException {
 			MQConnectionFactory f = new MQConnectionFactory();
-			f.setCCDTURL(new URL("file:///"+ccdturl));               
+			f.setCCDTURL(new URL("file:///"+CCDTUrl));               
 			// CCDT file (Client Channel Definition Table) - IBM-proprietary format configuration file for connection details 
 			// to the different MQ environments, DEV, QA, PRODCCN-v8.ccdt
-			f.setQueueManager(qmgr);                              
+			f.setQueueManager(QueueManager);                              
 			// Queue Manager is got as an input parameter 
 			long waitMillis = 1000L;
 			String out_message = "";
@@ -48,7 +45,7 @@ public class MessageQueueProcess {
 				Connection conn = f.createConnection();
 				try {
 					Session session = conn.createSession(true, Session.AUTO_ACKNOWLEDGE);
-					MessageConsumer consumer = session.createConsumer(session.createQueue(cnsmr));
+					MessageConsumer consumer = session.createConsumer(session.createQueue(Consumer));
 					// Consumer name is also got as input.
 					conn.start();
 					//building a "comma-space" separated message list from queue
@@ -80,6 +77,9 @@ public class MessageQueueProcess {
 		String validatedMessage = null;
 		if (!in_message.isEmpty() && in_message.length() > 0) {
 			try {
+				// Connect to DB
+				DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
+				//Example input "1001, abcd, test, 1004"
 				validatedMessage = DBConnection.validateQueueMessages(in_message);
 				//Example output "1001, 1004"
 				if (validatedMessage != null && !validatedMessage.isEmpty()) {

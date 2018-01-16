@@ -27,6 +27,13 @@ QueueMessage=`cat $FILEDIR/$POS_DWNLD_QUEUE_FILE`
 chmod 755 $FILEDIR/$POS_DWNLD_QUEUE_FILE
 ValidatedMessages=$(java com.polling.downloads.MessageQueueProcess "validateQueueMessages" "$QueueMessage")
 
+#If the response has errors, then log the error and move it to the error folder.
+if  [[ `echo "$ValidatedMessages" | egrep -i 'ORA|SP2|exception|error'` > 0 ]];
+then
+    $SCRIPT_DIR/send_mail.sh "QueueDownloadFAILURE" 
+    exit 1
+fi
+
 echo $ValidatedMessages >> $LOGDIR/$LOGFILE
 echo $ValidatedMessages > $FILEDIR/$POS_DWNLD_QUEUE_FILE
 
