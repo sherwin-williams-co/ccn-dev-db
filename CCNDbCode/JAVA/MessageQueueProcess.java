@@ -28,10 +28,10 @@ public class MessageQueueProcess {
 		//Example input "1001, abcd, test, 1004"
 		if (args[0].equals("downloadQueueMessages")) {
 			downloadQueueMessages(args[1], args[2], args[3]);
-		} else if (args[1].equals("validateQueueMessages")){
+		} else if (args[0].equals("validateQueueMessages")){
 			validateQueueMessages(args[1]);
 		} else {
-			System.out.println("Invalid number of arguments");
+			System.out.println("Input argument defined by args[0] is unexpected..");
 		}
 	}
 

@@ -40,7 +40,7 @@ $SCRIPT_DIR/polling_maintenance_process.sh
 # End of call to run the maintenance process
 
 TIME=$(date +"%H%M%S")
-mv $FILEDIR/$POS_DWNLD_QUEUE_FILE $ARCHIVEDIR/$(POS_DWNLD_QUEUE_FILE)_"$DATE"_"$TIME".queue 
+mv $FILEDIR/$POS_DWNLD_QUEUE_FILE $ARCHIVEDIR/"$POS_DWNLD_QUEUE_FILE"_"$DATE"_"$TIME".queue 
 echo " $PROC_NAME --> Archiving completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
 TIME="$(date +"%H%M%S")"
