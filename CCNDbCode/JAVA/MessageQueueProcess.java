@@ -20,10 +20,16 @@ import com.polling.dbcalls.DBConnection;
 public class MessageQueueProcess {
 	public static Properties prop = new Properties();
 	public static void main(String[] args) throws Exception {
-		if (args.length == 3) {
-			downloadQueueMessages(args[0], args[1], args[2]);
-		} else if (args.length == 1){
-			validateQueueMessages(args[0]);
+		// Invoke Configuration file to set properties 
+		InputStream input = new FileInputStream("config.properties");
+		prop.load(input);
+		// Connect to DB
+		DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
+		//Example input "1001, abcd, test, 1004"
+		if (args[0].equals("downloadQueueMessages")) {
+			downloadQueueMessages(args[1], args[2], args[3]);
+		} else if (args[1].equals("validateQueueMessages")){
+			validateQueueMessages(args[1]);
 		} else {
 			System.out.println("Invalid number of arguments");
 		}
@@ -74,12 +80,6 @@ public class MessageQueueProcess {
 		String validatedMessage = null;
 		if (!in_message.isEmpty() && in_message.length() > 0) {
 			try {
-				// Invoke Configuration file to set properties
-				InputStream input = new FileInputStream("config.properties");
-				prop.load(input);
-				// Connect to DB
-				DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
-				//Example input "1001, abcd, test, 1004"
 				validatedMessage = DBConnection.validateQueueMessages(in_message);
 				//Example output "1001, 1004"
 				if (validatedMessage != null && !validatedMessage.isEmpty()) {

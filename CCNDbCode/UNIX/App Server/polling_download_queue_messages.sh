@@ -16,7 +16,6 @@ DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
 LOGFILE="polling_download_queue_messages.log"
 FILEDIR="$HOME/POSdownloads/POSxmls"
-QUEUEFILE=queue_message.queue
 
 echo "*************************************************************************************" >> $LOGDIR/$LOGFILE
 TIME=$(date +"%H%M%S")
@@ -28,7 +27,7 @@ QueueMessage=$(java \
 -Djavax.net.ssl.trustStore="$MQ_CCN_KEY_UN" \
 -Djavax.net.ssl.keyStorePassword="$MQ_CCN_KEY_PWD" \
 -Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
-com.polling.downloads.MessageQueueProcess "/app/ccn/CcnJavaCode/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
+com.polling.downloads.MessageQueueProcess "downloadQueueMessages" "/app/ccn/CcnJavaCode/CCN-v8.ccdt" "$QUEUE_MGR" "$CNSMR_NM")
 
 #If the response has errors, then log the error and move it to the error folder.
 if  [[ `echo "$QueueMessage" | egrep -i 'invalid number of arguments passed|invalid file path provided|exception|error'` > 0 ]];
@@ -39,8 +38,8 @@ fi
 
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> Writing messages to the Queue file started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
-echo "$QueueMessage" >> $LOGDIR/$LOGFILE 
-echo "$QueueMessage" > $FILEDIR/$QUEUEFILE
+echo "$QueueMessage" >> $LOGDIR/$LOGFILE
+echo "$QueueMessage" > $FILEDIR/$POS_DWNLD_QUEUE_FILE
 
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE

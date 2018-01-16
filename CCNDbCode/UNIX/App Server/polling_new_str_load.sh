@@ -24,11 +24,11 @@ echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >
 
 TIME=$(date +"%H%M%S")
 $SCRIPT_DIR/polling_validate_queue_messages.sh 
-echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
+echo " $PROC_NAME --> New Store validation is done at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
 TIME=$(date +"%H%M%S")
 $SCRIPT_DIR/polling_process_queue_messages.sh 
-echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
+echo " $PROC_NAME --> New Stores processing is done at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Processing New Store Downloads completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
