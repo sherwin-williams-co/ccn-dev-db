@@ -23,6 +23,8 @@ TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Processing started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 ValidatedNewStoreList=`cat $FILEDIR/$POS_DWNLD_QUEUE_FILE`
 
+cd "$CLASSHOME" || exit
+
 feedLog=$(java com.polling.downloads.InitialLoadProcess "NEW_STR_LD" "STORE" "$ValidatedNewStoreList")
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> The output of the class file is $feedLog at $DATE:$TIME " >> $LOGDIR/$LOGFILE
