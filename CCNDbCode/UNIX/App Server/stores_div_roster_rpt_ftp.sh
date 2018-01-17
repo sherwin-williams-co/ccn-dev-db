@@ -1,37 +1,43 @@
 #!/bin/sh
-#################################################################
-# Script name   : SRA30040_ftp.sh
+##########################################################
+# Script to Run the reports
 #
-# Description   : This shell script will FTP the SRA30040.pdf report
-#
-# Created  : 08/30/2017 nxk927 CCN Project Team.....
-# Modified : 
-#################################################################
+# modified: 12/13/2017 nxk927 CCN Project Team... 
+# Added Script Comments and Handled exceptions 
+##########################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
-. /app/banking/dev/banking.config
+. /app/ccn/ccn_app_server.config
 
-proc_name="SRA30040_ftp"
+proc_name="stores_div_roster_rpt_ftp"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
 #################################################################
-#         FTP file SRA30040
+#         FTP stores_div_roster_rpts
 #################################################################
+
 echo "Processing started for FTP at ${TIME} on ${DATE}"
+rpt_list=`cat /app/ccn/scripts/stores_div_roster_rpt/data/run1.txt`
 if [ $RPT_INDICATOR == Y ] 
    then
-   cd /app/banking/dev/report/reports
+cd /app/ccn/scripts/stores_div_roster_rpt/reports
+for rpt in $rpt_list
+do
+rpt_file=`echo $rpt  | cut -f2 -d"." -f1`
+echo $rpt_file
 ftp -inv ${rpt_host} <<FTP_MF
 quote user ${rpt_user}
 quote pass ${rpt_pw}
 cd ${rpt_path}
 binary
-put SRA30040.pdf
+put $rpt_file.pdf
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
+
+done
 
 status=$?
 if test $status -ne 0
@@ -47,4 +53,5 @@ fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
+cd /app/ccn/scripts
 exit 0
