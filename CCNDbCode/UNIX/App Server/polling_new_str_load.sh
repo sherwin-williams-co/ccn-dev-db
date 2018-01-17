@@ -23,7 +23,6 @@ $SCRIPT_DIR/polling_download_queue_messages.sh
 status=$?
 if [ $status -ne 0 ]
 then
-    echo "Status is $status " >> $LOGDIR/$LOGFILE
     exit 1
 fi
 echo " $PROC_NAME --> New Stores downloaded from the Queue at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
