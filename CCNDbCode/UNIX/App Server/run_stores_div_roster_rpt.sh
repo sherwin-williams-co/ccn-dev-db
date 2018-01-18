@@ -6,9 +6,9 @@
 . /app/ccn/ccn_app_server.config
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-echo "\nStarted running files at $TIME on $DATE "
+echo "\nStarted Processing rpt files at $TIME on $DATE "
 
-./stores_div_roster_rpt.sh /app/ccn/scripts/stores_div_roster_rpt/data/run1.txt
+./stores_div_roster_rpt.sh /app/ccn/crReports/data/run1.txt
 
 #Verify status code and the log file for any instance of Exceptions or errors; If true then exit with status code 1
 status=$?
@@ -26,7 +26,7 @@ echo "\nStarted running clean temp files at $TIME on $DATE "
 
 echo "\n ended running clean temp files at $TIME on $DATE "
 
-echo "\nCompleted running files at $TIME on $DATE "
+echo "\nCompleted Processing rpt files at $TIME on $DATE "
 
 exit 0
 ############################################################################

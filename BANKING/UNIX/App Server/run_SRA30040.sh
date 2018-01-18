@@ -6,9 +6,9 @@
 . /app/banking/dev/banking.config
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-echo "\nStarted running files at $TIME on $DATE "
+echo "\nStarted processing files at $TIME on $DATE "
 
-./SRA30040.sh /app/banking/dev/giftcardreport/data/run1.txt
+./SRA30040.sh /app/banking/dev/CrReports/data/run1.txt
 
 #Verify status code and the log file for any instance of Exceptions or errors; If true then exit with status code 1
 status=$?
@@ -29,7 +29,7 @@ echo "\nStarted running clean temp files at $TIME on $DATE "
 
 echo "\n ended running clean temp files at $TIME on $DATE "
 
-echo "\nCompleted running files at $TIME on $DATE "
+echo "\nCompleted processing files at $TIME on $DATE "
 
 exit 0
 ############################################################################

@@ -18,10 +18,10 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #################################################################
 
 echo "Processing started for FTP at ${TIME} on ${DATE}"
-rpt_list=`cat /app/ccn/scripts/stores_div_roster_rpt/data/run1.txt`
+rpt_list=`cat /app/ccn/crReports/data/run1.txt`
 if [ $RPT_INDICATOR == Y ] 
    then
-cd /app/ccn/scripts/stores_div_roster_rpt/reports
+cd /app/ccn/crReports/reports
 for rpt in $rpt_list
 do
 rpt_file=`echo $rpt  | cut -f2 -d"." -f1`
@@ -37,6 +37,9 @@ END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
 
+#Archive PDF file
+DT=`date +"%m%d%Y%H%M%S"`
+mv /app/ccn/crReports/reports/$rpt_file.pdf /app/ccn/crReports/reports/archive/$rpt_file"_"$DT.pdf
 done
 
 status=$?

@@ -10,48 +10,46 @@
 
 CLASSHOME=$HOME/bankingJavaCode
 
-dt=`date`
-DATE=`date +"%m-%d-%Y-%H%M%S"`
-echo "START SRA30040 REPORT : $dt\n"
+DATE=`date +"%m-%d-%Y"`
+TIME=`date +"%H:%M:%S"`
+echo "START SRA30040 REPORT at $TIME on $DATE\n "
 
 run=`cat $1`
 
 for file in $run
 do
 
-echo "Running $file"
+TIME=`date +"%H:%M:%S"`
+echo "Running $file at $TIME"
 
 filename=`basename $file .rpt` 
 
 cd "$CLASSHOME" || exit
-java com.giftcardreport.GiftCardReport $HOME/giftcardreport/rpt/$file $HOME/giftcardreport/reports/$filename.pdf
+java com.giftcardreport.GiftCardReport $HOME/CrReports/rpt/$file $HOME/CrReports/reports/$filename.pdf
 
 #Check for Existance of generated report file before Starting the conversion process
-if [ ! -f /app/banking/dev/giftcardreport/reports/$filename.pdf ]
+if [ ! -f /app/banking/dev/CrReports/reports/$filename.pdf ]
     then
-        echo "Exception occured while Converting /app/banking/dev/giftcardreport/reports/$filename.pdf to TXT file - PDF File not found.. Breaking out of Report Generation"
+        echo "Exception occured while Converting /app/banking/dev/CrReports/reports/$filename.pdf to TXT file - PDF File not found.. Breaking out of Report Generation"
         exit 1
 fi
 
-echo "\n Converting to TXT"
+cd /app/banking/dev/CrReports/scripts
 
+TIME=`date +"%H:%M:%S"`
+echo "Running Ftp script to ftp the report at $TIME on $DATE"
+./SRA30040_ftp.sh
 
-#Archive PDF file
-cp /app/banking/dev/giftcardreport/reports/$filename.pdf /app/banking/dev/giftcardreport/reports/current/archive/$filename"_"$DATE.pdf
+TIME=`date +"%H:%M:%S"`
+echo "Ftp process completed at $TIME on $DATE"
 
-#Check for Existance of converted report TXT file before Starting the currentization process
-if [ ! -f /app/banking/dev/giftcardreport/reports/$filename.pdf ]
-    then
-        echo "Exception occured while converting/currentizing the TXT file /app/banking/dev/giftcardreport/reports/$filename.txt - File not found.. Breaking out of Report currentization"
-        exit 1
-fi
+dt=`date +"%m-%d-%Y-%H%M%S"`
+mv /app/banking/dev/CrReports/reports/$filename.pdf /app/banking/dev/CrReports/reports/archive/$filename"_"$dt.pdf
 
-cp /app/banking/dev/giftcardreport/reports/$filename.pdf /app/banking/dev/datafiles/$filename.pdf
-cp /app/banking/dev/giftcardreport/reports/$filename.pdf /app/banking/dev/giftcardreport/reports/current/archive/$filename"_"$DATE.pdf
+TIME=`date +"%H:%M:%S"`
+echo "Completed processing $file at $TIME\n"
 
 done
-dt1=`date`
-
-echo "END SRA30040 REPORT  : $dt1\n"
+echo "END SRA30040 REPORT  at $TIME on $DATE\n"
 
 exit 0

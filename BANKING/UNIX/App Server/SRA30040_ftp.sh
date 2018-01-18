@@ -21,7 +21,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 echo "Processing started for FTP at ${TIME} on ${DATE}"
 if [ $RPT_INDICATOR == Y ] 
    then
-   cd /app/banking/dev/report/reports
+   cd /app/banking/dev/CrReports/reports
 ftp -inv ${rpt_host} <<FTP_MF
 quote user ${rpt_user}
 quote pass ${rpt_pw}
