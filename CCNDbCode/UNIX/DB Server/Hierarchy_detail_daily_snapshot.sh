@@ -1,58 +1,44 @@
 #!/bin/sh
-##########################################################################################
-# Script Name : Hierarchy_detail_daily_snapshot.sh
+###############################################################################################################################
+# Script name   : Hierarchy_detail_daily_snapshot.sh
 # Description : Purpose of this script is to invoke HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT
 #               at Daily base to load data from HIERARCHY_DETAIL Table to HIERARCHY_DETAIL_DAILY_SNAP Table
 #
 # Date Created: 12/20/2017 SXG151
-#
-##########################################################################################
-
-# below command will get the path for ccn.config respective to the environment from which it is run from
+###############################################################################################################################
+# below command will get the path for config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
-exec &> Hierarchy_detail_daily_snapshot_$(date '+%Y%m%d%H%M%S').log
+proc="Hierarchy_detail_daily_snapshot"
+LOGDIR="$HOME/batchJobs"
+DATE=`date +"%m-%d-%Y"`
+TIME=`date +"%H:%M:%S"`
+echo "Processing Started for $proc at $TIME on $DATE" 
 
-echo "Begin Hierarchy_Detail_Snapshot.sh script"
-
-proc="HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT"
-
-echo "Processing Started for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')"
-
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$DATE.log <<END
 set heading off;
 set verify off;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
+
 execute HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT;
 
-exit
+exit;
 END
 
-#############################################################################
-##                           ERROR STATUS CHECK 
-#############################################################################
+############################################################################
+#                           ERROR STATUS CHECK
+############################################################################
 status=$?
-if test $status -ne 0
+TIME=`date +"%H:%M:%S"`
+if [ $status -ne 0 ]
 then
-     echo "Processing FAILED for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')"
-
-     cd $HOME
-     ./send_mail.sh HIERARCHY_DETAIL_SNAPSHOT_ERROR
-     status=$?
-     TIME=`date +"%H:%M:%S"`
-     if test $status -ne 0
-     then
-        echo "Sending email for $proc FAILED at $TIME on $DATE"
-     fi
-
+    echo " $proc_name --> processing FAILED while executing Hierarchy_detail_daily_snapshot.sh at $DATE:$TIME "
+    $HOME/send_mail.sh HIERARCHY_DETAIL_SNAPSHOT_ERROR
      exit 1
 fi
 
-echo "Processing finished for $proc at $(date '+%H:%M:%S') on $(date '+%H:%M:%S')" 
-
-echo "End of Hierarchy_detail_daily_snapshot.sh script"
-
+echo " $proc_name --> Processing Finished at $DATE:$TIME "
 exit 0
 
 ############################################################################
