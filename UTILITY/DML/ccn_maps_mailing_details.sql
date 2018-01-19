@@ -13,4 +13,22 @@ Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_A
 Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) values (2,'102','CAN_CCN_MAPS_FEED','CCN_DATAFILES','A');
 Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) values (3,'102','OTH_CCN_MAPS_FEED','CCN_DATAFILES','A');
 
+Insert into 	mailing_group (GROUP_ID,MAIL_ID) 
+values 			('103','ccnoracle.team@sherwin.com');
+
+Insert into 	mailing_details (MAIL_CATEGORY,
+				GROUP_ID,
+				SUBJECT,
+				FROM_P,
+				MESSAGE,
+				SIGNATURE) 
+values 			('CCN_MAPS_FEED_ERROR',
+				'103',
+				'CCN_MAPS_FEED_ERROR_FILE_GENERATION_FAILURE',
+				'ccnoracle.team@sherwin.com',
+				'Error while executing CCN_MAPS_FEED_PKG PACKAGE',
+				'Thanks
+				 Keith D. Parker IT Manager 
+				 Sherwin Williams - Stores IT');
+
 COMMIT;

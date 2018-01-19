@@ -23,12 +23,18 @@ sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set serveroutput on;
 set heading off;
 set verify off;
+var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
-
-execute CCN_MAPS_FEED_PKG.GENERATE_MAPS_CSV_FILE();
-
-exit;
+BEGIN
+:exitCode := 0;
+execute CCN_MAPS_FEED_PKG.GENERATE_MAPS_FEED_FILE();
+Exception
+ when others then
+ :exitCode := 2;
+ END;
+/
+exit :exitCode
 END
 
 ############################################################################
@@ -39,6 +45,7 @@ TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
    echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+   ./send_mail.sh "CCN_MAPS_FEED_ERROR"
    exit 1;
 fi
 
