@@ -1,4 +1,9 @@
 SET DEFINE OFF;
+/*********************************************************** 
+ Added a new Mailing details for CCN_MAPS_FEED for sending Maps Feed to esri software
+ created : 01/18/2018 mxv711 CCN project
+ revisions: 
+************************************************************/
 Insert into MAILING_GROUP (GROUP_ID,MAIL_ID) values ('102','catalina.v.salamon@sherwin.com;ccnoracle.team@sherwin.com');
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 

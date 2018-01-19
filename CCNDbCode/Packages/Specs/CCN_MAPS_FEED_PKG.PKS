@@ -55,7 +55,7 @@ TYPE CC_MAP_FEED_REC IS RECORD(
   
 
 
-PROCEDURE GENERATE_MAPS_CSV_FILE
+PROCEDURE GENERATE_MAPS_FEED_FILE
 /****************************************************************************** 
 This PROCEDURE generates the xml file for store cost centers
 
