@@ -568,4 +568,15 @@ Modified:
    IN_ROW_DATA        IN XMLTYPE
 );
 
+PROCEDURE POLLING_QUALITY_STATUS_CHKS_SP (
+/*******************************************************************************
+This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q"
+Taxware/NonTaxware information should be present when changing a polling status to "Q"
+
+Created  : 11/28/2017 sxg151 CCN Team.... ASP-911
+Modified :
+*******************************************************************************/
+  inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
+);
+
 END CCN_BUSINESS_RULES_PKG;
