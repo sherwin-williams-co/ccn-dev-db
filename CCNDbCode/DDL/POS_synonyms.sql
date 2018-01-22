@@ -1,17 +1,8 @@
 /*******************************************************************************************************************************
 Description : This file has all relative synonyms for POS tables from PNP schema 
 Created  : 10/07/2016 axk326 CCN Project Team.....
-Modified :
+Modified : 01/22/2018 nxk927 CCN Project Team.....
+           removed all the unwanted synonym and left only the ones we need
 ********************************************************************************************************************************/
-CREATE OR REPLACE SYNONYM PNP_CCN_BANK_CARDS FOR PNP.CCN_BANK_CARDS;
-CREATE OR REPLACE SYNONYM PNP_CCN_BATCH_SUMMARY FOR PNP.CCN_BATCH_SUMMARY;
-CREATE OR REPLACE SYNONYM PNP_CCN_DRAFT_LOGS FOR PNP.CCN_DRAFT_LOGS;
 CREATE OR REPLACE SYNONYM PNP_CCN_HEADERS FOR PNP.CCN_HEADERS;
-CREATE OR REPLACE SYNONYM PNP_CCN_INSTALLER_LINES FOR PNP.CCN_INSTALLER_LINES;
-CREATE OR REPLACE SYNONYM PNP_CCN_LOAD_ERRS FOR PNP.CCN_LOAD_ERRS;
 CREATE OR REPLACE SYNONYM PNP_CCN_LOAD_STATUS FOR PNP.CCN_LOAD_STATUS;
-CREATE OR REPLACE SYNONYM PNP_CCN_MISC_LINES FOR PNP.CCN_MISC_LINES;
-CREATE OR REPLACE SYNONYM PNP_CCN_SALES_LINES FOR PNP.CCN_SALES_LINES;
-CREATE OR REPLACE SYNONYM PNP_CCN_TAX_TTL FOR PNP.CCN_TAX_TTL;
-CREATE OR REPLACE SYNONYM PNP_CCN_TW_TAX_TTL FOR PNP.CCN_TW_TAX_TTL;
-
