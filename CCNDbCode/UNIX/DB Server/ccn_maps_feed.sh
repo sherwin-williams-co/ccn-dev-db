@@ -3,10 +3,10 @@
 # Script name   : ccn_maps_feed.sh
 #
 # Description   : This script is to run the following:
-#                 CCN_MAPS_FEED_PKG.GENERATE_MAPS_CSV_FILE
+#                 CCN_MAPS_FEED_PKG.GENERATE_MAPS_CSV_FILE for sending Maps Feed to esri software
 #
 # Created  : 01/18/2018 mxv711 CCN Project Team.....
-# 
+#
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -28,7 +28,7 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
-execute CCN_MAPS_FEED_PKG.GENERATE_MAPS_FEED_FILE();
+CCN_MAPS_FEED_PKG.GENERATE_MAPS_FEED_FILE();
 Exception
  when others then
  :exitCode := 2;
@@ -54,3 +54,4 @@ echo "Processing finished for $proc at ${TIME} on ${DATE}"
 
 exit 0
 #######################################################################################################################
+
