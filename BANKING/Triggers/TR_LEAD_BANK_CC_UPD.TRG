@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER BANKING.TR_LEAD_BANK_CC_UPD
+create or replace TRIGGER BANKING.TR_LEAD_BANK_CC_UPD
 BEFORE INSERT OR UPDATE ON BANKING.LEAD_BANK_CC
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
@@ -68,21 +68,26 @@ begin
                 ,'TR_LEAD_BANK_CC_UPD');
 
 BEGIN
-IF INSERTING THEN
-   POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_lead_bank_cc_row.LEAD_STORE_NBR,
-                                         'LEAD_BANK_CC',
-                                         'ADD',
-                                         'POS_PARAM_UPDATE'
-                                         );
-END IF;
+    IF TRUNC(v_lead_bank_cc_row.EFFECTIVE_DATE) = TRUNC(v_lead_bank_cc_row.UPDATE_DATE) THEN
+        -- For future records effective_date > update date
+        -- For current records EFFECTIVE_DATE = UPDATE_DATE
+
+        IF INSERTING THEN
+            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_lead_bank_cc_row.LEAD_STORE_NBR,
+                                                  'LEAD_BANK_CC',
+                                                  'ADD',
+                                                  'POS_PARAM_UPDATE'
+                                                  );
+        END IF;
+    END IF;
 EXCEPTION
-WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                           'TR_LEAD_BANK_CC_UPD',
-                           SQLERRM,
-                           v_lead_bank_cc_row.LEAD_BANK_ACCOUNT_NBR,
-                           v_lead_bank_cc_row.LEAD_STORE_NBR,
-                           'LEAD_BANK_CC'
-                           );
-END;
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                   'TR_LEAD_BANK_CC_UPD',
+                                   SQLERRM,
+                                   v_lead_bank_cc_row.LEAD_BANK_ACCOUNT_NBR,
+                                   v_lead_bank_cc_row.LEAD_STORE_NBR,
+                                   'LEAD_BANK_CC'
+                                   );
+    END;
 END TR_LEAD_BANK_CC_UPD;
