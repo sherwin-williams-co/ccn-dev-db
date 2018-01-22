@@ -5,6 +5,7 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
    This trigger will insert records into audit_log table for logging changes
    happened on terminal table.
    Modified : 02/15/2017 gxg192 Added missing fields
+            : 01/22/2018 nxk927 Added POS_VERSION_NBR field
    ****************************************************************************/
    BEFORE INSERT OR UPDATE ON terminal
    REFERENCING NEW AS NEW OLD AS OLD
@@ -31,6 +32,7 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
       v_terminal_row.pci_terminal_id      := :NEW.pci_terminal_id;
       v_terminal_row.pci_val_link_alt_mid := :NEW.pci_val_link_alt_mid;
       v_terminal_row.pci_value_link_mid   := :NEW.pci_value_link_mid;
+      v_terminal_row.POS_VERSION_NBR      := :NEW.POS_VERSION_NBR;
       
       SELECT XMLELEMENT ( "TERMINAL",
                 XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -45,7 +47,8 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
                           v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER ,
                           v_terminal_row.pci_terminal_id pci_terminal_id ,
                           v_terminal_row.pci_val_link_alt_mid pci_val_link_alt_mid ,
-                          v_terminal_row.pci_value_link_mid pci_value_link_mid)
+                          v_terminal_row.pci_value_link_mid pci_value_link_mid,
+                          v_terminal_row.POS_VERSION_NBR POS_VERSION_NBR)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                 XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
