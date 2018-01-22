@@ -576,7 +576,7 @@ Taxware/NonTaxware information should be present when changing a polling status 
 Created  : 11/28/2017 sxg151 CCN Team.... ASP-911
 Modified :
 *******************************************************************************/
-  inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
+  INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
 );
 
 END CCN_BUSINESS_RULES_PKG;

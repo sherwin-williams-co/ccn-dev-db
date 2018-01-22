@@ -836,7 +836,7 @@ END IF;
 
    -- Call POLLING_QUALITY_STATUS_CHKS_SP when Cost Center Polling status changed to "Q" --ASP911
    IF inPOLLING_ROWTYPE.cost_center_code IS NOT NULL AND inPOLLING_ROWTYPE.polling_status_code = 'Q' THEN
-       CCN_BUSINESS_RULES_PKG.POLLING_QUALITY_STATUS_CHKS_SP (inCOST_CENTER_ROWTYPE );
+       CCN_BUSINESS_RULES_PKG.POLLING_QUALITY_STATUS_CHKS_SP(INPOLLING_ROWTYPE);
    END IF;
 --
 --
@@ -7989,49 +7989,55 @@ END TERMINAL_COUNT_BR_SP;
 
 PROCEDURE POLLING_QUALITY_STATUS_CHKS_SP (
 /*******************************************************************************
-This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q"
-Taxware/NonTaxware information should be present when changing a polling status to "Q"
-Created  : 11/28/2017 sxg151 CCN Team.... ASP-911
-Modified :
-*******************************************************************************/
-   inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
-)
-IS
-
-   no_taxware_nontaxware_info      EXCEPTION;
-
-   V_TAXWARE_COUNT        NUMBER := 0;
-   V_NONTAXWARE_USA_COUNT NUMBER := 0;
-   V_NONTAXWARE_COUNT     NUMBER := 0;
-   V_ADDRESS_REC          ADDRESS_VW%ROWTYPE;
-   v_code                 NUMBER;
-   v_errm                 VARCHAR(500);
-
-BEGIN
+This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q".
+	
+created : 11/28/2017 sxg151 CCN Team.... ASP-911
+changed : 
+*******************************************************************************/	
+    INPOLLING_ROWTYPE        IN POLLING%ROWTYPE)
+IS         
+    no_taxware_nontaxware_info      EXCEPTION;
+    V_TAXWARE_COUNT                 NUMBER := 0; 
+    V_NONTAXWARE_USA_COUNT          NUMBER := 0; 
+    V_NONTAXWARE_COUNT              NUMBER := 0; 
+    V_ADDRESS_REC                   ADDRESS_VW%ROWTYPE; 
+    V_COST_CENTER_ROWTYPE           COST_CENTER%ROWTYPE;
+BEGIN 
+    IF INPOLLING_ROWTYPE.COST_CENTER_CODE IS NULL THEN
+        BEGIN
+            SELECT *
+              INTO V_COST_CENTER_ROWTYPE
+              FROM COST_CENTER
+             WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END IF;
 /***************************************************************************************************
    -- ASP-911 Taxware/NonTaxware information should be present when changing a polling status to "Q"
-****************************************************************************************************/
-        -- Check TAXWARE details for USA/CAN/PRI
-        --Check Non Taxware for USA, if TAXWARE details are not availbale
-    IF inCOST_CENTER_ROWTYPE.country_code IN ('USA','CAN','PRI') THEN
+****************************************************************************************************/	
+    --Check TAXWARE details for USA/CAN/PRI
+    --Check Non Taxware for USA, if TAXWARE details are not availbale
+    IF V_COST_CENTER_ROWTYPE.country_code IN ('USA','CAN','PRI') THEN
         --Check for TAXWARE rates for the cost center passed
         BEGIN
             SELECT COUNT(*)
               INTO V_TAXWARE_COUNT
               FROM TAXWARE
-             WHERE COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.COST_CENTER_CODE;
+             WHERE COST_CENTER_CODE = V_COST_CENTER_ROWTYPE.COST_CENTER_CODE;
         EXCEPTION
             WHEN OTHERS THEN
                 NULL;
         END;
         --If country is USA and not a TAXWARE, we need to check if it is NON TAXWARE
-        IF inCOST_CENTER_ROWTYPE.country_code IN ('USA', 'PRI') AND V_TAXWARE_COUNT = 0 THEN
+        IF V_COST_CENTER_ROWTYPE.country_code IN ('USA', 'PRI') AND V_TAXWARE_COUNT = 0 THEN
             --Get the address details to get the state code
             BEGIN
                 SELECT *
                   INTO V_ADDRESS_REC
                   FROM ADDRESS_VW
-                 WHERE COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.COST_CENTER_CODE
+                 WHERE COST_CENTER_CODE = V_COST_CENTER_ROWTYPE.COST_CENTER_CODE
                    AND ADDRESS_TYPE = 'M'
                    AND EXPIRATION_DATE IS NULL;
             EXCEPTION
@@ -8043,7 +8049,7 @@ BEGIN
                 SELECT COUNT(*)
                   INTO V_NONTAXWARE_USA_COUNT
                   FROM NON_TAXWARE_RATES_USA
-                 WHERE COUNTRY_CODE = inCOST_CENTER_ROWTYPE.COUNTRY_CODE
+                 WHERE COUNTRY_CODE = V_COST_CENTER_ROWTYPE.COUNTRY_CODE
                    AND STATE_CODE = V_ADDRESS_REC.STATE_CODE
                    AND EXPIRATION_DATE IS NULL;
             EXCEPTION
@@ -8052,38 +8058,33 @@ BEGIN
             END;
         END IF;
     ELSE
-        --If country other than USA/CAN/PRI we need to check NON TAXWARE details
+        --If country other than USA/CAN/PRI we need to check NON TAXWARE details            
         BEGIN
             SELECT COUNT(*)
               INTO V_NONTAXWARE_COUNT
               FROM NON_TAXWARE_RATES
-             WHERE COUNTRY_CODE = inCOST_CENTER_ROWTYPE.COUNTRY_CODE
+             WHERE COUNTRY_CODE = V_COST_CENTER_ROWTYPE.COUNTRY_CODE
                AND EXPIRATION_DATE IS NULL;
         EXCEPTION
             WHEN OTHERS THEN
                 NULL;
-        END;
-    END IF;
+        END; 
+    END IF; 
     --If no TAXWARE as well as NON TAXWARE details are present, changing the status to Q is not valid
     IF V_NONTAXWARE_USA_COUNT = 0 AND V_NONTAXWARE_COUNT = 0 AND V_TAXWARE_COUNT = 0 THEN
          RAISE no_taxware_nontaxware_info;
     END IF;
+
 /*******************************************************************************
   EXCEPTION ERROR PROCESSING :
-*******************************************************************************/
+*******************************************************************************/		
 EXCEPTION
-
-   WHEN no_taxware_nontaxware_info THEN  --ASP-911
-        v_code := errnums.en_no_taxware_nontaxware_info;
-        errpkg.raise_err(v_code, 'POLLING_QUALITY_STATUS_CHKS_SP.no_taxware_nontaxware_info ',
-        'CCN_BUSINESS_RULES_PKG - Taxware/NonTaxware information should be present for the cost center to change its status to "Q" ');
-
-   WHEN OTHERS THEN
-        v_code := SQLCODE;
-	      v_errm := substr(SQLERRM,1, 500);
-        errpkg.raise_err(v_code, v_errm,
-        'CCN_BUSINESS_RULES_PKG - No errors found');
-
-END POLLING_QUALITY_STATUS_CHKS_SP;
+    WHEN no_taxware_nontaxware_info THEN  --ASP-911
+        errpkg.raise_err(errnums.en_no_taxware_nontaxware_info,
+                         'POLLING_QUALITY_STATUS_CHKS_SP.no_taxware_nontaxware_info ',
+                         'CCN_BUSINESS_RULES_PKG - Taxware/NonTaxware information should be present for the cost center to change its status to "Q"');
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500), 'CCN_BUSINESS_RULES_PKG - No errors found');
+ END POLLING_QUALITY_STATUS_CHKS_SP;
 
 END CCN_BUSINESS_RULES_PKG;
