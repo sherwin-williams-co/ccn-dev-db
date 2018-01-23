@@ -1,6 +1,6 @@
 #!/bin/sh
 ###############################################################################################################################
-# Script name   : dly_pos_term_tran_updt.sh
+# Script name   : pos_term_tran_updt.sh
 #
 # Description   : This script is to update the last pos tran date and transaction date
 # Created       : 12/05/2017 nxk927 CCN Project Team.....
@@ -8,13 +8,18 @@
 # below command will get the path for config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
+#below export command has to be uncommented in production so BMC can run this script without any issue.
+#export ORACLE_HOME=/swpkg/oracle/product/12.1.0/client_1
+#export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:/swpkg/oracle/product/12.1.0/client_1/bin
+
 proc="pos_term_tran_updt"
 LOGDIR="$HOME/batchJobs"
 DATE=`date +"%m-%d-%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc at $TIME on $DATE" 
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$DATE.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw@$hostname/$service_name >> $LOGDIR/$proc"_"$DATE.log <<END
+#sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$DATE.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
