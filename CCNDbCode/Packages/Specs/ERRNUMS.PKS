@@ -2942,29 +2942,6 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
-/***********************************************************
-The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
-An error occurs when effective date is the past than the current effective date
-
-created : 11/09/2017 axt754  CCN Project Team....
-revisions:
-************************************************************/
-EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
-EXC_EN_DATE_PASSED_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
-
-/*********************************************************** 
-The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
-This error will state the country code is missing in currency conversion. 
-
-created : 11/10/2017 axt754  CCN Project Team...
-revisions: 
-************************************************************/
-EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
-EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
-
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2978,7 +2955,7 @@ exc_en_cstmr_accnts_close_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_en_cstmr_accnts_close_err , -20185);
 
-/*********************************************************** 
+/***********************************************************
 The "NO_TAXWARE_NONTAXWARE_INFO" passes a numerical error of -20186.
 An error will occur while update polling status code to "Q"
 When taxware/nontaxware values are not present for  the cost center 
