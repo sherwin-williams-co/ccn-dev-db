@@ -17,7 +17,6 @@ TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc at $TIME on $DATE" 
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw@$hostname/$service_name >> $LOGDIR/$proc"_"$DATE.log <<END
-#sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$DATE.log <<END
 set heading off;
 set verify off;
 set serveroutput on;
