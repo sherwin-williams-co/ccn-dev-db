@@ -8,9 +8,7 @@
 # below command will get the path for config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
-#below export command has to be uncommented in production so BMC can run this script without any issue.
-#export ORACLE_HOME=/swpkg/oracle/product/12.1.0/client_1
-#export PATH=/bin:/usr/bin:/usr/sbin:/usr/local/bin:/swpkg/oracle/product/12.1.0/client_1/bin
+. /app/ccn/bmc_ccn.config
 
 proc="pos_term_tran_updt"
 LOGDIR="$HOME/batchJobs"
