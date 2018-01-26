@@ -45,4 +45,15 @@ IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
 )
 RETURN VARCHAR2;
 
+FUNCTION FNC_GET_LATEST_CUM_AMT(
+/**********************************************************
+This function will return the net balance remaining
+as of the day before the current load
+
+Created : 01/25/2018 sxh487
+**********************************************************/
+IN_CUST_ACCOUNT_NBR IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE
+)
+RETURN NUMBER;
+
 END COMMON_TOOLS;
