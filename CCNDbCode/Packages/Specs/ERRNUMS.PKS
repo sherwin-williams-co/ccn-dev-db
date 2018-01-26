@@ -2899,6 +2899,39 @@ exc_invalid_terminal_count_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 /***********************************************************
+The "invalid_accnt_nbr_err" passes a numerical error of -20179.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/02/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_accnt_nbr_err CONSTANT NUMBER := -20179;
+exc_invalid_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_accnt_nbr_err , -20179);
+
+/***********************************************************
+The "invalid_prog_name_err" passes a numerical error of -20180.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_prog_name_err CONSTANT NUMBER := -20180;
+exc_invalid_prog_name_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_prog_name_err , -20180);
+
+/***********************************************************
+The "prog_name_del_err" passes a numerical error of -20181.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_prog_name_del_err CONSTANT NUMBER := -20181;
+exc_prog_name_del_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
+
+/***********************************************************
 The "no_address_element_err" passes a numerical error of -20182.
 An error occurs when cost center insert or update do not have address element.
 
@@ -2909,12 +2942,35 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/***********************************************************
+The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
+An error occurs when effective date is the past than the current effective date
+
+created : 11/09/2017 axt754  CCN Project Team....
+revisions:
+************************************************************/
+EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
+EXC_EN_DATE_PASSED_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
+
 /*********************************************************** 
-The "EN_CSTMR_ACCNTS_CLOSE_ERR" passes a numerical error of -20185.
+The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
+This error will state the country code is missing in currency conversion. 
+
+created : 11/10/2017 axt754  CCN Project Team...
+revisions: 
+************************************************************/
+EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
+EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
+
+/*********************************************************** 
+The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
 which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
 
-created : 11/13/2017 bxa919  CCN Project Team...
+created : 11/17/2017 bxa919  CCN Project Team...
 revisions: 
 ************************************************************/
 en_cstmr_accnts_close_err      CONSTANT NUMBER := -20185;
