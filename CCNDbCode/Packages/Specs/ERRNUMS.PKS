@@ -2970,7 +2970,7 @@ The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
 which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
 
-created : 11/17/2017 bxa919  CCN Project Team...
+created : 11/13/2017 bxa919  CCN Project Team...
 revisions: 
 ************************************************************/
 en_cstmr_accnts_close_err      CONSTANT NUMBER := -20185;
