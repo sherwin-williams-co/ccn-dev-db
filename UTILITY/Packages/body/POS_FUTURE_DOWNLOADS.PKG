@@ -6,10 +6,6 @@ Future Polling
 Created : 01/18/2018 rxv940 CCN Project....
 Changed :
 **********************************************************/
--- Forward declarations
-PROCEDURE MEMBER_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME VARCHAR2, IN_LOGFILE VARCHAR2);
-PROCEDURE LEAD_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME VARCHAR2, IN_LOGFILE VARCHAR2);
-
 PROCEDURE PROCESS_FUTURE_POS_DOWNLOADS(
 /**********************************************************
 This procedure calls the member bank and lead bank downloads
@@ -25,40 +21,32 @@ IS
     V_FIRSTWEEK_DAY                DATE;
     V_LAST_BATCH_RUN_DATE          DATE;
     V_ERROR                        VARCHAR2(2000);
-    E_PRCS_ERROR                   EXCEPTION;    
 BEGIN 
+    V_LAST_BATCH_RUN_DATE := CCN_BATCH_PKG.GET_LAST_RUNDATE('FUTURE_POS_DOWNLOADS');
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('FUTURE_POS_DOWNLOADS', V_BATCH_NUMBER, IN_SERVER_NAME, IN_LOGFILE);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+
     -- Call for lead bank downloads
     BEGIN
-        V_LAST_BATCH_RUN_DATE := CCN_BATCH_PKG.GET_LAST_RUNDATE('MEMBER_BANK_FUTURE');
-        CCN_BATCH_PKG.INSERT_BATCH_JOB('MEMBER_BANK_FUTURE', V_BATCH_NUMBER, IN_SERVER_NAME, IN_LOGFILE);
-        CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
-    
-        MEMBER_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME, IN_LOGFILE);
-        
-       CCN_BATCH_PKG.UPDATE_BATCH_JOB('MEMBER_BANK_FUTURE', V_BATCH_NUMBER, V_TRANS_STATUS);
-       CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;     
+        POS_FUTURE_DOWNLOADS.MEMBER_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME, IN_LOGFILE);
     EXCEPTION 
         WHEN OTHERS THEN 
             V_TRANS_STATUS := 'ERROR';
     END;
+
     -- Call for member bank downloads
     BEGIN       
-        V_LAST_BATCH_RUN_DATE := CCN_BATCH_PKG.GET_LAST_RUNDATE('LEAD_BANK_FUTURE');
-        CCN_BATCH_PKG.INSERT_BATCH_JOB('LEAD_BANK_FUTURE', V_BATCH_NUMBER, IN_SERVER_NAME, IN_LOGFILE);
-        CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    
-        LEAD_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME, IN_LOGFILE);
-        
-        CCN_BATCH_PKG.UPDATE_BATCH_JOB('LEAD_BANK_FUTURE', V_BATCH_NUMBER, V_TRANS_STATUS);
-        CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;   
+        POS_FUTURE_DOWNLOADS.LEAD_BANK_FUTURE_DOWNLOAD_SP(IN_SERVER_NAME, IN_LOGFILE);
     EXCEPTION 
         WHEN OTHERS THEN 
             V_TRANS_STATUS := 'ERROR';
     END;
-    
-    IF V_TRANS_STATUS = 'ERROR' THEN 
-        RAISE E_PRCS_ERROR;
-    END IF;
+
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('FUTURE_POS_DOWNLOADS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+EXCEPTION
+    WHEN OTHERS THEN
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'PROCESS_FUTURE_POS_DOWNLOADS', V_ERROR, '000000');
 END PROCESS_FUTURE_POS_DOWNLOADS;
 
 PROCEDURE GET_BANK_ACCOUNT_DETAILS(
@@ -105,15 +93,15 @@ Changed :
 IS 
     V_LEAD_BANK_ACCOUNT_NBR        MEMBER_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_MEMBER_BANK_ACCOUNT_NBR      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
-    V_ERROR                        VARCHAR2(2000);    
+    V_ERROR                        VARCHAR2(2000);
+    V_TRANS_STATUS                 BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_EXCEPTION                    EXCEPTION;
 BEGIN
     --Loop through all members that are going to move to current tables tomorrow
     FOR future_member_rec IN (SELECT *
                                 FROM MEMBER_BANK_CC_FUTURE
                                WHERE TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1)) LOOP
-
         BEGIN
-
             GET_BANK_ACCOUNT_DETAILS(future_member_rec.MEMBER_STORE_NBR, 
                                      V_LEAD_BANK_ACCOUNT_NBR, 
                                      V_MEMBER_BANK_ACCOUNT_NBR);
@@ -126,15 +114,18 @@ BEGIN
             END IF;
         EXCEPTION 
             WHEN OTHERS THEN 
-                V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                            'SQLERRM->' || SQLERRM;            
+                V_TRANS_STATUS := 'ERROR';
+                V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) ||  'SQLERRM->' || SQLERRM;
                 CCN_ERRPKG.insert_error_log_sp(SQLCODE,
                                                'MEMBER_BANK_FUTURE_DOWNLOAD_SP'||'_'||future_member_rec.MEMBER_STORE_NBR,
                                                V_ERROR,
-                                               '000000');                                         
+                                               '000000');
         END;
-    END LOOP;    
-    
+    END LOOP;
+
+    IF V_TRANS_STATUS = 'ERROR' THEN
+        RAISE V_EXCEPTION;
+    END IF;
 END MEMBER_BANK_FUTURE_DOWNLOAD_SP;
 
 PROCEDURE LEAD_BANK_FUTURE_DOWNLOAD_SP(
@@ -150,20 +141,19 @@ Changed :
 IS 
     V_LEAD_BANK_ACCOUNT_NBR        MEMBER_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
     V_MEMBER_BANK_ACCOUNT_NBR      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
-    V_ERROR                        VARCHAR2(2000);    
+    V_ERROR                        VARCHAR2(2000);
+    V_TRANS_STATUS                 BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_EXCEPTION                    EXCEPTION;
 BEGIN 
-
     --Loop through all leads that are going to move to current tables tomorrow
     FOR future_lead_rec IN (SELECT *
                               FROM LEAD_BANK_CC_FUTURE
                              WHERE TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1)) LOOP
-        
         BEGIN
-        
             GET_BANK_ACCOUNT_DETAILS(future_lead_rec.LEAD_STORE_NBR, 
                                      V_LEAD_BANK_ACCOUNT_NBR, 
                                      V_MEMBER_BANK_ACCOUNT_NBR);
-            
+
             IF ((NVL(V_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> future_lead_rec.LEAD_BANK_ACCOUNT_NBR) 
                OR -- A member having a sub account number when becomes a lead will have a null 
               -- sub account number. We look to see if the member had a non-null sub accnt nbr
@@ -171,18 +161,20 @@ BEGIN
                 -- Below call inserts data into the POS table
                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(future_lead_rec.LEAD_STORE_NBR, 'LEAD_BANK_CC', 'ADD', 'POS_PARAM_UPDATE');
             END IF;
-            
         EXCEPTION 
             WHEN OTHERS THEN 
-                V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                            'SQLERRM->' || SQLERRM;
+                V_TRANS_STATUS := 'ERROR';
+                V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM;
                 CCN_ERRPKG.insert_error_log_sp(SQLCODE,
                                                'LEAD_BANK_FUTURE_DOWNLOAD_SP'||'_'||future_lead_rec.LEAD_STORE_NBR,
                                                V_ERROR,
                                                '000000');
         END;
-    END LOOP;  
-    
+    END LOOP;
+
+    IF V_TRANS_STATUS = 'ERROR' THEN
+        RAISE V_EXCEPTION;
+    END IF;
 END LEAD_BANK_FUTURE_DOWNLOAD_SP;  
 
 END POS_FUTURE_DOWNLOADS;
