@@ -9,6 +9,7 @@
 ###############################################################################################################################
 
 . /app/ccn/host.sh
+. /app/ccn/bmc_ccn.config
 
 cd $HOME || exit
 PROC_NAME="polling_futures_load_process.sh"
@@ -20,7 +21,7 @@ echo "**************************************************************************
 TIME=`date +"%H:%M:%S"`
 echo " $PROC_NAME --> Processing future downloads starting at $DATE:$TIME "
 
-sqlplus -s -l $ccn_utility_un/$ccn_utility_pwd <<EOF
+sqlplus -s -l $ccn_utility_un/$ccn_utility_pwd@$hostname/$service_name >> $LOGDIR/$LOGFILE <<EOF
 set heading off;
 set serveroutput on;
 set verify off;
@@ -31,8 +32,7 @@ WHENEVER SQLERROR EXIT 1
 BEGIN
 :exitCode := 0;
 
-POS_FUTURE_DOWNLOADS.MEMBER_BANK_FUTURE_DOWNLOAD_SP;
-POS_FUTURE_DOWNLOADS.LEAD_BANK_FUTURE_DOWNLOAD_SP;
+POS_FUTURE_DOWNLOADS.PROCESS_FUTURE_POS_DOWNLOADS;
 
 Exception
 when others then

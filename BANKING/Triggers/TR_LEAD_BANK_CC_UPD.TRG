@@ -68,10 +68,11 @@ begin
                 ,'TR_LEAD_BANK_CC_UPD');
 
 BEGIN
-    IF TRUNC(v_lead_bank_cc_row.EFFECTIVE_DATE) = TRUNC(v_lead_bank_cc_row.UPDATE_DATE) THEN
-        -- For future records effective_date > update date
-        -- For current records EFFECTIVE_DATE = UPDATE_DATE
-
+    IF  TRUNC(v_lead_bank_cc_row.UPDATE_DATE) >= TRUNC(SYSDATE) THEN
+        -- For future records update date will always be less than sysdate
+        -- A record is changed today (T) with a future date (T+3). In the _future table,
+        -- the update date will be T. On the T+3 day when the record is moved from future to present, 
+        -- the update date will be T while the sysdate will be T+3
         IF INSERTING THEN
             POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_lead_bank_cc_row.LEAD_STORE_NBR,
                                                   'LEAD_BANK_CC',

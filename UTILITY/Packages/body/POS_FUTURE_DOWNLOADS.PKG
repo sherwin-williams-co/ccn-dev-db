@@ -6,6 +6,79 @@ Future Polling
 Created : 01/18/2018 rxv940 CCN Project....
 Changed :
 **********************************************************/
+-- Forward declarations
+PROCEDURE MEMBER_BANK_FUTURE_DOWNLOAD_SP;
+PROCEDURE LEAD_BANK_FUTURE_DOWNLOAD_SP;
+
+PROCEDURE PROCESS_FUTURE_POS_DOWNLOADS
+/**********************************************************
+This procedure calls the member bank and lead bank downloads
+
+Created : 01/18/2018 rxv940 CCN Project....
+Changed :
+**********************************************************/
+IS 
+    V_ERROR    VARCHAR2(2000);
+BEGIN 
+    -- Call for lead bank downloads
+    BEGIN 
+        MEMBER_BANK_FUTURE_DOWNLOAD_SP;
+    EXCEPTION 
+        WHEN OTHERS THEN 
+            V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                        'SQLERRM->' || SQLERRM;
+            ROLLBACK;
+            CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                           'process_future_pos_downloads-Member',
+                                           V_ERROR,
+                                           '000000');
+    END;
+    -- Call for member bank downloads
+    BEGIN 
+        LEAD_BANK_FUTURE_DOWNLOAD_SP;
+    EXCEPTION 
+        WHEN OTHERS THEN 
+            V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                        'SQLERRM->' || SQLERRM;
+                        
+            ROLLBACK;
+            CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                           'process_future_pos_downloads-Lead',
+                                           V_ERROR,
+                                           '000000');
+    END;
+END PROCESS_FUTURE_POS_DOWNLOADS;
+
+PROCEDURE GET_BANK_ACCOUNT_DETAILS(
+/*******************************************************************************
+This procedure is used to return bank details for a given cost center
+
+Created : 01/24/2018 rxv940 CCN Project....
+Modified: 
+*******************************************************************************/
+    IN_STORE_NBR          IN        VARCHAR2, 
+    OUT_LEAD_BANK_ACC_NBR       OUT VARCHAR2, 
+    OUT_MEMBER_BANK_ACC_NBR     OUT VARCHAR2) 
+IS	 
+BEGIN 
+    --Below query will get the current bank account and sub account for the cost center passed in
+    SELECT LEAD_BANK_ACCOUNT_NBR,
+           MEMBER_BANK_ACCOUNT_NBR
+      INTO OUT_LEAD_BANK_ACC_NBR,
+           OUT_MEMBER_BANK_ACC_NBR
+      FROM (SELECT LEAD_BANK_ACCOUNT_NBR,
+                   MEMBER_BANK_ACCOUNT_NBR
+              FROM MEMBER_BANK_CC
+             WHERE MEMBER_STORE_NBR = IN_STORE_NBR
+             UNION
+            SELECT LEAD_BANK_ACCOUNT_NBR,
+                   NULL MEMBER_BANK_ACCOUNT_NBR --there won't be a sub account for lead
+              FROM LEAD_BANK_CC
+             WHERE LEAD_STORE_NBR = IN_STORE_NBR);
+EXCEPTION 
+    WHEN OTHERS THEN 
+        NULL;
+END GET_BANK_ACCOUNT_DETAILS;
 
 PROCEDURE MEMBER_BANK_FUTURE_DOWNLOAD_SP
 /**********************************************************
@@ -15,30 +88,24 @@ the POS table
 Created : 01/18/2018 rxv940 CCN Project....
 Changed :
 **********************************************************/
-
 IS 
-    V_CURRENT_REC MEMBER_BANK_CC%ROWTYPE;
+    V_LEAD_BANK_ACCOUNT_NBR        MEMBER_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_MEMBER_BANK_ACCOUNT_NBR      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
 BEGIN 
+    --Loop through all members that are going to move to current tables tomorrow
     FOR future_member_rec IN (SELECT *
                                 FROM MEMBER_BANK_CC_FUTURE
                                WHERE TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1)) LOOP
-        BEGIN
-            SELECT *
-              INTO V_CURRENT_REC
-              FROM MEMBER_BANK_CC
-             WHERE MEMBER_STORE_NBR = future_member_rec.MEMBER_STORE_NBR;
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-        IF NVL(V_CURRENT_REC.LEAD_BANK_ACCOUNT_NBR, 'XXX') <> future_member_rec.LEAD_BANK_ACCOUNT_NBR
+
+        GET_BANK_ACCOUNT_DETAILS(future_member_rec.MEMBER_STORE_NBR, 
+                                 V_LEAD_BANK_ACCOUNT_NBR, 
+                                 V_MEMBER_BANK_ACCOUNT_NBR);
+
+        IF NVL(V_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> future_member_rec.LEAD_BANK_ACCOUNT_NBR
            OR
-           NVL(V_CURRENT_REC.MEMBER_BANK_ACCOUNT_NBR, 'XXX') <> NVL(future_member_rec.MEMBER_BANK_ACCOUNT_NBR, 'XXX') THEN
-            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(future_member_rec.MEMBER_STORE_NBR,
-                                                  'MEMBER_BANK_CC',
-                                                  'ADD',
-                                                  'POS_PARAM_UPDATE'
-                                                  );
+           NVL(V_MEMBER_BANK_ACCOUNT_NBR, 'XXX') <> NVL(future_member_rec.MEMBER_BANK_ACCOUNT_NBR, 'XXX') THEN
+            -- Below call inserts data into the POS table
+            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(future_member_rec.MEMBER_STORE_NBR, 'MEMBER_BANK_CC', 'ADD', 'POS_PARAM_UPDATE');
         END IF;
     END LOOP;
 END MEMBER_BANK_FUTURE_DOWNLOAD_SP;
@@ -51,32 +118,26 @@ the POS table
 Created : 01/18/2018 rxv940 CCN Project....
 Changed :
 **********************************************************/
-
 IS 
-    V_CURRENT_REC MEMBER_BANK_CC%ROWTYPE;
+    V_LEAD_BANK_ACCOUNT_NBR        MEMBER_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+    V_MEMBER_BANK_ACCOUNT_NBR      MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
 BEGIN 
+    --Loop through all leads that are going to move to current tables tomorrow
     FOR future_lead_rec IN (SELECT *
-                                FROM LEAD_BANK_CC_FUTURE
-                               WHERE TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1)) LOOP
-        BEGIN
-            SELECT *
-              INTO V_CURRENT_REC
-              FROM MEMBER_BANK_CC
-             WHERE MEMBER_STORE_NBR = future_lead_rec.LEAD_STORE_NBR;
-                          
-            IF ((NVL(V_CURRENT_REC.LEAD_BANK_ACCOUNT_NBR, 'XXX') <> future_lead_rec.LEAD_BANK_ACCOUNT_NBR) OR 
-               V_CURRENT_REC.MEMBER_BANK_ACCOUNT_NBR IS NOT NULL) THEN
-                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(future_lead_rec.LEAD_STORE_NBR,
-                                                      'LEAD_BANK_CC',
-                                                      'ADD',
-                                                      'POS_PARAM_UPDATE'
-                                                      );
-            END IF;
-        EXCEPTION
-            WHEN OTHERS THEN
-                NULL;
-        END;
-        
+                              FROM LEAD_BANK_CC_FUTURE
+                             WHERE TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1)) LOOP
+
+        GET_BANK_ACCOUNT_DETAILS(future_lead_rec.LEAD_STORE_NBR, 
+                                 V_LEAD_BANK_ACCOUNT_NBR, 
+                                 V_MEMBER_BANK_ACCOUNT_NBR);
+
+        IF ((NVL(V_LEAD_BANK_ACCOUNT_NBR, 'XXX') <> future_lead_rec.LEAD_BANK_ACCOUNT_NBR) 
+           OR -- A member having a sub account number when becomes a lead will have a null 
+          -- sub account number. We look to see if the member had a non-null sub accnt nbr
+           V_MEMBER_BANK_ACCOUNT_NBR IS NOT NULL) THEN
+            -- Below call inserts data into the POS table
+            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(future_lead_rec.LEAD_STORE_NBR, 'LEAD_BANK_CC', 'ADD', 'POS_PARAM_UPDATE');
+        END IF;
     END LOOP;
 END LEAD_BANK_FUTURE_DOWNLOAD_SP;
 
