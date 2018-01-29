@@ -43,10 +43,12 @@ PROCEDURE GET_STORE_MANAGER_RECORD(
 /******************************************************************************
   This procedure gets the Manager details for the cost center passed in
 
-Created : 08/07/2016 vxv339
+Created  : 08/07/2016 vxv339
+Modified : 01/29/2018 axt754 CCN Project Team....
+           Changed the source of EMPLOYEE DETAILS by using Table EMPLOYEE_DETAILS instead SWC_HR_GEMS_TB
 *******************************************************************************/
 IN_COST_CENTER_CODE       IN     VARCHAR2,
-OUT_MANAGER_RECORD          OUT SWC_HR_GEMS_TB%ROWTYPE);
+OUT_MANAGER_RECORD          OUT EMPLOYEE_DETAILS%ROWTYPE);
 
 PROCEDURE GET_DAD_FOR_COST_CENTER(
 /******************************************************************************
