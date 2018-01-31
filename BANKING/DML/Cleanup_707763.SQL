@@ -75,7 +75,7 @@ DELETE
           NULL,
           NULL,
           SYSDATE,
-          'rxv940'
+          'lboyd'
      FROM MEMBER_BANK_CC_HIST
     WHERE MEMBER_STORE_NBR = '707763';
     
