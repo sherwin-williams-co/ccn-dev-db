@@ -2099,14 +2099,6 @@ changed :
 *******************************************************************************/
 IN_HIERARCHY_TRANSFER_ROW IN HIERARCHY_TRANSFER_MAIL%ROWTYPE);
 
-PROCEDURE PCI_TERMINAL_I_SP(
-/*******************************************************************************
-This procedure is intended to insert new PCI_TERMINAL_MAIL records
-created : 04/19/2017 pxb712 CCN Project Team....
-changed :
-*******************************************************************************/
-IN_PCI_TERMINAL_MAIL_ROW IN PCI_TERMINAL_MAIL%ROWTYPE);
-
 PROCEDURE GL_ACCNTS_PROG_NAME_S_SP(
 /******************************************************************************
 This procedures takes program name or accnt number as input and

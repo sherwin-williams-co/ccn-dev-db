@@ -543,18 +543,7 @@ created : 04/22/2015 SXT410 CCN Project...
 revised :  
 *******************************************************************************/
     IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
-); 
-
-PROCEDURE PCI_TERMINAL_COUNT_CHECK(
-/*****************************************************************************
-    This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
-    matches. If it don't match then send the report in an email
-
-Created : 03/02/2016 nxk927 CCN Project Team...
-Changed :
-*******************************************************************************/
-IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_ROW_DATA          IN  CLOB);
+);
 
 PROCEDURE TERMINAL_COUNT_BR_SP(
 /*****************************************************************************

@@ -2647,19 +2647,6 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
 /*********************************************************** 
-The "pci_terminal_id_err" passes a numerical error of -20530.
-This error will state that the PCI_TERMINAL_ID is null
-
-created : 03/02/2016 nxk927 CCN Project
-revisions: 03/15/2016 nxk927 CCN Project
-
-************************************************************/
-en_pci_terminal_id_err CONSTANT NUMBER := -20530;
-exc_pci_terminal_id_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_pci_terminal_id_err , -20530);
-
-/*********************************************************** 
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place

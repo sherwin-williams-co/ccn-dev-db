@@ -6,6 +6,7 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
    happened on terminal table.
    Modified : 02/15/2017 gxg192 Added missing fields
             : 01/22/2018 nxk927 Added POS_VERSION_NBR field
+            : 01/24/2018 sxg151 Removed pci_terminal_id,pci_val_link_alt_mid & pci_value_link_mid
    ****************************************************************************/
    BEFORE INSERT OR UPDATE ON terminal
    REFERENCING NEW AS NEW OLD AS OLD
@@ -29,9 +30,6 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
       v_terminal_row.EXPIRATION_DATE      := :NEW.EXPIRATION_DATE;
       v_terminal_row.POS_LAST_TRAN_DATE   := :NEW.POS_LAST_TRAN_DATE;
       v_terminal_row.POS_LAST_TRAN_NUMBER := :NEW.POS_LAST_TRAN_NUMBER;
-      v_terminal_row.pci_terminal_id      := :NEW.pci_terminal_id;
-      v_terminal_row.pci_val_link_alt_mid := :NEW.pci_val_link_alt_mid;
-      v_terminal_row.pci_value_link_mid   := :NEW.pci_value_link_mid;
       v_terminal_row.POS_VERSION_NBR      := :NEW.POS_VERSION_NBR;
       
       SELECT XMLELEMENT ( "TERMINAL",
@@ -45,9 +43,6 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
                           v_terminal_row.EXPIRATION_DATE, 'yyyymmdd') EXPIRATION_DATE ,TO_CHAR(
                           v_terminal_row.POS_LAST_TRAN_DATE, 'yyyymmdd') POS_LAST_TRAN_DATE ,
                           v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER ,
-                          v_terminal_row.pci_terminal_id pci_terminal_id ,
-                          v_terminal_row.pci_val_link_alt_mid pci_val_link_alt_mid ,
-                          v_terminal_row.pci_value_link_mid pci_value_link_mid,
                           v_terminal_row.POS_VERSION_NBR POS_VERSION_NBR)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
