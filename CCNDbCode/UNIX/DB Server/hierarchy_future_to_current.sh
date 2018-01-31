@@ -12,6 +12,8 @@
 #                                    2. Changes to send email if process fails
 #               :  gxg192 01/31/2017 1. Removed ; after exit command
 #               :  sxh487 03/27/2017 Added code to ftp a trigger file to CPR
+#               :  mxv711 01/31/2018 ASP-993:added logic to send the trigger file to CPR
+#                  even when we have an error.
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -52,13 +54,13 @@ then
         echo "Sending email for $proc FAILED at $TIME on $DATE"
      fi
 
-     exit 1
 fi
 
 ############################################################################
 # Execute ftp_cpr_trigger.sh to send a trigger file to cprdbscriptqa in QA
 #                 				    or cprdbscript1 in PROD
 ############################################################################
+cd $HOME/batchJobs
 ./ftp_cpr_trigger.sh
 status=$?
 if test $status -ne 0
