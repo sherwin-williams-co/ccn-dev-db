@@ -80,4 +80,4 @@ DELETE
     WHERE MEMBER_STORE_NBR = '707763';
     
     COMMIT;
-   \
+  
