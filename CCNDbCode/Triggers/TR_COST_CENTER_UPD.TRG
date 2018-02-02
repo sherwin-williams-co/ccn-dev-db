@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
+create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
    /***************************************************************************
    ***
    TR_COST_CENTER_UPD.TRG
@@ -10,6 +10,9 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                 continue to send the back feed to mainframe as "S" category
             : 12/05/2017 rxv940 CCN Project Team..
               reference to Global variable (G_MUT_POS_DOWNLOAD_CC_IND) to handle mutating trigger error
+            : 02/01/2018 rxv940 CCN Project Team..
+             Changes to assign G_MUT_POS_DOWNLOAD_CC_IND based on S or T
+             Setting POS_DOWNLOAD_CC_IND := 'Y' for Territories
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -110,7 +113,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                                      v_cost_center_row.PCC_PCL_STORE PCC_PCL_STORE ,
                                      v_cost_center_row.POS_NON_STORE_IND POS_NON_STORE_IND ,
                                      v_cost_center_row.PRIM_COST_IDENTIFIER PRIM_COST_IDENTIFIER ,
-                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER )
+                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
@@ -155,7 +158,13 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_COST_CENTER_UPD
          );
       --END IF;
       BEGIN
-         POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := :OLD.POS_DOWNLOAD_CC_IND;
+         IF :NEW.CATEGORY = 'T' THEN
+             POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := 'Y';
+             --conditionally defaulting the below field to Y for territories
+             :NEW.POS_DOWNLOAD_CC_IND := 'Y';
+         ELSE
+             POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := :OLD.POS_DOWNLOAD_CC_IND;
+         END IF;
          IF :NEW.CATEGORY IN ('S','T') THEN
             IF INSERTING THEN
                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(

@@ -358,6 +358,44 @@ EXCEPTION
         RAISE;
 END PRCSS_NEW_STR_APP_NM;
 
+PROCEDURE CLEANUP_POS_DATA_FOR_NEW_STR(
+/*******************************************************************************
+This procedure is used to clean up POS download tables to mark any cost center as new
+
+Created : 02/01/2017 rxv940 CCN Project....
+Changed : 
+*********************************************************************************/
+    IN_COST_CENTER_CODE    VARCHAR2)
+IS
+BEGIN
+    UPDATE COST_CENTER 
+       SET POS_DOWNLOAD_CC_IND = NULL 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+       AND POS_DOWNLOAD_CC_IND IS NOT NULL;
+
+    DELETE 
+      FROM POS_DOWNLOADS 
+     WHERE POS_ID IN (SELECT POS_ID 
+                        FROM POS_NEW_STORES_LOAD_LIST 
+                       WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE);
+
+    DELETE 
+      FROM POS_DOWNLOADS 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    
+    DELETE 
+      FROM POS_DOWNLOADS_NON_TAXWARE 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    --We need to have track of when that is added in group for our future reference
+    --DELETE FROM POS_INIT_LOAD_LIST WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    DELETE 
+      FROM POS_NEW_STORES_LOAD_LIST 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+     
+END CLEANUP_POS_DATA_FOR_NEW_STR;
+
 PROCEDURE VALIDATE_POS_QUEUE_MESSAGE(
 /*******************************************************************************
 This procedure is used to create an WS diff file with the list of newly added cost centers
@@ -368,6 +406,7 @@ Changed : 11/21/2017 rxv940 CCN Project....
 Changed : 11/22/2017 rxv940 CCN Project....
         : Removed unnecessary check to see if the message has '[]'. Message will not have it
         : Sample input : "1234, 7896, 1001"
+Changed : Discontinued usage of OPS_DOWNLOADS_CC_IND .. instead using POLLING.POLLING_STATUS_CODE    
 *********************************************************************************/
       IN_STR_LIST   IN     VARCHAR2,
       OUT_LIST         OUT VARCHAR2)
@@ -379,7 +418,7 @@ IS
     V_COST_CENTER_CODE    VARCHAR2(6);
     V_INVALID_CC_LIST     CLOB;
     V_MAIL_TXT            VARCHAR2(250);
-    V_POS_DOWNLOAD_CC_IND VARCHAR2(1);
+    V_POLLING_STATUS_CODE VARCHAR2(1);
 BEGIN
     --Sample input : "1234, 7896, 1001"
     --NOTE: Duplicates in the messages are eliminated by "MessageQueueProcess.java" class file
@@ -399,14 +438,18 @@ BEGIN
         BEGIN
            --Below select statement should never go to NO_DATA_FOUND error
            --Reason being the above cost center validation makes sure cost center coming here is a valid CCN cost center
-           SELECT POS_DOWNLOAD_CC_IND
-             INTO V_POS_DOWNLOAD_CC_IND
-             FROM COST_CENTER
-            WHERE COST_CENTER_CODE = V_COST_CENTER_CODE;
+           SELECT POLLING_STATUS_CODE
+             INTO V_POLLING_STATUS_CODE
+             FROM POLLING
+            WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
+              AND EXPIRATION_DATE IS NULL;
 
             --Below IF condition is to check if cost center is already part of the polling downloads
             --but came as new store in the queue, we should not process such cost centers
-            IF NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'N' THEN
+            IF NVL(V_POLLING_STATUS_CODE, 'N') = 'Q' THEN
+                --Clean up the data for any maintenance we already sent for this store
+                CLEANUP_POS_DATA_FOR_NEW_STR(V_COST_CENTER_CODE);
+                
                 -- Below steps are done for the cost centers to be processed are
                 --   a. cost centers are made available to all APP names
                 --   a. Inserted into the POS_NEW_STORES_LOAD_LIST table for all app names
@@ -417,7 +460,8 @@ BEGIN
                 V_FNL_STR_LST := V_FNL_STR_LST || SUBSTR(V_COST_CENTER_CODE, 3, 4) || ',';
                 OUT_LIST := V_FNL_STR_LST;
             ELSE
-                V_MAIL_TXT := 'Store ' || V_COST_CENTER_CODE || ' is not new, but already part of polling downloads.';
+                V_MAIL_TXT := 'Store ' || V_COST_CENTER_CODE ||
+                              ' polling status is '|| V_POLLING_STATUS_CODE || ' , ignoring request and skipped processing';
                 MAIL_PKG.SEND_MAIL('RequestidFailure', NULL, NULL, V_MAIL_TXT);
             END IF;
         EXCEPTION
