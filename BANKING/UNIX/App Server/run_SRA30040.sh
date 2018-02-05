@@ -3,13 +3,15 @@
 #
 # Created:  nxk927 08/24/2017 nxk927 - CCN Project Team... 
 ##########################################################
-. /app/banking/dev/banking.config
 cd /app/banking/dev/CrReports/scripts
+
+. /app/banking/dev/banking.config
+
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "\nStarted processing files at $TIME on $DATE "
 
-./SRA30040.sh /app/banking/dev/CrReports/data/run1.txt
+./SRA30040.sh /app/banking/dev/CrReports/data/SRA30040.txt
 
 #Verify status code and the log file for any instance of Exceptions or errors; If true then exit with status code 1
 status=$?

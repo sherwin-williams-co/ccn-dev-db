@@ -5,10 +5,10 @@
 # modified: 08/23/2017 nxk927 CCN Project Team... 
 # Added Script Comments and Handled exceptions 
 ##########################################################
+cd /app/banking/dev/CrReports/scripts
 
 . /app/banking/dev/banking.config
 
-cd /app/banking/dev/CrReports/scripts
 
 CLASSHOME=$HOME/bankingJavaCode
 
