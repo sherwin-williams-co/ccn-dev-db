@@ -62,6 +62,16 @@ OUT_DIVISION           OUT VARCHAR2,
 OUT_AREA               OUT VARCHAR2,
 OUT_DISTRICT           OUT VARCHAR2);
 
+FUNCTION GET_DAD_FOR_COST_CENTER(
+/******************************************************************************
+  This function gets the DAD details for the 4 digit store number passed in
+
+Created : 08/24/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE IN     VARCHAR2,
+IN_IND              IN     VARCHAR2) RETURN VARCHAR2;
+
 FUNCTION GET_BNK_ACCNT_NBR_FOR_CC(
 /******************************************************************************
 This procedure performs all the business rules that are applicable Account Maintenance Window
