@@ -5,6 +5,7 @@
 # Date: 07/17/2017
 # Created: pxb712 ccn project team..
 ####################################################################################################
+cd /app/banking/dev/CrReports/scripts
 
 echo "\n Removing Crystal report temp files \n"
 

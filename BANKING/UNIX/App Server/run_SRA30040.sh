@@ -4,6 +4,7 @@
 # Created:  nxk927 08/24/2017 nxk927 - CCN Project Team... 
 ##########################################################
 . /app/banking/dev/banking.config
+cd /app/banking/dev/CrReports/scripts
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 echo "\nStarted processing files at $TIME on $DATE "

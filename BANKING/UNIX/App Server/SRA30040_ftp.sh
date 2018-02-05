@@ -10,6 +10,8 @@
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
+cd /app/banking/dev/CrReports/scripts
+
 proc_name="SRA30040_ftp"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`

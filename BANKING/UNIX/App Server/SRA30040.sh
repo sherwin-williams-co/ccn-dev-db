@@ -8,6 +8,8 @@
 
 . /app/banking/dev/banking.config
 
+cd /app/banking/dev/CrReports/scripts
+
 CLASSHOME=$HOME/bankingJavaCode
 
 DATE=`date +"%m-%d-%Y"`
@@ -50,6 +52,7 @@ TIME=`date +"%H:%M:%S"`
 echo "Completed processing $file at $TIME\n"
 
 done
+TIME=`date +"%H:%M:%S"`
 echo "END SRA30040 REPORT  at $TIME on $DATE\n"
 
 exit 0
