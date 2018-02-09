@@ -1,6 +1,49 @@
 create or replace PACKAGE BODY CCN_GL_PS_ACCOUNTS_PKG
 AS
 
+FUNCTION PRGM_SORT_SEQ_BR_SP(
+/******************************************************************************
+This procedures takes PROGRAM REC  as input and
+raises exception if there are  Duplicate sort sequence value for a program
+created : 02/01/2018 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE) RETURN VARCHAR2
+IS
+   dup_sort_seq_error EXCEPTION;
+BEGIN
+   FOR REC IN (SELECT SORTED_SEQUENCE, COUNT(*) AS COUNT_SORT_SEQ
+                 FROM PRGM_GL_ACCNT_RLTN_DTLS
+                WHERE UPPER(PROGRAM_NAME) = UPPER(program_rec.program_name)
+                  AND SORTED_SEQUENCE IS NOT NULL
+                  AND SORTED_SEQUENCE <> 0
+                GROUP BY SORTED_SEQUENCE) LOOP
+        IF (REC.COUNT_SORT_SEQ > 1)THEN
+           RAISE dup_sort_seq_error;
+        END IF;
+    END LOOP;
+    RETURN 'Y';
+EXCEPTION
+    WHEN dup_sort_seq_error THEN
+        RETURN 'N';
+END PRGM_SORT_SEQ_BR_SP;
+
+FUNCTION GL_ACCNT_NBR_LENGTH_BR_SP(
+/******************************************************************************
+This procedures takes gl_account_number as input and validates if the length of
+given gl_account_number is excatly 7 or not
+created : 02/01/2018 axt754 -- CCN Project Team
+******************************************************************************/
+    IN_GL_ACCOUNT_NUMBER IN GENERAL_LEDGER_ACCOUNTS.GL_ACCOUNT_NUMBER%TYPE) RETURN VARCHAR2
+IS
+   gl_accnt_not_valid VARCHAR2(1)  := 'N';
+   v_code             NUMBER;
+BEGIN
+   IF LENGTH(IN_GL_ACCOUNT_NUMBER) <> 7 THEN
+       gl_accnt_not_valid := 'Y';
+   END IF;
+   RETURN gl_accnt_not_valid;
+END GL_ACCNT_NBR_LENGTH_BR_SP;
+
 FUNCTION PRAGRAM_DELETE_BR_SP(
 /******************************************************************************
 This procedures takes PROGRAM REC  as input and
@@ -294,6 +337,7 @@ IS
     v_errm            VARCHAR2(500);
     v_ps_count        NUMBER := 1;
     v_user_id         VARCHAR2(10) := NULL;
+    dup_sort_seq_error EXCEPTION;
 BEGIN
 
     -- GET USER ID
@@ -341,7 +385,16 @@ BEGIN
         CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(v_prg_accnts_rec);
         v_ps_count := v_ps_count +1;
     END LOOP;
+    -- Validate for duplicate sorted sequence under a program
+    IF (PRGM_SORT_SEQ_BR_SP(v_prog_rec) = 'N') THEN
+        RAISE dup_sort_seq_error;
+    END IF;
 EXCEPTION
+     WHEN dup_sort_seq_error THEN
+        v_code := errnums.en_dup_sort_seq_err;
+        errpkg.raise_err(v_code
+                         ,'PROG_GL_ACCOUNTS_UI_UPSERT_SP.dup_sort_seq_error '
+                         ,'Duplicate sorted sequence for program is found for Program name "' ||  v_prog_rec.program_name ||'" .' );
     WHEN OTHERS THEN
         v_code := SQLCODE;
         v_errm := substr(SQLERRM,1, 500);
@@ -401,6 +454,7 @@ IS
     v_errm            VARCHAR2(500);
     v_ps_count        NUMBER := 1;
     v_user_id         VARCHAR2(10) := NULL;
+    gl_accnt_not_valid_error EXCEPTION;
 BEGIN
     -- GET USER ID
     IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/USER_ID/text()') = 1) THEN
@@ -420,6 +474,11 @@ BEGIN
                                                 ,v_gl_accnts_rec);
         -- Assign Created By
         v_gl_accnts_rec.created_by := v_user_id;
+
+        -- Check GL_ACCNT_NBR validation;
+       IF (GL_ACCNT_NBR_LENGTH_BR_SP(v_gl_accnts_rec.gl_account_number)= 'Y') THEN
+           RAISE gl_accnt_not_valid_error;
+       END IF;
         -- INSERT into general_ledger_accounts table
         v_break := 'UPDATE general_ledger_accounts table ';
         CCN_TABLE_IU_PKG.GL_ACCOUNTS_I_SP(v_gl_accnts_rec);
@@ -447,6 +506,11 @@ BEGIN
         v_ps_count := v_ps_count +1;
     END LOOP;
 EXCEPTION
+    WHEN gl_accnt_not_valid_error THEN
+        v_code := errnums.en_invalid_gl_num_err;
+        errpkg.raise_err(v_code
+                         ,'GL_ACCOUNTS_PROG_UI_UPSERT_SP.gl_accnt_not_valid_error '
+                         ,'Length of General Ledger Account Number should be 7.' );
     WHEN OTHERS THEN
         v_code := SQLCODE;
         v_errm := substr(SQLERRM,1, 500);
