@@ -28,7 +28,6 @@ quit
 END_SCRIPT
 
 printf " End FTPing Royal_Bank_Report.txt file: Process Successful : Process finished at $TIME on $DATE \n"
-cd /app/strdrft/sdReport/scripts
 else
   echo " FTP is ignored in lower enviornments"
   fi
