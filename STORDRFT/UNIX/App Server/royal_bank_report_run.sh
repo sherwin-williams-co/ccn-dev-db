@@ -50,6 +50,15 @@ then
     echo "Exception occured while trying to copy $FPATH/Royal_Bank_Report.txt file to a tmp folder as backup - File not found"
     exit 1
 fi
+echo "\n ftp'ing the report to main frame"
+./royal_bank_rpt_ftp.sh
+echo "\n ftp'ing the report to main frame completed"
+
+echo "Ftp'ing the trigger file to have the reports loaded\n"
+cd /app/strdrft/sdReport/scripts
+./sd_ftp_trigger_file.sh
+
+echo "Ftp'ing the trigger file completed\n"
 
 echo "\n Copying file to tmp folder as a backup"
 cp $FPATH/Royal_Bank_Report.txt $FPATH/tmp/Royal_Bank_Report"_"$DATE.txt
