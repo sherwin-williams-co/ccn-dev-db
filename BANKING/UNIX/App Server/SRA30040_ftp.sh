@@ -20,7 +20,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #         FTP file SRA30040
 #################################################################
 echo "Processing started for FTP at ${TIME} on ${DATE}"
-if [ $RPT_INDICATOR == Y ] 
+if [ $FTP_INDICATOR == Y ]
    then
    cd /app/banking/dev/CrReports/reports
 ftp -inv ${rpt_host} <<FTP_MF

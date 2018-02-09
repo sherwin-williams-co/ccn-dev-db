@@ -4,6 +4,8 @@
 #
 # modified: 08/23/2017 nxk927 CCN Project Team... 
 # Added Script Comments and Handled exceptions 
+# modified: 02/09/2018 nxk927 CCN Project Team...
+#           Added ftp process to trigger the report load for bmc
 ##########################################################
 cd /app/banking/dev/CrReports/scripts
 
@@ -47,6 +49,12 @@ echo "Ftp process completed at $TIME on $DATE"
 
 dt=`date +"%m-%d-%Y-%H%M%S"`
 mv /app/banking/dev/CrReports/reports/$filename.pdf /app/banking/dev/CrReports/reports/archive/$filename"_"$dt.pdf
+
+TIME=`date +"%H:%M:%S"`
+echo "Ftp'ing trigger file started at $TIME\n"
+./banking_ftp_trigger_file.sh
+TIME=`date +"%H:%M:%S"`
+echo "Ftp'ing trigger file process completed at $TIME\n"
 
 TIME=`date +"%H:%M:%S"`
 echo "Completed processing $file at $TIME\n"
