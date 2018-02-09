@@ -11,7 +11,7 @@
 
 if [ "$ftp_ind" == "Y" ]
 then
-cd /app/strdrft/sdReport/reports
+cd /app/strdrft/sdReport/reports/final
 
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
