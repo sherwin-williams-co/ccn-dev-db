@@ -22,10 +22,10 @@ echo $file_name
 echo "FTP process starting at $TIME on $DATE\n"
 
 # ftp to mainframe
-ftpResult=`ftp -n ${mainframe_host} <<FTP_MF
-quote USER ${mainframe_user}
-quote PASS ${mainframe_pw}
-cd ${mainframe_path}
+ftpResult=`ftp -n ${rpt_host} <<FTP_MF
+quote USER ${rpt_user}
+quote PASS ${rpt_pw}
+cd ${rpt_path}
 put $file_name
 bye
 FTP_MF`
