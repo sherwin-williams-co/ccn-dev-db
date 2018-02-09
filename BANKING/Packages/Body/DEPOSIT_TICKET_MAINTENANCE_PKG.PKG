@@ -365,6 +365,9 @@ Changed : 10/29/2015 jxc517 CCN Project....
 Changed : 08/15/2017 rxa457 CCN Project team...
             Handling exception for the SELECT statement which is causing error during  display of
              Future tab when the cost center is defined as lead or memebr only in future 
+        : 02/09/2018 mxv711 CCN Project....
+          Modified to pass Store MICR details separately for UI to display those details 
+          even when there are no ticket orders placed on that cost center
 *******************************************************************************/
 IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR            OUT REF_CURSOR
@@ -376,7 +379,9 @@ IN_COST_CENTER_CODE                IN     VARCHAR2
 ,OUT_BANK_DEP_TICKORD_REF_CUR         OUT REF_CURSOR
 ,OUT_BANK_DEP_TKORD_FTR_REF_CUR       OUT REF_CURSOR
 ,OUT_MBR_BANK_CC_REF_CUR              OUT REF_CURSOR
-,OUT_MBR_BANK_CC_FTR_REF_CUR          OUT REF_CURSOR)
+,OUT_MBR_BANK_CC_FTR_REF_CUR          OUT REF_CURSOR
+,OUT_STORE_MICR_CUR                   OUT REF_CURSOR
+,OUT_STORE_MICR_FTR_CUR               OUT REF_CURSOR)
 IS
     V_STORE_MICR_FORMAT_DTLS_REC   STORE_MICR_FORMAT_DTLS%ROWTYPE;
     V_BANK_MICR_FORMAT_REC         BANK_MICR_FORMAT%ROWTYPE;
@@ -396,16 +401,20 @@ BEGIN
     --we need to pass the above obtained store MICR format details along with the actual Bank Deposit Ticket details
     --Also anything that got expired even a second before should not be returned back to UI
     OPEN OUT_BANK_DEP_TICK_REF_CUR FOR
-        SELECT A.*,
-               V_BANK_MICR_FORMAT_REC.FORMAT_NAME AS FORMAT_NAME,
+        SELECT *
+          FROM BANK_DEP_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE;
+           
+    -- just send the MICR details 
+    OPEN OUT_STORE_MICR_CUR FOR
+        SELECT V_BANK_MICR_FORMAT_REC.FORMAT_NAME AS FORMAT_NAME,
                V_BANK_MICR_FORMAT_REC.DJDE_FORM_PARM AS DJDE_FORM_PARM,
                V_BANK_MICR_FORMAT_REC.DJDE_FEED_PARM AS DJDE_FEED_PARM,
                V_STORE_MICR_FORMAT_DTLS_REC.MICR_COST_CNTR AS MICR_COST_CNTR,
                V_STORE_MICR_FORMAT_DTLS_REC.MICR_ROUTING_NBR AS MICR_ROUTING_NBR,
                V_STORE_MICR_FORMAT_DTLS_REC.MICR_FORMAT_ACCT_NBR AS MICR_FORMAT_ACTNBR
-          FROM BANK_DEP_TICK A
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND NVL(EXPIRATION_DATE, SYSDATE + 1) > SYSDATE;
+          FROM DUAL;
 
     --Below query will return the current bank account number and the bank type code for the store passed in
     --To get to the bank account, we are fetching the lead store first if the store passed in is a member
@@ -482,42 +491,38 @@ BEGIN
     --we need to pass the store MICR format details along with the actual Bank Deposit Ticket details
     --The inner most query fetches the format id and bank account number for the store based on STORE_MICR_FORMAT_DTLS_FUTURE table
     OPEN OUT_BANK_DEP_TICK_FTR_REF_CUR FOR
-        SELECT A.*,
-               B.FORMAT_NAME AS FORMAT_NAME,
-               B.DJDE_FORM_PARM AS DJDE_FORM_PARM,
-               B.DJDE_FEED_PARM AS DJDE_FEED_PARM,
-               B.MICR_COST_CNTR AS MICR_COST_CNTR,
-               B.MICR_ROUTING_NBR AS MICR_ROUTING_NBR,
-               B.MICR_FORMAT_ACCT_NBR AS MICR_FORMAT_ACTNBR
-          FROM BANK_DEP_TICK_FUTURE A,
-               (SELECT BMFF.FORMAT_NAME,
-                       BMFF.DJDE_FORM_PARM,
-                       BMFF.DJDE_FEED_PARM,
-                       SMFDF.MICR_COST_CNTR,
-                       SMFDF.MICR_ROUTING_NBR,
-                       SMFDF.MICR_FORMAT_ACCT_NBR,
-                       SMFDF.FUTURE_ID
-                  FROM (SELECT *
-                        --This top-N query was used to get member store MICR details if it has a default MICR assigned
-                           FROM (SELECT *
-                                   FROM STORE_MICR_FORMAT_DTLS_FUTURE
-                                  --IN clause below makes sure we always get the passed stores MICR details
-                                  --as well as it's leads storer MICR format details
-                                  WHERE COST_CENTER_CODE IN (IN_COST_CENTER_CODE,
-                                                             BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER_CODE, NULL))
-                                  --below order by clause is to make sure we get store MICR details even for
-                                  --a member that doesn't have any default store MICR assigned to it in future
-                                  --if member got it's own store MICR that takes precedence
-                                  ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER_CODE, 1, 2))
-                            WHERE ROWNUM < 2) SMFDF,
-                       BANK_MICR_FORMAT_FUTURE BMFF
-                 WHERE SMFDF.BANK_ACCOUNT_NBR = BMFF.BANK_ACCOUNT_NBR
-                   AND SMFDF.MICR_FORMAT_ID   = BMFF.MICR_FORMAT_ID
-                   AND SMFDF.FUTURE_ID        = BMFF.FUTURE_ID) B
-         WHERE A.COST_CENTER_CODE     = IN_COST_CENTER_CODE
-           AND A.FUTURE_ID            = B.FUTURE_ID(+)
-           AND A.EFFECTIVE_DATE       > TRUNC(SYSDATE)
-         ORDER BY A.FUTURE_ID;
+        SELECT *
+          FROM BANK_DEP_TICK_FUTURE 
+         WHERE COST_CENTER_CODE     = IN_COST_CENTER_CODE
+           AND EFFECTIVE_DATE       > TRUNC(SYSDATE)
+         ORDER BY FUTURE_ID;
+    
+        -- just send the MICR FUTURE details 
+    OPEN OUT_STORE_MICR_FTR_CUR FOR
+        SELECT BMFF.FORMAT_NAME,
+               BMFF.DJDE_FORM_PARM,
+               BMFF.DJDE_FEED_PARM,
+               SMFDF.MICR_COST_CNTR,
+               SMFDF.MICR_ROUTING_NBR,
+               SMFDF.MICR_FORMAT_ACCT_NBR as MICR_FORMAT_ACTNBR,
+               SMFDF.FUTURE_ID
+         FROM (SELECT *
+              --This top-N query was used to get member store MICR details if it has a default MICR assigned
+                 FROM (SELECT *
+                         FROM STORE_MICR_FORMAT_DTLS_FUTURE
+                        --IN clause below makes sure we always get the passed stores MICR details
+                        --as well as it's leads storer MICR format details
+                        WHERE COST_CENTER_CODE IN (IN_COST_CENTER_CODE,
+                                                   BANKING_COMMON_TOOLS.GET_FTR_LD_STR_NBR_FOR_MBR_STR(IN_COST_CENTER_CODE, NULL))
+                        --below order by clause is to make sure we get store MICR details even for
+                        --a member that doesn't have any default store MICR assigned to it in future
+                        --if member got it's own store MICR that takes precedence
+                       ORDER BY DECODE(COST_CENTER_CODE, IN_COST_CENTER_CODE, 1, 2))
+                 WHERE ROWNUM < 2) SMFDF,
+              BANK_MICR_FORMAT_FUTURE BMFF
+        WHERE SMFDF.BANK_ACCOUNT_NBR = BMFF.BANK_ACCOUNT_NBR
+          AND SMFDF.MICR_FORMAT_ID   = BMFF.MICR_FORMAT_ID
+          AND SMFDF.FUTURE_ID        = BMFF.FUTURE_ID;
 
     --Below cursor will provide the future bank account details and store type for the store number passed
     --ordered by FUTURE_ID

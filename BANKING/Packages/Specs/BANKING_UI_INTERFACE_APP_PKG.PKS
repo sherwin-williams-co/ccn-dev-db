@@ -56,6 +56,9 @@ Changed : 10/22/2015 sxt410 CCN Project....
           Modified Signature to pass member bank details to UI. It will be used to populate the 
           sub account number in the deposit ticket window. This is added to support the micr details 
           changes for the member bank cost center. 
+        : 02/09/2018 mxv711 CCN Project....
+          Modified to pass Store MICR details separately for UI to display those details 
+          even when there are no ticket orders placed on that cost center
 *******************************************************************************/
 IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICK_REF_CUR       OUT REF_CURSOR
@@ -67,7 +70,9 @@ IN_COST_CENTER_CODE           IN     VARCHAR2
 ,OUT_BANK_DEP_TICKORD_REF_CUR    OUT REF_CURSOR
 ,OUT_BANK_DEP_TKORD_FTR_REF_CUR  OUT REF_CURSOR
 ,OUT_MBR_BANK_CC_REF_CUR         OUT REF_CURSOR
-,OUT_MBR_BANK_CC_FTR_REF_CUR     OUT REF_CURSOR);
+,OUT_MBR_BANK_CC_FTR_REF_CUR     OUT REF_CURSOR
+,OUT_STORE_MICR_CUR              OUT REF_CURSOR
+,OUT_STORE_MICR_FTR_CUR          OUT REF_CURSOR);
 
 PROCEDURE BANK_DEP_BAG_TICK_UI_SP (
 /*******************************************************************************
