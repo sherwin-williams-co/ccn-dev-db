@@ -5,6 +5,8 @@
 # Created     : 11/20/2017 sxh487 CCN Project
 # Modified    : 01/22/2018 nxk927 CCN Project
 #               ftping the paid files to storedraft initload folders
+#             : 02/09/2018 nxk927 CCN Project
+#               ftp'ing the file in binary format
 ######################################################################################
 # below command will get the path for respective to the environment from which it runs from.
 . /app/strdrft/storedraft.config
@@ -25,6 +27,7 @@ ftp -inv ${dbserver_host} <<END_SCRIPT > $FTPLOG
 quote USER ${dbserver_user}
 quote PASS ${dbserver_pw}
 cd $DATAFILES_PATH
+binary
 put DAREPORT.* DAREPORT.txt
 cd $INITLOAD_PATH
 put DAREPORT.* STBD0601_PAID_$TIMESTAMP.TXT
@@ -43,8 +46,8 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 
 printf "Moving $APP_USR_PATH/DAREPORT.* file to Archive folder at $TIME on $DATE \n"
-mv $APP_USR_PATH/DAREPORT.* $ARCHIVE_PATH
-mv $APP_USR_PATH/FBX275A.* $ARCHIVE_PATH
+mv -f $APP_USR_PATH/DAREPORT.* $ARCHIVE_PATH
+mv -f $APP_USR_PATH/FBX275A.* $ARCHIVE_PATH
 if test $status -ne 0
 then
    TIME=`date +"%H:%M:%S"`
