@@ -2,7 +2,7 @@
 #######################################################################################
 # Script Name : royal_bank_rpt_ftp.sh
 # Description : This Shell Script FTP the Royal_Bank_Report.txt to Mainframe.
-# Created     : MXR916 CCN Project
+# Created     : nxk927 02/09/2018 CCN Project
 # Changed     :
 ######################################################################################
 # below command will get the path for respective to the environment from which it runs from.
