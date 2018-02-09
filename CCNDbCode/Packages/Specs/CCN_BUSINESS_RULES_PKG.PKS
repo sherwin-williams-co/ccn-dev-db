@@ -568,4 +568,19 @@ Modified :
   INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
 );
 
+PROCEDURE MERCHANT_ID_SP_CAN_MC (
+/******************************************************************************
+This procedure is intended to enforce the Business Rules
+for NUMERIC value check on MERCH_ID_CAN_MC,PCI_MERCH_ID_CAN_MC feilds
+in BANK_CARD Table
+
+created  : 02/09/2018 bxa919 CCN Project ... 
+
+*******************************************************************************/	
+    IN_MERCH_ID_CAN_MC IN BANK_CARD.MERCH_ID_CAN_MC%TYPE
+  , IN_PCI_MERCH_ID_CAN_MC IN BANK_CARD.MERCH_ID_CAN_MC%TYPE
+  , INCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
+  , INPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE
+  );
+
 END CCN_BUSINESS_RULES_PKG;

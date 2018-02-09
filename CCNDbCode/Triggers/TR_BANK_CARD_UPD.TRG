@@ -6,6 +6,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
    happened on BANK_CARD table.
    Modified : 02/17/2017 gxg192 Added 2 new fields, PCI_MERCHANT_ID and PCI_DISCOVER_ID
             : 02/21/2017 gxg192 Added , to rectify compilation error
+            : 02/09/2018 bxa919 Added 2 fields MERCHANT_ID_CAN and PCI_MERCHANT_ID_CAN
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.BANK_CARD
@@ -42,6 +43,8 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
          v_bank_card_row.DISCOVER_ID          := :NEW.DISCOVER_ID;
          v_bank_card_row.PCI_MERCHANT_ID      := :NEW.PCI_MERCHANT_ID;
          v_bank_card_row.PCI_DISCOVER_ID      := :NEW.PCI_DISCOVER_ID;
+         v_bank_card_row.MERCH_ID_CAN_MC      := :NEW.MERCH_ID_CAN_MC;
+         v_bank_card_row.PCI_MERCH_ID_CAN_MC  := :NEW.PCI_MERCH_ID_CAN_MC;
          SELECT XMLELEMENT ( "BANK_CARD",
                              XMLATTRIBUTES (
                                             'http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -60,7 +63,9 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
                                         v_bank_card_row.AMEX_SE_ID AMEX_SE_ID ,
                                         v_bank_card_row.DISCOVER_ID DISCOVER_ID ,
                                         v_bank_card_row.PCI_MERCHANT_ID PCI_MERCHANT_ID ,
-                                        v_bank_card_row.PCI_DISCOVER_ID PCI_DISCOVER_ID )
+                                        v_bank_card_row.PCI_DISCOVER_ID PCI_DISCOVER_ID,
+                                        v_bank_card_row.MERCH_ID_CAN_MC MERCH_ID_CAN_MC,
+                                        v_bank_card_row.PCI_MERCH_ID_CAN_MC  PCI_MERCH_ID_CAN_MC)
                             ) AS "result" ,
                 XMLELEMENT ( "PrimaryKey",
                              XMLATTRIBUTES (
