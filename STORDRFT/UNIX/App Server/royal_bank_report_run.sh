@@ -2,8 +2,8 @@
 ##########################################################
 # Script to Run the Royal bank reports
 #
-# Created:  11/20/2017 sxh487
-# 
+# Created :  11/20/2017 sxh487
+# modified:  02/09/2018 nxk927 added ftp scripts
 ##########################################################
 
 DATE=`date +"%m/%d/%Y"`
