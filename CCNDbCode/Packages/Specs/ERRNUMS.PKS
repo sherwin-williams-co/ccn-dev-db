@@ -3030,4 +3030,29 @@ exc_invld_pci_merch_mc_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_merch_mc_sz_err , -20194);
 
+/***********************************************************
+The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
+This error will says that there is duplicate of sorted
+sequence number under a program
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
+exc_gl_ps_dup_sort_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_ps_dup_sort_seq_err , -20190);
+
+/***********************************************************
+The "invalid_gl_num_len_err" passes a numerical error of -20191
+This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
+exc_invalid_gl_num_len_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_gl_num_len_err , -20191);
+
 END ERRNUMS;

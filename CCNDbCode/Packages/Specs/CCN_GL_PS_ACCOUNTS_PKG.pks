@@ -1,6 +1,8 @@
 create or replace PACKAGE CCN_GL_PS_ACCOUNTS_PKG
 AS
 TYPE REF_CURSOR IS REF CURSOR;
+TYPE PRGM_ACCNTS_TAB_TYPE IS TABLE OF PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE INDEX BY BINARY_INTEGER;
+
 PROCEDURE GL_ACCOUNTS_PROG_UI_DELETE_SP(
 /******************************************************************************
 This procedure takes XML which has GL ACCOUNT NUMBER and DELETES 

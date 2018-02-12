@@ -7,23 +7,22 @@ This procedures takes PROGRAM REC  as input and
 raises exception if there are  Duplicate sort sequence value for a program
 created : 02/01/2018 axt754 -- CCN Project Team
 ******************************************************************************/
-    program_rec IN PROGRAMS%ROWTYPE) RETURN VARCHAR2
+    PROGRAM_ACCNTS_TAB IN PRGM_ACCNTS_TAB_TYPE) RETURN VARCHAR2
 IS
-   dup_sort_seq_error EXCEPTION;
+   gl_ps_dup_sort_seq_err EXCEPTION;
 BEGIN
-   FOR REC IN (SELECT SORTED_SEQUENCE, COUNT(*) AS COUNT_SORT_SEQ
-                 FROM PRGM_GL_ACCNT_RLTN_DTLS
-                WHERE UPPER(PROGRAM_NAME) = UPPER(program_rec.program_name)
-                  AND SORTED_SEQUENCE IS NOT NULL
-                  AND SORTED_SEQUENCE <> 0
-                GROUP BY SORTED_SEQUENCE) LOOP
-        IF (REC.COUNT_SORT_SEQ > 1)THEN
-           RAISE dup_sort_seq_error;
-        END IF;
+    FOR i in 1..PROGRAM_ACCNTS_TAB.LAST LOOP
+        FOR j in i+1..PROGRAM_ACCNTS_TAB.LAST LOOP
+             IF (NVL(PROGRAM_ACCNTS_TAB(i).SORTED_SEQUENCE,0) = NVL(PROGRAM_ACCNTS_TAB(j).SORTED_SEQUENCE,0)) THEN
+                 IF (NVL(PROGRAM_ACCNTS_TAB(i).SORTED_SEQUENCE,0) <> 0) THEN
+                     RAISE gl_ps_dup_sort_seq_err;
+                 END IF;
+             END IF;
+        END LOOP;
     END LOOP;
     RETURN 'Y';
 EXCEPTION
-    WHEN dup_sort_seq_error THEN
+    WHEN gl_ps_dup_sort_seq_err THEN
         RETURN 'N';
 END PRGM_SORT_SEQ_BR_SP;
 
@@ -337,7 +336,8 @@ IS
     v_errm            VARCHAR2(500);
     v_ps_count        NUMBER := 1;
     v_user_id         VARCHAR2(10) := NULL;
-    dup_sort_seq_error EXCEPTION;
+    gl_ps_dup_sort_seq_err EXCEPTION;
+    PRGM_ACCNTS_TAB PRGM_ACCNTS_TAB_TYPE;
 BEGIN
 
     -- GET USER ID
@@ -380,18 +380,25 @@ BEGIN
         IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
             v_prg_accnts_rec.shared := 'false';
         END IF;
-        -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
-        v_break := 'Insert into PRGM_GL_ACCNT_RLTN_DTLS';
-        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(v_prg_accnts_rec);
+
+        PRGM_ACCNTS_TAB(NVL(PRGM_ACCNTS_TAB.LAST,0)+1) := v_prg_accnts_rec;
         v_ps_count := v_ps_count +1;
     END LOOP;
-    -- Validate for duplicate sorted sequence under a program
-    IF (PRGM_SORT_SEQ_BR_SP(v_prog_rec) = 'N') THEN
-        RAISE dup_sort_seq_error;
+
+    -- Validate for duplicate of sorted sequence under a program
+    IF (PRGM_SORT_SEQ_BR_SP(PRGM_ACCNTS_TAB)= 'N') THEN
+        RAISE gl_ps_dup_sort_seq_err;
     END IF;
+
+    -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
+    v_break := 'Insert into PRGM_GL_ACCNT_RLTN_DTLS';
+    FOR i IN 1..PRGM_ACCNTS_TAB.LAST LOOP
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(PRGM_ACCNTS_TAB(i));
+    END LOOP;
+
 EXCEPTION
-     WHEN dup_sort_seq_error THEN
-        v_code := errnums.en_dup_sort_seq_err;
+     WHEN gl_ps_dup_sort_seq_err THEN
+        v_code := errnums.en_gl_ps_dup_sort_seq_err;
         errpkg.raise_err(v_code
                          ,'PROG_GL_ACCOUNTS_UI_UPSERT_SP.dup_sort_seq_error '
                          ,'Duplicate sorted sequence for program is found for Program name "' ||  v_prog_rec.program_name ||'" .' );
@@ -454,7 +461,7 @@ IS
     v_errm            VARCHAR2(500);
     v_ps_count        NUMBER := 1;
     v_user_id         VARCHAR2(10) := NULL;
-    gl_accnt_not_valid_error EXCEPTION;
+    invalid_gl_num_len_err EXCEPTION;
 BEGIN
     -- GET USER ID
     IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/USER_ID/text()') = 1) THEN
@@ -477,7 +484,7 @@ BEGIN
 
         -- Check GL_ACCNT_NBR validation;
        IF (GL_ACCNT_NBR_LENGTH_BR_SP(v_gl_accnts_rec.gl_account_number)= 'Y') THEN
-           RAISE gl_accnt_not_valid_error;
+           RAISE invalid_gl_num_len_err;
        END IF;
         -- INSERT into general_ledger_accounts table
         v_break := 'UPDATE general_ledger_accounts table ';
@@ -506,8 +513,8 @@ BEGIN
         v_ps_count := v_ps_count +1;
     END LOOP;
 EXCEPTION
-    WHEN gl_accnt_not_valid_error THEN
-        v_code := errnums.en_invalid_gl_num_err;
+    WHEN invalid_gl_num_len_err THEN
+        v_code := errnums.en_invalid_gl_num_len_err;
         errpkg.raise_err(v_code
                          ,'GL_ACCOUNTS_PROG_UI_UPSERT_SP.gl_accnt_not_valid_error '
                          ,'Length of General Ledger Account Number should be 7.' );
