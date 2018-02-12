@@ -1,4 +1,4 @@
-﻿create or replace PACKAGE          errnums
+create or replace PACKAGE          errnums
 /*********************************************************** 
 This package will hold all error definitions for 
 and system errors throughout the entire CCN applications
@@ -2977,58 +2977,6 @@ en_no_taxware_nontaxware_info      CONSTANT NUMBER := -20186;
 exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
-
-/*********************************************************** 
-The "non_numeric_err_can" passes a numerical error of -20188.
-The non numeric error is generataed by our Business Rules process
-if the merchant ID has a non numeric value
-
-created : 02/09/2018 bxa919 CCN Project
-revisions: 
-
-************************************************************/
-en_non_numeric_err_can CONSTANT NUMBER := -20188;
-exc_non_numeric_err_can EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_non_numeric_err_can , -20188); 
-
-/*********************************************************** 
-The "en_non_numeric_pci_err_can" passes a numerical error of -20189.
-The non numeric error is generataed by our Business Rules process
-if the PCI Merchant ID has a non numeric value
-
-created : 02/09/2018 bxa919 CCN Project
-revisions: 
-
-************************************************************/
-en_non_numeric_pci_err_can CONSTANT NUMBER := -20189;
-exc_non_numeric_pci_err_ca EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_non_numeric_pci_err_ca , -20189); 
-
-/*********************************************************** 
-The "invld_merch_id_mc_size_err" passes a numerical error of -20193
-This error will state that Bank Card Merch ID CAN MC Size is wrong
-
-Created  : 02/09/2018 bxa919 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_merch_id_mc_size_err CONSTANT NUMBER := -20193;
-exc_invld_merch_id_mc_size_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_merch_id_mc_size_err , -20193);
-
-/*********************************************************** 
-The "invld_pci_merch_id_mc_size_err" passes a numerical error of -20194
-This error will state that Bank Card PCI Merch ID CAN MC Size is wrong
-
-Created  : 02/09/2018 bxa919 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20194;
-exc_invld_pci_merch_mc_sz_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_pci_merch_mc_sz_err , -20194);
 
 /***********************************************************
 The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
