@@ -25,6 +25,6 @@ UPDATE COST_CENTER
                             '725626',
                             '703489',
                             '727616')
-   AND 	POS_DOWNLOAD_CC_IND <> 'Y';
+   AND 	NVL(POS_DOWNLOAD_CC_IND, 'N') <> 'Y';
    
 COMMIT;
