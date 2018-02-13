@@ -10,11 +10,11 @@
 
 CLASSHOME=$HOME/CcnJavaCode
 dt=`date`
-echo "START CCN REPORTS : $dt\n"
+echo "START CCN STORES_DIV_ROSTER_RPT : $dt\n"
 
-run=`cat $1`
+stores_div_roster_rpt=`cat $1`
 
-for file in $run
+for file in $stores_div_roster_rpt
 do
 
 TIME=`date +"%H:%M:%S"`
@@ -30,7 +30,8 @@ java com.StoresDivRosterReport.StoresDivisionRosterReport $HOME/crReports/rpt/$f
 if [ ! -f /app/ccn/crReports/reports/$filename.pdf ]
     then
         echo "Exception occured while Converting /app/ccn/scripts/stores_div_roster_rpt/reports/$filename.pdf to TXT file - PDF File not found.. Breaking out of Report Generation"
-        exit 1
+        ./send_mail.sh "STORES_DIV_ROSTER_RPT"
+		exit 1
 fi
 
 TIME=`date +"%H:%M:%S"`
@@ -39,6 +40,6 @@ echo "Completed processing $file at $TIME\n"
 done
 dt1=`date`
 
-echo "END SRA30040 REPORT  : $dt1\n"
+echo "END PROCESSING STORES DIVISION ROSTER REPORT  : $dt1\n"
 
 exit 0
