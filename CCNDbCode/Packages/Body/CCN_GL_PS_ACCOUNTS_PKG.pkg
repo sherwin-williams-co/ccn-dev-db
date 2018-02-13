@@ -5,25 +5,30 @@ FUNCTION PRGM_SORT_SEQ_BR_SP(
 /******************************************************************************
 This procedures takes PROGRAM REC  as input and
 raises exception if there are  Duplicate sort sequence value for a program
-created : 02/01/2018 axt754 -- CCN Project Team
+Created  : 02/01/2018 axt754 -- CCN Project Team
+Modified : 02/13/2018 axt754 -- CCN Project Team
+           Use Single loop to find the duplicates,
+           Created a temporary table type v_data, That stores the sort seq while looping
+           through PROGRAM_ACCNTS_TAB. If we came across the next same sort seq through
+           PROGRAM_ACCNTS_TAB, for every iteration this checks with v_data and if the
+           sort seq exists in v_data then Returns 'Y', which means duplicate found
 ******************************************************************************/
     PROGRAM_ACCNTS_TAB IN PRGM_ACCNTS_TAB_TYPE) RETURN VARCHAR2
 IS
-   gl_ps_dup_sort_seq_err EXCEPTION;
+   v_return_value         VARCHAR2(1) := 'N';
+   TYPE sort_seq_tt IS TABLE OF VARCHAR2(100) INDEX BY PLS_INTEGER;
+   v_data                 sort_seq_tt;
 BEGIN
-    FOR current_rec in 1..PROGRAM_ACCNTS_TAB.LAST LOOP
-        FOR next_rec in current_rec+1..PROGRAM_ACCNTS_TAB.LAST LOOP
-             IF (NVL(PROGRAM_ACCNTS_TAB(current_rec).SORTED_SEQUENCE,0) = NVL(PROGRAM_ACCNTS_TAB(next_rec).SORTED_SEQUENCE,0)) THEN
-                 IF (NVL(PROGRAM_ACCNTS_TAB(current_rec).SORTED_SEQUENCE,0) <> 0) THEN
-                     RAISE gl_ps_dup_sort_seq_err;
-                 END IF;
-             END IF;
-        END LOOP;
+    FOR table_index in 1..PROGRAM_ACCNTS_TAB.LAST LOOP
+        IF v_data.EXISTS(NVL(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE,0)) THEN
+            v_return_value := 'Y';
+            EXIT;
+        END IF;
+        IF NVL(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE,0) <> 0 THEN
+            v_data(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE) := PROGRAM_ACCNTS_TAB(table_index).GL_PS_ACCOUNT_NUMBER;
+        END IF;
     END LOOP;
-    RETURN 'Y';
-EXCEPTION
-    WHEN gl_ps_dup_sort_seq_err THEN
-        RETURN 'N';
+    RETURN v_return_value;
 END PRGM_SORT_SEQ_BR_SP;
 
 FUNCTION GL_ACCNT_NBR_LENGTH_BR_SP(
@@ -326,18 +331,18 @@ Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATI
 ******************************************************************************/
     in_xml          IN          CLOB) 
 IS
-    v_programs_frag   CLOB;
-    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
-    v_prog_rec        PROGRAMS%ROWTYPE;
-    v_prg_accnts_frag CLOB;
-    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
-    v_break           VARCHAR2(100);
-    v_code            NUMBER;
-    v_errm            VARCHAR2(500);
-    v_ps_count        NUMBER := 1;
-    v_user_id         VARCHAR2(10) := NULL;
+    v_programs_frag        CLOB;
+    v_xml                  SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prog_rec             PROGRAMS%ROWTYPE;
+    v_prg_accnts_frag      CLOB;
+    v_prg_accnts_rec       PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break                VARCHAR2(100);
+    v_code                 NUMBER;
+    v_errm                 VARCHAR2(500);
+    v_ps_count             NUMBER := 1;
+    v_user_id              VARCHAR2(10) := NULL;
     gl_ps_dup_sort_seq_err EXCEPTION;
-    PRGM_ACCNTS_TAB PRGM_ACCNTS_TAB_TYPE;
+    PRGM_ACCNTS_TAB        PRGM_ACCNTS_TAB_TYPE;
 BEGIN
 
     -- GET USER ID
@@ -358,9 +363,7 @@ BEGIN
                                              ,v_prog_rec);
         -- Assign Created_by
         v_prog_rec.created_by := v_user_id;
-        -- Insert into PROGRAMS
-        v_break := 'Insert into PROGRAMS';
-        CCN_TABLE_IU_PKG.PROGRAMS_I_SP(v_prog_rec);
+
     END IF;
 
     --********************************************************************************
@@ -386,16 +389,20 @@ BEGIN
     END LOOP;
 
     -- Validate for duplicate of sorted sequence under a program
-    IF (PRGM_SORT_SEQ_BR_SP(PRGM_ACCNTS_TAB)= 'N') THEN
+    IF PRGM_SORT_SEQ_BR_SP(PRGM_ACCNTS_TAB)= 'Y' THEN
         RAISE gl_ps_dup_sort_seq_err;
     END IF;
 
+    -- Insert into PROGRAMS
+    v_break := 'Insert into PROGRAMS';
+    CCN_TABLE_IU_PKG.PROGRAMS_I_SP(v_prog_rec);
+
     -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
     v_break := 'Insert into PRGM_GL_ACCNT_RLTN_DTLS';
-    FOR rec IN 1..PRGM_ACCNTS_TAB.LAST LOOP
-        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(PRGM_ACCNTS_TAB(rec));
+    FOR tbl_idx IN 1..PRGM_ACCNTS_TAB.LAST LOOP
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(PRGM_ACCNTS_TAB(tbl_idx));
     END LOOP;
-    
+
 EXCEPTION
      WHEN gl_ps_dup_sort_seq_err THEN
         v_code := errnums.en_gl_ps_dup_sort_seq_err;
@@ -451,16 +458,16 @@ Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATI
 ******************************************************************************/
     in_xml          IN          CLOB)
 IS
-    v_gl_accnts_frag   CLOB;
-    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
-    v_gl_accnts_rec   GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
-    v_prg_accnts_frag  CLOB;
-    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
-    v_break           VARCHAR2(100);
-    v_code            NUMBER;
-    v_errm            VARCHAR2(500);
-    v_ps_count        NUMBER := 1;
-    v_user_id         VARCHAR2(10) := NULL;
+    v_gl_accnts_frag       CLOB;
+    v_xml                  SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_gl_accnts_rec        GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
+    v_prg_accnts_frag      CLOB;
+    v_prg_accnts_rec       PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break                VARCHAR2(100);
+    v_code                 NUMBER;
+    v_errm                 VARCHAR2(500);
+    v_ps_count             NUMBER := 1;
+    v_user_id              VARCHAR2(10) := NULL;
     invalid_gl_num_len_err EXCEPTION;
 BEGIN
     -- GET USER ID
@@ -483,7 +490,7 @@ BEGIN
         v_gl_accnts_rec.created_by := v_user_id;
 
         -- Check GL_ACCNT_NBR validation;
-       IF (GL_ACCNT_NBR_LENGTH_BR_SP(v_gl_accnts_rec.gl_account_number)= 'Y') THEN
+       IF GL_ACCNT_NBR_LENGTH_BR_SP(v_gl_accnts_rec.gl_account_number)= 'Y' THEN
            RAISE invalid_gl_num_len_err;
        END IF;
         -- INSERT into general_ledger_accounts table
