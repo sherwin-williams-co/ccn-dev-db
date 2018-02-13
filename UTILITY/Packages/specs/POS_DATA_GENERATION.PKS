@@ -123,5 +123,23 @@ Changed :
 *******************************************************************************/
     IN_FILE_NAME POS_DOWNLOADS.FILE_NAME%TYPE,
     IN_RQST_ID   POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE);
+
+PROCEDURE SET_FLAG_POLLING_BULK_LOADS (
+/*******************************************************************************
+This procedure is intended to set flag into POS_DOWNLOADS_BULK_LOADS_LKUP table
+
+created : 02/08/2018 rxv940 CCN Project....
+revised :     
+*******************************************************************************/
+    IN_MAINTENANCE_TYPE    IN VARCHAR2);
+    
+PROCEDURE RESET_FLAG_POLLING_BULK_LOADS (
+/*******************************************************************************
+This procedure is intended to Reset flag into POS_DOWNLOADS_BULK_LOADS_LKUP table
+
+created : 12/26/2017 rxv940 CCN Project....
+revised :     
+*******************************************************************************/
+    IN_MAINTENANCE_TYPE    IN VARCHAR2); 	
     
 END POS_DATA_GENERATION;
