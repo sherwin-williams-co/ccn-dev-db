@@ -1,4 +1,4 @@
-CREATE OR REPLACE FORCE VIEW STORE_HOURS_VW
+CREATE OR REPLACE VIEW STORE_HOURS_VW
     AS 
 SELECT 
 /*******************************************************************************
