@@ -5,7 +5,9 @@ SELECT
 This View will give all the Admin Org Hierarchy details for the cost center passed
 
 Created  : 01/09/2017 vxv336 CCN Project
-Modified : 12/13/2017 mxv711 CCN Project 
+Modified : 12/13/2017 mxv711 CCN Project
+           02/13/2017 mxv711 CCN project
+           fixed the view to consider the hierachy values upto cost center level only
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -111,13 +113,14 @@ FROM COST_CENTER CC,
                           HD.HRCHY_DTL_CURR_LVL_VAL,
                           -- 1 + sum of level values till that level - level value for that level = starting point for this level
                           -- Curr level value length - Already substringed = Remaining length
-                          -- Cost Center is identified using Remaining length = 6
-                          SUBSTR(HD.HRCHY_DTL_CURR_LVL_VAL, 1 + HDESC.SUM_VAL - HDESC.LVL_VALUE_SIZE, CASE WHEN (LENGTH(HD.HRCHY_DTL_CURR_LVL_VAL)-(HDESC.SUM_VAL-HDESC.LVL_VALUE_SIZE))=6 THEN 0 ELSE HDESC.LVL_VALUE_SIZE END) VAL,
+                          -- get the hierachy values upto cost center level skip the non existent values.
+                          SUBSTR(HD.HRCHY_DTL_CURR_LVL_VAL, 1 + HDESC.SUM_VAL - HDESC.LVL_VALUE_SIZE, CASE WHEN floor(LENGTH(HD.HRCHY_DTL_CURR_LVL_VAL)/4) < HRCHY_HDR_LVL_NBR+1  THEN 0 ELSE HDESC.LVL_VALUE_SIZE END) VAL,
+                          --Get the description upto the existing levels only.
                           (SELECT HRCHY_DTL_DESC
                              FROM HIERARCHY_DETAIL
                             WHERE HRCHY_DTL_CURR_LVL_VAL = SUBSTR(HD.HRCHY_DTL_CURR_LVL_VAL, 1, HDESC.SUM_VAL)
+                              AND HRCHY_DTL_LEVEL <  floor(LENGTH(HD.HRCHY_DTL_CURR_LVL_VAL)/4)
                               AND HRCHY_HDR_NAME  = HDESC.HRCHY_HDR_NAME
-                              AND HRCHY_DTL_LEVEL = HDESC.HRCHY_HDR_LVL_NBR
                               AND ROWNUM < 2)  VAL_NAME
                      FROM HIERARCHY_DETAIL HD,
                           HIERARCHY_HEADER HH,

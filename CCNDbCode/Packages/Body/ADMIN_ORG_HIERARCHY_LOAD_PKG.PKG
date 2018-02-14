@@ -1,9 +1,11 @@
 CREATE OR REPLACE PACKAGE BODY COSTCNTR.ADMIN_ORG_HIERARCHY_LOAD_PKG
-/**********************************************************
+/**************************************************************************
 ADMIN_ORG_HIERARCHY_LOAD_PKG
 
 created : 07/15/2016 mxk766
-**********************************************************/
+Modified: 02/14/2018 mxv711 for converting 9's to zero's and 
+          get the employee name from the EMPLOYEE_DETAILS view for gems ID
+**************************************************************************/
 IS
 
 TYPE HRCHY_DTL_REC IS RECORD(
@@ -35,6 +37,8 @@ This procedure BUILD_HIERARCHY is used to build the hierarchy data for each curr
 row level value that is passed and returns in the out parameter.
 
 Created : 08/02/2016 MXK766 CCN Project.... 
+Modified: 02/14/2018 MXV711 CCN Project....
+          get the employee name's from the EMPLOYEE_DETAILS view for gems ID
 *******************************************************************************/
  IN_PROCESS_LVL                 IN NUMBER,
  IN_HRCHY_DTL_CURR_LVL_VAL      IN VARCHAR2,
@@ -173,10 +177,20 @@ Created : 08/02/2016 MXK766 CCN Project....
                             '0123456789')
                             );  
                             
-          V_GEMS_NAME := TRIM(TRANSLATE(V_HRCHY_DTL_UPPR_LVL_VER_VAL,
-                              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-0123456789',
-                              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-')
-                              );
+--          V_GEMS_NAME := TRIM(TRANSLATE(V_HRCHY_DTL_UPPR_LVL_VER_VAL,
+--                              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-0123456789',
+--                              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-')
+--                              );
+          IF  V_GEMS_ID IS NOT NULL  THEN
+              BEGIN
+                  SELECT NVL(EMPLOYEE_NAME,'') INTO  V_GEMS_NAME
+                    FROM EMPLOYEE_DETAILS
+                  WHERE EMPLOYEE_NUMBER = V_GEMS_ID;
+              EXCEPTION
+                WHEN OTHERS THEN
+                    V_GEMS_NAME := '';          
+              END;          
+          END IF;
 
           OUT_DATA_REC.GEMS_ID   := V_GEMS_ID;
           OUT_DATA_REC.GEMS_NAME := V_GEMS_NAME;
@@ -246,6 +260,72 @@ INSERT INTO HIERARCHY_DESCRIPTION
 VALUES ('ADMINORG_HIERARCHY',8,'Cost Center',xmltype('<attributes><upper_lvl_ver_desc><Name>GEMS_ID</Name><Description>pkListValue</Description></upper_lvl_ver_desc><upper_lvl_ver_desc><Name>EmployeeName</Name><Description>pkListValue</Description></upper_lvl_ver_desc></attributes>'),8,6);
 
 END ADMIN_ORG_REFERENCE_LOAD;
+
+PROCEDURE ADMIN_ORG_CONVERT_NINE_TO_ZERO
+/**********************************************************
+ADMIN_ORG_CONVERT_NINE_TO_ZERO
+
+created : 01/10/2018 mxv711
+**********************************************************/
+IS
+    v_hrchy_dtl_curr_lvl_val    HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
+    v_hrchy_dtl_prev_lvl_val    HIERARCHY_DETAIL.HRCHY_DTL_PREV_LVL_VAL%TYPE;
+    v_hrchy_dtl_next_lvl_val    HIERARCHY_DETAIL.HRCHY_DTL_NEXT_LVL_VAL%TYPE;
+    v_hrchy_dtl_curr_row_val    HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE;
+    v_count                     NUMBER :=0;
+    CURSOR main_cur IS
+        SELECT ROWID as ROW_ID, A.*
+          FROM HIERARCHY_DETAIL A
+         WHERE HRCHY_HDR_NAME  = 'ADMINORG_HIERARCHY';
+BEGIN
+
+    DBMS_OUTPUT.PUT_LINE('script AdminOrg_hierarchy_update_9_to_0 started at : ' || TO_CHAR(SYSDATE, 'mm/dd/yyyy hh:mi:ss'));
+
+    FOR REC IN main_cur LOOP
+        v_hrchy_dtl_curr_lvl_val := NULL;
+        v_hrchy_dtl_prev_lvl_val := NULL;
+        v_hrchy_dtl_next_lvl_val := NULL;
+        v_hrchy_dtl_curr_row_val := NULL;
+        -- if hierarchy is in domain, group and division level then we need to update complete record ( exclude cost center if exits)
+        IF REC.hrchy_dtl_level IN ( 1,2,3) THEN
+            IF length(REC.hrchy_dtl_curr_row_val) = 4 THEN
+            -- if this row is not cost center level row.
+                v_hrchy_dtl_curr_lvl_val  := REGEXP_REPLACE(REC.hrchy_dtl_curr_lvl_val, '9', '0') ;
+                v_hrchy_dtl_prev_lvl_val  := REGEXP_REPLACE(REC.hrchy_dtl_prev_lvl_val, '9', '0') ;
+                v_hrchy_dtl_curr_row_val  := REGEXP_REPLACE(REC.hrchy_dtl_curr_row_val, '9', '0');
+                IF MOD(length(REC.hrchy_dtl_next_lvl_val),4) <> 0 THEN
+                -- next level is cost center level.
+                   v_hrchy_dtl_next_lvl_val := REGEXP_REPLACE(SUBSTR(REC.hrchy_dtl_next_lvl_val, 1, LENGTH(REC.hrchy_dtl_next_lvl_val)-6), '9', '0') || SUBSTR(REC.hrchy_dtl_next_lvl_val, LENGTH(REC.hrchy_dtl_next_lvl_val)-5);
+                ELSE
+                   v_hrchy_dtl_next_lvl_val  := REGEXP_REPLACE(REC.hrchy_dtl_next_lvl_val, '9','0' );
+                END IF;
+             ELSIF length(REC.hrchy_dtl_curr_row_val) = 6 THEN
+             -- if this level is cost center row.
+                 v_hrchy_dtl_curr_lvl_val  := REGEXP_REPLACE(SUBSTR(REC.hrchy_dtl_curr_lvl_val, 1,LENGTH(REC.hrchy_dtl_curr_lvl_val)-6), '9','0' ) || SUBSTR(REC.hrchy_dtl_curr_lvl_val, LENGTH(REC.hrchy_dtl_curr_lvl_val)-5) ;
+                 v_hrchy_dtl_prev_lvl_val  := REGEXP_REPLACE(REC.hrchy_dtl_prev_lvl_val, '9','0');
+             END IF; 
+        ELSE 
+        -- if the level is greater then 3 then we need to update the 9's in first 12 characters only.
+              v_hrchy_dtl_curr_lvl_val := REGEXP_REPLACE(SUBSTR(REC.hrchy_dtl_curr_lvl_val,1,12), '9', '0') || SUBSTR(REC.hrchy_dtl_curr_lvl_val,13);
+              v_hrchy_dtl_prev_lvl_val := REGEXP_REPLACE(SUBSTR(REC.hrchy_dtl_prev_lvl_val,1,12), '9', '0') || SUBSTR(REC.hrchy_dtl_prev_lvl_val,13);
+              v_hrchy_dtl_next_lvl_val := REGEXP_REPLACE(SUBSTR(REC.hrchy_dtl_next_lvl_val,1,12), '9', '0') || SUBSTR(REC.hrchy_dtl_next_lvl_val,13);
+        END IF;
+                
+        UPDATE HIERARCHY_DETAIL hd
+           SET hd.hrchy_dtl_curr_lvl_val  = NVL(v_hrchy_dtl_curr_lvl_val, hd.hrchy_dtl_curr_lvl_val),
+               hd.hrchy_dtl_prev_lvl_val  = NVL(v_hrchy_dtl_prev_lvl_val , hd.hrchy_dtl_prev_lvl_val),
+               hd.hrchy_dtl_next_lvl_val  = NVL(v_hrchy_dtl_next_lvl_val, hd.hrchy_dtl_next_lvl_val),
+               hd.hrchy_dtl_curr_row_val  = NVL(v_hrchy_dtl_curr_row_val, hd.hrchy_dtl_curr_row_val)
+         WHERE ROWID = rec.ROW_ID;
+        v_count := v_count +1;
+    END LOOP;
+    COMMIT;
+    EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20001, SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE); 
+END ADMIN_ORG_CONVERT_NINE_TO_ZERO;
+
 
 
 PROCEDURE ADMIN_ORG_HIERARCHY_LOAD
@@ -574,6 +654,7 @@ BEGIN
   
   COMMIT;
   
+  ADMIN_ORG_CONVERT_NINE_TO_ZERO();
   /*
   Re-enable the trigger.
   */
