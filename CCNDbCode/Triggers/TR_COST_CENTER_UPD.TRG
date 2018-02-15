@@ -13,6 +13,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
             : 02/01/2018 rxv940 CCN Project Team..
              Changes to assign G_MUT_POS_DOWNLOAD_CC_IND based on S or T
              Setting POS_DOWNLOAD_CC_IND := 'Y' for Territories
+            : 15/02/2018 bxa919  CCN Project....
+              Added POTENTIAL_OPEN_DATE column
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -70,6 +72,7 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
       v_cost_center_row.POS_NON_STORE_IND      := :NEW.POS_NON_STORE_IND;
       v_cost_center_row.PRIM_COST_IDENTIFIER   := :NEW.PRIM_COST_IDENTIFIER;
       v_cost_center_row.STD_COST_IDENTIFIER    := :NEW.STD_COST_IDENTIFIER;
+      v_cost_center_row.POTENTIAL_OPEN_DATE    := :NEW.POTENTIAL_OPEN_DATE;
 
       SELECT XMLELEMENT ( "COST_CENTER",
                           XMLATTRIBUTES (
@@ -113,7 +116,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                                      v_cost_center_row.PCC_PCL_STORE PCC_PCL_STORE ,
                                      v_cost_center_row.POS_NON_STORE_IND POS_NON_STORE_IND ,
                                      v_cost_center_row.PRIM_COST_IDENTIFIER PRIM_COST_IDENTIFIER ,
-                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER)
+                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER,
+                                     v_cost_center_row.POTENTIAL_OPEN_DATE POTENTIAL_OPEN_DATE)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
