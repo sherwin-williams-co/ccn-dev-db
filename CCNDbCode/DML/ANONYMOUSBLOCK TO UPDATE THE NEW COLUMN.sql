@@ -6,45 +6,37 @@ created :02/09/2018 bxa919 CCN Project..
 **********************************************************************************/
 DECLARE
  
-V_MERCHANT_ID   BANK_CARD.MERCHANT_ID%TYPE;
+V_MERCHANT_ID      BANK_CARD.MERCHANT_ID%TYPE;
 V_MERCH_ID_CAN_MC  BANK_CARD.MERCHANT_ID%TYPE;
 
-
 CURSOR CC1 IS
-      SELECT COST_CENTER_CODE FROM  
-      COST_CENTER WHERE COUNTRY_CODE='CAN';
+      SELECT COST_CENTER_CODE 
+        FROM COST_CENTER 
+       WHERE COUNTRY_CODE='CAN';
   
 CURSOR CUR_BANK_CARD (P_COST_CENTER_CODE VARCHAR2) IS
-      SELECT MERCHANT_ID  FROM BANK_CARD
-      WHERE COST_CENTER_CODE=P_COST_CENTER_CODE
-      ORDER BY MERCHANT_ID desc;
+      SELECT MERCHANT_ID  
+        FROM BANK_CARD
+       WHERE COST_CENTER_CODE=P_COST_CENTER_CODE
+      ORDER BY MERCHANT_ID DESC;
 BEGIN
-    FOR REC_CC IN CC1 LOOP
-       
+    FOR REC_CC IN CC1 LOOP       
         FOR REC_BC IN CUR_BANK_CARD (REC_CC.COST_CENTER_CODE)  LOOP
-          
-           IF REC_BC.MERCHANT_ID IS NOT NULL THEN
-             
-             IF substr(REC_BC.MERCHANT_ID,1,1)='8' THEN 
+      
+                IF substr(REC_BC.MERCHANT_ID,1,1)='8' THEN 
                     
                     V_MERCHANT_ID :=substr(REC_BC.MERCHANT_ID,2);
                     V_MERCH_ID_CAN_MC :='9'||V_MERCHANT_ID;
-                   
-                 
-                    UPDATE BANK_CARD 
-                    SET MERCH_ID_CAN_MC =V_MERCH_ID_CAN_MC
-                    WHERE cost_center_code=REC_CC.COST_CENTER_CODE
-                    AND merchant_id='8'||v_merchant_id;
-                ELSE 
-                   
-                    UPDATE BANK_CARD 
-                    SET MERCH_ID_CAN_MC = REC_BC.MERCHANT_ID
-                    WHERE cost_center_code=REC_CC.COST_CENTER_CODE
-                    AND merchant_id= REC_BC.MERCHANT_ID;
-                     
-             END IF;
-           END IF;
-       END LOOP;
+                ELSE  
+                    V_MERCH_ID_CAN_MC :=REC_BC.MERCHANT_ID;
+                END IF;
+                
+              UPDATE BANK_CARD 
+                 SET MERCH_ID_CAN_MC = V_MERCH_ID_CAN_MC
+               WHERE COST_CENTER_CODE=REC_CC.COST_CENTER_CODE
+                 AND MERCHANT_ID= REC_BC.MERCHANT_ID;  
+        END LOOP;
     END LOOP;
-  COMMIT;  
+      COMMIT;  
 END;
+
