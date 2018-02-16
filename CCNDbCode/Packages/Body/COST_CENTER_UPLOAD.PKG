@@ -1646,7 +1646,6 @@ BATCH_LOAD_PROCESS
 This procedure is the core process for the cost center bulk upload batch
 that invokes all the 5 categories of cost center creations
 Territory, Store, Administration, Real Estate and Other
-
 Modified:  06/23/2017 rxa457 CCN Project Team..
                Code Added to handle Bulk Load process of DISAPATCH_TERMINAL cost centers
 ******************************************************************************/
@@ -1661,7 +1660,7 @@ BEGIN
    CCN_BATCH_PKG.INSERT_BATCH_JOB('CC_BULK_LOAD_PROCESS', V_BATCH_NUMBER);
    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
-   --Store bulk load   
+   --Store bulk load
    STORE_LOAD_PROCESS();
 
    --Territory bulk load
@@ -1670,18 +1669,18 @@ BEGIN
    --Administration bulk load
    ADMINISTRATION_LOAD_PROCESS();
 
-   --Real Estate bulk load 
+   --Real Estate bulk load
    REAL_ESTATE_LOAD_PROCESS();
 
-   --Other bulk load   
-   OTHER_LOAD_PROCESS();   
+   --Other bulk load
+   OTHER_LOAD_PROCESS();
 
    --Dispatch_Terminal Load Process
      DISPATCH_TERMINAL_LOAD_PROCESS();
-     
+
    V_CONTEXT:='Updating the Status in batch_job table';
    CCN_BATCH_PKG.UPDATE_BATCH_JOB('CC_BULK_LOAD_PROCESS', V_BATCH_NUMBER, V_TRANS_STATUS);
-   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
 END BATCH_LOAD_PROCESS;
 
@@ -1694,33 +1693,48 @@ that invokes one of the 5 categories of cost center creations
 Territory, Store, Administration, Real Estate and Other based on the parameters passed
 
 IN_BLOB          - blob value delimited by , and termianted by new line character
-IN_CATEGORY_CODE - A ADMINISTRATIVE, M    MANUFACTURING, O    OTHER, R    REAL ESTATE, S    STORE, T    TERRITORY
-
+IN_CATEGORY_CODE - A ADMINISTRATIVE, M	MANUFACTURING, O	OTHER, R	REAL ESTATE, S	STORE, T	TERRITORY
 Modified:  06/23/2017 rxa457 CCN Project Team..
                Code Added to handle Bulk Load process of DISAPATCH_TERMINAL cost centers
         :  09/29/2017 axt754 Rename file on server for history
+        :  02/09/2018 sxg151 Calling MAIL_PKG.SEND_MAIL to send an email if Bulk Load process Fails.
+        :  02/13/2018 sxg151 Calling ERRPKG.ERROR_DETAILS to fetch the error records from Error_log table
 ******************************************************************************/
 IN_BLOB            IN       BLOB,
 IN_CATEGORY_CODE   IN       COST_CENTER.CATEGORY%TYPE)
 IS
-    V_CATEGORY        CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-    V_FILE_NM     VARCHAR2(100);
-    V_ARC_FILE_NM VARCHAR2(100);
+    V_CATEGORY          CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
+		V_TEMP_CLOB         CLOB;
+    V_FILE_NM           VARCHAR2(100);
+    V_ARC_FILE_NM       VARCHAR2(100);
+    V_START_TIME        DATE;
+    V_END_TIME          DATE;
+    V_CLOB_FOR_EMAIL    CLOB;
+    V_BULK_LOAD_LKUP_ID NUMBER;
+
 BEGIN
     --Get the Category Description from Code_Detail table
+		V_TEMP_CLOB:=  COMMON_TOOLS.CONVERT_TO_CLOB(IN_BLOB);
+		PR_LOG('UI_LOAD_PROCESS--IN_CATEGORY_CODE VALUE IS '||'***** '||IN_CATEGORY_CODE||' *****'||V_TEMP_CLOB);
+
     SELECT DECODE(CODE_DETAIL_DESCRIPTION,'ADMINISTRATIVE','ADMINISTRATION',REPLACE(CODE_DETAIL_DESCRIPTION,' ','_'))
       INTO V_CATEGORY
-      FROM CODE_DETAIL 
+      FROM CODE_DETAIL
      WHERE CODE_HEADER_NAME = 'CATEGORY'
        AND CODE_DETAIL_VALUE = IN_CATEGORY_CODE;
 
     V_FILE_NM     := 'COST_CENTER_'||V_CATEGORY||'.csv';
     V_ARC_FILE_NM := 'COST_CENTER_'||V_CATEGORY||'_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
 
+    SELECT sysdate
+      INTO V_START_TIME
+      FROM DUAL;
 
     CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,V_FILE_NM);
     CASE WHEN V_CATEGORY = 'STORE' THEN
+--             POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_COST_CENTER_LOAD', V_BULK_LOAD_LKUP_ID);
              STORE_LOAD_PROCESS();
+--             POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
          WHEN V_CATEGORY = 'TERRITORY' THEN
              TERRITORY_LOAD_PROCESS();
          WHEN V_CATEGORY = 'ADMINISTRATION' THEN
@@ -1736,13 +1750,35 @@ BEGIN
     ELSE
         NULL;
     END CASE;
+
+    SELECT sysdate
+      INTO V_END_TIME
+      FROM DUAL;
+
+    --Call ERRPKG.ERROR_DETAILS package here incase above any load process handles  errors.
+    ERRPKG.ERROR_DETAILS(V_START_TIME,V_END_TIME,V_CLOB_FOR_EMAIL);
+        IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+            MAIL_PKG.SEND_MAIL('CC_UI_BULK_LOAD_PROCESS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+        END IF;
     --Rename file on server for history
     CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM,V_ARC_FILE_NM);
+
 EXCEPTION
     WHEN OTHERS THEN
-        -- Rename file on server for history
-        CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
-        ERRPKG.RAISE_ERR(SQLCODE, 'COST_CENTER_UPLOAD.UI_LOAD_PROCESS' || SUBSTR(SQLERRM, 1, 500) || ' IN OTHERS ');
+
+    SELECT sysdate
+       INTO V_END_TIME
+       FROM DUAL;
+
+    --Call the errpkg.error_details package to fetch the data from error_log table to send an email.
+    ERRPKG.ERROR_DETAILS(V_START_TIME,V_END_TIME,V_CLOB_FOR_EMAIL);
+        IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+            MAIL_PKG.SEND_MAIL('CC_UI_BULK_LOAD_PROCESS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+        END IF;
+    -- Rename file on server for history
+    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+    ERRPKG.RAISE_ERR(SQLCODE, 'COST_CENTER_UPLOAD.UI_LOAD_PROCESS' || SUBSTR(SQLERRM, 1, 500) || ' IN OTHERS ');
+
 END UI_LOAD_PROCESS;
 
 END COST_CENTER_UPLOAD;
