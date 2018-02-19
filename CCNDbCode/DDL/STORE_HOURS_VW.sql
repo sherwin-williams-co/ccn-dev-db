@@ -5,6 +5,7 @@ SELECT
 This View holds all the Store hours data
 created  : 02/12/2018 sxg151 CCN Team...
 Modified : 02/19/2018 Added outer join to fetch all records from COST_CENTER table
+           Also added logic to consider only active store category cost centers with current polling status as P or Q
 ********************************************************************************/
          C.COST_CENTER_CODE,
          SH.MON_OPEN,
