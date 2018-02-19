@@ -4,7 +4,7 @@ SELECT
 /*******************************************************************************
 This View holds all the Store hours data
 created  : 02/12/2018 sxg151 CCN Team...
-Modified :
+Modified : 02/19/2018 Added outer join to fetch all records from COST_CENTER table
 ********************************************************************************/
     C.COST_CENTER_CODE,
     SH.MON_OPEN,
@@ -23,4 +23,4 @@ Modified :
     SH.SUN_CLOSE
 FROM
    STORE_HOURS_V SH,COST_CENTER C
- WHERE SH.STORE_NBR = SUBSTR(C.COST_CENTER_CODE,3);
+ WHERE SH.STORE_NBR(+) = SUBSTR(C.COST_CENTER_CODE,3);
