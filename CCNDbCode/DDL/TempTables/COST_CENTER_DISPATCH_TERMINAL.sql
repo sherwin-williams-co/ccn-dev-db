@@ -7,6 +7,8 @@ Purpose    : For dropping and creating the COST_CENTER_DISPATCH_TERMINAL table.
 Created    : 06/23/2017 rxa457 CCN Project....
 Changed    : 11/06/2017 axt754 CCN Project....
              Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
+	   : 02/20/2018 bxa919 CCN Project....
+             Added Field POTENTIAL_OPEN_DATE
 */
 
   DROP TABLE COST_CENTER_DISPATCH_TERMINAL;
@@ -89,7 +91,8 @@ Changed    : 11/06/2017 axt754 CCN Project....
     PRICE_DISTRICT VARCHAR2(100),
     PRICE_DIST_EFFECTIVE_DT VARCHAR2(8),
     CREDIT_HIERARCHY VARCHAR2(100),
-    MANAGER_ID VARCHAR2(100 )
+    MANAGER_ID VARCHAR2(100),
+    POTENTIAL_OPEN_DATE VARCHAR2(8)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -178,7 +181,8 @@ Changed    : 11/06/2017 axt754 CCN Project....
                                         PRICE_DISTRICT,
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
-                                        MANAGER_ID)
+                                        MANAGER_ID,
+					POTENTIAL_OPEN_DATE)
                                         )
       LOCATION
        ( 'COST_CENTER_DISPATCH_TERMINAL.csv'
