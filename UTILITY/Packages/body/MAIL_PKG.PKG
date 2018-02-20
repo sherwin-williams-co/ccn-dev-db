@@ -45,7 +45,13 @@ PROCEDURE FILE_ATTACHMENTS(
 /****************************************************************
    This Procedure is used Attach the list of files to the mail
 created : 05/02/2016 AXD783
-changed :
+changed : 02/20/2018 CCN Project Team....
+          Added aditional logic to process the excel file.The 
+          excel file is opened in using BFilename which 
+          returns a BFILE locator that is associated with physical LOB binary file 
+          on the server and writes the Content of attachment using UTL_ENCODE.Base64_Encode function
+          which encode RAW data into a standard encoded format, so that the data can 
+          be transported between hosts .
 *****************************************************************/
  in_MAIL_CATEGORY VARCHAR2
 ,v_conn IN OUT utl_smtp.connection
@@ -68,20 +74,44 @@ BEGIN
                  WHERE mf.group_id = md.group_id
                    AND md.mail_category =UPPER(in_MAIL_CATEGORY)) LOOP
                   -- v_date := TRUNC(SYSDATE);
-    v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
+    IF rec.file_name = 'STORE_PDH_HRCHY' THEN
+        v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDRR')||'.xlsx'; 
+    ELSIF rec.file_name <> 'SRA30040' then
+       v_file_name := rec.file_name||TO_CHAR(SYSDATE,'_MMDDYY')||'.csv';
+    ELSE 
+       v_file_name := rec.file_name||'.pdf';
+    END IF;
     -- Check the file exists and if the size of the file.
     utl_file.fgetattr(rec.directory_name, v_file_name, v_exists, v_length,v_blocksize);
     IF NOT v_exists THEN
         RAISE FILE_NOT_FOUND;
     END IF;
     IF NOT v_length < 1024 THEN
-       filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
+       
        utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
        utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+	   utl_smtp.write_data(v_conn, 'Content-Transfer-Encoding: BASE64' || UTL_TCP.Crlf ) ;
        utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || v_file_name || '"' || UTL_TCP.crlf);
        utl_smtp.write_data(v_conn, UTL_TCP.crlf);
        --Content for the file that is being sent
-       LOOP
+		    DECLARE
+				l_Source_File       BFILE ;
+				ln_Length           NUMBER(10) ;
+				ln_Buffer_Size      INTEGER := 57 ;
+				lv_Raw              RAW(57) ;
+				I                   INTEGER := 1;
+            BEGIN
+				    l_Source_File := BFileName(rec.directory_name, v_file_name) ; 
+				    DBMS_LOB.FileOpen( l_Source_File, DBMS_LOB.File_ReadOnly ) ;
+				    ln_Length := DBMS_LOB.GetLength( l_Source_File ) ;
+				    WHILE I < ln_Length LOOP
+						DBMS_LOB.READ( l_Source_File, ln_Buffer_Size, I, lv_Raw ) ;
+						UTL_SMTP.Write_RAW_Data( v_conn, UTL_ENCODE.Base64_Encode( lv_Raw ) ) ;
+						I := I + ln_Buffer_Size ;
+					END LOOP ;
+            END;
+	   /*LOOP
+			filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
            BEGIN
                utl_file.get_line(filehandler, vLine);
                utl_smtp.write_data(v_conn, vLine || UTL_TCP.CRLF); --Content of attachment
@@ -89,7 +119,7 @@ BEGIN
            WHEN OTHERS THEN
                EXIT;
            END;
-       END LOOP;
+       END LOOP;*/
        utl_file.fclose(filehandler);
     END IF;
     -- AXK326, block added for sending attachments even if they are 1kb or less than that.
@@ -238,6 +268,9 @@ Updated : 09/18/2014 nxk
                     Removed  mail category PCI_POS_TERMINAL_MISMATCH to stop sending email
         :02/15/2018 axt754 CCN Project Team....
          Added code for sq footage batch process, cost centers that were not present in CCN
+		:02/20/2018 bxa919 CCN Project Team....
+         Added condition for STORE_PDH_HRCHY_MAIL category as this proces places file in DB server and the
+         corresponding file need to be attached in the email..
 /******************************************************************************************************/
 IN_MAIL_CATEGORY VARCHAR2,
 IN_TERMINL_NUMBER IN NUMBER DEFAULT NULL,
@@ -559,6 +592,8 @@ BEGIN
       -- added mail category for Bank reconcile diff file process.
       ELSIF IN_MAIL_CATEGORY = 'BANKING_RECONCILE_FILES_GEN' THEN
          FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+	  ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_MAIL' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
       ELSIF IN_MAIL_CATEGORY = 'MONTHLY_REPORTS_RUN_BP' THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
@@ -568,7 +603,7 @@ BEGIN
          --Content for the excel that is being sent
          UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
          UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
-      ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_MAIL' THEN
+      /*ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_MAIL' THEN
          --Boundary should be set for this email to attach an excel
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
          UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
@@ -577,7 +612,7 @@ BEGIN
          --Content for the excel that is being sent
          WRITE_CLOB(v_mail_conn, IN_CLOB);
          UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
-         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);*/
       ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_ERROR' THEN
          UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
          UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);

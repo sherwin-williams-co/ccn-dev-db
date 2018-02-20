@@ -1,0 +1,2103 @@
+create or replace PACKAGE BODY CCN_SPREADSHEET_PKG
+/**********************************************************
+	CCN_SPREADSHEET_PKG
+The package takes the query as input and builds the XML clob 
+to save as .xlsx file .This package follow Word 2007 
+XML Format. 
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+AS
+
+  C_LOCAL_FILE_HEADER        CONSTANT RAW(4) := HEXTORAW('504B0304'); -- Local file header signature
+  C_END_OF_CENTRAL_DIRECTORY CONSTANT RAW(4) := HEXTORAW('504B0506'); -- End of central directory signature
+
+  TYPE TP_XF_FMT IS RECORD(
+      NUMFMTID          PLS_INTEGER,
+      FONTID            PLS_INTEGER,
+      FILLID            PLS_INTEGER,
+      BORDERID          PLS_INTEGER,
+      ALIGNMENT         TP_ALIGNMENT
+   );
+  TYPE TP_COL_FMTS IS TABLE OF TP_XF_FMT INDEX BY PLS_INTEGER;
+  TYPE TP_ROW_FMTS IS TABLE OF TP_XF_FMT INDEX BY PLS_INTEGER;
+
+  TYPE TP_WIDTHS IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
+
+  TYPE TP_CELL IS RECORD(
+      VALUE             NUMBER,
+      STYLE             VARCHAR2(50)
+   );
+  TYPE TP_CELLS IS TABLE OF TP_CELL INDEX BY PLS_INTEGER;
+  TYPE TP_ROWS  IS TABLE OF TP_CELLS INDEX BY PLS_INTEGER;
+
+  TYPE TP_AUTOFILTER IS RECORD(
+      COLUMN_START        PLS_INTEGER,
+      COLUMN_END          PLS_INTEGER,
+      ROW_START           PLS_INTEGER,
+      ROW_END             PLS_INTEGER
+   );
+  TYPE TP_AUTOFILTERS IS TABLE OF TP_AUTOFILTER INDEX BY PLS_INTEGER;
+
+  TYPE TP_HYPERLINK IS RECORD(
+     CELL VARCHAR2(10),
+     URL  VARCHAR2(1000)
+   );
+  TYPE TP_HYPERLINKS IS TABLE OF TP_HYPERLINK INDEX BY PLS_INTEGER;
+
+  SUBTYPE TP_AUTHOR IS VARCHAR2(32767 CHAR);
+
+  TYPE TP_AUTHORS IS TABLE OF PLS_INTEGER INDEX BY TP_AUTHOR;
+  AUTHORS TP_AUTHORS;
+
+ /* TYPE TP_COMMENT IS RECORD(
+      TEXT                  VARCHAR2(32767 CHAR),
+      AUTHOR                TP_AUTHOR,
+      ROW                   PLS_INTEGER,
+      COLUMN                PLS_INTEGER,
+      WIDTH                 PLS_INTEGER,
+      HEIGHT                PLS_INTEGER
+   );
+  TYPE TP_COMMENTS IS TABLE OF TP_COMMENT INDEX BY PLS_INTEGER;
+
+  TYPE TP_MERGECELLS IS TABLE OF VARCHAR2(21) INDEX BY PLS_INTEGER;
+  
+  TYPE TP_VALIDATION IS RECORD(
+      TYPE             VARCHAR2(10),
+      ERRORSTYLE       VARCHAR2(32),
+      SHOWINPUTMESSAGE BOOLEAN,
+      PROMPT           VARCHAR2(32767 CHAR),
+      TITLE            VARCHAR2(32767 CHAR),
+      ERROR_TITLE      VARCHAR2(32767 CHAR),
+      ERROR_TXT        VARCHAR2(32767 CHAR),
+      SHOWERRORMESSAGE BOOLEAN,
+      FORMULA1         VARCHAR2(32767 CHAR),
+      FORMULA2         VARCHAR2(32767 CHAR),
+      ALLOWBLANK       BOOLEAN,
+      SQREF            VARCHAR2(32767 CHAR)
+   );
+  TYPE TP_VALIDATIONS IS TABLE OF TP_VALIDATION INDEX BY PLS_INTEGER;*/
+
+  TYPE TP_SHEET IS RECORD(
+      ROWS          TP_ROWS,
+      WIDTHS        TP_WIDTHS,
+      NAME          VARCHAR2(100),
+      --FREEZE_ROWS   PLS_INTEGER,
+      --FREEZE_COLS   PLS_INTEGER,
+      AUTOFILTERS   TP_AUTOFILTERS,
+      HYPERLINKS    TP_HYPERLINKS,
+      COL_FMTS      TP_COL_FMTS,
+      ROW_FMTS      TP_ROW_FMTS
+      --COMMENTS      TP_COMMENTS,
+      --MERGECELLS    TP_MERGECELLS,
+      --VALIDATIONS   TP_VALIDATIONS
+   );
+  TYPE TP_SHEETS IS TABLE OF TP_SHEET INDEX BY PLS_INTEGER;
+
+  TYPE TP_NUMFMT IS RECORD(
+      NUMFMTID   PLS_INTEGER,
+      FORMATCODE VARCHAR2(100)
+   );
+  TYPE TP_NUMFMTS IS TABLE OF TP_NUMFMT INDEX BY PLS_INTEGER;
+
+  TYPE TP_FILL IS RECORD(
+      PATTERNTYPE VARCHAR2(30),
+      FGRGB       VARCHAR2(8)
+   );
+  TYPE TP_FILLS IS TABLE OF TP_FILL INDEX BY PLS_INTEGER;
+
+  TYPE TP_CELLXFS IS TABLE OF TP_XF_FMT INDEX BY PLS_INTEGER;
+
+  TYPE TP_FONT IS RECORD(
+      NAME        VARCHAR2(100),
+      FAMILY      PLS_INTEGER,
+      FONTSIZE    NUMBER,
+      THEME       PLS_INTEGER,
+      RGB         VARCHAR2(8),
+      UNDERLINE   BOOLEAN,
+      ITALIC      BOOLEAN,
+      BOLD        BOOLEAN
+   );
+  TYPE TP_FONTS IS TABLE OF TP_FONT INDEX BY PLS_INTEGER;
+
+  TYPE TP_BORDER IS RECORD(
+      TOP    VARCHAR2(17),
+      BOTTOM VARCHAR2(17),
+      LEFT   VARCHAR2(17),
+      RIGHT  VARCHAR2(17)
+   );
+  TYPE TP_BORDERS IS TABLE OF TP_BORDER INDEX BY PLS_INTEGER;
+
+  TYPE TP_NUMFMTINDEXES IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+
+  TYPE TP_STRINGS IS TABLE OF PLS_INTEGER INDEX BY VARCHAR2(32767 CHAR);
+
+  TYPE TP_STR_IND IS TABLE OF VARCHAR2(32767 CHAR) INDEX BY PLS_INTEGER;
+
+  TYPE TP_DEFINED_NAME IS RECORD(
+      NAME   VARCHAR2(32767 CHAR),
+      REF    VARCHAR2(32767 CHAR),
+      SHEET  PLS_INTEGER
+   );
+  TYPE TP_DEFINED_NAMES IS TABLE OF TP_DEFINED_NAME INDEX BY PLS_INTEGER;
+  TYPE TP_BOOK IS RECORD(
+      SHEETS        TP_SHEETS,
+      STRINGS       TP_STRINGS,
+      STR_IND       TP_STR_IND,
+      STR_CNT       PLS_INTEGER := 0,
+      FONTS         TP_FONTS,
+      FILLS         TP_FILLS,
+      BORDERS       TP_BORDERS,
+      NUMFMTS       TP_NUMFMTS,
+      CELLXFS       TP_CELLXFS,
+      NUMFMTINDEXES TP_NUMFMTINDEXES,
+      DEFINED_NAMES TP_DEFINED_NAMES
+   );
+  WORKBOOK TP_BOOK;
+
+PROCEDURE BLOB2FILE(
+/**********************************************************
+	BLOB2FILE
+
+This Process takes the xml 'BLOB' as input and 
+writes  the xml blob data into an excel file by using the 
+functions in 'UTL_FILE' PLSQL packages.
+
+created : 02/14/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_BLOB         IN   BLOB
+  , IN_DIRECTORY    IN   VARCHAR2 
+  , IN_FILENAME     IN   VARCHAR2 )
+IS
+    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
+    V_LEN               PLS_INTEGER := 32767;
+BEGIN
+    OUTPUT_FILE := UTL_FILE.FOPEN(IN_DIRECTORY, IN_FILENAME, 'wb');
+    FOR I IN 0 .. TRUNC((DBMS_LOB.GETLENGTH(IN_BLOB) - 1) / V_LEN) LOOP
+        UTL_FILE.PUT_RAW(OUTPUT_FILE, DBMS_LOB.SUBSTR(IN_BLOB , V_LEN , I * V_LEN + 1));
+    END LOOP;
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+END BLOB2FILE;
+
+FUNCTION RAW2NUM(
+/**********************************************************
+	RAW2SUM
+
+This function converts the binary representation of a BINARY_INTEGER
+(in RAW) into a BINARY_INTEGER.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_RAW    IN    RAW,
+    IN_LEN    IN    INTEGER,
+    IN_POS    IN    INTEGER)
+RETURN NUMBER
+IS
+BEGIN
+    RETURN UTL_RAW.CAST_TO_BINARY_INTEGER(UTL_RAW.SUBSTR(IN_RAW, IN_POS, IN_LEN), UTL_RAW.LITTLE_ENDIAN);
+END RAW2NUM;
+
+FUNCTION LITTLE_ENDIAN(
+/**********************************************************
+	LITTLE_ENDIAN
+This function describe the order in which a sequence of bytes
+are stored in computer memory	. Little-endian is an order in which the
+"little end" (least significant value in the sequence) is stored first.
+ex:Hexadecimal number 4F52 will be stored in the order of 524F 
+(52 at address 1000, 4F at 1001) in the computer memory.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_BIG    IN     NUMBER,
+    IN_BYTES  IN     PLS_INTEGER := 4)
+RETURN RAW
+IS
+BEGIN
+    RETURN UTL_RAW.SUBSTR(UTL_RAW.CAST_FROM_BINARY_INTEGER(IN_BIG, UTL_RAW.LITTLE_ENDIAN), 1, IN_BYTES);
+END LITTLE_ENDIAN;
+
+FUNCTION BLOB2NUM(
+/**********************************************************
+	BLOB2NUM
+
+This function converts the binary representation of a BINARY_INTEGER
+(in RAW) into a BINARY_INTEGER.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_BLOB   IN     BLOB
+  , IN_LEN    IN     INTEGER
+  , IN_POS    IN     INTEGER)
+RETURN NUMBER
+IS
+BEGIN
+    RETURN UTL_RAW.CAST_TO_BINARY_INTEGER(DBMS_LOB.SUBSTR(IN_BLOB, IN_LEN, IN_POS), UTL_RAW.LITTLE_ENDIAN);
+END BLOB2NUM;
+
+PROCEDURE ADD1FILE(
+/**********************************************************
+	ADD1FILE
+  
+The process will compress data using Lempel-Ziv compression algorithm.
+1.The add1file is invoked in 'add1xml' procedure with input parameters as 
+temporary blob data,filename(.xml file which is biuld in finish proc) and t_temp
+(converts the character data(blob) to the character set specified (clob))
+2.Using 'utl_compress.lz_compress' function the input clob 'P_CONTENT'
+is zipped.
+3.The function 'utl_i18n.string_to_raw' converts the string(P_ZIPPED_BLOB) 
+to another valid Oracle character set and returns the result as RAW data.
+4.The function'utl_raw.concat' is used to concatinate the header file signature
+'HEXTORAW('504B0304')' (HEXTORAW is to convert the hexadecimal digits in the 
+CHAR, VARCHAR2 character set to a raw value and '504B0304' is ZIPFormat code 
+which indicates the headeror start of the file based on the file name the
+'0000','0008' formats are selected and using'little_endian' mfuntion the date 
+formated are store in ascending format in computer memory.
+5. After concating ,'dbms_lob.copy' 
+procedure copies all the data, from source internal LOB to a destination internal LOB
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+  	IO_ZIPPED_BLOB  IN OUT 	    BLOB
+  , IN_NAME         IN      	  VARCHAR2
+  , IN_CONTENT      IN      	  BLOB)
+IS
+    V_CURR_DATE         DATE;
+    V_BLOB       		    BLOB;
+    V_LEN        		    INTEGER;
+    V_CLEN      	      INTEGER;
+    V_CRC32      		    RAW(4)      := HEXTORAW('00000000');
+    V_COMPRESSED 		    BOOLEAN     := FALSE;
+    V_NAME       		    RAW(32767);
+BEGIN
+    V_CURR_DATE := SYSDATE;
+    V_LEN := NVL(DBMS_LOB.GETLENGTH(IN_CONTENT), 0);
+    IF V_LEN > 0 THEN 
+        V_BLOB       := UTL_COMPRESS.LZ_COMPRESS(IN_CONTENT);
+        V_CLEN       := DBMS_LOB.GETLENGTH(V_BLOB) - 18;
+        V_COMPRESSED := V_CLEN < V_LEN;
+        V_CRC32      := DBMS_LOB.SUBSTR(V_BLOB, 4, V_CLEN + 11);
+    END IF;
+    IF NOT V_COMPRESSED THEN 
+        V_CLEN := V_LEN;
+        V_BLOB := IN_CONTENT;
+    END IF;
+    IF IO_ZIPPED_BLOB IS NULL THEN
+        DBMS_LOB.CREATETEMPORARY(IO_ZIPPED_BLOB, TRUE);
+    END IF;
+    V_NAME := UTL_I18N.STRING_TO_RAW(IN_NAME, 'AL32UTF8');
+    DBMS_LOB.APPEND(IO_ZIPPED_BLOB
+                    , UTL_RAW.CONCAT(C_LOCAL_FILE_HEADER -- Local file header signature
+                                     , HEXTORAW('1400')  -- version 2.0
+                                     , CASE WHEN V_NAME = UTL_I18N.STRING_TO_RAW(IN_NAME, 'US8PC437') THEN
+                                           HEXTORAW('0000') -- no General purpose bits
+                                       ELSE
+                                           HEXTORAW('0008') -- set Language encoding flag (EFS)
+                                       END 
+                                     , CASE WHEN V_COMPRESSED THEN
+                                           HEXTORAW('0800') -- deflate
+                                       ELSE
+                                           HEXTORAW('0000') -- stored
+                                       END
+                                     , LITTLE_ENDIAN(TO_NUMBER(TO_CHAR(V_CURR_DATE, 'ss')) / 2 +
+                                                     TO_NUMBER(TO_CHAR(V_CURR_DATE, 'mi')) * 32 +
+                                                     TO_NUMBER(TO_CHAR(V_CURR_DATE, 'hh24')) * 2048 , 2) -- File last modification time
+                                     , LITTLE_ENDIAN(TO_NUMBER(TO_CHAR(V_CURR_DATE, 'dd')) +
+                                                     TO_NUMBER(TO_CHAR(V_CURR_DATE, 'mm')) * 32 +
+                                                     (TO_NUMBER(TO_CHAR(V_CURR_DATE, 'yyyy')) - 1980) * 512 , 2) -- File last modification date
+                                     , V_CRC32                                    -- CRC-32
+                                     , LITTLE_ENDIAN(V_CLEN)                      -- compressed size
+                                     , LITTLE_ENDIAN(V_LEN)                       -- uncompressed size
+                                     , LITTLE_ENDIAN(UTL_RAW.LENGTH(V_NAME), 2)   -- File name length
+                                     , HEXTORAW('0000')                           -- Extra field length
+                                     , V_NAME                                     -- File name
+                                    )
+                  );
+    IF V_COMPRESSED THEN
+        DBMS_LOB.COPY(IO_ZIPPED_BLOB, V_BLOB, V_CLEN, DBMS_LOB.GETLENGTH(IO_ZIPPED_BLOB) + 1, 11); -- COMPRESSED CONTENT
+    ELSIF V_CLEN > 0 THEN
+        DBMS_LOB.COPY(IO_ZIPPED_BLOB, V_BLOB, V_CLEN, DBMS_LOB.GETLENGTH(IO_ZIPPED_BLOB) + 1, 1); --  CONTENT
+    END IF;
+    IF DBMS_LOB.ISTEMPORARY(V_BLOB) = 1 THEN
+        DBMS_LOB.FREETEMPORARY(V_BLOB);
+    END IF;
+END ADD1FILE;
+
+PROCEDURE FINISH_ZIP(
+/**********************************************************
+	FINISH_ZIP
+  
+1.After building the entire xml clob this procedure is invoked
+in order to zip the xmlclob.
+The process append the file properties till the
+length of the clob value is equals to the zip fileformat.
+i,e ('504B0304').
+2.After appending .The file is closed by appending the EOF format code
+to the file 'c_END_OF_CENTRAL_DIRECTORY(504B0506)'. 
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IO_ZIPPED_BLOB    IN OUT   BLOB)
+IS
+    V_CNT              	 PLS_INTEGER  := 0;
+    V_OFFS            	 INTEGER;
+    V_OFFS_DIR_HEADER  	 INTEGER;
+    V_OFFS_END_HEADER    INTEGER;
+    V_COMMENT            RAW(32767)   := UTL_RAW.CAST_TO_RAW('Implementation by Anton Scheffer');
+BEGIN
+    V_OFFS_DIR_HEADER := DBMS_LOB.GETLENGTH(IO_ZIPPED_BLOB);
+    V_OFFS := 1;
+    WHILE DBMS_LOB.SUBSTR(IO_ZIPPED_BLOB, UTL_RAW.LENGTH(C_LOCAL_FILE_HEADER), V_OFFS) = C_LOCAL_FILE_HEADER LOOP
+        V_CNT := V_CNT + 1;
+        DBMS_LOB.APPEND(IO_ZIPPED_BLOB
+                        , UTL_RAW.CONCAT(HEXTORAW('504B0102')      -- Central directory file header signature
+                                        , HEXTORAW('1400')          -- version 2.0
+                                        , DBMS_LOB.SUBSTR(IO_ZIPPED_BLOB, 26, V_OFFS + 4)
+                                        , HEXTORAW('0000')          -- File comment length
+                                        , HEXTORAW('0000')          -- Disk number where file starts
+                                        , HEXTORAW('0000')          -- Internal file attributes => 
+                                                                      --     0000 binary file
+                                                                      --     0100 (ascii)text file
+                                        , CASE
+                                            WHEN DBMS_LOB.SUBSTR(IO_ZIPPED_BLOB, 1, V_OFFS + 30 + BLOB2NUM(IO_ZIPPED_BLOB, 2, V_OFFS + 26) - 1) IN (HEXTORAW('2F'), HEXTORAW('5C')) THEN --/ and \
+                                                HEXTORAW('10000000') -- a directory/folder
+                                            ELSE
+                                                HEXTORAW('2000B681') -- a file
+                                          END                         -- External file attributes
+                                        , LITTLE_ENDIAN(V_OFFS - 1) -- Relative offset of local file header
+                                        , DBMS_LOB.SUBSTR(IO_ZIPPED_BLOB, BLOB2NUM(IO_ZIPPED_BLOB, 2, V_OFFS + 26), V_OFFS + 30)            -- File name
+                                       )
+                    );
+      V_OFFS := V_OFFS + 30 + BLOB2NUM(IO_ZIPPED_BLOB, 4, V_OFFS + 18)  -- compressed size
+                            + BLOB2NUM(IO_ZIPPED_BLOB, 2, V_OFFS + 26)  -- File name length 
+                            + BLOB2NUM(IO_ZIPPED_BLOB, 2, V_OFFS + 28); -- Extra field length
+    END LOOP;
+    V_OFFS_END_HEADER := DBMS_LOB.GETLENGTH(IO_ZIPPED_BLOB);
+    DBMS_LOB.APPEND(IO_ZIPPED_BLOB
+                   , UTL_RAW.CONCAT(C_END_OF_CENTRAL_DIRECTORY                               -- End of central directory signature
+                                   , HEXTORAW('0000')                                        -- Number of this disk
+                                   , HEXTORAW('0000')                                        -- Disk where central directory starts
+                                   , LITTLE_ENDIAN(V_CNT, 2)                                 -- Number of central directory records on this disk
+                                   , LITTLE_ENDIAN(V_CNT, 2)                                 -- Total number of central directory records
+                                   , LITTLE_ENDIAN(V_OFFS_END_HEADER - V_OFFS_DIR_HEADER)    -- Size of central directory
+                                   , LITTLE_ENDIAN(V_OFFS_DIR_HEADER)                        -- Offset of start of central directory, relative to start of archive
+                                   , LITTLE_ENDIAN(NVL(UTL_RAW.LENGTH(V_COMMENT), 0), 2)    -- ZIP file comment length
+                                   , V_COMMENT
+                                  )
+                  );
+END FINISH_ZIP;
+
+FUNCTION ALFAN_COL(
+/**********************************************************
+	ALFAN_COL
+
+Based on the column value the chr function returns
+the ascii letter for that integer.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL    IN    PLS_INTEGER)
+RETURN VARCHAR2
+IS
+BEGIN
+    RETURN CASE WHEN IN_COL > 702 THEN
+                   CHR(64 + TRUNC((IN_COL - 27) / 676)) || CHR(65 + MOD(TRUNC((IN_COL - 1) / 26) - 1, 26)) || CHR(65 + MOD(IN_COL - 1, 26))
+                WHEN IN_COL > 26  THEN
+                    CHR(64 + TRUNC((IN_COL - 1) / 26)) || CHR(65 + MOD(IN_COL - 1, 26))
+                ELSE
+                    CHR(64 + IN_COL)
+           END;
+END ALFAN_COL;
+
+FUNCTION COL_ALFAN(
+/**********************************************************
+	COL_ALFAN
+
+Based on the column value the ASCII function returns
+the integer value for that value.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL    IN   VARCHAR2)
+RETURN PLS_INTEGER
+IS
+BEGIN
+    RETURN ASCII(SUBSTR(IN_COL, -1)) - 64 + NVL((ASCII(SUBSTR(IN_COL, -2, 1)) - 64) * 26, 0) + NVL((ASCII(SUBSTR(IN_COL, -3, 1)) - 64) * 676, 0);
+END COL_ALFAN;
+
+PROCEDURE CLEAR_WORKBOOK
+/**********************************************************
+	CLEAR_WORKBOOK
+
+The process after building teh Xml clob. In order to clear the 
+formating styles that was build for current xml clob.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+IS
+    V_ROW_IND     PLS_INTEGER;
+BEGIN
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.FIRST();
+        WHILE V_ROW_IND IS NOT NULL LOOP
+            WORKBOOK.SHEETS(S).ROWS(V_ROW_IND).DELETE();
+            V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.NEXT(V_ROW_IND);
+        END LOOP;
+        WORKBOOK.SHEETS(S).ROWS.DELETE();
+        WORKBOOK.SHEETS(S).WIDTHS.DELETE();
+        WORKBOOK.SHEETS(S).AUTOFILTERS.DELETE();
+        WORKBOOK.SHEETS(S).HYPERLINKS.DELETE();
+        WORKBOOK.SHEETS(S).COL_FMTS.DELETE();
+        WORKBOOK.SHEETS(S).ROW_FMTS.DELETE();
+       -- WORKBOOK.SHEETS(S).COMMENTS.DELETE();
+       -- WORKBOOK.SHEETS(S).MERGECELLS.DELETE();
+       -- WORKBOOK.SHEETS(S).VALIDATIONS.DELETE();
+    END LOOP;
+    WORKBOOK.STRINGS.DELETE();
+    WORKBOOK.STR_IND.DELETE();
+    WORKBOOK.FONTS.DELETE();
+    WORKBOOK.FILLS.DELETE();
+    WORKBOOK.BORDERS.DELETE();
+    WORKBOOK.NUMFMTS.DELETE();
+    WORKBOOK.CELLXFS.DELETE();
+    WORKBOOK.DEFINED_NAMES.DELETE();
+    WORKBOOK := NULL;
+END CLEAR_WORKBOOK;
+
+PROCEDURE NEW_SHEET(
+/**********************************************************
+	NEW_SHEET
+  
+The process  writes the name for the sheet that was generated
+with font style as 'Calibri' and color as 'gray125'
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_SHEETNAME 	IN	VARCHAR2 := NULL)
+IS
+    V_SHEET_COUNT  	PLS_INTEGER := WORKBOOK.SHEETS.COUNT() + 1;
+    V_IND 			    PLS_INTEGER;
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET_COUNT).NAME := NVL(DBMS_XMLGEN.CONVERT(TRANSLATE(IN_SHEETNAME, 'a/\[]*:?', 'a')), 'Sheet' || V_SHEET_COUNT);
+    IF WORKBOOK.STRINGS.COUNT() = 0 THEN
+        WORKBOOK.STR_CNT := 0;
+    END IF;
+    IF WORKBOOK.FONTS.COUNT() = 0 THEN
+        V_IND := GET_FONT('Calibri');
+    END IF;
+    IF WORKBOOK.FILLS.COUNT() = 0 THEN
+        V_IND := GET_FILL('none');
+        V_IND := GET_FILL('gray125');
+    END IF;
+    IF WORKBOOK.BORDERS.COUNT() = 0 THEN
+        V_IND := GET_BORDER('', '', '', '');
+    END IF;
+END NEW_SHEET;
+
+PROCEDURE SET_COL_WIDTH(
+/**********************************************************
+	SET_COL_WIDTH
+  
+The process will set the width for the sheet based on
+the specific format.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_SHEET     IN	   PLS_INTEGER
+  , IN_COL       IN 	 PLS_INTEGER
+  , IN_FORMAT    IN    VARCHAR2)
+IS
+    V_WIDTH     NUMBER;
+    V_NR_CHR    PLS_INTEGER;
+BEGIN
+    IF IN_FORMAT IS NULL THEN
+      RETURN;
+    END IF;
+    IF INSTR(IN_FORMAT, ';') > 0 THEN
+      V_NR_CHR := LENGTH(TRANSLATE(SUBSTR(IN_FORMAT, 1, INSTR(IN_FORMAT, ';') - 1), 'a\"', 'a'));
+    ELSE
+      V_NR_CHR := LENGTH(TRANSLATE(IN_FORMAT, 'a\"', 'a'));
+    END IF;
+    V_WIDTH := TRUNC((V_NR_CHR * 7 + 5) / 7 * 256) / 256; -- assume default 11 point Calibri
+    IF WORKBOOK.SHEETS(IN_SHEET).WIDTHS.EXISTS(IN_COL) THEN
+        WORKBOOK.SHEETS(IN_SHEET).WIDTHS(IN_COL) := GREATEST(WORKBOOK.SHEETS(IN_SHEET).WIDTHS(IN_COL), V_WIDTH);
+    ELSE
+      WORKBOOK.SHEETS(IN_SHEET).WIDTHS(IN_COL) := GREATEST(V_WIDTH, 8.43);
+    END IF;
+END SET_COL_WIDTH;
+
+FUNCTION ORAFMT2EXCEL(
+/**********************************************************
+	ORAFMT2EXCEL
+
+The process will change the formats of date,time and day representation
+based on the specific format.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+   IN_FORMAT 	  IN	 VARCHAR2 := NULL)
+RETURN VARCHAR2
+IS
+    V_FORMAT 	  VARCHAR2(1000)  := SUBSTR(IN_FORMAT, 1, 1000);
+BEGIN
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'hh24', 'hh'), 'hh12', 'hh');
+    V_FORMAT := REPLACE(V_FORMAT, 'mi', 'mm');
+    V_FORMAT := REPLACE(REPLACE(REPLACE(V_FORMAT, 'AM', '~~'), 'PM', '~~'), '~~', 'AM/PM');
+    V_FORMAT := REPLACE(REPLACE(REPLACE(V_FORMAT, 'am', '~~'), 'pm', '~~'), '~~', 'AM/PM');
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'day', 'DAY'), 'DAY', 'dddd');
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'dy', 'DY'), 'DAY', 'ddd');
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'RR', 'RR'), 'RR', 'YY');
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'month', 'MONTH'), 'MONTH', 'mmmm');
+    V_FORMAT := REPLACE(REPLACE(V_FORMAT, 'mon', 'MON'), 'MON', 'mmm');
+    RETURN V_FORMAT;
+END ORAFMT2EXCEL;
+
+FUNCTION GET_NUMFMT(
+/**********************************************************
+	GET_NUMFMT
+
+The function will fetch the Number Format Id for the particular 
+format.And assigns the format value and count to
+the numFmtId,numFmtIndexes fileds .
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_FORMAT 	IN		VARCHAR2 := NULL)
+RETURN PLS_INTEGER
+IS
+    V_CNT        PLS_INTEGER;
+    V_NUMFMTID   PLS_INTEGER;
+BEGIN
+    IF IN_FORMAT IS NULL THEN
+        RETURN 0;
+    END IF;
+    V_CNT := WORKBOOK.NUMFMTS.COUNT();
+    FOR I IN 1 .. V_CNT LOOP
+        IF WORKBOOK.NUMFMTS(I).FORMATCODE = IN_FORMAT THEN
+            V_NUMFMTID := WORKBOOK.NUMFMTS(I).NUMFMTID;
+            EXIT;
+        END IF;
+    END LOOP;
+    IF V_NUMFMTID IS NULL THEN
+        V_NUMFMTID := CASE WHEN V_CNT = 0 THEN
+                               164
+                           ELSE
+                               WORKBOOK.NUMFMTS(V_CNT).NUMFMTID + 1
+                      END;
+        V_CNT := V_CNT + 1;
+        WORKBOOK.NUMFMTS(V_CNT).NUMFMTID := V_NUMFMTID;
+        WORKBOOK.NUMFMTS(V_CNT).FORMATCODE := IN_FORMAT;
+        WORKBOOK.NUMFMTINDEXES(V_NUMFMTID) := V_CNT;
+    END IF;
+    RETURN V_NUMFMTID;
+END GET_NUMFMT;
+
+FUNCTION GET_FONT(
+/**********************************************************
+	GET_FONT
+
+The process will assigns the font values like fontsize,theme,italic,bold
+with the input values .
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_NAME      IN    VARCHAR2
+  , IN_FAMILY    IN    PLS_INTEGER := 2
+  , IN_FONTSIZE  IN    NUMBER      := 11
+  , IN_THEME     IN    PLS_INTEGER := 1
+  , IN_UNDERLINE IN    BOOLEAN     := FALSE
+  , IN_ITALIC    IN    BOOLEAN     := FALSE
+  , IN_BOLD      IN    BOOLEAN     := FALSE
+  , IN_RGB       IN    VARCHAR2    := NULL) -- THIS IS A HEX ALPHA RED GREEN BLUE VALUE
+
+RETURN PLS_INTEGER
+IS
+    V_IND 		PLS_INTEGER;
+BEGIN
+    IF WORKBOOK.FONTS.COUNT() > 0 THEN
+      FOR F IN 0 .. WORKBOOK.FONTS.COUNT() - 1 LOOP
+        IF (WORKBOOK.FONTS(F).NAME = IN_NAME
+           AND
+           WORKBOOK.FONTS(F).FAMILY = IN_FAMILY
+           AND
+           WORKBOOK.FONTS(F).FONTSIZE = IN_FONTSIZE
+           AND
+           WORKBOOK.FONTS(F).THEME = IN_THEME
+           AND
+           WORKBOOK.FONTS(F).UNDERLINE = IN_UNDERLINE
+           AND
+           WORKBOOK.FONTS(F).ITALIC = IN_ITALIC
+           AND
+           WORKBOOK.FONTS(F).BOLD = IN_BOLD
+           AND
+           (WORKBOOK.FONTS(F).RGB = IN_RGB OR (WORKBOOK.FONTS(F).RGB IS NULL AND IN_RGB IS NULL))
+          ) THEN
+          RETURN F;
+        END IF;
+      END LOOP;
+    END IF;
+    V_IND                           := WORKBOOK.FONTS.COUNT();
+    WORKBOOK.FONTS(V_IND).NAME      := IN_NAME;
+    WORKBOOK.FONTS(V_IND).FAMILY    := IN_FAMILY;
+    WORKBOOK.FONTS(V_IND).FONTSIZE  := IN_FONTSIZE;
+    WORKBOOK.FONTS(V_IND).THEME     := IN_THEME;
+    WORKBOOK.FONTS(V_IND).UNDERLINE := IN_UNDERLINE;
+    WORKBOOK.FONTS(V_IND).ITALIC    := IN_ITALIC;
+    WORKBOOK.FONTS(V_IND).BOLD      := IN_BOLD;
+    WORKBOOK.FONTS(V_IND).RGB       := IN_RGB;
+    RETURN V_IND;
+END GET_FONT;
+
+FUNCTION GET_FILL(
+/**********************************************************
+	GET_FILL
+
+The process determines the fill formatting properties for the 
+shape or chart for the given patterntype.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_PATTERNTYPE  IN  VARCHAR2
+  , IN_FGRGB        IN  VARCHAR2 := NULL)
+RETURN PLS_INTEGER
+IS
+    V_IND   PLS_INTEGER;
+BEGIN
+    IF WORKBOOK.FILLS.COUNT() > 0 THEN
+      FOR F IN 0 .. WORKBOOK.FILLS.COUNT() - 1 LOOP
+        IF (WORKBOOK.FILLS(F).PATTERNTYPE = IN_PATTERNTYPE
+            AND
+            NVL(WORKBOOK.FILLS(F).FGRGB, 'x') = NVL(UPPER(IN_FGRGB), 'x')
+          ) THEN
+          RETURN F;
+        END IF;
+      END LOOP;
+    END IF;
+    V_IND                             := WORKBOOK.FILLS.COUNT();
+    WORKBOOK.FILLS(V_IND).PATTERNTYPE := IN_PATTERNTYPE;
+    WORKBOOK.FILLS(V_IND).FGRGB       := UPPER(IN_FGRGB);
+    RETURN V_IND;
+END GET_FILL;
+
+FUNCTION GET_BORDER(
+/**********************************************************
+	GET_BORDER
+
+This process sets the border for the spreadsheet that is built.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_TOP        IN   VARCHAR2 := 'thin'
+  , IN_BOTTOM     IN   VARCHAR2 := 'thin'
+  , IN_LEFT       IN   VARCHAR2 := 'thin'
+  , IN_RIGHT      IN   VARCHAR2 := 'thin')
+RETURN PLS_INTEGER
+IS
+    V_IND     PLS_INTEGER;
+BEGIN
+    IF WORKBOOK.BORDERS.COUNT() > 0 THEN
+      FOR B IN 0 .. WORKBOOK.BORDERS.COUNT() - 1 LOOP
+        IF (NVL(WORKBOOK.BORDERS(B).TOP, 'x') = NVL(IN_TOP, 'x')
+            AND
+            NVL(WORKBOOK.BORDERS(B).BOTTOM, 'x') = NVL(IN_BOTTOM, 'x')
+            AND
+            NVL(WORKBOOK.BORDERS(B).LEFT, 'x') = NVL(IN_LEFT, 'x')
+            AND
+            NVL(WORKBOOK.BORDERS(B).RIGHT, 'x') = NVL(IN_RIGHT, 'x')
+          ) THEN
+          RETURN B;
+        END IF;
+      END LOOP;
+    END IF;
+    V_IND                          := WORKBOOK.BORDERS.COUNT();
+    WORKBOOK.BORDERS(V_IND).TOP    := IN_TOP;
+    WORKBOOK.BORDERS(V_IND).BOTTOM := IN_BOTTOM;
+    WORKBOOK.BORDERS(V_IND).LEFT   := IN_LEFT;
+    WORKBOOK.BORDERS(V_IND).RIGHT  := IN_RIGHT;
+    RETURN V_IND;
+END GET_BORDER;
+
+FUNCTION GET_ALIGNMENT(
+/**********************************************************
+	GET_ALIGNMENT
+
+While writing the xml clob data into the excel sheet this function will 
+sets vertical and horizontal alignment in the excel.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_VERTICAL    IN   VARCHAR2 := NULL,
+    IN_HORIZONTAL  IN   VARCHAR2 := NULL,
+    IN_WRAPTEXT    IN   BOOLEAN  := NULL)
+RETURN TP_ALIGNMENT
+IS
+    V_ROW_VAL     TP_ALIGNMENT;
+BEGIN
+    V_ROW_VAL.VERTICAL   := IN_VERTICAL;
+    V_ROW_VAL.HORIZONTAL := IN_HORIZONTAL;
+    V_ROW_VAL.WRAPTEXT   := IN_WRAPTEXT;
+    RETURN V_ROW_VAL;
+END GET_ALIGNMENT;
+
+FUNCTION GET_XFID(
+/**********************************************************
+	GET_XFID
+
+This process will take the column,row,sheet and numberformat values
+and check the formating for column and rows for specific colum and
+row. And assigns the numFmtId,fontId,borderId,alignment values
+for that particular column/row.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_SHEET     IN   PLS_INTEGER
+  , IN_COL       IN   PLS_INTEGER
+  , IN_ROW       IN   PLS_INTEGER
+  , IN_NUMFMTID  IN   PLS_INTEGER  := NULL
+  , IN_FONTID    IN   PLS_INTEGER  := NULL
+  , IN_FILLID    IN   PLS_INTEGER  := NULL
+  , IN_BORDERID  IN   PLS_INTEGER  := NULL
+  , IN_ALIGNMENT IN   TP_ALIGNMENT := NULL)
+RETURN VARCHAR2
+IS
+    V_CNT 		  PLS_INTEGER;
+    V_XFID 		  PLS_INTEGER;
+    V_XF 		    TP_XF_FMT;
+    V_COL_XF 	  TP_XF_FMT;
+    V_ROW_XF 	  TP_XF_FMT;
+BEGIN
+    IF WORKBOOK.SHEETS(IN_SHEET).COL_FMTS.EXISTS(IN_COL) THEN
+        V_COL_XF := WORKBOOK.SHEETS(IN_SHEET).COL_FMTS(IN_COL);
+    END IF;
+    IF WORKBOOK.SHEETS(IN_SHEET).ROW_FMTS.EXISTS(IN_ROW) THEN
+        V_ROW_XF := WORKBOOK.SHEETS(IN_SHEET).ROW_FMTS(IN_ROW);
+    END IF;
+    V_XF.NUMFMTID  := COALESCE(IN_NUMFMTID, V_COL_XF.NUMFMTID, V_ROW_XF.NUMFMTID, 0);
+    V_XF.FONTID    := COALESCE(IN_FONTID, V_COL_XF.FONTID, V_ROW_XF.FONTID, 0);
+    V_XF.FILLID    := COALESCE(IN_FILLID, V_COL_XF.FILLID, V_ROW_XF.FILLID, 0);
+    V_XF.BORDERID  := COALESCE(IN_BORDERID, V_COL_XF.BORDERID, V_ROW_XF.BORDERID, 0);
+    V_XF.ALIGNMENT := COALESCE(IN_ALIGNMENT, V_COL_XF.ALIGNMENT, V_ROW_XF.ALIGNMENT);
+    IF (V_XF.NUMFMTID + V_XF.FONTID + V_XF.FILLID + V_XF.BORDERID = 0
+        AND
+        V_XF.ALIGNMENT.VERTICAL IS NULL
+        AND
+        V_XF.ALIGNMENT.HORIZONTAL IS NULL
+        AND
+        NOT NVL(V_XF.ALIGNMENT.WRAPTEXT, FALSE)) THEN
+        RETURN '';
+    END IF;
+    IF V_XF.NUMFMTID > 0 THEN
+        SET_COL_WIDTH(IN_SHEET, IN_COL, WORKBOOK.NUMFMTS(WORKBOOK.NUMFMTINDEXES(V_XF.NUMFMTID)).FORMATCODE);
+    END IF;
+    V_CNT := WORKBOOK.CELLXFS.COUNT();
+    FOR I IN 1 .. V_CNT LOOP
+        IF (WORKBOOK.CELLXFS(I).NUMFMTID = V_XF.NUMFMTID
+            AND
+            WORKBOOK.CELLXFS(I).FONTID = V_XF.FONTID
+            AND
+            WORKBOOK.CELLXFS(I).FILLID = V_XF.FILLID
+            AND
+            WORKBOOK.CELLXFS(I).BORDERID = V_XF.BORDERID
+            AND
+            NVL(WORKBOOK.CELLXFS(I).ALIGNMENT.VERTICAL, 'x') = NVL(V_XF.ALIGNMENT.VERTICAL, 'x')
+            AND
+            NVL(WORKBOOK.CELLXFS(I).ALIGNMENT.HORIZONTAL, 'x') = NVL(V_XF.ALIGNMENT.HORIZONTAL, 'x')
+            AND
+            NVL(WORKBOOK.CELLXFS(I).ALIGNMENT.WRAPTEXT, FALSE) = NVL(V_XF.ALIGNMENT.WRAPTEXT, FALSE)) THEN
+            V_XFID := I;
+            EXIT;
+        END IF;
+    END LOOP;
+    IF V_XFID IS NULL THEN
+        V_CNT := V_CNT + 1;
+        V_XFID := V_CNT;
+        WORKBOOK.CELLXFS(V_CNT) := V_XF;
+    END IF;
+    RETURN 's="' || V_XFID || '"';
+END GET_XFID;
+
+PROCEDURE CELL(
+/**********************************************************
+	CELL
+
+This procedure will writes the data into the worksheet
+for each row and column  for p_value as NUMBER
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL         IN    PLS_INTEGER
+  , IN_ROW         IN    PLS_INTEGER
+  , IN_VALUE       IN    NUMBER
+  , IN_NUMFMTID    IN    PLS_INTEGER  := NULL
+  , IN_FONTID      IN    PLS_INTEGER  := NULL
+  , IN_FILLID      IN    PLS_INTEGER  := NULL
+  , IN_BORDERID    IN    PLS_INTEGER  := NULL
+  , IN_ALIGNMENT   IN    TP_ALIGNMENT := NULL
+  , IN_SHEET       IN    PLS_INTEGER  := NULL)
+IS
+    V_SHEET     PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).VALUE := IN_VALUE;
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).STYLE := NULL;
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).STYLE := GET_XFID(V_SHEET, IN_COL, IN_ROW, IN_NUMFMTID, IN_FONTID, IN_FILLID, IN_BORDERID, IN_ALIGNMENT);
+END CELL;
+
+FUNCTION ADD_STRING(
+/**********************************************************
+	ADD_STRING
+
+This PROCEDURE will take the count of the colum value 
+if the string is present else takes the count of the string in workbook
+and assigns the count to that particular string.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_STRING  IN  VARCHAR2)
+RETURN PLS_INTEGER
+IS
+    T_CNT     PLS_INTEGER;
+BEGIN
+    IF WORKBOOK.STRINGS.EXISTS(IN_STRING) THEN
+        T_CNT := WORKBOOK.STRINGS(IN_STRING);
+    ELSE
+        T_CNT                                := WORKBOOK.STRINGS.COUNT();
+        WORKBOOK.STR_IND(T_CNT)              := IN_STRING;
+        WORKBOOK.STRINGS(NVL(IN_STRING, '')) := T_CNT;
+    END IF;
+    WORKBOOK.STR_CNT := WORKBOOK.STR_CNT + 1;
+    RETURN T_CNT;
+END ADD_STRING;
+
+PROCEDURE CELL(
+/**********************************************************
+	CELL
+
+This procedure will writes the data into the worksheet
+for each row and column for p_value as varchar2
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL       IN    PLS_INTEGER
+  , IN_ROW       IN    PLS_INTEGER
+  , IN_VALUE     IN    VARCHAR2
+  , IN_NUMFMTID  IN    PLS_INTEGER  := NULL
+  , IN_FONTID    IN    PLS_INTEGER  := NULL
+  , IN_FILLID    IN    PLS_INTEGER  := NULL
+  , IN_BORDERID  IN    PLS_INTEGER  := NULL
+  , IN_ALIGNMENT IN    TP_ALIGNMENT := NULL
+  , IN_SHEET     IN    PLS_INTEGER  := NULL)
+IS
+    V_SHEET         PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+    V_ALIGNMENT     TP_ALIGNMENT  := IN_ALIGNMENT;
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).VALUE := ADD_STRING(IN_VALUE);
+    IF V_ALIGNMENT.WRAPTEXT IS NULL AND INSTR(IN_VALUE, CHR(13)) > 0 THEN
+      V_ALIGNMENT.WRAPTEXT := TRUE;
+    END IF;
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).STYLE := 't="s" ' || GET_XFID(V_SHEET, IN_COL, IN_ROW, IN_NUMFMTID, IN_FONTID, IN_FILLID, IN_BORDERID, V_ALIGNMENT);
+END CELL;
+
+PROCEDURE CELL(
+/**********************************************************
+	CELL
+
+This procedure will writes the data into the worksheet
+for each row and column for P_value as DATE
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL       IN    PLS_INTEGER
+  , IN_ROW       IN    PLS_INTEGER
+  , IN_VALUE     IN    DATE
+  , IN_NUMFMTID  IN    PLS_INTEGER  := NULL
+  , IN_FONTID    IN    PLS_INTEGER  := NULL
+  , IN_FILLID    IN    PLS_INTEGER  := NULL
+  , IN_BORDERID  IN    PLS_INTEGER  := NULL
+  , IN_ALIGNMENT IN    TP_ALIGNMENT := NULL
+  , IN_SHEET     IN    PLS_INTEGER  := NULL)
+IS
+    V_NUMFMTID    PLS_INTEGER   := IN_NUMFMTID;
+    V_SHEET       PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).VALUE := IN_VALUE - TO_DATE('01-01-1904','DD-MM-YYYY');
+    IF V_NUMFMTID IS NULL
+       AND
+       NOT (WORKBOOK.SHEETS(V_SHEET).COL_FMTS.EXISTS(IN_COL)
+            AND
+            WORKBOOK.SHEETS(V_SHEET).COL_FMTS(IN_COL).NUMFMTID IS NOT NULL)
+       AND
+       NOT (WORKBOOK.SHEETS(V_SHEET).ROW_FMTS.EXISTS(IN_ROW)
+            AND
+            WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).NUMFMTID IS NOT NULL) THEN
+        V_NUMFMTID := GET_NUMFMT('dd/mm/yyyy');
+    END IF;
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).STYLE := GET_XFID(V_SHEET, IN_COL, IN_ROW, V_NUMFMTID, IN_FONTID, IN_FILLID, IN_BORDERID, IN_ALIGNMENT);
+END CELL;
+
+PROCEDURE HYPERLINK(
+/**********************************************************
+	HYPERLINK
+creates the hyper link for the URL that is passed.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL    IN   PLS_INTEGER
+  , IN_ROW    IN   PLS_INTEGER
+  , IN_URL    IN   VARCHAR2
+  , IN_VALUE  IN   VARCHAR2    := NULL
+  , IN_SHEET  IN   PLS_INTEGER := NULL)
+IS
+    V_IND     PLS_INTEGER;
+    V_SHEET   PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).VALUE := ADD_STRING(NVL(IN_VALUE, IN_URL));
+    WORKBOOK.SHEETS(V_SHEET).ROWS(IN_ROW)(IN_COL).STYLE := 't="s" ' || GET_XFID(V_SHEET, IN_COL, IN_ROW, '', GET_FONT('Calibri', IN_THEME => 10, IN_UNDERLINE => TRUE));
+    V_IND := WORKBOOK.SHEETS(V_SHEET).HYPERLINKS.COUNT() + 1;
+    WORKBOOK.SHEETS(V_SHEET).HYPERLINKS(V_IND).CELL := ALFAN_COL(IN_COL) || IN_ROW;
+    WORKBOOK.SHEETS(V_SHEET).HYPERLINKS(V_IND).URL  := IN_URL;
+END HYPERLINK;
+
+/*PROCEDURE COMMENT(
+/**********************************************************
+	COMMENT
+
+Comments are notes that you attach to cells,
+this process will add the comments to the particular cell
+in a row.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_COL     IN   PLS_INTEGER
+  , IN_ROW     IN   PLS_INTEGER
+  , IN_TEXT    IN   VARCHAR2
+  , IN_AUTHOR  IN   VARCHAR2    := NULL
+  , IN_WIDTH   IN   PLS_INTEGER := 150
+  , IN_HEIGHT  IN   PLS_INTEGER := 100
+  , IN_SHEET   IN   PLS_INTEGER := NULL)
+IS
+    V_IND     PLS_INTEGER;
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    V_IND := WORKBOOK.SHEETS(V_SHEET).COMMENTS.COUNT() + 1;
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).ROW     := IN_ROW;
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).COLUMN  := IN_COL;
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).TEXT    := DBMS_XMLGEN.CONVERT(IN_TEXT);
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).AUTHOR  := DBMS_XMLGEN.CONVERT(IN_AUTHOR);
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).WIDTH   := IN_WIDTH;
+    WORKBOOK.SHEETS(V_SHEET).COMMENTS(V_IND).HEIGHT  := IN_HEIGHT;
+END COMMENT;
+
+PROCEDURE MERGECELLS(
+/**********************************************************
+	MERGECELLS
+
+This process merges any two cells with given input of
+rows and columns in  a sheet.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+ /* IN_TL_COL  IN  PLS_INTEGER -- top left
+  , IN_TL_ROW  IN  PLS_INTEGER
+  , IN_BR_COL  IN  PLS_INTEGER -- bottom right
+  , IN_BR_ROW  IN  PLS_INTEGER
+  , IN_SHEET   IN  PLS_INTEGER := NULL)
+IS
+    V_IND     PLS_INTEGER;
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    V_IND := WORKBOOK.SHEETS(V_SHEET).MERGECELLS.COUNT() + 1;
+    WORKBOOK.SHEETS(V_SHEET).MERGECELLS(V_IND) := ALFAN_COL(IN_TL_COL) || IN_TL_ROW || ':' || ALFAN_COL(IN_BR_COL) || IN_BR_ROW;
+END MERGECELLS;
+
+PROCEDURE ADD_VALIDATION(
+/**********************************************************
+	ADD_VALIDATION
+
+The process is used to validate the spreadsheet.For any exceptons 
+occured the spreadsheet 'stop' before opening the worksheet.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_TYPE         IN   VARCHAR2
+  , IN_SQREF        IN   VARCHAR2
+  , IN_STYLE        IN   VARCHAR2    := 'stop' -- stop, warning, information
+  , IN_FORMULA1     IN   VARCHAR2    := NULL
+  , IN_FORMULA2     IN   VARCHAR2    := NULL
+  , IN_TITLE        IN   VARCHAR2    := NULL
+  , IN_PROMPT       IN   VARCHAR     := NULL
+  , IN_SHOW_ERROR   IN   BOOLEAN     := FALSE
+  , IN_ERROR_TITLE  IN   VARCHAR2    := NULL
+  , IN_ERROR_TXT    IN   VARCHAR2    := NULL
+  , IN_SHEET        IN   PLS_INTEGER := NULL)
+IS
+    V_IND     PLS_INTEGER;
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    V_IND := WORKBOOK.SHEETS(V_SHEET).VALIDATIONS.COUNT() + 1;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).TYPE             := IN_TYPE;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).ERRORSTYLE       := IN_STYLE;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).SQREF            := IN_SQREF;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).FORMULA1         := IN_FORMULA1;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).ERROR_TITLE      := IN_ERROR_TITLE;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).ERROR_TXT        := IN_ERROR_TXT;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).TITLE            := IN_TITLE;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).PROMPT           := IN_PROMPT;
+    WORKBOOK.SHEETS(V_SHEET).VALIDATIONS(V_IND).SHOWERRORMESSAGE := IN_SHOW_ERROR;
+END ADD_VALIDATION;
+
+PROCEDURE LIST_VALIDATION(
+/**********************************************************
+	LIST_VALIDATION
+
+The proces invokes the Add_validation method based on teh input.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_SQREF_COL    IN    PLS_INTEGER
+  , IN_SQREF_ROW    IN    PLS_INTEGER
+  , IN_TL_COL       IN    PLS_INTEGER -- top left
+  , IN_TL_ROW       IN    PLS_INTEGER
+  , IN_BR_COL       IN    PLS_INTEGER -- bottom right
+  , IN_BR_ROW       IN    PLS_INTEGER
+  , IN_STYLE        IN    VARCHAR2    := 'stop' -- stop, warning, information
+  , IN_TITLE        IN    VARCHAR2    := NULL
+  , IN_PROMPT       IN    VARCHAR     := NULL
+  , IN_SHOW_ERROR   IN    BOOLEAN     := FALSE
+  , IN_ERROR_TITLE  IN    VARCHAR2    := NULL
+  , IN_ERROR_TXT    IN    VARCHAR2    := NULL
+  , IN_SHEET        IN    PLS_INTEGER := NULL)
+IS
+BEGIN
+    ADD_VALIDATION('list',
+                   ALFAN_COL(IN_SQREF_COL) || IN_SQREF_ROW,
+                   IN_STYLE        => LOWER(IN_STYLE),
+                   IN_FORMULA1      => '$' || ALFAN_COL(IN_TL_COL) || '$' ||  IN_TL_ROW || ':$' || ALFAN_COL(IN_BR_COL) || '$' || IN_BR_ROW,
+                   IN_TITLE        => IN_TITLE,
+                   IN_PROMPT       => IN_PROMPT,
+                   IN_SHOW_ERROR   => IN_SHOW_ERROR,
+                   IN_ERROR_TITLE  => IN_ERROR_TITLE,
+                   IN_ERROR_TXT    => IN_ERROR_TXT,
+                   IN_SHEET        => IN_SHEET); 
+END LIST_VALIDATION;
+
+PROCEDURE LIST_VALIDATION(
+/**********************************************************
+	LIST_VALIDATION
+
+The proces invokes the Add_validation method based on teh input.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_SQREF_COL     IN   PLS_INTEGER
+  , IN_SQREF_ROW     IN   PLS_INTEGER
+  , IN_DEFINED_NAME  IN   VARCHAR2
+  , IN_STYLE         IN   VARCHAR2    := 'stop' -- stop, warning, information
+  , IN_TITLE         IN   VARCHAR2    := NULL
+  , IN_PROMPT        IN   VARCHAR     := NULL
+  , IN_SHOW_ERROR    IN   BOOLEAN     := FALSE
+  , IN_ERROR_TITLE   IN   VARCHAR2    := NULL
+  , IN_ERROR_TXT     IN   VARCHAR2    := NULL
+  , IN_SHEET         IN   PLS_INTEGER := NULL)
+IS
+BEGIN
+    ADD_VALIDATION('list',
+                   ALFAN_COL(IN_SQREF_COL) || IN_SQREF_ROW,
+                   IN_STYLE        => LOWER(IN_STYLE),
+                   IN_FORMULA1      => IN_DEFINED_NAME,
+                   IN_TITLE        => IN_TITLE,
+                   IN_PROMPT       => IN_PROMPT,
+                   IN_SHOW_ERROR   => IN_SHOW_ERROR,
+                   IN_ERROR_TITLE  => IN_ERROR_TITLE,
+                   IN_ERROR_TXT    => IN_ERROR_TXT,
+                   IN_SHEET        => IN_SHEET); 
+END LIST_VALIDATION;*/
+
+PROCEDURE DEFINED_NAME(
+/**********************************************************
+	DEFINED_NAME
+
+The process is used to write the header column in the spreadsheet. 
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_TL_COL      IN    PLS_INTEGER -- Top Left
+  , IN_TL_ROW      IN    PLS_INTEGER
+  , IN_BR_COL      IN    PLS_INTEGER -- Bottom Right
+  , IN_BR_ROW      IN    PLS_INTEGER
+  , IN_NAME        IN    VARCHAR2
+  , IN_SHEET       IN    PLS_INTEGER := NULL
+  , IN_LOCALSHEET  IN    PLS_INTEGER := NULL)
+IS
+    V_IND 		PLS_INTEGER;
+    V_SHEET 	PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    V_IND := WORKBOOK.DEFINED_NAMES.COUNT() + 1;
+    WORKBOOK.DEFINED_NAMES(V_IND).NAME := IN_NAME;
+    WORKBOOK.DEFINED_NAMES(V_IND).REF := 'Sheet' || V_SHEET || '!$' || ALFAN_COL(IN_TL_COL) || '$' ||  IN_TL_ROW || ':$' || ALFAN_COL(IN_BR_COL) || '$' || IN_BR_ROW;
+    WORKBOOK.DEFINED_NAMES(V_IND).SHEET := IN_LOCALSHEET;
+END DEFINED_NAME;
+
+PROCEDURE SET_COLUMN_WIDTH(
+/**********************************************************
+	SET_COLUMN_WIDTH
+
+The process sets the width of the for each column
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL    IN   PLS_INTEGER
+  , IN_WIDTH  IN   NUMBER
+  , IN_SHEET  IN   PLS_INTEGER := NULL)
+IS
+BEGIN
+    WORKBOOK.SHEETS(NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT())).WIDTHS(IN_COL) := IN_WIDTH;
+END SET_COLUMN_WIDTH;
+
+PROCEDURE SET_COLUMN(
+/**********************************************************
+	SET_COLUMN
+
+The process assigns the values for the each column values
+like numFmtId,fontId,fillId and borderId. These properties will define the column
+format.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COL       IN     PLS_INTEGER
+  , IN_NUMFMTID  IN     PLS_INTEGER 	:= NULL 
+  , IN_FONTID    IN     PLS_INTEGER 	:= NULL 
+  , IN_FILLID    IN     PLS_INTEGER 	:= NULL 
+  , IN_BORDERID  IN     PLS_INTEGER 	:= NULL 
+  , IN_ALIGNMENT IN     TP_ALIGNMENT 	:= NULL 
+  , IN_SHEET     IN     PLS_INTEGER 	:= NULL)
+IS
+    T_SHEET     PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(T_SHEET).COL_FMTS(IN_COL).NUMFMTID  := IN_NUMFMTID;
+    WORKBOOK.SHEETS(T_SHEET).COL_FMTS(IN_COL).FONTID    := IN_FONTID;
+    WORKBOOK.SHEETS(T_SHEET).COL_FMTS(IN_COL).FILLID    := IN_FILLID;
+    WORKBOOK.SHEETS(T_SHEET).COL_FMTS(IN_COL).BORDERID  := IN_BORDERID;
+    WORKBOOK.SHEETS(T_SHEET).COL_FMTS(IN_COL).ALIGNMENT := IN_ALIGNMENT;
+END SET_COLUMN;
+
+PROCEDURE SET_ROW(
+/**********************************************************
+	SET_ROW
+
+The process assigns the values for the each row values
+like numFmtId,fontId,fillId and borderId. These properties will define the row
+format.
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_ROW         IN   PLS_INTEGER
+  , IN_NUMFMTID    IN   PLS_INTEGER  := NULL
+  , IN_FONTID      IN   PLS_INTEGER  := NULL
+  , IN_FILLID      IN   PLS_INTEGER  := NULL
+  , IN_BORDERID    IN   PLS_INTEGER  := NULL
+  , IN_ALIGNMENT   IN   TP_ALIGNMENT := NULL
+  , IN_SHEET       IN   PLS_INTEGER  := NULL)
+IS
+    V_SHEET 	PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).NUMFMTID  := IN_NUMFMTID;
+    WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).FONTID    := IN_FONTID;
+    WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).FILLID    := IN_FILLID;
+    WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).BORDERID  := IN_BORDERID;
+    WORKBOOK.SHEETS(V_SHEET).ROW_FMTS(IN_ROW).ALIGNMENT := IN_ALIGNMENT;
+END SET_ROW;
+
+/*PROCEDURE FREEZE_ROWS(
+/**********************************************************
+	FREEZE_ROWS
+
+	This PROCEDURE will return a ref cursor with data  
+	from BANK_CARD table based on COST_CENTER_CODE
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_NR_ROWS PLS_INTEGER := 1,
+    IN_SHEET   PLS_INTEGER := NULL)
+IS
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_COLS := NULL;
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_ROWS := IN_NR_ROWS;
+END FREEZE_ROWS;
+
+PROCEDURE FREEZE_COLS(
+/**********************************************************
+	FREEZE_COLS
+
+	This PROCEDURE will return a ref cursor with data  
+	from BANK_CARD table based on COST_CENTER_CODE
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*  IN_NR_COLS  IN   PLS_INTEGER := 1,
+    IN_SHEET    IN   PLS_INTEGER := NULL)
+IS
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_ROWS := NULL;
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_COLS := IN_NR_COLS;
+END FREEZE_COLS;
+
+PROCEDURE FREEZE_PANE(
+/**********************************************************
+	FREEZE_PANE
+
+	This PROCEDURE will return a ref cursor with data  
+	from BANK_CARD table based on COST_CENTER_CODE
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+/*   IN_COL    IN   PLS_INTEGER,
+    IN_ROW    IN   PLS_INTEGER,
+    IN_SHEET  IN   PLS_INTEGER := NULL)
+IS
+    V_SHEET   PLS_INTEGER := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_ROWS := IN_ROW;
+    WORKBOOK.SHEETS(V_SHEET).FREEZE_COLS := IN_COL;
+END FREEZE_PANE;*/
+
+PROCEDURE SET_AUTOFILTER(
+/**********************************************************
+	SET_AUTOFILTER
+
+This Process will indicates the start and end of the column and 
+based on the start and end position the column header is build.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_COLUMN_START  IN   PLS_INTEGER := NULL,
+    IN_COLUMN_END    IN   PLS_INTEGER := NULL,
+    IN_ROW_START     IN   PLS_INTEGER := NULL,
+    IN_ROW_END       IN   PLS_INTEGER := NULL,
+    IN_SHEET         IN   PLS_INTEGER := NULL)
+IS
+    V_IND     PLS_INTEGER;
+    V_SHEET   PLS_INTEGER   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+BEGIN
+    V_IND := 1;
+    WORKBOOK.SHEETS(V_SHEET).AUTOFILTERS(V_IND).COLUMN_START := IN_COLUMN_START;
+    WORKBOOK.SHEETS(V_SHEET).AUTOFILTERS(V_IND).COLUMN_END   := IN_COLUMN_END;
+    WORKBOOK.SHEETS(V_SHEET).AUTOFILTERS(V_IND).ROW_START    := IN_ROW_START;
+    WORKBOOK.SHEETS(V_SHEET).AUTOFILTERS(V_IND).ROW_END      := IN_ROW_END;
+    DEFINED_NAME(IN_COLUMN_START, IN_ROW_START, IN_COLUMN_END, IN_ROW_END, '_xlnm._FilterDatabase', V_SHEET, V_SHEET - 1);
+END SET_AUTOFILTER;
+
+PROCEDURE ADD1XML(
+/**********************************************************
+	ADD1XML
+
+This process will add each xml that is built in the 'Finish' 
+procedure.The function 'converttoblob' will convert and writes
+the data in 'P_XML' to T_TMP in BLOB .
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IO_EXCEL     IN OUT     NOCOPY BLOB
+  , IN_FILENAME  IN         VARCHAR2
+  , IN_XML       IN         CLOB)
+IS
+    V_TMP            BLOB;
+    V_DEST_OFFSET    INTEGER  := 1;
+    V_SRC_OFFSET     INTEGER  := 1;
+    V_LANG_CONTEXT   INTEGER;
+     WARNING         INTEGER;
+BEGIN
+    V_LANG_CONTEXT := DBMS_LOB.DEFAULT_LANG_CTX;
+    DBMS_LOB.CREATETEMPORARY(V_TMP, TRUE);
+    DBMS_LOB.CONVERTTOBLOB(V_TMP,
+                           IN_XML,
+                           DBMS_LOB.LOBMAXSIZE,
+                           V_DEST_OFFSET,
+                           V_SRC_OFFSET,
+                           NLS_CHARSET_ID('AL32UTF8'),
+                           V_LANG_CONTEXT,
+                           WARNING);
+    ADD1FILE(IO_EXCEL, IN_FILENAME, V_TMP);
+    DBMS_LOB.FREETEMPORARY(V_TMP);
+END ADD1XML;
+
+FUNCTION FINISH
+/**********************************************************
+	FINISH
+
+This process will build the separate XML clob for 
+Style definitions,The main document body,List definitions etc.
+Types of xml clobs as per 2007 word format.The Word represents each 
+of these document parts with an individual file within the package.
+1. [Content_Types].xml :Describes the content type for each part that appears in the file.
+2. _rels folder. Stores the relationship part for any given part.
+3 .rels file. Describes the relationships that begin the document structure. Called a relationship part.
+4. docProps folder. Contains the application's properties parts.
+5. xl/workbook.xml contains the styling and formating properties ..
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+RETURN BLOB
+IS
+    V_EXCEL                      BLOB;
+    V_CLOB                       CLOB;
+    V_TMP                        VARCHAR2(32767 CHAR);
+    V_STR                        VARCHAR2(32767 CHAR);
+    V_CUR_NUM                    NUMBER;
+    V_HEIGHT                     NUMBER;
+    V_WIDTH                      NUMBER;
+    V_COL_WID                    NUMBER;
+    V_CELL                       VARCHAR2(1000 CHAR);
+    V_ROW_IND                    PLS_INTEGER;
+    V_COL_MIN                    PLS_INTEGER;
+    V_COL_MAX                    PLS_INTEGER;
+    V_COL_IND                    PLS_INTEGER;
+    V_LEN                        PLS_INTEGER;
+    V_TS                         TIMESTAMP := SYSTIMESTAMP;
+BEGIN
+    DBMS_LOB.CREATETEMPORARY(V_EXCEL, TRUE);
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>';
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        V_CLOB := V_CLOB || '
+<Override PartName="/xl/worksheets/sheet' || S || '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+    END LOOP;
+    V_CLOB := V_CLOB || '
+<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>';
+ /*   FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        IF WORKBOOK.SHEETS(S).COMMENTS.COUNT() > 0 THEN
+            V_CLOB := V_CLOB || '
+<Override PartName="/xl/comments' || s || '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/>';
+        END IF;
+    END LOOP;*/
+    V_CLOB := V_CLOB || '
+</Types>';
+    ADD1XML(V_EXCEL, '[Content_Types].xml', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:creator>'                                 || SYS_CONTEXT('userenv', 'os_user')                            || '</dc:creator>
+<cp:lastModifiedBy>'                          || SYS_CONTEXT('userenv', 'os_user')                            || '</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">'  || TO_CHAR(CURRENT_TIMESTAMP, 'yyyy-mm-dd"T"hh24:mi:ssTZH:TZM') || '</dcterms:created>
+<dcterms:modified xsi:type="dcterms:W3CDTF">' || TO_CHAR(CURRENT_TIMESTAMP, 'yyyy-mm-dd"T"hh24:mi:ssTZH:TZM') || '</dcterms:modified>
+</cp:coreProperties>';
+    ADD1XML(V_EXCEL, 'docProps/core.xml', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+<Application>Microsoft Excel</Application>
+<DocSecurity>0</DocSecurity>
+<ScaleCrop>false</ScaleCrop>
+<HeadingPairs>
+   <vt:vector size="2" baseType="variant">
+      <vt:variant><vt:lpstr>Worksheets</vt:lpstr></vt:variant>
+      <vt:variant><vt:i4>' || WORKBOOK.SHEETS.COUNT() || '</vt:i4></vt:variant>
+   </vt:vector>
+</HeadingPairs>
+<TitlesOfParts>
+   <vt:vector size="' || WORKBOOK.SHEETS.COUNT() || '" baseType="lpstr">';
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        V_CLOB := V_CLOB || '
+<vt:lpstr>' || WORKBOOK.SHEETS(S).NAME || '</vt:lpstr>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</vt:vector>
+</TitlesOfParts>
+<LinksUpToDate>false</LinksUpToDate>
+<SharedDoc>false</SharedDoc>
+<HyperlinksChanged>false</HyperlinksChanged>
+<AppVersion>14.0300</AppVersion>
+</Properties>';
+    ADD1XML(V_EXCEL, 'docProps/app.xml', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>';
+    ADD1XML(V_EXCEL, '_rels/.rels', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x14ac" xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">';
+    IF WORKBOOK.NUMFMTS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<numFmts count="' || WORKBOOK.NUMFMTS.COUNT() || '">';
+        for n in 1 .. workbook.numFmts.count() loop
+            V_CLOB := V_CLOB || '<numFmt numFmtId="' || WORKBOOK.NUMFMTS(N).NUMFMTID || '" formatCode="' || WORKBOOK.NUMFMTS(N).FORMATCODE || '"/>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</numFmts>';
+    END IF;
+    V_CLOB := V_CLOB || '<fonts count="' || WORKBOOK.FONTS.COUNT() || '" x14ac:knownFonts="1">';
+    FOR F IN 0 .. WORKBOOK.FONTS.COUNT() - 1 LOOP
+        V_CLOB := V_CLOB || '<font>' || 
+                 CASE WHEN WORKBOOK.FONTS(F).BOLD THEN '<b/>' END ||
+                 CASE WHEN WORKBOOK.FONTS(F).ITALIC THEN '<i/>' END ||
+                 CASE WHEN WORKBOOK.FONTS(F).UNDERLINE THEN '<u/>' END ||
+'<sz val="' || TO_CHAR(WORKBOOK.FONTS(F).FONTSIZE, 'TM9', 'NLS_NUMERIC_CHARACTERS=.,')  || '"/>
+<color ' || CASE WHEN WORKBOOK.FONTS(F).RGB IS NOT NULL THEN 'rgb="' || WORKBOOK.FONTS(F).RGB ELSE 'theme="' || WORKBOOK.FONTS(F).THEME END || '"/>
+<name val="' || WORKBOOK.FONTS(F).NAME || '"/>
+<family val="' || WORKBOOK.FONTS(F).FAMILY || '"/>
+<scheme val="none"/>
+</font>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</fonts>
+<fills count="' || WORKBOOK.FILLS.COUNT() || '">';
+    FOR F IN 0 .. WORKBOOK.FILLS.COUNT() - 1 LOOP
+        V_CLOB := V_CLOB || '<fill><patternFill patternType="' || workbook.fills(f).patternType || '">' ||
+                              CASE WHEN WORKBOOK.FILLS(F).FGRGB IS NOT NULL THEN '<fgColor rgb="' || WORKBOOK.FILLS(F).FGRGB || '"/>' end ||
+                          '</patternFill></fill>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</fills>
+<borders count="' || WORKBOOK.BORDERS.COUNT() || '">';
+    FOR B IN 0 .. WORKBOOK.BORDERS.COUNT() - 1 LOOP
+      V_CLOB := V_CLOB || '<border>' ||
+         CASE WHEN WORKBOOK.BORDERS(B).LEFT   IS NULL THEN '<left/>'   ELSE '<left style="'   || WORKBOOK.BORDERS(B).LEFT   || '"/>' END ||
+         CASE WHEN WORKBOOK.BORDERS(B).RIGHT  IS NULL THEN '<right/>'  ELSE '<right style="'  || WORKBOOK.BORDERS(B).RIGHT  || '"/>' END ||
+         CASE WHEN WORKBOOK.BORDERS(B).TOP    IS NULL THEN '<top/>'    ELSE '<top style="'    || WORKBOOK.BORDERS(B).TOP    || '"/>' END ||
+         CASE WHEN WORKBOOK.BORDERS(B).BOTTOM IS NULL THEN '<bottom/>' ELSE '<bottom style="' || WORKBOOK.BORDERS(B).BOTTOM || '"/>' END ||
+         '</border>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</borders>
+<cellStyleXfs count="1">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+</cellStyleXfs>
+<cellXfs count="' || (WORKBOOK.CELLXFS.COUNT() + 1) || '">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>';
+    FOR X IN 1 .. WORKBOOK.CELLXFS.COUNT() LOOP
+        V_CLOB := V_CLOB || '<xf numFmtId="' || WORKBOOK.CELLXFS(X).NUMFMTID || '" fontId="' || WORKBOOK.CELLXFS(X).FONTID || '" fillId="' || WORKBOOK.CELLXFS(X).FILLID || '" borderId="' || WORKBOOK.CELLXFS(X).BORDERID || '">';
+        IF (WORKBOOK.CELLXFS(X).ALIGNMENT.HORIZONTAL IS NOT NULL
+            OR
+            WORKBOOK.CELLXFS(X).ALIGNMENT.VERTICAL IS NOT NULL
+            OR
+            WORKBOOK.CELLXFS(X).ALIGNMENT.WRAPTEXT) THEN
+            V_CLOB := V_CLOB || '<alignment' ||
+                               CASE WHEN WORKBOOK.CELLXFS(X).ALIGNMENT.HORIZONTAL IS NOT NULL THEN ' horizontal="' || WORKBOOK.CELLXFS(X).ALIGNMENT.HORIZONTAL || '"' END ||
+                               CASE WHEN WORKBOOK.CELLXFS(X).ALIGNMENT.VERTICAL IS NOT NULL THEN ' vertical="' || WORKBOOK.CELLXFS(X).ALIGNMENT.VERTICAL || '"' END ||
+                               CASE WHEN WORKBOOK.CELLXFS(X).ALIGNMENT.WRAPTEXT THEN ' wrapText="true"' END || '/>';
+        END IF;
+        V_CLOB := V_CLOB || '</xf>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</cellXfs>
+<cellStyles count="1">
+<cellStyle name="Normal" xfId="0" builtinId="0"/>
+</cellStyles>
+<dxfs count="0"/>
+<tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+<extLst>
+<ext uri="{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">
+<x14:slicerStyles defaultSlicerStyle="SlicerStyleLight1"/>
+</ext>
+</extLst>
+</styleSheet>';
+    ADD1XML(V_EXCEL, 'xl/styles.xml', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<fileVersion appName="xl" lastEdited="5" lowestEdited="5" rupBuild="9302"/>
+<workbookPr date1904="true" defaultThemeVersion="124226"/>
+<bookViews>
+<workbookView xWindow="120" yWindow="45" windowWidth="19155" windowHeight="4935"/>
+</bookViews>
+<sheets>';
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        V_CLOB := V_CLOB || '
+<sheet name="' || WORKBOOK.SHEETS(S).NAME || '" sheetId="' || s || '" r:id="rId' || (9 + s) || '"/>';
+    end loop;
+    V_CLOB := V_CLOB || '</sheets>';
+    IF WORKBOOK.DEFINED_NAMES.COUNT() > 0 THEN
+      V_CLOB := V_CLOB || '<definedNames>';
+      FOR S IN 1 .. WORKBOOK.DEFINED_NAMES.COUNT() LOOP
+        V_CLOB := V_CLOB || '
+<definedName name="' || WORKBOOK.DEFINED_NAMES(S).NAME || '"' ||
+            CASE WHEN WORKBOOK.DEFINED_NAMES(S).SHEET IS NOT NULL THEN ' localSheetId="' || TO_CHAR(WORKBOOK.DEFINED_NAMES(S).SHEET) || '"' END ||
+            '>' || WORKBOOK.DEFINED_NAMES(S).REF || '</definedName>';
+      END LOOP;
+      V_CLOB := V_CLOB || '</definedNames>';
+    END IF;
+    V_CLOB := V_CLOB || '<calcPr calcId="144525"/></workbook>';
+    ADD1XML(V_EXCEL, 'xl/workbook.xml', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+      <a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F497D"/></a:dk2>
+      <a:lt2><a:srgbClr val="EEECE1"/></a:lt2>
+      <a:accent1><a:srgbClr val="4F81BD"/></a:accent1>
+      <a:accent2><a:srgbClr val="C0504D"/></a:accent2>
+      <a:accent3><a:srgbClr val="9BBB59"/></a:accent3>
+      <a:accent4><a:srgbClr val="8064A2"/></a:accent4>
+      <a:accent5><a:srgbClr val="4BACC6"/></a:accent5>
+      <a:accent6><a:srgbClr val="F79646"/></a:accent6>
+      <a:hlink><a:srgbClr val="0000FF"/></a:hlink>
+      <a:folHlink><a:srgbClr val="800080"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="Office">
+      <a:majorFont>
+        <a:latin typeface="Cambria"/>
+        <a:ea typeface=""/>
+        <a:cs typeface=""/>
+        <a:font script="Jpan" typeface="MS P????"/>
+        <a:font script="Hang" typeface="?? ??"/>
+        <a:font script="Hans" typeface="??"/>
+        <a:font script="Hant" typeface="????"/>
+        <a:font script="Arab" typeface="Times New Roman"/>
+        <a:font script="Hebr" typeface="Times New Roman"/>
+        <a:font script="Thai" typeface="Tahoma"/>
+        <a:font script="Ethi" typeface="Nyala"/>
+        <a:font script="Beng" typeface="Vrinda"/>
+        <a:font script="Gujr" typeface="Shruti"/>
+        <a:font script="Khmr" typeface="MoolBoran"/>
+        <a:font script="Knda" typeface="Tunga"/>
+        <a:font script="Guru" typeface="Raavi"/>
+        <a:font script="Cans" typeface="Euphemia"/>
+        <a:font script="Cher" typeface="Plantagenet Cherokee"/>
+        <a:font script="Yiii" typeface="Microsoft Yi Baiti"/>
+        <a:font script="Tibt" typeface="Microsoft Himalaya"/>
+        <a:font script="Thaa" typeface="MV Boli"/>
+        <a:font script="Deva" typeface="Mangal"/>
+        <a:font script="Telu" typeface="Gautami"/>
+        <a:font script="Taml" typeface="Latha"/>
+        <a:font script="Syrc" typeface="Estrangelo Edessa"/>
+        <a:font script="Orya" typeface="Kalinga"/>
+        <a:font script="Mlym" typeface="Kartika"/>
+        <a:font script="Laoo" typeface="DokChampa"/>
+        <a:font script="Sinh" typeface="Iskoola Pota"/>
+        <a:font script="Mong" typeface="Mongolian Baiti"/>
+        <a:font script="Viet" typeface="Times New Roman"/>
+        <a:font script="Uigh" typeface="Microsoft Uighur"/>
+        <a:font script="Geor" typeface="Sylfaen"/>
+      </a:majorFont>
+      <a:minorFont>
+        <a:latin typeface="Calibri"/>
+        <a:ea typeface=""/>
+        <a:cs typeface=""/>
+        <a:font script="Jpan" typeface="MS P????"/>
+        <a:font script="Hang" typeface="?? ??"/>
+        <a:font script="Hans" typeface="??"/>
+        <a:font script="Hant" typeface="????"/>
+        <a:font script="Arab" typeface="Arial"/>
+        <a:font script="Hebr" typeface="Arial"/>
+        <a:font script="Thai" typeface="Tahoma"/>
+        <a:font script="Ethi" typeface="Nyala"/>
+        <a:font script="Beng" typeface="Vrinda"/>
+        <a:font script="Gujr" typeface="Shruti"/>
+        <a:font script="Khmr" typeface="DaunPenh"/>
+        <a:font script="Knda" typeface="Tunga"/>
+        <a:font script="Guru" typeface="Raavi"/>
+        <a:font script="Cans" typeface="Euphemia"/>
+        <a:font script="Cher" typeface="Plantagenet Cherokee"/>
+        <a:font script="Yiii" typeface="Microsoft Yi Baiti"/>
+        <a:font script="Tibt" typeface="Microsoft Himalaya"/>
+        <a:font script="Thaa" typeface="MV Boli"/>
+        <a:font script="Deva" typeface="Mangal"/>
+        <a:font script="Telu" typeface="Gautami"/>
+        <a:font script="Taml" typeface="Latha"/>
+        <a:font script="Syrc" typeface="Estrangelo Edessa"/>
+        <a:font script="Orya" typeface="Kalinga"/>
+        <a:font script="Mlym" typeface="Kartika"/>
+        <a:font script="Laoo" typeface="DokChampa"/>
+        <a:font script="Sinh" typeface="Iskoola Pota"/>
+        <a:font script="Mong" typeface="Mongolian Baiti"/>
+        <a:font script="Viet" typeface="Arial"/>
+        <a:font script="Uigh" typeface="Microsoft Uighur"/>
+        <a:font script="Geor" typeface="Sylfaen"/>
+      </a:minorFont>
+    </a:fontScheme>
+    <a:fmtScheme name="Office">
+      <a:fillStyleLst>
+      <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+      <a:gradFill rotWithShape="1">
+      <a:gsLst>
+        <a:gs pos="0"><a:schemeClr val="phClr"><a:tint val="50000"/><a:satMod val="300000"/></a:schemeClr></a:gs>
+        <a:gs pos="35000"><a:schemeClr val="phClr"><a:tint val="37000"/><a:satMod val="300000"/></a:schemeClr></a:gs>
+        <a:gs pos="100000"><a:schemeClr val="phClr"><a:tint val="15000"/><a:satMod val="350000"/></a:schemeClr></a:gs>
+      </a:gsLst>
+      <a:lin ang="16200000" scaled="1"/></a:gradFill><a:gradFill rotWithShape="1">
+      <a:gsLst>
+        <a:gs pos="0"><a:schemeClr val="phClr"><a:shade val="51000"/><a:satMod val="130000"/></a:schemeClr></a:gs>
+        <a:gs pos="80000"><a:schemeClr val="phClr"><a:shade val="93000"/><a:satMod val="130000"/></a:schemeClr></a:gs>
+        <a:gs pos="100000"><a:schemeClr val="phClr"><a:shade val="94000"/><a:satMod val="135000"/></a:schemeClr></a:gs>
+      </a:gsLst>
+      <a:lin ang="16200000" scaled="0"/>
+</a:gradFill>
+</a:fillStyleLst>
+<a:lnStyleLst>
+<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"><a:shade val="95000"/><a:satMod val="105000"/></a:schemeClr></a:solidFill><a:prstDash val="solid"/></a:ln>
+<a:ln w="25400" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+<a:ln w="38100" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+</a:lnStyleLst>
+<a:effectStyleLst>
+<a:effectStyle>
+<a:effectLst>
+<a:outerShdw blurRad="40000" dist="20000" dir="5400000" rotWithShape="0">
+<a:srgbClr val="000000">
+<a:alpha val="38000"/>
+</a:srgbClr>
+</a:outerShdw>
+</a:effectLst>
+</a:effectStyle>
+<a:effectStyle>
+<a:effectLst>
+<a:outerShdw blurRad="40000" dist="23000" dir="5400000" rotWithShape="0">
+<a:srgbClr val="000000">
+<a:alpha val="35000"/>
+</a:srgbClr>
+</a:outerShdw>
+</a:effectLst>
+</a:effectStyle>
+<a:effectStyle>
+  <a:effectLst><a:outerShdw blurRad="40000" dist="23000" dir="5400000" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="35000"/></a:srgbClr></a:outerShdw></a:effectLst>
+  <a:scene3d><a:camera prst="orthographicFront"><a:rot lat="0" lon="0" rev="0"/></a:camera><a:lightRig rig="threePt" dir="t"><a:rot lat="0" lon="0" rev="1200000"/></a:lightRig></a:scene3d>
+  <a:sp3d><a:bevelT w="63500" h="25400"/></a:sp3d>
+</a:effectStyle>
+</a:effectStyleLst>
+<a:bgFillStyleLst>
+<a:solidFill>
+<a:schemeClr val="phClr"/>
+</a:solidFill>
+<a:gradFill rotWithShape="1">
+<a:gsLst>
+<a:gs pos="0">
+<a:schemeClr val="phClr">
+<a:tint val="40000"/>
+<a:satMod val="350000"/>
+</a:schemeClr>
+</a:gs>
+<a:gs pos="40000">
+<a:schemeClr val="phClr">
+<a:tint val="45000"/>
+<a:shade val="99000"/>
+<a:satMod val="350000"/>
+</a:schemeClr>
+</a:gs>
+<a:gs pos="100000">
+<a:schemeClr val="phClr">
+<a:shade val="20000"/>
+<a:satMod val="255000"/>
+</a:schemeClr>
+</a:gs>
+</a:gsLst>
+<a:path path="circle">
+<a:fillToRect l="50000" t="-80000" r="50000" b="180000"/>
+</a:path>
+</a:gradFill>
+<a:gradFill rotWithShape="1">
+<a:gsLst>
+<a:gs pos="0">
+<a:schemeClr val="phClr">
+<a:tint val="80000"/>
+<a:satMod val="300000"/>
+</a:schemeClr>
+</a:gs>
+<a:gs pos="100000">
+<a:schemeClr val="phClr">
+<a:shade val="30000"/>
+<a:satMod val="200000"/>
+</a:schemeClr>
+</a:gs>
+</a:gsLst>
+<a:path path="circle">
+<a:fillToRect l="50000" t="50000" r="50000" b="50000"/>
+</a:path>
+</a:gradFill>
+</a:bgFillStyleLst>
+    </a:fmtScheme>
+  </a:themeElements>
+<a:objectDefaults/>
+<a:extraClrSchemeLst/>
+</a:theme>';
+    ADD1XML(V_EXCEL, 'xl/theme/theme1.xml', V_CLOB);
+
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+      V_COL_MIN := 16384;
+      V_COL_MAX := 1;
+      V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.FIRST();
+      WHILE V_ROW_IND IS NOT NULL LOOP
+        V_COL_MIN := LEAST(V_COL_MIN, WORKBOOK.SHEETS(S).ROWS(V_ROW_IND).FIRST());
+        V_COL_MAX := GREATEST(V_COL_MAX, WORKBOOK.SHEETS(S).ROWS(V_ROW_IND).LAST());
+        V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.NEXT(V_ROW_IND);
+      END LOOP;
+
+      V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x14ac" xmlns:x14ac="http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac">
+<dimension ref="' || ALFAN_COL(V_COL_MIN) || WORKBOOK.SHEETS(S).ROWS.FIRST() || ':' || ALFAN_COL(V_COL_MAX) || WORKBOOK.SHEETS(S).ROWS.LAST() || '"/>
+<sheetViews>
+<sheetView' || CASE WHEN S = 1 THEN ' tabSelected="1"' END || ' workbookViewId="0">';
+     /* IF WORKBOOK.SHEETS(S).FREEZE_ROWS > 0 AND WORKBOOK.SHEETS(S).FREEZE_COLS > 0 THEN
+          V_CLOB := V_CLOB || ('<pane xSplit="' || workbook.sheets(s).freeze_cols || '" '
+                          || 'ySplit="' || workbook.sheets(s).freeze_rows || '" '
+                          || 'topLeftCell="' || alfan_col(workbook.sheets(s).freeze_cols + 1) || (workbook.sheets(s).freeze_rows + 1) || '" '
+                          || 'activePane="bottomLeft" state="frozen"/>');
+      ELSE
+          IF WORKBOOK.SHEETS(S).FREEZE_ROWS > 0 THEN
+              V_CLOB := V_CLOB || '<pane ySplit="' || WORKBOOK.SHEETS(S).FREEZE_ROWS || '" topLeftCell="A' || (WORKBOOK.SHEETS(S).FREEZE_ROWS + 1) || '" activePane="bottomLeft" state="frozen"/>';
+          END IF;
+          IF WORKBOOK.SHEETS(S).FREEZE_COLS > 0 THEN
+              V_CLOB := V_CLOB || '<pane xSplit="' || WORKBOOK.SHEETS(S).FREEZE_COLS || '" topLeftCell="' || ALFAN_COL(WORKBOOK.SHEETS(S).FREEZE_COLS + 1) || '1" activePane="bottomLeft" state="frozen"/>';
+          END IF;
+      END IF;*/
+      V_CLOB := V_CLOB || '</sheetView>
+</sheetViews>
+<sheetFormatPr defaultRowHeight="15" x14ac:dyDescent="0.25"/>';
+      IF WORKBOOK.SHEETS(S).WIDTHS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<cols>';
+        V_COL_IND := WORKBOOK.SHEETS(S).WIDTHS.FIRST();
+        WHILE V_COL_IND IS NOT NULL LOOP
+          V_CLOB := V_CLOB ||
+             '<col min="' || V_COL_IND || '" max="' || V_COL_IND || '" width="' || TO_CHAR(WORKBOOK.SHEETS(S).WIDTHS(V_COL_IND), 'TM9', 'NLS_NUMERIC_CHARACTERS=.,') || '" customWidth="1"/>';
+          V_COL_IND := WORKBOOK.SHEETS(S).WIDTHS.NEXT(V_COL_IND);
+        END LOOP;
+        V_CLOB := V_CLOB || '</cols>';
+      END IF;
+      V_CLOB := V_CLOB || '<sheetData>';
+      V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.FIRST();
+      V_TMP := NULL;
+      WHILE V_ROW_IND IS NOT NULL LOOP
+        V_TMP :=  V_TMP || '<row r="' || V_ROW_IND || '" spans="' || V_COL_MIN || ':' || V_COL_MAX || '">';
+        V_LEN := LENGTH(V_TMP);
+        V_COL_IND := WORKBOOK.SHEETS(S).ROWS(V_ROW_IND).FIRST();
+        WHILE V_COL_IND IS NOT NULL LOOP
+          V_CELL := '<c r="' || ALFAN_COL(V_COL_IND) || V_ROW_IND || '"'
+                 || ' ' || WORKBOOK.SHEETS(S).ROWS(V_ROW_IND)(V_COL_IND).STYLE
+                 || '><v>'
+                 || TO_CHAR(WORKBOOK.SHEETS(S).ROWS(V_ROW_IND)(V_COL_IND).VALUE, 'TM9', 'NLS_NUMERIC_CHARACTERS=.,')
+                 || '</v></c>';
+          IF V_LEN > 32000 THEN
+            DBMS_LOB.WRITEAPPEND(V_CLOB, V_LEN, V_TMP);
+            V_TMP := NULL;
+            V_LEN := 0;
+          END IF;
+          V_TMP :=  V_TMP || V_CELL;
+          V_LEN := V_LEN + LENGTH(V_CELL);
+          V_COL_IND := WORKBOOK.SHEETS(S).ROWS(V_ROW_IND).NEXT(V_COL_IND);
+        END LOOP;
+        V_TMP :=  V_TMP || '</row>';
+        V_ROW_IND := WORKBOOK.SHEETS(S).ROWS.NEXT(V_ROW_IND);
+      END LOOP;
+      V_TMP :=  V_TMP || '</sheetData>';
+      V_LEN := LENGTH(V_TMP);
+      DBMS_LOB.WRITEAPPEND(V_CLOB, V_LEN, V_TMP);
+      FOR A IN 1 ..  WORKBOOK.SHEETS(S).AUTOFILTERS.COUNT() LOOP
+        V_CLOB := V_CLOB || '<autoFilter ref="' ||
+            ALFAN_COL(NVL(WORKBOOK.SHEETS(S).AUTOFILTERS(A).COLUMN_START, V_COL_MIN)) ||
+            NVL(WORKBOOK.SHEETS(S).AUTOFILTERS(A).ROW_START, WORKBOOK.SHEETS(S).ROWS.FIRST()) || ':' ||
+            ALFAN_COL(COALESCE(WORKBOOK.SHEETS(S).AUTOFILTERS(A).COLUMN_END, WORKBOOK.SHEETS(S).AUTOFILTERS(A).COLUMN_START, V_COL_MAX)) ||
+            NVL(WORKBOOK.SHEETS(S).AUTOFILTERS(A).ROW_END, WORKBOOK.SHEETS(S).ROWS.LAST()) || '"/>';
+      END LOOP;
+     /* IF WORKBOOK.SHEETS(S).MERGECELLS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<mergeCells count="' || TO_CHAR(WORKBOOK.SHEETS(S).MERGECELLS.COUNT()) || '">';
+        FOR M IN 1 ..  WORKBOOK.SHEETS(S).MERGECELLS.COUNT() LOOP
+          V_CLOB := V_CLOB || '<mergeCell ref="' || WORKBOOK.SHEETS(S).MERGECELLS(M) || '"/>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</mergeCells>';
+      END IF;
+
+      IF WORKBOOK.SHEETS(S).VALIDATIONS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<dataValidations count="' || TO_CHAR(WORKBOOK.SHEETS(S).VALIDATIONS.COUNT()) || '">';
+        for m in 1 ..  workbook.sheets(s).validations.count() loop
+          V_CLOB := V_CLOB || '<dataValidation' ||
+              ' type="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).TYPE || '"' ||
+              ' errorStyle="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).ERRORSTYLE || '"' ||
+              ' allowBlank="' || CASE WHEN NVL(WORKBOOK.SHEETS(S).VALIDATIONS(M).ALLOWBLANK, TRUE) THEN '1' ELSE '0' END || '"' ||
+              ' sqref="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).SQREF || '"';
+          IF WORKBOOK.SHEETS(S).VALIDATIONS(M).PROMPT IS NOT NULL THEN
+            V_CLOB := V_CLOB || ' showInputMessage="1" prompt="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).PROMPT || '"';
+            IF WORKBOOK.SHEETS(S).VALIDATIONS(M).TITLE IS NOT NULL THEN
+              V_CLOB := V_CLOB || ' promptTitle="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).TITLE || '"';
+            END IF;
+          END IF;
+          IF WORKBOOK.SHEETS(S).VALIDATIONS(M).SHOWERRORMESSAGE THEN
+            V_CLOB := V_CLOB || ' showErrorMessage="1"';
+            IF WORKBOOK.SHEETS(S).VALIDATIONS(M).ERROR_TITLE IS NOT NULL THEN
+              V_CLOB := V_CLOB || ' errorTitle="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).ERROR_TITLE || '"';
+            END IF;
+            IF WORKBOOK.SHEETS(S).VALIDATIONS(M).ERROR_TXT IS NOT NULL THEN
+              V_CLOB := V_CLOB || ' error="' || WORKBOOK.SHEETS(S).VALIDATIONS(M).ERROR_TXT || '"';
+            END IF;
+          END IF;
+          V_CLOB := V_CLOB || '>';
+          IF WORKBOOK.SHEETS(S).VALIDATIONS(M).FORMULA1 IS NOT NULL THEN
+            V_CLOB := V_CLOB || '<formula1>' || WORKBOOK.SHEETS(S).VALIDATIONS(M).FORMULA1 || '</formula1>';
+          END IF;
+          IF WORKBOOK.SHEETS(S).VALIDATIONS(M).FORMULA2 IS NOT NULL THEN
+            V_CLOB := V_CLOB || '<formula2>' || WORKBOOK.SHEETS(S).VALIDATIONS(M).FORMULA2 || '</formula2>';
+          END IF;
+          V_CLOB := V_CLOB || '</dataValidation>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</dataValidations>';
+      END IF;*/
+
+      IF WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<hyperlinks>';
+        FOR H IN 1 ..  WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() LOOP
+          V_CLOB := V_CLOB || '<hyperlink ref="' || WORKBOOK.SHEETS(S).HYPERLINKS(H).CELL || '" r:id="rId' || H || '"/>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</hyperlinks>';
+      END IF;
+      V_CLOB := V_CLOB || '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>';
+      /*IF WORKBOOK.SHEETS(S).COMMENTS.COUNT() > 0 THEN
+        V_CLOB := V_CLOB || '<legacyDrawing r:id="rId' || (WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() + 1) || '"/>';
+      END IF;*/
+
+      V_CLOB := V_CLOB || '</worksheet>';
+      ADD1XML(V_EXCEL, 'xl/worksheets/sheet' || S || '.xml', V_CLOB);
+      IF WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() > 0 /*OR WORKBOOK.SHEETS(S).COMMENTS.COUNT() > 0*/ THEN
+        V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+       /* IF WORKBOOK.SHEETS(S).COMMENTS.COUNT() > 0 THEN
+          V_CLOB := V_CLOB || '<Relationship Id="rId' || (WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() + 2) || '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments' || S || '.xml"/>';
+          V_CLOB := V_CLOB || '<Relationship Id="rId' || (WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() + 1) || '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing' || S || '.vml"/>';
+        END IF;*/
+        FOR H IN 1 ..  WORKBOOK.SHEETS(S).HYPERLINKS.COUNT() LOOP
+          V_CLOB := V_CLOB || '<Relationship Id="rId' || H || '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="' || WORKBOOK.SHEETS(S).HYPERLINKS(H).URL || '" TargetMode="External"/>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</Relationships>';
+        ADD1XML(V_EXCEL, 'xl/worksheets/_rels/sheet' || S || '.xml.rels', V_CLOB);
+      END IF;
+
+     /* IF WORKBOOK.SHEETS(S).COMMENTS.COUNT() > 0 THEN
+        DECLARE
+          CNT          PLS_INTEGER;
+          AUTHOR_IND   TP_AUTHOR;
+--          V_COL_IND := workbook.sheets(s).widths.next(V_COL_IND);
+        BEGIN
+          AUTHORS.DELETE();
+          FOR C IN 1 .. WORKBOOK.SHEETS(S).COMMENTS.COUNT() LOOP
+              AUTHORS(WORKBOOK.SHEETS(S).COMMENTS(C).AUTHOR) := 0;
+          END LOOP;
+          V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<comments xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<authors>';
+          CNT := 0;
+          AUTHOR_IND := AUTHORS.FIRST();
+          WHILE AUTHOR_IND IS NOT NULL OR AUTHORS.NEXT(AUTHOR_IND) IS NOT NULL LOOP
+            AUTHORS(AUTHOR_IND) := CNT;
+            V_CLOB := V_CLOB || '<author>' || AUTHOR_IND || '</author>';
+            CNT := CNT + 1;
+            AUTHOR_IND := AUTHORS.NEXT(AUTHOR_IND);
+          END LOOP;
+        END;
+        V_CLOB := V_CLOB || '</authors><commentList>';
+        FOR C IN 1 .. WORKBOOK.SHEETS(S).COMMENTS.COUNT() LOOP
+          V_CLOB := V_CLOB || '<comment ref="' || ALFAN_COL(WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN) ||
+             TO_CHAR(WORKBOOK.SHEETS(S).COMMENTS(C).ROW || '" authorId="' || AUTHORS(WORKBOOK.SHEETS(S).COMMENTS(C).AUTHOR)) || '">
+<text>';
+          IF WORKBOOK.SHEETS(S).COMMENTS(C).AUTHOR IS NOT NULL THEN
+            V_CLOB := V_CLOB || '<r><rPr><b/><sz val="9"/><color indexed="81"/><rFont val="Tahoma"/><charset val="1"/></rPr><t xml:space="preserve">' ||
+               WORKBOOK.SHEETS(S).COMMENTS(C).AUTHOR || ':</t></r>';
+          end if;
+          V_CLOB := V_CLOB || '<r><rPr><sz val="9"/><color indexed="81"/><rFont val="Tahoma"/><charset val="1"/></rPr><t xml:space="preserve">' ||
+             CASE WHEN WORKBOOK.SHEETS(S).COMMENTS(C).AUTHOR IS NOT NULL THEN '
+' END || WORKBOOK.SHEETS(S).COMMENTS(C).TEXT || '</t></r></text></comment>';
+        END LOOP;
+        V_CLOB := V_CLOB || '</commentList></comments>';
+        ADD1XML(V_EXCEL, 'xl/comments' || S || '.xml', V_CLOB);
+
+        V_CLOB := 
+'<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="2"/></o:shapelayout>
+<v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>';
+        FOR C IN 1 .. WORKBOOK.SHEETS(S).COMMENTS.COUNT() LOOP
+            V_CLOB := V_CLOB || '<v:shape id="_x0000_s' || TO_CHAR(C) || '" type="#_x0000_t202"
+style="position:absolute;margin-left:35.25pt;margin-top:3pt;z-index:' || TO_CHAR(C) || ';visibility:hidden;" fillcolor="#ffffe1" o:insetmode="auto">
+<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/>
+<v:textbox style="mso-direction-alt:auto"><div style="text-align:left"></div></v:textbox>
+<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/>';
+            V_WIDTH := WORKBOOK.SHEETS(S).COMMENTS(C).WIDTH;
+            V_CUR_NUM := 1;
+            LOOP
+                IF WORKBOOK.SHEETS(S).WIDTHS.EXISTS(WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN + V_CUR_NUM) THEN
+                    V_COL_WID := 256 * WORKBOOK.SHEETS(S).WIDTHS(WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN + V_CUR_NUM); 
+                    V_COL_WID := TRUNC((V_COL_WID + 18) / 256 * 7); -- assume default 11 point Calibri
+                ELSE
+                    V_COL_WID := 64;
+                END IF;
+                EXIT WHEN V_WIDTH < V_COL_WID;
+                V_CUR_NUM := V_CUR_NUM + 1;
+                V_WIDTH := V_WIDTH - V_COL_WID;
+            END LOOP;
+            V_HEIGHT := WORKBOOK.SHEETS(S).COMMENTS(C).HEIGHT;
+            V_CLOB := V_CLOB || TO_CHAR('<x:Anchor>' || WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN || ',15,' ||
+                       WORKBOOK.SHEETS(S).COMMENTS(C).ROW || ',30,' ||
+                       (WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN + V_CUR_NUM - 1) || ',' || ROUND(V_WIDTH) || ',' ||
+                       (WORKBOOK.SHEETS(S).COMMENTS(C).ROW + 1 + TRUNC(V_HEIGHT / 20)) || ',' || MOD(V_HEIGHT, 20) || '</x:Anchor>');
+            V_CLOB := V_CLOB || TO_CHAR('<x:AutoFill>False</x:AutoFill><x:Row>' ||
+              (WORKBOOK.SHEETS(S).COMMENTS(C).ROW - 1) || '</x:Row><x:Column>' ||
+              (WORKBOOK.SHEETS(S).COMMENTS(C).COLUMN - 1) || '</x:Column></x:ClientData></v:shape>');
+        END LOOP;
+        V_CLOB := V_CLOB || '</xml>';
+        ADD1XML(V_EXCEL, 'xl/drawings/vmlDrawing' || S || '.vml', V_CLOB);
+        END IF;*/
+    END LOOP;
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>';
+    FOR S IN 1 .. WORKBOOK.SHEETS.COUNT() LOOP
+        V_CLOB := V_CLOB || '
+<Relationship Id="rId' || (9 + S) || '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' || S || '.xml"/>';
+    END LOOP;
+    V_CLOB := V_CLOB || '</Relationships>';
+    ADD1XML(V_EXCEL, 'xl/_rels/workbook.xml.rels', V_CLOB);
+
+    V_CLOB := 
+'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="' || WORKBOOK.STR_CNT || '" uniqueCount="' || WORKBOOK.STRINGS.COUNT() || '">';
+    V_TMP := NULL;
+    FOR I IN 0 .. WORKBOOK.STR_IND.COUNT() - 1 LOOP
+        V_STR := '<si><t>' || DBMS_XMLGEN.CONVERT(SUBSTR(WORKBOOK.STR_IND(I), 1, 32000)) || '</t></si>';
+        IF LENGTH(V_TMP) + LENGTH(V_STR) > 32000 THEN
+            V_CLOB := V_CLOB || V_TMP;
+            V_TMP := NULL;
+        END IF;
+        V_TMP := V_TMP || V_STR;
+    END LOOP;
+    V_CLOB := V_CLOB || V_TMP || '</sst>';
+    ADD1XML(V_EXCEL, 'xl/sharedStrings.xml', V_CLOB);
+
+    FINISH_ZIP(V_EXCEL);
+    CLEAR_WORKBOOK;
+    RETURN V_EXCEL;
+END FINISH;
+
+PROCEDURE SAVE(
+/**********************************************************
+	SAVE
+The process will take the directory name and filename 
+and converts the BLOB data to File.
+
+created : 01/24/2018 bxa919 CCN Project Team...
+**********************************************************/
+    IN_DIRECTORY   IN   VARCHAR2
+  , IN_FILENAME    IN   VARCHAR2)
+IS
+BEGIN
+    BLOB2FILE(FINISH, IN_DIRECTORY, IN_FILENAME);
+END SAVE;
+
+PROCEDURE QUERY2SHEET(
+/**********************************************************
+    GENERATE_SPREADSHEET
+    This Procedure will take the input as SQL query statement
+    and build the header and column data by invoking "cell"
+    PROCEDURE.DBMS_SQL package have internal FUNCTION which will be 
+    used to open work on teh input sql statement 
+    
+    OPEN_CURSOR       : Opens the cursor and fetches the data from
+                           the SQL statement passed with the cursor id.
+    PARSE             : The statement will  parses the resulting string.
+    DESCRIBE_COLUMNS2 : Describe table to fill in with the description of 
+                        each of the columns of the query.
+   DEFINE_ARRAY       : 
+ **********************************************************/
+    IN_SQL               IN   VARCHAR2
+  , IN_COLUMN_HEADERS    IN   BOOLEAN     := TRUE
+  , IN_DIRECTORY         IN   VARCHAR2    := NULL
+  , IN_FILENAME          IN   VARCHAR2    := NULL
+  , IN_SHEET             IN   PLS_INTEGER := NULL
+  , IN_SHEETNAME         IN   VARCHAR2)
+IS
+    V_SHEET           PLS_INTEGER;
+    V_CUR_ID          INTEGER;
+    V_COL_CNT         INTEGER;
+    V_DESC_TAB        DBMS_SQL.DESC_TAB2;
+    V_DATE_TAB        DBMS_SQL.DATE_TABLE;
+    V_NUM_TAB         DBMS_SQL.NUMBER_TABLE;
+    V_TAB             DBMS_SQL.VARCHAR2_TABLE;
+    V_BULK_SIZE       PLS_INTEGER := 200;
+    V_READ_CUR        INTEGER;
+    V_CUR_ROW         PLS_INTEGER;
+BEGIN
+    IF IN_SHEET IS NULL THEN
+        NEW_SHEET(IN_SHEETNAME);
+    END IF;
+    V_CUR_ID := DBMS_SQL.OPEN_CURSOR;
+    DBMS_SQL.PARSE(V_CUR_ID, IN_SQL, DBMS_SQL.NATIVE);
+    DBMS_SQL.DESCRIBE_COLUMNS2(V_CUR_ID, V_COL_CNT, V_DESC_TAB);
+    FOR C IN 1 .. V_COL_CNT LOOP
+        IF IN_COLUMN_HEADERS THEN
+            CELL(C, 1, V_DESC_TAB(C).COL_NAME, IN_SHEET => V_SHEET);
+        END IF;
+--      DBMS_OUTPUT.PUT_LINE(V_DESC_TAB(C).COL_NAME || ' ' || V_DESC_TAB(C).COL_TYPE);
+        CASE WHEN V_DESC_TAB(C).COL_TYPE IN (2, 100, 101) THEN
+                 DBMS_SQL.DEFINE_ARRAY(V_CUR_ID, C, V_NUM_TAB, V_BULK_SIZE, 1);
+             WHEN V_DESC_TAB(C).COL_TYPE IN (12, 178, 179, 180, 181 , 231) THEN
+                 DBMS_SQL.DEFINE_ARRAY(V_CUR_ID, C, V_DATE_TAB, V_BULK_SIZE, 1);
+             WHEN V_DESC_TAB(C).COL_TYPE IN (1, 8, 9, 96, 112) THEN
+                 DBMS_SQL.DEFINE_ARRAY(V_CUR_ID, C, V_TAB, V_BULK_SIZE, 1);
+             ELSE
+                 NULL;
+        END CASE;
+    END LOOP;
+
+    V_CUR_ROW := CASE WHEN IN_COLUMN_HEADERS THEN 2 ELSE 1 END;
+    V_SHEET   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
+
+    V_READ_CUR := DBMS_SQL.EXECUTE(V_CUR_ID);
+    LOOP
+        V_READ_CUR := DBMS_SQL.FETCH_ROWS(V_CUR_ID);
+        IF V_READ_CUR > 0 THEN
+            FOR C IN 1 .. V_COL_CNT LOOP
+                CASE WHEN V_DESC_TAB(C).COL_TYPE IN (2, 100, 101) THEN
+                         DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_NUM_TAB);
+                         FOR I IN 0 .. V_READ_CUR - 1 LOOP
+                             IF V_NUM_TAB(I + V_NUM_TAB.FIRST()) IS NOT NULL THEN
+                                 CELL(C, V_CUR_ROW + I, V_NUM_TAB(I + V_NUM_TAB.FIRST()), IN_SHEET => V_SHEET);
+                             END IF;
+                         END LOOP;
+                         V_NUM_TAB.DELETE;
+                     WHEN V_DESC_TAB(C).COL_TYPE IN (12, 178, 179, 180, 181 , 231) THEN
+                         DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_DATE_TAB);
+                         FOR I IN 0 .. V_READ_CUR - 1 LOOP
+                             IF V_DATE_TAB(I + V_DATE_TAB.FIRST()) IS NOT NULL THEN
+                                 CELL(C, V_CUR_ROW + I, V_DATE_TAB(I + V_DATE_TAB.FIRST()), IN_SHEET => V_SHEET);
+                             END IF;
+                         END LOOP;
+                         V_DATE_TAB.DELETE;
+                     WHEN V_DESC_TAB(C).COL_TYPE IN (1, 8, 9, 96, 112) THEN
+                         DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_TAB);
+                         FOR I IN 0 .. V_READ_CUR - 1 LOOP
+                             IF V_TAB(I + V_TAB.FIRST()) IS NOT NULL THEN
+                                 CELL(C, V_CUR_ROW + I, V_TAB(I + V_TAB.FIRST()), IN_SHEET => V_SHEET);
+                             END IF;
+                         END LOOP;
+                         V_TAB.DELETE;
+                     ELSE
+                         NULL;
+                END CASE;
+            END LOOP;
+        END IF;
+        EXIT WHEN V_READ_CUR != V_BULK_SIZE;
+        V_CUR_ROW := V_CUR_ROW + V_READ_CUR;
+    END LOOP;
+    DBMS_SQL.CLOSE_CURSOR(V_CUR_ID);
+    IF (IN_DIRECTORY IS NOT NULL AND  IN_FILENAME IS NOT NULL) THEN
+        SAVE(IN_DIRECTORY, IN_FILENAME);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        IF DBMS_SQL.IS_OPEN(V_CUR_ID) THEN
+            DBMS_SQL.CLOSE_CURSOR(V_CUR_ID);
+        END IF;
+END QUERY2SHEET;
+END CCN_SPREADSHEET_PKG;
