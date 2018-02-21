@@ -266,7 +266,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-					POTENTIAL_OPEN_DATE)
+										POTENTIAL_OPEN_DATE)
                      )
       LOCATION
        ( 'COST_CENTER_REAL_ESTATE.csv'

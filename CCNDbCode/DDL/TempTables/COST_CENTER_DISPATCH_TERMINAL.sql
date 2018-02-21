@@ -182,7 +182,7 @@ Changed    : 11/06/2017 axt754 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-					POTENTIAL_OPEN_DATE)
+										POTENTIAL_OPEN_DATE)
                                         )
       LOCATION
        ( 'COST_CENTER_DISPATCH_TERMINAL.csv'

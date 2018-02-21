@@ -152,7 +152,7 @@ WITH ALL NULL FIELDS (COST_CENTER_CODE,
                       PRICE_DIST_EFFECTIVE_DT,
                       CREDIT_HIERARCHY,
                       MANAGER_ID,
-		      POTENTIAL_OPEN_DATE)
+					  POTENTIAL_OPEN_DATE)
                      )
       LOCATION
        ( 'COST_CENTER_TERRITORY.csv'
