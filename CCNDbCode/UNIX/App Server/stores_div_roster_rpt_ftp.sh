@@ -4,6 +4,8 @@
 #
 # modified: 12/13/2017 nxk927 CCN Project Team... 
 # Added Script Comments and Handled exceptions 
+# modified: 02/21/2018 nxk927 CCN Project Team... 
+#           ftp'ing only one file
 ##########################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/ccn/ccn_app_server.config
@@ -30,29 +32,33 @@ fi
 #################################################################
 
 echo "Processing started for FTP at ${TIME} on ${DATE}"
-rpt_list=`cat /app/ccn/crReports/data/stores_div_roster_rpt.txt`
 if [ $FTP_INDICATOR == Y ] 
    then
 cd /app/ccn/crReports/reports
-for rpt in $rpt_list
-do
-rpt_file=`echo $rpt  | cut -f2 -d"." -f1`
-echo $rpt_file
 ftp -inv ${rpt_host} <<FTP_MF
 quote user ${rpt_user}
 quote pass ${rpt_pw}
 cd ${rpt_path}
 binary
-put $rpt_file.pdf
+put CCN05000.pdf
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
 FTP_MF
 
 #Archive PDF file
-DT=`date +"%m%d%Y%H%M%S"`
-mv /app/ccn/crReports/reports/$rpt_file.pdf /app/ccn/crReports/reports/archive/$rpt_file"_"$DT.pdf
-done
+DT=`date +"%m%d%Y"`
+
+if [ -d /app/ccn/crReports/reports/archive/$DT ]; then
+   echo " Archive Directory exists "
+ else
+   mkdir /app/ccn/crReports/reports/archive/$DT
+   echo "/app/ccn/crReports/reports/archive/$DT Directory has been created "
+fi
+
+
+mv /app/ccn/crReports/reports/*.pdf /app/ccn/crReports/reports/archive/$DT/
+
 
 status=$?
 if test $status -ne 0
