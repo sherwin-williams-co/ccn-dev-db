@@ -1564,7 +1564,7 @@ COMMIT;
 
 -- Reset the flag to enable polling
 UPDATE POS_DOWNLOADS_BULK_LOADS_LKUP
-   SET FLAG = 'Y',
+   SET FLAG = 'N',
        MAINTENANCE_DATE_END = SYSDATE;
        
 COMMIT; 
