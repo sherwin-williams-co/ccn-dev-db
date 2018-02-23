@@ -79,13 +79,13 @@ Created: 10/24/2013 SH
 
 PROCEDURE ERROR_DETAILS(
 /******************************************************************************
-  This Procedure will fetch the records from Error_log table.
-  Created : 02/13/2018 SXG151 CCN Project....
+This Procedure will fetch the records from Error_log table.
+Created : 02/13/2018 sxg151 CCN Project....
 
 *******************************************************************************/
-    V_START_TIME      IN DATE,
-    V_END_TIME        IN DATE,
-    V_CLOB_FOR_EMAIL  OUT CLOB);
+    IN_START_TIME       IN DATE,
+    IN_END_TIME         IN DATE,
+    OUT_CLOB_FOR_EMAIL  OUT CLOB);
 
 END errpkg;
 
