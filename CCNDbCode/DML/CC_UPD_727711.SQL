@@ -1,0 +1,8 @@
+-- created by rxv940 on 02/23/2018
+-- Run this in COSTCNTR 
+
+UPDATE COST_CENTER 
+   SET POS_DOWNLOAD_CC_IND = ''
+ WHERE COST_CENTER_CODE = '727711';
+ 
+COMMIT;
