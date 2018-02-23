@@ -7259,7 +7259,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal Ã‚Â¿rowsÃ‚Â¿ must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal Â¿rowsÂ¿ must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
@@ -7274,6 +7274,7 @@ Modified: 06/02/2015 jxc517 CCN Project....
           for that cost center
         : 05/26/2016 nxk927 CCN Project....
           Reverted the PCI changes to move the ADDRESS_BRB changes ahead.
+        : 01/24/2018 sxg151 Removed PCI_TERMINAL_ID logic   
 ******************************************************************************/	
   
     IN_TERMINAL_ROWTYPE    IN   TERMINAL%ROWTYPE,
@@ -7497,12 +7498,6 @@ END;
             RAISE actv_dup_terr_exists_err;
         END IF;
     END IF;
-
-   --checking if PCI_terminal_id  is null. 
-   --if null raise warning
-   IF in_terminal_rowtype.PCI_TERMINAL_ID is null then
-      ERRPKG.STORE_WARNINGS(errnums.en_pci_terminal_id_err,'PCI Terminal ID is null');
-   END IF;
 
    EXCEPTION
 
@@ -7876,69 +7871,6 @@ EXCEPTION
     WHEN NO_DATA_FOUND THEN
         NULL;
 END COMPARE_ZIPCODE_SP;
-
-PROCEDURE PCI_TERMINAL_COUNT_CHECK(
-/*****************************************************************************
-This procedure is intended to check if the count of PCI TERMINAL ID and TERMINAL NUMBER
-matches. If it don't match then send the report in an email
-
-Created : 03/02/2016 nxk927 CCN Project Team...
-Changed : 04/07/2016 nxk927 CCN Project Team...
-          changed the data type size to 15 from 6
-        : 04/10/2017 pxb712 CCN Project Team...
-          changed to load data in a table instead of sending mail for each cost center...      
-*******************************************************************************/
-IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE,
-IN_ROW_DATA          IN  CLOB)
-IS
-    V_TERMINAL_COUNT          NUMBER := 0;
-    V_PCI_TERM_COUNT          NUMBER := 0;
-    V_ROW_DATA                XMLTYPE := sys.XMLTYPE(in_row_data);
-    V_PCI_TERMINAL_MAIL_ROW   PCI_TERMINAL_MAIL%ROWTYPE;
-
-    CURSOR main_cur IS
-        SELECT DISTINCT COST_CENTER_CODE, TERMINAL_NUMBER, PCI_TERMINAL_ID
-          FROM TERMINAL TERM
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND EXPIRATION_DATE IS NULL
-           --checks if the same temrinal is already inserted, if YES do not insert again
-           AND NOT EXISTS (SELECT 1
-                             FROM PCI_TERMINAL_MAIL 
-                            WHERE COST_CENTER_CODE          = TERM.COST_CENTER_CODE 
-                              AND TERMINAL_NUMBER           = TERM.TERMINAL_NUMBER
-                              AND NVL(PCI_TERMINAL_ID,'XX') = NVL(TERM.PCI_TERMINAL_ID,'XX') 
-                              --below sub query checks for the records processed after previous batch
-                              AND ENTRY_DATE >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                                   FROM BATCH_JOB
-                                                  WHERE BATCH_JOB_NAME = 'PCI_TERM_MISMATCH'));
-BEGIN
-    SELECT COUNT(TERMINAL_NUMBER), COUNT(PCI_TERMINAL_ID)
-      INTO V_TERMINAL_COUNT, V_PCI_TERM_COUNT
-      FROM XMLTABLE ('/POLLING_UI/TERMINAL_TABLE/TERMINAL'
-           PASSING v_Row_data
-           COLUMNS TERMINAL_NUMBER VARCHAR2(6) PATH 'TERMINAL_NUMBER/text()',
-                   PCI_TERMINAL_ID VARCHAR2(15)PATH  'PCI_TERMINAL_ID/text()' );
-  
-    IF V_TERMINAL_COUNT <> V_PCI_TERM_COUNT THEN
-        FOR REC IN main_cur LOOP
-            V_PCI_TERMINAL_MAIL_ROW.COST_CENTER_CODE := REC.COST_CENTER_CODE;
-            V_PCI_TERMINAL_MAIL_ROW.TERMINAL_NUMBER  := REC.TERMINAL_NUMBER;
-            V_PCI_TERMINAL_MAIL_ROW.PCI_TERMINAL_ID  := REC.PCI_TERMINAL_ID;
-            V_PCI_TERMINAL_MAIL_ROW.ENTRY_DATE       := SYSDATE;
-            CCN_TABLE_IU_PKG.PCI_TERMINAL_I_SP(V_PCI_TERMINAL_MAIL_ROW);
-        END LOOP;
-    ELSE
-        DELETE
-          FROM PCI_TERMINAL_MAIL
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
-	         --below sub query checks for the records processed after previous batch
-           --we should not delete the historic records
-           AND ENTRY_DATE  >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
-                                 FROM BATCH_JOB
-                                WHERE BATCH_JOB_NAME = 'PCI_TERM_MISMATCH');
-    END IF;
-END PCI_TERMINAL_COUNT_CHECK;
-   
    
 PROCEDURE TERMINAL_COUNT_BR_SP(
 /*****************************************************************************
