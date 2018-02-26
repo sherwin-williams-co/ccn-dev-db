@@ -297,7 +297,7 @@ Created : 02/22/2018 SXG151 CCN Project....
 Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
-    IN_DSC_CODE       IN     VARCHAR2
+    IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
 
 END CCN_COMMON_TOOLS;
