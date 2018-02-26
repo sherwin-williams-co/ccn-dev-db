@@ -8,7 +8,8 @@
 #                  that loads the ROYAL_BANK_RPT_MAIN 
 #
 # Created     : 11/17/2015 sxh487 CCN Project Team.....
-#           
+# Modified    : 02/26/2018 nxk927 CCN Project Team.....
+#               Removed the Royal_Bank_datafile_ftp.sh call from this script to have it run as 2 seperate process
 #################################################################
 # below command will get the path for storedraft.config respective to the environment from which it is run from
 cd /app/strdrft/sdReport/scripts
@@ -23,21 +24,6 @@ DLY_LOAD_PATH="/app/stordrft/dev/dailyLoad"
 db_proc_name="Load_royal_bank_data.sh"
 LOG_FILE="/app/strdrft/sdReport/logs/Load_royal_bank_data.log"
 echo "Processing Started for $proc_name at $TIME on $DATE"
-
-#################################################################
-# ftp the input file to DB server
-#################################################################
-./Royal_Bank_datafile_ftp.sh
-
-status=$?
-if test $status -ne 0
-then
-    TIME=`date +"%H:%M:%S"`
-    echo "processing FAILED for Royal_Bank_datafile_ftp script at ${TIME} on ${DATE}"
-    exit 1;
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Processing finished for Royal_Bank_datafile_ftp script at ${TIME} on ${DATE}"
 
 #################################################################
 # executing Royal_Bank_dailyRun.sh on the remote server
