@@ -83,9 +83,9 @@ This Procedure will fetch the records from Error_log table.
 Created : 02/13/2018 sxg151 CCN Project....
 
 *******************************************************************************/
-    IN_START_TIME       IN DATE,
-    IN_END_TIME         IN DATE,
-    OUT_CLOB_FOR_EMAIL  OUT CLOB);
+    IN_START_TIME       IN     DATE,
+    IN_END_TIME         IN     DATE,
+    OUT_CLOB_FOR_EMAIL     OUT CLOB);
 
 END errpkg;
 
