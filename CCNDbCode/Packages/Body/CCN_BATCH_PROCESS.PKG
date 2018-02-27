@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_BATCH_PROCESS AS
+create or replace PACKAGE BODY CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package body will have procedures and functions related 
 to the batch process
@@ -350,8 +350,6 @@ Changed : 10/17/2017 nxk927 CCN project Team....
           is not attached to Price district
         : 10/23/2017 nxk927 CCN project Team....
           Added O category cost center with polling status code of P and type code of 42
-		: 02/20/2018 bxa919 CCN project Team.... 
-          Added code to crerate multiple spreadsheet for USA and CAN .
 **********************************************************/
 IS
   CURSOR main_cursor IS
@@ -375,7 +373,7 @@ IS
      ORDER BY 1;
 
   CURSOR address_cur IS
-    SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4,POSTAL_CODE,PROVINCE_CODE
+    SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4
       FROM ADDRESS_VW
     WHERE ADDRESS_TYPE = 'M'
       AND EXPIRATION_DATE IS NULL;
@@ -409,13 +407,13 @@ IS
     V_CLOB_FOR_EMAIL            CLOB;
 
     PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME                    VARCHAR2(50)   := 'STORE_PDH_HRCHY' || '_'|| TO_CHAR(SYSDATE,'MMDDRR') || '.xlsx';
+    FILENAME                    VARCHAR2(50)   := 'STORE_PDH_HRCHY' || '_'|| TO_CHAR(SYSDATE,'MMDDRR') || '.csv';
+    OUTPUT_FILE                 UTL_FILE.FILE_TYPE;
+
     V_ADDRESS_STREET            VARCHAR2(200);
     V_CITY                      ADDRESS_VW.CITY%TYPE;
     V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
     V_ADDRESS_ZIP               VARCHAR2(10);
-	V_ADDRESS_POSTAL            ADDRESS_VW.POSTAL_CODE%TYPE;
-    V_PROVINCE_CODE             ADDRESS_VW.PROVINCE_CODE%TYPE;
     V_PHONE_NUMBER              VARCHAR2(14);
     V_FAX_NUMBER                VARCHAR2(14);
     V_DIVISION                  HIERARCHY_DETAIL_VIEW.DIVISION%TYPE;
@@ -431,27 +429,54 @@ IS
     V_TYPE_CODE_DESC            CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
     V_PRICE_DISTRICT            VARCHAR2(100);
     V_CUR_COUNT                 NUMBER := 0;
-	V_STATEMENT_DESC            VARCHAR2(1000);
         
     TYPE ADDRESS_VW_REC_TYPE IS TABLE OF ADDRESS_CUR%ROWTYPE INDEX BY VARCHAR2(6);
     AAT_ADDRESS_VW ADDRESS_VW_REC_TYPE;
 BEGIN
-    
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   ,'W' --BINARY
+                                   ,32767);
     FOR rec IN address_cur LOOP
         AAT_ADDRESS_VW(rec.COST_CENTER_CODE) := rec;
     END LOOP;
-	
+    V_CLOB_FOR_EMAIL := 'Store No,' ||
+                        'Store No DESC,' ||
+                        'Store Address-Street,' ||
+                        'Store Address-City,' ||
+                        'Store Address-State,' ||
+                        'Store Address-ZIP,' ||
+                        'Store Phone-No,' ||
+                        'Store Fax No,' ||
+                        'Store Div,' ||
+                        'Store Div DESC,' ||
+                        'Store Area,' ||
+                        'Store Area Name,' ||
+                        'Store Area Name Short,' ||
+                        'Store Dad,' ||
+                        'Store Dad DESC,' ||
+                        'Store Open Date,' ||
+                        'Store Close Date,' ||
+                        'Statement Type,' ||
+                        'Statement Type DESC,' ||
+                        'Store Polling Status Code,' ||
+                        'Store Polling Status Code DESC,' ||
+                        'Store Type,' ||
+                        'Store Type DESC,' ||
+                        'Store Pricing District';
+
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB_FOR_EMAIL, TRUE);
+
     V_CUR_COUNT := 0;
     FOR cc_rec IN main_cursor LOOP
         V_CUR_COUNT := V_CUR_COUNT + 1;
-		
+
         /*Fetch Address Information*/
         V_ADDRESS_STREET := NULL;
         V_CITY           := NULL;
         V_STATE_CODE     := NULL;
         V_ADDRESS_ZIP    := NULL;
-		V_ADDRESS_POSTAL := NULL;           
-        V_PROVINCE_CODE  := NULL;
         IF AAT_ADDRESS_VW.EXISTS(cc_rec.COST_CENTER_CODE) THEN
             IF AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1 IS NOT NULL OR AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2 IS NOT NULL THEN
               V_ADDRESS_STREET := LTRIM(RTRIM(AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1||' '||AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2
@@ -460,8 +485,6 @@ BEGIN
             END IF;
             V_CITY := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).CITY;
             V_STATE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).STATE_CODE;
-			V_ADDRESS_POSTAL := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).POSTAL_CODE;
-            V_PROVINCE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PROVINCE_CODE;
             IF AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE IS NOT NULL THEN
               V_ADDRESS_ZIP := LTRIM(RTRIM(AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE||' ' ||AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE_4
                                            )
@@ -520,78 +543,49 @@ BEGIN
 
         /*Fetch price District Information*/
         V_PRICE_DISTRICT := NULL;
-		/* Fetch Statement Description information*/
-		V_STATEMENT_DESC:= NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE', 'COD', cc_rec.STATEMENT_TYPE),'N/A');
         FOR rec IN pricing_district_cur(cc_rec.COST_CENTER_CODE) LOOP
             V_PRICE_DISTRICT := rec.PRICE_DISTRICT;
         END LOOP;
-			 /* Inserting data in CCN_PD_USA tables for USA country code */
-            IF CC_REC.COUNTRY_CODE='USA' THEN
-            INSERT INTO CCN_PD_USA VALUES (	  cc_rec.COST_CENTER_CODE 
-                                            , cc_rec.COST_CENTER_NAME 
-                                            , V_ADDRESS_STREET 
-                                            , V_CITY 
-                                            , V_STATE_CODE 
-                                            , V_ADDRESS_ZIP 
-                                            , V_PHONE_NUMBER 
-                                            , V_FAX_NUMBER 
-                                            , V_DIVISION 
-                                            , V_DIVISION_NAME 
-                                            , V_AREA 
-                                            , V_AREA_NAME 
-                                            , V_AREA_SHORT_NAME 
-                                            , V_DAD 
-                                            , V_DAD_DESC 
-                                            , CC_REC.OPEN_DATE 
-                                            , CC_REC.CLOSE_DATE 
-                                            , CC_REC.STATEMENT_TYPE 
-                                            , V_STATEMENT_DESC 
-                                            , V_POLLING_STATUS_CODE 
-                                            , V_POLLING_STATUS_CODE_DESC 
-                                            , V_TYPE_CODE 
-                                            , V_TYPE_CODE_DESC 
-                                            , V_PRICE_DISTRICT );
-          
-          ELSIF CC_REC.COUNTRY_CODE='CAN' THEN
-     /* Inserting data in CCN_PD_CAN tables for CAN country code */
-             INSERT INTO CCN_PD_CAN VALUES ( cc_rec.COST_CENTER_CODE 
-                                            , cc_rec.COST_CENTER_NAME 
-                                            , V_ADDRESS_STREET 
-                                            , V_CITY 
-                                            , V_PROVINCE_CODE
-                                            , V_ADDRESS_POSTAL
-                                            , V_PHONE_NUMBER 
-                                            , V_FAX_NUMBER 
-                                            , V_DIVISION 
-                                            , V_DIVISION_NAME 
-                                            , V_AREA 
-                                            , V_AREA_NAME 
-                                            , V_AREA_SHORT_NAME 
-                                            , V_DAD 
-                                            , V_DAD_DESC 
-                                            , CC_REC.OPEN_DATE 
-                                            , CC_REC.CLOSE_DATE 
-                                            , CC_REC.STATEMENT_TYPE 
-                                            , V_STATEMENT_DESC 
-                                            , V_POLLING_STATUS_CODE 
-                                            , V_POLLING_STATUS_CODE_DESC 
-                                            , V_TYPE_CODE 
-                                            , V_TYPE_CODE_DESC 
-                                            , V_PRICE_DISTRICT );
-          END IF;     
+
+        V_CLOB := '"' || cc_rec.COST_CENTER_CODE || '",' ||
+                  '"' || cc_rec.COST_CENTER_NAME || '",' ||
+                  '"' || V_ADDRESS_STREET || '",' ||
+                  '"' || V_CITY || '",' ||
+                  '"' || V_STATE_CODE || '",' ||
+                  '"' || V_ADDRESS_ZIP || '",' ||
+                  '"' || V_PHONE_NUMBER || '",' ||
+                  '"' || V_FAX_NUMBER || '",' ||
+                  '"' || V_DIVISION || '",' ||
+                  '"' || V_DIVISION_NAME || '",' ||
+                  '"' || V_AREA || '",' ||
+                  '"' || V_AREA_NAME || '",' ||
+                  '"' || V_AREA_SHORT_NAME || '",' ||
+                  '"' || V_DAD || '",' ||
+                  '"' || V_DAD_DESC || '",' ||
+                  '"' || CC_REC.OPEN_DATE || '",' ||
+                  '"' || CC_REC.CLOSE_DATE || '",' ||
+                  '"' || CC_REC.STATEMENT_TYPE || '",' ||
+                  '"' || NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE',
+                                                                             'COD',
+                                                                             cc_rec.STATEMENT_TYPE),
+                             'N/A') || '",' ||
+                  '"' || V_POLLING_STATUS_CODE || '",' ||
+                  '"' || V_POLLING_STATUS_CODE_DESC || '",' ||
+                  '"' || V_TYPE_CODE || '",' ||
+                  '"' || V_TYPE_CODE_DESC || '",'||
+                  '"' || V_PRICE_DISTRICT || '"';
+
+        V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
     END LOOP;
 
-    /*Invoking the package with fo different countries*/
-     CCN_SPREADSHEET_PKG.QUERY2SHEET('select * from CCN_PD_USA',true,null,null,null,'USA');
-     CCN_SPREADSHEET_PKG.QUERY2SHEET('select * from CCN_PD_CAN',true,null,null,null,'CAN');
-     CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
-  /* deleting the data in the table after generating the file */
-     EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PD_USA';
-     EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PD_CAN';
-     
-	 MAIL_PKG.SEND_MAIL('STORE_PDH_HRCHY_MAIL');
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+    IF V_CUR_COUNT > 0 THEN
+        MAIL_PKG.SEND_MAIL('STORE_PDH_HRCHY_MAIL', NULL, NULL,V_CLOB_FOR_EMAIL);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
+        UTL_FILE.FCLOSE(OUTPUT_FILE);
         ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.GENERATE_STORE_PD_HRCHY_FILE','GENERATE STORE PRICE DISTRICT HIERARCHY REPORTING FAILED AT '||SQLCODE||' : '||                SQLERRM);
 END GENERATE_STORE_PD_HRCHY_FILE;
 
@@ -625,8 +619,6 @@ modified: 09/06/2017 sxp130 ASP-795 - Incorporated code changes for PAT E-Mail o
         : Tuesday, September 05, 2017 10:54AM - PAT's E-mail.
         : 10/02/2017 rxa457 CCN Project Team...
           file name changed merchtb.dat
-        : 02/09/2018 bxa919 CCN Project Team ...
-          Added 2 fileds MERCH_ID_CAN,PCI_MERCH_ID_CAN to populate in the report.
 *******************************************************************************************/
 AS
    CURSOR CUR_COST_CENTER IS
@@ -693,10 +685,6 @@ BEGIN
          APPEND_CLOB(REC_BC.PCI_DISCOVER_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
          --Append AMEX_SE_ID to file
          APPEND_CLOB(REC_BC.AMEX_SE_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
-         --Append PCI_MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
-	 --Append PCI_MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.PCI_MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
       END LOOP;
    END LOOP;
    UTL_FILE.FCLOSE(OUTPUT_FILE);
@@ -1065,65 +1053,4 @@ EXCEPTION
         UTL_FILE.FCLOSE(OUTPUT_FILE);
         RAISE;
 END GENERATE_VALUE_LINK_PROCESS ;
-
-PROCEDURE POS_TERM_TRAN_UPDATE
-/**********************************************************
-	This procedure is intended to UPDATE POS_LAST_TRAN_DATE, POS_LAST_TRAN_NUMBER and POS_VERSION_NUMBER
-  in termianl table
-
-Created : 12/01/2017 nxk927 CCN project
-**********************************************************/
-IS
-V_RUNCYCLE VARCHAR2(10) := GET_LOAD_RUNCYCLE();
-CURSOR CUR IS
-    SELECT TRAN_DATE, STORE_NO, TERMNBR, TRANNBR,POS_VERSION_NUMBER
-      FROM PNP_CCN_HEADERS  A
-     WHERE RLS_RUN_CYCLE = V_RUNCYCLE
-       AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
-                               FROM PNP_CCN_HEADERS  B
-                              WHERE RLS_RUN_CYCLE = A.RLS_RUN_CYCLE
-                                AND STORE_NO      = A.STORE_NO
-                                AND TERMNBR       = A.TERMNBR);
-BEGIN
-    FOR REC IN CUR LOOP
-        UPDATE TERMINAL
-           SET POS_LAST_TRAN_DATE                        = REC.TRAN_DATE,
-               POS_LAST_TRAN_NUMBER                      = LPAD(REC.TRANNBR, 5, '0'),
-               POS_VERSION_NBR                           = REC.POS_VERSION_NUMBER
-         WHERE SUBSTR(COST_CENTER_CODE,3)                = REC.STORE_NO
-           AND TERMINAL_NUMBER                           = REC.TERMNBR
-           AND (NVL(POS_LAST_TRAN_DATE,(TRUNC(SYSDATE))) <> NVL(REC.TRAN_DATE,TRUNC(SYSDATE)+1) OR
-                NVL(POS_LAST_TRAN_NUMBER,-1)             <> NVL(LPAD(REC.TRANNBR, 5, '0'),-2) OR
-                NVL(POS_VERSION_NBR,-1)                  <> NVL(REC.POS_VERSION_NUMBER,-2))
-           AND EXPIRATION_DATE IS NULL;
-    END LOOP;
-END POS_TERM_TRAN_UPDATE;
-
-FUNCTION GET_LOAD_RUNCYCLE
-/******************************************************************************
-  This function will get the runcycle for the days load
-
-Created : 09/28/2017 nxk927 CCN Project....
-Changed :
-*******************************************************************************/
-RETURN VARCHAR2
-IS
-    V_RETURN_VALUE      VARCHAR2(10);
-BEGIN
-    SELECT RLS_RUN_CYCLE
-      INTO V_RETURN_VALUE
-      FROM (SELECT CH.*
-              FROM PNP_CCN_LOAD_STATUS CH
-              WHERE CH.START_TS  > (SELECT MAX(START_TS)
-                                      FROM PNP_CCN_LOAD_STATUS)
-                AND STATUS_CODE = 'C'
-              ORDER BY CH.START_TS)
-     WHERE ROWNUM < 2;
-
-    RETURN V_RETURN_VALUE;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN NULL;
-END GET_LOAD_RUNCYCLE;
-
 END CCN_BATCH_PROCESS;
