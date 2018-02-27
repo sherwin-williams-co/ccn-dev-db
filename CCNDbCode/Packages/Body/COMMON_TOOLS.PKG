@@ -1280,6 +1280,8 @@ Modified: 11/07/2017 bxa919 CCN Project Team...
           Removed call for POS_MASTER_SP
 Modified: 02/12/2018 rxv940 CCN Project Team....
           Added Set and re-set calls to stop DMLs producing polling records
+        :  02/23/2018 sxg151 Calling MAIL_PKG.SEND_MAIL to send an email if Bulk Load process Fails.
+        :  02/23/2018 sxg151 Calling ERRPKG.ERROR_DETAILS to fetch the error records from Error_log table
 ******************************************************************************/
 IN_BLOB            IN       BLOB)
 IS
@@ -1291,6 +1293,8 @@ IS
     V_ARC_FILE_NM VARCHAR2(100)     := 'TERRITORY_TYPE_BUSN_CODE_UPD_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
     V_EXCEPTION EXCEPTION;
     V_BULK_LOAD_LKUP_ID NUMBER;
+    V_START_TIME        DATE := SYSDATE;
+    V_CLOB_FOR_EMAIL    CLOB;
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_TERR_TYP_BUSN_CD_UPD', V_BULK_LOAD_LKUP_ID);
     CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
@@ -1331,20 +1335,39 @@ BEGIN
                                      'COMMON_TOOLS.BULK_TERR_TYP_BUSN_CD_UPD_PRCS',
                                      SE,
                                      SQ);
+
+              --Call ERRPKG.ERROR_DETAILS to Fetch the error records from error_log table.--ASP-975
+              ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+
               ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
            WHEN OTHERS THEN
               COMMON_TOOLS.LOG_ERROR(rec.COST_CENTER_CODE,
                                      'COMMON_TOOLS.BULK_TERR_TYP_BUSN_CD_UPD_PRCS',
                                      SQLERRM,
                                      SQLCODE);
+
+              --Call ERRPKG.ERROR_DETAILS to Fetch the error records from error_log table.--ASP-975
+              ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+
               ROLLBACK TO TERR_TYP_BUSN_CD_UPD_SP;
         END;
     END LOOP;
+
+    --Added below to send email to CCN team ASP-975
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        MAIL_PKG.SEND_MAIL('UI_BULK_TERR_TYP_LOAD_PRCS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
+
     --Rename File on server for History
    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
 EXCEPTION
     WHEN OTHERS THEN
+        --Call the errpkg.error_details package to fetch the data from error_log table to send an email.
+        ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+            IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+                MAIL_PKG.SEND_MAIL('UI_BULK_TERR_TYP_LOAD_PRCS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+            END IF;
        -- The below call to reset the flag should always be the first line of the exception block
        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
        -- this call in the first line of exception block we make sure no other errors blocks the reset process
