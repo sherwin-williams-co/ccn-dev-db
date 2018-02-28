@@ -2646,7 +2646,7 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/***********************************************************
+/*********************************************************** 
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place
@@ -2929,6 +2929,29 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/***********************************************************
+The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
+An error occurs when effective date is the past than the current effective date
+
+created : 11/09/2017 axt754  CCN Project Team....
+revisions:
+************************************************************/
+EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
+EXC_EN_DATE_PASSED_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
+
+/*********************************************************** 
+The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
+This error will state the country code is missing in currency conversion. 
+
+created : 11/10/2017 axt754  CCN Project Team...
+revisions: 
+************************************************************/
+EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
+EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
+
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2954,5 +2977,30 @@ en_no_taxware_nontaxware_info      CONSTANT NUMBER := -20186;
 exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
+
+/***********************************************************
+The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
+This error will says that there is duplicate of sorted
+sequence number under a program
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
+exc_gl_ps_dup_sort_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_ps_dup_sort_seq_err , -20190);
+
+/***********************************************************
+The "invalid_gl_num_len_err" passes a numerical error of -20191
+This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
+exc_invalid_gl_num_len_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_gl_num_len_err , -20191);
 
 END ERRNUMS;
