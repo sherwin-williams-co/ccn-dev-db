@@ -40,7 +40,7 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_terminal_upd
                           v_terminal_row.EFFECTIVE_DATE, 'yyyymmdd') EFFECTIVE_DATE ,TO_CHAR(
                           v_terminal_row.EXPIRATION_DATE, 'yyyymmdd') EXPIRATION_DATE ,TO_CHAR(
                           v_terminal_row.POS_LAST_TRAN_DATE, 'yyyymmdd') POS_LAST_TRAN_DATE ,
-                          v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER ,
+                          v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER )
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                 XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
