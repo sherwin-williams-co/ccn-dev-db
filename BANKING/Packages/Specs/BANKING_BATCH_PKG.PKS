@@ -34,4 +34,18 @@ IN_LOAD_DATE      IN DATE
 )
 ;
 
+PROCEDURE STORE_BANK_DPST_RECON_DT(
+/**********************************************************
+  This procedure is intended to generate a file with the
+  Store Bank  Deposit Daily Reconciliation data for the last
+  2 weeks
+
+Created : 09/12/2016 mxk766 CCN project....
+        : 02/28/2018 sxg151 Added back -- ASP-639
+**********************************************************/
+IN_RUN_PERIOD  IN NUMBER,
+IN_SERVER_NAME IN VARCHAR2,
+IN_LOG_FILE    IN VARCHAR2
+);
+
 END BANKING_BATCH_PKG;
