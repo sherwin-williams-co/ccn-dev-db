@@ -5,7 +5,7 @@ for each row
 
 DECLARE
 
-    v_transaction_id VARCHAR2(500);
+     v_transaction_id VARCHAR2(500);
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_administration_row ADMINISTRATION%ROWTYPE; 
@@ -16,6 +16,8 @@ v_administration_row.cost_center_code := :NEW.cost_center_code;
 		v_administration_row.CATEGORY := :NEW.CATEGORY;
 		v_administration_row.INTERNAL_MAIL_NUMBER := :NEW.INTERNAL_MAIL_NUMBER;
     v_administration_row.ADMIN_COST_CNTR_TYPE := :NEW.ADMIN_COST_CNTR_TYPE;
+    v_administration_row.ALLOCATION_CC := :NEW.ALLOCATION_CC;
+    v_administration_row.DIVISION_OFFSET := :NEW.DIVISION_OFFSET;
 			
 	SELECT XMLELEMENT ( "ADMINISTRATION",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -26,6 +28,8 @@ v_administration_row.cost_center_code := :NEW.cost_center_code;
 				,v_administration_row.CATEGORY CATEGORY
 				,v_administration_row.INTERNAL_MAIL_NUMBER INTERNAL_MAIL_NUMBER
         ,v_administration_row.ADMIN_COST_CNTR_TYPE ADMIN_COST_CNTR_TYPE
+				,v_administration_row.ALLOCATION_CC ALLOCATION_CC
+        ,v_administration_row.DIVISION_OFFSET DIVISION_OFFSET
 			)) AS "result"
 			,XMLELEMENT ( "PrimaryKey",               
 	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",

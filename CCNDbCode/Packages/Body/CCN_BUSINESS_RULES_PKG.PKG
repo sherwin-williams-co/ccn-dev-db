@@ -579,6 +579,10 @@ v_break  := ('Entering Table Specific Business Rules'
       CCN_BUSINESS_RULES_PKG.ADMINISTRATION_BR_SP(
             inadmin_rowtype          
  					, incost_center_rowtype); 
+      
+      CCN_BUSINESS_RULES_PKG.ALLOCATION_DIV_OFFSET_BR_SP(inadmin_rowtype
+                                                         ,incost_center_rowtype
+                                                         ,intype_rowtype);
    END IF ;
 
        BEGIN
@@ -8018,5 +8022,114 @@ EXCEPTION
     WHEN OTHERS THEN
         errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500), 'CCN_BUSINESS_RULES_PKG - No errors found');
  END POLLING_QUALITY_STATUS_CHKS_SP;
+ 
+FUNCTION ADMIN_COST_CNTR_BR_SP(
+/*****************************************************************************
+This procedure takes the cost center code as input and checks if type_code of cost center
+is '41', IF so returns 'Y' That indicates to enable ALLOCATION_CC and DIVISION_OFFSET
+Fields if not '41' the returns 'N', that indicates above fields are not shown on UI. 
+
+Created : 01/05/2018 axt754 CN Project....
+Modified:
+******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_TYPE_CODE  TYPE.TYPE_CODE%TYPE       := NULL;
+    V_CATEGORY   COST_CENTER.CATEGORY%TYPE := NULL;
+BEGIN
+    BEGIN
+       SELECT CC.CATEGORY, T.TYPE_CODE
+         INTO V_CATEGORY, V_TYPE_CODE
+         FROM COST_CENTER CC
+              ,TYPE T
+        WHERE CC.COST_CENTER_CODE = T.COST_CENTER_CODE
+          AND T.EXPIRATION_DATE IS NULL
+          AND T.TYPE_CODE = '41'
+          AND UPPER(CC.COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE);
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+     
+    IF NVL(V_TYPE_CODE,'XX') = '41' AND NVL(V_CATEGORY,'X') = 'A' THEN
+        RETURN 'Y';
+    ELSE
+        RETURN 'N';
+    END IF;
+END ADMIN_COST_CNTR_BR_SP;
+
+PROCEDURE ALLOCATION_DIV_OFFSET_BR_SP (
+/*******************************************************************************
+	 ALLOCATION_DIV_OFFSET_BR_SP
+
+Created : axt754 01/19/2018 CCN Project Team....
+          If cost center category is 'A' and Type_code is '41', and the allocation_cc 
+          , division_offset are NULL, then raise the warning that these fields are
+          mandatory category "A" and type_code '41'
+REVISED :
+*******************************************************************************/	
+  
+  inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
+ ,intype_rowtype                   IN  TYPE%ROWTYPE)
+IS 
+    V_CODE                  VARCHAR2(250);
+    V_ERRM                  VARCHAR2(500);
+    v_cc_rec                COST_CENTER%ROWTYPE;
+    invalid_allocation_cc   EXCEPTION;
+    invalid_division_offset EXCEPTION;
+BEGIN
+IF inCostctr_rowtype.CATEGORY = 'A' AND intype_rowtype.TYPE_CODE = '41' THEN
+    IF (NVL(inAdmin_rowtype.ALLOCATION_CC,'XX') = 'XX' OR
+        NVL(inAdmin_rowtype.DIVISION_OFFSET,'XX') = 'XX') THEN
+         ERRPKG.STORE_WARNINGS(
+                        errnums.en_no_alloc_cc_div_offset,
+                        'ALLOCATION_CC and DIVISION_OFFSET are mandatory for Category A and Type_code 41'
+                        );
+    END IF;
+    IF inAdmin_rowtype.ALLOCATION_CC IS NOT NULL THEN
+        BEGIN
+            SELECT * 
+              INTO v_cc_rec
+              FROM COST_CENTER
+             WHERE UPPER(COST_CENTER_CODE) = UPPER(inAdmin_rowtype.ALLOCATION_CC);
+        EXCEPTION
+             WHEN NO_DATA_FOUND THEN
+              RAISE invalid_allocation_cc;
+        END;
+    END IF;
+    v_cc_rec := NULL;
+    IF inAdmin_rowtype.DIVISION_OFFSET IS NOT NULL THEN
+        BEGIN
+            SELECT * 
+              INTO v_cc_rec
+              FROM COST_CENTER
+             WHERE UPPER(COST_CENTER_CODE) = UPPER(inAdmin_rowtype.DIVISION_OFFSET);
+        EXCEPTION
+             WHEN NO_DATA_FOUND THEN
+                 RAISE invalid_division_offset;
+        END;
+    END IF;
+END IF;
+
+EXCEPTION
+    WHEN invalid_allocation_cc THEN
+        v_code := errnums.en_invalid_allocation_cc;
+	      v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code, v_errm ||
+        'CCN_BUSINESS_RULES_PKG ' || 'ALLOCATION CC doesnot exists');
+    WHEN invalid_division_offset THEN
+        v_code := errnums.en_invalid_division_offset;
+	      v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code, v_errm ||
+        'CCN_BUSINESS_RULES_PKG ' || 'DIVISION OFFSET doesnot exists');
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+	    v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code, v_errm ||
+        'CCN_BUSINESS_RULES_PKG ' || 'No errors found');
+     
+    
+ END  ALLOCATION_DIV_OFFSET_BR_SP;
 
 END CCN_BUSINESS_RULES_PKG;

@@ -11,6 +11,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
 	: 02/20/2018 bxa919 CCN Project....
           Added Field POTENTIAL_OPEN_DATE
+    : 01/18/2018 axt754 CCN Project....
+          Added ALLOCATION_CC, DIVISION_OFFSET Fields
 */
 
   DROP TABLE COST_CENTER_ADMINISTRATION;
@@ -137,7 +139,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
     PRICE_DIST_EFFECTIVE_DT VARCHAR2(8),
     CREDIT_HIERARCHY VARCHAR2(100),
 	MANAGER_ID VARCHAR2(100),
-	POTENTIAL_OPEN_DATE VARCHAR2(8)
+	POTENTIAL_OPEN_DATE VARCHAR2(8),
+    ALLOCATION_CC VARCHAR2(6),
+    DIVISION_OFFSET VARCHAR2(6)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -270,7 +274,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-					POTENTIAL_OPEN_DATE)
+					POTENTIAL_OPEN_DATE,
+                    ALLOCATION_CC,
+                    DIVISION_OFFSET)
                      )
       LOCATION
        ( 'COST_CENTER_ADMINISTRATION.csv'

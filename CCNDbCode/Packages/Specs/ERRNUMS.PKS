@@ -3003,4 +3003,30 @@ exc_invalid_gl_num_len_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_gl_num_len_err , -20191);
 
+/*********************************************************** 
+The "invalid_allocation_cc" passes a numerical error of -20197.
+An error occurs when passed allocation_cc is not present in CCN. 
+
+created : 02/27/2018 axt754 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_allocation_cc CONSTANT NUMBER := -20197;
+invalid_allocation_cc EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_allocation_cc , -20197);
+
+/*********************************************************** 
+The "invalid_division_offset" passes a numerical error of -20198.
+An error occurs when passed division_offset is not present in CCN. 
+
+created : 02/27/2018 axt754 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_division_offset CONSTANT NUMBER := -20198;
+invalid_division_offset EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_division_offset , -20198);
+
 END ERRNUMS;

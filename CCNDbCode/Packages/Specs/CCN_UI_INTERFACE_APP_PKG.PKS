@@ -789,5 +789,17 @@ This procedure takes XML which has COUNTRY_CODE and does the following
 --*******************************************************************************/
 --
     IN_ROW_DATA  IN  CLOB);  
+    
+FUNCTION ADMIN_COST_CNTR_FIELDS_ENBLE(
+/*****************************************************************************
+This procedure takes the cost center code as input and checks if type_code of cost center
+is '41' and category is 'A', IF so returns 'Y' That indicates to show
+ALLOCATION_CC and DIVISION_OFFSET Fields, else returns 'N',that indicates
+continue as it is working now.
+
+Created : 01/05/2018 axt754 CCN Project....
+Modified:
+******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
 
 END CCN_UI_INTERFACE_APP_PKG;

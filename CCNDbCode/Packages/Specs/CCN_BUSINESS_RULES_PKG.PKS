@@ -582,5 +582,31 @@ created  : 02/09/2018 bxa919 CCN Project ...
   , INCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
   , INPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE
   );
+  
+FUNCTION ADMIN_COST_CNTR_BR_SP(
+/*****************************************************************************
+This procedure takes the cost center code as input and checks if admin_cost_cntr_type
+is '01', IF so returns 'Y' That indicates to enable ALLOCATION_CC and DIVISION_OFFSET
+Fields if not '01' the returns 'N', that indicates above fields are not shown on UI. 
+
+Created : 01/05/2018 axt754 CN Project....
+Modified:
+******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
+
+PROCEDURE ALLOCATION_DIV_OFFSET_BR_SP (
+/*******************************************************************************
+	 ALLOCATION_DIV_OFFSET_BR_SP
+
+Created : axt754 01/19/2018 CCN Project Team....
+          If cost center category is 'A' and Type_code is '41', and the allocation_cc 
+          , division_offset are NULL, then raise the warning that these fields are
+          mandatory category "A" and type_code '41'
+REVISED :
+*******************************************************************************/	
+  
+  inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
+ ,intype_rowtype                   IN  TYPE%ROWTYPE);  
 
 END CCN_BUSINESS_RULES_PKG;
