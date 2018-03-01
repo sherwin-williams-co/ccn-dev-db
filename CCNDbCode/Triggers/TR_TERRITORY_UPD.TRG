@@ -4,6 +4,8 @@ created : Initial User
 Modified: rxv940 CCN Project Team....
         : Changed code to handle file generation for both STORE
         : and TERR. 
+        : 03/01/2018 nxk927/jxc527 CCN Project Team..
+          indentation and the right event trigger for the catory
 **********************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.TERRITORY
 REFERENCING NEW AS NEW OLD AS OLD
@@ -74,32 +76,18 @@ BEGIN
                 ,'TR_TERRITORY_UPD');
      --END IF;
 BEGIN
-IF V_TERRITORY_ROW.CATEGORY='T' THEN
-IF INSERTING THEN
-         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
-                                               'TERRITORY',
-                                               'ADD',
-                                               'POS_TERRITORY_UPDATE'
-                                               );
-ELSIF UPDATING THEN
-   IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE,'XXX') <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE,'XXX') THEN      
-      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE=>v_territory_row.COST_CENTER_CODE,IN_DATA_SOURCE=>'TERRITORY',IN_DATA_OPERATION=>'CHANGE',IN_FILE_TYPE=>'POS_STORE_UPDATE');
-   END IF;
-   IF NVL(:OLD.HOME_STORE,'XXX') <> NVL(:NEW.HOME_STORE,'XXX') THEN      
-         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_territory_row.COST_CENTER_CODE,
-                                               'TERRITORY',
-                                               'CHANGE',
-                                               'POS_TERRITORY_UPDATE'
-                                               );
-   END IF;
-END IF;
-END IF;
+    IF V_TERRITORY_ROW.CATEGORY='T' THEN
+        IF INSERTING THEN
+            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'ADD', 'POS_TERRITORY_UPDATE');
+        ELSIF UPDATING THEN
+            IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE, 'XX') <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE, 'XX') OR
+               NVL(:OLD.HOME_STORE, 'XXX')              <> NVL(:NEW.HOME_STORE, 'XXX') THEN
+                POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'CHANGE', 'POS_TERRITORY_UPDATE');
+            END IF;
+        END IF;
+    END IF;
 EXCEPTION
-WHEN OTHERS THEN
-ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                           'TR_TERRITORY_UPD',
-                           SQLERRM,
-                           v_territory_row.COST_CENTER_CODE
-                           );
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_TERRITORY_UPD', SQLERRM, v_territory_row.COST_CENTER_CODE);
 END;
 END TR_TERRITORY_UPD;
