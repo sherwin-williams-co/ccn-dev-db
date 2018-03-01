@@ -7,8 +7,8 @@ Purpose    : For dropping and creating the COST_CENTER_TERRITORY table.
 Created : 04/25/2017 gxg192 CCN Project....
 Changed : 11/06/2017 axt754 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
-	    : 03/01/2018 nxk927 CCN Project....
-          Added Field Inactive_date
+	: 02/20/2018 bxa919 CCN Project....
+          Added Field POTENTIAL_OPEN_DATE
 */
 
 DROP TABLE COST_CENTER_TERRITORY;
@@ -78,7 +78,7 @@ CREATE TABLE COST_CENTER_TERRITORY
       PRICE_DIST_EFFECTIVE_DT  VARCHAR2(8),
       CREDIT_HIERARCHY         VARCHAR2(100),
       MANAGER_ID               VARCHAR2(100),
-      INACTIVE_DATE            VARCHAR2(8)
+      POTENTIAL_OPEN_DATE      VARCHAR2(8)
    )
    ORGANIZATION EXTERNAL
    (
@@ -152,7 +152,7 @@ WITH ALL NULL FIELDS (COST_CENTER_CODE,
                       PRICE_DIST_EFFECTIVE_DT,
                       CREDIT_HIERARCHY,
                       MANAGER_ID,
-					  INACTIVE_DATE)
+                      POTENTIAL_OPEN_DATE)
                      )
       LOCATION
        ( 'COST_CENTER_TERRITORY.csv'
