@@ -4,9 +4,6 @@
 #
 # modified: 05/09/2017 rxa457 - asp-781 CCN Project Team... 
 # Added Script Comments and Handled exceptions 
-# modified: 01/09/2018 nxk927
-#           removed the sed command from this script to concatinate the files before using sed to strip 'x'
-#           as this was creating page break issue.
 ##########################################################
 
 . /app/strdrft/dataloadInfo.txt
@@ -41,7 +38,7 @@ fi
 
 echo "\n Converting to TXT"
 
-/usr/local/bin/pdftotext -layout /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt
+/usr/local/bin/pdftotext -layout -nopgbrk /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/$filename.txt
 
 #Archive PDF file
 cp /app/strdrft/sdReport/reports/$filename.pdf /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.pdf
@@ -53,7 +50,9 @@ if [ ! -f /app/strdrft/sdReport/reports/$filename.txt ]
         exit 1
 fi
 
-cp /app/strdrft/sdReport/reports/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt
+sed  's/x/ /g' /app/strdrft/sdReport/reports/$filename.txt >  /app/strdrft/sdReport/reports/final/$filename.txt 
+
+cp /app/strdrft/sdReport/reports/final/$filename.txt /app/strdrft/sdReport/reports/final/tmp/$filename"_"$DATE.txt
 
 done
 dt1=`date`
