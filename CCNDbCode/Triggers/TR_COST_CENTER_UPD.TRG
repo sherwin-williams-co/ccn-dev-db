@@ -13,8 +13,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
             : 02/01/2018 rxv940 CCN Project Team..
              Changes to assign G_MUT_POS_DOWNLOAD_CC_IND based on S or T
              Setting POS_DOWNLOAD_CC_IND := 'Y' for Territories
-            : 15/02/2018 bxa919  CCN Project....
-              Added POTENTIAL_OPEN_DATE column
+            : 03/01/2018 nxk927/jxc527 CCN Project Team..
+              indentation and the right event trigger for the catory
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -32,47 +32,46 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
       INTO v_transaction_id
       FROM AUDIT_LOG;
       */
-      v_cost_center_row.COST_CENTER_CODE       := :NEW.cost_center_code;
-      v_cost_center_row.COST_CENTER_NAME       := :NEW.COST_CENTER_NAME;
+      v_cost_center_row.COST_CENTER_CODE             := :NEW.cost_center_code;
+      v_cost_center_row.COST_CENTER_NAME             := :NEW.COST_CENTER_NAME;
       IF :NEW.CATEGORY = 'D' THEN
-        v_cost_center_row.CATEGORY             := 'S';
+        v_cost_center_row.CATEGORY                   := 'S';
       ELSE
-      v_cost_center_row.CATEGORY               := :NEW.CATEGORY;
+      v_cost_center_row.CATEGORY                     := :NEW.CATEGORY;
       END IF;
-      v_cost_center_row.ENTITY_TYPE            := :NEW.ENTITY_TYPE;
-      v_cost_center_row.STATEMENT_TYPE         := :NEW.STATEMENT_TYPE;
-      v_cost_center_row.COUNTRY_CODE           := :NEW.COUNTRY_CODE;
-      v_cost_center_row.TRANSPORT_TYPE         := :NEW.TRANSPORT_TYPE;
-      v_cost_center_row.BEGIN_DATE             := :NEW.BEGIN_DATE;
-      v_cost_center_row.OPEN_DATE              := :NEW.OPEN_DATE;
-      v_cost_center_row.MOVE_DATE              := :NEW.MOVE_DATE;
-      v_cost_center_row.CLOSE_DATE             := :NEW.CLOSE_DATE;
-      v_cost_center_row.FINANCIAL_CLOSE_DATE   := :NEW.FINANCIAL_CLOSE_DATE;
-      v_cost_center_row.POS_PROG_VER_EFF_DATE  := :NEW.POS_PROG_VER_EFF_DATE;
-      v_cost_center_row.UPS_ZONE_CODE          := :NEW.UPS_ZONE_CODE;
-      v_cost_center_row.RPS_ZONE_CODE          := :NEW.RPS_ZONE_CODE;
-      v_cost_center_row.CURRENCY_CODE          := :NEW.CURRENCY_CODE;
-      v_cost_center_row.POS_PROG_VER_NBR       := :NEW.POS_PROG_VER_NBR;
-      v_cost_center_row.LEASE_OWN_CODE         := :NEW.LEASE_OWN_CODE;
-      v_cost_center_row.MISSION_TYPE_CODE      := :NEW.MISSION_TYPE_CODE;
-      v_cost_center_row.DUNS_NUMBER            := :NEW.DUNS_NUMBER;
-      v_cost_center_row.PRI_LOGO_GROUP_IND     := :NEW.PRI_LOGO_GROUP_IND;
-      v_cost_center_row.SCD_LOGO_GROUP_IND     := :NEW.SCD_LOGO_GROUP_IND;
-      v_cost_center_row.BANKING_TYPE           := :NEW.BANKING_TYPE;
-      v_cost_center_row.DEPOSIT_BAG_REORDER    := :NEW.DEPOSIT_BAG_REORDER;
-      v_cost_center_row.DEPOSIT_TICKET_REORDER := :NEW.DEPOSIT_TICKET_REORDER;
-      v_cost_center_row.POP_KIT_CODE           := :NEW.POP_KIT_CODE;
-      v_cost_center_row.SPRAY_EQP_RPR_IND      := :NEW.SPRAY_EQP_RPR_IND;
-      v_cost_center_row.BOOK_PLN_PROFILE_CD    := :NEW.BOOK_PLN_PROFILE_CD;
-      v_cost_center_row.ACQUISITION_CODE       := :NEW.ACQUISITION_CODE;
-      v_cost_center_row.CC_TEMP_CLOSED_CD      := :NEW.CC_TEMP_CLOSED_CD;
-      v_cost_center_row.COLOR_CONSULTANT_TYPE  := :NEW.COLOR_CONSULTANT_TYPE;
-      v_cost_center_row.GLOBAL_HIERARCHY_IND   := :NEW.GLOBAL_HIERARCHY_IND;
-      v_cost_center_row.PCC_PCL_STORE          := :NEW.PCC_PCL_STORE;
-      v_cost_center_row.POS_NON_STORE_IND      := :NEW.POS_NON_STORE_IND;
-      v_cost_center_row.PRIM_COST_IDENTIFIER   := :NEW.PRIM_COST_IDENTIFIER;
-      v_cost_center_row.STD_COST_IDENTIFIER    := :NEW.STD_COST_IDENTIFIER;
-      v_cost_center_row.POTENTIAL_OPEN_DATE    := :NEW.POTENTIAL_OPEN_DATE;
+      v_cost_center_row.ENTITY_TYPE                  := :NEW.ENTITY_TYPE;
+      v_cost_center_row.STATEMENT_TYPE               := :NEW.STATEMENT_TYPE;
+      v_cost_center_row.COUNTRY_CODE                 := :NEW.COUNTRY_CODE;
+      v_cost_center_row.TRANSPORT_TYPE               := :NEW.TRANSPORT_TYPE;
+      v_cost_center_row.BEGIN_DATE                   := :NEW.BEGIN_DATE;
+      v_cost_center_row.OPEN_DATE                    := :NEW.OPEN_DATE;
+      v_cost_center_row.MOVE_DATE                    := :NEW.MOVE_DATE;
+      v_cost_center_row.CLOSE_DATE                   := :NEW.CLOSE_DATE;
+      v_cost_center_row.FINANCIAL_CLOSE_DATE         := :NEW.FINANCIAL_CLOSE_DATE;
+      v_cost_center_row.POS_PROG_VER_EFF_DATE        := :NEW.POS_PROG_VER_EFF_DATE;
+      v_cost_center_row.UPS_ZONE_CODE                := :NEW.UPS_ZONE_CODE;
+      v_cost_center_row.RPS_ZONE_CODE                := :NEW.RPS_ZONE_CODE;
+      v_cost_center_row.CURRENCY_CODE                := :NEW.CURRENCY_CODE;
+      v_cost_center_row.POS_PROG_VER_NBR             := :NEW.POS_PROG_VER_NBR;
+      v_cost_center_row.LEASE_OWN_CODE               := :NEW.LEASE_OWN_CODE;
+      v_cost_center_row.MISSION_TYPE_CODE            := :NEW.MISSION_TYPE_CODE;
+      v_cost_center_row.DUNS_NUMBER                  := :NEW.DUNS_NUMBER;
+      v_cost_center_row.PRI_LOGO_GROUP_IND           := :NEW.PRI_LOGO_GROUP_IND;
+      v_cost_center_row.SCD_LOGO_GROUP_IND           := :NEW.SCD_LOGO_GROUP_IND;
+      v_cost_center_row.BANKING_TYPE                 := :NEW.BANKING_TYPE;
+      v_cost_center_row.DEPOSIT_BAG_REORDER          := :NEW.DEPOSIT_BAG_REORDER;
+      v_cost_center_row.DEPOSIT_TICKET_REORDER       := :NEW.DEPOSIT_TICKET_REORDER;
+      v_cost_center_row.POP_KIT_CODE                 := :NEW.POP_KIT_CODE;
+      v_cost_center_row.SPRAY_EQP_RPR_IND            := :NEW.SPRAY_EQP_RPR_IND;
+      v_cost_center_row.BOOK_PLN_PROFILE_CD          := :NEW.BOOK_PLN_PROFILE_CD;
+      v_cost_center_row.ACQUISITION_CODE             := :NEW.ACQUISITION_CODE;
+      v_cost_center_row.CC_TEMP_CLOSED_CD            := :NEW.CC_TEMP_CLOSED_CD;
+      v_cost_center_row.COLOR_CONSULTANT_TYPE        := :NEW.COLOR_CONSULTANT_TYPE;
+      v_cost_center_row.GLOBAL_HIERARCHY_IND         := :NEW.GLOBAL_HIERARCHY_IND;
+      v_cost_center_row.PCC_PCL_STORE                := :NEW.PCC_PCL_STORE;
+      v_cost_center_row.POS_NON_STORE_IND            := :NEW.POS_NON_STORE_IND;
+      v_cost_center_row.PRIM_COST_IDENTIFIER         := :NEW.PRIM_COST_IDENTIFIER;
+      v_cost_center_row.STD_COST_IDENTIFIER          := :NEW.STD_COST_IDENTIFIER;
 
       SELECT XMLELEMENT ( "COST_CENTER",
                           XMLATTRIBUTES (
@@ -116,8 +115,7 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                                      v_cost_center_row.PCC_PCL_STORE PCC_PCL_STORE ,
                                      v_cost_center_row.POS_NON_STORE_IND POS_NON_STORE_IND ,
                                      v_cost_center_row.PRIM_COST_IDENTIFIER PRIM_COST_IDENTIFIER ,
-                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER,
-                                     v_cost_center_row.POTENTIAL_OPEN_DATE POTENTIAL_OPEN_DATE)
+                                     v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
@@ -169,22 +167,21 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
          ELSE
              POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := :OLD.POS_DOWNLOAD_CC_IND;
          END IF;
-         IF :NEW.CATEGORY IN ('S','T') THEN
-            IF INSERTING THEN
-               POS_DATA_GENERATION.POS_TRG_EVENT_LOG(
-               v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'ADD',
-               'POS_STORE_UPDATE' );
-            ELSIF UPDATING THEN
-               IF NVL(:OLD.COST_CENTER_NAME,'XXX')                          <> NVL(:NEW.COST_CENTER_NAME
-                  ,'XXX') OR NVL(:OLD.CURRENCY_CODE,'XXX')                  <> NVL(
-                  :NEW.CURRENCY_CODE,'XXX') OR NVL(:OLD.COUNTRY_CODE,'XXX') <>
-                  NVL(:NEW.COUNTRY_CODE,'XXX') OR NVL(:OLD.STATEMENT_TYPE,'XXX'
-                  ) <> NVL(:NEW.STATEMENT_TYPE,'XXX') THEN
-                  POS_DATA_GENERATION.POS_TRG_EVENT_LOG(
-                  v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'CHANGE',
-                  'POS_STORE_UPDATE' );
-               END IF;
-            END IF;
+         IF INSERTING THEN
+             IF :NEW.CATEGORY = 'S' THEN
+                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'ADD', 'POS_STORE_UPDATE' );
+             ELSIF :NEW.CATEGORY = 'T' THEN
+                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'ADD', 'POS_TERRITORY_UPDATE' );
+             END IF;
+         ELSIF UPDATING THEN
+             IF :NEW.CATEGORY = 'S' THEN
+                 IF NVL(:OLD.COST_CENTER_NAME, 'XXX')  <> NVL(:NEW.COST_CENTER_NAME, 'XXX') OR
+                    NVL(:OLD.CURRENCY_CODE, 'XXX')     <> NVL(:NEW.CURRENCY_CODE, 'XXX') OR
+                    NVL(:OLD.COUNTRY_CODE, 'XXX')      <>  NVL(:NEW.COUNTRY_CODE, 'XXX') OR
+                    NVL(:OLD.STATEMENT_TYPE, 'XXX')    <> NVL(:NEW.STATEMENT_TYPE, 'XXX') THEN
+                     POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'CHANGE', 'POS_STORE_UPDATE' );
+                 END IF;
+             END IF;
          END IF;
          POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND := NULL;
       EXCEPTION
