@@ -3004,6 +3004,19 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_gl_num_len_err , -20191);
 
 /*********************************************************** 
+The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
+If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
+'01'
+
+created :  12/27/2017 axt754 CCN Project Team...
+revisions: 
+************************************************************/
+en_no_alloc_cc_div_offset      CONSTANT NUMBER := -20187;
+exc_no_alloc_cc_div_offset EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_alloc_cc_div_offset , -20187);
+
+/*********************************************************** 
 The "invalid_allocation_cc" passes a numerical error of -20197.
 An error occurs when passed allocation_cc is not present in CCN. 
 
