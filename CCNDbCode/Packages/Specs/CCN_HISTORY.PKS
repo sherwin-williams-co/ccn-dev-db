@@ -85,32 +85,28 @@ OUT_POLLING_REF_CUR OUT REF_CURSOR);
 
 PROCEDURE RETURN_BANK_CARD_HIST (
 /**********************************************************
-    RETURN_BANK_CARD_HIST
-    
 This procedure will return a ref cursor with data  
 from BANK_CARD table based on COST_CENTER_CODE
 
 created : 02/28/2018 bxa919 CCN Project Team...
 **********************************************************/
-IN_COST_CENTER_CODE    IN      BANK_CARD.COST_CENTER_CODE%TYPE,
-OUT_BANK_CARD_REF_CUR    OUT   REF_CURSOR);
+    IN_COST_CENTER_CODE    IN     BANK_CARD.COST_CENTER_CODE%TYPE,
+    OUT_BANK_CARD_REF_CUR     OUT REF_CURSOR);
 
 PROCEDURE RETURN_ADDRESS_HIST (
 /**********************************************************
-    RETURN_ADDRESS_HIST
-    
 This procedure will return a ref cursor with data  
 from ADDRESS details from different countries based on 
 COST_CENTER_CODE, EXPIRATION_DATE
 
 created : 02/28/2018 bxa919 CCN Project Team...
 **********************************************************/
-IN_COST_CENTER_CODE       IN      ADDRESS_USA.COST_CENTER_CODE%TYPE,
-OUT_ADDRESS_USA_REF_CUR     OUT   REF_CURSOR,
-OUT_ADDRESS_CAN_REF_CUR     OUT   REF_CURSOR,
-OUT_ADDRESS_MEX_REF_CUR     OUT   REF_CURSOR,
-OUT_ADDRESS_BRB_REF_CUR     OUT   REF_CURSOR,
-OUT_ADDRESS_OTHER_REF_CUR   OUT   REF_CURSOR);
+    IN_COST_CENTER_CODE       IN      ADDRESS_USA.COST_CENTER_CODE%TYPE,
+    OUT_ADDRESS_USA_REF_CUR      OUT  REF_CURSOR,
+    OUT_ADDRESS_CAN_REF_CUR      OUT  REF_CURSOR,
+    OUT_ADDRESS_MEX_REF_CUR      OUT  REF_CURSOR,
+    OUT_ADDRESS_BRB_REF_CUR      OUT  REF_CURSOR,
+    OUT_ADDRESS_OTHER_REF_CUR    OUT  REF_CURSOR);
          
          
 END CCN_HISTORY;
