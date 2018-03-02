@@ -2,7 +2,7 @@
 #################################################################
 # Script name   : store_bank_dpst_recon_data.sh
 # Description   : This shell script is used to execute the stored procedure
-#                 BANKING_BATCH_PKG.STORE_BANK_DPST_RECON_DATA to generate last 2 weeks data based on transaction date(V_RUN_PERIOD defined in Config file).
+#                 BANKING_BATCH_PKG.STORE_BANK_DPST_RECON_DATA to generate last 2 weeks data based on transaction date(STR_BNK_RECNC_DATA_RUN_PERIOD defined in Config file).
 #                 If procedure execution fails then send an email with failure text.
 # Created       : 03/01/2018 sxg151
 # Modified      :
@@ -37,7 +37,7 @@ WHENEVER SQLERROR EXIT 1
 
 BEGIN
     :exitCode := 0;
-    BANKING_BATCH_PKG.STORE_BANK_DPST_RECON_DATA($V_RUN_PERIOD,'$SERVER_NAME','$LOGFILEPATH');
+    BANKING_BATCH_PKG.STORE_BANK_DPST_RECON_DATA($STR_BNK_RECNC_DATA_RUN_PERIOD,'$SERVER_NAME','$LOGFILEPATH');
 EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE(SQLCODE || ',' || SQLERRM);
