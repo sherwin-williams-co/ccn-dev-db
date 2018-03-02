@@ -17,8 +17,6 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
               indentation and the right event trigger for the catory
             : 02/20/2018 bxa919  CCN Project....
               Added POTENTIAL_OPEN_DATE column
-            : 02/20/2018 bxa919  CCN Project....
-              Added POTENTIAL_OPEN_DATE column
             : 02/28/2018 nxk927 CCN Project Team..
               added new field INACTIVE_DATE
    ****************************************************************************
