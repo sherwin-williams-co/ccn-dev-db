@@ -1751,13 +1751,17 @@ IN_CATEGORY_CODE - A ADMINISTRATIVE, M    MANUFACTURING, O    OTHER, R    REAL E
 Modified:  06/23/2017 rxa457 CCN Project Team..
                Code Added to handle Bulk Load process of DISAPATCH_TERMINAL cost centers
         :  09/29/2017 axt754 Rename file on server for history
+        :  02/09/2018 sxg151 Calling MAIL_PKG.SEND_MAIL to send an email if Bulk Load process Fails.--ASP-975
+        :  02/13/2018 sxg151 Calling ERRPKG.ERROR_DETAILS to fetch the error records from Error_log table--ASP-975
 ******************************************************************************/
 IN_BLOB            IN       BLOB,
 IN_CATEGORY_CODE   IN       COST_CENTER.CATEGORY%TYPE)
 IS
-    V_CATEGORY        CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
-    V_FILE_NM     VARCHAR2(100);
-    V_ARC_FILE_NM VARCHAR2(100);
+    V_CATEGORY          CODE_DETAIL.CODE_DETAIL_DESCRIPTION%TYPE;
+    V_FILE_NM           VARCHAR2(100);
+    V_ARC_FILE_NM       VARCHAR2(100);
+    V_START_TIME        DATE := SYSDATE;
+    V_CLOB_FOR_EMAIL    CLOB;
 BEGIN
     --Get the Category Description from Code_Detail table
     SELECT DECODE(CODE_DETAIL_DESCRIPTION,'ADMINISTRATIVE','ADMINISTRATION',REPLACE(CODE_DETAIL_DESCRIPTION,' ','_'))
@@ -1788,10 +1792,21 @@ BEGIN
     ELSE
         NULL;
     END CASE;
+
+    --Call ERRPKG.ERROR_DETAILS package here incase above any load process handles  errors.
+    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        MAIL_PKG.SEND_MAIL('CC_UI_BULK_LOAD_PROCESS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
     --Rename file on server for history
     CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM,V_ARC_FILE_NM);
 EXCEPTION
     WHEN OTHERS THEN
+        --Call the errpkg.error_details package to fetch the data from error_log table to send an email.
+        ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+        IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+            MAIL_PKG.SEND_MAIL('CC_UI_BULK_LOAD_PROCESS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+        END IF;
         -- Rename file on server for history
         CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
         ERRPKG.RAISE_ERR(SQLCODE, 'COST_CENTER_UPLOAD.UI_LOAD_PROCESS' || SUBSTR(SQLERRM, 1, 500) || ' IN OTHERS ');
