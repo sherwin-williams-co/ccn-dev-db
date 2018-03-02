@@ -17,6 +17,10 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
               indentation and the right event trigger for the catory
             : 02/20/2018 bxa919  CCN Project....
               Added POTENTIAL_OPEN_DATE column
+            : 02/20/2018 bxa919  CCN Project....
+              Added POTENTIAL_OPEN_DATE column
+            : 02/28/2018 nxk927 CCN Project Team..
+              added new field INACTIVE_DATE
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -75,6 +79,7 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
       v_cost_center_row.PRIM_COST_IDENTIFIER         := :NEW.PRIM_COST_IDENTIFIER;
       v_cost_center_row.STD_COST_IDENTIFIER          := :NEW.STD_COST_IDENTIFIER;
       v_cost_center_row.POTENTIAL_OPEN_DATE          := :NEW.POTENTIAL_OPEN_DATE;
+      v_cost_center_row.INACTIVE_DATE                := :NEW.INACTIVE_DATE;
 
       SELECT XMLELEMENT ( "COST_CENTER",
                           XMLATTRIBUTES (
@@ -119,7 +124,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                                      v_cost_center_row.POS_NON_STORE_IND POS_NON_STORE_IND ,
                                      v_cost_center_row.PRIM_COST_IDENTIFIER PRIM_COST_IDENTIFIER ,
                                      v_cost_center_row.STD_COST_IDENTIFIER STD_COST_IDENTIFIER,
-                                     v_cost_center_row.POTENTIAL_OPEN_DATE POTENTIAL_OPEN_DATE)
+                                     v_cost_center_row.POTENTIAL_OPEN_DATE POTENTIAL_OPEN_DATE,
+                                     v_cost_center_row.INACTIVE_DATE INACTIVE_DATE)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
