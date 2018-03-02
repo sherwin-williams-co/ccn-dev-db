@@ -421,15 +421,14 @@ PROCEDURE  QUERY2SHEET(
     PARSE             : The statement will  parses the resulting string.
     DESCRIBE_COLUMNS2 : Describe table to fill in with the description of 
                         each of the columns of the query.
-   DEFINE_ARRAY       : 
-    
-   
+   DEFINE_ARRAY       : used to store the values in an array
  **********************************************************/
-    IN_SQL                  VARCHAR2,
-    IN_COLUMN_HEADERS       BOOLEAN     := TRUE,
-    IN_DIRECTORY            VARCHAR2    := NULL,
-    IN_FILENAME             VARCHAR2    := NULL,
-    IN_SHEET                PLS_INTEGER := NULL,
-    IN_SHEETNAME            VARCHAR2);
+    IN_SQL               IN    VARCHAR2,
+  , IN_COLUMN_HEADERS    IN    BOOLEAN     := TRUE,
+  , IN_DIRECTORY         IN    VARCHAR2    := NULL,
+  , IN_FILENAME          IN    VARCHAR2    := NULL,
+  , IN_SHEET             IN    PLS_INTEGER := NULL,
+  , IN_SHEETNAME         IN    VARCHAR2,
+  , IN_DATE_FORMAT       IN    VARCHAR2    := 'd-mmm-yy');
 
 END CCN_SPREADSHEET_PKG;

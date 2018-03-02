@@ -23,18 +23,16 @@ BEGIN
     FOR REC_CC IN CC1 LOOP       
         FOR REC_BC IN CUR_BANK_CARD (REC_CC.COST_CENTER_CODE)  LOOP
       
-                IF substr(REC_BC.MERCHANT_ID,1,1)='8' THEN 
+                IF SUBSTR(REC_BC.MERCHANT_ID,1,1)='8' THEN 
                     
                     V_MERCHANT_ID :=substr(REC_BC.MERCHANT_ID,2);
                     V_MERCH_ID_CAN_MC :='9'||V_MERCHANT_ID;
-                ELSE  
-                    V_MERCH_ID_CAN_MC :=REC_BC.MERCHANT_ID;
+         
+                    UPDATE BANK_CARD 
+                       SET MERCH_ID_CAN_MC = V_MERCH_ID_CAN_MC
+                     WHERE COST_CENTER_CODE=REC_CC.COST_CENTER_CODE
+                       AND MERCHANT_ID= REC_BC.MERCHANT_ID;  
                 END IF;
-                
-              UPDATE BANK_CARD 
-                 SET MERCH_ID_CAN_MC = V_MERCH_ID_CAN_MC
-               WHERE COST_CENTER_CODE=REC_CC.COST_CENTER_CODE
-                 AND MERCHANT_ID= REC_BC.MERCHANT_ID;  
         END LOOP;
     END LOOP;
       COMMIT;  
