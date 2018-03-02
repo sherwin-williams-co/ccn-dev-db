@@ -802,4 +802,16 @@ Modified:
 ******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
 
+PROCEDURE PROCESS_SQ_FT_LD(
+/****************************************************************************** 
+This procedures takes care of following things as part of batch load process from UI
+  # Get the data from UI
+  # Upload the file on DB SERVER
+  # call the batch process
+
+Created : 12/05/2017 axt754 -- CCN Project Team
+Changes :
+******************************************************************************/
+IN_BLOB            IN       BLOB);
+
 END CCN_UI_INTERFACE_APP_PKG;
