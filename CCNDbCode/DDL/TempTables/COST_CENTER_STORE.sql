@@ -163,10 +163,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
-      POTENTIAL_OPEN_DATE              VARCHAR2(8),
-	  TOTAL_SQ_FT                      NUMBER, 
-	  SALES_SQ_FT                      NUMBER
-      
+      POTENTIAL_OPEN_DATE              VARCHAR2(8)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -320,9 +317,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-                                        POTENTIAL_OPEN_DATE,
-	                                    TOTAL_SQ_FT, 
-	                                    SALES_SQ_FT)
+                                        POTENTIAL_OPEN_DATE)
                      )
       LOCATION
        ( 'COST_CENTER_STORE.csv'
