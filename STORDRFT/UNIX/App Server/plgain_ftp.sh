@@ -12,6 +12,7 @@
 #         : 09/14/2017 rxa457 CCN Project Team...
 #               Checking current run's log information for any errors instead of checking the 
 #                main BP log which accumulates all the month's run log into the same file
+#modified : 02/08/2018 nxk927 added ftp check condition for the restrict ftp from lower environment ('SMIS1.STBD3340(+1)' prod report id)
 ##########################################################
 dt=`date +"%m%d%Y"`
 #check for existance of glreport.txt in the folder. Cleanup and Email if report file not found
@@ -39,18 +40,28 @@ echo "\nStarting the FTP Process at $TIME on $DATE.."
 . /app/strdrft/dataloadInfo.txt
 
 cd /app/strdrft/sdReport/reports/final
-
+if [ "$ftp_ind" == "Y" ]
+then
 # ftp to mainframe
 ftp -n ${mainframe_host} <<FTP_MF
 quote USER ${mainframe_user}
 quote PASS ${mainframe_pw}
-quote SITE RECFM=FBA,LRECL=134,BLKSIZE=32696,SPACE=(600,60),VOL(GDG34F) TRACKS
-put glreport.txt 'STST.STBD3340(+1)'
+cd ${mainframe_path}
+put glreport.txt ${gl_report_id}
 
 bye
 FTP_MF
+else
+  echo " FTP is ignored in lower enviornments"
+fi
 
 echo "End of FTP.. Cleanup the generated files\n"
-cd /app/strdrft/sdReport/scripts 
+cd /app/strdrft/sdReport/scripts
 ./cleanup_monthly_gl_reports.sh
+
+echo "Ftp'ing the trigger file to have the reports loaded\n"
+cd /app/strdrft/sdReport/scripts
+./sd_ftp_trigger_file.sh
+
+echo "Ftp'ing the trigger file completed\n"
 exit 0
