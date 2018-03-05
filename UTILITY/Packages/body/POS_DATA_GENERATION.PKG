@@ -85,7 +85,7 @@ BEGIN
         SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
         -- A. We look for the record that has the latest UPDATE_DT. 
         -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
-        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference        
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
           INTO V_PREV_RQST_ID  
           FROM POS_DOWNLOADS
          WHERE POLLING_REQUEST_ID IS NOT NULL
@@ -99,7 +99,7 @@ BEGIN
         SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
         -- A. We look for the record that has the latest UPDATE_DT. 
         -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
-        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference         
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
           INTO V_PREV_RQST_ID   
           FROM POS_DOWNLOADS
          WHERE POLLING_REQUEST_ID IS NOT NULL
@@ -594,7 +594,7 @@ EXCEPTION
     WHEN OTHERS THEN
         OUT_BANK_NAME      := NULL;
         OUT_BANK_ACCNT_NBR := NULL;
-END GET_POS_BANK_DETAILS;	
+END GET_POS_BANK_DETAILS;
 
 FUNCTION RETURN_BANK_CARD_INFO (
 /*******************************************************************************
@@ -1743,127 +1743,6 @@ EXCEPTION
         RAISE;
 END POS_DOWNLOADS_UPD_SP;
 
-PROCEDURE PROCESS_POLLING_ON_DEMAND
-/*******************************************************************************
-This procedure is to load ON DEMAND polling requests into the POS_DOWNLOADS table
-
-Created : 12/26/2017 rxv940 CCN Project....
-Changed :
-*******************************************************************************/
-IS
-    V_ERROR  VARCHAR2(1000);
-    CURSOR ON_DEMAND_POLLING_CUR IS 
-	      SELECT COST_CENTER_CODE,  
-               DOWNLOAD_TYPE, 
-               DECODE(DOWNLOAD_TYPE, 'NewDemographic', 'POS_STORE_UPDATE', 
-                                      'NewBank'      , 'POS_PARAM_UPDATE') FILE_TYPE
-          FROM POS_ON_DEMAND_DOWNLOADS
-         WHERE TRUNC(REQUESTED_DATE) = TRUNC(SYSDATE)
-           AND PROCESSED_FLAG = 'N';
-BEGIN 
-
-    FOR CUR_REC IN ON_DEMAND_POLLING_CUR LOOP
-             
-        IF CUR_REC.DOWNLOAD_TYPE IN ('NewDemographic', 'NewBank') THEN 
-         
-            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(CUR_REC.COST_CENTER_CODE,
-                                                 'ON_DEMAND_LOAD',
-                                                 'UI_REQUEST',
-                                                 CUR_REC.FILE_TYPE);
-            
-            UPDATE POS_ON_DEMAND_DOWNLOADS 
-               SET PROCESSED_FLAG = 'Y',
-                   UPDATE_DATE = SYSDATE
-             WHERE COST_CENTER_CODE = CUR_REC.COST_CENTER_CODE
-               AND DOWNLOAD_TYPE  = CUR_REC.DOWNLOAD_TYPE;
-               
-        END IF;
-             
-    END LOOP;
-    
-    COMMIT;
-    
-EXCEPTION 
-    WHEN OTHERS THEN 
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                    'SQLERRM->' || SQLERRM;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'POS_TRG_EVENT_LOG',
-                                       V_ERROR,
-                                       '000000');
-END PROCESS_POLLING_ON_DEMAND;
-
-PROCEDURE POS_ON_DEMAND_DWNLD_ROWTYPE_SP (
-/*******************************************************************************
-This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
-
-Sample XML input (assumed) from UI
-
-<POS_ON_DEMAND_DOWNLOADS>
-    <COST_CENTER_CODE>701058</COST_CENTER_CODE>
-    <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
-    <REQUESTED_USER>rxv940</REQUESTED_USER>
-    <REQUESTED_DATE>26-DEC-2017</REQUESTED_DATE>
-</POS_ON_DEMAND_DOWNLOADS>
-
-created : 12/26/2017 rxv940 CCN Project....
-revised :     
-*******************************************************************************/
-    IN_ROW_DATA    IN VARCHAR2
-    )
-IS 
-    CURSOR TABLE_FIELDS_CUR IS 
-        SELECT COLUMN_NAME, DATA_LENGTH COLUMN_SIZE, DATA_TYPE
-          FROM ALL_TAB_COLUMNS
-         WHERE TABLE_NAME = 'POS_ON_DEMAND_DOWNLOADS'
-         ORDER BY COLUMN_ID ;
-    
-    V_TBL_ROW         POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
-    V_ROW_VALUE       VARCHAR(500);
-    V_ROW_DATA        XMLTYPE := XMLTYPE(IN_ROW_DATA);
-    V_COUNT           NUMBER := 0;
-    V_ERROR           VARCHAR2(1000);
-
-BEGIN
-
-    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-
-        IF (V_ROW_DATA.EXISTSNODE('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-
-            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
-
-            V_ROW_VALUE := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
-
-            CASE TABLE_FIELDS_REC.COLUMN_NAME
-                WHEN 'COST_CENTER_CODE' THEN  V_TBL_ROW.COST_CENTER_CODE := UPPER(V_ROW_VALUE);
-                WHEN 'DOWNLOAD_TYPE'    THEN  V_TBL_ROW.DOWNLOAD_TYPE    := V_ROW_VALUE;
-                WHEN 'REQUESTED_USER'   THEN  V_TBL_ROW.REQUESTED_USER   := V_ROW_VALUE;
-                WHEN 'REQUESTED_DATE'   THEN  V_TBL_ROW.REQUESTED_DATE   := V_ROW_VALUE;        
-            END CASE;           
-
-        END IF;
-
-    END LOOP;
-	
-	INSERT INTO POS_ON_DEMAND_DOWNLOADS (COST_CENTER_CODE, DOWNLOAD_TYPE, REQUESTED_USER, REQUESTED_DATE) 
-  VALUES (V_TBL_ROW.COST_CENTER_CODE, V_TBL_ROW.DOWNLOAD_TYPE, V_TBL_ROW.REQUESTED_USER, V_TBL_ROW.REQUESTED_DATE);
-	
-	COMMIT;
-  
-EXCEPTION
-    WHEN DUP_VAL_ON_INDEX THEN 
-        NULL;
-    WHEN OTHERS THEN
-        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
-                    'SQLERRM->' || SQLERRM;
-        ROLLBACK;
-        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'POS_ON_DEMAND_DWNLD_ROWTYPE_SP',
-                                       V_ERROR,
-                                       '000000');
-        RAISE;
-END POS_ON_DEMAND_DWNLD_ROWTYPE_SP;
-
 PROCEDURE SET_FLAG_POLLING_BULK_LOADS (
 /*******************************************************************************
 This procedure is intended to set flag into POS_DOWNLOADS_BULK_LOADS_LKUP table
@@ -1876,7 +1755,7 @@ revised :
 IS
     PRAGMA AUTONOMOUS_TRANSACTION;
     -- Making sure the set and reset flags are commited/ rolledback irespective of the 
-	  -- original data involved	
+	-- original data involved
 BEGIN 
     INSERT INTO POS_DOWNLOADS_BULK_LOADS_LKUP (BULK_LOADS_LKUP_ID, MAINTENANCE_TYPE)
     VALUES (BULK_LOADS_LKUP_SEQ.NEXTVAL, IN_MAINTENANCE_TYPE)
@@ -1897,8 +1776,8 @@ revised :
     IN_BULK_LOADS_LKUP_ID IN NUMBER)
 IS
     PRAGMA AUTONOMOUS_TRANSACTION;
-	  -- Making sure the set and reset flags are commited/ rolledback irespective of the 
-	  -- original data involved	    
+    -- Making sure the set and reset flags are commited/ rolledback irespective of the
+    -- original data involved
 BEGIN 
     UPDATE POS_DOWNLOADS_BULK_LOADS_LKUP
        SET FLAG = 'N',
