@@ -11,6 +11,8 @@ Changed    : 11/06/2017 axt754 CCN Project....
              Added Field POTENTIAL_OPEN_DATE
            : 03/01/2018 nxk927 CCN Project....
              Added Field Inactive_date
+           : 03/052018 nxk927 CCN Project....
+             Removed Field Inactive_date
 */
 
   DROP TABLE COST_CENTER_DISPATCH_TERMINAL;
@@ -94,8 +96,7 @@ Changed    : 11/06/2017 axt754 CCN Project....
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
-      POTENTIAL_OPEN_DATE              VARCHAR2(8),
-      INACTIVE_DATE                    VARCHAR2(8)
+      POTENTIAL_OPEN_DATE              VARCHAR2(8)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -185,8 +186,7 @@ Changed    : 11/06/2017 axt754 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-                                        POTENTIAL_OPEN_DATE,
-                                        INACTIVE_DATE)
+                                        POTENTIAL_OPEN_DATE)
                                         )
       LOCATION
        ( 'COST_CENTER_DISPATCH_TERMINAL.csv'

@@ -11,6 +11,7 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
          : 03/01/2016 MXR916 Added STATE_CODE_DESCRIPTION,POLLING_STATUS_COD_DESCRIPTION,STATEMENT_TYPE_DESCRIPTION,TYPE_CODE_DESCRIPTION Columns.
          : 11/30/2016 vxv336 Added CURRENCY_CODE and CURRENCY_CODE_DESCRIPTION fields
          : 02/13/2018 nxk927 Added inactive_date field for the closed cost center
+		 : 03/05/2018 nxk927 Removed inactive_date field
 *******************************************************************************/ 
        CC.COST_CENTER_CODE,
        CC.CATEGORY,
@@ -46,7 +47,6 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
               AND  T.EXPIRATION_DATE IS NULL),'N/A') TYPE_CODE_DESCRIPTION,
        CC.OPEN_DATE,
        CC.CLOSE_DATE,
-       CC.INACTIVE_DATE,
        CC.CURRENCY_CODE,
        NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CURRENCY_CODE','COD',CC.CURRENCY_CODE),'N/A') CURRENCY_CODE_DESCRIPTION
        FROM COST_CENTER CC,
