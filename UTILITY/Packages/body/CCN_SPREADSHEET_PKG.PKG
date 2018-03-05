@@ -2022,26 +2022,39 @@ IS
     V_SHEET           PLS_INTEGER;
     V_CUR_ID          INTEGER;
     V_COL_CNT         INTEGER;
-    V_DESC_TAB        DBMS_SQL.DESC_TAB2;
-    V_DATE_TAB        DBMS_SQL.DATE_TABLE;
-    V_NUM_TAB         DBMS_SQL.NUMBER_TABLE;
-    V_TAB             DBMS_SQL.VARCHAR2_TABLE;
-    V_BULK_SIZE       PLS_INTEGER := 200;
+    V_DESC_TAB        DBMS_SQL.DESC_TAB2;             --Holds data for column names
+    V_DATE_TAB        DBMS_SQL.DATE_TABLE;            --Holds data for data type numeric
+    V_NUM_TAB         DBMS_SQL.NUMBER_TABLE;          --Holds data for data type date
+    V_TAB             DBMS_SQL.VARCHAR2_TABLE;        --Holds data for any data type other than numeric/date
+    V_BULK_SIZE       PLS_INTEGER             := 200; --This is the default number of records returned by DBMS_SQL.FETCH_ROWS
     V_READ_CUR        INTEGER;
     V_CUR_ROW         PLS_INTEGER;
 BEGIN
+    --Below statement creates a sheet with the sheet name passed as input parameter 
     IF IN_SHEET IS NULL THEN
         NEW_SHEET(IN_SHEETNAME);
     END IF;
+    --Below statement sets the default date parameter for the process based on the input passed
     G_DATE_FORMAT := IN_DATE_FORMAT;
+
+    --Below statement will allocate memory to hold the cursor variable
     V_CUR_ID := DBMS_SQL.OPEN_CURSOR;
+
+    --Below statement will use the pass sql and assigns that to the cursor variable declare above
     DBMS_SQL.PARSE(V_CUR_ID, IN_SQL, DBMS_SQL.NATIVE);
+    
+    --Below statement will take all the fields from the select clause of the passed SQL statement along with their types
     DBMS_SQL.DESCRIBE_COLUMNS2(V_CUR_ID, V_COL_CNT, V_DESC_TAB);
+    /*
+      Below loop build the header for the sheet using below steps
+      1) Gets all the column names based on the queries select clause (left to right column names)
+      2) Call CELL procedure to format and place those values under excel cells (1,1), (1,2), (1,3) and so on
+      3) Note that the notation used above for cell call is (column, row)
+    */
     FOR C IN 1 .. V_COL_CNT LOOP
         IF IN_COLUMN_HEADERS THEN
             CELL(C, 1, V_DESC_TAB(C).COL_NAME, IN_SHEET => V_SHEET);
         END IF;
---      DBMS_OUTPUT.PUT_LINE(V_DESC_TAB(C).COL_NAME || ' ' || V_DESC_TAB(C).COL_TYPE);
         CASE WHEN V_DESC_TAB(C).COL_TYPE IN (2, 100, 101) THEN
                  DBMS_SQL.DEFINE_ARRAY(V_CUR_ID, C, V_NUM_TAB, V_BULK_SIZE, 1);
              WHEN V_DESC_TAB(C).COL_TYPE IN (12, 178, 179, 180, 181 , 231) THEN
@@ -2053,32 +2066,70 @@ BEGIN
         END CASE;
     END LOOP;
 
+    --Below code will make sure the index moves to next row if header needs to be built
     V_CUR_ROW := CASE WHEN IN_COLUMN_HEADERS THEN 2 ELSE 1 END;
+    --Below condiion will  get the count of the sheets form NEW_SHEET proc
     V_SHEET   := NVL(IN_SHEET, WORKBOOK.SHEETS.COUNT());
-
+    --Below function will executes and fetches count of records in the query based on the cursor id that was generated when the cursor is first opened.
     V_READ_CUR := DBMS_SQL.EXECUTE(V_CUR_ID);
     LOOP
+        --'200' is the default number of records returned by DBMS_SQL.FETCH_ROWS
+        --Based on the coluns datatype teh CASE statemens are executed and data is written in to the cell
         V_READ_CUR := DBMS_SQL.FETCH_ROWS(V_CUR_ID);
         IF V_READ_CUR > 0 THEN
-            FOR C IN 1 .. V_COL_CNT LOOP
-                CASE WHEN V_DESC_TAB(C).COL_TYPE IN (2, 100, 101) THEN
+            --V_COL_CNT is Column iteration
+            FOR C IN 1 .. V_COL_CNT LOOP 
+                /*
+                  Checks the data type for each column value and invokes procedure CELL to write into the excel
+                  ex: numberic column type for  '2','100','101' is Number
+                */
+                CASE WHEN V_DESC_TAB(C).COL_TYPE IN (2, 100, 101) THEN 
+                         --Below call will populate the above defined array V_NUM_TAB with 200 values
                          DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_NUM_TAB);
+                         /*
+                           Below loop will fetch next set of 200 records
+                           1) Gets all the column names based on the queries select clause (left to right column names)
+                           2) Call CELL procedure to format and place those values under excel cells (1,2), (1,3), (1,4) and so on
+                           3) Note that the notation used above for cell call is (column, row)
+                         */
                          FOR I IN 0 .. V_READ_CUR - 1 LOOP
                              IF V_NUM_TAB(I + V_NUM_TAB.FIRST()) IS NOT NULL THEN
                                  CELL(C, V_CUR_ROW + I, V_NUM_TAB(I + V_NUM_TAB.FIRST()), IN_SHEET => V_SHEET);
                              END IF;
                          END LOOP;
-                         V_NUM_TAB.DELETE;
+                         --Below statement deletes values in V_NUM_TAB table as in order to store records for next 200 set.
+                         V_NUM_TAB.DELETE; 
+                          /*
+                             Checks the data type for each column value and invokes procedure CELL to write into the cell
+                             ex: numberic column type for  '12','178','179' is Date
+                        */    
                      WHEN V_DESC_TAB(C).COL_TYPE IN (12, 178, 179, 180, 181 , 231) THEN
                          DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_DATE_TAB);
+                         /*
+                           Below loop will fetch next set of 200 records
+                           1) Gets all the column names based on the queries select clause (left to right column names)
+                           2) Call CELL procedure to format and place those values under excel cells (1,1), (1,2), (1,3) and so on
+                           3) Note that the notation used above for cell call is (column, row)
+                         */
                          FOR I IN 0 .. V_READ_CUR - 1 LOOP
                              IF V_DATE_TAB(I + V_DATE_TAB.FIRST()) IS NOT NULL THEN
                                  CELL(C, V_CUR_ROW + I, V_DATE_TAB(I + V_DATE_TAB.FIRST()), IN_SHEET => V_SHEET);
                              END IF;
                          END LOOP;
+                         --Below statement deletes values in V_NUM_TAB table as in order to store records for next 200 set.
                          V_DATE_TAB.DELETE;
+                      /*
+                          Checks the data type for each column value and invokes procedure CELL to write into the cell
+                          ex: numberic column type for  '1','8','9' is Varchar 
+                     */ 
                      WHEN V_DESC_TAB(C).COL_TYPE IN (1, 8, 9, 96, 112) THEN
                          DBMS_SQL.COLUMN_VALUE(V_CUR_ID, C, V_TAB);
+                         /*
+                           Below loop will fetch next set of 200 records
+                           1) Gets all the column names based on the queries select clause (left to right column names)
+                           2) Call CELL procedure to format and place those values under excel cells (5,1), (5,2), (5,3) and so on
+                           3) Note that the notation used above for cell call is (column, row)
+                         */
                          FOR I IN 0 .. V_READ_CUR - 1 LOOP
                              IF V_TAB(I + V_TAB.FIRST()) IS NOT NULL THEN
                                  CELL(C, V_CUR_ROW + I, V_TAB(I + V_TAB.FIRST()), IN_SHEET => V_SHEET);
@@ -2090,16 +2141,23 @@ BEGIN
                 END CASE;
             END LOOP;
         END IF;
+        --If the records are < 200 the loop will be exited, as the loop iterates for every 200 records
         EXIT WHEN V_READ_CUR != V_BULK_SIZE;
+        --Below conidtion increments the count of the rows after processing 200 records
+        --ex: first loop writes 200 rows in excel records,next loop start writes records starting from 201
         V_CUR_ROW := V_CUR_ROW + V_READ_CUR;
     END LOOP;
+    --Close the cursor varilable (Very Important, as this will cross the allowed open cursors set by DBA is not closed)
     DBMS_SQL.CLOSE_CURSOR(V_CUR_ID);
+    
+    --Below statements will create the file on server based on the directory/file name passed in
     IF (IN_DIRECTORY IS NOT NULL AND  IN_FILENAME IS NOT NULL) THEN
         SAVE(IN_DIRECTORY, IN_FILENAME);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
         IF DBMS_SQL.IS_OPEN(V_CUR_ID) THEN
+            --Close the cursor varilable (Very Important, as this will cross the allowed open cursors set by DBA is not closed)
             DBMS_SQL.CLOSE_CURSOR(V_CUR_ID);
         END IF;
 END QUERY2SHEET;
