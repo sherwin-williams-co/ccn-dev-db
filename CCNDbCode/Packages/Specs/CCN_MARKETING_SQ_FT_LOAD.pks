@@ -6,7 +6,7 @@ Created : 12/05/2017 axt754 -- CCN Project Team...
 Changed : 
 ******************************************************************************/
    
-PROCEDURE PROCESS_SQ_FT_LD(
+PROCEDURE UI_PROCESS_SQ_FT_LD(
 /****************************************************************************** 
 This procedures takes care of following things as part of batch load process from UI
   # Get the data from UI
@@ -16,7 +16,7 @@ This procedures takes care of following things as part of batch load process fro
 Created : 12/05/2017 axt754 -- CCN Project Team
 Changes :
 ******************************************************************************/
-IN_BLOB            IN       BLOB);
+    IN_BLOB            IN       BLOB);
 
 PROCEDURE BATCH_PROCESS_SQ_FT_LD
 /****************************************************************************** 

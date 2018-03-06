@@ -10,6 +10,10 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
         : 02/20/2018 bxa919 CCN Project....
           Added Field POTENTIAL_OPEN_DATE
+        : 03/01/2018 nxk927 CCN Project....
+          Added Field Inactive_date
+        : 02/02/2018 axt754 CCN Project....
+          Added Fields TOTAL_SQ_FT, SALES_SQ_FT
 */
 
   DROP TABLE COST_CENTER_STORE;
@@ -157,7 +161,10 @@ Changed : 04/25/2017 gxg192 CCN Project....
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
-      POTENTIAL_OPEN_DATE              VARCHAR2(8)
+      POTENTIAL_OPEN_DATE              VARCHAR2(8),
+	  TOTAL_SQ_FT                      VARCHAR2(10), 
+	  SALES_SQ_FT                      VARCHAR2(10)
+      
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -311,7 +318,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
-                                        POTENTIAL_OPEN_DATE)
+                                        POTENTIAL_OPEN_DATE,
+	                                    TOTAL_SQ_FT, 
+	                                    SALES_SQ_FT)
                      )
       LOCATION
        ( 'COST_CENTER_STORE.csv'

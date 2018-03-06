@@ -6,7 +6,7 @@ Created : 12/05/2017 axt754 -- CCN Project Team...
 Changed : 
 ******************************************************************************/
 
-PROCEDURE UPDATE_MARKETING(
+PROCEDURE UPDATE_PROCESS(
 /****************************************************************************** 
 This procedures takes care of following things 
   # Updates the Marketing table with TOTAL_SQ_FT,SALES_SQ_FT and WAREHOUSE_SQ_FT
@@ -16,43 +16,45 @@ This procedures takes care of following things
 Created : 12/05/2017 axt754 -- CCN Project Team
 Changes :
 ******************************************************************************/
-    IN_COST_CENTER_CODE   IN MARKETING.COST_CENTER_CODE%TYPE
-    ,IN_TOTAL_SQ_FT       IN MARKETING.TOTAL_SQ_FT%TYPE
-    ,IN_SALES_SQ_FT       IN MARKETING.SALES_SQ_FT%TYPE)
+    IN_COST_CENTER_REC    IN COST_CENTER%ROWTYPE
+    ,IN_LEASE_OR_OWNED    IN VARCHAR2
+    ,IN_TOTAL_SQ_FT       IN VARCHAR2
+    ,IN_SALES_SQ_FT       IN VARCHAR2)
 IS
     V_SALES_SQ_FT     MARKETING.SALES_SQ_FT%TYPE;
     V_TOTAL_SQ_FT     MARKETING.TOTAL_SQ_FT%TYPE;
-    
-    CURSOR GET_MARKETING_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
-        SELECT SALES_SQ_FT, TOTAL_SQ_FT
-          FROM MARKETING
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-           AND EXPIRATION_DATE IS NULL;
-
-
 BEGIN
-     FOR REC IN GET_MARKETING_DETAILS(IN_COST_CENTER_CODE) LOOP
-         BEGIN
-             V_SALES_SQ_FT := REC.SALES_SQ_FT;
-             V_TOTAL_SQ_FT := REC.TOTAL_SQ_FT;
-         EXCEPTION
-             WHEN OTHERS THEN
-                 NULL;
-         END;
-     END LOOP;
+    IF (NVL(IN_COST_CENTER_REC.LEASE_OWN_CODE,'X') <> IN_LEASE_OR_OWNED) THEN            
+        UPDATE COST_CENTER
+           SET LEASE_OWN_CODE   = IN_LEASE_OR_OWNED
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_REC.COST_CENTER_CODE;
+    END IF;
+     
+    BEGIN
+        SELECT SALES_SQ_FT,
+               TOTAL_SQ_FT
+          INTO V_SALES_SQ_FT,
+               V_TOTAL_SQ_FT
+          FROM MARKETING
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_REC.COST_CENTER_CODE
+           AND EXPIRATION_DATE IS NULL;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
 
-     IF (NVL(V_SALES_SQ_FT,-1) <> NVL(IN_SALES_SQ_FT,-1)
-     AND NVL(V_TOTAL_SQ_FT,-1) <> NVL(IN_TOTAL_SQ_FT,-1)) THEN
-         UPDATE MARKETING
-            SET TOTAL_SQ_FT = IN_TOTAL_SQ_FT
-                ,SALES_SQ_FT = IN_SALES_SQ_FT
-                ,WAREHOUSE_SQ_FT = IN_TOTAL_SQ_FT - IN_SALES_SQ_FT
-          WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE);
-     END IF;
+    IF (NVL(V_SALES_SQ_FT,-1) <> NVL(IN_SALES_SQ_FT,-1)
+       AND NVL(V_TOTAL_SQ_FT,-1) <> NVL(IN_TOTAL_SQ_FT,-1)) THEN
+        UPDATE MARKETING
+           SET TOTAL_SQ_FT      = IN_TOTAL_SQ_FT
+               ,SALES_SQ_FT     = IN_SALES_SQ_FT
+               ,WAREHOUSE_SQ_FT = IN_TOTAL_SQ_FT - IN_SALES_SQ_FT
+         WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_REC.COST_CENTER_CODE);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
       ERRPKG.RAISE_ERR(SQLCODE, 'UPDATE_MARKETING ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
-END UPDATE_MARKETING;
+END UPDATE_PROCESS;
 
 PROCEDURE UI_PROCESS_SQ_FT_LD(
 /****************************************************************************** 
@@ -66,24 +68,42 @@ Changes :
 ******************************************************************************/
     IN_BLOB            IN       BLOB)
 IS 
-    V_FILE_NM   VARCHAR2(100)   := 'CCN_MARKETING_SQ_FT_UPD.csv';
-    V_ARC_FILE_NM VARCHAR2(100) := 'CCN_MARKETING_SQ_FT_UPD_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
+    V_FILE_NM         VARCHAR2(100) := 'CCN_MARKETING_SQ_FT_UPD.csv';
+    V_ARC_FILE_NM     VARCHAR2(100) := 'CCN_MARKETING_SQ_FT_UPD_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
+    V_COST_CENTER_REC COST_CENTER%ROWTYPE;
+    V_CC_CLOB         CLOB;
 BEGIN
     -- Upload file to DB server
     CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB,V_FILE_NM);
     
     -- Start Batch Process
     FOR REC IN (SELECT *
-                  FROM CCN_MARKETING_SQ_FT_UPD) LOOP
+                  FROM TEMP_MARKETING_SQ_FT_UPD) LOOP
+        V_COST_CENTER_REC := NULL;
         BEGIN
-            UPDATE_MARKETING(REC.COST_CENTER_CODE
-                             ,REC.TOTAL_SQ_FT
-                             ,REC.SALES_SQ_FT);
+            SELECT *
+              INTO V_COST_CENTER_REC
+              FROM COST_CENTER
+             WHERE COST_CENTER_CODE = REC.COST_CENTER_CODE;
+
+            IF V_COST_CENTER_REC.COST_CENTER_CODE IS NULL THEN
+                V_CC_CLOB := REC.COST_CENTER_CODE ||CHR(10)|| V_CC_CLOB;
+            ELSE
+                UPDATE_PROCESS(V_COST_CENTER_REC
+                               ,REC.LEASE_OWN_CODE
+                               ,REC.TOTAL_SQ_FT
+                               ,REC.SALES_SQ_FT);
+            END IF;
         EXCEPTION
             WHEN OTHERS THEN
-                NULL;
+                V_CC_CLOB := REC.COST_CENTER_CODE ||CHR(10)|| V_CC_CLOB;
         END;
-    END LOOP;        
+    END LOOP;
+
+    IF V_CC_CLOB <> EMPTY_CLOB() THEN
+        V_CC_CLOB := 'COST_CENTER_CODE'||CHR(10)||V_CC_CLOB;
+        MAIL_PKG.SEND_MAIL('SQ_FT_CC_NOT_EXISTS_IN_CCN', NULL, NULL,V_CC_CLOB);
+    END IF;
     -- Commit The transactions 
     COMMIT;
     
@@ -129,30 +149,14 @@ BEGIN
                 WHEN OTHERS THEN
                     NULL;
             END;
-            IF NVL(V_COST_CENTER_REC.COST_CENTER_CODE,'XXX') = 'XXX' THEN
+            IF V_COST_CENTER_REC.COST_CENTER_CODE IS NULL THEN
                 V_CC_CLOB := REC.COST_CENTER ||CHR(10)|| V_CC_CLOB;
-                CONTINUE;
+            ELSE
+               UPDATE_PROCESS(V_COST_CENTER_REC
+                              ,REC.LEASE_OR_OWNED
+                              ,REC.PREMISES_SQ_FT
+                              ,REC.SALES_AREA);
             END IF;
-            -- Update Lease own code
-            BEGIN
-                IF (NVL(V_COST_CENTER_REC.LEASE_OWN_CODE,'X') <> REC.LEASE_OR_OWNED) THEN            
-                    UPDATE COST_CENTER
-                       SET LEASE_OWN_CODE = REC.LEASE_OR_OWNED
-                     WHERE COST_CENTER_CODE = REC.COST_CENTER;
-                END IF;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-                
-            BEGIN
-                UPDATE_MARKETING(REC.COST_CENTER
-                                  ,REC.PREMISES_SQ_FT
-                                  ,REC.SALES_AREA);
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
         END LOOP;
         
         IF V_CC_CLOB <> EMPTY_CLOB() THEN

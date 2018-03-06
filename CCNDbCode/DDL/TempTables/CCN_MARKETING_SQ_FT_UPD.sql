@@ -1,19 +1,19 @@
 /*
 Script Name: CCN_MARKETING_SQ_FT_UPD.sql
-Purpose    : For dropping and creating the CCN_MARKETING_SQ_FT_UPD table.
+Purpose    : For dropping and creating the TEMP_MARKETING_SQ_FT_UPD table.
              This is an external table which is used for storing data from CCN_MARKETING_SQ_FT_UPD.csv
              loaded through bulk process.
 
 Created : 12/05/2017 axt754 CCN Project....
 Changed :
 */
-
-  DROP TABLE CCN_MARKETING_SQ_FT_UPD;
+DROP TABLE TEMP_MARKETING_SQ_FT_UPD;
   
-   CREATE TABLE CCN_MARKETING_SQ_FT_UPD
+   CREATE TABLE TEMP_MARKETING_SQ_FT_UPD
    (   COST_CENTER_CODE VARCHAR2(6), 
-	   TOTAL_SQ_FT     NUMBER,
-	   SALES_SQ_FT     NUMBER
+	   TOTAL_SQ_FT     VARCHAR2(10),
+	   SALES_SQ_FT     VARCHAR2(10),
+       LEASE_OWN_CODE  VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
