@@ -7,6 +7,50 @@ AS
 Created : 08/31/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
+PROCEDURE VALIDATE_CC_DEP_TICK
+/***********************************************************
+	This procedure will get the cost centers, which are in banking
+  concentration that are active but are not having dep ticket
+  details
+  
+Created : 03/06/2018 axt754 CCN Project....
+Changed  : 
+************************************************************/
+IS
+    V_CLOB_REC CLOB := NULL;
+    V_CLOB     CLOB := NULL;
+BEGIN
+    V_CLOB :=  'COST_CENTER_CODE'||
+             ',COST_CENTER_NAME'||
+             ',POLLING_STATUS_CODE'||
+             ',CATEGORY'||
+             ',COUNTRY_CODE'||
+             ',OPEN_DATE'||CHR(10);
+    FOR REC IN(SELECT CC.COST_CENTER_CODE, CC.COST_CENTER_NAME, P.POLLING_STATUS_CODE, CC.CATEGORY, CC.COUNTRY_CODE, CC.OPEN_DATE
+                 FROM COST_CENTER CC,
+                      POLLING P
+                WHERE CC.COST_CENTER_CODE = P.COST_CENTER_CODE
+                  AND CC.CLOSE_DATE IS NULL
+                  AND P.POLLING_STATUS_CODE IN ('P','Q')
+                  AND P.CURRENT_FLAG = 'Y'
+                  AND CC.COST_CENTER_CODE IN (SELECT LEAD_STORE_NBR FROM LEAD_BANK_CC
+                                               UNION
+                                              SELECT MEMBER_STORE_NBR FROM MEMBER_BANK_CC)
+                  AND NOT EXISTS (SELECT 1 FROM BANK_DEP_TICK B WHERE B.COST_CENTER_CODE = CC.COST_CENTER_CODE)
+                  AND NOT EXISTS (SELECT 1 FROM TEMP_DEP_TICK_EXCLUDED T WHERE T.COST_CENTER_CODE = CC.COST_CENTER_CODE))LOOP
+         V_CLOB_REC := '"' || REC.COST_CENTER_CODE || '",' ||
+                 '"' || REC.COST_CENTER_NAME || '",' ||
+                 '"' || REC.POLLING_STATUS_CODE || '",' ||
+                 '"' || REC.CATEGORY || '",' ||
+                 '"' || REC.COUNTRY_CODE || '",' ||
+                 '"' || REC.OPEN_DATE || '"' || CHR(10);
+         V_CLOB := V_CLOB || V_CLOB_REC;
+     END LOOP;
+     IF V_CLOB <> EMPTY_CLOB() THEN
+         MAIL_PKG.SEND_MAIL('CC_TCKTS_NOT_EXISTS',NULL, NULL, V_CLOB);
+     END IF;  
+END VALIDATE_CC_DEP_TICK;
+
 PROCEDURE PROCESS(
 /******************************************************************************
   This procedure will update the deposit tickets on a daily
@@ -39,6 +83,8 @@ Changed : 08/19/2016 nxk927 CCN project....
           When exception raised, BANK_DEP_TICK.DEP_TKTS_ONHAND_QTY set back to previous value
         : 07/07/2017 nxk927 CCN project....
           Removed the Daily uses deposit ticket reduction process
+        : 03/07/2018 axt754 CCN Project....
+          Added Procedure call, which lists out cc's that are active not having deposit ticket details.
 *******************************************************************************/
 IN_SERVER_NAME  IN VARCHAR2,
 IN_LOGFILE      IN VARCHAR2
@@ -85,6 +131,7 @@ BEGIN
             END;
             COMMIT;
         END LOOP;
+        VALIDATE_CC_DEP_TICK();
     EXCEPTION
         WHEN OTHERS THEN
             V_TRANS_STATUS := 'ERROR';
@@ -212,5 +259,6 @@ EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'DPST_TKT_PROCESS', SQLERRM, '1111111111', '111111', 'OTHER');
 END DPST_TKT_PROCESS;
+
 
 END DPST_TCKTS_UPDATE_BATCH_PKG;
