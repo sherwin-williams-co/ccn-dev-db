@@ -361,10 +361,11 @@ PROCEDURE BANK_CARD_BR_SP (
 	for verifying the BANK_CARD_BR on the BANK_CARD table
 	TRD  Section: 3.3.11 
 
-created : BLR 7/26//2012
+created  : BLR 7/26//2012
+Modified : Removed cost center call in BANK_CARD_BR_SP procedure 
+           as there is no cost center data passed in the XML
 *******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
-   ,inCostctr_rowtype           IN COST_CENTER%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
  );
 
@@ -595,4 +596,17 @@ REVISED :
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,intype_rowtype                   IN  TYPE%ROWTYPE);  
 
+PROCEDURE MERCHANT_ID_SP_CAN_MC (
+/******************************************************************************
+         MERCHANT_ID_SP_CAN_MC
+This procedure is intended to enforce the Business Rules
+for verifying the in_MERCH_ID_CAN_MC on the BANK_CARD Table
+
+created  : 01/16/2018 BXA919 
+*******************************************************************************/	
+ in_MERCH_ID_CAN_MC               IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+ ,in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+ ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
+ ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
+ 
 END CCN_BUSINESS_RULES_PKG;
