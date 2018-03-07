@@ -30,12 +30,14 @@ PROCEDURE BUSINESS_RULES_INPUT_1 (
 	This procedure will Build the Business Rules 1 Rowtype ROWs
 			COST_CENTER%rowtype
 			ADMINISTRATION%rowtype
+        	LAD_CUSTOMER%rowtype
 			BANK_CARD%rowtype
 			MARKETING%rowtype
 			OTHER%rowtype
 			PHONE_FAX%rowtype
 
 created : 02/21/2013 MDH -- CCN Project....
+          02/22/2018 mxv711 added the LAD_CUSTOMER category parameter
 ******************************************************************************/
 -- Below are the fields required for the Business_Rules_Input call: 
 -- Cost_Center_code, Table_Rowtypes 
@@ -43,6 +45,7 @@ created : 02/21/2013 MDH -- CCN Project....
    in_cost_center            in   varchar2
   ,v_COST_CENTER_rowtype     out  COST_CENTER%rowtype
   ,v_ADMINISTRATION_rowtype  out  ADMINISTRATION%rowtype
+  ,v_LAD_CUSTOMER_rowtype    out  LAD_CUSTOMER%rowtype
   ,v_BANK_CARD_rowtype       out  BANK_CARD%rowtype
   ,v_MARKETING_rowtype       out  MARKETING%rowtype
   ,v_OTHER_rowtype           out  OTHER%rowtype

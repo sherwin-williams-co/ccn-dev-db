@@ -3017,6 +3017,32 @@ PRAGMA EXCEPTION_INIT
 (exc_no_alloc_cc_div_offset , -20187);
 
 /*********************************************************** 
+The "invalid_lad_customer_catg_err" passes a numerical error of -20195.
+An error occurs when category for lad_customer not equal to  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_lad_cust_catg_err CONSTANT NUMBER := -20195;
+invalid_lad_customer_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_customer_catg_err , -20195);
+
+/*********************************************************** 
+The "invalid_lad_cust_cc_catg_err" passes a numerical error of -20196.
+An error occurs when CODE detail table does not contain category_code  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invld_lad_cust_cc_catg_err CONSTANT NUMBER := -20196;
+invalid_lad_cust_cc_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_cust_cc_catg_err , -20196);
+
+/*********************************************************** 
 The "invalid_allocation_cc" passes a numerical error of -20197.
 An error occurs when passed allocation_cc is not present in CCN. 
 
@@ -3041,58 +3067,5 @@ en_invalid_division_offset CONSTANT NUMBER := -20198;
 invalid_division_offset EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (invalid_division_offset , -20198);
-
-/*********************************************************** 
-The "non_numeric_err_can" passes a numerical error of -20188.
-The non numeric error is generataed by our Business Rules process
-if the MERCH_ID_CAN_MC has a non numeric value
-
-created : 01/25/2018 bxa919 CCN Project
-revisions: 
-
-************************************************************/
-en_non_numeric_err_can CONSTANT NUMBER := -20188;
-exc_non_numeric_err_can EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_non_numeric_err_can , -20188); 
-
-/*********************************************************** 
-The "en_non_numeric_pci_err_can" passes a numerical error of -20189.
-The non numeric error is generataed by our Business Rules process
-if the PCI_MERCH_ID_CAN_MC has a non numeric value
-
-created : 01/25/2018 bxa919 CCN Project
-revisions: 
-
-************************************************************/
-en_non_numeric_pci_err_can CONSTANT NUMBER := -20189;
-exc_non_numeric_pci_err_ca EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_non_numeric_pci_err_ca , -20189); 
-
-/*********************************************************** 
-The "invld_merch_id_mc_size_err" passes a numerical error of -20192
-This error will state that Bank Card MERCH_ID_CAN_MC Size is wrong
-
-Created  : 01/25/2018 bxa919 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_merch_id_mc_size_err CONSTANT NUMBER := -20192;
-exc_invld_merch_id_mc_size_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_merch_id_mc_size_err , -20192);
-
-/*********************************************************** 
-The "invld_pci_merch_id_mc_size_err" passes a numerical error of -20193
-This error will state that Bank Card PCI_MERCH_ID_CAN_MC Size is wrong
-
-Created  : 01/25/2018 bxa919 CCN Project Team....
-Modified : 
-************************************************************/
-en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20193;
-exc_invld_pci_merch_mc_sz_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invld_pci_merch_mc_sz_err , -20193);
-
 
 END ERRNUMS;

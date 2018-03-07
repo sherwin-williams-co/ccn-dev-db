@@ -98,6 +98,17 @@ created : 03/20/2012 mdh CCN Project....
 *******************************************************************************/
 ;
 
+  PROCEDURE LAD_CUSTOMER_S_SP (in_COST_CENTER IN LAD_CUSTOMER.COST_CENTER_CODE%TYPE
+							, out_LAD_CUSTOMER_REF_CUR OUT REF_CURSOR)
+/*******************************************************************************
+	LAD_CUSTOMER_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the LAD_CUSTOMER table.  
+
+created : 02/20/2018 mxv711 CCN Project....
+*******************************************************************************/
+;
 
 	PROCEDURE BANK_CARD_S_SP  (IN_COST_CENTER           IN BANK_CARD.COST_CENTER_CODE%TYPE
                             ,IN_POLLING_STATUS_CODE   IN BANK_CARD.POLLING_STATUS_CODE%TYPE
@@ -1662,6 +1673,30 @@ created : 09/21/2012 blr CCN Project....
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
 ,out_administration_type  OUT ADMINISTRATION%ROWTYPE
+);
+
+PROCEDURE LAD_CUSTOMER_ROWTYPE_SP (
+/*******************************************************************************
+    LAD_CUSTOMER_ROWTYPE_SP
+
+    This procedure is intended to insert new LAD_CUSTOMER records
+
+    CostCenter - Cost Center that changed
+    OracleTableName -Table name for row -varible 
+            (based on the table that was updated)
+        current date - 
+        xml file - the data being inserted
+
+created : 02/13/2018 mxv711 CCN Project....
+
+*******************************************************************************/
+/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
+
+ in_COST_CENTER          IN  LAD_CUSTOMER.COST_CENTER_CODE%TYPE 
+,out_LAD_CUSTOMER_type   OUT LAD_CUSTOMER%ROWTYPE
+,in_TABLE_NAME           IN  VARCHAR2 
+,in_ROW_DATE             IN  DATE 
+,in_Row_data             IN  varchar2--sys.xmltype 
 );
  
 PROCEDURE BANK_CARD_ROWTYPE_SP (
