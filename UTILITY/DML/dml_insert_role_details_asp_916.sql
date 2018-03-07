@@ -2,7 +2,7 @@
 Created : 11/14/2017 sxg151 CCN Project Team..
           This script creates a new role 'CCNMU' and assign to Marketing user
           'GAP54C'(Greg A. Passov),'TLC82C'(Todd Clark) 'BEO162'( Brian Otonicar )
-Modified : 03/07/2018 sxg151... Added new fields(SALES_SQ_FT,TOTAL_SQ_FT,WAREHOUSE_SQ_FT)
+Modified : 03/07/2018 sxg151... Added new fields(SALES_SQ_FT,TOTAL_SQ_FT)
 --#############################################################################################################*/
 
 Insert into ROLE_DETAILS values ('CCNMU','CCN Marketing User','Y','Y','Y','Y',
@@ -24,7 +24,6 @@ Insert into ROLE_DETAILS values ('CCNMU','CCN Marketing User','Y','Y','Y','Y',
             <VALUE>MKT_WAREHOUSE_SIZE</VALUE>
             <VALUE>SALES_SQ_FT</VALUE>
             <VALUE>TOTAL_SQ_FT</VALUE>
-            <VALUE>WAREHOUSE_SQ_FT</VALUE>
         </MARKETING_FIELDS>
     </COST_CENTER_WINDOW>
 </USER_RULES_DESCRIPTION>');
