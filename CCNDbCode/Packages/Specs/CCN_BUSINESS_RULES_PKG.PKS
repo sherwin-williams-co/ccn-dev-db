@@ -29,6 +29,8 @@ PROCEDURE Business_Rules_sp (
 created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -73,6 +75,8 @@ PROCEDURE Business_Rules_sp (
   specific columns of specific tables.
 
 created : MDH 9/25//2012
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE       IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE       IN ADDRESS_MEX%ROWTYPE
@@ -363,7 +367,8 @@ PROCEDURE LAD_CUSTOMER_BR_SP (
 	for verifying the CATEGORY on the LAD_CUSTOMER Table
 	TRD  Section: 3.3.20 
 
-created : 02/22/2018
+created : 03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 *******************************************************************************/	
   
   inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
