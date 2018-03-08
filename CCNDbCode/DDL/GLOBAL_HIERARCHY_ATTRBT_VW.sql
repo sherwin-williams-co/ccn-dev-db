@@ -22,7 +22,7 @@ Modified : 11/12/2015 sxt410 CCN Project...
          : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
            the same data as it is in COST_CENTER_CODE field.
          : 03/08/2018 jxc517 CCN Project Team....
-           Adding new attribute "CITY/SLS MGR FLAG" to the view
+           Adding new attribute "CITY/SLS MGR FLAG" to the view and its description
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -57,6 +57,7 @@ Modified : 11/12/2015 sxt410 CCN Project...
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'ManagerName') CITY_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'GEMS_ID') CITY_MGR_GEMS_ID,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'CITY/SLS MGR FLAG') CITY_SALES_MGR_FLAG,
+       CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CITY/SLS MGR FLAG','COD',CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'CITY/SLS MGR FLAG')) CITY_SALES_MGR_FLAG_DESC,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.ZONE_UPPER_VALUE, 'ManagerName') ZONE_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.SPECIAL_ROLES_UPPER_VALUE, 'ManagerName') SPECIAL_ROLES_MGR_NAME,
        A.CC_MGR_NAME,
