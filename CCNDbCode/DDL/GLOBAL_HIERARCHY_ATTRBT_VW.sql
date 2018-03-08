@@ -1,6 +1,5 @@
-CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW
-AS 
-SELECT 
+CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW AS 
+  SELECT 
 /*******************************************************************************
 This View holds all the details of global hierarchy linked to the cost center i.e. this view will 
 have all the details of each and every level of the global hierarchy for a particular cost center.
@@ -22,7 +21,8 @@ Modified : 11/12/2015 sxt410 CCN Project...
            Added new columns CITY_MGR_GEMS_ID,DIV_MGR_GEMS_ID and AREA_MGR_GEMS_ID in the view.
          : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
            the same data as it is in COST_CENTER_CODE field.
-         : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
+         : 03/08/2018 jxc517 CCN Project Team....
+           Adding new attribute "CITY/SLS MGR FLAG" to the view
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -37,7 +37,6 @@ Modified : 11/12/2015 sxt410 CCN Project...
        A.CITY_SALES_MANAGER,
        A."ZONE",
        A.SPECIAL_ROLES,
-       A.COST_CENTER,
        A.DOMAIN_NAME,
        A.GROUP_NAME,
        A.DIVISION_NAME,
@@ -57,6 +56,7 @@ Modified : 11/12/2015 sxt410 CCN Project...
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.DISTRICT_UPPER_VALUE, 'GEMS_ID') DISTRICT_MGR_GEMS_ID,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'ManagerName') CITY_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'GEMS_ID') CITY_MGR_GEMS_ID,
+       CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.CITY_UPPER_VALUE, 'CITY/SLS MGR FLAG') CITY_SALES_MGR_FLAG,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.ZONE_UPPER_VALUE, 'ManagerName') ZONE_MGR_NAME,
        CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(A.SPECIAL_ROLES_UPPER_VALUE, 'ManagerName') SPECIAL_ROLES_MGR_NAME,
        A.CC_MGR_NAME,
