@@ -31,14 +31,6 @@ Changed :
 **********************************************************/
 IN_DATE       IN     DATE);
 
-PROCEDURE GENERATE_PCI_MISMATCH_FILE
-/**********************************************************
-This process takes care of generating PCI_TERMINAL_MISMATCH file
-
-Created : 04/11/2017 pxb712 CCN project Team....
-**********************************************************/
-;
-
 PROCEDURE GENERATE_HRCHY_MISMATCH_FILE
 /**********************************************************
 This process takes care of generating HIER_TRNSFR_TERRITORY file

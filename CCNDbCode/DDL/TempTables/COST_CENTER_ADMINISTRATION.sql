@@ -139,6 +139,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
+      ALLOCATION_CC                    VARCHAR2(6),
+      DIVISION_OFFSET                  VARCHAR2(6),
       POTENTIAL_OPEN_DATE              VARCHAR2(8)
    ) 
    ORGANIZATION EXTERNAL 
@@ -272,6 +274,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
+                                        ALLOCATION_CC,
+                                        DIVISION_OFFSET,
                                         POTENTIAL_OPEN_DATE)
                      )
       LOCATION
