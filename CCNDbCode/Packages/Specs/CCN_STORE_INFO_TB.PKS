@@ -1,4 +1,4 @@
-create or replace PACKAGE CCN_STORE_INSERT
+create or replace PACKAGE CCN_STORE_INFO_TB
 /*********************************************************** 
 This package is will insert data in CCN_INFO_TB table
 
@@ -21,4 +21,4 @@ The procedure is intended insert the data into the CCN_INFO_TB.
 Created : 02/06/2018 bxa919 CCN project Team.... 
 **********************************************************/
 ;
-END CCN_STORE_INSERT;
+END CCN_STORE_INFO_TB;
