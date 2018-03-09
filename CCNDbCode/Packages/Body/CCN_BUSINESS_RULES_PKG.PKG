@@ -36,6 +36,11 @@ changed : 04/17/2017 rxa457 CCN Project Team....
           Added new table DISPATCH_TERMINAL
 Changed:  03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
+		: 02/09/2018 bxa919 CCN Project Team...
+           Added new procedure MERCHANT_ID_SP_CAN_MC to validate the numeric condition for 
+           MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
+           Removed cost center call in BANK_CARD_BR_SP procedure 
+           as there is no cost center data passed in the XML.
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -631,8 +636,7 @@ v_break  := ('Entering Table Specific Business Rules'
        inBANKCARD_ROWTYPE.polling_status_code <> 'I') THEN
        v_break  := ('Processing BankCard Business Rules '); 
        CCN_BUSINESS_RULES_PKG.BANK_CARD_BR_SP(
-            inbankcard_rowtype          
- 					, incost_center_rowtype
+            inbankcard_rowtype
           , inpolling_rowtype); 
    END IF ;
    --
@@ -821,6 +825,11 @@ END IF;
             inbankcard_rowtype.MERCHANT_ID          
  					, inPOLLING_ROWTYPE.COST_CENTER_CODE 
  					, inPOLLING_ROWTYPE.polling_status_code);
+      CCN_BUSINESS_RULES_PKG.MERCHANT_ID_SP_CAN_MC (
+            inbankcard_rowtype.MERCH_ID_CAN_MC 
+          , inbankcard_rowtype.PCI_MERCH_ID_CAN_MC
+          , inPOLLING_ROWTYPE.COST_CENTER_CODE 
+ 	      , inPOLLING_ROWTYPE.polling_status_code);
    END IF ;
 --
 --
@@ -964,6 +973,52 @@ created : KDP 4/26/2012
 			      errpkg.raise_err(v_code, v_errm ||
              		'CCN_BUSINESS_RULES_PKG ');             		             		
 	END MERCHANT_ID_SP; 
+
+PROCEDURE MERCHANT_ID_SP_CAN_MC (
+/*****************************************************************************
+          MERCHANT_ID_SP_CAN_MC
+          
+This procedure is intended enforce the Business Rules
+for numeric check on MERCH_ID_CAN_MC,PCI_MERC_ID_CAN fields 
+in BANK_CARD Table
+created :02/09/2018 bxa919 CCN Project
+******************************************************************************/	
+    in_MERCH_ID_CAN_MC IN BANK_CARD.MERCH_ID_CAN_MC%TYPE
+  , in_PCI_MERCH_ID_CAN_MC IN BANK_CARD.MERCH_ID_CAN_MC%TYPE
+  , inCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
+  , inPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE)
+IS                             
+     non_numeric_exp_merc_can             EXCEPTION;
+     non_numeric_exp_pci_can              EXCEPTION;
+     V_POLLING_STATUS_CODE                POLLING.POLLING_STATUS_CODE%TYPE;
+     V_CODE                               NUMBER;
+     V_ERRM                               VARCHAR2(500);
+     V_COUNTRY_CODE                       COST_CENTER.COUNTRY_CODE%TYPE :=COMMON_TOOLS.country_look_up_fnc(inCOST_CENTER_CODE);
+ BEGIN
+    IF V_COUNTRY_CODE='CAN' THEN
+        IF (LENGTH(TRIM(TRANSLATE(in_MERCH_ID_CAN_MC, ' +-.0123456789',' '))) IS NOT NULL)   THEN
+            RAISE non_numeric_exp_merc_can ;
+        END IF;
+        IF (LENGTH(TRIM(TRANSLATE(in_PCI_MERCH_ID_CAN_MC, ' +-.0123456789',' '))) IS NOT NULL)   THEN
+            RAISE non_numeric_exp_pci_can ;
+        END IF;
+    END IF;
+    
+EXCEPTION
+    WHEN non_numeric_exp_merc_can THEN  
+        v_code := errnums.en_non_numeric_err_can;
+        errpkg.raise_err(v_code, 'MERCHANT_ID_SP_CAN_MC.non_numeric_exp_merc_can' ||
+                         'CCN_BUSINESS_RULES_PKG ', 'MERCH_ID_CAN_MC have non numeric number');
+    WHEN non_numeric_exp_pci_can THEN  
+         v_code := errnums.en_non_numeric_pci_err_can;
+         errpkg.raise_err(v_code, 'MERCHANT_ID_SP_CAN_MC.non_numeric_exp_pci_can' ||
+                          'CCN_BUSINESS_RULES_PKG ', 'MERCH_ID_CAN_MC have non numeric number'); 
+   WHEN OTHERS THEN
+       v_code := SQLCODE;
+       v_errm := substr(SQLERRM,1, 500);
+       errpkg.raise_err(v_code, v_errm ||
+                        'CCN_BUSINESS_RULES_PKG ');
+END MERCHANT_ID_SP_CAN_MC; 
 	
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
@@ -5283,9 +5338,16 @@ Modified: 04/11/2016 jxc517 CCN Project Team....
           4. For now we don't care having characters in PCI Merchant Id/ PCI Discover Id
 modified: 05/26/2016 nxk927 CCN Project....
           reverting PCI changes to move ADDRESS_BRB changes ahead
+modified: 02/09/2017 bxa919 added code to fetch the country code from country_look_up_fnc.
+          And removed cost center call from input parameter list
+          as we will never get cost center data in the XML.
+          02/09/2017 Added Size check condition for new columns MERCH_ID_CAN_MC,PCI_MER_ID_CAN_MC
+          in bank_card table
+          Added code to fetch the country code from common tools package as earlier the country code  
+          is fetched from cost center which is no longer there as there is the XML dosn't have 
+          cost center data
 ******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
-   ,inCostctr_rowtype           IN COST_CENTER%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
  )
                 IS         
@@ -5306,12 +5368,17 @@ modified: 05/26/2016 nxk927 CCN Project....
  invalid_discover_id_size_err   EXCEPTION;
  invalid_pci_dscvr_id_size_err  EXCEPTION;
  invalid_merchant_id_size_err   EXCEPTION;
+ invld_merch_id_mc_size_err     EXCEPTION;
  invalid_pci_mrchnt_id_size_err EXCEPTION;
+ invld_pci_merch_id_mc_size_err EXCEPTION;
  v_curr_date           date := sysdate;
  v_code number;
  v_count number;
  v_phone number;
  v_errm varchar(500);
+ /* Fetching the cost_center code and country code as there is no cost center data available in excel*/
+ V_COUNTRY_CODE                 COST_CENTER.COUNTRY_CODE%TYPE :=COMMON_TOOLS.country_look_up_fnc(inbankcard_rowtype.cost_center_code);
+
  
 /*
    3.3.11 Bank_card History rules are checked when new cost centers is added/updated; 
@@ -5324,17 +5391,11 @@ modified: 05/26/2016 nxk927 CCN Project....
    3.3.11.1   A Cost Center row must exist with a Cost Center Name not null
 */      
  BEGIN 
-
-     IF inCostctr_rowtype.cost_center_code <>  inbankcard_rowtype.cost_center_code THEN
-        RAISE invalid_cost_center_err;
-     END IF;	
-	
-
 /* 3.3.11.2a  Discover_id column must be numeric and cannot be zeros; Can be all 9's;
 	     The field can be "null" for Canadian cost centers only
 */            
     
-     IF inCostctr_rowtype.country_code    =  'CAN'  
+     IF  V_COUNTRY_CODE  =  'CAN'  
          AND inbankcard_rowtype.discover_id IS NOT NULL  THEN
      	       RAISE invalid_discoverid_err;
      END IF;	
@@ -5395,12 +5456,20 @@ modified: 05/26/2016 nxk927 CCN Project....
        --UI anyways won't allow this to happen, but for batch
        RAISE invalid_merchant_id_size_err;
    END IF;
+   
+   IF inbankcard_rowtype.merch_id_can_mc IS NOT NULL AND LENGTH(inbankcard_rowtype.merch_id_can_mc) <> 11 THEN
+          RAISE invld_merch_id_mc_size_err;
+   END IF;
 
    IF inbankcard_rowtype.pci_merchant_id IS NOT NULL AND LENGTH(inbankcard_rowtype.pci_merchant_id) > 13 THEN
        --UI allows this to happen as well as for batch
        RAISE invalid_pci_mrchnt_id_size_err;
    END IF;
 
+   IF inbankcard_rowtype.pci_merch_id_can_mc IS NOT NULL AND LENGTH(inbankcard_rowtype.pci_merch_id_can_mc) > 13 THEN
+        RAISE invld_pci_merch_id_mc_size_err;
+   END IF;
+   
 EXCEPTION
 	
 	
@@ -5484,7 +5553,17 @@ EXCEPTION
         v_code := errnums.en_invld_pci_mrchnt_id_sz_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_pci_mrchnt_id_size_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'PCI MERCHANT ID entered is not of valid size, maximum size is 13');
-    WHEN OTHERS THEN
+		WHEN invld_merch_id_mc_size_err THEN  
+        v_code := errnums.en_invld_merch_id_mc_size_err;
+	    errpkg.raise_err(v_code, 'bank_card_br_sp.invld_merch_id_mc_size_err ',
+	    'CCN_BUSINESS_RULES_PKG ' || 'MERCH ID CAN MC entered is not of valid size, maximum size is 11');
+	
+	    WHEN invld_pci_merch_id_mc_size_err THEN  
+	    v_code := errnums.en_invld_pci_merch_mc_sz_err;
+        errpkg.raise_err(v_code, 'bank_card_br_sp.invld_pci_merch_id_mc_size_err ',
+        'CCN_BUSINESS_RULES_PKG ' || 'PCI MERCH ID CAN  entered is not of valid size, maximum size is 13');
+        
+        WHEN OTHERS THEN
         v_code := SQLCODE;
 	    v_errm := substr(SQLERRM,1, 500);
         errpkg.raise_err(v_code, v_errm ||

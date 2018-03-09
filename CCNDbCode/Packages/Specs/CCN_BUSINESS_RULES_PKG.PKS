@@ -383,9 +383,11 @@ PROCEDURE BANK_CARD_BR_SP (
 	TRD  Section: 3.3.11 
 
 created : BLR 7/26//2012
+changed : 01/09/2017 bxa919 added code to fetch the country code ,cost center code from
+          cost center table.And removed cost center call from input parameter list
+          as we will never get cost center data in the XML.
 *******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
-   ,inCostctr_rowtype           IN COST_CENTER%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
  );
 
@@ -624,5 +626,19 @@ REVISED :
 *******************************************************************************/
     IN_CATEGORY         IN   VARCHAR2
 );
+
+PROCEDURE MERCHANT_ID_SP_CAN_MC (
+/******************************************************************************
+         MERCHANT_ID_SP_CAN_MC
+This procedure is intended to enforce the Business Rules
+for verifying the in_MERCH_ID_CAN_MC on the BANK_CARD Table
+
+created  : 01/16/2018 BXA919 
+*******************************************************************************/	
+  in_MERCH_ID_CAN_MC              IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+ ,in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+ ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
+ ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
+ 
 
 END CCN_BUSINESS_RULES_PKG;

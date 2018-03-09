@@ -1,0 +1,6 @@
+-- created by BXA919 on 03/09/2018
+-- Run this in BANKING
+
+ 
+GRANT SELECT ON STORES_BOOK_KEEPER_NBR_VW TO COSTCNTR;
+ 
