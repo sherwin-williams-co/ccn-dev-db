@@ -25,17 +25,4 @@ IN_CATEGORY_CODE - A ADMINISTRATIVE, M	MANUFACTURING, O	OTHER, R	REAL ESTATE, S	
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
 
-PROCEDURE READ_CATEGORY_FROM_BLOB(
-/******************************************************************************
-READ_CATEGORY_FROM_BLOB
-
-This procedure will get the category info for the uploaded file from UI
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-created : 03/09/2018 mxv711 added to read category from blob ASP-824
-
-******************************************************************************/
-    IN_BLOB        IN       BLOB,
-    OUT_CATEGORY   OUT      COST_CENTER.CATEGORY%TYPE);
-
  END COST_CENTER_UPLOAD;
