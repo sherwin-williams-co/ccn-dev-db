@@ -2868,12 +2868,22 @@ PROCEDURE POLLING_HST_I_SP
     table for Historical purpose.
 
 created : 02/18/2015 SXT410 CCN Project....
-revised : 
+revised : 03/06/2018 nxk927 CCN Project....
+          added two new columns POLLING_START_DATE and POLLING_STOP_DATE
+revised : 03/09/2018 rxv940 CCN Project....
+          Hard coding current flag values to 'N'
 *******************************************************************************/
 IN_POLLING_ROW IN POLLING%ROWTYPE
 ) 
 IS
+    HST_EXPIRATION_DATE   DATE;
 BEGIN
+
+    SELECT MAX(EXPIRATION_DATE)
+      INTO HST_EXPIRATION_DATE
+      FROM POLLING_HST
+     WHERE COST_CENTER_CODE = IN_POLLING_ROW.COST_CENTER_CODE;
+     
     INSERT INTO POLLING_HST
     SELECT COST_CENTER_CODE,
            POLLING_STATUS_CODE,
@@ -2882,9 +2892,11 @@ BEGIN
            TIME_ZONE,
            POLLING_IND,
            NEXT_DOWNLOAD_BLOCK_COUNT,
-           CURRENT_FLAG,
-           EFFECTIVE_DATE,
-           SYSDATE --EXPIRATION_DATE
+           'N',  --CURRENT_FLAG,
+           NVL(HST_EXPIRATION_DATE, EFFECTIVE_DATE),  -- EFFECTIVE_DATE
+           SYSDATE, --EXPIRATION_DATE
+           POLLING_START_DATE,
+           POLLING_STOP_DATE
       FROM POLLING
      WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_POLLING_ROW.COST_CENTER_CODE)
        AND CURRENT_FLAG = 'Y';  
@@ -4703,6 +4715,7 @@ modified: 02/02/2015 axk326 CCN Project Team...
           based on COST_CENTER_CODE
         : 02/18/2015 SXT410 Modified code to to capture Previous updated row
           and setting Effective_date to sysdate only when Polling_status_code is changed.
+        : rxv940 03/06/2018 Performing update only when there is a change in old and new values
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -4725,9 +4738,7 @@ BEGIN
          in_table_name
         ,in_Row_Data
         ,out_POLLING_row 
-                   );              
-
-        POLLING_HST_I_SP ( OUT_POLLING_ROW );          
+                   );
 
         BEGIN
             SELECT * 
@@ -4737,29 +4748,39 @@ BEGIN
                AND UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE);        
             IF V_PREV_STATUS_ROW.POLLING_STATUS_CODE <> OUT_POLLING_ROW.POLLING_STATUS_CODE THEN 
                 OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
-
+                
                 EXPIRE_POLLING_DATA_SP ( out_POLLING_row );
             ELSE
                 OUT_POLLING_ROW.EFFECTIVE_DATE := V_PREV_STATUS_ROW.EFFECTIVE_DATE;
             END IF;
+            -- conditionally move data into history table (if there is something actually getting updated)
+            IF (NVL(V_PREV_STATUS_ROW.POLLING_STATUS_CODE, 'Z') <>  NVL(out_POLLING_row.POLLING_STATUS_CODE, 'Z') OR
+                NVL(V_PREV_STATUS_ROW.MULTICAST_IND, 'Z')       <>  NVL(out_POLLING_row.MULTICAST_IND, 'Z') OR
+                NVL(V_PREV_STATUS_ROW.TIME_ZONE, '9')           <>  NVL(out_POLLING_row.TIME_ZONE, '9') OR
+                NVL(V_PREV_STATUS_ROW.POLLING_IND, 'Z')         <>  NVL(out_POLLING_row.POLLING_IND, 'Z')
+                ) THEN 
+            
+                POLLING_HST_I_SP ( OUT_POLLING_ROW );            
+            
+            END IF;             
+                   
         EXCEPTION
             WHEN OTHERS THEN
                 OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
         END;
-
-
-      UPDATE polling set ROW             = out_polling_row
-       WHERE UPPER(cost_center_code)     = UPPER(out_polling_row.cost_center_code)
-        AND  POLLING_STATUS_CODE         = OUT_POLLING_ROW.POLLING_STATUS_CODE ;        
-
-
+            
+       
+        UPDATE polling set ROW             = out_polling_row
+         WHERE UPPER(cost_center_code)     = UPPER(out_polling_row.cost_center_code)
+           AND  POLLING_STATUS_CODE        = OUT_POLLING_ROW.POLLING_STATUS_CODE ;
+           
   EXCEPTION
       WHEN OTHERS THEN 
       v_code  := SQLCODE;
       v_errm  := substr(SQLERRM,1,200);
       errpkg.raise_err(v_code, 'POLLING_U_SP, ' || ' ' ||
              'IN_TABLE_NAME is ' || in_TABLE_NAME || '; ' || v_errm);
-
+    
 END POLLING_U_SP;
 
 
