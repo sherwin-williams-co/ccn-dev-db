@@ -26,7 +26,7 @@ BEGIN
                NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH') 
           FROM POLLING 
         );
-       COMMIT;
+    COMMIT;
 END ;
 
 
@@ -76,11 +76,7 @@ BEGIN
           ) T;
           
     COMMIT;
-END;    
-END;
-        );
-       COMMIT;
-END ;
+END; 
 
 
 -- Script to drop backup table
