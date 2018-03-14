@@ -1,7 +1,7 @@
 /*******************************************************************************
 Created : 03/07/2018 bxa919 CCN Project Team...
-		 The script will created tables  CCN_COST_CENTER_INFO table.The data in the table 
-		 is used to generate 'CCN08900' file to sens ro Real Estate.
+          The script will created tables  CCN_COST_CENTER_INFO table.The data in the table 
+          is used to generate 'CCN08900' file to sens ro Real Estate.
 *******************************************************************************/
 CREATE TABLE CCN_COST_CENTER_INFO (	
         IGNORE                               VARCHAR2(1),  
