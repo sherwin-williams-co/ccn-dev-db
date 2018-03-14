@@ -1,10 +1,11 @@
-CREATE OR REPLACE TRIGGER "COSTCNTR".tr_polling_upd
+create or replace TRIGGER "COSTCNTR".tr_polling_upd
    /***************************************************************************
    ***
    TR_POLLING_UPD.TRG
    This trigger will insert records into audit_log table for logging changes
    happened on polling table.
    Modified : 02/15/2017 gxg192 Added missing fields
+            : 03/08/2018 nxk927 Added new field polling start date and stop date
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON polling
@@ -28,9 +29,11 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_polling_upd
       v_polling_row.time_zone                 := :NEW.time_zone;
       v_polling_row.polling_ind               := :NEW.polling_ind;
       v_polling_row.next_download_block_count := :NEW.next_download_block_count;
-      v_polling_row.current_flag    := :NEW.current_flag;
-      v_polling_row.effective_date  := :NEW.effective_date;
-      v_polling_row.expiration_date := :NEW.expiration_date;
+      v_polling_row.current_flag              := :NEW.current_flag;
+      v_polling_row.effective_date            := :NEW.effective_date;
+      v_polling_row.expiration_date           := :NEW.expiration_date;
+      v_polling_row.POLLING_START_DATE        := :NEW.POLLING_START_DATE;
+      v_polling_row.POLLING_STOP_DATE         := :NEW.POLLING_STOP_DATE;
       
       SELECT XMLELEMENT ( "POLLING",
                           XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -44,7 +47,9 @@ CREATE OR REPLACE TRIGGER "COSTCNTR".tr_polling_upd
                                    v_polling_row.next_download_block_count next_download_block_count ,
                                    v_polling_row.current_flag current_flag ,
                                    v_polling_row.effective_date effective_date ,
-                                   v_polling_row.expiration_date expiration_date )
+                                   v_polling_row.expiration_date expiration_date,
+                                   v_polling_row.POLLING_START_DATE,
+                                   v_polling_row.POLLING_STOP_DATE)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
