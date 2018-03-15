@@ -8,11 +8,11 @@ Run this in Utility
     -- Delete from MAILING_DETAILS
     DELETE 
       FROM MAILING_DETAILS 
-     WHERE GROUP_IS IN ('64', '65');
+     WHERE GROUP_ID IN ('64', '65');
 
     -- Delete from MAILING_GROUP
     DELETE 
       FROM MAILING_GROUP 
-     WHERE GROUP_IS IN ('64', '65');
+     WHERE GROUP_ID IN ('64', '65');
 
     COMMIT;
