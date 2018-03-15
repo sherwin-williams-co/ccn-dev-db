@@ -53,14 +53,8 @@ then
 TIME=`date +"%H:%M:%S"`
    echo "processing FAILED for $proc at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
 
-   #Identify starting Line number of current run from the log file
-   curlineno=`grep -n "Processing Started for generate_store_bank_card_file" $LOGDIR/$proc"_"$TimeStamp.log|cut -f1 -d:|tail -1`
-   #Tail the current run log file content
-   logfile=`sed -n -e ''''$curlineno''',$p' $LOGDIR/$proc"_"$TimeStamp.log`
-
-   #Emailing the Current run's Log File
    cd $HOME/
-   ./send_mail.sh STORE_BANK_CARD_ERROR "$logfile"
+   ./send_mail.sh STORE_BANK_CARD_ERROR 
 
    echo "processing FAILED for $proc at ${TIME} on ${DATE}" 
 
@@ -79,7 +73,9 @@ $HOME/batchJobs/ccn_store_bank_card_file_ftp.sh "merchtb_$TimeStamp.dat" "STORE_
 status=$?
 if test $status -ne 0
    then
-     echo "processing FAILED while FTP'ing at ${TIME} on ${DATE}"
+     cd $HOME/
+     ./send_mail.sh STORE_BANK_CARD_ERROR 
+     echo "processing FAILED while FTP'ing at ${TIME} on ${DATE}"                                   >> $LOGDIR/$proc"_"$TimeStamp.log
      exit 1
 fi
 
@@ -87,5 +83,5 @@ TIME=`date +"%H:%M:%S"`
 echo "FTP'ing the files for $proc finished at ${TIME} on ${DATE}"                                    >> $LOGDIR/$proc"_"$TimeStamp.log
 echo "Processing finished for $proc at ${TIME} on ${DATE}"                                           >> $LOGDIR/$proc"_"$TimeStamp.log
 
-exit 0 
+exit 0
 #######################################################################################################################

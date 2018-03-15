@@ -15,4 +15,9 @@ Run this in Utility
       FROM MAILING_GROUP 
      WHERE GROUP_ID IN ('64', '65');
 
+
+    -- Update the description to be meaningful
+    UPDATE MAILING_DETAILS
+       SET MESSAGE = 'Store Bank Card File generation failed - Please refer the log file'
+     WHERE GROUP_ID IN ('66');   
     COMMIT;

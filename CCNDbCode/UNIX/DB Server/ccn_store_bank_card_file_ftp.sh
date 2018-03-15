@@ -28,7 +28,6 @@ put $FILENAME
 put $FILENAME2
 quit
 END_SCRIPT
-#cd $HOME/batchJobs
 
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -36,13 +35,13 @@ END_SCRIPT
 status=$?
 if test $status -ne 0
    then
-     echo "processing FAILED for DD_US_AM_FTP_ARCH at ${TIME} on ${DATE}"
+     echo "processing FAILED for $PROC_NAME at ${TIME} on ${DATE}"
      exit 1
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $PROC_NAME at ${TIME} on ${DATE}"
 exit 0
- 
+
 ##################################################################################################################################
 #                                                   END of PROGRAM.  
 ##################################################################################################################################
