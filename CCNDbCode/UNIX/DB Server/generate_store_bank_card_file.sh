@@ -87,5 +87,5 @@ TIME=`date +"%H:%M:%S"`
 echo "FTP'ing the files for $proc finished at ${TIME} on ${DATE}"                                    >> $LOGDIR/$proc"_"$TimeStamp.log
 echo "Processing finished for $proc at ${TIME} on ${DATE}"                                           >> $LOGDIR/$proc"_"$TimeStamp.log
 
-exit 0
+exit 0 
 #######################################################################################################################
