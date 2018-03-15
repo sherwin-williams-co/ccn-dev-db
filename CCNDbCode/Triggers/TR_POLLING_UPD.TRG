@@ -48,8 +48,8 @@ create or replace TRIGGER "COSTCNTR".tr_polling_upd
                                    v_polling_row.current_flag current_flag ,
                                    v_polling_row.effective_date effective_date ,
                                    v_polling_row.expiration_date expiration_date,
-                                   v_polling_row.POLLING_START_DATE,
-                                   v_polling_row.POLLING_STOP_DATE)
+                                   v_polling_row.POLLING_START_DATE POLLING_START_DATE,
+                                   v_polling_row.POLLING_STOP_DATE POLLING_STOP_DATE)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
