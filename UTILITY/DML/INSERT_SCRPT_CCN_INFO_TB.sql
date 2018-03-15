@@ -42,5 +42,5 @@ values ('CCN_STORE_INFO_REPORT_FAILURE'
 ,'Thanks'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT'
 );
 
-
+ 
 COMMIT;

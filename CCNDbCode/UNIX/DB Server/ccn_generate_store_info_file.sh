@@ -45,7 +45,7 @@ then
 else
    TIME=`date +"%H:%M:%S"`
    echo "Processing finished for $proc at ${TIME} on ${DATE}"
-fi
+fi 
 
 exit 0
 #######################################################################################################################
