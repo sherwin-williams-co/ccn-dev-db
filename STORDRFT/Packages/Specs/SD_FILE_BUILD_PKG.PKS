@@ -209,4 +209,17 @@ Changed :
 *******************************************************************************/
 IN_DATE             IN     DATE);
 
+PROCEDURE VOID_90_DAY_MARK_BY_CCN(
+/**********************************************************
+
+This procedure is intended to generate the report for 
+drafts that are outstanding for more than 90 days and
+update the VOID_MARK_BY_CCN_IND as 'VOID' 
+
+IN_DATE - the date from which the 90 day period needs to be considered
+
+created : 03/15/2018 bxa919 CCN Project Team....
+**********************************************************/
+IN_DATE             IN     DATE);
+
   END SD_FILE_BUILD_PKG;
