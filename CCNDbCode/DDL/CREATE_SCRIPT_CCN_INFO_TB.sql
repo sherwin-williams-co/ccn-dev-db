@@ -67,5 +67,5 @@ CREATE TABLE CCN_COST_CENTER_INFO (
         CCNTR_CLOSE_DATE                     VARCHAR2(8), 
         FILLER                               VARCHAR2(180), 
         FILE_NAME                            VARCHAR2(24), 
-        FILLER_BYTE                          VARCHAR2(1)
+        FILLER_BYTE                          VARCHAR2(1),
 CONSTRAINT CCN_INFO_TB_PK PRIMARY KEY (COST_CENTER));
