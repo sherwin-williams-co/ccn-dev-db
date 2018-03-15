@@ -1,6 +1,4 @@
-#!/bin/sh
-
-
+#!/bin/sh 
 ###############################################################################################################################
 # Script name   : generate_store_bank_card_file.sh
 #
@@ -10,21 +8,22 @@
 # Created  : 05/25/2017 sxp130 CCN Project Team.....
 # Modified : 10/02/2017 rxa457 CCN project Team...
 #            File name changed merchtb.dat
+#          : 03/06/2018 sxg151 Added ccn_store_bank_card_file_ftp.sh to FTP the files to SMIS Team instead email
+#          : 03/15/2018 rxv940 CCN project Team....
+#                              Passing the file names as input to the FTP script
+#                              Removed unnecssary file renames. Rather, passing timestamp to Oracle call
 ###############################################################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
 
 proc="generate_store_bank_card_file"
-datafilepath=$HOME/datafiles
 LOGDIR="$HOME/batchJobs"
 DATE=`date +"%m/%d/%Y"`
 RUNDATE=`date --date="yesterday" +%m/%d/%Y`
-FILEDATE=`date +"%m%d%y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc at $TIME on $DATE" >> $LOGDIR/$proc"_"$TimeStamp.log
-echo "Processing Started for $proc at $TIME on $DATE"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
@@ -36,7 +35,7 @@ WHENEVER SQLERROR EXIT 1
 DECLARE
 BEGIN
 :exitCode := 0;
-CCN_BATCH_PROCESS.GENERATE_STORE_BANK_CARD_FILE;
+CCN_BATCH_PROCESS.GENERATE_STORE_BANK_CARD_FILE('$TimeStamp');
 Exception
 when others then
 DBMS_OUTPUT.PUT_LINE('GENERATE_STORE_BANK_CARD_FILE FAILED AT '||SQLERRM || ' : ' ||SQLCODE);
@@ -65,27 +64,21 @@ TIME=`date +"%H:%M:%S"`
 
    echo "processing FAILED for $proc at ${TIME} on ${DATE}" 
 
-   exit 1;
+   exit 1
 fi
-cd $datafilepath
-csv_files=`ls merchtb_$FILEDATE.dat*`
-for file in $csv_files
-do
-   echo renaming $file to "merchtb_$TimeStamp.dat"
-   mv $file "merchtb_$TimeStamp.dat"
-done
-
-cd $datafilepath
-dat_files=`ls STORE_BANK_CARD_SERIAL_$FILEDATE.dat*`
-for file in $dat_files
-do
-   echo renaming $file to "STORE_BANK_CARD_SERIAL_$TimeStamp.dat"
-   mv $file "STORE_BANK_CARD_SERIAL_$TimeStamp.dat"
-done
 
 TIME=`date +"%H:%M:%S"`
 echo "Process to generate store bank card file executed successfully for $RUNDATE at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
-echo "Processing finished for $proc at ${TIME} on ${DATE}"
+
+
+# Call ccn_store_bank_card_file_ft to FTP the files
+TIME=`date +"%H:%M:%S"`
+echo "FTP'ing the files for $proc started at ${TIME} on ${DATE}"                                     >> $LOGDIR/$proc"_"$TimeStamp.log
+$HOME/batchJobs/ccn_store_bank_card_file_ftp.sh "merchtb_$TimeStamp.dat" "STORE_BANK_CARD_SERIAL_$TimeStamp.dat" >> $LOGDIR/$proc"_"$TimeStamp.log
+
+TIME=`date +"%H:%M:%S"`
+echo "FTP'ing the files for $proc finished at ${TIME} on ${DATE}"                                    >> $LOGDIR/$proc"_"$TimeStamp.log
+echo "Processing finished for $proc at ${TIME} on ${DATE}"                                           >> $LOGDIR/$proc"_"$TimeStamp.log
 
 exit 0
 #######################################################################################################################

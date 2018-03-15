@@ -51,7 +51,7 @@ Created : 05/25/2017 rxa457 ASP-772 CCN project Team....
 **********************************************************/
 ;
 
-PROCEDURE GENERATE_STORE_BANK_CARD_FILE
+PROCEDURE GENERATE_STORE_BANK_CARD_FILE(
 /**********************************************************
 This procedure is intended to generate below files which describes store and merchant details
 1. STORE_BANK_CARD_MERCHANT.CSV
@@ -60,8 +60,10 @@ Filters:
 1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
 
 Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
-Changed :
+Changed : 03/15/2018 rxv940 CCN project Team....
+          Created an input variable that gets appended to file name
 **********************************************************/
+IN_TMSTMP   IN VARCHAR2)
 ;
 PROCEDURE  GENERATE_VALUE_LINK_PROCESS 
 /**********************************************************
