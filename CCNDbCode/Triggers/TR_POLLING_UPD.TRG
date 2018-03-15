@@ -6,6 +6,7 @@ create or replace TRIGGER "COSTCNTR".tr_polling_upd
    happened on polling table.
    Modified : 02/15/2017 gxg192 Added missing fields
             : 03/08/2018 nxk927 Added new field polling start date and stop date
+            : 03/15/2018 nxk927 Added missing alias for the new field polling start date and stop date
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON polling
