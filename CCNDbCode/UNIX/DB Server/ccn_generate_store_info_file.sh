@@ -39,7 +39,8 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-   echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+    echo " $proc_name --> processing FAILED while executing ccn_generate_store_info_file.sh at $DATE:$TIME "
+    ./send_mail.sh "CCN_STORE_INFO_REPORT_FAILURE"
    exit 1;
 else
    TIME=`date +"%H:%M:%S"`
