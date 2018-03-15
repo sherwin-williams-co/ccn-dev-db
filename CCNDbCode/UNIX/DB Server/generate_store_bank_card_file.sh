@@ -76,6 +76,13 @@ TIME=`date +"%H:%M:%S"`
 echo "FTP'ing the files for $proc started at ${TIME} on ${DATE}"                                     >> $LOGDIR/$proc"_"$TimeStamp.log
 $HOME/batchJobs/ccn_store_bank_card_file_ftp.sh "merchtb_$TimeStamp.dat" "STORE_BANK_CARD_SERIAL_$TimeStamp.dat" >> $LOGDIR/$proc"_"$TimeStamp.log
 
+status=$?
+if test $status -ne 0
+   then
+     echo "processing FAILED while FTP'ing at ${TIME} on ${DATE}"
+     exit 1
+fi
+
 TIME=`date +"%H:%M:%S"`
 echo "FTP'ing the files for $proc finished at ${TIME} on ${DATE}"                                    >> $LOGDIR/$proc"_"$TimeStamp.log
 echo "Processing finished for $proc at ${TIME} on ${DATE}"                                           >> $LOGDIR/$proc"_"$TimeStamp.log

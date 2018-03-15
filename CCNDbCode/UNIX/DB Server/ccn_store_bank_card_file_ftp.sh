@@ -23,7 +23,7 @@ cd $DATADIR
 ftp -inv "${uar_host}"<<END_SCRIPT
 quote USER ${uar_user}
 quote PASS ${uar_pw}
-cd ${stuar2hq_SRVR_PATH}
+cd ${str_bnk_crd_srl_mrchnt_files_ftp_path}
 put $FILENAME
 put $FILENAME2
 quit
