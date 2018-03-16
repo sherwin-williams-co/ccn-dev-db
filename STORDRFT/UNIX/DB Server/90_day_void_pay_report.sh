@@ -43,6 +43,7 @@ status=$?
 if [ $status -ne 0 ]; then
      TIME=`date +"%H:%M:%S"`
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
+     $HOME/send_mail.sh "SD_90_DAY_VOID_PAY_RPT_FAILURE"
      exit 1;
 fi
 TIME=`date +"%H:%M:%S"`
