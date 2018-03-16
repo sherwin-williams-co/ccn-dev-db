@@ -435,19 +435,6 @@ PRAGMA EXCEPTION_INIT
 (exc_no_home_store_err , -20029);
 
 /*********************************************************** 
-The "invalid_discoverid_err" passes a numerical error of -20030.
-An error occurs when Discover ID is invalid.
-
-created : 06/07/2012 cbd CCN Project
-revisions: 
-
-************************************************************/
-en_invalid_discoverid_err CONSTANT NUMBER := -20030;
-exc_invalid_discoverid_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_discoverid_err , -20030);
-
-/*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
 An error occurs when Amex ID is = `999999999¿.
 
