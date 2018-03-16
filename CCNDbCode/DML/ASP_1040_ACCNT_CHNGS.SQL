@@ -9,9 +9,11 @@ ASP-1040
 
  -- SELECT for backup purposes 
     SELECT *
-      FROM GENERAL_LEDGER_ACCOUNTS;
+      FROM GENERAL_LEDGER_ACCOUNTS
+     WHERE GL_ACCOUNT_NUMBER = '0400056';
     SELECT * 
-      FROM PRGM_GL_ACCNT_RLTN_DTLS;
+      FROM PRGM_GL_ACCNT_RLTN_DTLS
+     WHERE GL_PS_ACCOUNT_NUMBER = '0400056';
 
  -- Delete an account as requested
     DELETE 
@@ -31,5 +33,3 @@ ASP-1040
     VALUES ('7599124', 'STOREXP', '0', 'false', SYSDATE, 'pmm4br', NULL);
     
     COMMIT;
-
-
