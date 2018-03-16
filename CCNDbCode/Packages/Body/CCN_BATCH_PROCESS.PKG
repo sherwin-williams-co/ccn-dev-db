@@ -1,4 +1,4 @@
-create or replace PACKAGE BODY CCN_BATCH_PROCESS AS
+CREATE OR REPLACE PACKAGE BODY CCN_BATCH_PROCESS AS
 /*********************************************************** 
 This package body will have procedures and functions related 
 to the batch process
@@ -375,32 +375,30 @@ IS
                                    AND EXPIRATION_DATE IS NULL)
        AND NVL(CLOSE_DATE,TRUNC(SYSDATE))> TRUNC(SYSDATE)-1
      ORDER BY 1;
-     
-     /* As the Address formats are different for CAN and USA, postal code and provice code columns are fetched 
-     in order populate in CAN address fields */
-    CURSOR address_cur IS
-        SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4,POSTAL_CODE,PROVINCE_CODE
-          FROM ADDRESS_VW
-         WHERE ADDRESS_TYPE = 'M'
-           AND EXPIRATION_DATE IS NULL;
+ /* As the Address formats are different for CAN and USA, postal code and provice code columns are fetched in order populate in CAN address fields */
+  CURSOR address_cur IS
+    SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4,POSTAL_CODE,PROVINCE_CODE
+     FROM ADDRESS_VW
+    WHERE ADDRESS_TYPE = 'M'
+      AND EXPIRATION_DATE IS NULL;
 
-    CURSOR hierarchy_cur(P_COST_CENTER_CODE VARCHAR2) IS
-        SELECT *
-          FROM HIERARCHY_DETAIL_VIEW
-         WHERE HRCHY_HDR_NAME  = 'GLOBAL_HIERARCHY'
-           AND COST_CENTER_CODE = P_COST_CENTER_CODE;
+  CURSOR hierarchy_cur(P_COST_CENTER_CODE VARCHAR2) IS
+    SELECT *
+      FROM HIERARCHY_DETAIL_VIEW
+     WHERE HRCHY_HDR_NAME  = 'GLOBAL_HIERARCHY'
+       AND COST_CENTER_CODE = P_COST_CENTER_CODE;
 
-    CURSOR polling_cur(P_COST_CENTER_CODE VARCHAR2) IS
-        SELECT *
-          FROM POLLING
-         WHERE CURRENT_FLAG      = 'Y'
-           AND COST_CENTER_CODE  = P_COST_CENTER_CODE;
-
-    CURSOR type_cur(P_COST_CENTER_CODE VARCHAR2) IS
+  CURSOR polling_cur(P_COST_CENTER_CODE VARCHAR2) IS
       SELECT *
-        FROM TYPE
-       WHERE EXPIRATION_DATE IS NULL
-         AND COST_CENTER_CODE = P_COST_CENTER_CODE;
+        FROM POLLING
+       WHERE CURRENT_FLAG      = 'Y'
+         AND COST_CENTER_CODE  = P_COST_CENTER_CODE;
+
+  CURSOR type_cur(P_COST_CENTER_CODE VARCHAR2) IS
+    SELECT *
+      FROM TYPE
+     WHERE EXPIRATION_DATE IS NULL
+       AND COST_CENTER_CODE = P_COST_CENTER_CODE;
 
   CURSOR pricing_district_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT DISTRICT AS PRICE_DISTRICT
@@ -410,7 +408,7 @@ IS
        AND ROWNUM <= 1;
 
     PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME                    VARCHAR2(50) := 'STORE_PDH_HRCHY_MAIL' || '_'|| TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx'; 
+    FILENAME                    VARCHAR2(50)   := 'STORE_PDH_HRCHY_MAIL' || '_'||  TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.xlsx';
     V_ADDRESS_STREET            VARCHAR2(200);
     V_CITY                      ADDRESS_VW.CITY%TYPE;
     V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
@@ -433,11 +431,11 @@ IS
     V_PRICE_DISTRICT            VARCHAR2(100);
     V_CUR_COUNT                 NUMBER := 0;
     V_STATEMENT_DESC            VARCHAR2(1000);
-    
         
     TYPE ADDRESS_VW_REC_TYPE IS TABLE OF ADDRESS_CUR%ROWTYPE INDEX BY VARCHAR2(6);
     AAT_ADDRESS_VW ADDRESS_VW_REC_TYPE;
 BEGIN
+
     /* In order to re-load the new records in the USA,CAN table .The exsisting records need to be deleted as CCN_SPREADSHEET package reads the records from the table
        everytime the file is generated the new records need to be inserted*/
     EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_USA';
@@ -446,11 +444,12 @@ BEGIN
     FOR rec IN address_cur LOOP
         AAT_ADDRESS_VW(rec.COST_CENTER_CODE) := rec;
     END LOOP;
-    
+
     V_CUR_COUNT := 0;
     FOR cc_rec IN main_cursor LOOP
         V_CUR_COUNT := V_CUR_COUNT + 1;
         
+        /* Fetching statement description value */
         V_STATEMENT_DESC:= NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATEMENT_TYPE', 'COD', cc_rec.STATEMENT_TYPE),'N/A');
 
         /*Fetch Address Information*/
@@ -458,16 +457,15 @@ BEGIN
         V_CITY           := NULL;
         V_STATE_CODE     := NULL;
         V_ADDRESS_ZIP    := NULL;
-        V_ADDRESS_POSTAL := NULL;           
+        V_ADDRESS_POSTAL := NULL;
         V_PROVINCE_CODE  := NULL;
-        
         IF AAT_ADDRESS_VW.EXISTS(cc_rec.COST_CENTER_CODE) THEN
             IF AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1 IS NOT NULL OR AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2 IS NOT NULL THEN
               V_ADDRESS_STREET := LTRIM(RTRIM(AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1||' '||AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2
                                               )
                                         );
             END IF;
-            V_CITY := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).CITY;
+            V_CITY:= AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).CITY;
             V_STATE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).STATE_CODE;
             V_ADDRESS_POSTAL := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).POSTAL_CODE;
             V_PROVINCE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PROVINCE_CODE;
@@ -532,13 +530,11 @@ BEGIN
         FOR rec IN pricing_district_cur(cc_rec.COST_CENTER_CODE) LOOP
             V_PRICE_DISTRICT := rec.PRICE_DISTRICT;
         END LOOP;
-
         --In order to generate multiple sheets for CAN and USA .The CCN_SPREADSHEET package takes table data
         --as input inorder to parse and build xml clob.Based on Country code the data
         --is inserted in corresponding tables. As the address representation is different for different countries
         IF CC_REC.COUNTRY_CODE IN ('USA', 'PRI') THEN
-            --Inserting data in CCN_PRICING_DISTRICT_USA tables for USA country code*/
-            INSERT INTO CCN_PRICING_DISTRICT_USA VALUES (   cc_rec.COST_CENTER_CODE 
+            INSERT INTO CCN_PRICING_DISTRICT_USA VALUES ( cc_rec.COST_CENTER_CODE 
                                                           , cc_rec.COST_CENTER_NAME 
                                                           , V_ADDRESS_STREET 
                                                           , V_CITY 
@@ -562,10 +558,9 @@ BEGIN
                                                           , V_TYPE_CODE 
                                                           , V_TYPE_CODE_DESC 
                                                           , V_PRICE_DISTRICT );
-          
-          ELSIF CC_REC.COUNTRY_CODE='CAN' THEN
-             --Inserting data in CCN_PRICING_DISTRICT_CAN tables for CAN country code
-             INSERT INTO CCN_PRICING_DISTRICT_CAN VALUES ( cc_rec.COST_CENTER_CODE 
+          /* Inserting data in CCN_PRICING_DISTRICT_CAN tables for CAN country code*/
+        ELSIF CC_REC.COUNTRY_CODE='CAN' THEN
+            INSERT INTO CCN_PRICING_DISTRICT_CAN VALUES ( cc_rec.COST_CENTER_CODE 
                                                          , cc_rec.COST_CENTER_NAME 
                                                          , V_ADDRESS_STREET 
                                                          , V_CITY 
@@ -600,10 +595,10 @@ BEGIN
     --Creating the final excel based on the path and file name procided
     --NOTE: The clob is built in the package "CCN_SPREADSHEET_PKG" which will be used by the below call
     CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
-  
+    --Below procedure will send the excel file as attachement through email based on the mail category 
     MAIL_PKG.SEND_MAIL('STORE_PDH_HRCHY_MAIL');
 EXCEPTION
-    WHEN OTHERS THEN    
+    WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.GENERATE_STORE_PD_HRCHY_FILE','GENERATE STORE PRICE DISTRICT HIERARCHY REPORTING FAILED AT '||SQLCODE||' : '||                SQLERRM);
 END GENERATE_STORE_PD_HRCHY_FILE;
 
@@ -623,7 +618,7 @@ EXCEPTION
    WHEN OTHERS THEN
       RETURN NULL;
 END FILL_SPACES;
- 
+
 PROCEDURE GNRT_STORE_BANK_CARD_MRCHNT_FL(
 /******************************************************************************************
 This Procedure create file STORE_BANK_CARD_MERCHANT_FL.CSV on the server
@@ -736,18 +731,18 @@ modified: 03/15/2018 rxv940 CCN Project Team....
           Removing out the email part and logic involved in creating CLOB for email
           - shell script FTP'es
 modified: 03/16/2018 nxk927
-          Considering all the records without merchant id and using 0's for null merchant id, null discover id
-          and null AMEX_SE_ID
+          Considering all the records without merchant id and using 0's for null merchant id, null discover id and
+          null AMEX_SE_ID
 *******************************************************************************************/
 IN_TMSTMP  IN VARCHAR2)
 AS
    CURSOR CUR_COST_CENTER IS
       SELECT *
-         FROM COST_CENTER
-        WHERE CLOSE_DATE IS NULL
-          AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
-          AND CATEGORY IN ('S', 'O')
-          AND EXISTS (SELECT 1
+        FROM COST_CENTER
+       WHERE CLOSE_DATE IS NULL
+         AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+         AND CATEGORY IN ('S', 'O')
+         AND EXISTS (SELECT 1
                         FROM POLLING
                        WHERE POLLING.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
                          AND POLLING.EXPIRATION_DATE IS NULL
@@ -815,7 +810,7 @@ BEGIN
       V_DIVISION_NO            := FILL_SPACES(2);
       V_AREA                   := FILL_SPACES(2);
       V_DISTRICT               := FILL_SPACES(2);
-      V_MERCHANT_ID            := NULL; 
+      V_MERCHANT_ID            := NULL;
       V_DISCOVER_ID            := NULL;
       V_AMEX_SE_ID             := NULL;
       V_ADDRESS_LINE_1         := FILL_SPACES(30);
@@ -1078,7 +1073,6 @@ EXCEPTION
         UTL_FILE.FCLOSE(OUTPUT_FILE);
         RAISE;
 END GENERATE_VALUE_LINK_PROCESS ;
-
 PROCEDURE POS_TERM_TRAN_UPDATE
 /**********************************************************
 	This procedure is intended to UPDATE POS_LAST_TRAN_DATE, POS_LAST_TRAN_NUMBER and POS_VERSION_NUMBER
@@ -1138,48 +1132,4 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN NULL;
 END GET_LOAD_RUNCYCLE;
-
-PROCEDURE LOAD_ADDRESS_GEO_DETAILS
-/******************************************************************************
-  This Procedure Will load the data from ADDRESS_GEO_V
-
-Created : 03/12/2018 sxg151 CCN Project....
-Changed : 03/16/2018 rxv940 CCN Project....
-          Added scripts to delete and Exception handling
-*******************************************************************************/
-
-IS     
-BEGIN
-    -- Delete all the records that got loaded earlier in the day (same day)
-    -- Deletes will happen only when the process is running more than 1 time on a given day
-    DELETE 
-      FROM CCN_ADDRESS_GEO_DETAILS
-     WHERE LOAD_DATE >= TRUNC(SYSDATE);
-
-    --Insert only active store category cost centers with current polling status as P or Q
-    INSERT 
-      INTO CCN_ADDRESS_GEO_DETAILS 
-    SELECT DISTINCT 
-           AG.STORE,
-           AG.LON,
-           AG.LAT,
-           SYSDATE
-      FROM ADDRESS_GEO_V AG,
-           COST_CENTER C,
-           POLLING P
-     WHERE C.COST_CENTER_CODE     = AG.STORE
-       AND C.CATEGORY             = 'S'
-       AND C.COST_CENTER_CODE     = P.COST_CENTER_CODE
-       AND C.CLOSE_DATE IS NULL
-       AND P.POLLING_STATUS_CODE IN ('P','Q')
-       AND P.CURRENT_FLAG = 'Y';
-    
-    COMMIT;
-EXCEPTION 
-    WHEN OTHERS THEN 
-        ROLLBACK;
-        RAISE;
-
-END LOAD_ADDRESS_GEO_DETAILS;
-
 END CCN_BATCH_PROCESS;
