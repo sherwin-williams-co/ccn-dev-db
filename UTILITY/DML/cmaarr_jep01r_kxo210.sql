@@ -1,6 +1,6 @@
 /*
 Created : nxk927 03/20/2018
-          Giving polling window access to users cmaarr, jep01r, kxo210
+          Giving polling window "VIEW" access to users cmaarr, jep01r, kxo210
 */
 
 SELECT * FROM SECURITY_MATRIX WHERE USER_ID IN ('cmaarr','jep01r','kxo210');
