@@ -209,9 +209,17 @@ Changed :
 *******************************************************************************/
 IN_DATE             IN     DATE);
 
+FUNCTION IS_CSTMER_VENDOR_INFO_PRESENT(
+/*****************************************************************************
+	This function will return 'Y' or 'N' if tax id is present for the vendor depending on the CUSTOMER_ACCOUNT_NUMBER  passed in
+
+created : 03/09/2018 nxk927 CCN Project....
+changed :
+*****************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2;
+
 PROCEDURE VOID_90_DAY_MARK_BY_CCN(
 /**********************************************************
-
 This procedure is intended to generate the report for 
 drafts that are outstanding for more than 90 days and
 update the VOID_MARK_BY_CCN_IND as 'VOID' 

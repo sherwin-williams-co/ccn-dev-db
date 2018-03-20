@@ -54,6 +54,28 @@ EXCEPTION
         RETURN NULL;
 END GET_CUSTOMER_VENDOR_NO;
 
+FUNCTION IS_CSTMER_VENDOR_INFO_PRESENT(
+/*****************************************************************************
+	This function will return 'Y' or 'N' if tax id is present for the vendor depending on the CUSTOMER_ACCOUNT_NUMBER  passed in
+
+created : 03/09/2018 nxk927 CCN Project....
+changed :
+*****************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN       VARCHAR2(1) := 'N';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END 
+      INTO V_RETURN
+      FROM VENDOR_INFO
+     WHERE TAX_ID = SD_FILE_BUILD_PKG.GET_CUSTOMER_TAX_ID(IN_CUSTOMER_ACCOUNT_NUMBER);
+
+    RETURN V_RETURN;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN;
+END IS_CSTMER_VENDOR_INFO_PRESENT;
+
 FUNCTION GET_CUSTOMER_VENDOR_NAME(
 /*****************************************************************************
 	This function will return the vendor name for the customer id passed in
@@ -118,7 +140,8 @@ PROCEDURE LOAD_VENDOR_INFORMATION
 	This procedure will load the VENDOR_INFO table used in FSS file generation process
 
 created : 04/07/2015 jxc517 CCN Project....
-changed : 
+changed : 03/09/2018 nxk927 CCN Project....
+          Removed the filter checking vendor number and inserting regardless of vendor number being null
 *****************************************************************************/
 IS
 BEGIN
@@ -132,7 +155,6 @@ BEGIN
          WHERE SUPPLIER_VENDOR_TYPE_LOOKUP IN ('INSTALLER','SUBCONTRACTOR')
            AND SITE_INACTIVE_DATE IS NULL
            AND SUPPLIER_END_DATE_ACTIVE IS NULL
-           AND SITE_ATTRIBUTE3 IS NOT NULL
            AND SUPPLIER_NUM_1099 IS NOT NULL;
     COMMIT;
 EXCEPTION
@@ -530,7 +552,7 @@ changed : 05/04/2016 jxc517 CCN Project....
         : 05/24/2016 nxk927 CCN Project....
           reverting back the sequence criteria to move SD_90_DAY_STOP_PAY_RPT ahead of this change
         : 05/25/2016 nxk927 CCN Project....
-		  adding back the sequence criteria after moving SD_90_DAY_STOP_PAY_RPT
+          adding back the sequence criteria after moving SD_90_DAY_STOP_PAY_RPT
 *****************************************************************************/
 IN_DATE           IN DATE)
 IS
@@ -1208,6 +1230,8 @@ Changed : 11/02/2015 jxc517 CCN Project....
         : 06/16/2016 jxc517 CCN Project....
           passing one parameter instead of two paramters (IN_FSS_SENT_ST_DT and IN_FSS_SENT_END_DT)
           added the cursors within the procedures
+        : nxk927 03/20/2018 CCN Project Team....
+          added the filter to check for the vendor information
 **********************************************************/
 IN_DATE      IN     DATE)
 IS
@@ -1250,7 +1274,15 @@ BEGIN
                          WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER) CUSTOMER_ACCOUNT_NAME
                   FROM STORE_DRAFTS S,
                        COST_CENTER CC
-                 WHERE TO_CHAR(S.FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY')
+                 WHERE (
+                        TO_CHAR(S.FNCL_SRVCS_SENT_DATE,'MMYYYY') = TO_CHAR(IN_DATE,'MMYYYY')
+                        OR
+                        (
+                         S.FNCL_SRVCS_SENT_DATE IS NULL
+                         AND
+                         SD_FILE_BUILD_PKG.IS_CSTMER_VENDOR_INFO_PRESENT(CUSTOMER_ACCOUNT_NUMBER) = 'Y')
+                        )
+                   AND S.PICKED_BY_1099_ON_DATE IS NOT NULL
                    AND CC.COST_CENTER_CODE = S.COST_CENTER_CODE
                    AND CC.STATEMENT_TYPE NOT IN ('AC','DC','GC','CN')) SD
           ORDER BY 1,2;
@@ -1308,6 +1340,8 @@ changed : nxk927 9/02/2015
         : 06/16/2016 jxc517 CCN Project....
           removed the parameter
           added the cursors within the procedures
+        : nxk927 03/20/2018 CCN Project Team....
+          added the filter to check for the vendor information
 **********************************************************/
 IS
     OUT_TYPE_REF_CUR            SD_TABLE_IU_PKG.REF_CURSOR;
@@ -1345,7 +1379,8 @@ BEGIN
                          WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER) CUSTOMER_ACCOUNT_NAME
                   FROM STORE_DRAFTS S,
                        COST_CENTER CC
-                 WHERE S.FNCL_SRVCS_SENT_DATE IS NULL
+                 WHERE SD_FILE_BUILD_PKG.IS_CSTMER_VENDOR_INFO_PRESENT(CUSTOMER_ACCOUNT_NUMBER) = 'N'
+                   AND S.FNCL_SRVCS_SENT_DATE IS NULL
                    AND S.PICKED_BY_1099_ON_DATE IS NOT NULL
                    AND CC.COST_CENTER_CODE = S.COST_CENTER_CODE
                    AND CC.STATEMENT_TYPE NOT IN ('AC','DC','GC','CN')) SD
@@ -1396,6 +1431,8 @@ Changed : nxk927 9/02/2015
         : 06/16/2016 jxc517 CCN Project....
           removed the parameter
           added the cursors within the procedures
+        : nxk927 03/20/2018 CCN Project Team....
+          added the filter to check for the vendor information
 **********************************************************/
 IS
     OUT_TYPE_REF_CUR            SD_TABLE_IU_PKG.REF_CURSOR;
@@ -1435,7 +1472,8 @@ BEGIN
                          WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER) CUSTOMER_ACCOUNT_NAME
                   FROM STORE_DRAFTS S,
                        COST_CENTER CC
-                 WHERE S.FNCL_SRVCS_SENT_DATE IS NULL
+                 WHERE SD_FILE_BUILD_PKG.IS_CSTMER_VENDOR_INFO_PRESENT(CUSTOMER_ACCOUNT_NUMBER) = 'N'
+                   AND S.FNCL_SRVCS_SENT_DATE IS NULL
                    AND S.PICKED_BY_1099_ON_DATE IS NOT NULL
                    AND CC.COST_CENTER_CODE = S.COST_CENTER_CODE
                    AND CC.STATEMENT_TYPE NOT IN ('AC','DC','GC','CN')) SD
