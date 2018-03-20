@@ -28,6 +28,8 @@ Modified : 08/18/2015 nxk927 CCN Project...
            Added 'COUNTRY_CODE' Field, that holds two digit Country code for Cost center
          : 02/20/2018 sxg151 CCN Project Team...
            Added 'PRIMARY_DSC','ALTERNATE_DSC' Fields -ASP-976
+         : 03/20/2018 bxa919 CCN Project Team ...
+           Added POTENTIAL_OPEN_DATE field from Cost_Center table - ASP-867
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -68,6 +70,7 @@ Modified : 08/18/2015 nxk927 CCN Project...
         ,E.LAST_NAME
         ,C.OPEN_DATE
         ,C.CLOSE_DATE
+        ,C.POTENTIAL_OPEN_DATE
     -- if the FACTS_DIVISION in (C522,C400) and COUNTRY_CODE in (USA,CAN)and active polling_status_code ='P'(then it is Product Finish Stores) then
     -- added swp in front of STORE_EMAIL otherwise add sw in front of STORE_EMAIL
         ,(CASE
