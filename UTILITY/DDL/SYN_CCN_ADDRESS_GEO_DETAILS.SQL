@@ -1,0 +1,8 @@
+/*
+This script creates a synonym for the object COSTCNTR.CCN_ADDRESS_GEO_DETAILS
+Created by rxv940 on 03/19/2018
+ASP-976 - Run this in Utility Schema
+
+*/
+
+CREATE OR REPLACE SYNONYM CCN_ADDRESS_GEO_DETAILS FOR COSTCNTR.CCN_ADDRESS_GEO_DETAILS;
