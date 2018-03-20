@@ -1138,46 +1138,33 @@ END GET_LOAD_RUNCYCLE;
 
 PROCEDURE LOAD_ADDRESS_GEO_DETAILS
 /******************************************************************************
-  This Procedure Will load the data from ADDRESS_GEO_V
+  This Procedure will load the new & changed data from ADDRESS_GEO_V into CCN_ADDRESS_GEO_DETAILS
 
 Created : 03/12/2018 rxv940 CCN Project....
 Changed : 
 *******************************************************************************/
-
-IS     
+IS
+CURSOR CUR_CHNGD_STRS IS 
+    SELECT DISTINCT VW.STORE, VW.LAT, VW.LON, GEO_TBL.LATITUDE, GEO_TBL.LONGITUDE, GEO_TBL.EFFECTIVE_DATE
+      FROM ADDRESS_GEO_V VW
+      LEFT JOIN CCN_ADDRESS_GEO_DETAILS GEO_TBL 
+        ON VW.STORE = GEO_TBL.COST_CENTER_CODE;
 BEGIN  
-    FOR CHNGD_STRS IN (SELECT DISTINCT VW.STORE, VW.LAT, VW.LON, NVL(GEO_TBL.EFFECTIVE_DATE, TRUNC(SYSDATE)) EFFECTIVE_DATE
-                         FROM ADDRESS_GEO_V VW
-                         LEFT JOIN CCN_ADDRESS_GEO_DETAILS GEO_TBL 
-                           ON VW.STORE = GEO_TBL.STORE
-                        WHERE VW.LAT IS NOT NULL 
-                          AND VW.LON IS NOT NULL
-                       ) LOOP
-        -- Update of expiration date for records that got changed
-        UPDATE CCN_ADDRESS_GEO_DETAILS
-           SET EXPIRATION_DATE = TRUNC(SYSDATE)
-         WHERE STORE = CHNGD_STRS.STORE
-           AND (CHNGD_STRS.LAT <> LAT     
-            OR CHNGD_STRS.LON <> LON);
-        -- The below block inserts new data. Existing records will go to 
-        -- the exception block and the loop continues
-        BEGIN 
-
-            INSERT INTO CCN_ADDRESS_GEO_DETAILS(STORE, LON, LAT, EFFECTIVE_DATE, EXPIRATION_DATE)
-            VALUES (CHNGD_STRS.STORE, CHNGD_STRS.LON, CHNGD_STRS.LAT, CHNGD_STRS.EFFECTIVE_DATE, NULL);
-        
-        EXCEPTION 
-            WHEN DUP_VAL_ON_INDEX THEN 
-                NULL;
-        END;
-
+    FOR REC IN CUR_CHNGD_STRS LOOP
+        -- Check to see if the old and new data has changed
+        IF (NVL(REC.LAT, -1) <> NVL(REC.LATITUDE, -1)
+            OR NVL(REC.LON, -1) <> NVL(REC.LONGITUDE, -1))  THEN
+                -- The below code will expire the old values for the cost center
+                UPDATE CCN_ADDRESS_GEO_DETAILS SET EXPIRATION_DATE = REC.EFFECTIVE_DATE-1 WHERE COST_CENTER_CODE = REC.STORE;
+                -- The below code will add new values for the cost center into the CCN_ADDRESS_GEO_DETAILS
+                INSERT INTO CCN_ADDRESS_GEO_DETAILS VALUES (REC.STORE, REC.LON, REC.LAT, SYSDATE, NULL);              
+        END IF;
     END LOOP;
     COMMIT;
 EXCEPTION 
     WHEN OTHERS THEN 
         ROLLBACK;
         RAISE;
-
 END LOAD_ADDRESS_GEO_DETAILS;
 
 END CCN_BATCH_PROCESS;
