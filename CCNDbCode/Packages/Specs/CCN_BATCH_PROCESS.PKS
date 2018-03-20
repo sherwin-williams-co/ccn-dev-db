@@ -94,4 +94,13 @@ Changed :
 *******************************************************************************/
 RETURN VARCHAR2;
 
+PROCEDURE LOAD_ADDRESS_GEO_DETAILS
+/******************************************************************************
+  This Procedure Will load the data from ADDRESS_GEO_V
+
+Created : 03/12/2018 sxg151 CCN Project....
+Changed :
+*******************************************************************************/
+;
+
 END CCN_BATCH_PROCESS;
