@@ -76,24 +76,6 @@ Changed :
 **********************************************************/
  ;
 
-PROCEDURE POS_TERM_TRAN_UPDATE
-/**********************************************************
-	This procedure is intended to UPDATE POS_LAST_TRAN_DATE and POS_LAST_TRAN_NUMBER
-  in termianl table
-
-Created : 12/01/2017 nxk927 CCN project
-**********************************************************/
-;
-
-FUNCTION GET_LOAD_RUNCYCLE
-/******************************************************************************
-  This function will get the runcycle for the days load
-
-Created : 09/28/2017 nxk927 CCN Project....
-Changed :
-*******************************************************************************/
-RETURN VARCHAR2;
-
 PROCEDURE LOAD_ADDRESS_GEO_DETAILS
 /******************************************************************************
   This Procedure Will load the data from ADDRESS_GEO_V
