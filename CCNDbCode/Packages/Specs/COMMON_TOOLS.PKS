@@ -454,7 +454,7 @@ created : 11/17/2017 bxa919 CCN Project Team...
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2; 
 
-FUNCTION GET_ADDRESS_GEO(
+FUNCTION GET_COST_CENTER_GEO_LATD_LNGTD(
 /**********************************************************
 This Function is intended to return Latitude,longitude from CCN_ADDRESS_GEO_DETAILS
 
@@ -463,6 +463,6 @@ Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_GEO_TYPE       IN     VARCHAR2
-    ) RETURN VARCHAR2;
+    ) RETURN NUMBER;
 
 END COMMON_TOOLS;
