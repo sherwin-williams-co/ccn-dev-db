@@ -337,6 +337,7 @@ BEGIN
 END GENERATE_HRCHY_MISMATCH_FILE;
 
 PROCEDURE GENERATE_STORE_PD_HRCHY_FILE
+PROCEDURE GENERATE_STORE_PD_HRCHY_FILE
 /**********************************************************
 This procedure is intended to generate Price District Hierarchy reporting for stores pricing group
 STORE_PDH_HRCHY.CSV
@@ -354,6 +355,8 @@ Changed : 10/17/2017 nxk927 CCN project Team....
           modified the code in order to generate multiple spreadsheets for CAN and USA.
           CCN_SPREADSHEET package this takes sql query as input and parse the query data
           to built xml clob and generates .xlsx file. 
+        : 03/22/2018 bxa919 CCN Project Team...
+          Added code for MEX,BRB and OTHER Countries
 **********************************************************/
 IS
   CURSOR main_cursor IS
@@ -375,13 +378,14 @@ IS
                                    AND EXPIRATION_DATE IS NULL)
        AND NVL(CLOSE_DATE,TRUNC(SYSDATE))> TRUNC(SYSDATE)-1
      ORDER BY 1;
-
- /* As the Address formats are different for CAN and USA, postal code and provice code columns are fetched in order populate in CAN address fields */
-  CURSOR address_cur IS
-    SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4,POSTAL_CODE,PROVINCE_CODE
-     FROM ADDRESS_VW
-    WHERE ADDRESS_TYPE = 'M'
-      AND EXPIRATION_DATE IS NULL;
+     
+     /* As the Address formats are different for CAN and USA, postal code and provice code columns are fetched 
+     in order populate in CAN address fields */
+    CURSOR address_cur IS
+        SELECT COST_CENTER_CODE, ADDRESS_LINE_1, ADDRESS_LINE_2, CITY, STATE_CODE, ZIP_CODE, ZIP_CODE_4,POSTAL_CODE,PROVINCE_CODE,PREMISES,AVENUE_LANE,DISTRICT,PARISH
+          FROM ADDRESS_VW
+         WHERE ADDRESS_TYPE = 'M'
+           AND EXPIRATION_DATE IS NULL;
 
   CURSOR hierarchy_cur(P_COST_CENTER_CODE VARCHAR2) IS
     SELECT *
@@ -409,12 +413,16 @@ IS
        AND ROWNUM <= 1;
 
     PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME                    VARCHAR2(50)   := 'STORE_PDH_HRCHY_MAIL' || '_'||  TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.xlsx';
+    FILENAME                    VARCHAR2(50) := 'STORE_PDH_HRCHY_MAIL' || '_'|| TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx'; 
     V_ADDRESS_STREET            VARCHAR2(200);
     V_ADDRESS_POSTAL            ADDRESS_VW.POSTAL_CODE%TYPE;
     V_PROVINCE_CODE             ADDRESS_VW.PROVINCE_CODE%TYPE;
     V_CITY                      ADDRESS_VW.CITY%TYPE;
     V_STATE_CODE                ADDRESS_VW.STATE_CODE%TYPE;
+    V_PREMISES                  ADDRESS_VW.PREMISES%TYPE;
+    V_AVENUE_LANE               ADDRESS_VW.AVENUE_LANE%TYPE;   
+    V_DISTRICT                  ADDRESS_VW.DISTRICT%TYPE;    
+    V_PARISH                    ADDRESS_VW.PARISH%TYPE;
     V_ADDRESS_ZIP               VARCHAR2(10);
     V_PHONE_NUMBER              VARCHAR2(14);
     V_FAX_NUMBER                VARCHAR2(14);
@@ -432,6 +440,7 @@ IS
     V_PRICE_DISTRICT            VARCHAR2(100);
     V_CUR_COUNT                 NUMBER := 0;
     V_STATEMENT_DESC            VARCHAR2(1000);
+    V_REC_COUNT                 NUMBER := 0;
         
     TYPE ADDRESS_VW_REC_TYPE IS TABLE OF ADDRESS_CUR%ROWTYPE INDEX BY VARCHAR2(6);
     AAT_ADDRESS_VW ADDRESS_VW_REC_TYPE;
@@ -441,6 +450,9 @@ BEGIN
        everytime the file is generated the new records need to be inserted*/
     EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_USA';
     EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_CAN';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_OTHER';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_MEX';
+    EXECUTE IMMEDIATE 'TRUNCATE TABLE CCN_PRICING_DISTRICT_BRB';
 
     FOR rec IN address_cur LOOP
         AAT_ADDRESS_VW(rec.COST_CENTER_CODE) := rec;
@@ -460,16 +472,24 @@ BEGIN
         V_ADDRESS_ZIP    := NULL;
         V_ADDRESS_POSTAL := NULL;
         V_PROVINCE_CODE  := NULL;
+        V_PREMISES       := NULL;
+        V_AVENUE_LANE    := NULL;          
+        V_DISTRICT       := NULL;            
+        V_PARISH         := NULL; 
         IF AAT_ADDRESS_VW.EXISTS(cc_rec.COST_CENTER_CODE) THEN
             IF AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1 IS NOT NULL OR AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2 IS NOT NULL THEN
               V_ADDRESS_STREET := LTRIM(RTRIM(AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_1||' '||AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ADDRESS_LINE_2
                                               )
                                         );
             END IF;
-            V_CITY:= AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).CITY;
-            V_STATE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).STATE_CODE;
+            V_CITY           := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).CITY;
+            V_STATE_CODE     := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).STATE_CODE;
             V_ADDRESS_POSTAL := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).POSTAL_CODE;
-            V_PROVINCE_CODE := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PROVINCE_CODE;
+            V_PROVINCE_CODE  := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PROVINCE_CODE;
+            V_PREMISES       := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PREMISES ;
+            V_AVENUE_LANE    := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).AVENUE_LANE ;          
+            V_DISTRICT       := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).DISTRICT ;            
+            V_PARISH         := AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).PARISH  ; 
             IF AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE IS NOT NULL THEN
               V_ADDRESS_ZIP := LTRIM(RTRIM(AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE||' ' ||AAT_ADDRESS_VW(cc_rec.COST_CENTER_CODE).ZIP_CODE_4
                                            )
@@ -535,6 +555,7 @@ BEGIN
         --as input inorder to parse and build xml clob.Based on Country code the data
         --is inserted in corresponding tables. As the address representation is different for different countries
         IF CC_REC.COUNTRY_CODE IN ('USA', 'PRI') THEN
+           --Inserting data in CCN_PRICING_DISTRICT_USA tables for USA country code*/
             INSERT INTO CCN_PRICING_DISTRICT_USA VALUES ( cc_rec.COST_CENTER_CODE 
                                                           , cc_rec.COST_CENTER_NAME 
                                                           , V_ADDRESS_STREET 
@@ -561,7 +582,8 @@ BEGIN
                                                           , V_PRICE_DISTRICT );
           /* Inserting data in CCN_PRICING_DISTRICT_CAN tables for CAN country code*/
         ELSIF CC_REC.COUNTRY_CODE='CAN' THEN
-            INSERT INTO CCN_PRICING_DISTRICT_CAN VALUES ( cc_rec.COST_CENTER_CODE 
+            --Inserting data in CCN_PRICING_DISTRICT_CAN tables for CAN country code
+             INSERT INTO CCN_PRICING_DISTRICT_CAN VALUES ( cc_rec.COST_CENTER_CODE 
                                                          , cc_rec.COST_CENTER_NAME 
                                                          , V_ADDRESS_STREET 
                                                          , V_CITY 
@@ -585,14 +607,129 @@ BEGIN
                                                          , V_TYPE_CODE 
                                                          , V_TYPE_CODE_DESC 
                                                          , V_PRICE_DISTRICT );
-          END IF; 
+    /* Inserting data in CCN_PRICING_DISTRICT_MEX tables for MEX country code*/
+        ELSIF CC_REC.COUNTRY_CODE='MEX' THEN
+            --Inserting data in CCN_PRICING_DISTRICT_MEX tables for MEX country code
+             INSERT INTO CCN_PRICING_DISTRICT_MEX VALUES ( cc_rec.COST_CENTER_CODE 
+                                                         , cc_rec.COST_CENTER_NAME 
+                                                         , V_ADDRESS_STREET 
+                                                         , V_CITY 
+                                                         , V_PROVINCE_CODE
+                                                         , V_ADDRESS_POSTAL
+                                                         , V_PHONE_NUMBER 
+                                                         , V_FAX_NUMBER 
+                                                         , V_DIVISION 
+                                                         , V_DIVISION_NAME 
+                                                         , V_AREA 
+                                                         , V_AREA_NAME 
+                                                         , V_AREA_SHORT_NAME 
+                                                         , V_DAD 
+                                                         , V_DAD_DESC 
+                                                         , CC_REC.OPEN_DATE 
+                                                         , CC_REC.CLOSE_DATE 
+                                                         , CC_REC.STATEMENT_TYPE 
+                                                         , V_STATEMENT_DESC 
+                                                         , V_POLLING_STATUS_CODE 
+                                                         , V_POLLING_STATUS_CODE_DESC 
+                                                         , V_TYPE_CODE 
+                                                         , V_TYPE_CODE_DESC 
+                                                         , V_PRICE_DISTRICT );
+    /* Inserting data in CCN_PRICING_DISTRICT_BRB tables for BRB country code*/
+        ELSIF CC_REC.COUNTRY_CODE='BRB' THEN
+            --Inserting data in CCN_PRICING_DISTRICT_BRB tables for BRB country code
+             INSERT INTO CCN_PRICING_DISTRICT_BRB VALUES ( cc_rec.COST_CENTER_CODE 
+                                                         , cc_rec.COST_CENTER_NAME 
+                                                         , V_AVENUE_LANE 
+                                                         , V_CITY 
+                                                         , V_PREMISES   
+                                                         , V_DISTRICT          
+                                                         , V_PARISH     
+                                                         , V_ADDRESS_POSTAL
+                                                         , V_PHONE_NUMBER 
+                                                         , V_FAX_NUMBER 
+                                                         , V_DIVISION 
+                                                         , V_DIVISION_NAME 
+                                                         , V_AREA 
+                                                         , V_AREA_NAME 
+                                                         , V_AREA_SHORT_NAME 
+                                                         , V_DAD 
+                                                         , V_DAD_DESC 
+                                                         , CC_REC.OPEN_DATE 
+                                                         , CC_REC.CLOSE_DATE 
+                                                         , CC_REC.STATEMENT_TYPE 
+                                                         , V_STATEMENT_DESC 
+                                                         , V_POLLING_STATUS_CODE 
+                                                         , V_POLLING_STATUS_CODE_DESC 
+                                                         , V_TYPE_CODE 
+                                                         , V_TYPE_CODE_DESC 
+                                                         , V_PRICE_DISTRICT );
+    /* Inserting data in CCN_PRICING_DISTRICT_OTHER tables for OTHER country code*/
+        ELSE
+            --Inserting data in CCN_PRICING_DISTRICT_OTHER tables for OTHER country code
+             INSERT INTO CCN_PRICING_DISTRICT_OTHER VALUES ( cc_rec.COST_CENTER_CODE 
+                                                         , cc_rec.COST_CENTER_NAME 
+                                                         , V_ADDRESS_STREET 
+                                                         , V_CITY 
+                                                         , V_PROVINCE_CODE
+                                                         , V_ADDRESS_POSTAL
+                                                         , V_PHONE_NUMBER 
+                                                         , V_FAX_NUMBER 
+                                                         , V_DIVISION 
+                                                         , V_DIVISION_NAME 
+                                                         , V_AREA 
+                                                         , V_AREA_NAME 
+                                                         , V_AREA_SHORT_NAME 
+                                                         , V_DAD 
+                                                         , V_DAD_DESC 
+                                                         , CC_REC.OPEN_DATE 
+                                                         , CC_REC.CLOSE_DATE 
+                                                         , CC_REC.STATEMENT_TYPE 
+                                                         , V_STATEMENT_DESC 
+                                                         , V_POLLING_STATUS_CODE 
+                                                         , V_POLLING_STATUS_CODE_DESC 
+                                                         , V_TYPE_CODE 
+                                                         , V_TYPE_CODE_DESC 
+                                                         , V_PRICE_DISTRICT );
+        END IF; 
     END LOOP;
     COMMIT;
-  /*Invoking the package with fo different countries*/
-    --Creating first sheet of the excel - USA_PRICE_DISTRICT_DETAILS
-    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_USA ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'USA_PRICE_DISTRICT_DETAILS');
-    ----Creating second sheet of the excel - CAN_PRICE_DISTRICT_DETAILS
-    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_CAN ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'CAN_PRICE_DISTRICT_DETAILS');
+  /*Invoking the package with  different countries*/
+    
+    --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
+    SELECT COUNT(*) INTO V_REC_COUNT FROM CCN_PRICING_DISTRICT_USA;
+    IF V_REC_COUNT >0 THEN
+        --Creating first sheet of the excel - USA_PRICE_DISTRICT_DETAILS
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_USA ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'USA_PDH_DTLS');
+    END IF;
+    
+    --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
+    SELECT COUNT(*) INTO V_REC_COUNT FROM CCN_PRICING_DISTRICT_CAN;
+    IF V_REC_COUNT >0 THEN
+        --Creating second sheet of the excel - CAN_PRICE_DISTRICT_DETAILS
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_CAN ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'CAN_PDH_DTLS');
+    END IF;
+    
+    --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
+    SELECT COUNT(*) INTO V_REC_COUNT FROM CCN_PRICING_DISTRICT_OTHER;
+    IF V_REC_COUNT >0 THEN
+       --Creating second sheet of the excel - OTHER_CNTRY_PRICE_DISTRICT_DETAILS
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_OTHER ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'OTHER_CNTRY_PDH_DTLS');
+    END IF;
+    
+    --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
+    SELECT COUNT(*) INTO V_REC_COUNT FROM CCN_PRICING_DISTRICT_MEX;
+    IF V_REC_COUNT >0 THEN
+       --Creating second sheet of the excel - MEX_PRICE_DISTRICT_DETAILS
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_MEX ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'MEX_PDH_DTLS');
+    END IF;
+    
+    --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
+    SELECT COUNT(*) INTO V_REC_COUNT FROM CCN_PRICING_DISTRICT_BRB;
+    IF V_REC_COUNT >0 THEN
+        --Creating second sheet of the excel - BRB_PRICE_DISTRICT_DETAILS
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM CCN_PRICING_DISTRICT_BRB ORDER BY STORE_NO',TRUE,NULL,NULL,NULL,'BRB_PDH_DTLS');
+    END IF;
+    
     --Creating the final excel based on the path and file name procided
     --NOTE: The clob is built in the package "CCN_SPREADSHEET_PKG" which will be used by the below call
     CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
