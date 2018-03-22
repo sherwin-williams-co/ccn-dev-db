@@ -1147,20 +1147,23 @@ IS
 CURSOR CUR_CHNGD_STRS IS 
        -- The query below left joins the ADDRESS_GEO_V and CCN_ADDRESS_GEO_DETAILS to get the old and new 
        -- values of cost centers. This is then compared inside the for loop to identify what has changed
-       SELECT DISTINCT VW.STORE, VW.LAT, VW.LON, GEO_TBL.LATITUDE, GEO_TBL.LONGITUDE, GEO_TBL.EFFECTIVE_DATE
+       -- The address type is hard coded to 'M'. IN future when we start to receive variety of address types,
+       -- the address_geo_v is expected to provide it.
+       SELECT DISTINCT VW.STORE, VW.LAT, VW.LON, GEO_TBL.LATITUDE, GEO_TBL.LONGITUDE, GEO_TBL.EFFECTIVE_DATE, 'M' ADDRESS_TYPE
          FROM ADDRESS_GEO_V VW,
               CCN_ADDRESS_GEO_DETAILS GEO_TBL 
         WHERE VW.STORE = GEO_TBL.COST_CENTER_CODE(+)
         ORDER BY VW.LAT NULLS FIRST, VW.LON NULLS FIRST;
 BEGIN  
     FOR REC IN CUR_CHNGD_STRS LOOP
-        -- Check to see if the old and new data has changed
-        IF (NVL(REC.LAT, -1) <> NVL(REC.LATITUDE, -1)
-            OR NVL(REC.LON, -1) <> NVL(REC.LONGITUDE, -1))  THEN
+        -- Check to see if the old and new data has changed. It is necessary to have the null values from the view loaded 
+        -- into our table as well. 
+        IF (NVL(REC.LAT, -1) <> NVL(REC.LATITUDE, -2)
+            OR NVL(REC.LON, -1) <> NVL(REC.LONGITUDE, -2))  THEN
                 -- The below code will expire the old values for the cost center 1 second before the effective date
-                UPDATE CCN_ADDRESS_GEO_DETAILS SET EXPIRATION_DATE = REC.EFFECTIVE_DATE- INTERVAL '0.001' SECOND WHERE COST_CENTER_CODE = REC.STORE;
+                UPDATE CCN_ADDRESS_GEO_DETAILS SET EXPIRATION_DATE = REC.EFFECTIVE_DATE - 1 WHERE COST_CENTER_CODE = REC.STORE;
                 -- The below code will add new values for the cost center into the CCN_ADDRESS_GEO_DETAILS
-                INSERT INTO CCN_ADDRESS_GEO_DETAILS VALUES (REC.STORE, REC.LON, REC.LAT, SYSDATE, NULL);              
+                INSERT INTO CCN_ADDRESS_GEO_DETAILS VALUES (REC.STORE, REC.LON, REC.LAT, REC.ADDRESS_TYPE, TRUNC(SYSDATE), NULL);              
         END IF;
     END LOOP;
     COMMIT;
