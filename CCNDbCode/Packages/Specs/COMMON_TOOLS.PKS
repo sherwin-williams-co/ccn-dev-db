@@ -463,6 +463,6 @@ Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_GEO_TYPE       IN     VARCHAR2
-    ) RETURN NUMBER;
+    ) RETURN VARCHAR2;
 
 END COMMON_TOOLS;
