@@ -771,18 +771,6 @@ Created : 04/23/2015 jxc517 CCN Project
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
-PROCEDURE DCO_COSTCENTER_LOOKUP(
-/***********************************************************
-This procedure will validate the passed cost center code and 
-return the corresponding record from COST_CENTER table
-
-Created : 08/23/2016 vxv336 CCN Project
-Modified: 08/23/2016 vxv336 
-          Return a ref cursor instead of rowtype
-************************************************************/
-in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE,
-OUT_COST_CENTER_REF_CUR OUT REF_CURSOR
-);
 
 FUNCTION RETURN_LVL_VALUE_SIZE(
 /*******************************************************************************
@@ -804,5 +792,17 @@ filters:
 created : 06/12/2017 sxp130 ASP_802 ccn project team....
 **********************************************************/
 ;
+
+FUNCTION VALIDATE_DCO_COST_CENTER(
+/***********************************************************
+This Function will validate the passed cost center code and 
+return 'Y', if the cost center is present else return 'N'
+If this functions retruns 'N' Then UI is Throwing the following error
+"DCO CostCenter Not Found. Please enter the correct DCO CostCenter."
+Created : 01/25/2018 axt754 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+)RETURN VARCHAR2;
 
 END CCN_HIERARCHY;
