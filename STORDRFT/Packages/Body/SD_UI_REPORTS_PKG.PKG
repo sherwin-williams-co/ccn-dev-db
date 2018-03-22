@@ -192,7 +192,6 @@ Changed : 02/27/2015 jxc517 CCN Project....
           Returning unattached MANUAL drafts as well when no draft status is selected
           05/21/2015 jxc517 CCN Project....
           Adding logic to include the date range for OUTSTANDING drafts filter
-          08/15/2017 axt754 Added Logic - Limited Store Drafts by Divisions 
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
@@ -225,9 +224,7 @@ IS
     V_OUTSTANDING_DATE_START DATE;
     V_OUTSTANDING_DATE_END   DATE;
     V_CHANGE_DATE_START      DATE;
-    V_CHANGE_DATE_END        DATE;
-    V_USER_ID                VARCHAR2(10)  := NULL; 
-    V_DIVISION_VAL           VARCHAR2(100) := NULL;    
+    V_CHANGE_DATE_END        DATE;    
     --V_ISSUE_DATE_START       STORE_DRAFTS.ISSUE_DATE%TYPE;
     --V_ISSUE_DATE_END         STORE_DRAFTS.ISSUE_DATE%TYPE;
     --V_ALL_DATE_START         DATE;
@@ -235,7 +232,7 @@ IS
     --V_MANUAL_DATE_START      DATE;
     --V_MANUAL_DATE_END        DATE;
 BEGIN
-    
+
     EXTRACT_XML(IN_ROW_DATA,
                 V_STORE_DRAFT_INDICATOR,
                 V_TRANSACTION_CODE,
@@ -301,23 +298,14 @@ BEGIN
             END CASE;
         END LOOP;
     END IF;
-    
-   
-    IF (XMLTYPE(IN_ROW_DATA).EXISTSNODE('/STORE_DRAFTS/USER_ID/text()') = 1) THEN
-        V_USER_ID   := XMLTYPE(IN_ROW_DATA).EXTRACT('/STORE_DRAFTS/USER_ID/text()').GETSTRINGVAL();
-    END IF;
-    
-    -- Get Divisions for the user who is doing the transaction
-    V_DIVISION_VAL := SD_COMMON_TOOLS.GET_STORE_DRAFTS_DIVISIONS(V_USER_ID);
 
     IF UPPER(V_SUMMARY_DETAIL_TYPE) = 'SUMMARY' THEN
         OPEN OUT_REF_CUR FOR
             SELECT COUNT(*) OVER () RESULT_COUNT,
                    A.*
               FROM (
-            SELECT DISTINCT SD.*
+            SELECT SD.*
               FROM STORE_DRAFTS SD
-                   ,CCN_HIERARCHY_INFO CCH
              WHERE NVL(SD.COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(SD.COST_CENTER_CODE,'XXX'))
                --AND NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)) BETWEEN NVL(V_ISSUE_DATE_START,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE))) 
                  --                                           AND NVL(V_ISSUE_DATE_END,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)))
@@ -341,8 +329,6 @@ BEGIN
                              FROM COST_CENTER
                             WHERE COST_CENTER_CODE = SD.COST_CENTER_CODE
                               AND INSTR(NVL(V_STATEMENT_TYPES,NVL(STATEMENT_TYPE,'XXX'))||',',NVL(STATEMENT_TYPE,'XXX')||',') > 0)
-               AND CCH.COST_CENTER_CODE (+)                     = SD.COST_CENTER_CODE
-               AND INSTR(NVL(V_DIVISION_VAL,NVL(CCH.DIVISION,'XXX'))||',',NVL(CCH.DIVISION,'XXX')||',') > 0
                AND (
                     --NONE filter
                     V_STORE_DRAFT_INDICATOR IS NULL OR
@@ -368,9 +354,8 @@ BEGIN
                              (SD.VOID_DATE > V_OUTSTANDING_DATE_END OR SD.VOID_DATE IS NULL))
                    )
              UNION
-            SELECT DISTINCT SD.*
+            SELECT SD.*
               FROM UNATTACHED_MNL_DRFT_DTL SD
-                   ,CCN_HIERARCHY_INFO CCH
              WHERE NVL(SD.COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(SD.COST_CENTER_CODE,'XXX'))
                --AND NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)) BETWEEN NVL(V_ISSUE_DATE_START,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE))) 
                  --                                           AND NVL(V_ISSUE_DATE_END,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)))
@@ -392,8 +377,6 @@ BEGIN
                              FROM COST_CENTER
                             WHERE COST_CENTER_CODE = SD.COST_CENTER_CODE
                               AND INSTR(NVL(V_STATEMENT_TYPES,NVL(STATEMENT_TYPE,'XXX'))||',',NVL(STATEMENT_TYPE,'XXX')||',') > 0)
-               AND CCH.COST_CENTER_CODE (+)                     = SD.COST_CENTER_CODE
-               AND INSTR(NVL(V_DIVISION_VAL,NVL(CCH.DIVISION,'XXX'))||',',NVL(CCH.DIVISION,'XXX')||',') > 0
                AND (
                     --NONE filter
                     V_STORE_DRAFT_INDICATOR IS NULL OR
@@ -408,22 +391,12 @@ BEGIN
             SELECT COUNT(*) OVER () RESULT_COUNT,
                    A.*
               FROM (
-            WITH TEMP AS (SELECT DISTINCT SD.*
-                            FROM STORE_DRAFTS SD
-                                 ,CCN_HIERARCHY_INFO CCH
-                           WHERE SD.COST_CENTER_CODE = CCH.COST_CENTER_CODE (+)
-                             AND INSTR(NVL(V_DIVISION_VAL,NVL(CCH.DIVISION,'XXX'))||',',NVL(CCH.DIVISION,'XXX')||',') > 0)
-                ,TEMP_1 AS (SELECT   DISTINCT MD.*
-                              FROM UNATTACHED_MNL_DRFT_DTL MD
-                                   ,CCN_HIERARCHY_INFO CCH
-                             WHERE CCH.COST_CENTER_CODE (+)                     = MD.COST_CENTER_CODE
-                               AND INSTR(NVL(V_DIVISION_VAL,NVL(CCH.DIVISION,'XXX'))||',',NVL(CCH.DIVISION,'XXX')||',') > 0)
             SELECT SD.*,
                    SDD.ITEM_EXT_AMOUNT,
                    DECODE(SDD.GL_PRIME_ACCOUNT_NUMBER||'-'||SDD.GL_SUB_ACCOUNT_NUMBER,
                           '-',NULL,
                           SDD.GL_PRIME_ACCOUNT_NUMBER||'-'||SDD.GL_SUB_ACCOUNT_NUMBER) AS GL_ACCOUNT_NUMBER
-              FROM TEMP SD,
+              FROM STORE_DRAFTS SD,
                    STORE_DRAFTS_DETAIL SDD
              WHERE NVL(SD.COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(SD.COST_CENTER_CODE,'XXX'))
                --AND NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)) BETWEEN NVL(V_ISSUE_DATE_START,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE))) 
@@ -483,7 +456,7 @@ BEGIN
                    DECODE(SDD.GL_PRIME_ACCOUNT_NUMBER||'-'||SDD.GL_SUB_ACCOUNT_NUMBER,
                           '-',NULL,
                           SDD.GL_PRIME_ACCOUNT_NUMBER||'-'||SDD.GL_SUB_ACCOUNT_NUMBER) AS GL_ACCOUNT_NUMBER
-              FROM TEMP_1 SD,
+              FROM UNATTACHED_MNL_DRFT_DTL SD,
                    STORE_DRAFTS_DETAIL SDD
              WHERE NVL(SD.COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(SD.COST_CENTER_CODE,'XXX'))
                --AND NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE)) BETWEEN NVL(V_ISSUE_DATE_START,NVL(SD.ISSUE_DATE,TRUNC(V_DUMMY_DATE))) 
