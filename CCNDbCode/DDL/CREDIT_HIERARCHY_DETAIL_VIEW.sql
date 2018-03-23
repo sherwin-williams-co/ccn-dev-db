@@ -12,6 +12,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
            05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
                       the same data as it is in COST_CENTER_CODE field.
          : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
+         : 03/23/2017 bxa919 Chnaged the EMAIL_NUMBER value to DISTRICT_EMAIL_NUMBER
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -55,7 +56,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
-                                                'EMAIL_NUMBER') EMAIL_NUMBER
+                                                'EMAIL_NUMBER') DISTRICT_EMAIL_NUMBER
   FROM COST_CENTER CC,
         --inner sub query "T" gives all the hierarchy details with all the levels
         --present in the CCN system by joining the header, description and detail tables
