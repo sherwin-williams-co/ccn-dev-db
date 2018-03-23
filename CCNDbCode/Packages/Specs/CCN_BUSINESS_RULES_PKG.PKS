@@ -362,6 +362,11 @@ PROCEDURE BANK_CARD_BR_SP (
 	TRD  Section: 3.3.11 
 
 created : BLR 7/26//2012
+changed : 01/09/2017 bxa919 added code to fetch the country code ,cost center code from
+
+          cost center table.And removed cost center call from input parameter list
+          
+          as we will never get cost center data in the XML
 *******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
