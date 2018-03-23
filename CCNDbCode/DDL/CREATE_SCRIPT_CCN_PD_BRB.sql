@@ -6,8 +6,7 @@ Created : 03/22/2018 bxa919 CCN Project Team...
 CREATE TABLE CCN_PRICING_DISTRICT_BRB(
     STORE_NO                                  VARCHAR2(6), 
     STORE_NO_DESC                             VARCHAR2(100), 
-    STORE_AVENUE_LANE                         VARCHAR2(50),  
-    STORE_ADDRESS_CITY                        VARCHAR2(25), 
+    STORE_ADDRESS_AVENUE_LANE                 VARCHAR2(50),  
     STORE_ADDRESS_PREMISES                    VARCHAR2(50),
     STORE_ADDRESS_DISTRICT                    VARCHAR2(50), 
     STORE_ADDRESS_PARISH                      VARCHAR2(25), 
