@@ -404,30 +404,56 @@ modified: 07/28/2016 jxc517 CCN Project Team...
 modified: 07/31/2017 jxc517 CCN Project Team...
           Added "ACTIVE" status condition to get correct manager name
         : 03/22/2018 sxg151 CCN Project Team...
-          Added "REP" as part of the manager job titles
+          Updated the code instead hardcoding the Job Title in where cluase
 ************************************************************/
     IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2
 IS 
     V_MGR_NAME EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
-    COUNT_REC  NUMBER;
+    V_CATEGORY VARCHAR2(1);
 BEGIN
     BEGIN
-        SELECT ED.EMPLOYEE_NAME
-          INTO V_MGR_NAME
-          FROM EMPLOYEE_DETAILS ED
-         WHERE UPPER(ED.JOB_TITLE) IN ('MGR','SALES REP','ACCT EXEC','REP')
-           AND UPPER(ED.COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
-           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-           AND ROWNUM < 2;
-    EXCEPTION 
+        SELECT CATEGORY
+          INTO V_CATEGORY
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
         WHEN OTHERS THEN
             NULL;
     END;
-    RETURN V_MGR_NAME;
-EXCEPTION    
-    WHEN OTHERS THEN
-         RETURN V_MGR_NAME;
+
+    IF V_CATEGORY = 'T' THEN
+        SELECT EMPLOYEE_NAME
+          INTO V_MGR_NAME
+          FROM EMPLOYEE_DETAILS EMP
+         WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+           AND HIRE_DATE = (SELECT MAX(HIRE_DATE)
+                              FROM EMPLOYEE_DETAILS
+                             WHERE UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
+                               AND UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE');
+    ELSE
+        SELECT EMPLOYEE_NAME
+          INTO V_MGR_NAME
+          FROM (SELECT EMP.*
+                  FROM EMPLOYEE_DETAILS EMP
+                 WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                   AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                   AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
+                                             WHERE NONMGR_IND = 'Y'
+                                               AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
+                                               AND UPPER(JOB_TITLE) <> 'MTP'
+                                               )
+                 ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                 -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
+                 -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
+             )
+       WHERE ROWNUM < 2;
+    END IF;
+        RETURN V_MGR_NAME;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN V_MGR_NAME;
 END GET_MGR_NAME_FNC;
 
 FUNCTION GET_TYPE_FNC(
