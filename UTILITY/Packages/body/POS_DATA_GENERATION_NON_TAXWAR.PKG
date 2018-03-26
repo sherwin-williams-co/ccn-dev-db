@@ -16,6 +16,8 @@ This procedure is used do update on the table POS_DOWNLOADS_NON_TAXWARE
 Created : 09/08/2017 rxv940 CCN Project....
 Changed : 01/05/2017 rxv940 CCN Project....
           Added condition to include only stores
+        : 03/26/2018 nxk927 CCN Project....
+          Removed the store check condition
 *******************************************************************************/
     IN_COUNTRY_CODE     IN VARCHAR2,   
     IN_FILE_TYPE        IN VARCHAR2,
@@ -24,34 +26,20 @@ Changed : 01/05/2017 rxv940 CCN Project....
 IS
     V_COUNT  NUMBER      := 0;
     V_RETURN VARCHAR2(1) := 'N';
-    V_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;    
 BEGIN
-    BEGIN
-        SELECT POS_DOWNLOAD_CC_IND
-          INTO V_POS_DOWNLOAD_CC_IND
-          FROM COST_CENTER
-        WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-          AND CATEGORY = 'S';
-    EXCEPTION
-        WHEN OTHERS THEN
-            NULL;
-    END;
-    IF NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'Y' THEN
     -- The cost center is available with a flag 'Y' and hence check the count
-        SELECT COUNT(1) 
-          INTO V_COUNT  
-          FROM POS_DOWNLOADS_NON_TAXWARE 
-         WHERE COUNTRY_CODE          = IN_COUNTRY_CODE 
-           AND FILE_TYPE             = IN_FILE_TYPE
-           AND COST_CENTER_CODE      = IN_COST_CENTER_CODE
-           AND NVL(STATE_CODE, 'ZG') = NVL(IN_STATE_CODE, 'ZG')
-           AND FILE_PROCESSED        = 'N';
-    
-        IF V_COUNT = 0 THEN
-            V_RETURN := 'Y';
-        END IF;
-    END IF;
+    SELECT COUNT(1) 
+      INTO V_COUNT  
+      FROM POS_DOWNLOADS_NON_TAXWARE 
+     WHERE COUNTRY_CODE          = IN_COUNTRY_CODE 
+       AND FILE_TYPE             = IN_FILE_TYPE
+       AND COST_CENTER_CODE      = IN_COST_CENTER_CODE
+       AND NVL(STATE_CODE, 'ZG') = NVL(IN_STATE_CODE, 'ZG')
+       AND FILE_PROCESSED        = 'N';
 
+    IF V_COUNT = 0 THEN
+       V_RETURN := 'Y';
+    END IF;
     RETURN V_RETURN;
 END RETURN_POS_DOWNLOADS_INSERT_YN;
 
@@ -63,6 +51,8 @@ table
 Created : 09/08/2017 rxv940 CCN Project....
 Changed : 01/05/2017 rxv940 CCN Project....
           Fixed the issue with the state code for non-usa countries
+        : 03/26/2018 nxk927 CCN Project....
+          Only taking cost center with the category 'S' and polling status code of 'P' or 'Q'
 *******************************************************************************/
     IN_COUNTRY_CODE     IN VARCHAR2,
     IN_DATA_SOURCE      IN VARCHAR2, 
@@ -82,7 +72,15 @@ BEGIN
                        --If USA compare the state code, else ignore state code comparision
                        AND NVL(STATE_CODE, 'ZG') = DECODE(IN_COUNTRY_CODE, 'USA', IN_STATE_CODE, NVL(STATE_CODE, 'ZG'))
                        AND ADDRESS_TYPE = 'M'
-                       AND EXPIRATION_DATE IS NULL) LOOP
+                       AND EXPIRATION_DATE IS NULL
+                       AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE 
+                                                  FROM COST_CENTER
+                                                 WHERE CATEGORY = 'S')
+                       AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
+                                                  FROM POLLING
+                                                 WHERE POLLING_STATUS_CODE IN ('P','Q')
+                                                   AND EXPIRATION_DATE IS NULL
+                                                   AND CURRENT_FLAG = 'Y')) LOOP
         --Check for cost center and file type operation exists and not yet processed. 
         --If exists then do not insert. Else Insert if cost_center is also ready for Polling
         IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_COUNTRY_CODE, 
@@ -146,7 +144,7 @@ BEGIN
     IF V_COUNT > 0 THEN 
         V_RETURN := 'Y';	
     END IF;
-    RETURN V_RETURN;	
+    RETURN V_RETURN;
 EXCEPTION 
     WHEN OTHERS THEN
         RETURN V_RETURN;
@@ -158,7 +156,8 @@ This procedure is used to capture the changes done on tables into pos_downloads
 table
 
 Created : 09/08/2017 rxv940 CCN Project....
-Changed : 
+Changed : 03/26/2018 nxk927 CCN Project....
+          Added a check to see if the cost center is of category S and polling status code of 'P' or 'Q'
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2,
     IN_DATA_SOURCE      IN VARCHAR2, 
@@ -172,7 +171,15 @@ BEGIN
     SELECT CC.COUNTRY_CODE 
       INTO V_COUNTRY_CODE
       FROM COST_CENTER CC
-     WHERE CC.COST_CENTER_CODE  = IN_COST_CENTER_CODE;
+     WHERE CC.COST_CENTER_CODE  = IN_COST_CENTER_CODE
+       AND CC.COST_CENTER_CODE IN (SELECT COST_CENTER_CODE 
+                                     FROM COST_CENTER
+                                    WHERE CATEGORY = 'S')
+       AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
+                                  FROM POLLING
+                                 WHERE POLLING_STATUS_CODE IN ('P','Q')
+                                   AND EXPIRATION_DATE IS NULL
+                                   AND CURRENT_FLAG = 'Y');
      
      IF V_COUNTRY_CODE = 'USA' THEN 
         BEGIN
@@ -229,7 +236,7 @@ Created : 09/19/2017 rxv940 CCN Project....
 Changed : 02/23/2018 rxv940 CCN Project Team....
           Added logic to compute pre_req id using update_dt and POS_ID instead of POS_ID
 Changed : 02/28/2018 rxv940 CCN Project Team....
-          Adding NVL condition to handle nulls for V_PREV_RQST_ID		  
+          Adding NVL condition to handle nulls for V_PREV_RQST_ID
 *******************************************************************************/ 
     IN_FILE_TYPE        IN VARCHAR2,
     IN_COST_CENTER_CODE IN VARCHAR2,
@@ -242,7 +249,7 @@ BEGIN
     SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
     -- A. We look for the record that has the latest UPDATE_DT. 
     -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
-    -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference 	
+    -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
       INTO V_PREV_RQST_ID  
       FROM POS_DOWNLOADS_NON_TAXWARE
      WHERE POLLING_REQUEST_ID IS NOT NULL
@@ -418,7 +425,7 @@ BEGIN
        <wfd/>
     </dlHeaderRcd>';
 END RETURN_HEADER_RECORD;
- 
+
 PROCEDURE BUILD_TAXCURR_XML(
 /*******************************************************************************
 This Procedure is to generate the Init load process
