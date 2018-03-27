@@ -3,10 +3,9 @@ Created : 03/22/2018 bxa919 CCN Project Team...
           The script will created tables  CCN_COST_CENTER_INFO table.The data in the table 
           is used to generate 'CCN08900' file to sens ro Real Estate.
         : 03/27/2018 bxa919 CCN Project Team ...
-          As joan asked to dispaly Province and state in one column renamed teh column name
+          As user asked to dispaly Province and state in one column renamed teh column name
           as "STORE_ADDRESS_STATE/PROVINCE"
 *******************************************************************************/
-DROP TABLE CCN_PRICING_DISTRICT_OTHER;
 CREATE TABLE CCN_PRICING_DISTRICT_OTHER(
     STORE_NO                                   VARCHAR2(6), 
     STORE_NO_DESC                              VARCHAR2(100), 
