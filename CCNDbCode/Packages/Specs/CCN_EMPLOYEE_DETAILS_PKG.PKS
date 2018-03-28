@@ -123,17 +123,6 @@ IN_EMP_NBR  IN   VARCHAR2
 )
 RETURN VARCHAR2;
 
-FUNCTION GET_STORE_MANAGER_NAME_FNC(
-/*******************************************************************************
-    This function will return the Manager name for given Cost Center as input
-
-Created : 07/07/2016 axd783 CCN Project Team...
-Modified:
-*******************************************************************************/
-IN_COST_CENTER_CODE  IN   VARCHAR2
-)
-RETURN VARCHAR2;
-
 PROCEDURE GET_EMPLOYEE_DTLS(
 /*******************************************************************************
     This procedure will return the employee email and user_id 

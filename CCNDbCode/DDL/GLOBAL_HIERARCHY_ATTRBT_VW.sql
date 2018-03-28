@@ -1,5 +1,5 @@
-CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW AS 
-  SELECT 
+CREATE OR REPLACE VIEW GLOBAL_HIERARCHY_ATTRBT_VW AS  
+SELECT 
 /*******************************************************************************
 This View holds all the details of global hierarchy linked to the cost center i.e. this view will 
 have all the details of each and every level of the global hierarchy for a particular cost center.
@@ -23,6 +23,8 @@ Modified : 11/12/2015 sxt410 CCN Project...
            the same data as it is in COST_CENTER_CODE field.
          : 03/08/2018 jxc517 CCN Project Team....
            Adding new attribute "CITY/SLS MGR FLAG" to the view and its description
+         : 03/28/2018 sxg151 CCN Project Team...
+           Calling COMMON_TOOLS.GET_CC_MANAGER_NAME function to get the Mgr Name
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -71,7 +73,7 @@ Modified : 11/12/2015 sxt410 CCN Project...
        A.SPECIAL_ROLES_UPPER_VALUE,
        A.CC_UPPER_LVL_VALUE
   FROM (SELECT GV.*,
-               CCN_EMPLOYEE_DETAILS_PKG.GET_STORE_MANAGER_NAME_FNC(GV.COST_CENTER_CODE) CC_MGR_NAME,
+               COMMON_TOOLS.GET_CC_MANAGER_NAME(GV.COST_CENTER_CODE) CC_MGR_NAME,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN, GV.DOMAIN||GV."GROUP", '~~~') DOMAIN_UPPER_VALUE,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN||GV."GROUP", GV.DOMAIN||GV."GROUP"||GV.DIVISION, GV.DOMAIN) GROUP_UPPER_VALUE,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN||GV."GROUP"||GV.DIVISION, GV.DOMAIN||GV."GROUP"||GV.DIVISION||GV.AREA, GV.DOMAIN||GV."GROUP") DIV_UPPER_VALUE,

@@ -464,5 +464,15 @@ Modified:
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_GEO_TYPE       IN     VARCHAR2
     ) RETURN VARCHAR2;
+    
+FUNCTION GET_CC_MANAGER_NAME(
+/***********************************************************
+This function will return Manager Name for given Cost Center Code
+
+Created : 03/28/2018 sxg151 CCN Project
+modified: 
+************************************************************/
+    IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
+RETURN VARCHAR2;    
 
 END COMMON_TOOLS;
