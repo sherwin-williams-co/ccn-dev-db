@@ -1,5 +1,5 @@
 /* 
-    created by rxv940 on 03/13/2018
+    created by bxa919 on 03/13/2018
     Run this in COSTCNTR
 	This script takes a copy of current POLLING_HST table 
 	Deletes records in POLLING_HST that are also available in POLLING for 6 attributes

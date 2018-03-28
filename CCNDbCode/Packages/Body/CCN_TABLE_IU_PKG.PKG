@@ -2684,6 +2684,8 @@ modified: 02/02/2015 axk326 CCN Project Team...
           based on COST_CENTER_CODE
         : 02/18/2015 SXT410 Modified code to capture the Previous row data and 
           whose current polling status code is Expired before inserting new polling status code.
+        : 03/12/2018 bxa919 CCN Project Team....
+          Removed call to POLLING_HST_I_SP as initial record should never go into history
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -2710,9 +2712,7 @@ BEGIN
 
                    );                   
       SAVEPOINT POLL;
-
-      POLLING_HST_I_SP ( OUT_POLLING_ROW );               
-
+           
       out_POLLING_row.current_flag := 'Y';
 
       out_POLLING_row.EFFECTIVE_DATE := sysdate;
@@ -2870,27 +2870,28 @@ PROCEDURE POLLING_HST_I_SP
 created : 02/18/2015 SXT410 CCN Project....
 revised : 03/06/2018 nxk927 CCN Project....
           added two new columns POLLING_START_DATE and POLLING_STOP_DATE
+revised : 03/09/2018 bxa919 CCN Project....
+          Hard coding current flag values to 'N'
+          Handling insert for the new column (HISTORY_LOAD_DATE) added 
 *******************************************************************************/
 IN_POLLING_ROW IN POLLING%ROWTYPE
 ) 
 IS
 BEGIN
     INSERT INTO POLLING_HST
-    SELECT COST_CENTER_CODE,
-           POLLING_STATUS_CODE,
-           SYSDATE,
-           MULTICAST_IND,
-           TIME_ZONE,
-           POLLING_IND,
-           NEXT_DOWNLOAD_BLOCK_COUNT,
-           CURRENT_FLAG,
-           EFFECTIVE_DATE,
-           SYSDATE, --EXPIRATION_DATE
-           POLLING_START_DATE,
-           POLLING_STOP_DATE
-      FROM POLLING
-     WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_POLLING_ROW.COST_CENTER_CODE)
-       AND CURRENT_FLAG = 'Y';  
+    VALUES (IN_POLLING_ROW.COST_CENTER_CODE,
+           IN_POLLING_ROW.POLLING_STATUS_CODE,
+           SYSDATE,          -- CHANGED_DATE
+           IN_POLLING_ROW.MULTICAST_IND,
+           IN_POLLING_ROW.TIME_ZONE,
+           IN_POLLING_ROW.POLLING_IND,
+           IN_POLLING_ROW.NEXT_DOWNLOAD_BLOCK_COUNT,
+           'N',              --CURRENT_FLAG,
+           IN_POLLING_ROW.EFFECTIVE_DATE,    
+           IN_POLLING_ROW.EXPIRATION_DATE,      
+           IN_POLLING_ROW.POLLING_START_DATE,
+           IN_POLLING_ROW.POLLING_STOP_DATE
+           );  
 END POLLING_HST_I_SP;
 
 
@@ -4706,6 +4707,7 @@ modified: 02/02/2015 axk326 CCN Project Team...
           based on COST_CENTER_CODE
         : 02/18/2015 SXT410 Modified code to to capture Previous updated row
           and setting Effective_date to sysdate only when Polling_status_code is changed.
+        : 03/06/2018 bxa919 Performing update only when there is a change in old and new values
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -4728,27 +4730,38 @@ BEGIN
          in_table_name
         ,in_Row_Data
         ,out_POLLING_row 
-                   );              
-
-        POLLING_HST_I_SP ( OUT_POLLING_ROW );          
-
+                   );                    
         BEGIN
             SELECT * 
               INTO V_PREV_STATUS_ROW
               FROM POLLING
              WHERE CURRENT_FLAG = 'Y'
-               AND UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE);        
+               AND UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE);    
+               
+             -- conditionally move data into history table (if there is something actually getting updated)
+            IF (NVL(V_PREV_STATUS_ROW.POLLING_STATUS_CODE, 'Z') <>  NVL(out_POLLING_row.POLLING_STATUS_CODE, 'Z') OR
+                NVL(V_PREV_STATUS_ROW.MULTICAST_IND, 'Z')       <>  NVL(out_POLLING_row.MULTICAST_IND, 'Z') OR
+                NVL(V_PREV_STATUS_ROW.TIME_ZONE, '9')           <>  NVL(out_POLLING_row.TIME_ZONE, '9') OR
+                NVL(V_PREV_STATUS_ROW.POLLING_IND, 'Z')         <>  NVL(out_POLLING_row.POLLING_IND, 'Z')) THEN 
+                POLLING_HST_I_SP(V_PREV_STATUS_ROW);
+            END IF;         
+               
+            --Below code is never being used based on analysis done during history table data load
+            --Below code makes sense only if the status changes but when status changes it goes directly to Insert proc
+            --NOTE: Primary Key on POLLING table is cost center code and polling status code
             IF V_PREV_STATUS_ROW.POLLING_STATUS_CODE <> OUT_POLLING_ROW.POLLING_STATUS_CODE THEN 
                 OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
-
+                
                 EXPIRE_POLLING_DATA_SP ( out_POLLING_row );
             ELSE
                 OUT_POLLING_ROW.EFFECTIVE_DATE := V_PREV_STATUS_ROW.EFFECTIVE_DATE;
-            END IF;
+            END IF;       
+                   
         EXCEPTION
             WHEN OTHERS THEN
                 OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
         END;
+            
 
 
       UPDATE polling set ROW             = out_polling_row
