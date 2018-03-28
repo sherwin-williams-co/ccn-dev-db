@@ -14,6 +14,8 @@
 #            Added Error handling calls to each shell script
 #          : 03/24/2016 nxk927 CCN Project Team.....
 #            Added Error message to  get the time and proc name if it errors out
+#          : 03/28/2018 nxk927 CCN Project Team.....
+#            created duplicate copy of ccn_hierarchy_info.sh to run it for monthly process
 ########################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -31,7 +33,7 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 # DATA FROM HIERARCHY_DETAIL_VIEW TO UPDATE ANY CHANGES MADE
 # FOR FURTHER PROCESSING
 #############################################################
-./ccn_hierarchy_info.sh
+./mnthly_ccn_hierarchy_info.sh
 
 ############################################################################
 #                           ERROR STATUS CHECK
