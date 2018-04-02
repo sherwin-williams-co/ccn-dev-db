@@ -404,8 +404,8 @@ modified: 07/28/2016 jxc517 CCN Project Team...
 modified: 07/31/2017 jxc517 CCN Project Team...
           Added "ACTIVE" status condition to get correct manager name
         : 03/22/2018 sxg151 CCN Project Team...
-          Updated the code instead hardcoding the Job Title in where cluase 
-        : 03/28/2018 sxg151 Added Function in COMMON_TOOLS to get the Manager details
+          Updated code instead using hardcoding the Job Title 
+        : 03/28/2018 sxg151 Added Function in COMMON_TOOLS to get the Manager details  
 ************************************************************/
     IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2
@@ -914,6 +914,8 @@ from HIERARCHY_HEADER and HIERARCHY_DESCRIPTION
 created : 02/13/2013 sxh487 CCN Project....
 modified: 07/27/2016 mxk766 CCN Project....
           Modified to identify the level basing upon the passed cost center.
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 **********************************************************/
     in_XML                IN     VARCHAR2,
     OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR)
@@ -923,6 +925,7 @@ IS
     V_COSTCENTER           VARCHAR2(100);
     V_COSTCENTER_FOUND     BOOLEAN := TRUE;
     V_MAX_HRCHY_DTL_LEVEL  NUMBER;
+    V_CATEGORY             VARCHAR2(50);
 BEGIN
     IF (V_XML.EXISTSNODE('/HIERARCHY_DETAIL/row_data') = 1) THEN
         V_HRCHY_HDR_NAME := V_XML.EXTRACT('/HIERARCHY_DETAIL/row_data/HRCHY_HDR_NAME/text()').GETSTRINGVAL();
@@ -948,6 +951,10 @@ BEGIN
           WHERE HRCHY_HDR_NAME=UPPER(V_HRCHY_HDR_NAME)
             AND HRCHY_DTL_CURR_ROW_VAL=UPPER(V_COSTCENTER)
             AND ROWNUM=1;
+        SELECT CATEGORY
+           INTO V_CATEGORY
+           FROM COST_CENTER
+          WHERE COST_CENTER_CODE=UPPER(V_COSTCENTER);
       EXCEPTION
           WHEN OTHERS THEN
               NULL;
@@ -958,6 +965,8 @@ BEGIN
       SELECT NVL(V_MAX_HRCHY_DTL_LEVEL, HH.HRCHY_HDR_LEVELS) AS HRCHY_HDR_LEVELS,
              CASE WHEN HD.HRCHY_HDR_LVL_NBR = NVL(V_MAX_HRCHY_DTL_LEVEL, HH.HRCHY_HDR_LEVELS)
                       THEN 'Cost Center'
+                  WHEN V_CATEGORY = 'C' AND HRCHY_HDR_LVL_NBR = 3 and HH.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
+                      THEN 'Missionary'
                   ELSE HD.HRCHY_HDR_LVL_DESC
               END AS HRCHY_HDR_LVL_DESC,
               HD.HRCHY_HDR_LVL_NBR, 
@@ -3653,38 +3662,6 @@ EXCEPTION
         RETURN OUT_ATTRIBUTE_VALUE;
 END GET_RQSTD_ATTRIBUTE_VALUE;
 
-PROCEDURE DCO_COSTCENTER_LOOKUP(
-/***********************************************************
-This procedure will validate the passed cost center code and 
-return the corresponding record from COST_CENTER table
-
-Created : 08/23/2016 vxv336 CCN Project
-Modified: 08/23/2016 vxv336 
-          Return a ref cursor instead of rowtype
-************************************************************/
-in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE,
-OUT_COST_CENTER_REF_CUR OUT REF_CURSOR
-)
-IS
-  v_cost_center      COST_CENTER.cost_center_code%TYPE := in_COST_CENTER;
-BEGIN
-  IF LENGTH(v_cost_center) = 5 THEN
-      v_cost_center := SUBSTR(v_cost_center, 2);
-  END IF;
-  v_cost_center := common_tools.cost_center_look_up_fnc(v_cost_center);
-
-  OPEN OUT_COST_CENTER_REF_CUR FOR
-       SELECT * 
-         FROM COST_CENTER          
-        WHERE UPPER(cost_center_code) = UPPER(v_cost_center); 
-
-EXCEPTION
-    WHEN OTHERS THEN
-        errpkg.raise_err(errnums.en_invld_dco_costcntr_err
-                         ,'CCN_HIERARCHY.DCO_COSTCENTER_LOOKUP'
-                         ,'Invalid DCO Cost Center' ); 
-END DCO_COSTCENTER_LOOKUP;
-
 PROCEDURE PRICE_DIST_FUT_HIER_DET_S_SP
 /**********************************************************
 This procedure will be called from UI when "Batch Processes" window ******* button click
@@ -3786,5 +3763,33 @@ EXCEPTION
       UTL_FILE.fclose(output_file);
       ERRPKG.raise_err(-20999, 'ccn_hierarchy.PRICE_DIST_FUT_HIER_DET_S_SP','generate price district future hierarchy reporting failed at '||SQLCODE||' : '||SQLERRM);
 END PRICE_DIST_FUT_HIER_DET_S_SP;
+
+FUNCTION VALIDATE_DCO_COST_CENTER(
+/***********************************************************
+This Function will validate the passed cost center code and 
+return 'Y', if the cost center is present else return 'N'
+If this functions retruns 'N' Then UI is Throwing the following error
+"DCO CostCenter Not Found. Please enter the correct DCO CostCenter."
+Created : 01/25/2018 axt754 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE)
+RETURN VARCHAR2
+IS
+    v_cost_center      COST_CENTER.cost_center_code%TYPE := in_COST_CENTER;
+    V_RETURN_VALUE     VARCHAR2(1) := 'N';
+BEGIN
+    IF LENGTH(v_cost_center) = 5 THEN
+        v_cost_center := SUBSTR(v_cost_center, 2);
+    END IF;
+    BEGIN
+        v_cost_center := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(v_cost_center);
+        V_RETURN_VALUE := 'Y';
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    RETURN V_RETURN_VALUE;
+END VALIDATE_DCO_COST_CENTER;
 
 END CCN_HIERARCHY;
