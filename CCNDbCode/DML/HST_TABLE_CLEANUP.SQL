@@ -13,9 +13,10 @@ SET SERVEROUTPUT ON
 BEGIN
     -- Takes copy of current POLLING_HST table
     EXECUTE IMMEDIATE 'CREATE TABLE POLLING_HST_NEW AS SELECT * FROM POLLING_HST ';   
-    -- Deletes records in POLLING_HST that are also available in POLLING for 6 attributes    
+    -- Select the records which are common in POLLING and POLLING_HST table and then deletes the duplicate records in POLLING_HST table
     DELETE 
       FROM POLLING_HST 
+	  --Substituting characters in NVL function for easy indendification of NULL records 
      WHERE (COST_CENTER_CODE, POLLING_STATUS_CODE, NVL(MULTICAST_IND, 'Z'), NVL(TIME_ZONE, '9'), NVL(POLLING_IND, 'Z'), NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH')) IN 
        (
         SELECT COST_CENTER_CODE, 
@@ -30,7 +31,7 @@ BEGIN
 END ;
 
 
--- wiping off the HST table and re-loading it
+-- Wiping off the HST table and re-loading it
 SET SERVEROUTPUT ON 
 BEGIN
     -- Truncates the POLLING_HST table
