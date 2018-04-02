@@ -13,44 +13,14 @@ SET SERVEROUTPUT ON
 BEGIN
     -- Takes copy of current POLLING_HST table
     EXECUTE IMMEDIATE 'CREATE TABLE POLLING_HST_NEW AS SELECT * FROM POLLING_HST ';   
-    -- Select the records which are common in POLLING and POLLING_HST table and then deletes the duplicate records in POLLING_HST table
-    DELETE 
-      FROM POLLING_HST 
-	  --Substituting characters in NVL function for easy indendification of NULL records 
-     WHERE (COST_CENTER_CODE, POLLING_STATUS_CODE, NVL(MULTICAST_IND, 'Z'), NVL(TIME_ZONE, '9'), NVL(POLLING_IND, 'Z'), NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH')) IN 
-       (
-        SELECT COST_CENTER_CODE, 
-               POLLING_STATUS_CODE, 
-               NVL(MULTICAST_IND, 'Z'), 
-               NVL(TIME_ZONE, '9'), 
-               NVL(POLLING_IND, 'Z'), 
-               NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH') 
-          FROM POLLING 
-        );
-    COMMIT;
-END ;
-
-
--- Wiping off the HST table and re-loading it
-SET SERVEROUTPUT ON 
-BEGIN
     -- Truncates the POLLING_HST table
     EXECUTE IMMEDIATE 'TRUNCATE TABLE POLLING_HST';
-    
-    -- repopulates the polling_hst table with updated effective and expiration dates
+END;
+
+SET SERVEROUTPUT ON 
+BEGIN
+    -- repopulates the polling_hst table with updated current_flag and expiration dates
     INSERT INTO POLLING_HST
-    (
-    COST_CENTER_CODE
-    , POLLING_STATUS_CODE
-    , CHANGED_DATE
-    , MULTICAST_IND
-    , TIME_ZONE
-    , POLLING_IND
-    , NEXT_DOWNLOAD_BLOCK_COUNT
-    , CURRENT_FLAG
-    , EFFECTIVE_DATE
-    , EXPIRATION_DATE
-    )
     SELECT  T.COST_CENTER_CODE
           , T.POLLING_STATUS_CODE
           , T.CHANGED_DATE
@@ -59,8 +29,10 @@ BEGIN
           , T.POLLING_IND
           , T.NEXT_DOWNLOAD_BLOCK_COUNT
           , T.CURRENT_FLAG
-          , COALESCE(LG, T.EFFECTIVE_DATE, T.CHANGED_DATE) EFFECTIVE_DATE  -- exp dt of prev rec (or) eff dt of curr rec (or) exp dt of curr rec
+          , COALESCE(LG, T.EFFECTIVE_DATE, T.CHANGED_DATE) EFFECTIVE_DATE  -- prev eff dt (or) eff dt of curr rec (or) chng dt of curr rec -- 
           , T.EXPIRATION_DATE
+          , T.POLLING_START_DATE
+          , T.POLLING_STOP_DATE
       FROM (SELECT A.COST_CENTER_CODE
                  , A.POLLING_STATUS_CODE
                  , A.CHANGED_DATE
@@ -72,15 +44,24 @@ BEGIN
                  , A.EFFECTIVE_DATE
                  , NVL(A.EXPIRATION_DATE, A.CHANGED_DATE) EXPIRATION_DATE  -- Get the CHANGED_DATE if EXPIRATION_DATE is not available
                  , LAG(CHANGED_DATE) OVER(PARTITION BY COST_CENTER_CODE ORDER BY CHANGED_DATE) LG
+                 , POLLING_START_DATE
+                 , POLLING_STOP_DATE
              FROM POLLING_HST_NEW A
+            --below condition will avoid the duplicate records that are present in the POlling table 
+            WHERE (COST_CENTER_CODE, POLLING_STATUS_CODE, NVL(MULTICAST_IND, 'Z'), NVL(TIME_ZONE, '9'), NVL(POLLING_IND, 'Z'), NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH')) NOT IN
+               (SELECT COST_CENTER_CODE,
+                       POLLING_STATUS_CODE,
+                       NVL(MULTICAST_IND, 'Z'),
+                       NVL(TIME_ZONE, '9'),
+                       NVL(POLLING_IND, 'Z'),
+                       NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH')
+                  FROM POLLING )
             ORDER BY COST_CENTER_CODE, CHANGED_DATE
           ) T;
-          
+
     COMMIT;
-END; 
+END;
 
-
--- Script to drop backup table
 SET SERVEROUTPUT ON 
 BEGIN
     -- Drops the backup table
