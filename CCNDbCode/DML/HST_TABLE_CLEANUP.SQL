@@ -61,9 +61,3 @@ BEGIN
 
     COMMIT;
 END;
-
-SET SERVEROUTPUT ON 
-BEGIN
-    -- Drops the backup table
-    EXECUTE IMMEDIATE 'DROP TABLE POLLING_HST_NEW PURGE';      
-END;
