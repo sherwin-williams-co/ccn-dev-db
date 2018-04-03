@@ -504,13 +504,13 @@ BEGIN
         V_FAX_NUMBER   := COMMON_TOOLS.GET_FORMATTED_PHONE_NUMBER(CC_REC.COST_CENTER_CODE, 'FAX');
 
         /*Fetch Global Hierarchy Information for Area, and DAD*/
-        V_DIVISION        := NULL;
-        V_DIVISION_NAME   := NULL;
-        V_AREA            := NULL;
-        V_AREA_NAME       := NULL;
+        V_DIVISION := NULL;
+        V_DIVISION_NAME := NULL;
+        V_AREA := NULL;
+        V_AREA_NAME := NULL;
         V_AREA_SHORT_NAME := NULL;
-        V_DAD             := NULL;
-        V_DAD_DESC        := NULL;
+        V_DAD := NULL;
+        V_DAD_DESC := NULL;
         FOR rec IN hierarchy_cur(cc_rec.COST_CENTER_CODE) LOOP
             V_DIVISION := rec.DIVISION;
             V_DIVISION_NAME := rec.DIVISION_NAME;
@@ -758,7 +758,7 @@ EXCEPTION
       RETURN NULL;
 END FILL_SPACES;
 
-PROCEDURE GNRT_STORE_BANK_CARD_MRCHNT_FL
+PROCEDURE GNRT_STORE_BANK_CARD_MRCHNT_FL(
 /******************************************************************************************
 This Procedure create file STORE_BANK_CARD_MERCHANT_FL.CSV on the server
 File structure:
@@ -771,12 +771,16 @@ modified: 09/06/2017 sxp130 ASP-795 - Incorporated code changes for PAT E-Mail o
         : Tuesday, September 05, 2017 10:54AM - PAT's E-mail.
         : 10/02/2017 rxa457 CCN Project Team...
           file name changed merchtb.dat
+        :01/19/2018 bxa919 CCN Project Team...
+         adding new columns MERCH_ID_CAN_MC,PCI_MERCH_ID_CAN_MC from bank_card table 
+         to populate in the file..
+modified: 03/15/2018 rxv940 CCN Project Team....
+          Removing out the email part and logic involved in creating CLOB for email
+          - shell script FTP'es
         : 03/16/2018 nxk927
           polling status code Q added in the filter
-        : 01/19/2018 bxa919 CCN Project Team...
-          Adding new columns MERCH_ID_CAN_MC,PCI_MERCH_ID_CAN_MC from bank_card table 
-          to populate in the file
 *******************************************************************************************/
+IN_TMSTMP  IN VARCHAR2)
 AS
    CURSOR CUR_COST_CENTER IS
       SELECT *
@@ -789,7 +793,8 @@ AS
                        WHERE POLLING.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
                          AND POLLING.EXPIRATION_DATE IS NULL
                          AND POLLING.CURRENT_FLAG = 'Y'
-                         AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'));
+                         AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'))
+        ORDER BY 1;
 
    CURSOR CUR_BANK_CARD (P_COST_CENTER_CODE VARCHAR2) IS
       SELECT *
@@ -799,27 +804,21 @@ AS
 
    --Variable Declaration
    PATH                VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-   FILENAME            VARCHAR2(50) := 'merchtb_' || TO_CHAR(SYSDATE,'MMDDRR') || '.dat';
+   FILENAME            VARCHAR2(50) := 'merchtb_' || IN_TMSTMP || '.dat';
    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
    V_CLOB              CLOB;
-   V_CLOB_FOR_EMAIL    CLOB;
 
 PROCEDURE APPEND_CLOB(
    IN_VALUE         IN     VARCHAR2,
-   IN_COST_CENTER   IN     VARCHAR2,
-   IN_OUT_MAIL_CLOB IN OUT CLOB)
+   IN_COST_CENTER   IN     VARCHAR2
+   )
 IS
    V_CLOB              CLOB;
 BEGIN
    IF IN_VALUE IS NOT NULL AND NOT REGEXP_LIKE(IN_VALUE, '^[9-9]+$' ) AND NOT REGEXP_LIKE(IN_VALUE, '^[0-0]+$' ) THEN
       V_CLOB := IN_VALUE || ',' || SUBSTR(IN_COST_CENTER, 3) || CHR(13);
       IF V_CLOB <> EMPTY_CLOB() THEN
-         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-         IF IN_OUT_MAIL_CLOB <> EMPTY_CLOB() THEN
-            IN_OUT_MAIL_CLOB := IN_OUT_MAIL_CLOB || CHR(10) || V_CLOB;
-         ELSE
-            IN_OUT_MAIL_CLOB := V_CLOB;
-         END IF;
+         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE); 
       END IF;
    END IF;
 END APPEND_CLOB;
@@ -834,33 +833,32 @@ BEGIN
       /*Fetch Bank_Card Information for each Store*/
       FOR REC_BC IN CUR_BANK_CARD (REC_CC.COST_CENTER_CODE)  LOOP
          --Append MERCHANT_ID to file
-         APPEND_CLOB(REC_BC.MERCHANT_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
+         APPEND_CLOB(REC_BC.MERCHANT_ID, REC_BC.COST_CENTER_CODE);
          --Append PCI_MERCHANT_ID to file
-         APPEND_CLOB(REC_BC.PCI_MERCHANT_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
+         APPEND_CLOB(REC_BC.PCI_MERCHANT_ID, REC_BC.COST_CENTER_CODE);
          --Append DISCOVER_ID to file
-         APPEND_CLOB(REC_BC.DISCOVER_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
+         APPEND_CLOB(REC_BC.DISCOVER_ID, REC_BC.COST_CENTER_CODE);
          --Append PCI_DISCOVER_ID to file
-         APPEND_CLOB(REC_BC.PCI_DISCOVER_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
+         APPEND_CLOB(REC_BC.PCI_DISCOVER_ID, REC_BC.COST_CENTER_CODE);
          --Append AMEX_SE_ID to file
-         APPEND_CLOB(REC_BC.AMEX_SE_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
-         --Append MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
-         --Append PCI_MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.PCI_MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
+         APPEND_CLOB(REC_BC.AMEX_SE_ID, REC_BC.COST_CENTER_CODE);
+          --Append MERCH_ID_CAN_MC to file
+         APPEND_CLOB(REC_BC.MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE);
+          --Append PCI_MERCH_ID_CAN_MC to file
+         APPEND_CLOB(REC_BC.PCI_MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE);
       END LOOP;
    END LOOP;
    UTL_FILE.FCLOSE(OUTPUT_FILE);
-   --Sending mail for the category 'STORE_BANK_CARD_MERCHANT'
-   IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-      MAIL_PKG.SEND_MAIL('STORE_BANK_CARD_MERCHANT', NULL, NULL, V_CLOB_FOR_EMAIL);
-   END IF;
+
 EXCEPTION
    WHEN OTHERS THEN
-      UTL_FILE.FCLOSE(OUTPUT_FILE);
+      IF UTL_FILE.IS_OPEN(output_file) THEN
+        UTL_FILE.FCLOSE(output_file);
+      END IF;
       RAISE;
 END GNRT_STORE_BANK_CARD_MRCHNT_FL;
 
-PROCEDURE GNRT_STORE_BANK_CARD_SERIAL_FL
+PROCEDURE GNRT_STORE_BANK_CARD_SERIAL_FL(
 /******************************************************************************************
 This Procedure create file STORE_BANK_CARD_SERIAL.CSV on the server
 Filters:
@@ -869,23 +867,28 @@ CATEGORY IN ('S','O')
 created : 05/25/2017 sxp130 ASP-795
 modified: 02/23/2018 nxk927
           polling status code Q added in the filter
+modified: 03/15/2018 rxv940 CCN Project Team....
+          Removing out the email part and logic involved in creating CLOB for email
+          - shell script FTP'es
 modified: 03/16/2018 nxk927
           Considering all the records without merchant id and using 0's for null merchant id, null discover id and
           null AMEX_SE_ID
 *******************************************************************************************/
+IN_TMSTMP  IN VARCHAR2)
 AS
    CURSOR CUR_COST_CENTER IS
       SELECT *
-         FROM COST_CENTER
-        WHERE CLOSE_DATE IS NULL
-          AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
-          AND CATEGORY IN ('S', 'O')
-          AND EXISTS (SELECT 1
+        FROM COST_CENTER
+       WHERE CLOSE_DATE IS NULL
+         AND NVL(OPEN_DATE,SYSDATE) <> '01-JAN-2099'
+         AND CATEGORY IN ('S', 'O')
+         AND EXISTS (SELECT 1
                         FROM POLLING
                        WHERE POLLING.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
                          AND POLLING.EXPIRATION_DATE IS NULL
                          AND POLLING.CURRENT_FLAG = 'Y'
-                         AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'));
+                         AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'))
+       ORDER BY 1;
    CURSOR CUR_BANK_CARD (P_COST_CENTER_CODE VARCHAR2) IS
       SELECT *
         FROM BANK_CARD
@@ -920,7 +923,7 @@ AS
 
    --Variable Declaration
    PATH                     VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-   FILENAME                 VARCHAR2(50) := 'STORE_BANK_CARD_SERIAL_' || TO_CHAR(SYSDATE,'MMDDRR') || '.dat';
+   FILENAME                 VARCHAR2(50) := 'STORE_BANK_CARD_SERIAL_' || IN_TMSTMP || '.dat';
    OUTPUT_FILE              UTL_FILE.FILE_TYPE;
    V_DIVISION_NO            VARCHAR2(200);
    V_AREA                   VARCHAR2(200);
@@ -933,23 +936,20 @@ AS
    V_STATE_CODE             VARCHAR2(200);
    V_ZIP_CODE               VARCHAR2(200);
    V_CLOB                   CLOB;
-   V_CLOB_FOR_EMAIL         CLOB;
 BEGIN
    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
                                  ,FILENAME
                                  , 'W' --BINARY
                                  , 32767);
-
    FOR REC IN CUR_ADDRESS LOOP
       AAT_ADDRESS_VW(REC.COST_CENTER_CODE) := REC;
    END LOOP;
-
    FOR REC_CC IN CUR_COST_CENTER LOOP
       --Variable initialize to NULL
       V_DIVISION_NO            := FILL_SPACES(2);
       V_AREA                   := FILL_SPACES(2);
       V_DISTRICT               := FILL_SPACES(2);
-      V_MERCHANT_ID            := NULL; 
+      V_MERCHANT_ID            := NULL;
       V_DISCOVER_ID            := NULL;
       V_AMEX_SE_ID             := NULL;
       V_ADDRESS_LINE_1         := FILL_SPACES(30);
@@ -1002,33 +1002,27 @@ BEGIN
                    FILL_SPACES(1)                                         ||
                    V_STATE_CODE                                           ||
                    FILL_SPACES(3)                                         ||
-                    V_ZIP_CODE                                            ||
+                   V_ZIP_CODE                                             ||
                    FILL_SPACES(2)                                         ||
                    RPAD(NVL(REC_CC.STATEMENT_TYPE,' '),2,' ')             ||
                    FILL_SPACES(13);
 
       IF V_CLOB <> EMPTY_CLOB() THEN
          UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-         IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-            V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
-         ELSE
-            V_CLOB_FOR_EMAIL := V_CLOB;
-         END IF;
       END IF;
    END LOOP;
 
    UTL_FILE.FCLOSE(OUTPUT_FILE);
-   --Sending mail for the category 'STORE_BANK_CARD_SERIAL'
-   IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-      MAIL_PKG.SEND_MAIL('STORE_BANK_CARD_SERIAL', NULL, NULL, V_CLOB_FOR_EMAIL);
-   END IF;
+
 EXCEPTION
    WHEN OTHERS THEN
-      UTL_FILE.FCLOSE(OUTPUT_FILE);
+      IF UTL_FILE.IS_OPEN(output_file) THEN
+        UTL_FILE.FCLOSE(output_file);
+      END IF;
       RAISE;
 END GNRT_STORE_BANK_CARD_SERIAL_FL;
 
-PROCEDURE GENERATE_STORE_BANK_CARD_FILE
+PROCEDURE GENERATE_STORE_BANK_CARD_FILE(
 /**********************************************************
 This procedure is intended to generate below files which describes store and merchant details
 1. STORE_BANK_CARD_MERCHANT.CSV
@@ -1036,12 +1030,14 @@ This procedure is intended to generate below files which describes store and mer
 Filters:
 1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
 Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
-Changed :
+Changed : 03/15/2018 rxv940 CCN project Team....
+          Created an input variable that gets appended to file name
 **********************************************************/
+IN_TMSTMP   IN VARCHAR2)
 IS
 BEGIN
-    GNRT_STORE_BANK_CARD_MRCHNT_FL;
-    GNRT_STORE_BANK_CARD_SERIAL_FL;
+    GNRT_STORE_BANK_CARD_MRCHNT_FL(IN_TMSTMP);
+    GNRT_STORE_BANK_CARD_SERIAL_FL(IN_TMSTMP);
 END GENERATE_STORE_BANK_CARD_FILE;
 
 PROCEDURE  GENERATE_VALUE_LINK_PROCESS
@@ -1221,7 +1217,7 @@ PROCEDURE LOAD_ADDRESS_GEO_DETAILS
 /******************************************************************************
   This Procedure Will load the data from ADDRESS_GEO_V
 
-Created : 03/12/2018 rxv940 CCN Project....ASP-976
+Created : 03/12/2018 rxv940 CCN Project....
 Changed :
 *******************************************************************************/
 IS
