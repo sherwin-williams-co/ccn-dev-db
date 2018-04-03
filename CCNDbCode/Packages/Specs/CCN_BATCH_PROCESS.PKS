@@ -51,7 +51,7 @@ Created : 05/25/2017 rxa457 ASP-772 CCN project Team....
 **********************************************************/
 ;
 
-PROCEDURE GENERATE_STORE_BANK_CARD_FILE(
+PROCEDURE GENERATE_STORE_BANK_CARD_FILE
 /**********************************************************
 This procedure is intended to generate below files which describes store and merchant details
 1. STORE_BANK_CARD_MERCHANT.CSV
@@ -60,10 +60,8 @@ Filters:
 1 - consider only POLLING_STATUS_CODE = 'P' and CATEGORY IN ( 'S', 'O' )
 
 Created : 05/25/2017 sxp130 CCN project Team.... - ASP-795
-Changed : 03/15/2018 rxv940 CCN project Team....
-          Created an input variable that gets appended to file name
+Changed :
 **********************************************************/
-IN_TMSTMP   IN VARCHAR2)
 ;
 PROCEDURE  GENERATE_VALUE_LINK_PROCESS 
 /**********************************************************
@@ -76,31 +74,12 @@ Changed :
 **********************************************************/
  ;
  
-PROCEDURE POS_TERM_TRAN_UPDATE
-/**********************************************************
-	This procedure is intended to UPDATE POS_LAST_TRAN_DATE and POS_LAST_TRAN_NUMBER
-  in termianl table
-
-Created : 12/01/2017 nxk927 CCN project
-**********************************************************/
+ PROCEDURE LOAD_ADDRESS_GEO_DETAILS
+ /******************************************************************************
+   This Procedure Will load the data from ADDRESS_GEO_V
+ 
+ Created : 03/12/2018 sxg151 CCN Project....ASP-976
+ Changed :
+ *******************************************************************************/
 ;
-
-FUNCTION GET_LOAD_RUNCYCLE
-/******************************************************************************
-  This function will get the runcycle for the days load
-
-Created : 09/28/2017 nxk927 CCN Project....
-Changed :
-*******************************************************************************/
-RETURN VARCHAR2;
-
-PROCEDURE LOAD_ADDRESS_GEO_DETAILS
-/******************************************************************************
-  This Procedure Will load the data from ADDRESS_GEO_V
-
-Created : 03/12/2018 sxg151 CCN Project....
-Changed :
-*******************************************************************************/
-;
-
 END CCN_BATCH_PROCESS;

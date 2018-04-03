@@ -1080,4 +1080,84 @@ EXCEPTION
         UTL_FILE.FCLOSE(OUTPUT_FILE);
         RAISE;
 END GENERATE_VALUE_LINK_PROCESS ;
+
+PROCEDURE LOAD_ADDRESS_GEO_DETAILS
+/******************************************************************************
+  This Procedure Will load the data from ADDRESS_GEO_V
+
+Created : 03/12/2018 rxv940 CCN Project....ASP-976
+Changed :
+*******************************************************************************/
+IS
+    CURSOR ADDRESS_GEO_V_CUR IS
+        SELECT *
+          FROM ADDRESS_GEO_V;
+
+    V_CCN_ADDRESS_GEO_DETAILS_REC     CCN_ADDRESS_GEO_DETAILS%ROWTYPE;
+    V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_ERRM                            VARCHAR2(500);
+    V_CODE                            NUMBER;
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_ADDRESS_GEO_DTLS', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
+    FOR rec IN ADDRESS_GEO_V_CUR LOOP
+        BEGIN
+            SAVEPOINT SVPT1;
+            V_CCN_ADDRESS_GEO_DETAILS_REC := NULL;
+            BEGIN
+                -- Getting the current latitude and longitude details from the table by cost center
+                SELECT *
+                  INTO V_CCN_ADDRESS_GEO_DETAILS_REC
+                  FROM CCN_ADDRESS_GEO_DETAILS
+                 WHERE COST_CENTER_CODE = rec.STORE
+                   AND EXPIRATION_DATE IS NULL
+                   AND ADDRESS_TYPE     = 'M';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+            -- Insert if the cost center is not found in the table
+            IF V_CCN_ADDRESS_GEO_DETAILS_REC.COST_CENTER_CODE IS NULL THEN
+                INSERT INTO CCN_ADDRESS_GEO_DETAILS VALUES (rec.STORE, rec.LON, rec.LAT, 'M', TRUNC(SYSDATE), NULL);
+            ELSE
+                -- Check if Latitude and longitude values are different
+                IF (NVL(rec.LAT, -1) <> NVL(V_CCN_ADDRESS_GEO_DETAILS_REC.LATITUDE, -1)
+                   OR
+                   NVL(rec.LON, -1) <> NVL(V_CCN_ADDRESS_GEO_DETAILS_REC.LONGITUDE, -1)) THEN
+                    -- This update is to expire the old records
+                    UPDATE CCN_ADDRESS_GEO_DETAILS
+                       SET EXPIRATION_DATE = TRUNC(SYSDATE) - 1
+                     WHERE COST_CENTER_CODE = rec.STORE
+                       AND ADDRESS_TYPE     = 'M'
+                       AND EXPIRATION_DATE IS NULL;
+                    -- This is to insert the new state of records
+                    INSERT INTO CCN_ADDRESS_GEO_DETAILS
+                        VALUES (rec.STORE, rec.LON, rec.LAT, 'M', TRUNC(SYSDATE), NULL);
+                    
+                END IF;
+            END IF;
+            COMMIT;
+        EXCEPTION
+            WHEN OTHERS THEN 
+                ROLLBACK TO SVPT1;
+                V_TRANS_STATUS := 'ERROR';
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,500);
+                --write to error log
+                errpkg.INSERT_ERROR_LOG_SP(v_code, 'LD_ADDRESS_GEO_DTLS', v_errm, rec.STORE);
+        END;
+    END LOOP;
+    
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_ADDRESS_GEO_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
+   
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Logging of error
+        V_ERRM := substr(SQLERRM,1, 500);
+        V_CODE := SQLCODE;
+        errpkg.raise_err(v_code, v_errm ||'  LOAD_ADDRESS_GEO_DETAILS '  || ' errors found');
+END LOAD_ADDRESS_GEO_DETAILS;
+
 END CCN_BATCH_PROCESS;
