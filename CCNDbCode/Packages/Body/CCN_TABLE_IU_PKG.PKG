@@ -4707,7 +4707,8 @@ modified: 02/02/2015 axk326 CCN Project Team...
           based on COST_CENTER_CODE
         : 02/18/2015 SXT410 Modified code to to capture Previous updated row
           and setting Effective_date to sysdate only when Polling_status_code is changed.
-        : 03/06/2018 bxa919 Performing update only when there is a change in old and new values
+        : bxa919 03/06/2018 Performing update only when there is a change in old and new values
+		  Added logic to keep track of the expired records 
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
  in_table_name           IN  varchar2 
@@ -4720,6 +4721,7 @@ modified: 02/02/2015 axk326 CCN Project Team...
  v_row_value     varchar2(500);
  V_ROW_DATA      SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
  v_prev_status_row    polling%ROWTYPE;
+ v_history_row        polling%ROWTYPE;
 -- v_POLLING_hst_row POLLING_HST%rowtype;
 --
 --
@@ -4730,23 +4732,30 @@ BEGIN
          in_table_name
         ,in_Row_Data
         ,out_POLLING_row 
-                   );                    
+                   );
+
         BEGIN
             SELECT * 
               INTO V_PREV_STATUS_ROW
               FROM POLLING
              WHERE CURRENT_FLAG = 'Y'
                AND UPPER(COST_CENTER_CODE) = UPPER(OUT_POLLING_ROW.COST_CENTER_CODE);    
-               
+          
              -- conditionally move data into history table (if there is something actually getting updated)
-            IF (NVL(V_PREV_STATUS_ROW.POLLING_STATUS_CODE, 'Z') <>  NVL(out_POLLING_row.POLLING_STATUS_CODE, 'Z') OR
-                NVL(V_PREV_STATUS_ROW.MULTICAST_IND, 'Z')       <>  NVL(out_POLLING_row.MULTICAST_IND, 'Z') OR
-                NVL(V_PREV_STATUS_ROW.TIME_ZONE, '9')           <>  NVL(out_POLLING_row.TIME_ZONE, '9') OR
-                NVL(V_PREV_STATUS_ROW.POLLING_IND, 'Z')         <>  NVL(out_POLLING_row.POLLING_IND, 'Z')
-                NVL(V_PREV_STATUS_ROW.POLLING_START_DATE, 'Z')  <>  NVL(out_POLLING_row.POLLING_START_DATE, 'Z') OR
-                NVL(V_PREV_STATUS_ROW.POLLING_STOP_DATE, 'Z')   <>  NVL(out_POLLING_row.POLLING_STOP_DATE, 'Z')) THEN 
-                POLLING_HST_I_SP(V_PREV_STATUS_ROW);
-            END IF;         
+            IF (NVL(V_PREV_STATUS_ROW.POLLING_STATUS_CODE, 'Z')  <>  NVL(out_POLLING_row.POLLING_STATUS_CODE, 'Z') OR
+                NVL(V_PREV_STATUS_ROW.MULTICAST_IND, 'Z')        <>  NVL(out_POLLING_row.MULTICAST_IND, 'Z') OR
+                 NVL(V_PREV_STATUS_ROW.TIME_ZONE, '9')           <>  NVL(out_POLLING_row.TIME_ZONE, '9') OR
+                 NVL(V_PREV_STATUS_ROW.POLLING_IND, 'Z')         <>  NVL(out_POLLING_row.POLLING_IND, 'Z') OR
+                 NVL(V_PREV_STATUS_ROW.POLLING_START_DATE, 'Z')  <>  NVL(out_POLLING_row.POLLING_START_DATE, 'Z') OR
+                 NVL(V_PREV_STATUS_ROW.POLLING_STOP_DATE, 'Z')   <>  NVL(out_POLLING_row.POLLING_STOP_DATE, 'Z')) THEN 
+                 --Below logic will keep track of expiration dates for each cost center that has been modified 
+                 v_history_row := V_PREV_STATUS_ROW;
+                
+                IF NVL(V_PREV_STATUS_ROW.POLLING_STATUS_CODE, 'Z')  <>  NVL(out_POLLING_row.POLLING_STATUS_CODE, 'Z') THEN
+                    v_history_row.EXPIRATION_DATE := SYSDATE;
+                END IF;
+                POLLING_HST_I_SP(v_history_row);
+            END IF;
                
             --Below code is never being used based on analysis done during history table data load
             --Below code makes sense only if the status changes but when status changes it goes directly to Insert proc
@@ -4764,22 +4773,19 @@ BEGIN
                 OUT_POLLING_ROW.EFFECTIVE_DATE := SYSDATE;
         END;
             
-
-
-      UPDATE polling set ROW             = out_polling_row
-       WHERE UPPER(cost_center_code)     = UPPER(out_polling_row.cost_center_code)
-        AND  POLLING_STATUS_CODE         = OUT_POLLING_ROW.POLLING_STATUS_CODE ;        
-
-
+       
+        UPDATE polling set ROW             = out_polling_row
+         WHERE UPPER(cost_center_code)     = UPPER(out_polling_row.cost_center_code)
+           AND  POLLING_STATUS_CODE        = OUT_POLLING_ROW.POLLING_STATUS_CODE ;
+           
   EXCEPTION
       WHEN OTHERS THEN 
       v_code  := SQLCODE;
       v_errm  := substr(SQLERRM,1,200);
       errpkg.raise_err(v_code, 'POLLING_U_SP, ' || ' ' ||
              'IN_TABLE_NAME is ' || in_TABLE_NAME || '; ' || v_errm);
-
+    
 END POLLING_U_SP;
-
 
 PROCEDURE POLLING_DWLD_RSN_HIST_U_SP (
 /*******************************************************************************
