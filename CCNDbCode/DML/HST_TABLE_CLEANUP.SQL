@@ -31,6 +31,8 @@ BEGIN
           , T.CURRENT_FLAG
           , COALESCE(LG, T.EFFECTIVE_DATE, T.CHANGED_DATE) EFFECTIVE_DATE  -- prev eff dt (or) eff dt of curr rec (or) chng dt of curr rec -- 
           , T.EXPIRATION_DATE
+          , T.POLLING_START_DATE
+          , T.POLLING_STOP_DATE
       FROM (SELECT A.COST_CENTER_CODE
                  , A.POLLING_STATUS_CODE
                  , A.CHANGED_DATE
@@ -42,6 +44,8 @@ BEGIN
                  , A.EFFECTIVE_DATE
                  , NVL(A.EXPIRATION_DATE, A.CHANGED_DATE) EXPIRATION_DATE  -- Get the CHANGED_DATE if EXPIRATION_DATE is not available
                  , LAG(CHANGED_DATE) OVER(PARTITION BY COST_CENTER_CODE ORDER BY CHANGED_DATE) LG
+                 , POLLING_START_DATE
+                 , POLLING_STOP_DATE
              FROM POLLING_HST_NEW A
             --below condition will avoid the duplicate records that are present in the POlling table 
             WHERE (COST_CENTER_CODE, POLLING_STATUS_CODE, NVL(MULTICAST_IND, 'Z'), NVL(TIME_ZONE, '9'), NVL(POLLING_IND, 'Z'), NVL(NEXT_DOWNLOAD_BLOCK_COUNT, 'ABCDEFGH')) NOT IN
