@@ -29,6 +29,8 @@ PROCEDURE Business_Rules_sp (
 created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -36,6 +38,7 @@ changed : 05/16/2016 jxc517 CCN Project Team....
    ,inADDRESS_USA_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_BRB_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADMIN_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inLAD_CUSTOMER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE          VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inMARKETING_XMLTYPE         VARCHAR2--sys.xmltype
@@ -72,6 +75,8 @@ PROCEDURE Business_Rules_sp (
   specific columns of specific tables.
 
 created : MDH 9/25//2012
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE       IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE       IN ADDRESS_MEX%ROWTYPE
@@ -79,6 +84,7 @@ created : MDH 9/25//2012
    ,inADDRESS_USA_ROWTYPE       IN ADDRESS_USA%ROWTYPE
    ,inADDRESS_BRB_ROWTYPE       IN ADDRESS_BRB%ROWTYPE
    ,inADMIN_ROWTYPE             IN ADMINISTRATION%ROWTYPE
+   ,inLAD_CUSTOMER_ROWTYPE      IN LAD_CUSTOMER%ROWTYPE
    ,inBANKCARD_ROWTYPE          IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE       IN COST_CENTER%ROWTYPE
    ,inMARKETING_ROWTYPE         IN MARKETING%ROWTYPE
@@ -352,6 +358,21 @@ created : BLR 8/3/2012
   
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
+ 
+PROCEDURE LAD_CUSTOMER_BR_SP (
+/*******************************************************************************
+	 LAD_CUSTOMER_BR_SP
+
+	This procedure is intended enforce the Business Rules
+	for verifying the CATEGORY on the LAD_CUSTOMER Table
+	TRD  Section: 3.3.20 
+
+created : 03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
+*******************************************************************************/	
+  
+  inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
 
 PROCEDURE BANK_CARD_BR_SP (
 /******************************************************************************
@@ -363,10 +384,8 @@ PROCEDURE BANK_CARD_BR_SP (
 
 created : BLR 7/26//2012
 changed : 01/09/2017 bxa919 added code to fetch the country code ,cost center code from
-
           cost center table.And removed cost center call from input parameter list
-          
-          as we will never get cost center data in the XML
+          as we will never get cost center data in the XML.
 *******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
@@ -572,6 +591,42 @@ Modified :
   INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
 );
 
+  
+FUNCTION ADMIN_COST_CNTR_BR_SP(
+/*****************************************************************************
+This procedure takes the cost center code as input and checks if admin_cost_cntr_type
+is '01', IF so returns 'Y' That indicates to enable ALLOCATION_CC and DIVISION_OFFSET
+Fields if not '01' the returns 'N', that indicates above fields are not shown on UI. 
+
+Created : 01/05/2018 axt754 CN Project....
+Modified:
+******************************************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
+
+PROCEDURE ALLOCATION_DIV_OFFSET_BR_SP (
+/*******************************************************************************
+	 ALLOCATION_DIV_OFFSET_BR_SP
+
+Created : axt754 01/19/2018 CCN Project Team....
+          If cost center category is 'A' and Type_code is '41', and the allocation_cc 
+          , division_offset are NULL, then raise the warning that these fields are
+          mandatory category "A" and type_code '41'
+REVISED :
+*******************************************************************************/	
+  
+  inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
+ ,intype_rowtype                   IN  TYPE%ROWTYPE);  
+ PROCEDURE VALIDATE_CATEGORY(
+/*******************************************************************************
+  This Procedure is designed to Validate Category of cost center
+
+  Created: 03/02/2018 mxv711 ASP-824:bulk upload changes
+
+*******************************************************************************/
+    IN_CATEGORY         IN   VARCHAR2
+);
+
 PROCEDURE MERCHANT_ID_SP_CAN_MC (
 /******************************************************************************
          MERCHANT_ID_SP_CAN_MC
@@ -585,22 +640,5 @@ created  : 01/16/2018 BXA919
  ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
  
-PROCEDURE CHECK_PRM_STD_COST_IDNTFR( 
-/*****************************************************************************
-This procedure is intended to check if PRIMARY/ STANDARD cost identifiers are 
-null while Polling Status is either 'P' or 'Q'. If so, raise an UI error
 
-created : nxk927 04/02/2018 CCN Project....
-******************************************************************************/	
-    in_COST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
-);
-PROCEDURE POLLING_BR_SP(
-/*******************************************************************************
-This Procedure checks if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
-passed as null for polling status code of P and Q for store type cost center
-
-Created: nxk927 04/02/2018 CCN Project....
-*******************************************************************************/
-    IN_POLLING_ROWTYPE         IN   POLLING%ROWTYPE
-);
 END CCN_BUSINESS_RULES_PKG;
