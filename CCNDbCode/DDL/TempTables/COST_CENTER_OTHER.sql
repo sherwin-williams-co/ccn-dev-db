@@ -9,8 +9,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
         : 04/25/2017 gxg192 Corrected compilation issues
         : 11/06/2017 axt754 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
-        : 02/20/2018 bxa919 CCN Project....
-          Added Field POTENTIAL_OPEN_DATE
+        : 04/04/2018 bxa919  CCN Project....
+          As per the update from the users,the POTENTIAL_OPEN_DATE column need to be moved from Cost_Center
+          to Store
 */
 
   DROP TABLE COST_CENTER_OTHER;
@@ -134,8 +135,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
       PRICE_DISTRICT                   VARCHAR2(100),
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
-      MANAGER_ID                       VARCHAR2(100),
-      POTENTIAL_OPEN_DATE              VARCHAR2(8)
+      MANAGER_ID                       VARCHAR2(100)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -265,8 +265,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DISTRICT,
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
-                                        MANAGER_ID,
-                                        POTENTIAL_OPEN_DATE)
+                                        MANAGER_ID)
                      )
       LOCATION
        ( 'COST_CENTER_OTHER.csv'
