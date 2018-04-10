@@ -5,6 +5,8 @@ CREATE OR REPLACE TRIGGER "COSTCNTR"."TR_STORE_UPD"
    This trigger will insert records into audit_log table for logging changes
    happened on store table.
    Modified : 02/15/2017 gxg192 Added missing fields
+   Modified : 04/04/2018 bxa919 CCN Project Team....
+              Added new column POTENTIAL_OPEN_DATE 
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON "COSTCNTR"."STORE"
@@ -30,6 +32,7 @@ CREATE OR REPLACE TRIGGER "COSTCNTR"."TR_STORE_UPD"
       v_store_row.rural_metro_zone_code := :new.rural_metro_zone_code;
       v_store_row.selling_store_flag    := :new.selling_store_flag;
       v_store_row.sales_vol_class_code  := :NEW.sales_vol_class_code;
+      v_store_row.potential_open_date   := :NEW.potential_open_date;
       
       SELECT XMLELEMENT ("STORE",
                          XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -42,7 +45,8 @@ CREATE OR REPLACE TRIGGER "COSTCNTR"."TR_STORE_UPD"
                                    v_store_row.inventory_indicator inventory_indicator ,
                                    v_store_row.rural_metro_zone_code rural_metro_zone_code ,
                                    v_store_row.selling_store_flag selling_store_flag ,
-                                   v_store_row.sales_vol_class_code sales_vol_class_code )
+                                   v_store_row.sales_vol_class_code sales_vol_class_code,
+                                   TO_CHAR(v_store_row.potential_open_date, 'yyyymmdd') potential_open_date )
                          ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
