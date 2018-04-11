@@ -1,4 +1,4 @@
-﻿create or replace PACKAGE BODY CCN_BUSINESS_RULES_PKG
+create or replace PACKAGE BODY CCN_BUSINESS_RULES_PKG
     AS
 /******************************************************************************
 	CCN_BUSINESS_RULES_PKG  BODY
@@ -472,7 +472,10 @@ revised : MDH 10/11/2012
           jxc517 08/27/2014 CCN Project - Adding the logic to suppress merchant id rules, bank card rules and history rules when statement type is TR
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
-Changed  : 04/17/17 rxa457 added new paremeter for table DISPATCH_TERMINAL
+Changed : 04/17/17 rxa457 added new paremeter for table DISPATCH_TERMINAL
+        : 04/10/2018 nxk927 CCN Project Team....
+          Added new error to checks if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
+          passed as null for polling status code of P and Q for store type cost center
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE    IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE    IN ADDRESS_MEX%ROWTYPE
@@ -498,12 +501,13 @@ Changed  : 04/17/17 rxa457 added new paremeter for table DISPATCH_TERMINAL
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
  )
                 IS         
-v_code                 number;
-v_errm                 varchar(500);
-v_cost_center_rowtype  COST_CENTER%ROWTYPE;
-v_break                varchar(100);
-V_TERMINAL_ACTIVE_FLAG varchar2(1)  := 'Y';
-V_STATEMENT_TYPE       COST_CENTER.STATEMENT_TYPE%TYPE;
+v_code                     number;
+v_errm                     varchar(500);
+v_cost_center_rowtype      COST_CENTER%ROWTYPE;
+v_break                    varchar(100);
+V_TERMINAL_ACTIVE_FLAG     varchar2(1)  := 'Y';
+V_STATEMENT_TYPE           COST_CENTER.STATEMENT_TYPE%TYPE;
+null_prm_std_cost_idntfr   EXCEPTION;
 --
 --
 BEGIN --  BUSINESS_RULES_SP
@@ -802,6 +806,30 @@ END IF;
    END IF ;
 --
 --
+   IF INCOST_CENTER_ROWTYPE.COST_CENTER_CODE IS NULL THEN
+      BEGIN
+         SELECT *
+           INTO V_COST_CENTER_ROWTYPE
+           FROM COST_CENTER
+          WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
+            AND ROWNUM < 2;
+      EXCEPTION
+         WHEN OTHERS THEN
+            NULL;
+      END;
+   ELSE
+      V_COST_CENTER_ROWTYPE := INCOST_CENTER_ROWTYPE;
+   END IF;
+
+   IF inPOLLING_ROWTYPE.POLLING_STATUS_CODE IN ('P', 'Q') THEN
+      IF V_COST_CENTER_ROWTYPE.COUNTRY_CODE IN ('USA', 'CAN')
+         AND V_COST_CENTER_ROWTYPE.CATEGORY = 'S' 
+         AND (V_COST_CENTER_ROWTYPE.PRIM_COST_IDENTIFIER IS NULL OR
+         V_COST_CENTER_ROWTYPE.STD_COST_IDENTIFIER IS NULL) THEN
+         RAISE null_prm_std_cost_idntfr;
+      END IF;
+   END IF;
+
 /**  Call POLLING STATUS HISTORY Business Rule ***/
 /***   add V_TERMINAL_ACTIVE_FLAG parameter to verify that there is an
            active terminal record.  mdh 10/11/2012)                     ***/
@@ -861,7 +889,12 @@ v_break  :=  ('Completed the Business_Rules_SP '
 --
 --
  EXCEPTION
-       
+      WHEN null_prm_std_cost_idntfr THEN  
+          v_code := errnums.en_null_prm_std_cost_idntfr;
+          errpkg.raise_err(v_code, 'POLLING_STATUS_HIST_SP.null_prm_std_cost_idntfr ' ,
+         'Polling Status code is  "'||inPOLLING_ROWTYPE.polling_status_code||'" while Primary/ standard cost identifier is a null. 
+          Please make Primary/ standard cost identifier a non null value in the COST CENTER tab.');
+  
        WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,12, 500);
@@ -1422,9 +1455,6 @@ revised : 8/27/2013 Added logic to get the missing data before calling the
                     validations for polling
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
-        : 04/10/2018 nxk927 CCN Project Team....
-          Added new error to checks if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
-          passed as null for polling status code of P and Q for store type cost center
 *******************************************************************************/	
    inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE  
   ,inPOLLING_ROWTYPE        IN POLLING%ROWTYPE    
@@ -1446,13 +1476,12 @@ changed : 05/24/2016 jxc517 CCN Project Team....
                 
   invalid_poll_stat_err  	 EXCEPTION;
   invalid_close_date_err     EXCEPTION;
-  null_prm_std_cost_idntfr   EXCEPTION;
     
  v_code number;
  v_count number;
  v_errm varchar(1000);
  
-V_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE;
+V_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE := INCOST_CENTER_ROWTYPE;
 V_STATUS_ROWTYPE            STATUS%ROWTYPE;
 V_TYPE_ROWTYPE              TYPE%ROWTYPE;
 V_PHONE_ROWTYPE             PHONE%ROWTYPE;
@@ -1475,19 +1504,6 @@ V_BANKCARD_ROWTYPE		    BANK_CARD%ROWTYPE;
     
 	--BEGIN 
      BEGIN
-IF INCOST_CENTER_ROWTYPE.COST_CENTER_CODE IS NULL THEN
-   BEGIN
-      SELECT * INTO V_COST_CENTER_ROWTYPE
-        FROM COST_CENTER
-       WHERE COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE
-         AND ROWNUM < 2;
-   EXCEPTION
-      WHEN OTHERS THEN
-         NULL;
-   END;
-ELSE
-   V_COST_CENTER_ROWTYPE := INCOST_CENTER_ROWTYPE;
-END IF;
 
 IF INSTATUS_ROWTYPE.COST_CENTER_CODE IS NULL THEN
    BEGIN
@@ -1665,16 +1681,7 @@ IF inBANKCARD_ROWTYPE.COST_CENTER_CODE IS NULL THEN
    END;
 ELSE
    V_BANKCARD_ROWTYPE := inBANKCARD_ROWTYPE;
-END IF;
-IF inPOLLING_ROWTYPE.POLLING_STATUS_CODE IN ('P', 'Q') THEN
-   IF V_COST_CENTER_ROWTYPE.COUNTRY_CODE IN ('USA', 'CAN')
-      AND V_COST_CENTER_ROWTYPE.CATEGORY = 'S' 
-      AND (V_COST_CENTER_ROWTYPE.PRIM_COST_IDENTIFIER IS NULL OR
-      V_COST_CENTER_ROWTYPE.STD_COST_IDENTIFIER IS NULL) THEN
-      RAISE null_prm_std_cost_idntfr;
-   END IF;
-END IF;
-     
+END IF;    
      
       CASE ( inPOLLING_ROWTYPE.polling_status_code) 
         WHEN 'Q' THEN
@@ -1755,12 +1762,6 @@ to not get the error
           errpkg.raise_err(v_code, 'POLLING_STATUS_HIST_SP.invalid_close_date_err ',  --27-Aug-2013
          'CCN_BUSINESS_RULES_PKG - Close date must be entered when polling_status is Inactive'); 
                
-        WHEN null_prm_std_cost_idntfr THEN  
-          v_code := errnums.en_null_prm_std_cost_idntfr;
-          errpkg.raise_err(v_code, 'POLLING_STATUS_HIST_SP.null_prm_std_cost_idntfr ' ,
-         'Polling Status code is  "'||inPOLLING_ROWTYPE.polling_status_code||'" while Primary/ standard cost identifier is a null. 
-          Please make Primary/ standard cost identifier a non null value in the COST CENTER tab.');
-
         WHEN OTHERS THEN
             v_code := SQLCODE;
 	          v_errm := substr(SQLERRM,1, 1000);
