@@ -24,6 +24,7 @@ ftp -inv "${uar_host}"<<END_SCRIPT
 quote USER ${uar_user}
 quote PASS ${uar_pw}
 cd ${str_bnk_crd_srl_mrchnt_files_ftp_path}
+binary
 put $FILENAME
 put $FILENAME2
 quit
