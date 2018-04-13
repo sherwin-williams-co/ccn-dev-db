@@ -51,7 +51,7 @@ Created : 05/25/2017 rxa457 ASP-772 CCN project Team....
 **********************************************************/
 ;
 
-PROCEDURE GENERATE_STORE_BANK_CARD_FILE
+PROCEDURE GENERATE_STORE_BANK_CARD_FILE(
 /**********************************************************
 This procedure is intended to generate below files which describes store and merchant details
 1. STORE_BANK_CARD_MERCHANT.CSV
