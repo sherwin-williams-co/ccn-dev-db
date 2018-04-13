@@ -12,8 +12,8 @@ INSERT INTO MAILING_GROUP (GROUP_ID,MAIL_ID) VALUES ('104','ccnoracle.team@sherw
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY, GROUP_ID, SUBJECT, FROM_P, MESSAGE, SIGNATURE) 
                      VALUES ('SQ_FT_CC_NOT_EXISTS_IN_CCN', 
                              '104', 
-                             'Sq footage Batch Cost centers not Exists in CCN', 
+                             'CCN Sq Footage Batch Process Error', 
                              'ccnoracle.team@sherwin.com', 
-                             'Please find the attachment of cost centers from sq footage batch process which are not present in CCN', 
-                             'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');                      
+                             'Please find the attachment that contains the reason for which cost centers lease/own code (or) sq footage update failed.', 
+                             'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');                     
 COMMIT;
