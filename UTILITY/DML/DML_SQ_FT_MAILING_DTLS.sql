@@ -4,9 +4,8 @@ Purpose    :
              
 
 Created : 02/20/2018 axt754 CCN Project....
-Changed :
+Changed : 04/13/2018 changed the body and subject
 */
-
 
 INSERT INTO MAILING_GROUP (GROUP_ID,MAIL_ID) VALUES ('104','ccnoracle.team@sherwin.com');
 
