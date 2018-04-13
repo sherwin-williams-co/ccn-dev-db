@@ -1,6 +1,8 @@
 /*
      Created: 02/07/2018 mxv711 CCN Project Team..
      This script creates a new table LAD_CUSTOMER for new category Latin American call centers
+     modified : 03/13/2017 nxk927 CCN Project Team..
+     adding two new columns LAD_CUSTOMER_TYPE and ALLOCATION_CC
 */
 
 CREATE TABLE LAD_CUSTOMER
@@ -10,3 +12,7 @@ CREATE TABLE LAD_CUSTOMER
  CONSTRAINT       COST_CENTER_LAD_CUSTOMER_FK FOREIGN KEY (COST_CENTER_CODE) REFERENCES COST_CENTER (COST_CENTER_CODE) 
 );
 
+/
+ALTER TABLE LAD_CUSTOMER
+ADD (LAD_CUSTOMER_TYPE VARCHAR2(2),
+     ALLOCATION_CC     VARCHAR2(10));
