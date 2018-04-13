@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER TR_LAD_CUSTOMER_UPD 
+create or replace TRIGGER TR_LAD_CUSTOMER_UPD 
 BEFORE INSERT or UPDATE ON LAD_CUSTOMER 
 referencing old as old new as new 
 for each row
@@ -11,6 +11,8 @@ DECLARE
 BEGIN
     v_lad_customer_row.cost_center_code           := :new.cost_center_code;
     v_lad_customer_row.category                   := :new.category;
+    v_lad_customer_row.LAD_CUSTOMER_TYPE          := :new.LAD_CUSTOMER_TYPE;
+    v_lad_customer_row.ALLOCATION_CC              := :new.ALLOCATION_CC;
 
     SELECT XMLELEMENT ( "LAD_CUSTOMER",
                        XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -26,7 +28,7 @@ BEGIN
 			INTO v_rowdata
 			,v_primarykey,v_transaction_id
 			FROM DUAL;	
-      
+
      /* -- for   Column -- */
      --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
 
@@ -47,6 +49,5 @@ BEGIN
                 ,v_rowdata
                 ,'TR_LAD_CUSTOMER_UPD');
      --END IF;      
-      
-END TR_LAD_CUSTOMER_UPD;
 
+END TR_LAD_CUSTOMER_UPD;
