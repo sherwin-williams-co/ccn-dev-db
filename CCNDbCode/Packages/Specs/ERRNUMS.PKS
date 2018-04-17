@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999Â¿.
+An error occurs when Amex ID is = `999999999�.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `yÂ¿.
+An error occurs when inventory_id not = `y�.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
+An error occurs when Polling_Ind not = `Y� or `N�.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -2646,7 +2646,7 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/*********************************************************** 
+/***********************************************************
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place
@@ -2873,6 +2873,39 @@ exc_invalid_terminal_count_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 /***********************************************************
+The "invalid_accnt_nbr_err" passes a numerical error of -20179.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/02/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_accnt_nbr_err CONSTANT NUMBER := -20179;
+exc_invalid_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_accnt_nbr_err , -20179);
+
+/***********************************************************
+The "invalid_prog_name_err" passes a numerical error of -20180.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_prog_name_err CONSTANT NUMBER := -20180;
+exc_invalid_prog_name_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_prog_name_err , -20180);
+
+/***********************************************************
+The "prog_name_del_err" passes a numerical error of -20181.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_prog_name_del_err CONSTANT NUMBER := -20181;
+exc_prog_name_del_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
+
+/***********************************************************
 The "no_address_element_err" passes a numerical error of -20182.
 An error occurs when cost center insert or update do not have address element.
 
@@ -2884,11 +2917,11 @@ exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
 /*********************************************************** 
-The "EN_CSTMR_ACCNTS_CLOSE_ERR" passes a numerical error of -20185.
+The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
 which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
 
-created : 11/13/2017 bxa919  CCN Project Team...
+created : 11/17/2017 bxa919  CCN Project Team...
 revisions: 
 ************************************************************/
 en_cstmr_accnts_close_err      CONSTANT NUMBER := -20185;
@@ -2908,6 +2941,45 @@ en_no_taxware_nontaxware_info      CONSTANT NUMBER := -20186;
 exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
+
+/*********************************************************** 
+The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
+If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
+'01'
+
+created :  12/27/2017 axt754 CCN Project Team...
+revisions: 
+************************************************************/
+en_no_alloc_cc_div_offset      CONSTANT NUMBER := -20187;
+exc_no_alloc_cc_div_offset EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_alloc_cc_div_offset , -20187);
+
+/*********************************************************** 
+The "invalid_allocation_cc" passes a numerical error of -20197.
+An error occurs when passed allocation_cc is not present in CCN. 
+
+created : 02/27/2018 axt754 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_allocation_cc CONSTANT NUMBER := -20197;
+invalid_allocation_cc EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_allocation_cc , -20197);
+
+/*********************************************************** 
+The "invalid_division_offset" passes a numerical error of -20198.
+An error occurs when passed division_offset is not present in CCN. 
+
+created : 02/27/2018 axt754 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_division_offset CONSTANT NUMBER := -20198;
+invalid_division_offset EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_division_offset , -20198);
 
 /*********************************************************** 
 The "non_numeric_err_can" passes a numerical error of -20188.
@@ -2960,5 +3032,34 @@ en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20193;
 exc_invld_pci_merch_mc_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_merch_mc_sz_err , -20193);
+/*********************************************************** 
+The "null_prm_std_cost_idntfr" passes a numerical error of -20199.
+An error occurs when PRIM / STD cost identifier is null for a 
+cost center that has a 'P' or 'Q' polling status code. This occurs
+in the Polling tab
+
+created : 
+revisions: 
+
+************************************************************/
+en_null_prm_std_cost_idntfr CONSTANT NUMBER := -20199;
+null_prm_std_cost_idntfr EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(null_prm_std_cost_idntfr , -20199);
+
+/*********************************************************** 
+The "null_prm_std_cost_idntfr_cc" passes a numerical error of -20200.
+An error occurs when PRIM / STD cost identifier is null for a 
+cost center that has a 'P' or 'Q' polling status code. This occurs
+in the Cost Center tab
+
+created : 04/02/2018 nxk927 CCN Project
+revisions: 
+
+************************************************************/
+en_null_prm_std_cost_idntfr_cc CONSTANT NUMBER := -20200;
+null_prm_std_cost_idntfr_cc EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(null_prm_std_cost_idntfr_cc , -20200);
 
 END ERRNUMS;
