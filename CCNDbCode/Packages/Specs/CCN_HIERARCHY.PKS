@@ -805,4 +805,16 @@ Modified:
     IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 )RETURN VARCHAR2;
 
+FUNCTION IS_COST_CENTER_LVL(
+/***********************************************************
+This function will return true if the passed level is cost center level
+for that hierarchy
+
+Created : 06/09/2017 jxc517 CCN Project Team...
+Modified:
+***********************************************************/
+    IN_HEADER_NAME     IN         VARCHAR2,
+    IN_CC_LVL_NBR      IN         VARCHAR2,
+    IN_CURR_ROW_VAL    IN         VARCHAR2 DEFAULT NULL) RETURN VARCHAR2;
+
 END CCN_HIERARCHY;

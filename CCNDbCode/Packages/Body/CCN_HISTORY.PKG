@@ -24,6 +24,11 @@ end;
 
  created : 08/01/2014 CCN Project....
  modified: 01/28/2015 nxk927 Showing current hierarchy in history screen as well
+         : 04/17/2018 nxk927 Removed the down query as we are never using it and it will always
+           return last level only.
+           Removed the union and order by clause and created two separate cursors one for current and another for history
+           We can not use order by clause in union and as the data we were inserting in the TEMP_RETURN_HIERARCHY_HST was not in correct order.
+           We split these in two cursors to not rely on the sql developer order clause as we can't predict how this will return the data in each session.
  **********************************************************/
      IN_HEADER_NAME         IN      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
      ,IN_CURR_ROW_VAL       IN      HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
@@ -48,144 +53,74 @@ TYPE HIERARCHY_DETAIL_HST_REC_TYPE IS RECORD (
          UPPER_LVL_VER_VALUE      VARCHAR2(32000));
 HIERARCHY_DETAIL_HST_REC HIERARCHY_DETAIL_HST_REC_TYPE;
 */
-     CURSOR up_cursor(in_date IN DATE) IS
-        SELECT  * FROM (
-               SELECT  AR.LEV,
-                       AR.HRCHY_HDR_NAME,
-                       AR.HRCHY_DTL_LEVEL,
-                       AR.HRCHY_DTL_PREV_LVL_VAL,
-                       AR.HRCHY_DTL_CURR_LVL_VAL,
-                       AR.HRCHY_DTL_NEXT_LVL_VAL,
-                       AR.HRCHY_DTL_EFF_DATE,
-                       AR.HRCHY_DTL_EXP_DATE,
-                       AR.HRCHY_DTL_DESC,
-                       AR.HRCHY_DTL_CURR_ROW_VAL,
-                       AR.UPPER_LVL_VER_VALUE
-                  FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-                                        (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-                                        (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-                                        hr.HRCHY_HDR_NAME,
-                                        hr.HRCHY_DTL_LEVEL,
-                                        hr.HRCHY_DTL_PREV_LVL_VAL,
-                                        hr.HRCHY_DTL_CURR_LVL_VAL,
-                                        hr.HRCHY_DTL_NEXT_LVL_VAL,
-                                        hr.HRCHY_DTL_EFF_DATE,
-                                        hr.HRCHY_DTL_EXP_DATE,
-                                        hr.HRCHY_DTL_DESC,
-                                        hr.HRCHY_DTL_CURR_ROW_VAL,
-                                        xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                   FROM HIERARCHY_DETAIL_HST hr
-                                  WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-                                    AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
-                                         AND HRCHY_DTL_LEVEL = IN_LEVEL)
-                                         OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
-                                    AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
-                                  START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-                                CONNECT BY PRIOR AR.PA =  AR.CH
-              UNION
-               SELECT  'A'|| AR.LEV,
-                             AR.HRCHY_HDR_NAME,
-                             AR.HRCHY_DTL_LEVEL,
-                             AR.HRCHY_DTL_PREV_LVL_VAL,
-                             AR.HRCHY_DTL_CURR_LVL_VAL,
-                             AR.HRCHY_DTL_NEXT_LVL_VAL,
-                             AR.HRCHY_DTL_EFF_DATE,
-                             AR.HRCHY_DTL_EXP_DATE,
-                             AR.HRCHY_DTL_DESC,
-                             AR.HRCHY_DTL_CURR_ROW_VAL,
-                             AR.UPPER_LVL_VER_VALUE
-                        FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-                                              (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-                                              (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-                                               hr.HRCHY_HDR_NAME,
-                                               hr.HRCHY_DTL_LEVEL,
-                                               hr.HRCHY_DTL_PREV_LVL_VAL,
-                                               hr.HRCHY_DTL_CURR_LVL_VAL,
-                                               hr.HRCHY_DTL_NEXT_LVL_VAL,
-                                               hr.HRCHY_DTL_EFF_DATE,
-                                               hr.HRCHY_DTL_EXP_DATE,
-                                               hr.HRCHY_DTL_DESC,
-                                               hr.HRCHY_DTL_CURR_ROW_VAL,
-                                               xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                          FROM HIERARCHY_DETAIL hr
-                                         WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-                                           AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
-                                                AND HRCHY_DTL_LEVEL = IN_LEVEL)
-                                                OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
-                                           AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
-                                         START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-                                       CONNECT BY PRIOR AR.PA =  AR.CH)
-                      ORDER BY LEV;
-                             
-     CURSOR down_cursor(in_date IN DATE) IS
-        SELECT  * FROM (SELECT AR.LEV,
-                               AR.HRCHY_HDR_NAME,
-                               AR.HRCHY_DTL_LEVEL,
-                               AR.HRCHY_DTL_PREV_LVL_VAL,
-                               AR.HRCHY_DTL_CURR_LVL_VAL,
-                               AR.HRCHY_DTL_NEXT_LVL_VAL,
-                               AR.HRCHY_DTL_EFF_DATE,
-                               AR.HRCHY_DTL_EXP_DATE,
-                               AR.HRCHY_DTL_DESC,
-                               AR.HRCHY_DTL_CURR_ROW_VAL,
-                               AR.UPPER_LVL_VER_VALUE
-                FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-                                      (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-                                      (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-                                      hr.HRCHY_HDR_NAME,
-                                      hr.HRCHY_DTL_LEVEL,
-                                      hr.HRCHY_DTL_PREV_LVL_VAL,
-                                      hr.HRCHY_DTL_CURR_LVL_VAL,
-                                      hr.HRCHY_DTL_NEXT_LVL_VAL,
-                                      hr.HRCHY_DTL_EFF_DATE,
-                                      hr.HRCHY_DTL_EXP_DATE,
-                                      hr.HRCHY_DTL_DESC,
-                                      hr.HRCHY_DTL_CURR_ROW_VAL,
-                                      xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                 FROM HIERARCHY_DETAIL_HST hr
-                                WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-                                  AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
-                                       AND HRCHY_DTL_LEVEL = IN_LEVEL)
-                                      OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
-                                  AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
-                                START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-                              CONNECT BY PRIOR AR.CH =  AR.PA
-              UNION
-               SELECT 'A'|| AR.LEV,
-                            AR.HRCHY_HDR_NAME,
-                            AR.HRCHY_DTL_LEVEL,
-                            AR.HRCHY_DTL_PREV_LVL_VAL,
-                            AR.HRCHY_DTL_CURR_LVL_VAL,
-                            AR.HRCHY_DTL_NEXT_LVL_VAL,
-                            AR.HRCHY_DTL_EFF_DATE,
-                            AR.HRCHY_DTL_EXP_DATE,
-                            AR.HRCHY_DTL_DESC,
-                            AR.HRCHY_DTL_CURR_ROW_VAL,
-                            AR.UPPER_LVL_VER_VALUE
-                       FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
-                                             (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
-                                             (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
-                                              hr.HRCHY_HDR_NAME,
-                                              hr.HRCHY_DTL_LEVEL,
-                                              hr.HRCHY_DTL_PREV_LVL_VAL,
-                                              hr.HRCHY_DTL_CURR_LVL_VAL,
-                                              hr.HRCHY_DTL_NEXT_LVL_VAL,
-                                              hr.HRCHY_DTL_EFF_DATE,
-                                              hr.HRCHY_DTL_EXP_DATE,
-                                              hr.HRCHY_DTL_DESC,
-                                              hr.HRCHY_DTL_CURR_ROW_VAL,
-                                              xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
-                                         FROM HIERARCHY_DETAIL hr
-                                        WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
-                                          AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
-                                                AND HRCHY_DTL_LEVEL = IN_LEVEL)
-                                                OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
-                                          AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
-                                        START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
-                                      CONNECT BY PRIOR AR.CH =  AR.PA)
-                      ORDER BY LEV;
-       
-               
+     CURSOR hist_cursor(in_date IN DATE) IS
+        SELECT  AR.LEV AS LEV,
+                AR.HRCHY_HDR_NAME,
+                AR.HRCHY_DTL_LEVEL,
+                AR.HRCHY_DTL_PREV_LVL_VAL,
+                AR.HRCHY_DTL_CURR_LVL_VAL,
+                AR.HRCHY_DTL_NEXT_LVL_VAL,
+                AR.HRCHY_DTL_EFF_DATE,
+                AR.HRCHY_DTL_EXP_DATE,
+                AR.HRCHY_DTL_DESC,
+                AR.HRCHY_DTL_CURR_ROW_VAL,
+                AR.UPPER_LVL_VER_VALUE
+          FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+                       (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+                       (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+                       hr.HRCHY_HDR_NAME,
+                       hr.HRCHY_DTL_LEVEL,
+                       hr.HRCHY_DTL_PREV_LVL_VAL,
+                       hr.HRCHY_DTL_CURR_LVL_VAL,
+                       hr.HRCHY_DTL_NEXT_LVL_VAL,
+                       hr.HRCHY_DTL_EFF_DATE,
+                       hr.HRCHY_DTL_EXP_DATE,
+                       hr.HRCHY_DTL_DESC,
+                       hr.HRCHY_DTL_CURR_ROW_VAL,
+                       xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                  FROM HIERARCHY_DETAIL_HST hr
+                 WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+                   AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
+                   AND HRCHY_DTL_LEVEL = IN_LEVEL)
+                      OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
+                   AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
+                 START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+               CONNECT BY PRIOR AR.PA =  AR.CH;
+
+     CURSOR curr_cursor(in_date IN DATE) IS
+         SELECT 'A'|| AR.LEV AS LEV,
+                 AR.HRCHY_HDR_NAME,
+                 AR.HRCHY_DTL_LEVEL,
+                 AR.HRCHY_DTL_PREV_LVL_VAL,
+                 AR.HRCHY_DTL_CURR_LVL_VAL,
+                 AR.HRCHY_DTL_NEXT_LVL_VAL,
+                 AR.HRCHY_DTL_EFF_DATE,
+                 AR.HRCHY_DTL_EXP_DATE,
+                 AR.HRCHY_DTL_DESC,
+                 AR.HRCHY_DTL_CURR_ROW_VAL,
+                 AR.UPPER_LVL_VER_VALUE
+            FROM (SELECT DISTINCT (HRCHY_DTL_LEVEL || hr.HRCHY_DTL_CURR_ROW_VAL ) lev,
+                         (HRCHY_DTL_CURR_LVL_VAL || HRCHY_DTL_NEXT_LVL_VAL) Ch,
+                         (HRCHY_DTL_PREV_LVL_VAL || HRCHY_DTL_CURR_LVL_VAL) pa,
+                         hr.HRCHY_HDR_NAME,
+                         hr.HRCHY_DTL_LEVEL,
+                         hr.HRCHY_DTL_PREV_LVL_VAL,
+                         hr.HRCHY_DTL_CURR_LVL_VAL,
+                         hr.HRCHY_DTL_NEXT_LVL_VAL,
+                         hr.HRCHY_DTL_EFF_DATE,
+                         hr.HRCHY_DTL_EXP_DATE,
+                         hr.HRCHY_DTL_DESC,
+                         hr.HRCHY_DTL_CURR_ROW_VAL,
+                         xmltype.getStringVal(hr.UPPER_LVL_VER_VALUE) UPPER_LVL_VER_VALUE
+                    FROM HIERARCHY_DETAIL hr
+                   WHERE HRCHY_HDR_NAME = IN_HEADER_NAME
+                     AND ((HRCHY_DTL_EFF_DATE = NVL(in_date, HRCHY_DTL_EFF_DATE) 
+                     AND HRCHY_DTL_LEVEL = IN_LEVEL)
+                      OR (HRCHY_DTL_LEVEL <> IN_LEVEL))
+                     AND HRCHY_DTL_NEXT_LVL_VAL IS NOT NULL) AR
+                   START WITH AR.lev = IN_LEVEL || IN_CURR_ROW_VAL
+                 CONNECT BY PRIOR AR.PA =  AR.CH;
+
      SQ         INTEGER;
      SE         VARCHAR2(100);
      V_CONTEXT  VARCHAR2(100);
@@ -208,48 +143,45 @@ HIERARCHY_DETAIL_HST_REC HIERARCHY_DETAIL_HST_REC_TYPE;
                    AND HRCHY_DTL_EFF_DATE     <= IN_HIST_DATE
                    AND HRCHY_DTL_LEVEL        = IN_LEVEL
                    AND HRCHY_DTL_CURR_ROW_VAL = IN_CURR_ROW_VAL
-                  UNION
-                 SELECT HRCHY_DTL_EFF_DATE
+                 UNION
+                SELECT HRCHY_DTL_EFF_DATE
                   FROM HIERARCHY_DETAIL
                  WHERE HRCHY_HDR_NAME         =  IN_HEADER_NAME 
                    AND HRCHY_DTL_EFF_DATE     <= IN_HIST_DATE
                    AND HRCHY_DTL_LEVEL        = IN_LEVEL
                    AND HRCHY_DTL_CURR_ROW_VAL = IN_CURR_ROW_VAL) LOOP
-        IF IN_TRAVERSE = 'UP' THEN
-            FOR rec1 in up_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
-                   V_INDEX := V_INDEX + 1;
-                   INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
-                       V_INDEX,
-                       rec1.LEV,
-                       rec1.HRCHY_HDR_NAME,
-                       rec1.HRCHY_DTL_LEVEL,
-                       rec1.HRCHY_DTL_PREV_LVL_VAL,
-                       rec1.HRCHY_DTL_CURR_LVL_VAL,
-                       rec1.HRCHY_DTL_NEXT_LVL_VAL,
-                       rec1.HRCHY_DTL_EFF_DATE,
-                       rec1.HRCHY_DTL_EXP_DATE,
-                       rec1.HRCHY_DTL_DESC,
-                       rec1.HRCHY_DTL_CURR_ROW_VAL,
-                       rec1.UPPER_LVL_VER_VALUE);
-            END LOOP;
-        ELSE
-            FOR rec1 in down_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
-                   V_INDEX := V_INDEX + 1;
-                   INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
-                       V_INDEX,
-                       rec1.LEV,
-                       rec1.HRCHY_HDR_NAME,
-                       rec1.HRCHY_DTL_LEVEL,
-                       rec1.HRCHY_DTL_PREV_LVL_VAL,
-                       rec1.HRCHY_DTL_CURR_LVL_VAL,
-                       rec1.HRCHY_DTL_NEXT_LVL_VAL,
-                       rec1.HRCHY_DTL_EFF_DATE,
-                       rec1.HRCHY_DTL_EXP_DATE,
-                       rec1.HRCHY_DTL_DESC,
-                       rec1.HRCHY_DTL_CURR_ROW_VAL,
-                       rec1.UPPER_LVL_VER_VALUE);
-            END LOOP;
-        END IF;
+        FOR rec1 in hist_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
+            V_INDEX := V_INDEX + 1;
+            INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
+                   V_INDEX,
+                   rec1.LEV,
+                   rec1.HRCHY_HDR_NAME,
+                   rec1.HRCHY_DTL_LEVEL,
+                   rec1.HRCHY_DTL_PREV_LVL_VAL,
+                   rec1.HRCHY_DTL_CURR_LVL_VAL,
+                   rec1.HRCHY_DTL_NEXT_LVL_VAL,
+                   rec1.HRCHY_DTL_EFF_DATE,
+                   rec1.HRCHY_DTL_EXP_DATE,
+                   rec1.HRCHY_DTL_DESC,
+                   rec1.HRCHY_DTL_CURR_ROW_VAL,
+                   rec1.UPPER_LVL_VER_VALUE);
+        END LOOP;
+        FOR rec1 in curr_cursor(rec.HRCHY_DTL_EFF_DATE) LOOP
+            V_INDEX := V_INDEX + 1;
+            INSERT INTO TEMP_RETURN_HIERARCHY_HST VALUES(
+                   V_INDEX,
+                   rec1.LEV,
+                   rec1.HRCHY_HDR_NAME,
+                   rec1.HRCHY_DTL_LEVEL,
+                   rec1.HRCHY_DTL_PREV_LVL_VAL,
+                   rec1.HRCHY_DTL_CURR_LVL_VAL,
+                   rec1.HRCHY_DTL_NEXT_LVL_VAL,
+                   rec1.HRCHY_DTL_EFF_DATE,
+                   rec1.HRCHY_DTL_EXP_DATE,
+                   rec1.HRCHY_DTL_DESC,
+                   rec1.HRCHY_DTL_CURR_ROW_VAL,
+                   rec1.UPPER_LVL_VER_VALUE);
+        END LOOP;
     END LOOP;
     COMMIT;
 
@@ -381,11 +313,11 @@ modified: 02/02/2015 axk326 CCN Project Team...
           the polling data from polling table.
         : 03/06/2018 nxk927 CCN Project....
           added two new columns POLLING_START_DATE and POLLING_STOP_DATE
-modified: 03/15/2018 bxa919 CCN Project Team...
-          Order by is now based on changed_date and effective_date  
+modified: 03/15/2018 rxv940 CCN Project Team...
+          Order by is now based on changed_date from effective_date           
 **********************************************************/
 IN_COST_CENTER_CODE IN POLLING.COST_CENTER_CODE%TYPE,
-IN_HIST_DATE IN POLLING_HST.CHANGED_DATE%TYPE,
+IN_HIST_DATE IN POLLING_HST.CHANGED_DATE%TYPE, 
 OUT_POLLING_REF_CUR OUT REF_CURSOR)
 IS                 
     SQ INTEGER;
@@ -393,37 +325,37 @@ IS
     V_CONTEXT VARCHAR2(100);
 BEGIN
 
-    OPEN OUT_POLLING_REF_CUR FOR
-            SELECT POLLING_STATUS_CODE,
-                   MULTICAST_IND,
-                   TIME_ZONE,
-                   POLLING_IND,
-                   NEXT_DOWNLOAD_BLOCK_COUNT,
-                   CURRENT_FLAG,
-                   CHANGED_DATE,
-                   EFFECTIVE_DATE,
-                   EXPIRATION_DATE,
-                   POLLING_START_DATE,
-                   POLLING_STOP_DATE
-              FROM POLLING_HST 
-             WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE) 
-             AND TRUNC(CHANGED_DATE) <= IN_HIST_DATE
-            UNION
-            /* added union condition to populate the polling data from polling table */
-            SELECT POLLING_STATUS_CODE,
-                   MULTICAST_IND,
-                   TIME_ZONE,
-                   POLLING_IND,
-                   NEXT_DOWNLOAD_BLOCK_COUNT,
-                   CURRENT_FLAG,
-                   DECODE(CURRENT_FLAG, 'N', EXPIRATION_DATE, NULL) AS CHANGED_DATE,
-                   EFFECTIVE_DATE,
-                   EXPIRATION_DATE,
-                   POLLING_START_DATE,
-                   POLLING_STOP_DATE
-              FROM POLLING
-             WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
-             ORDER BY CHANGED_DATE, EFFECTIVE_DATE ;
+	OPEN OUT_POLLING_REF_CUR FOR
+	        SELECT POLLING_STATUS_CODE,
+	               MULTICAST_IND,
+	               TIME_ZONE,
+	               POLLING_IND,
+	               NEXT_DOWNLOAD_BLOCK_COUNT,
+	               CURRENT_FLAG,
+	               CHANGED_DATE,
+	               EFFECTIVE_DATE,
+	               EXPIRATION_DATE,
+                 POLLING_START_DATE,
+                 POLLING_STOP_DATE
+	          FROM POLLING_HST 
+	         WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
+	         AND TRUNC(CHANGED_DATE) <= IN_HIST_DATE
+	        UNION
+	        /* added union condition to populate the polling data from polling table */
+	        SELECT POLLING_STATUS_CODE,
+	               MULTICAST_IND,
+	               TIME_ZONE,
+	               POLLING_IND,
+	               NEXT_DOWNLOAD_BLOCK_COUNT,
+	               CURRENT_FLAG,
+	               DECODE(CURRENT_FLAG, 'N', EXPIRATION_DATE, NULL) AS CHANGED_DATE,
+	               EFFECTIVE_DATE,
+	               EXPIRATION_DATE,
+                 POLLING_START_DATE,
+                 POLLING_STOP_DATE
+	          FROM POLLING
+	         WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
+         ORDER BY CHANGED_DATE, EFFECTIVE_DATE;
 
 EXCEPTION
     WHEN OTHERS THEN
