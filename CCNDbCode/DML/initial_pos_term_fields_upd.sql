@@ -22,12 +22,16 @@ CURSOR CUR IS
   V_COUNT NUMBER := '0';
 BEGIN
     FOR REC IN CUR LOOP
-       UPDATE TERMINAL
+       UPDATE TERMINAL T
           SET POS_VERSION_NBR                           = REC.POS_VERSION_NUMBER
         WHERE SUBSTR(COST_CENTER_CODE,3)                = REC.STORE_NO
           AND TERMINAL_NUMBER                           = REC.TERMNBR
           AND NVL(POS_VERSION_NBR,-1)                  <> NVL(REC.POS_VERSION_NUMBER,-2)
-          AND EXPIRATION_DATE IS NULL;
+          AND EXPIRATION_DATE IS NULL
+          AND POLLING_STATUS_CODE                       = (SELECT POLLING_STATUS_CODE
+                                                             FROM POLLING
+                                                            WHERE COST_CENTER_CODE = T.COST_CENTER_CODE
+                                                              AND EXPIRATION_DATE IS NULL);
           V_COUNT := V_COUNT +1;
        IF V_COUNT = 500 then
           V_COUNT:= 0;
