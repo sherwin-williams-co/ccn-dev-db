@@ -19,6 +19,7 @@ CURSOR CUR IS
                                                 AND TERMNBR = CH.TERMNBR))
           SELECT *
             FROM T);
+  V_COUNT NUMBER := '0';
 BEGIN
     FOR REC IN CUR LOOP
        UPDATE TERMINAL
@@ -27,6 +28,10 @@ BEGIN
           AND TERMINAL_NUMBER                           = REC.TERMNBR
           AND NVL(POS_VERSION_NBR,-1)                  <> NVL(REC.POS_VERSION_NUMBER,-2)
           AND EXPIRATION_DATE IS NULL;
+          V_COUNT := V_COUNT +1;
+       IF V_COUNT = 500 then
+          COMMIT;
+       END IF;
     END LOOP;
     COMMIT;
 END;
