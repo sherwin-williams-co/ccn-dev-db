@@ -30,6 +30,7 @@ BEGIN
           AND EXPIRATION_DATE IS NULL;
           V_COUNT := V_COUNT +1;
        IF V_COUNT = 500 then
+          V_COUNT:= 0;
           COMMIT;
        END IF;
     END LOOP;
