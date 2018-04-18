@@ -17,15 +17,22 @@ CURSOR CUR IS
                                                  FROM TERMINAL
                                                 WHERE EXPIRATION_DATE IS NULL)
       AND EXPIRATION_DATE = '00000000';
+      
+   V_COUNT NUMBER := 0;
 BEGIN
   FOR REC IN CUR LOOP
-      DBMS_OUTPUT.put_line(REC.POS_LAST_TRAN_DATE);
+      
       UPDATE TERMINAL
          SET POS_LAST_TRAN_DATE   =   REC.POS_LAST_TRAN_DATE,
              POS_LAST_TRAN_NUMBER =   REC.POS_LAST_TRAN_NUMBER
        WHERE COST_CENTER_CODE     = REC.COST_CENTER_CODE
          AND TERMINAL_NUMBER      = REC.TERMINAL_NUMBER
          AND EXPIRATION_DATE IS NULL;
+      V_COUNT := V_COUNT + 1;
+      IF V_COUNT = 500 THEN
+         V_COUNT:= 0;
+         COMMIT;
+      END IF;
   END LOOP;
   COMMIT;
 END;
