@@ -102,9 +102,7 @@ public class MessageQueueProcess {
 				// Connect to DB
 				DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
 				//Example input "1001, abcd, test, 1004"
-				//validatedMessage = DBConnection.process_store_pos_strt_dt_load(in_message);
 				DBConnection.processStorePosStrtDtLoad(inMessage);
-				//Example output "1001, 1004"
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {

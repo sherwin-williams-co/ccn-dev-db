@@ -37,7 +37,6 @@ then
 fi
 
 echo $ValidatedMessages >> $LOGDIR/$LOGFILE
-echo $ValidatedMessages > $FILEDIR/$POS_STRT_DT_QUEUE_FILE
 
 TIME="$(date +"%H%M%S")"
 echo " $PROC_NAME --> processing completed at $DATE : $TIME "  >> $LOGDIR/$LOGFILE

@@ -1,6 +1,6 @@
 #!/bin/sh
 ###############################################################################################################################
-# Script name   : pos_start_date_queue_messages.sh
+# Script name   : store_pos_strt_dt_dwnld_qmsgs.sh
 # Description   : This shell script connects to the queue, downloads the message and places it on the file system
 #
 #
@@ -10,11 +10,11 @@
 
 . /app/ccn/ccn_app_server.config
 
-PROC_NAME="pos_start_date_queue_messages.sh"
+PROC_NAME="store_pos_strt_dt_dwnld_qmsgs.sh"
 CLASSHOME="$HOME/CcnJavaCode"
 DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
-LOGFILE="pos_start_date_queue_messages.log"
+LOGFILE="store_pos_strt_dt_dwnld_qmsgs.log"
 FILEDIR="$HOME/POSdownloads/POSxmls"
 
 echo "*************************************************************************************" >> $LOGDIR/$LOGFILE

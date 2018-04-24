@@ -211,14 +211,11 @@ public class DBConnection {
 	}
 	public static void processStorePosStrtDtLoad(String queueMessage) throws SQLException {
 		CallableStatement cstmt = null;
-		//String validStores = null;
 		try{
 			//Below call will validate the messages came in the queue process and identify/return valid new store
 			cstmt = conn.prepareCall("{call POS_DOWNLOADS_INTERFACE_PKG.PROCESS_STORE_POS_STRT_DT_LOAD(?)}");
 			cstmt.setString(1, queueMessage);
-			//cstmt.registerOutParameter(2,Types.VARCHAR);
 			cstmt.execute();
-			//validStores = cstmt.getString(2);
 		} catch (SQLException e) {
 			System.err.println(e.getErrorCode() + e.getMessage());
 		}finally{
