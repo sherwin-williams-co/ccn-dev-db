@@ -27,6 +27,8 @@ public class MessageQueueProcess {
 			downloadQueueMessages(args[1], args[2], args[3]);
 		} else if (args[0].equals("validateQueueMessages")){
 			validateQueueMessages(args[1]);
+		} else if (args[0].equals("processStorePosStrtDtLoad")){
+			processStorePosStrtDtLoad(args[1]);
 		} else {
 			System.out.println("Input argument defined by args[0] is unexpected..");
 		}
@@ -92,5 +94,22 @@ public class MessageQueueProcess {
 			}
 		}
 		return validatedMessage;
+	}
+	public static void processStorePosStrtDtLoad(String inMessage) throws SQLException {
+		//Example message string after above statement will be "1001, abcd, test, 1004"
+		if (!inMessage.isEmpty() && inMessage.length() > 0) {
+			try {
+				// Connect to DB
+				DBConnection.setConnection(prop.getProperty("dbuser"), prop.getProperty("dbpwd"), prop.getProperty("dbconn"));
+				//Example input "1001, abcd, test, 1004"
+				//validatedMessage = DBConnection.process_store_pos_strt_dt_load(in_message);
+				DBConnection.processStorePosStrtDtLoad(inMessage);
+				//Example output "1001, 1004"
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				DBConnection.closeConnection();
+			}
+		}
 	}
 }

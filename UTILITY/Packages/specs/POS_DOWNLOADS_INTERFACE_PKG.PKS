@@ -86,4 +86,14 @@ Changed :
       IN_STR_LIST   IN     VARCHAR2,
       OUT_LIST         OUT VARCHAR2);
 
+PROCEDURE PROCESS_STORE_POS_STRT_DT_LOAD(
+/*******************************************************************************
+This procedure is used to to validate the messages and update POLLING.POLLING_START_DATE field in CCN.
+
+Created : 04/10/2018 nxk927 CCN Project....
+Changed :    
+*********************************************************************************/
+IN_STR_LIST   IN     VARCHAR2);
+
+
 END POS_DOWNLOADS_INTERFACE_PKG;

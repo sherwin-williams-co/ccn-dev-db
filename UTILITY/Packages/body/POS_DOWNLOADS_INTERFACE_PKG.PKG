@@ -203,7 +203,7 @@ BEGIN
     END IF;
     RETURN V_FLAG;
 END IS_MAINTENANCE_RQRD_FNC;
- 
+
  PROCEDURE GET_POLLING_MAINTENANCE_DTLS (
 /*******************************************************************************
 This Function checks the Unprocessed records in POS_DOWNLOAD table and returns the 
@@ -333,7 +333,7 @@ BEGIN
             --This is for our book keeping and this table is not used any where else
             INSERT INTO POS_NEW_STORES_LOAD_LIST (COST_CENTER_CODE, APPLICATION_NAME, PROCESS_DATE, PROCESSED_IND)
             VALUES (IN_COST_CENTER, rec.APP_NAME, SYSTIMESTAMP, 'N');
-           
+
             --Below update is to mark the newly added cost center through the polling queue as polling download cost center
             --This has to happen before below calls, else it will be considered as non polling download cost center
             --and stop inserting into out POS_DOWNLOADS table
@@ -382,7 +382,7 @@ BEGIN
     DELETE 
       FROM POS_DOWNLOADS 
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    
+
     DELETE 
       FROM POS_DOWNLOADS_NON_TAXWARE 
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
@@ -393,7 +393,7 @@ BEGIN
     DELETE 
       FROM POS_NEW_STORES_LOAD_LIST 
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-     
+
 END CLEANUP_POS_DATA_FOR_NEW_STR;
 
 PROCEDURE VALIDATE_POS_QUEUE_MESSAGE(
@@ -454,7 +454,7 @@ BEGIN
             IF NVL(V_POLLING_STATUS_CODE, 'P') <> 'P' THEN
                 --Clean up the data for any maintenance we already sent for this store
                 CLEANUP_POS_DATA_FOR_NEW_STR(V_COST_CENTER_CODE);
-                
+
                 -- Below steps are done for the cost centers to be processed are
                 --   a. cost centers are made available to all APP names
                 --   a. Inserted into the POS_NEW_STORES_LOAD_LIST table for all app names
@@ -487,5 +487,124 @@ EXCEPTION
     WHEN OTHERS THEN
     RAISE;        
 END VALIDATE_POS_QUEUE_MESSAGE;
+
+PROCEDURE ON_DEMAND_LOAD_BY_DWNLD_NAME(
+/*******************************************************************************
+This procedure is to re-direct the pkg call based on the APP name
+
+Created : 10/12/2017 rxv940 CCN Project....
+Changed :
+*********************************************************************************/
+      IN_DWNLD_NAME                VARCHAR2
+)
+IS
+BEGIN 
+    IF IN_DWNLD_NAME = 'DEMO_BANK' THEN 
+        POS_DATA_GENERATION.PROCESS_POLLING_ON_DEMAND();
+    ELSIF IN_DWNLD_NAME = 'PrimeSub' THEN 
+        --Nothing needs to be done 
+        NULL; 
+    ELSIF IN_DWNLD_NAME = 'TAXCURR' THEN
+        --Nothing needs to be done 
+        NULL;
+    END IF;
+EXCEPTION 
+    WHEN OTHERS THEN
+        RAISE;
+END;		
+
+PROCEDURE PROCESS_STORE_POS_STRT_DT_LOAD(
+/*******************************************************************************
+This procedure is used to to validate the messages and update POLLING.POLLING_START_DATE field in CCN.
+
+Created : 04/10/2018 nxk927 CCN Project....
+Changed :    
+*********************************************************************************/
+      IN_STR_LIST   IN     VARCHAR2)
+IS
+    V_COST_CENTER_CODE    VARCHAR2(6);
+    V_POS_START_DATE      DATE;
+    V_INVALID_CC_LIST     CLOB;
+    V_POS_ST_DT_EXT_LST   CLOB;
+    V_MAIL_TXT            VARCHAR2(250);
+    V_POLLING_START_DATE  DATE;
+    V_POLLING_STOP_DATE   DATE;
+BEGIN
+    --Sample input : "1007, 1010, 1020, 1030"
+    --NOTE: Duplicates in the messages are eliminated by "MessageQueueProcess.java" class file
+    --We should never get duplicate message in the input here
+    FOR rec IN (WITH DATA AS(SELECT ' ' ||IN_STR_LIST str FROM dual)
+                   SELECT TRIM(regexp_substr(str,'[^,]+',1,level)) str
+                     FROM DATA
+                   CONNECT BY regexp_substr(str, '[^,]+', 1, level) IS NOT NULL) LOOP
+        BEGIN
+            IF LENGTH(TRIM(rec.str)) = 4 THEN
+                V_COST_CENTER_CODE := TRIM(SUBSTR(rec.str,1, 4));
+                V_POS_START_DATE   := TRUNC(SYSDATE);
+            ELSE
+                V_COST_CENTER_CODE := TRIM(SUBSTR(rec.str,1, 4));
+                V_POS_START_DATE   := TO_DATE(TRIM(SUBSTR(rec.str,6)), 'MM-DD-YYYY');
+            END IF;
+            V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(V_COST_CENTER_CODE);
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_INVALID_CC_LIST := V_INVALID_CC_LIST || V_COST_CENTER_CODE || ',';
+                --We should continue validating next cost center if there are any issues with current cost center
+                CONTINUE;
+        END;
+
+        BEGIN
+            BEGIN
+                --Below select statement should never go to NO_DATA_FOUND error
+                --Reason being the above cost center validation makes sure cost center coming here is a valid CCN cost center
+                SELECT POLLING_START_DATE,
+                       POLLING_STOP_DATE
+                  INTO V_POLLING_START_DATE,
+                       V_POLLING_STOP_DATE
+                  FROM POLLING
+                 WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
+                   AND EXPIRATION_DATE IS NULL;
+            EXCEPTION 
+                WHEN OTHERS THEN 
+                    V_POLLING_START_DATE := NULL;
+                    V_POLLING_STOP_DATE  := NULL;
+            END;
+
+            --Below IF condition is to check if cost center is already have the polling start date or stop date
+            --these cost centers should be sent to the team as should not have come
+            IF V_POLLING_STOP_DATE IS NULL OR V_POLLING_START_DATE IS NULL THEN
+               UPDATE POLLING
+                  SET POLLING_START_DATE = V_POS_START_DATE
+                WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
+                  AND EXPIRATION_DATE IS NULL;
+            ELSE
+               V_POS_ST_DT_EXT_LST := V_POS_ST_DT_EXT_LST || V_COST_CENTER_CODE   || ','
+                                                          || V_POLLING_START_DATE || ','
+                                                          || V_POS_START_DATE     || ','
+                                                          || V_POLLING_STOP_DATE  || CHR(10);
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_MAIL_TXT := 'Store ' || V_COST_CENTER_CODE || ' failed, reason : ' || SQLCODE || '-' || SQLERRM;
+                MAIL_PKG.SEND_MAIL('RequestidFailure', NULL, NULL, V_MAIL_TXT);
+        END;
+        V_COST_CENTER_CODE := NULL;
+        V_POS_START_DATE   := NULL;
+    END LOOP;
+    --Below IF condition will check if we got any invalid cost centers and send an email with that list
+    IF V_INVALID_CC_LIST IS NOT NULL THEN
+        V_MAIL_TXT := 'Invalid stores ' || TRIM(TRAILING ',' FROM V_INVALID_CC_LIST) || ' found in the Queue Message for downloads.';
+        MAIL_PKG.SEND_MAIL('RequestidFailure', NULL, NULL, V_MAIL_TXT);
+    END IF;
+    --Below IF condition will check if we got any cost centers that already had polling start date and stop date
+    --This will be send as excel in an email
+    IF V_POS_ST_DT_EXT_LST <> EMPTY_CLOB() THEN
+       V_POS_ST_DT_EXT_LST := 'Cost Center, Current Store POS Start Dt, New Store POS Start Dt, Store POS Stop Dt'|| CHR(10) || V_POS_ST_DT_EXT_LST;
+        MAIL_PKG.SEND_MAIL('POS_ST_DT_EXT_LST',NULL, NULL, V_POS_ST_DT_EXT_LST);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+    RAISE;        
+END PROCESS_STORE_POS_STRT_DT_LOAD;
 
 END POS_DOWNLOADS_INTERFACE_PKG;
