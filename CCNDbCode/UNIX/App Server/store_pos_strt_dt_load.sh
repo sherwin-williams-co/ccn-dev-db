@@ -15,6 +15,8 @@ DATE=$(date +"%Y-%m-%d")
 LOGDIR="$HOME/CcnJavaCode/log"
 LOGFILE="store_pos_strt_dt_load.log"
 
+echo "*************************************************************************************" >> $LOGDIR/$LOGFILE
+
 TIME=$(date +"%H%M%S")
 echo " $PROC_NAME --> Processing Store start date started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 
