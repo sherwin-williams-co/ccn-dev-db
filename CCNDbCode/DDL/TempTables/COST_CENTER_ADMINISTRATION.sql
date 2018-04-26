@@ -11,9 +11,6 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
         : 01/18/2018 axt754 CCN Project....
           Added ALLOCATION_CC, DIVISION_OFFSET Fields
-        : 04/04/2018 bxa919  CCN Project....ASP 867
-          As per the update from the users,the POTENTIAL_OPEN_DATE column need to be moved from Cost_Center
-          to Store
 */
 
   DROP TABLE COST_CENTER_ADMINISTRATION;
