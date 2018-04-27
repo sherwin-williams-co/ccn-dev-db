@@ -4,11 +4,15 @@
 # Created:  nxk927 12/13/2017 nxk927 - CCN Project Team... 
 # modified: nxk927 02/21/2018 nxk927 - CCN Project Team... 
 #           concatenating the reports to send mobius 1 report
+# modified: nxk927 04/27/2018 nxk927 - CCN Project Team... 
+#           added unset display variable to let it run by user/bmc
+#           as got display issue while running as user
 ##########################################################
 . /app/ccn/ccn_app_server.config
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 dt=`date +"%m%d%Y"`
+unset DISPLAY
 
 echo "\nStarted Processing stores_div_roster_rpt at $TIME on $DATE "
 
