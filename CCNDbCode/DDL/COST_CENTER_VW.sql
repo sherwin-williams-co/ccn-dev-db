@@ -38,7 +38,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Adding INVENTORY_INDICATOR columm from the store table.
          : 11/22/2016 rxs349 CCN Project Team..
            Adding CASE expressions to STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER columns.
-         : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE  ahead of other code
+         : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE & STATUS_CODE ahead of other code
          : 04/27/2017 gxg192 Adding PERP_INV_START_DATE columm from the store table.
          : 08/11/2017 gxg192 Added TYPE_CODE_DESCRIPTION columm.
          : 08/21/2017 gxg192 Added STORE_EMAIL columm.
