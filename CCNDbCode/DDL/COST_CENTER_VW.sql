@@ -1,4 +1,3 @@
-
   CREATE OR REPLACE VIEW COST_CENTER_VW AS 
   SELECT
 /*******************************************************************************
@@ -39,7 +38,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
            Adding INVENTORY_INDICATOR columm from the store table.
          : 11/22/2016 rxs349 CCN Project Team..
            Adding CASE expressions to STD_COST_IDENTIFIER and PRIM_COST_IDENTIFIER columns.
-         : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE & STATUS_CODE ahead of other code
+         : 02/28/2017 vxv336 GIT reversion to move TYPE_CODE  ahead of other code
          : 04/27/2017 gxg192 Adding PERP_INV_START_DATE columm from the store table.
          : 08/11/2017 gxg192 Added TYPE_CODE_DESCRIPTION columm.
          : 08/21/2017 gxg192 Added STORE_EMAIL columm.
@@ -51,6 +50,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
          : 03/20/2018 rxv940 Added LATITUDE and LONGITUDE columns to the view 
          : 03/27/2018 nxk927 Remove business rules Per ASP-926 to display PRIM_COST_IDENTIFIER and STD_COST_IDENTIFIER
                              as is without any transformation for Canadian selling stores
+         : 04/30/2018 nxk927 Added polling start date and stop date
 ********************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -85,6 +85,14 @@ CCN_HIERARCHY.GET_TYPE_FNC(C.COST_CENTER_CODE) TYPE_CODE,
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
     AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_IND,
+(SELECT POLLING_START_DATE
+   FROM POLLING
+  WHERE CURRENT_FLAG = 'Y'
+    AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_START_DATE,
+(SELECT POLLING_STOP_DATE
+   FROM POLLING
+  WHERE CURRENT_FLAG = 'Y'
+    AND COST_CENTER_CODE = C.COST_CENTER_CODE) POLLING_STOP_DATE,
 (SELECT POLLING_STATUS_CODE
    FROM POLLING
   WHERE CURRENT_FLAG = 'Y'
