@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/sh 
 ###############################################################################################################################
-# Script name   : ccn_generate_epm_feed_file.sh 
+# Script name   : ccn_generate_epm_feed_file.sh
 #
 # Description   : This script is to run the following:
 #                 CCN_EPM_FEED_PKG.GENERATE_FILE
@@ -55,6 +55,29 @@ else
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"
 fi
+
+############################################################################
+#               Call ccn_epm_feed_ftp.sh to FTP the file
+############################################################################
+
+TIME=`date +"%H:%M:%S"`
+echo "FTP'ing the files for $proc started at ${TIME} on ${DATE}"                                     >> $LOGDIR/$proc"_"$TimeStamp.log
+
+$HOME/ccn_epm_feed_ftp.sh 
+
+status=$?
+if test $status -ne 0
+   then
+     cd $HOME/
+     ./send_mail.sh FTP_EPM_FEED_FILE_ERROR 
+     echo "processing FAILED while FTP'ing at ${TIME} on ${DATE}"                                   >> $LOGDIR/$proc"_"$TimeStamp.log
+     exit 1
+fi
+
+TIME=`date +"%H:%M:%S"`
+echo "FTP'ing the files for $proc finished at ${TIME} on ${DATE}"                                    >> $LOGDIR/$proc"_"$TimeStamp.log
+echo "Processing finished for $proc at ${TIME} on ${DATE}"                                           >> $LOGDIR/$proc"_"$TimeStamp.log
+
 
 exit 0
 #######################################################################################################################
