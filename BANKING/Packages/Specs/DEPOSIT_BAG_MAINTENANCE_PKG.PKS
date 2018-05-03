@@ -30,6 +30,18 @@ Changed :
 IN_COST_CENTER_CODE     IN    VARCHAR2,
 IN_EXPIRATION_DATE      IN    DATE);
 
+PROCEDURE EXPIRE_DEPOSIT_BAG_DTLS(
+/*******************************************************************************
+This procedure is intended to get the BANK_DEP_BAG_TICK record
+and expire it from the table
+
+Created : 04/18/2018 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE     IN    VARCHAR2,
+IN_EXPIRATION_DATE      IN    DATE,
+IN_EFFECTIVE_DATE       IN    DATE);
+
 PROCEDURE EXPR_DEPOSIT_BAG_DTLS_FTR(
 /*******************************************************************************
 This procedure is intended to get the BANK_DEP_BAG_TICK_FUTURE record

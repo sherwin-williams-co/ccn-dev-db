@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CONCENTRATION_TRANSFER_PKG
+create or replace PACKAGE BODY CONCENTRATION_TRANSFER_PKG
 AS
 /**********************************************************
   This Package is intended to be the wrapper for all banking
@@ -211,6 +211,8 @@ Changed : 10/20/2015 jxc517 CCN Project....
           Virtual Insert calls to INSERT_BANK_DEPOSIT_DTLS_FTR and INSERT_BANK_DEP_BAG_DTLS_FTR 
            from transfer process through CREATE_TRANSFER_FUTURE_PROCESS will be skipped
         : axt754 09/13/2017 Made BANK_BRANCH_NBR as NULL, since it should not move along LEAD_STORE_NBR
+        : nxk927 05/02/2018 
+          Removing the deposit bag call for future as we don't need deposit bag for future
 ************************************************************/
 IN_FUTURE_ID           IN     NUMBER,
 IN_TO_LEAD_CC          IN     VARCHAR2,
@@ -237,11 +239,6 @@ BEGIN
                                                                     IN_EFFECTIVE_DATE,
                                                                     V_REC.EXPIRATION_DATE,
                                                                     V_REC.BANK_TYPE_CODE);
-        DEPOSIT_BAG_MAINTENANCE_PKG.INSERT_BANK_DEP_BAG_DTLS_FTR(V_REC.LEAD_STORE_NBR,
-                                                                 V_REC.LEAD_BANK_ACCOUNT_NBR,
-                                                                 V_REC.FUTURE_ID,
-                                                                 IN_EFFECTIVE_DATE,
-                                                                 V_REC.EXPIRATION_DATE);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -260,6 +257,8 @@ Changed : 10/13/2015 jxc517 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
         : 09/15/2017 axt754 Made BANK_BRANCH_NBR as NULL, since it should not move along MBR_STORE_NBR
+        : nxk927 05/02/2018 
+          Removing the deposit bag call for future as we don't need deposit bag for future
 ************************************************************/
 IN_FUTURE_ID           IN     NUMBER,
 IN_TO_LEAD_CC          IN     VARCHAR2,
@@ -287,11 +286,6 @@ BEGIN
                                                                         rec.EFFECTIVE_DATE,
                                                                         rec.EXPIRATION_DATE,
                                                                         'M');
-            DEPOSIT_BAG_MAINTENANCE_PKG.INSERT_BANK_DEP_BAG_DTLS_FTR(rec.MEMBER_STORE_NBR,
-                                                                     rec.LEAD_BANK_ACCOUNT_NBR,
-                                                                     rec.FUTURE_ID,
-                                                                     rec.EFFECTIVE_DATE,
-                                                                     rec.EXPIRATION_DATE);
         END IF;
     END LOOP;
 EXCEPTION
@@ -355,6 +349,8 @@ Changed : 10/22/2015 jxc517 CCN Project....
         : 09/13/2017 axt754 Made BANK_BRANCH_NBR as NULL, Since it should not move along LEAD_STORE_NBR
 Modified: 11/07/2017 bxa919 CCN Project Team...
           Removed call for POS_MASTER_SP
+        : 04/18/2018 nxk927 CCN Project Team...
+          Requirement changed for deposit bag as the old bags can be reused even after the transfer 
 *******************************************************************************/
 IN_FROM_LEAD_BANK_REC     IN     LEAD_BANK_CC%ROWTYPE,
 IN_NEW_LEAD_CC            IN     VARCHAR2,
@@ -381,6 +377,14 @@ IS
     CURSOR bank_dep_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT *
           FROM BANK_DEP_TICKORD
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tickord_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICKORD
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
     V_FROM_BANK_ACCOUNT_REC BANK_ACCOUNT%ROWTYPE;
     V_NEW_LEAD_BANK_CC_REC  LEAD_BANK_CC%ROWTYPE;
@@ -415,9 +419,18 @@ BEGIN
                 rec.EFFECTIVE_DATE := SYSDATE;
                 TABLE_IU_PKG.BANK_DEP_TICKORD_I_SP(rec);
             END LOOP;
+            FOR rec IN bank_dep_bag_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_HIST_I_SP(rec);
+                rec.EFFECTIVE_DATE := SYSDATE;
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_I_SP(rec);
+            END LOOP;
+            FOR rec IN bank_dep_bag_tickord_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_HIST_I_SP(rec);
+                rec.EFFECTIVE_DATE := SYSDATE;
+                TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_I_SP(rec);
+            END LOOP;
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(mbr_bank_cc_rec);
             DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR, NULL, NULL);
-            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(mbr_bank_cc_rec.MEMBER_STORE_NBR);
             IF mbr_bank_cc_rec.MEMBER_STORE_NBR <> IN_NEW_LEAD_CC THEN
                 mbr_bank_cc_rec.LEAD_STORE_NBR := IN_NEW_LEAD_CC;
                 mbr_bank_cc_rec.EFFECTIVE_DATE := SYSDATE;
@@ -430,7 +443,6 @@ BEGIN
             END IF;
         END LOOP;
         DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR, NULL, NULL);
-        DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(lead_bank_cc_rec.LEAD_STORE_NBR);
         TABLE_IU_PKG.LEAD_BANK_CC_D_SP(lead_bank_cc_rec);
     END LOOP;
 EXCEPTION
@@ -715,6 +727,9 @@ Changed : rxa457 07/31/2017 CCN Project Team...
         : 09/18/2017 axt754 Made BANK_BRANCH_NBR as NULL, since it should not move along MBR_STORE_NBR
 Modified: 11/07/2017 bxa919 CCN Project Team...
           Removed call for POS_MASTER_SP
+        : 05/02/2018 nxk927 CCN Project Team...
+          removed the expire bag call as we don't need to expire the bags anymore.
+          This can be updated to have the same effective date as of the new member/lead
 ************************************************************/
 IN_TRANSFER_FLAG          IN VARCHAR2,
 IN_XML                    CLOB)
@@ -747,7 +762,7 @@ BEGIN
         V_FROM_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/FROM_LEAD_CC/text()').GETSTRINGVAL();  
     END IF;
     IF (V_ROW_DATA.EXISTSNODE('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()') = 1) THEN
-        V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();  
+        V_TO_LEAD_CC := V_ROW_DATA.EXTRACT('/MEMBER_TRANSFER_UI/TO_LEAD_CC/text()').GETSTRINGVAL();
     END IF;
     V_TO_LEAD_BANK_CC_REC     := BANKING_COMMON_TOOLS.GET_LEAD_BANK_CC_REC(V_TO_LEAD_CC);
     --IF the Lead is expired then we have to get the new record from future
@@ -819,8 +834,6 @@ BEGIN
                                                                      NULL, --bank account number
                                                                      NULL, --micr format id
                                                                      V_EXPIRE_DATE); --store MICR formats needs to be expired for these members
-        DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(rec.MEMBER_STORE_NBR,
-                                                            V_EXPIRE_DATE);
         rec.LEAD_BANK_ACCOUNT_NBR   := V_LEAD_BANK_ACCOUNT_NBR;
         rec.LEAD_STORE_NBR          := V_TO_LEAD_CC;
         rec.MEMBER_BANK_ACCOUNT_NBR := NULL; --wipe out the sub account details for the member being transferred
@@ -838,7 +851,9 @@ BEGIN
             --insert Bank Account and Lead into history as we are going to insert members into history
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(V_MEMBER_BANK_CC_REC); --member needs to be removed from old lead
             DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR, NULL, NULL);
-            DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(V_MEMBER_BANK_CC_REC.MEMBER_STORE_NBR);
+            DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(rec.MEMBER_STORE_NBR,
+                                                            NULL,
+                                                            rec.EFFECTIVE_DATE );
             --member needs to be removed from old leads virtual future
             --so check if there is a virtual future out there for this members lead bank accunt
             --if there exists one, delete all those member details from the future as well
