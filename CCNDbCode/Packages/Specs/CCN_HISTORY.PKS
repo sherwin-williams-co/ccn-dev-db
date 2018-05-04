@@ -107,7 +107,17 @@ created : 02/28/2018 bxa919 CCN Project Team...
     OUT_ADDRESS_MEX_REF_CUR      OUT  REF_CURSOR,
     OUT_ADDRESS_BRB_REF_CUR      OUT  REF_CURSOR,
     OUT_ADDRESS_OTHER_REF_CUR    OUT  REF_CURSOR);
-         
-         
+    
+PROCEDURE HIERARCHY_HDR_PICKLIST(
+/**********************************************************
+This procedure will provide the hierarchies a user can see in 
+history window drop down
+
+created : 05/02/2018 sxg151 CCN Project....
+modified: 
+**********************************************************/
+    IN_USER_ID            IN     VARCHAR2,
+    OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR);
+
 END CCN_HISTORY;
 
