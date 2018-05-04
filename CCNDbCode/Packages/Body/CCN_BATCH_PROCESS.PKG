@@ -1353,4 +1353,80 @@ EXCEPTION
         errpkg.raise_err(v_code, v_errm ||'  LOAD_ADDRESS_GEO_DETAILS '  || ' errors found');
 END LOAD_ADDRESS_GEO_DETAILS;
 
+PROCEDURE LOAD_DSC_CODE_DESC_DETAILS
+/******************************************************************************
+  This Procedure Will load the data into CCN_DSC_CODE_DESC table from EHDA.V_AXESP0549@AOM_QA.WORLD
+
+Created : 04/24/2018 sxg151 CCN Project....
+Changed :
+*******************************************************************************/
+IS
+    CURSOR DSC_DOCE_DESC_CUR IS
+        SELECT *
+          FROM EHDA.V_AXESP0549@AOM_QA.WORLD;
+
+    V_DSC_DOCE_DESC_CUR                 CCN_DSC_CODE_DESC%ROWTYPE;
+    V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_ERRM                            VARCHAR2(500);
+    V_CODE                            NUMBER;
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_DSC_CODE_DTLS', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
+    FOR rec IN DSC_DOCE_DESC_CUR LOOP
+        BEGIN
+            SAVEPOINT DSC_DETAIL_LOAD;
+            V_DSC_DOCE_DESC_CUR := NULL;
+            BEGIN
+                -- Getting the current DSC Code Details from the table by cost center
+                SELECT *
+                  INTO V_DSC_DOCE_DESC_CUR
+                  FROM CCN_DSC_CODE_DESC
+                 WHERE COST_CENTER_CODE = rec.STORE;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    NULL;
+            END;
+            -- Insert if the cost center is not found in the table
+            IF V_DSC_DOCE_DESC_CUR.COST_CENTER_CODE IS NULL THEN
+                INSERT INTO CCN_DSC_CODE_DESC VALUES (rec.STORE, rec.SEC_DSC, rec.SEC_DSC_DESCR, rec.PRI_DSC, rec.PRI_DSC_DESCR, SYSDATE);
+            ELSE
+                -- Check if DSC Codes values are different and update
+                IF (NVL(rec.SEC_DSC, 0) <> NVL(V_DSC_DOCE_DESC_CUR.SECONDARY_DSC, 0)
+                   OR
+                   NVL(rec.PRI_DSC, 0) <> NVL(V_DSC_DOCE_DESC_CUR.PRIMARY_DSC, 0)) THEN
+                    
+                    UPDATE CCN_DSC_CODE_DESC
+                       SET SECONDARY_DSC    = rec.SEC_DSC,
+                           SEC_DSC_DESCR    = rec.SEC_DSC_DESCR,
+                           PRIMARY_DSC      = rec.PRI_DSC,
+                           PRI_DSC_DESCR    = rec.PRI_DSC_DESCR,
+                           LOAD_DATE        = SYSDATE
+                     WHERE COST_CENTER_CODE = rec.STORE;
+                    
+                END IF;
+            END IF;
+            COMMIT;
+        EXCEPTION
+            WHEN OTHERS THEN 
+                ROLLBACK TO DSC_DETAIL_LOAD;
+                V_TRANS_STATUS := 'ERROR';
+                v_code  := SQLCODE;
+                v_errm  := substr(SQLERRM,1,500);
+                --write to error log
+                errpkg.INSERT_ERROR_LOG_SP(v_code, 'LD_DSC_CODE_DTLS', v_errm, rec.STORE);
+        END;
+    END LOOP;
+    
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_DSC_CODE_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
+   
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Logging of error
+        V_ERRM := substr(SQLERRM,1, 500);
+        V_CODE := SQLCODE;
+        errpkg.raise_err(v_code, v_errm ||'LOAD_CCN_DSC_CODE_DETAILS'  || ' errors found');
+END LOAD_DSC_CODE_DESC_DETAILS;
+
 END CCN_BATCH_PROCESS;

@@ -103,4 +103,13 @@ Changed :
 *******************************************************************************/
 ;
 
+PROCEDURE LOAD_DSC_CODE_DESC_DETAILS
+/******************************************************************************
+  This Procedure Will load the data into CCN_DSC_CODE_DESC table from EHDA.V_AXESP0549@AOM_QA.WORLD
+
+Created : 04/24/2018 sxg151 CCN Project....
+Changed :
+*******************************************************************************/
+;
+
 END CCN_BATCH_PROCESS;

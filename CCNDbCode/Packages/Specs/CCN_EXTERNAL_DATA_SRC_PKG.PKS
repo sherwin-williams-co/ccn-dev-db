@@ -5,7 +5,7 @@ create or replace PACKAGE   CCN_EXTERNAL_DATA_SRC_PKG
 PROCEDURE DSC_CODES_SP(
 /******************************************************************************
 This procedure is intended to return a ref cursor with data from
-from COST_CENTER_DSC_CODES table
+from CCN_DSC_CODE_DESC table
 
 Created : 12/13/2017 SXG151 CCN Project....
 Modified:
