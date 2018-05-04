@@ -294,9 +294,9 @@ FUNCTION GET_COST_CENTER_DSC_CODES(
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
 from COST_CENTER_DSC_CODES 
 Created : 02/22/2018 SXG151 CCN Project....
-Modified:
+Modified: 05/03/2013 Replaced COST_CENTER_DSC_CODES To CCN_DSC_CODE_DESC Table
 **********************************************************/
-    IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
+    IN_COST_CENTER    IN     CCN_DSC_CODE_DESC.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
 
