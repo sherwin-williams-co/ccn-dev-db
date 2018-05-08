@@ -1,0 +1,208 @@
+create or replace PACKAGE BODY CUSTOMER_DEPOSIT_MAINT_PKG AS 
+/*********************************************************** 
+This package BODY is intended to hold reuseable objects that are 
+available to be used by the entire schema
+
+created : 09/27/2017 sxh487 CCN project.....
+************************************************************/
+PROCEDURE ORIG_DEP_REM_BAL_UPD(
+/**********************************************************
+This function updates the original references for a Redemption
+and updates the Deposit with remaining balance
+ 
+Created : 03/26/2018 SXH487
+**********************************************************/
+IN_TOTAL_SALES             IN     CUSTOMER_DEPOSIT_DETAILS.TOTAL_SALES%TYPE, 
+IN_CUSTOMER_ACCOUNT_NUMBER IN     CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE, 
+IN_TRANSACTION_DATE        IN     CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE,
+OUT_TRANSACTION_NUMBER        OUT CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE,
+OUT_TERMINAL_NUMBER           OUT CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
+OUT_TRANSACTION_DATE          OUT CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
+)
+IS
+    CURSOR ALL_DEPS IS
+        SELECT a.*, rowid, count(*) over () TOT_DEP_CNT
+          FROM CUST_DEP_CREDIT_DETAILS a
+         WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+           AND TRANSACTION_DATE <= IN_TRANSACTION_DATE
+           AND DEPOSIT_REMAINING_BAL > 0
+           ORDER BY TRAN_TIMESTAMP;
+    
+    V_CNT           NUMBER :=0;
+    V_DEP_REM_BAL   CUST_DEP_CREDIT_DETAILS.DEPOSIT_REMAINING_BAL%TYPE;
+    V_TOTAL_SALES   CUSTOMER_DEPOSIT_DETAILS.TOTAL_SALES%TYPE := -(IN_TOTAL_SALES);
+BEGIN  
+    FOR each_dep IN ALL_DEPS LOOP
+        V_CNT := V_CNT +1;
+        OUT_TRANSACTION_NUMBER := each_dep.TRANSACTION_NUMBER;
+        OUT_TERMINAL_NUMBER    := each_dep.TERMINAL_NUMBER;
+        OUT_TRANSACTION_DATE   := each_dep.TRANSACTION_DATE;
+        V_DEP_REM_BAL          := NULL;
+
+        --if the redemption is greater than the balance on the deposit
+        --then update the Deposit with -ve bal
+        IF V_TOTAL_SALES > each_dep.DEPOSIT_REMAINING_BAL THEN
+           --update only the last DEPOSIT with remaining balance       
+           IF V_CNT = each_dep.TOT_DEP_CNT THEN
+              V_DEP_REM_BAL := each_dep.DEPOSIT_REMAINING_BAL - V_TOTAL_SALES;
+           ELSE
+              V_DEP_REM_BAL :=0;
+           END IF;
+           V_TOTAL_SALES   := V_TOTAL_SALES - each_dep.DEPOSIT_REMAINING_BAL;
+        ELSE
+            V_DEP_REM_BAL := each_dep.DEPOSIT_REMAINING_BAL - V_TOTAL_SALES;
+            V_TOTAL_SALES := 0;
+        END IF;
+        UPDATE CUST_DEP_CREDIT_DETAILS
+           SET DEPOSIT_REMAINING_BAL = V_DEP_REM_BAL
+          WHERE ROWID      = each_dep.rowid;
+
+        IF V_TOTAL_SALES = 0 THEN
+            EXIT;
+        END IF;
+    END LOOP;
+END ORIG_DEP_REM_BAL_UPD;
+
+PROCEDURE CUSTOMER_DEPOSIT_HDR_UPSERT_SP(
+/*******************************************************************************
+This procedure takes XML for CUSTOMER_DEPOSIT_HEADER information 
+and Inserts/Updates the DB with the information from UI
+
+<?xml version="1.0" encoding="UTF-8"?>
+<CUSTOMER_DEPOSIT_UI>
+  <CUSTOMER_DEPOSIT_HEADER>
+    <CUSTOMER_ACCOUNT_NUMBER>100046887</CUSTOMER_ACCOUNT_NUMBER>
+    <CUSTOMER_NAME></CUSTOMER_NAME>
+    <BILLCONTACT></BILLCONTACT>
+    <BILLNM></BILLNM>
+    <BILLADDR1></BILLADDR1>
+    <BILLADDR2></BILLADDR2>
+    <BILLCITY></BILLCITY>
+    <BILLZIP></BILLZIP>
+    <BILLPHONE></BILLPHONE>
+    <RLS_RUN_CYCLE></RLS_RUN_CYCLE>
+    <LOAD_DATE></LOAD_DATE>
+    <REFERENCE_NUMBER>xxx</REFERENCE_NUMBER>
+    <CLEARED_REASON>xxx</CLEARED_REASON>
+    <NOTES>xxx</NOTES>
+    <CLOSED_DATE>05-03-2018</CLOSED_DATE>
+  </CUSTOMER_DEPOSIT_HEADER>
+ <CUSTOMER_DEPOSIT_UI>
+ 
+This proceduere does the following
+1) Inserts the current record from CUSTOMER_DEPOSIT_HEADER into CUST_DEP_HDR_CLOSING_HIST
+2) Updates the CUSTOMER_DEPOSIT_HEADER with the changes from UI for closed date
+created : 05/04/2018 sxh487 -- CCN Project Team
+******************************************************************************/
+IN_TABLE_NAME       IN VARCHAR2,
+IN_CUST_HEADERXML   IN CLOB)
+IS
+    V_XML                       SYS.XMLTYPE := XMLTYPE(IN_CUST_HEADERXML);
+    V_CUSTOMER_DEPOSIT_HDR_frag CLOB;
+    V_CUST_DEP_HDR_rec          CUSTOMER_DEPOSIT_HEADER%ROWTYPE;
+    v_det_row                   CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
+    V_COUNT                     NUMBER := 1;
+BEGIN    
+   WHILE V_XML.EXISTSNODE('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME||'[' ||V_COUNT|| ']') = 1 LOOP
+         V_CUSTOMER_DEPOSIT_HDR_frag := V_XML.EXTRACT('//'||IN_TABLE_NAME ||'[' || V_COUNT || ']').GETCLOBVAL();
+         TABLE_IU_PKG.CUST_DEPOSIT_HDR_ROWTYPE_SP(IN_TABLE_NAME,
+                                                  V_CUSTOMER_DEPOSIT_HDR_frag,
+                                                  V_CUST_DEP_HDR_rec);
+         TABLE_IU_PKG.CUST_DEPOSIT_HEADER_I_SP(V_CUST_DEP_HDR_rec);
+         FOR each_rec IN( SELECT * FROM CUSTOMER_DEPOSIT_DETAILS WHERE CUSTOMER_ACCOUNT_NUMBER = V_CUST_DEP_HDR_rec.CUSTOMER_ACCOUNT_NUMBER AND CLOSED_DATE IS NULL)
+         LOOP
+             TABLE_IU_PKG.CUST_DEP_DET_CLOSING_HST_I_SP(each_rec);
+             --update the CUSTOMER_DEPOSIT_DETAILS with closed date
+             v_det_row := each_rec;
+             v_det_row.REFERENCE_NUMBER := V_CUST_DEP_HDR_rec.REFERENCE_NUMBER;
+             v_det_row.CLEARED_REASON    := V_CUST_DEP_HDR_rec.CLEARED_REASON;
+             v_det_row.NOTES             := V_CUST_DEP_HDR_rec.NOTES;
+             v_det_row.CLOSED_DATE       := V_CUST_DEP_HDR_rec.CLOSED_DATE;
+             TABLE_IU_PKG.CUST_DEP_DET_I_SP(v_det_row);
+         END LOOP;
+         V_COUNT := V_COUNT + 1;
+   END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CUSTOMER_DEPOSIT_HDR_UPSERT_SP', SUBSTR(SQLERRM,1,500));
+END CUSTOMER_DEPOSIT_HDR_UPSERT_SP;
+
+PROCEDURE CUSTOMER_DEPOSIT_DET_UPSERT_SP(
+/*******************************************************************************
+This procedure takes XML for CUSTOMER_DEPOSIT_DETAILS information 
+and Inserts/Updates the DB with the information from UI
+
+<?xml version="1.0" encoding="UTF-8"?>
+<CUSTOMER_DEPOSIT_UI>
+  <CUSTOMER_DEPOSIT_DETAILS>
+       <CUSTOMER_ACCOUNT_NUMBER>100046887</CUSTOMER_ACCOUNT_NUMBER>
+       <TOTAL_SALES>-1555</TOTAL_SALES>
+       <ADJUSTED_DATE>02-27-2018</ADJUSTED_DATE>
+       <REFERENCE_NUMBER>xxx</REFERENCE_NUMBER>
+       <CLEARED_REASON>xxx</CLEARED_REASON>
+       <NOTES>xxx</NOTES>
+       <CLOSED_DATE>05-03-2018</CLOSED_DATE>
+       <COST_CENTER_CODE>701135</COST_CENTER_CODE>
+       <TRANSACTION_TYPE>DEPOSIT</TRANSACTION_TYPE>
+       <TRANSACTION_DATE>08-29-17</TRANSACTION_DATE>
+       <TERMINAL_NUMBER>13786</TERMINAL_NUMBER>
+       <TRANSACTION_NUMBER>20320</TRANSACTION_NUMBER>
+       <TRAN_TIMESTAMP>09-21-2017 10:30:00</TRAN_TIMESTAMP>
+       <TRANSACTION_GUID>F28D9BB89A104FA8E711FB8C942E3B7C</TRANSACTION_GUID>
+       <POS_TRANSACTION_CODE>10</POS_TRANSACTION_CODE>
+       <LOAD_DATE>09-28-2017</LOAD_DATE>
+       <GL_DIVISION>A100</GL_DIVISION>
+       <LOAD_DATE>28-SEP-17</LOAD_DATE>
+     </CUSTOMER_DEPOSIT_DETAILS>
+     <CUSTOMER_DEPOSIT_DETAILS>
+       <CUSTOMER_ACCOUNT_NUMBER>100046887</CUSTOMER_ACCOUNT_NUMBER>
+       <TOTAL_SALES>1555</TOTAL_SALES>
+       <ADJUSTED_DATE>02-27-2018</ADJUSTED_DATE>
+       <REFERENCE_NUMBER>xxx</REFERENCE_NUMBER>
+       <CLEARED_REASON>xxx</CLEARED_REASON>
+       <NOTES>xxx</NOTES>
+       <CLOSED_DATE>05-03-2018</CLOSED_DATE>
+       <COST_CENTER_CODE>701135</COST_CENTER_CODE>
+       <TRANSACTION_TYPE>REDEMPTION</TRANSACTION_TYPE>
+       <TRANSACTION_DATE>08-29-17</TRANSACTION_DATE>
+       <TERMINAL_NUMBER>13787</TERMINAL_NUMBER>
+       <TRANSACTION_NUMBER>20321</TRANSACTION_NUMBER>
+       <TRAN_TIMESTAMP>09-21-2017 10:30:00</TRAN_TIMESTAMP>
+       <TRANSACTION_GUID>F28D9BB89A104FA8E711FB8C942E3B7d</TRANSACTION_GUID>
+       <POS_TRANSACTION_CODE>31</POS_TRANSACTION_CODE>
+       <LOAD_DATE>09-28-2017</LOAD_DATE>
+       <GL_DIVISION>A100</GL_DIVISION>
+       <LOAD_DATE>28-SEP-17</LOAD_DATE>
+     </CUSTOMER_DEPOSIT_DETAILS>
+   </CUSTOMER_DEPOSIT_DETAILS_ROWS>
+ <CUSTOMER_DEPOSIT_UI>
+created : 05/04/2018 sxh487 -- CCN Project Team
+******************************************************************************/
+IN_TABLE_NAME       IN VARCHAR2,
+IN_CUST_DETAIL_XML  IN CLOB)
+IS
+BEGIN    
+   NULL; --TBD
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CUSTOMER_DEPOSIT_DET_UPSERT_SP', SUBSTR(SQLERRM,1,500));
+END CUSTOMER_DEPOSIT_DET_UPSERT_SP;
+
+PROCEDURE CUSTOMER_DEPOSIT_UPSERT_SP(
+/******************************************************************************
+This is a wrapper for the upsert procedure
+created : 05/04/2018 sxh487 -- CCN Project Team
+******************************************************************************/
+IN_CUST_HEADERXML   IN CLOB,
+IN_CUST_DETAIL_XML  IN CLOB)
+IS
+BEGIN
+    IF IN_CUST_HEADERXML IS NOT NULL THEN
+      CUSTOMER_DEPOSIT_HDR_UPSERT_SP('CUSTOMER_DEPOSIT_HEADER', IN_CUST_HEADERXML);
+    END IF;
+    IF IN_CUST_DETAIL_XML IS NOT NULL THEN
+       CUSTOMER_DEPOSIT_DET_UPSERT_SP('CUSTOMER_DEPOSIT_DETAILS', IN_CUST_DETAIL_XML);
+    END IF;
+END CUSTOMER_DEPOSIT_UPSERT_SP;
+
+END CUSTOMER_DEPOSIT_MAINT_PKG;

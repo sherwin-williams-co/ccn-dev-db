@@ -16,6 +16,17 @@ changed :
 ******************************************************************/
 RETURN VARCHAR2;
 
+FUNCTION IS_ACCOUNT_OPEN(
+/***********************************************************
+	This function will return a 'Y' if the Account is open 
+  or 'N' if the Account has a closed_date
+    
+Created : 05/02/2018 sxh487
+Changed : 
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER  IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
+RETURN VARCHAR2;
+
 FUNCTION GET_SALES_AMOUNT (
 /**********************************************************
 This function will return amt from PNP.ccn_accums table
@@ -27,8 +38,8 @@ in_accum_id
 created : 08/17/2017 sxp130 ccn project
 modified:
 **********************************************************/
-   IN_TRAN_GUID   IN  PNP.CCN_ACCUMS.TRAN_GUID%TYPE,
-   IN_ACCUM_ID    IN  PNP.CCN_ACCUMS.ACCUM_ID%TYPE) RETURN NUMBER;
+IN_TRAN_GUID   IN  PNP.CCN_ACCUMS.TRAN_GUID%TYPE,
+IN_ACCUM_ID    IN  PNP.CCN_ACCUMS.ACCUM_ID%TYPE) RETURN NUMBER;
 
 FUNCTION COST_CENTER_LOOK_UP_FNC(
 /**********************************************************
@@ -55,5 +66,48 @@ Created : 01/25/2018 sxh487
 IN_CUST_ACCOUNT_NBR IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE
 )
 RETURN NUMBER;
+
+FUNCTION GET_GL_DIVISION(
+/***********************************************************
+GET_GL_DIVISION 
+      This Function will get the GL_DIVISION
+
+Created : 02/22/2017 SXH487
+************************************************************/
+IN_COST_CENTER_CODE     IN     CUSTOMER_DEPOSIT_DETAILS.COST_CENTER_CODE%TYPE
+)
+RETURN VARCHAR2;
+
+FUNCTION GET_CUST_DEPOSIT_HDR_HST_rec(
+/***********************************************************
+	This function will get the current CUSTOMER_DEPOSIT_HEADER record 
+    
+Created : 05/02/2018 sxh487
+Changed : 
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
+RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
+
+FUNCTION GET_CUST_DEP_DETAILS_HST_rec(
+/***********************************************************
+	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
+  for insert into CUSTOMER_DEPOSIT_DETAILS_HIST
+    
+Created : 04/18/2018 sxh487
+Changed : 
+************************************************************/
+IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE) 
+RETURN CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE;
+
+FUNCTION GET_CUST_DEP_CLOSING_HIST_rec(
+/***********************************************************
+	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
+  for insert into CUSTOMER_DEPOSIT_DETAILS_HIST
+    
+Created : 04/18/2018 sxh487
+Changed : 
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
+RETURN CUST_DEP_DET_CLOSING_HIST%ROWTYPE;
 
 END COMMON_TOOLS;
