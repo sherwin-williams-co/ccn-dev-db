@@ -122,7 +122,7 @@ to track closing of an Account
 created : 05/04/2018 SXH487 -- ccn project
 
 *******************************************************************************/
-IN_ROW   IN     CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
+IN_ROW   IN     CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE
 );
 
 PROCEDURE CUST_DEPOSIT_I_SP(
@@ -180,7 +180,7 @@ PROCEDURE CUST_DEP_DET_HST_I_SP (
 created : 02/27/2018 SXH487 -- ccn project
 changed :
 *******************************************************************************/
-IN_ROW     IN     CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
+IN_ROW     IN     CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE
 );
 
 END TABLE_IU_PKG;

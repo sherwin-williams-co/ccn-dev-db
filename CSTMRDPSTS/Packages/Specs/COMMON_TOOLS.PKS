@@ -78,9 +78,10 @@ IN_COST_CENTER_CODE     IN     CUSTOMER_DEPOSIT_DETAILS.COST_CENTER_CODE%TYPE
 )
 RETURN VARCHAR2;
 
-FUNCTION GET_CUST_DEPOSIT_HDR_HST_rec(
+FUNCTION BUILD_DEP_HDR_HST_FROM_CURR(
 /***********************************************************
-	This function will get the current CUSTOMER_DEPOSIT_HEADER record 
+	This function will build the history record from 
+  current CUSTOMER_DEPOSIT_HEADER record 
     
 Created : 05/02/2018 sxh487
 Changed : 
@@ -88,26 +89,15 @@ Changed :
 IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
 RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
 
-FUNCTION GET_CUST_DEP_DETAILS_HST_rec(
+FUNCTION BUILD_DEP_DET_HST_FROM_CURR(
 /***********************************************************
-	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
-  for insert into CUSTOMER_DEPOSIT_DETAILS_HIST
+	This function will build the history record from 
+  current CUSTOMER_DEPOSIT_DETAILS record
     
 Created : 04/18/2018 sxh487
 Changed : 
 ************************************************************/
 IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE) 
 RETURN CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE;
-
-FUNCTION GET_CUST_DEP_CLOSING_HIST_rec(
-/***********************************************************
-	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
-  for insert into CUSTOMER_DEPOSIT_DETAILS_HIST
-    
-Created : 04/18/2018 sxh487
-Changed : 
-************************************************************/
-IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
-RETURN CUST_DEP_DET_CLOSING_HIST%ROWTYPE;
 
 END COMMON_TOOLS;
