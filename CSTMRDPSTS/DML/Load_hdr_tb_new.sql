@@ -80,7 +80,7 @@ BEGIN
         V_TEMP_ROW.RLS_RUN_CYCLE            := REC.RLS_RUN_CYCLE;
         V_TEMP_ROW.LOAD_DATE                := V_DATE;
         
-        CUST_DEPOSIT_HEADER_I_SP(V_TEMP_ROW);    
+        TABLE_IU_PKG.CUST_DEPOSIT_HEADER_I_SP(V_TEMP_ROW);    
         V_TEMP_ROW := NULL;
         V_COMMIT := V_COMMIT + 1;
         IF V_COMMIT > 500 THEN
