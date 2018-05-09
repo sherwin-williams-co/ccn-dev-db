@@ -5,7 +5,8 @@
 #
 #
 # Created  : 01/16/2018 rxv940 CCN Project Team.....
-# Modified : 
+# Modified : 05/09/2018 nxk927 CCN Project Team.....
+#            changed the sign '>' with -gt
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
@@ -24,7 +25,7 @@ echo " $PROC_NAME --> Processing started at $DATE : $TIME "  >> $LOGDIR/$LOGFILE
 ValidatedNewStoreList=`cat $FILEDIR/$POS_DWNLD_QUEUE_FILE`
 
 lenValidatedNewStoreList=${#ValidatedNewStoreList}
-if [ $lenValidatedNewStoreList > 3 ] 
+if [ $lenValidatedNewStoreList -gt 3 ] 
 then 
     
     cd "$CLASSHOME" || exit
