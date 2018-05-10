@@ -16,17 +16,6 @@ changed :
 ******************************************************************/
 RETURN VARCHAR2;
 
-FUNCTION IS_ACCOUNT_OPEN(
-/***********************************************************
-	This function will return a 'Y' if the Account is open 
-  or 'N' if the Account has a closed_date
-    
-Created : 05/02/2018 sxh487
-Changed : 
-************************************************************/
-IN_CUSTOMER_ACCOUNT_NUMBER  IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
-RETURN VARCHAR2;
-
 FUNCTION GET_SALES_AMOUNT (
 /**********************************************************
 This function will return amt from PNP.ccn_accums table
@@ -51,7 +40,7 @@ Created : 06/08/2017 CCN PROJECT TEAM..
 Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
           removing the raise error if the cost center is not present and returning the 4 digit cost center back
 **********************************************************/
-IN_COST_CENTER IN CUSTOMER_DEPOSIT.COST_CENTER_CODE%TYPE,
+IN_COST_CENTER IN CUSTOMER_DEPOSIT_DETAILS.COST_CENTER_CODE%TYPE,
 IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
 )
 RETURN VARCHAR2;

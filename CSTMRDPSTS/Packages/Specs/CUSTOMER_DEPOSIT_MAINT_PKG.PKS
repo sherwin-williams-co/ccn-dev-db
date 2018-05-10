@@ -20,12 +20,4 @@ OUT_TERMINAL_NUMBER           OUT CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
 OUT_TRANSACTION_DATE          OUT CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
 );
 
-PROCEDURE CUSTOMER_DEPOSIT_UPSERT_SP(
-/******************************************************************************
-This is a wrapper for the upsert procedure
-created : 05/04/2018 sxh487 -- CCN Project Team
-******************************************************************************/
-IN_CUST_HEADERXML   IN CLOB,
-IN_CUST_DETAIL_XML  IN CLOB);
-
 END CUSTOMER_DEPOSIT_MAINT_PKG;
