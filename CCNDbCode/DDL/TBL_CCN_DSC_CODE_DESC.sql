@@ -1,10 +1,10 @@
 /*#############################################################
-This script creates a Table CCN_DSC_CODE_DESC 
+This script creates a Table CCN_DSC_CODE_DESC.
 
 Created : 04/23/2018 sxg151 CCN Team...
 #############################################################*/
--- Create table script 
-CREATE TABLE CCN_DSC_CODE_DESC 
+-- Create table script
+CREATE TABLE CCN_DSC_CODE_DESC
     (COST_CENTER_CODE VARCHAR2(21),
      PRIMARY_DSC	  NUMBER(3),
      PRI_DSC_DESCR	  VARCHAR2(60),
@@ -14,3 +14,14 @@ CONSTRAINT PK_CCN_DSC_CODE_DESC1 PRIMARY KEY (COST_CENTER_CODE)
     );
     
 GRANT SELECT ON CCN_DSC_CODE_DESC TO CCN_UTILITY;
+
+-- Create History table
+
+CREATE TABLE CCN_DSC_CODE_DESC_HIST
+    (COST_CENTER_CODE VARCHAR2(21 BYTE),
+     PRIMARY_DSC      NUMBER(3,0),
+     PRI_DSC_DESCR    VARCHAR2(60 BYTE),
+     SECONDARY_DSC    NUMBER(3,0),
+     SEC_DSC_DESCR    VARCHAR2(60 BYTE),
+     LOAD_DATE        DATE
+     );
