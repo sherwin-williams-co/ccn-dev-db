@@ -10,6 +10,8 @@ Modified : 06/04/2015 jxc517 CCN Project....
          : 05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
                       the same data as it is in COST_CENTER_CODE field.
          : 07/21/2017 gxg192 Reverted the previous changes. Added the COST_CENTER field back.
+         : 05/08/2018 nxk927 CCN Project....
+           Excluding the ADMINORG_HIERARCHY
 *******************************************************************************/ 
        DISTINCT
         CC.STATEMENT_TYPE
@@ -64,6 +66,7 @@ Modified : 06/04/2015 jxc517 CCN Project....
                              FROM HIERARCHY_DESCRIPTION) HDESC
                     WHERE HD.HRCHY_HDR_NAME  = HDESC.HRCHY_HDR_NAME
                       AND HD.HRCHY_HDR_NAME  = HH.HRCHY_HDR_NAME
+                      AND HD.HRCHY_HDR_NAME  <> 'ADMINORG_HIERARCHY'
                       AND HD.HRCHY_DTL_LEVEL = HH.HRCHY_HDR_LEVELS
                       AND NVL(HD.HRCHY_DTL_NEXT_LVL_VAL, '~~~') = '~~~')
              SELECT *

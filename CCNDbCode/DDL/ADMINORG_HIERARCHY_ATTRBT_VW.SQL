@@ -1,6 +1,5 @@
-CREATE OR REPLACE VIEW ADMINORG_HIERARCHY_ATTRBT_VW
-AS 
-SELECT  
+  CREATE OR REPLACE VIEW ADMINORG_HIERARCHY_ATTRBT_VW AS
+  SELECT  
 /*******************************************************************************
 This View will give all the Admin Org Hierarchy details for the cost center passed
 
@@ -8,8 +7,8 @@ Created  : 01/09/2017 vxv336 CCN Project
 Modified : 12/13/2017 mxv711 CCN Project
            02/13/2017 mxv711 CCN project
            fixed the view to consider the hierachy values upto cost center level only
-           fixed getting the Employee names cosidering cost center code if last level
-           is NULL .
+           05/08/2018 nxk927 CCN project
+           Hierarchy level description changed
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -18,92 +17,92 @@ Modified : 12/13/2017 mxv711 CCN Project
        ,H.HRCHY_DTL_EFF_DATE
        ,H.HRCHY_DTL_EXP_DATE
        ,H.DOMAIN_VAL DOMAIN
-       ,H.GROUP_VAL "GROUP"
-       ,H.DIVISION_VAL DIVISION
-       ,H.AREA_VAL AREA
-       ,H.DISTRICT_VAL DISTRICT
-       ,H.CITY_SALES_MANAGER_VAL CITY_SALES_MANAGER
-       ,H.ZONE_VAL "ZONE"
+       ,H.DIVISION_VAL "DIVISION"
+       ,H.CONTROL_VAL CONTROL
+       ,H.BUDGET_VAL BUDGET
+       ,H.FUNCTIONAL_1_VAL FUNCTIONAL_1
+       ,H.FUNCTIONAL_2_VAL FUNCTIONAL_2
+       ,H.FUNCTIONAL_3_VAL "FUNCTIONAL_3"
        ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.DOMAIN_VAL_NAME DOMAIN_NAME
-       ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
-       ,H.AREA_VAL_NAME AREA_NAME
-       ,H.DISTRICT_VAL_NAME DISTRICT_NAME
-       ,H.CITY_SALES_MANAGER_VAL_NAME CITY_MGR_NAME
-       ,H.ZONE_VAL_NAME ZONE_NAME
+       ,H.CONTROL_VAL_NAME CONTROL_NAME
+       ,H.BUDGET_VAL_NAME BUDGET_NAME
+       ,H.FUNCTIONAL_1_VAL_NAME FUNCTIONAL_1_NAME
+       ,H.FUNCTIONAL_2_VAL_NAME FUNCTIONAL_2_NAME
+       ,H.FUNCTIONAL_3_VAL_NAME FUNCTIONAL_3_NAME
        ,CC.COST_CENTER_NAME
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
                                                                                      H.DOMAIN_VAL,
-                                                                                     H.DOMAIN_VAL||NVL(H.GROUP_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||NVL(H.DIVISION_VAL,H.COST_CENTER_CODE),
                                                                                      '~~~'),
                                                 'EmployeeName') DOMAIN_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||NVL(H.DIVISION_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||NVL(H.CONTROL_VAL,H.COST_CENTER_CODE),
                                                                                      H.DOMAIN_VAL),
-                                                'GEMS_ID') GROUP_GEMS_ID
+                                                'GEMS_ID') DIVISION_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||NVL(H.DIVISION_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||NVL(H.CONTROL_VAL,H.COST_CENTER_CODE),
                                                                                      H.DOMAIN_VAL),
-                                                'EmployeeName') GROUP_EMP_NAME
+                                                'EmployeeName') DIVISION_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||NVL(H.AREA_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL),
-                                                'GEMS_ID') DIVISION_VAL_GEMS_ID
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||NVL(H.BUDGET_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL),
+                                                'GEMS_ID') CONTROL_VAL_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||NVL(H.AREA_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL),
-                                                'EmployeeName') DIVISION_VAL_EMP_NAME
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||NVL(H.BUDGET_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL),
+                                                'EmployeeName') CONTROL_VAL_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||NVL(H.DISTRICT_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL),
-                                                'GEMS_ID') AREA_VAL_GEMS_ID
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||NVL(H.FUNCTIONAL_1_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL),
+                                                'GEMS_ID') BUDGET_VAL_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||NVL(H.DISTRICT_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL),
-                                                'EmployeeName') AREA_VAL_EMP_NAME
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||NVL(H.FUNCTIONAL_1_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL),
+                                                'EmployeeName') BUDGET_VAL_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||NVL(H.CITY_SALES_MANAGER_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL),
-                                                'GEMS_ID') DISTRICT_VAL_GEMS_ID
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||NVL(H.FUNCTIONAL_2_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL),
+                                                'GEMS_ID') FUNCTIONAL_1_VAL_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||NVL(H.CITY_SALES_MANAGER_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL),
-                                                'EmployeeName') DISTRICT_VAL_EMP_NAME
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||NVL(H.FUNCTIONAL_2_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL),
+                                                'EmployeeName') FUNCTIONAL_1_VAL_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL|| NVL(H.ZONE_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL|| NVL(H.FUNCTIONAL_3_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL),
                                                 'GEMS_ID') CITY_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||NVL(H.ZONE_VAL,H.COST_CENTER_CODE),
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL||NVL(H.FUNCTIONAL_3_VAL,H.COST_CENTER_CODE),
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL),
                                                 'EmployeeName') CITY_EMP_NAME
 
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||H.ZONE_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||H.ZONE_VAL||H.COST_CENTER_CODE,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL),
-                                                'GEMS_ID') ZONE_VAL_GEMS_ID
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL||H.FUNCTIONAL_3_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL||H.FUNCTIONAL_3_VAL||H.COST_CENTER_CODE,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL),
+                                                'GEMS_ID') FUNCTIONAL_3_VAL_GEMS_ID
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||H.ZONE_VAL,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL||H.ZONE_VAL||H.COST_CENTER_CODE,
-                                                                                     H.DOMAIN_VAL||H.GROUP_VAL||H.DIVISION_VAL||H.AREA_VAL||H.DISTRICT_VAL||H.CITY_SALES_MANAGER_VAL),
-                                                'EmployeeName') ZONE_VAL_EMP_NAME
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL||H.FUNCTIONAL_3_VAL,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL||H.FUNCTIONAL_3_VAL||H.COST_CENTER_CODE,
+                                                                                     H.DOMAIN_VAL||H.DIVISION_VAL||H.CONTROL_VAL||H.BUDGET_VAL||H.FUNCTIONAL_1_VAL||H.FUNCTIONAL_2_VAL),
+                                                'EmployeeName') FUNCTIONAL_3_VAL_EMP_NAME
 FROM COST_CENTER CC,
         --inner sub query "T" gives all the hierarchy details with all the levels
         --present in the CCN system by joining the header, description and detail tables
@@ -142,14 +141,13 @@ FROM COST_CENTER CC,
                     --so that we get one record for each hierarchy with all level values as its columns
                     PIVOT 
                     (MAX(VAL) AS VAL,
-                     MAX(VAL_NAME) AS VAL_NAME FOR (DESCRIPTION) IN ('Domain' AS DOMAIN,
-                                                                     'Group' AS "GROUP",
-                                                                     'Division' AS DIVISION,
-                                                                     'Area' AS AREA,
-                                                                     'District' AS DISTRICT,
-
-                                                                     'City/Sales Manager' AS CITY_SALES_MANAGER,
-                                                                     'Zone' AS "ZONE"))) H
+                     MAX(VAL_NAME) AS VAL_NAME FOR (DESCRIPTION) IN ('Domain'   AS DOMAIN,
+                                                                     'Division' AS "DIVISION",
+                                                                     'Control'  AS CONTROL,
+                                                                     'Budget'   AS BUDGET,
+                                                                     'Functional 1' AS FUNCTIONAL_1,
+                                                                     'Functional 2' AS FUNCTIONAL_2,
+                                                                     'Functional 3' AS "FUNCTIONAL_3"))) H
 --Finally result of the above two steps(WITH T and PIVOT) will be a new result set "H" which can be used as any other
 --table in a join condition
 WHERE CC.COST_CENTER_CODE = H.COST_CENTER_CODE
