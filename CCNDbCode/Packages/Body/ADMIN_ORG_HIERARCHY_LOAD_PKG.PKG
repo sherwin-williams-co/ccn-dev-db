@@ -336,7 +336,31 @@ BEGIN
         RAISE_APPLICATION_ERROR(-20001, SQLERRM||CHR(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE); 
 END ADMIN_ORG_CONVERT_NINE_TO_ZERO;
 
+PROCEDURE DELETE_DUP_ADMIN_REC
+/*************************************************************************************
+DELETE_DUP_ADMIN_REC
 
+created : 05/15/2018 nxk927
+Modified:  
+*************************************************************************************/
+IS
+BEGIN
+    FOR rec IN (SELECT HRCHY_HDR_NAME, HRCHY_DTL_LEVEL, HRCHY_DTL_PREV_LVL_VAL, HRCHY_DTL_CURR_LVL_VAL, HRCHY_DTL_NEXT_LVL_VAL, COUNT(*) CNT
+                  FROM HIERARCHY_DETAIL
+                 WHERE HRCHY_HDR_NAME = 'ADMINORG_HIERARCHY'
+                 GROUP BY HRCHY_HDR_NAME, HRCHY_DTL_LEVEL, HRCHY_DTL_PREV_LVL_VAL, HRCHY_DTL_CURR_LVL_VAL, HRCHY_DTL_NEXT_LVL_VAL
+                HAVING COUNT(*) >  1
+                 ORDER BY HRCHY_HDR_NAME, HRCHY_DTL_LEVEL, HRCHY_DTL_PREV_LVL_VAL, HRCHY_DTL_CURR_LVL_VAL, HRCHY_DTL_NEXT_LVL_VAL) LOOP
+        DELETE
+          FROM HIERARCHY_DETAIL
+         WHERE HRCHY_HDR_NAME                  = rec.HRCHY_HDR_NAME
+           AND HRCHY_DTL_LEVEL                 = rec.HRCHY_DTL_LEVEL
+           AND NVL(HRCHY_DTL_PREV_LVL_VAL,'X') = NVL(rec.HRCHY_DTL_PREV_LVL_VAL,'X')
+           AND NVL(HRCHY_DTL_CURR_LVL_VAL,'X') = NVL(rec.HRCHY_DTL_CURR_LVL_VAL,'X')
+           AND NVL(HRCHY_DTL_NEXT_LVL_VAL,'X') = NVL(rec.HRCHY_DTL_NEXT_LVL_VAL,'X')
+           AND ROWNUM < rec.CNT;
+    END LOOP;
+END;
 
 PROCEDURE ADMIN_ORG_HIERARCHY_LOAD
 /*************************************************************************************
@@ -344,7 +368,9 @@ ADMIN_ORG_HIERARCHY_LOAD
 
 created : 07/15/2016 mxk766
 Modified: 02/14/2018 mxv711 
-          added call to make the 9's to Zero's for domain, group and division levels. 
+          added call to make the 9's to Zero's for domain, group and division levels.
+        : 05/15/2018 nxk927
+          added a call to delete duplicate records
 *************************************************************************************/
 IS
 
@@ -399,23 +425,6 @@ BEGIN
    Check for data validity and update the flags accordingly.
    */
 
-   UPDATE ADMINORG_HIER_EXT_DETAIL_T T1
-   SET IS_VALID_RECORD='DUPLICATE-RECORD'
-   WHERE ROWID > (
-                  SELECT MIN(ROWID) FROM ADMINORG_HIER_EXT_DETAIL_T T2
-                  WHERE T1.HRCHY_DTL_CURR_LVL_VAL = T2.HRCHY_DTL_CURR_LVL_VAL
-                  AND   T1.HRCHY_DTL_LEVEL        = T2.HRCHY_DTL_LEVEL
-                 );
-
-   UPDATE ADMINORG_HIER_EXT_DETAIL_T T1
-   SET IS_VALID_RECORD='CURR-LVL-REC-SIZE->-(LEVEL*4)+2'
-   WHERE ROWID IN (
-                  SELECT ROWID FROM ADMINORG_HIER_EXT_DETAIL_T T2 
-                  WHERE 
-                  (LENGTH(HRCHY_DTL_CURR_LVL_VAL) > (HRCHY_DTL_LEVEL * V_SPLIT_COUNTER)+2
-                   OR 
-                   LENGTH(HRCHY_DTL_CURR_LVL_VAL) < (HRCHY_DTL_LEVEL * V_SPLIT_COUNTER))
-                  );
 
    /*
    Step 3 Build the data into a temporary hierarchy detail table(ADMINORG_HIERARCHY_T)
@@ -613,15 +622,6 @@ BEGIN
     hrchy dtl prev lvl val, next lvl val and curr level val.
     */
 
-    DELETE FROM ADMINORG_HIERARCHY_T T1
-    WHERE ROWID >(SELECT MIN(ROWID) FROM ADMINORG_HIERARCHY_T T2
-                  WHERE 
-                  T1.HRCHY_DTL_LEVEL = T2.HRCHY_DTL_LEVEL AND
-                  T1.HRCHY_DTL_PREV_LVL_VAL = T2.HRCHY_DTL_PREV_LVL_VAL AND
-                  T1.HRCHY_DTL_CURR_LVL_VAL = T2.HRCHY_DTL_CURR_LVL_VAL AND
-                  NVL(T1.HRCHY_DTL_NEXT_LVL_VAL,'XXX') = NVL(T2.HRCHY_DTL_NEXT_LVL_VAL,'XXX')
-                 );
-
    UPDATE ADMINORG_HIERARCHY_T
    SET    HRCHY_DTL_NEXT_LVL_VAL  = '~~~'
    WHERE  HRCHY_DTL_NEXT_LVL_VAL IS NULL;
@@ -671,6 +671,8 @@ BEGIN
   /*
   Re-enable the trigger.
   */
+  --deleting the duplicate records
+  DELETE_DUP_ADMIN_REC();
   
   CCN_BATCH_PKG.UNLOCK_DATABASE_SP();
   HIERARCHY_LOADING_PKG.ALTER_HIER_TRIGGERS ( 'ENABLE' );
