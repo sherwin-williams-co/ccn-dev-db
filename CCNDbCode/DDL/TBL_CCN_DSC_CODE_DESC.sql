@@ -1,5 +1,5 @@
 /*#############################################################
-This script creates a Table CCN_DSC_CODE_DESC.
+This script creates a Table CCN_DSC_CODE_DESC and CCN_DSC_CODE_DESC_HIST
 
 Created : 04/23/2018 sxg151 CCN Team...
 #############################################################*/
