@@ -1355,7 +1355,7 @@ END LOAD_ADDRESS_GEO_DETAILS;
 
 PROCEDURE LOAD_DSC_CODE_DESC_DETAILS
 /******************************************************************************
-  This Procedure Will load the data into CCN_DSC_CODE_DESC and CCN_DSC_CODE_DESC_HIST tables from EHDA.V_AXESP0549@AOM_QA.WORLD
+  This Procedure Will load the data into CCN_DSC_CODE_DESC and CCN_DSC_CODE_DESC_HIST tables from DSC_DOCE_DESC_CUR
 
 Created : 04/24/2018 sxg151 CCN Project....
 Changed :
@@ -1363,7 +1363,22 @@ Changed :
 IS
     CURSOR DSC_DOCE_DESC_CUR IS
         SELECT *
-          FROM EHDA.V_AXESP0549@AOM_QA.WORLD;
+          FROM COST_CENTER_DSC_CODES A
+         --get all the records that are not present in CCN
+         WHERE NOT EXISTS (SELECT 1
+                             FROM CCN_DSC_CODE_DESC
+                            WHERE A.COST_CENTER_CODE = COST_CENTER_CODE)
+         UNION
+        SELECT *
+          FROM COST_CENTER_DSC_CODES A
+         --get all the records that are present in CCN but any of the values changed
+         WHERE EXISTS (SELECT 1
+                         FROM CCN_DSC_CODE_DESC B
+                        WHERE A.COST_CENTER_CODE = COST_CENTER_CODE
+                          AND (A.SECONDARY_DSC <> B.SECONDARY_DSC OR
+                               A.SEC_DSC_DESCR <> B.SEC_DSC_DESCR OR
+                               A.PRIMARY_DSC   <> B.PRIMARY_DSC   OR
+                               A.PRI_DSC_DESCR <> B.PRI_DSC_DESCR));
 
     V_DSC_DOCE_DESC_CUR               CCN_DSC_CODE_DESC%ROWTYPE;
     V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
@@ -1382,7 +1397,7 @@ BEGIN
                 SELECT *
                   INTO V_DSC_DOCE_DESC_CUR
                   FROM CCN_DSC_CODE_DESC
-                 WHERE COST_CENTER_CODE = rec.STORE;
+                 WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE;
             EXCEPTION
                 WHEN OTHERS THEN
                     NULL;
@@ -1394,18 +1409,18 @@ BEGIN
                                                 SEC_DSC_DESCR,
                                                 PRIMARY_DSC,
                                                 PRI_DSC_DESCR)
-                                        VALUES (rec.STORE,
-                                                rec.SEC_DSC,
+                                        VALUES (rec.COST_CENTER_CODE,
+                                                rec.SECONDARY_DSC,
                                                 rec.SEC_DSC_DESCR,
-                                                rec.PRI_DSC,
+                                                rec.PRIMARY_DSC,
                                                 rec.PRI_DSC_DESCR);
             ELSE
                     UPDATE CCN_DSC_CODE_DESC
-                       SET SECONDARY_DSC    = rec.SEC_DSC,
+                       SET SECONDARY_DSC    = rec.SECONDARY_DSC,
                            SEC_DSC_DESCR    = rec.SEC_DSC_DESCR,
-                           PRIMARY_DSC      = rec.PRI_DSC,
+                           PRIMARY_DSC      = rec.PRIMARY_DSC,
                            PRI_DSC_DESCR    = rec.PRI_DSC_DESCR
-                     WHERE COST_CENTER_CODE = rec.STORE;
+                     WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE;
            -- insert into History table
                     INSERT INTO CCN_DSC_CODE_DESC_HIST(COST_CENTER_CODE,
                                                        SECONDARY_DSC,
@@ -1413,10 +1428,10 @@ BEGIN
                                                        PRIMARY_DSC,
                                                        PRI_DSC_DESCR,
                                                        LOAD_DATE)
-                                               VALUES (rec.STORE,
-                                                       rec.SEC_DSC,
+                                               VALUES (rec.COST_CENTER_CODE,
+                                                       rec.SECONDARY_DSC,
                                                        rec.SEC_DSC_DESCR,
-                                                       rec.PRI_DSC,
+                                                       rec.PRIMARY_DSC,
                                                        rec.PRI_DSC_DESCR,
                                                        SYSDATE);
             END IF;
@@ -1428,13 +1443,13 @@ BEGIN
                 v_code  := SQLCODE;
                 v_errm  := substr(SQLERRM,1,500);
                 --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(v_code, 'LD_DSC_CODE_DTLS', v_errm, rec.STORE);
+                errpkg.INSERT_ERROR_LOG_SP(v_code, 'LD_DSC_CODE_DTLS', v_errm, rec.COST_CENTER_CODE);
         END;
     END LOOP;
-    
+
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_DSC_CODE_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-   
+
 EXCEPTION
     WHEN OTHERS THEN
         -- Logging of error
