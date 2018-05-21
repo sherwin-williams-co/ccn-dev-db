@@ -1,0 +1,6 @@
+/*
+Purpose : For creating the synonym SWC_HR_TAG_CCN_V for SWC_HR_GENERIC_V@EBS_LINK.
+             
+Created : 03/19/2018 sxh487 CCN Project....
+*/
+CREATE OR REPLACE SYNONYM SWC_HR_TAG_CCN_V FOR SWC_HR_TAG_CCN.SWC_HR_GENERIC_V@EBS_LINK;

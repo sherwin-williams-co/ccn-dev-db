@@ -5,13 +5,17 @@
    created : 10/18/2016  SXH487
            : 11/10/2016  sxh487 Removed the two columns EMRG_CONTACT_NAME and EMRG_CONTACT_PHONE
              as they have been dropped from swc_hr_generic_v
+           : 03/19/2018 sxh487 Changed the source from swc_hr_generic_v to SWC_HR_TAG_CCN_V
+             Also, Using SYSTEM_STATUS for EMP_PAYROLL_STATUS and
+             SYSTEM_STATUS_DATE for LATEST_HIRE_DATE and TERMINATION_DATE
 *********************************************************************************/
 declare
 
 V_COUNT     INTEGER := 0 ;
 
 cursor SWC_HR_GEMS_INFO_cur is 
-SELECT * FROM SWC_HR_GENERIC_V;
+SELECT * FROM SWC_HR_TAG_CCN_V
+ WHERE EMPLOYEE_NUMBER IS NOT NULL;
 
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
@@ -43,12 +47,12 @@ BEGIN
              v_Row_Data.EMPLOYMENT_CATEGORY_HYP     := SWC_HR_GEMS_INFO_rec.EMPLOYMENT_CATEGORY_HYP;
              v_Row_Data.ASSIGNMENT_STATUS           := SWC_HR_GEMS_INFO_rec.ASSIGNMENT_STATUS;
              v_Row_Data.ASSIG_STATS                 := SWC_HR_GEMS_INFO_rec.ASSIG_STATS;
-             v_Row_Data.ASSIG_STATUS                := SWC_HR_GEMS_INFO_rec.ASSIG_STATUS;
+             v_Row_Data.ASSIG_STATUS                := SWC_HR_GEMS_INFO_rec.SYSTEM_STATUS;
              v_Row_Data.HOME_EMAIL_ADDRESS          := SWC_HR_GEMS_INFO_rec.HOME_EMAIL_ADDRESS;
              v_Row_Data.EMPLOYEE_EMAIL_ADDRESS      := SWC_HR_GEMS_INFO_rec.EMPLOYEE_EMAIL_ADDRESS;
              v_Row_Data.ORIGINAL_DATE_OF_HIRE       := SWC_HR_GEMS_INFO_rec.ORIGINAL_DATE_OF_HIRE;
-             v_Row_Data.LATEST_HIRE_DATE            := SWC_HR_GEMS_INFO_rec.LATEST_HIRE_DATE;
-             v_Row_Data.TERMINATION_DATE            := SWC_HR_GEMS_INFO_rec.TERMINATION_DATE;
+             v_Row_Data.LATEST_HIRE_DATE            := SWC_HR_GEMS_INFO_rec.SYSTEM_STATUS_DATE;
+             v_Row_Data.TERMINATION_DATE            := SWC_HR_GEMS_INFO_rec.SYSTEM_STATUS_DATE;
              v_Row_Data.ADJUSTED_SERVICE_DATE       := SWC_HR_GEMS_INFO_rec.ADJUSTED_SERVICE_DATE;
              v_Row_Data.FLSA_CODE                   := SWC_HR_GEMS_INFO_rec.FLSA_CODE;
              v_Row_Data.SALARY_BASIS                := SWC_HR_GEMS_INFO_rec.SALARY_BASIS;

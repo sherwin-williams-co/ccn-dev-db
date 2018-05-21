@@ -5,13 +5,17 @@
    created : 10/24/2016  SXH487
            : 11/10/2016  sxh487 Removed the two columns EMRG_CONTACT_NAME and EMRG_CONTACT_PHONE
              as they have been dropped from swc_hr_generic_v
+           : 03/19/2018 sxh487 Changed the source from swc_hr_generic_v to SWC_HR_TAG_CCN_V
+             Also, Using SYSTEM_STATUS for EMP_PAYROLL_STATUS and
+             SYSTEM_STATUS_DATE for LATEST_HIRE_DATE and TERMINATION_DATE
 *********************************************************************************/
 declare
 
 V_COUNT     INTEGER := 0 ;
 
 cursor EMP_GEMS_SYNC_TB_cur is 
-SELECT * FROM SWC_HR_GENERIC_V;
+SELECT * FROM SWC_HR_TAG_CCN_V
+ WHERE EMPLOYEE_NUMBER IS NOT NULL;
 
 V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
 V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
@@ -43,12 +47,12 @@ BEGIN
              v_Row_Data.EMPLOYMENT_CATEGORY_HYP     := EMP_GEMS_SYNC_TB_rec.EMPLOYMENT_CATEGORY_HYP;
              v_Row_Data.ASSIGNMENT_STATUS           := EMP_GEMS_SYNC_TB_rec.ASSIGNMENT_STATUS;
              v_Row_Data.ASSIG_STATS                 := EMP_GEMS_SYNC_TB_rec.ASSIG_STATS;
-             v_Row_Data.ASSIG_STATUS                := EMP_GEMS_SYNC_TB_rec.ASSIG_STATUS;
+             v_Row_Data.ASSIG_STATUS                := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS;
              v_Row_Data.HOME_EMAIL_ADDRESS          := EMP_GEMS_SYNC_TB_rec.HOME_EMAIL_ADDRESS;
              v_Row_Data.EMPLOYEE_EMAIL_ADDRESS      := EMP_GEMS_SYNC_TB_rec.EMPLOYEE_EMAIL_ADDRESS;
              v_Row_Data.ORIGINAL_DATE_OF_HIRE       := EMP_GEMS_SYNC_TB_rec.ORIGINAL_DATE_OF_HIRE;
-             v_Row_Data.LATEST_HIRE_DATE            := EMP_GEMS_SYNC_TB_rec.LATEST_HIRE_DATE;
-             v_Row_Data.TERMINATION_DATE            := EMP_GEMS_SYNC_TB_rec.TERMINATION_DATE;
+             v_Row_Data.LATEST_HIRE_DATE            := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
+             v_Row_Data.TERMINATION_DATE            := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
              v_Row_Data.ADJUSTED_SERVICE_DATE       := EMP_GEMS_SYNC_TB_rec.ADJUSTED_SERVICE_DATE;
              v_Row_Data.FLSA_CODE                   := EMP_GEMS_SYNC_TB_rec.FLSA_CODE;
              v_Row_Data.SALARY_BASIS                := EMP_GEMS_SYNC_TB_rec.SALARY_BASIS;
