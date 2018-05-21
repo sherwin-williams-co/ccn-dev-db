@@ -1361,14 +1361,15 @@ Created : 04/24/2018 sxg151 CCN Project....
 Changed :
 *******************************************************************************/
 IS
-    CURSOR DSC_DOCE_DESC_CUR IS
+    CURSOR DSC_DOCE_DESC_CUR_NEW_RECS IS
         SELECT *
           FROM COST_CENTER_DSC_CODES A
          --get all the records that are not present in CCN
          WHERE NOT EXISTS (SELECT 1
                              FROM CCN_DSC_CODE_DESC
-                            WHERE A.COST_CENTER_CODE = COST_CENTER_CODE)
-         UNION
+                            WHERE A.COST_CENTER_CODE = COST_CENTER_CODE);
+
+    CURSOR DSC_DOCE_DESC_CUR_EXTNG_RECS IS
         SELECT *
           FROM COST_CENTER_DSC_CODES A
          --get all the records that are present in CCN but any of the values changed
@@ -1383,48 +1384,36 @@ IS
     V_DSC_DOCE_DESC_CUR               CCN_DSC_CODE_DESC%ROWTYPE;
     V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-    V_ERRM                            VARCHAR2(500);
-    V_CODE                            NUMBER;
 BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_DSC_CODE_DTLS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    FOR rec IN DSC_DOCE_DESC_CUR LOOP
+
+    FOR rec IN DSC_DOCE_DESC_CUR_NEW_RECS LOOP --Loop through new records and insert into CCN
         BEGIN
-            SAVEPOINT DSC_DETAIL_LOAD;
-            V_DSC_DOCE_DESC_CUR := NULL;
-            BEGIN
-                -- Getting the current DSC Code Details from the table by cost center
-                SELECT *
-                  INTO V_DSC_DOCE_DESC_CUR
-                  FROM CCN_DSC_CODE_DESC
-                 WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE;
-            EXCEPTION
-                WHEN OTHERS THEN
-                    NULL;
-            END;
-            -- Insert if the cost center is not found in the table
-            IF V_DSC_DOCE_DESC_CUR.COST_CENTER_CODE IS NULL THEN
-                INSERT INTO CCN_DSC_CODE_DESC(COST_CENTER_CODE, SECONDARY_DSC, SEC_DSC_DESCR, PRIMARY_DSC, PRI_DSC_DESCR)
-                                      VALUES (rec.COST_CENTER_CODE, rec.SECONDARY_DSC, rec.SEC_DSC_DESCR, rec.PRIMARY_DSC, rec.PRI_DSC_DESCR);
-            ELSE
-                UPDATE CCN_DSC_CODE_DESC
-                   SET SECONDARY_DSC    = rec.SECONDARY_DSC,
-                       SEC_DSC_DESCR    = rec.SEC_DSC_DESCR,
-                       PRIMARY_DSC      = rec.PRIMARY_DSC,
-                       PRI_DSC_DESCR    = rec.PRI_DSC_DESCR
-                 WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE;
-               -- insert into History table
-               INSERT INTO CCN_DSC_CODE_DESC_HIST(COST_CENTER_CODE, SECONDARY_DSC, SEC_DSC_DESCR, PRIMARY_DSC, PRI_DSC_DESCR, LOAD_DATE)
-                                           VALUES (rec.COST_CENTER_CODE, rec.SECONDARY_DSC, rec.SEC_DSC_DESCR, rec.PRIMARY_DSC, rec.PRI_DSC_DESCR, SYSDATE);
-            END IF;
+            INSERT INTO CCN_DSC_CODE_DESC(COST_CENTER_CODE, SECONDARY_DSC, SEC_DSC_DESCR, PRIMARY_DSC, PRI_DSC_DESCR)
+                VALUES (rec.COST_CENTER_CODE, rec.SECONDARY_DSC, rec.SEC_DSC_DESCR, rec.PRIMARY_DSC, rec.PRI_DSC_DESCR);
         EXCEPTION
             WHEN OTHERS THEN
-                ROLLBACK TO DSC_DETAIL_LOAD;
                 V_TRANS_STATUS := 'ERROR';
-                v_code  := SQLCODE;
-                v_errm  := substr(SQLERRM,1,500);
-                --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(v_code, 'LD_DSC_CODE_DTLS', v_errm, rec.COST_CENTER_CODE);
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_DSC_CODE_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER_CODE);
+        END;
+    END LOOP;
+
+    FOR rec IN DSC_DOCE_DESC_CUR_EXTNG_RECS LOOP --Loop through existing records,backup and update in CCN
+        BEGIN
+            UPDATE CCN_DSC_CODE_DESC
+               SET SECONDARY_DSC    = rec.SECONDARY_DSC,
+                   SEC_DSC_DESCR    = rec.SEC_DSC_DESCR,
+                   PRIMARY_DSC      = rec.PRIMARY_DSC,
+                   PRI_DSC_DESCR    = rec.PRI_DSC_DESCR
+             WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE;
+            -- insert into History table
+            INSERT INTO CCN_DSC_CODE_DESC_HIST(COST_CENTER_CODE, SECONDARY_DSC, SEC_DSC_DESCR, PRIMARY_DSC, PRI_DSC_DESCR, LOAD_DATE)
+                VALUES (rec.COST_CENTER_CODE, rec.SECONDARY_DSC, rec.SEC_DSC_DESCR, rec.PRIMARY_DSC, rec.PRI_DSC_DESCR, SYSDATE);
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_TRANS_STATUS := 'ERROR';
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_DSC_CODE_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER_CODE);
         END;
     END LOOP;
 
@@ -1434,10 +1423,7 @@ BEGIN
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
     WHEN OTHERS THEN
-        -- Logging of error
-        V_ERRM := substr(SQLERRM,1, 500);
-        V_CODE := SQLCODE;
-        errpkg.raise_err(v_code, v_errm ||'LOAD_CCN_DSC_CODE_DETAILS'  || ' errors found');
+        ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||'LOAD_CCN_DSC_CODE_DETAILS'  || ' errors found');
 END LOAD_DSC_CODE_DESC_DETAILS;
 
 END CCN_BATCH_PROCESS;
