@@ -3137,4 +3137,16 @@ null_prm_std_cost_idntfr_cc EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (null_prm_std_cost_idntfr_cc , -20200);
 
+/***********************************************************
+The "en_zip_code_missmatch_err" passes a numerical error of -20202.
+If zip code in taxware with value as null and not matching with address zip code
+
+created :  05/18/2018 sxg151 CCN Project Team...
+revisions:
+************************************************************/
+en_zip_code_missmatch_err      CONSTANT NUMBER := -20202;
+exc_zip_code_missmatch_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_zip_code_missmatch_err , -20202);
+
 END ERRNUMS;
