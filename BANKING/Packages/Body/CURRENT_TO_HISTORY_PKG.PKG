@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CURRENT_TO_HISTORY_PKG
+create or replace PACKAGE BODY CURRENT_TO_HISTORY_PKG
 AS
 /**********************************************************
   This Package contains procedured to move the current table records into
@@ -7,6 +7,47 @@ AS
 Created : 05/26/2015 jxc517 CCN Project....
 Changed :
 **********************************************************/
+
+PROCEDURE UPD_BAG_TICK_ONHAND_FOR_FTR(
+/*******************************************************************************
+  This procedure will check if the cost center exists in future.
+  If it exists we can use the bag for future
+
+Created : 05/22/2018 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN  VARCHAR2)
+--IN_ROW     IN     BANK_DEP_BAG_TICK%ROWTYPE)
+IS
+  V_BANK_DEP_BAG_TICK_FTR_REC BANK_DEP_BAG_TICK_FUTURE%ROWTYPE;
+  V_BANK_DEP_BAG_TICK_REC     BANK_DEP_BAG_TICK%ROWTYPE;
+BEGIN 
+    BEGIN
+       SELECT *
+         INTO V_BANK_DEP_BAG_TICK_FTR_REC
+         FROM BANK_DEP_BAG_TICK_FUTURE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    
+    IF V_BANK_DEP_BAG_TICK_FTR_REC.COST_CENTER_CODE IS NOT NULL THEN
+       SELECT *
+         INTO V_BANK_DEP_BAG_TICK_REC
+         FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+         
+       UPDATE BANK_DEP_BAG_TICK_FUTURE
+          SET DEPBAG_ONHAND_QTY      = V_BANK_DEP_BAG_TICK_REC.DEPBAG_ONHAND_QTY + DEPBAG_ONHAND_QTY,
+              DEPBAG_YTD_ORDERED_QTY = V_BANK_DEP_BAG_TICK_REC.DEPBAG_YTD_ORDERED_QTY + DEPBAG_YTD_ORDERED_QTY
+        WHERE COST_CENTER_CODE       = IN_COST_CENTER_CODE;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END UPD_BAG_TICK_ONHAND_FOR_FTR;
+
 PROCEDURE PROCESS_BANK_DEPOSIT_TABLES
 /******************************************************************************
   This procedure will move the current table records into history tables
@@ -19,6 +60,9 @@ PROCEDURE PROCESS_BANK_DEPOSIT_TABLES
 Created : 08/13/2015 jxc517 CCN Project....
 Changed : 10/30/2015 nxk927 CCN Project....
            added BANK_DEP_BAG_TICKORD
+changed : 05/22/2018 nxk927 CCN Project....
+          Updating the future on hand quantity so we can use the bags
+          for future records
 *******************************************************************************/
 IS
 BEGIN
@@ -46,6 +90,7 @@ BEGIN
                   FROM BANK_DEP_BAG_TICK
                  WHERE EXPIRATION_DATE < TRUNC(SYSDATE)) LOOP
         BEGIN
+            UPD_BAG_TICK_ONHAND_FOR_FTR(rec.COST_CENTER_CODE);
             TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(rec);
         EXCEPTION
             WHEN OTHERS THEN
@@ -85,6 +130,8 @@ Changed : 08/13/2015 nxk927 CCN Project....
           (sysdate -1 changed to take sysdate) batch should run for all data before now
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+Changed : 05/22/2018 nxk927 CCN Project....
+          Updating the deposit bag on hand quantity from current to future record
 *******************************************************************************/
 IS
     V_BANK_ACCOUNT_TEMP_REC    BANK_ACCOUNT%ROWTYPE;
@@ -113,6 +160,7 @@ BEGIN
         BEGIN
             --store MICR format details needs to be removed for these members
             DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(rec.MEMBER_STORE_NBR, NULL, NULL);
+            UPD_BAG_TICK_ONHAND_FOR_FTR(rec.MEMBER_STORE_NBR);
             DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(rec.MEMBER_STORE_NBR);
             TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(rec);
         EXCEPTION
@@ -133,6 +181,8 @@ Changed : 08/13/2015 nxk927 CCN Project....
           (sysdate -1 changed to take sysdate) batch should run for all data before now
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+Changed : 05/22/2018 nxk927 CCN Project....
+          Updating the deposit bag on hand quantity from current to future record
 *******************************************************************************/
 IS
     V_BANK_ACCOUNT_TEMP_REC    BANK_ACCOUNT%ROWTYPE;
@@ -157,6 +207,7 @@ BEGIN
         BEGIN
             --store MICR format details needs to be removed for these leads
             DEPOSIT_TICKET_MAINTENANCE_PKG.DELETE_STORE_MICR_FORMAT_DTLS(rec.LEAD_STORE_NBR, NULL, NULL);
+            UPD_BAG_TICK_ONHAND_FOR_FTR(rec.LEAD_STORE_NBR);
             DEPOSIT_BAG_MAINTENANCE_PKG.DELETE_DEPOSIT_BAG_DTLS(rec.LEAD_STORE_NBR);
             TABLE_IU_PKG.LEAD_BANK_CC_D_SP(rec);
         EXCEPTION
@@ -271,7 +322,7 @@ BEGIN
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('CURR_TO_HIST_LOAD', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP();
     COMMIT;
-
+    
     IF V_TRANS_STATUS = 'ERROR'
     THEN
        ERRPKG.RAISE_ERR(errnums.en_curr_to_hist_process_err, V_ERROR_MESSAGE);
