@@ -34,6 +34,7 @@ BEGIN
          V_COUNT := 0;
       END IF;
       END LOOP;
+      COMMIT;
 END;
 
 /
