@@ -30,6 +30,19 @@ modified:
 IN_TRAN_GUID   IN  PNP.CCN_ACCUMS.TRAN_GUID%TYPE,
 IN_ACCUM_ID    IN  PNP.CCN_ACCUMS.ACCUM_ID%TYPE) RETURN NUMBER;
 
+FUNCTION GET_SALES_LINE_AMOUNT (
+/**********************************************************
+This function will return amt from PNP.CCN_SALES_LINES table
+
+parameters:
+in_tran_guid
+
+created : 05/29/2018 sxh487 ccn project
+modified:
+**********************************************************/
+IN_TRAN_GUID   IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE)
+RETURN NUMBER;
+
 FUNCTION COST_CENTER_LOOK_UP_FNC(
 /**********************************************************
 THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
