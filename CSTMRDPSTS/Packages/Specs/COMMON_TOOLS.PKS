@@ -6,6 +6,9 @@ available to be used by the entire schema
 created : 09/27/2017 sxh487 CCN project.....
 ************************************************************/
 
+--global variable
+G_NON_MERCH_CODE VARCHAR2(2) := '05';
+
 FUNCTION GET_CURR_RUNCYCLE
 /******************************************************************
 This function will return the current run cycle for the data to be
@@ -27,8 +30,8 @@ in_accum_id
 created : 08/17/2017 sxp130 ccn project
 modified:
 **********************************************************/
-IN_TRAN_GUID   IN  PNP.CCN_ACCUMS.TRAN_GUID%TYPE,
-IN_ACCUM_ID    IN  PNP.CCN_ACCUMS.ACCUM_ID%TYPE) RETURN NUMBER;
+IN_TRAN_GUID   IN  CUST_DEP_CCN_ACCUMS_T.TRANSACTION_GUID%TYPE,
+IN_ACCUM_ID    IN  CUST_DEP_CCN_ACCUMS_T.ACCUM_ID%TYPE) RETURN NUMBER;
 
 FUNCTION GET_SALES_LINE_AMOUNT (
 /**********************************************************
