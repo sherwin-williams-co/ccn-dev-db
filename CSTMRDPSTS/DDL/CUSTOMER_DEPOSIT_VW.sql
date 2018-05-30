@@ -5,7 +5,7 @@ AS
 This view will provide the CUSTOMER_DEPOSIT information.
 
 Created  : 03/23/2018 sxh487 CCN Project
-Modified :
+Modified : 05/29/2018 sxh487 Added CSTMR_DPST_SALES_LN_ITM_AMT
 *******************************************************************************/
          CDD.CUSTOMER_ACCOUNT_NUMBER AS CUSTOMER_NUMBER,
          CDD.COST_CENTER_CODE AS STORE,
@@ -15,7 +15,7 @@ Modified :
          POS_TRANSACTION_CODE,
          CDD.TRANSACTION_DATE TRAN_DATE,
          CDD.TRAN_TIMESTAMP,
-         CDD.TOTAL_SALES AMOUNT,
+         CDD.CSTMR_DPST_SALES_LN_ITM_AMT,
          CDD.CUSTOMER_NET_BALANCE AS CUST_REM_BALANCE,
          CDR.ORIGINAL_DEP_TRANS_NBR,
          CDR.ORIGINAL_DEP_TERM_NBR,
