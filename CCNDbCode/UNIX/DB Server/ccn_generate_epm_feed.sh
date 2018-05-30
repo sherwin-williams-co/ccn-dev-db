@@ -3,7 +3,7 @@
 # Script name   : ccn_generate_epm_feed_file.sh
 #
 # Description   : This script is to run the following:
-#                 CCN_EPM_FEED_PKG.GENERATE_FILE,CCN_EPM_FEED_PKG.GENERATE_ADMIN_FILE to generate the files and call ccn_epm_feed_ftp.sh script.
+#                 CCN_EPM_FEED_PKG.GENERATE_EPM_FILES to generate the files and call ccn_epm_feed_ftp.sh script.
 #
 # Created       : 03/15/2018 sxg151 CCN Project Team.....
 # Modified      :
@@ -30,8 +30,7 @@ WHENEVER SQLERROR EXIT 1
 DECLARE
 BEGIN
 :exitCode := 0;
-CCN_EPM_FEED_PKG.GENERATE_FILE();
-CCN_EPM_FEED_PKG.GENERATE_ADMIN_FILE();
+CCN_EPM_FEED_PKG.GENERATE_EPM_FILES();
 Exception
 when others then
 DBMS_OUTPUT.PUT_LINE('GENERATE_EPM_FEED_FILE FAILED AT '||SQLERRM || ' : ' ||SQLCODE);

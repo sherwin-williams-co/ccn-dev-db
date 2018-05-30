@@ -11,12 +11,12 @@
 DATE=`date +"%m%d%y"`
 PROC_NAME=ccn_epm_feed_ftp.sh.sh
 DATADIR="$HOME"/datafiles
-FILENAME1="NONADMIN_HRCHY_FORMAT_$DATE.dat"
+FILENAME1="STR_TERR_HRCHY_FORMAT_$DATE.dat"
 FILENAME2="ADMIN_HRCHY_FORMAT_$DATE.dat"
 TIME=`date +"%H:%M:%S"`
 
 ###############################################################################################
-# ftp the NONADMIN_HRCHY_FORMAT/ADMIN_HRCHY_FORMAT.dat file
+# ftp the STR_TERR_HRCHY_FORMAT/ADMIN_HRCHY_FORMAT.dat file.
 
 ###############################################################################################
 cd $DATADIR
