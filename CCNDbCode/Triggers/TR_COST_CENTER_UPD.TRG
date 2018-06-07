@@ -15,9 +15,6 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
              Setting POS_DOWNLOAD_CC_IND := 'Y' for Territories
             : 03/01/2018 nxk927/jxc527 CCN Project Team..
               indentation and the right event trigger for the catory
-            : 04/04/2018 bxa919  CCN Project....
-              As per the update from the users,the POTENTIAL_OPEN_DATE column need to be moved from Cost_Center
-              to Store
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
