@@ -8,6 +8,8 @@
            : 03/19/2018 sxh487 Changed the source from swc_hr_generic_v to SWC_HR_TAG_CCN_V
              Also, Using SYSTEM_STATUS for EMP_PAYROLL_STATUS and
              SYSTEM_STATUS_DATE for LATEST_HIRE_DATE and TERMINATION_DATE
+           : 06/08/2018 sxh487 Changed logic to populate TERMINATION_DATE only
+             if the employee is terminated
 *********************************************************************************/
 declare
 
@@ -52,7 +54,6 @@ BEGIN
              v_Row_Data.EMPLOYEE_EMAIL_ADDRESS      := EMP_GEMS_SYNC_TB_rec.EMPLOYEE_EMAIL_ADDRESS;
              v_Row_Data.ORIGINAL_DATE_OF_HIRE       := EMP_GEMS_SYNC_TB_rec.ORIGINAL_DATE_OF_HIRE;
              v_Row_Data.LATEST_HIRE_DATE            := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
-             v_Row_Data.TERMINATION_DATE            := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
              v_Row_Data.ADJUSTED_SERVICE_DATE       := EMP_GEMS_SYNC_TB_rec.ADJUSTED_SERVICE_DATE;
              v_Row_Data.FLSA_CODE                   := EMP_GEMS_SYNC_TB_rec.FLSA_CODE;
              v_Row_Data.SALARY_BASIS                := EMP_GEMS_SYNC_TB_rec.SALARY_BASIS;
@@ -128,7 +129,13 @@ BEGIN
              v_Row_Data.SUPERVISOR_PRIME_SUB        := EMP_GEMS_SYNC_TB_rec.SUPERVISOR_PRIME_SUB;
              v_Row_Data.PAY_RATE_HOURLY_OR_BIWEEKLY := EMP_GEMS_SYNC_TB_rec.PAY_RATE_HOURLY_OR_BIWEEKLY;
              v_Row_Data.ANNUAL_SALARY_HYP           := EMP_GEMS_SYNC_TB_rec.ANNUAL_SALARY_HYP;
-                  
+             
+             IF v_Row_Data.ASSIG_STATUS = 'Term' THEN
+	        v_Row_Data.TERMINATION_DATE    := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
+	     ELSE
+	        v_Row_Data.TERMINATION_DATE    := NULL;
+             END IF;
+             
              INSERT INTO EMP_GEMS_SYNC_TB VALUES v_Row_Data;
              EXCEPTION
                   WHEN OTHERS THEN
