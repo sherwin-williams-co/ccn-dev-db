@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999Â¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `yÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -3148,5 +3148,18 @@ en_zip_code_missmatch_err      CONSTANT NUMBER := -20202;
 exc_zip_code_missmatch_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_zip_code_missmatch_err , -20202);
+
+/*********************************************************** 
+The "invalid_plling_dwnload_err" passes a numerical error of -20203.
+An error occurs when polling download indicator is N or null for a 
+cost center that has a 'P' polling status code.
+
+created : 06/11/2018 nxk927 CCN Project
+revisions: 
+************************************************************/
+en_invalid_plling_dwnload_err CONSTANT NUMBER := -20203;
+exc_invalid_plling_dwnload_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_plling_dwnload_err , -20203);
 
 END ERRNUMS;
