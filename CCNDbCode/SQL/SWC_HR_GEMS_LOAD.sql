@@ -131,9 +131,9 @@ BEGIN
              v_Row_Data.ANNUAL_SALARY_HYP           := SWC_HR_GEMS_INFO_rec.ANNUAL_SALARY_HYP;
              
              IF v_Row_Data.ASSIG_STATUS = 'Term' THEN
-	     	v_Row_Data.TERMINATION_DATE    := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
-	     ELSE
-	     	v_Row_Data.TERMINATION_DATE    := NULL;
+                v_Row_Data.TERMINATION_DATE    := EMP_GEMS_SYNC_TB_rec.SYSTEM_STATUS_DATE;
+             ELSE
+                v_Row_Data.TERMINATION_DATE    := NULL;
              END IF;
              
              INSERT INTO SWC_HR_GEMS_TB VALUES v_Row_Data;
