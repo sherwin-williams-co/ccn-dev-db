@@ -2646,7 +2646,7 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/***********************************************************
+/*********************************************************** 
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place
@@ -2916,6 +2916,29 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/***********************************************************
+The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
+An error occurs when effective date is the past than the current effective date
+
+created : 11/09/2017 axt754  CCN Project Team....
+revisions:
+************************************************************/
+EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
+EXC_EN_DATE_PASSED_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
+
+/*********************************************************** 
+The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
+This error will state the country code is missing in currency conversion. 
+
+created : 11/10/2017 axt754  CCN Project Team...
+revisions: 
+************************************************************/
+EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
+EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
+
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2942,6 +2965,31 @@ exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
 
+/***********************************************************
+The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
+This error will says that there is duplicate of sorted
+sequence number under a program
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
+exc_gl_ps_dup_sort_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_ps_dup_sort_seq_err , -20190);
+
+/***********************************************************
+The "invalid_gl_num_len_err" passes a numerical error of -20191
+This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
+exc_invalid_gl_num_len_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_gl_num_len_err , -20191);
+
 /*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
@@ -2954,6 +3002,32 @@ en_no_alloc_cc_div_offset      CONSTANT NUMBER := -20187;
 exc_no_alloc_cc_div_offset EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_alloc_cc_div_offset , -20187);
+
+/*********************************************************** 
+The "invalid_lad_customer_catg_err" passes a numerical error of -20195.
+An error occurs when category for lad_customer not equal to  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_lad_cust_catg_err CONSTANT NUMBER := -20195;
+invalid_lad_customer_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_customer_catg_err , -20195);
+
+/*********************************************************** 
+The "invalid_lad_cust_cc_catg_err" passes a numerical error of -20196.
+An error occurs when CODE detail table does not contain category_code  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invld_lad_cust_cc_catg_err CONSTANT NUMBER := -20196;
+invalid_lad_cust_cc_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_cust_cc_catg_err , -20196);
 
 /*********************************************************** 
 The "invalid_allocation_cc" passes a numerical error of -20197.
@@ -3032,6 +3106,7 @@ en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20193;
 exc_invld_pci_merch_mc_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_merch_mc_sz_err , -20193);
+
 /*********************************************************** 
 The "null_prm_std_cost_idntfr" passes a numerical error of -20199.
 An error occurs when PRIM / STD cost identifier is null for a 
@@ -3061,5 +3136,30 @@ en_null_prm_std_cost_idntfr_cc CONSTANT NUMBER := -20200;
 null_prm_std_cost_idntfr_cc EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (null_prm_std_cost_idntfr_cc , -20200);
+
+/***********************************************************
+The "en_zip_code_missmatch_err" passes a numerical error of -20202.
+If zip code in taxware with value as null and not matching with address zip code
+
+created :  05/18/2018 sxg151 CCN Project Team...
+revisions:
+************************************************************/
+en_zip_code_missmatch_err      CONSTANT NUMBER := -20202;
+exc_zip_code_missmatch_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_zip_code_missmatch_err , -20202);
+
+/*********************************************************** 
+The "invalid_plling_dwnload_err" passes a numerical error of -20203.
+An error occurs when polling download indicator is N or null for a 
+cost center that has a 'P' polling status code.
+
+created : 06/11/2018 nxk927 CCN Project
+revisions: 
+************************************************************/
+en_invalid_plling_dwnload_err CONSTANT NUMBER := -20203;
+exc_invalid_plling_dwnload_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_plling_dwnload_err , -20203);
 
 END ERRNUMS;
