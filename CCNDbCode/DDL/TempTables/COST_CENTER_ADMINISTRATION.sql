@@ -262,9 +262,6 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         FACTS_DIVISION,
                                         LEGACY_GL_DIVISION,
                                         GLOBAL_HIERARCHY,
-                                        PRICE_DISTRICT,
-                                        PRICE_DIST_EFFECTIVE_DT,
-                                        CREDIT_HIERARCHY,
                                         MANAGER_ID,
                                         ALLOCATION_CC,
                                         DIVISION_OFFSET)
