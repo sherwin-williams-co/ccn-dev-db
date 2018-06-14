@@ -7,8 +7,6 @@ Purpose    : For dropping and creating the COST_CENTER_ADMINISTRATION table.
 Created :
 Changed : 04/25/2017 gxg192 CCN Project....
           04/27/2017 gxg192 Added new fields in ACCESS PARAMETERS
-        : 11/06/2017 axt754 CCN Project....
-          Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
         : 01/18/2018 axt754 CCN Project....
           Added ALLOCATION_CC, DIVISION_OFFSET Fields
 */
@@ -133,9 +131,6 @@ Changed : 04/25/2017 gxg192 CCN Project....
       FACTS_DIVISION                   VARCHAR2(100),
       LEGACY_GL_DIVISION               VARCHAR2(100),
       GLOBAL_HIERARCHY                 VARCHAR2(100),
-      PRICE_DISTRICT                   VARCHAR2(100),
-      PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
-      CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
       ALLOCATION_CC                    VARCHAR2(6),
       DIVISION_OFFSET                  VARCHAR2(6)
