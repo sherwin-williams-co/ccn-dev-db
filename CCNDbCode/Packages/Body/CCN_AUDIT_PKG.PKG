@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY CCN_AUDIT_PKG AS
+create or replace PACKAGE BODY CCN_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 created : 02/29/2012 tal CCN project
@@ -173,6 +173,8 @@ in_TRANSACTION_ID - inpupt Key Value
 in_TABLE_NAME     - Input Table Name
 
 created : 09/10/2013 kdp CCN Project....
+Modified: 06/21/2018 nxk927 CCN Project...
+          Removed the update_cc_global_hrchy_ind that was updating the indicator in cost center table. 
 **********************************************************/
 in_TRANSACTION_ID    IN     VARCHAR2,
 in_TABLE_NAME        IN     VARCHAR2) RETURN BOOLEAN IS
@@ -217,7 +219,6 @@ BEGIN
          V_COST_CENTER_CODE := SUBSTR(in_TRANSACTION_ID,2,6);
       END IF;
    END IF;
-   CCN_HIERARCHY.update_cc_global_hrchy_ind(V_COST_CENTER_CODE);
    
    --Below query will check if cost center is part of global hierarchy
    SELECT COUNT(*) INTO V_COUNT
@@ -954,25 +955,16 @@ modified : 11/14/2016 jxc517 CCN Project Team . . .
            if it is excluded, we should not build the diff tag fragment for that column
          : 08/21/2017 gxg192 Added code to not consider the newly added audit log records
            while current audit log process is running.
+         : 06/21/2018 nxk927 CCN Project Team . . .
+           Removed the unwanted paramters as we won't be writing files anymore
 *******************************************************/
-
 ( IN_TABLE_NAME IN VARCHAR2
 , IN_KEY        IN VARCHAR2
-, OUT_CC_CODE 	OUT VARCHAR2
-, OUT_CHANGE_TYPE OUT VARCHAR2
-, OUT_PREV_ROW    OUT XMLTYPE
-, OUT_CURR_ROW    OUT XMLTYPE
-, OUT_DIFF OUT XMLTYPE
-, OUT_LOG_ID_PREV OUT NUMBER
-, OUT_LOG_ID OUT NUMBER
 )
 
 IS
 
-ROW_CURR	          AUDIT_LOG.TABLE_ROW_DATA%TYPE;
 V_LOG_ID_CURR       AUDIT_LOG.LOG_ID%TYPE;
-ROW_PREV	          AUDIT_LOG.TABLE_ROW_DATA%TYPE;
-PK_CURR             AUDIT_LOG.TABLE_PK_VALUE%TYPE;
 V_LOG_ID_PREV       AUDIT_LOG.LOG_ID%TYPE;
 V_CONTEXT	          VARCHAR2(200);
 V_COSTCENTERCODE    COST_CENTER.COST_CENTER_CODE%TYPE;
@@ -990,19 +982,11 @@ V_CURRENT_STATUS_CODE  STATUS.STATUS_CODE%TYPE;
 V_CC_CODE              COST_CENTER.COST_CENTER_CODE%TYPE;
 V_PREV_REC             VARCHAR2(1000);
 V_CURR_REC             VARCHAR2(1000); 
-
-CURSOR GET_COLS (IN_TABLE IN VARCHAR2) IS
-    SELECT COLUMN_NAME,
-           COLUMN_ID
-      FROM ALL_TAB_COLUMNS
-     WHERE TABLE_NAME = IN_TABLE
-     ORDER BY COLUMN_ID;
-
 BEGIN
 
     V_CONTEXT := 'Selecting Previous Row from Audit_Log';
     BEGIN
-        SELECT TABLE_ROW_DATA, LOG_ID INTO ROW_PREV, V_LOG_ID_PREV
+        SELECT LOG_ID INTO V_LOG_ID_PREV
           FROM AUDIT_LOG AL,
                BATCH_JOB BATCH
          WHERE AL.TABLE_NAME        = IN_TABLE_NAME
@@ -1028,7 +1012,7 @@ BEGIN
     END;
 
     V_CONTEXT := 'Selecting Current Row from Audit_Log';
-    SELECT TABLE_ROW_DATA, LOG_ID, TABLE_PK_VALUE INTO ROW_CURR, V_LOG_ID_CURR, PK_CURR -- Added to accomodate population of primary key columns in backFeed files generated
+    SELECT LOG_ID INTO V_LOG_ID_CURR -- Added to accomodate population of primary key columns in backFeed files generated
       FROM AUDIT_LOG AL
      WHERE TABLE_NAME        = IN_TABLE_NAME
        AND AL.TRANSACTION_ID = IN_KEY
@@ -1044,80 +1028,7 @@ BEGIN
                            AND AL2.LOG_ID <= v_max_tran_id_current_batch)
        AND ROWNUM < 2;
 
-    V_CONTEXT := 'Parsing the XMLType';
-    --Start building the XML string
-    XMLSTRING := '<' || IN_Table_name || ' xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">';
-    FOR GET_COLS_REC IN GET_COLS(IN_TABLE_NAME) LOOP
-        --Added below condition to suppress audit for excluded fields
-        IF IS_AUDIT_EXCLUDED_FIELD(IN_TABLE_NAME, GET_COLS_REC.COLUMN_NAME) = 'N' THEN
-            /*The function XML_EXTRACT_NO_EXCEPTION is used, it uses the extract function on the xmltype like given below
-            p_xml.extract(p_xpath || '/text()').getstringval() */
-            IF V_CHANGE_TYPE = 'C' THEN
-                COMP_PREV := XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || GET_COLS_REC.COLUMN_NAME);
-            END IF; 
-            COMP_CURR := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || GET_COLS_REC.COLUMN_NAME),'~');
-
-            IF IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME = 'COST_CENTER - CLOSE_DATE'  THEN
-               IF V_CHANGE_TYPE = 'C' THEN        
-                   V_PREV_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_PREV,'//' || 'CLOSE_DATE'), 'ZZ');
-               END IF;
-               V_CURR_REC := NVL(XML_EXTRACT_NO_EXCEPTION(ROW_CURR,'//' || 'CLOSE_DATE'), 'YY');
-               IF V_PREV_REC <> 'ZZ' AND V_CURR_REC = 'YY'  THEN 
-                   COMP_CURR := '00000000';
-               END IF;
-            END IF;
-   
-            --Get the cost center code, only if it is not fetched yet [in_out paramater : v_CostCenterCode]
-            GET_COST_CENTER_CODE(GET_COLS_REC.COLUMN_NAME, ROW_CURR, COMP_CURR, v_CostCenterCode);
-
-            IF GET_COLS_REC.COLUMN_NAME = 'UPPER_LVL_VER_VALUE' THEN
-                --CCN 2.0 release changes to extract attributes dynamically
-                --PARSE_DIFFERENCE_ATTRBTS_XML(ROW_CURR, ROW_PREV, XMLSTRING);
-                IF ROW_CURR IS NOT NULL THEN
-                    V_ROW_CURR := SYS.XMLTYPE(REPLACE(ROW_CURR.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>')); 
-                END IF;
-                IF ROW_PREV IS NOT NULL THEN
-                    V_ROW_PREV := SYS.XMLTYPE(REPLACE(ROW_PREV.EXTRACT('//HIERARCHY_DETAIL').GETSTRINGVAL(),'ATTRIBUTES>','attributes>'));
-                END IF;
-                PARSE_DIFFERENCE_ATTRBTS_XML(V_ROW_CURR,
-                                             V_ROW_PREV,
-                                             XMLSTRING);
-            END IF;
-
-            --If the elements have changed OR new row, append them to the XML string
-            IF v_change_type = 'A' THEN
-                XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-            ELSE
-                --Populate the XML String only if the value is changed or if particular column is part of primary key
-                --Also for Bank_Card table we should always populate below fields with current records value if it's a change
-                IF NVL(COMP_CURR,'A') <> NVL(COMP_PREV,'A')
-                   OR XML_EXTRACT_NO_EXCEPTION(PK_CURR,'//' || GET_COLS_REC.COLUMN_NAME) IS NOT NULL
-                   OR  (IN_TABLE_NAME || ' - ' || GET_COLS_REC.COLUMN_NAME) IN ('BANK_CARD - MERCHANT_ID',
-                                                                                'BANK_CARD - QUALITY_CODE',
-                                                                                'BANK_CARD - AMEX_SE_ID',
-                                                                                'BANK_CARD - DISCOVER_ID',
-                                                                                'EMPLOYEE_ADMIN_DETAILS - JOB_TYPE') THEN  
-                    XMLSTRING := XMLSTRING || '<' || GET_COLS_REC.COLUMN_NAME || '>' || COMP_CURR || '</' || GET_COLS_REC.COLUMN_NAME || '>';
-                END IF;
-            END IF;
-        END IF;
-    END LOOP;
-
     UPDATE_AUDIT_REC_FLAG(IN_TABLE_NAME,IN_KEY, V_LOG_ID_PREV, V_LOG_ID_CURR, V_CONTEXT);
-
-    V_CONTEXT := 'Final value being set';
-    XMLSTRING       := XMLSTRING || '</' || IN_Table_name || '>';
-
-    V_CONTEXT := 'Converting to XMLType';
-    --Convert the final XML String to XMLType and set it to the OUT parameter
-    OUT_DIFF        := XMLType(XMLSTRING);
-    OUT_PREV_ROW    := ROW_PREV;
-    OUT_CURR_ROW    := ROW_CURR;
-    OUT_CC_CODE     := v_CostCenterCode;
-    OUT_CHANGE_TYPE := v_change_type;
-    OUT_LOG_ID      := V_LOG_ID_CURR;
-    OUT_LOG_ID_PREV := V_LOG_ID_PREV;
-
 EXCEPTION
     WHEN OTHERS THEN
         SQ := SQLCODE;
@@ -1125,242 +1036,6 @@ EXCEPTION
         V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
         ERRPKG.RAISE_ERR(-20003,'PARSE_DIFFERENCE_XML for ' || IN_TABLE_NAME || ' ' || IN_KEY || 'at ', V_CONTEXT);
 END PARSE_DIFFERENCE_XML; 
-
-PROCEDURE Build_File_SP (
-/**********************************************************
-	Build_File_SP
-
-	This procedure is intended to build a file based on the table layout
-	in order to be consumed by the Mainframe to backfill Legacy MainFrame
-
-	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row
-	varible (based on the table that was updated)
-
-
-created : 02/21/2012 kdp CCN Project....
-modified: 04/15/2015 jxc517 CCN Project....
-          Territory users cannot deal with global hierarchy 6th level with non-alphabets
-          the code changes here are to send the dummy YY as @@ for 6th level value of global hierarchy
-Modified: 07/28/2015 dxv848 added the condition to remove the space going into the file.   
-        : 11/03/2015 axk326 CCN Project Team
-          Replaced call to COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS with HANDLE_SPECIAL_CHRCTRS to handle 
-          special characters while writing into audit backfeed file
-modified : 11/14/2016 jxc517 CCN Project Team . . . 
-           added code to check if a field with in a table is excluded from audit or not
-           if it is excluded, we should not build the diff tag fragment for that column
-modified : 09/18/2017 jxc517 CCN Project Team . . . 
-           added logic to close the utl file if nothing to write for
-           MANAGER_EMPLOYEE and TERRITORY_EMPLOYEE tables
-**********************************************************/
-IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
-,in_TABLE_NAME IN VARCHAR2
-,in_ROW_DATE   IN DATE
-,IN_PREV_ROW   IN sys.XMLTYPE
-,IN_CURR_ROW   IN sys.XMLTYPE
-,in_Row_data    IN sys.XMLTYPE           
-,in_CHANGE_TYPE in VARCHAR2
-,in_LOG_ID_PREV in NUMBER
-,in_LOG_ID      in NUMBER
-)
- is 
-CURSOR table_fields_cur IS
-   SELECT COLUMN_NAME,
-          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
-          DATA_TYPE,
-          COLUMN_ID
-     FROM ALL_TAB_COLUMNS
-    WHERE TABLE_NAME = IN_TABLE_NAME
-   --For Hierarchy_Detail table alone we need to append 2 more fields at the end - statement_type and emplyee_name
-   UNION
-   SELECT COLUMN_NAME,
-          DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
-          DATA_TYPE,
-          COLUMN_ID
-     FROM CCN_ADDITIONAL_AUDIT_FIELDS
-    WHERE TABLE_NAME = IN_TABLE_NAME
-    ORDER BY COLUMN_ID ASC;
-
-  PATH        	        VARCHAR2(50) := 'CCN_DATAFILES'; -- directory created in Oracle database UNTIL NEW ONE CREATED
-  filename  	          VARCHAR2(50) := in_TABLE_NAME || '_backfeed' ;
-  stamp       		      VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- used to create timestamp for data file 
-  v_cost_center		      VARCHAR2(6)  := '      '; --added for spaces with tables that don't use cost center
-  V_CHANGE_TYPE         VARCHAR2(1);
-  output_file 		      UTL_FILE.FILE_TYPE;
-  V_HRCHY_HDR_NAME      HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
-  V_HRCHY_DTL_LEVEL     HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
--------------
-  l_out_file            UTL_FILE.FILE_TYPE;
-  l_buffer              RAW(32767);
-  l_amount              BINARY_INTEGER := 32767;
-  l_pos                 INTEGER        := 1;
-  L_BLOB_LEN            INTEGER;
-  v_out_clob            CLOB;
-  v_value               VARCHAR2(32000);
-  v_extracted_value     VARCHAR2(32000);
-  V_CONTEXT	            VARCHAR2(200);
-  SQ		                INTEGER; 
-  SE		                VARCHAR2(1000);
-
-BEGIN
-
-   -- working just remove for debbuging un comment for writing file
-   V_CONTEXT := 'Creating the file on server';
-   output_file := UTL_FILE.FOPEN (path
-                                  ,filename|| stamp
-                                  , 'w' --binary
-                                 , 32767);
-   --adding header information for the backload file
-   IF IN_COST_CENTER IS NOT NULL THEN
-      V_COST_CENTER := IN_COST_CENTER; 
-   END IF;
-
-    V_CONTEXT := 'Generating the CLOB Output';
- 
-   --For a change in cost center or employee status we need to send two records in the backfeed
-   --First the Previous value with a 'D'
-   --Second with the current value with a "A'
-   IF IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE') THEN
-      --calling the proc for MANAGER_EMPLOYEE or TERRITORY_EMPLOYEE to place two records
-      --if an employee changes Cost Center or Status
-      EMP_MGR_TERRITORY_AUDIT_SP
-                    ( 
-                       V_COST_CENTER
-                      ,in_TABLE_NAME 
-                      ,in_LOG_ID_PREV --PREV log_id
-                      ,in_LOG_ID     --CURR log_id
-                      ,in_Row_data   --diff xml from PARSE
-                      ,IN_PREV_ROW   --Previous Row from Audit_Log        
-                      ,IN_CURR_ROW   --Current Row from Audit_Log
-                      ,V_OUT_CLOB
-                    );
-   ELSE
-  
-   --Getting the Change Type : 
-   --For Hierarchy_Detail table it should always be 'A'
-   --For all other tables it should be 'C', except for tables that come as 'C' and having effective date 
-   -- as part of primary key in which case it should be 'D'
-   IF IN_TABLE_NAME = 'HIERARCHY_DETAIL' THEN
-      V_CHANGE_TYPE := 'A';
-   ELSE
-      IF IN_CHANGE_TYPE = 'C'
-         AND IS_COLUMN_PART_OF_KEY(IN_TABLE_NAME,'EFFECTIVE_DATE','P') 
-         --We should change the indicator from "C" to "D" only if the expiration date is present
-         AND NVL(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/EXPIRATION_DATE/text()').GETSTRINGVAL(),'~') <> '~' THEN
-         V_CHANGE_TYPE := 'D';
-      ELSE
-         V_CHANGE_TYPE := 'C';
-      END IF;
-   END IF;
-   
-   --V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TO_CHAR (TRUNC(SYSDATE),'YYYYMMDDHH24MISS') ||
-   V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') || V_COST_CENTER || RPAD(IN_TABLE_NAME,25) || TRIM(LPAD(in_LOG_ID,14,'0')) ||
-                 V_CHANGE_TYPE; --IN_CHANGE_TYPE;
-
-   FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-      --Added below condition to suppress audit for excluded fields
-      IF IS_AUDIT_EXCLUDED_FIELD(IN_TABLE_NAME, TABLE_FIELDS_REC.COLUMN_NAME) = 'N' THEN
-         IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-            V_CONTEXT := 'Building by extracting the Existing Data';
-            v_extracted_value := HANDLE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
-            IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('COST_CENTER - POS_PROG_VER_NBR',
-                                                                         'HIERARCHY_DETAIL - EMPLOYEE_NAME'))) THEN
-               V_OUT_CLOB := V_OUT_CLOB ||
-                             UPPER(LPAD(v_extracted_value,
-                                        NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value)), '0'));
-            ELSE
-               v_value := UPPER(RPAD(v_extracted_value,
-                                     NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(v_extracted_value))));
-               --If there is a change and if the changed value is null then it comes here as '~'
-               --We need to capture these ~'s and convert into proper formatting
-               --like we do for null values for specific fields
-               IF TRIM(v_value) = '~' THEN
-                  --Setting Open_Date to '01012099' which have null open date so that we can pass it to main frame
-                  IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'COST_CENTER - OPEN_DATE' )) THEN
-               
-                     V_OUT_CLOB := V_OUT_CLOB || UPPER(RPAD('20990101',TABLE_FIELDS_REC.COLUMN_SIZE));
-                     --Setting All 9's for Phone_Number, Merchant_Id, Quality_Code, Amex_SE_Id, Discover_Id
-                     --which have null values so that we can pass it to main frame
-                     --For Address_USA Table the PRI country(PR State) should default the values to 99 and 9
-                  ELSE
-                     IF ((IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('BANK_CARD - MERCHANT_ID',
-                                                                                  'BANK_CARD - QUALITY_CODE',
-                                                                                  'BANK_CARD - AMEX_SE_ID',
-                                                                                  'BANK_CARD - DISCOVER_ID',
-                                                                                  'PHONE - PHONE_NUMBER',
-                                                                                  'PHONE - PHONE_AREA_CODE',
-                                                                                  'ADDRESS_USA - DESTINATION_POINT',
-                                                                                  'ADDRESS_USA - CHECK_DIGIT'))) THEN
-                        V_OUT_CLOB := V_OUT_CLOB || UPPER(LPAD('9',TABLE_FIELDS_REC.COLUMN_SIZE,'9'));	
-                     ELSE
-                        --Below two fields should not go as ~ in audit field rather should go as spaces
-                        --Should be removed once we start populating these fields on the server
-                        IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('TERMINAL - POS_LAST_TRAN_DATE',
-                                                                                   'TERMINAL - POS_LAST_TRAN_NUMBER') THEN
-                           V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
-                        ELSE
-                           V_OUT_CLOB := V_OUT_CLOB || v_value;
-                        END IF;
-                     END IF;
-                  END IF;
-               ELSE
-                  --For global hierarchy, sales manager records alone, we hard coded <SPACE> with # for data to work
-                  --We need to replace those to spaces when we send them back to backfeed
-                  IF (IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME IN ('HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL',
-                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_PREV_LVL_VAL',
-                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_CURR_LVL_VAL',
-                                                                              'HIERARCHY_DETAIL - HRCHY_DTL_NEXT_LVL_VAL')) THEN
-                     --the below replacements are applicable only for 6th level of GLOBAL_HIERARCHY
-                     IF NVL(V_HRCHY_HDR_NAME,'XXX') = 'GLOBAL_HIERARCHY' THEN
-                         --if it is 6th level, replace YY with @@
-                         IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_CURR_ROW_VAL'
-                            AND NVL(V_HRCHY_DTL_LEVEL,'X') = '06' THEN
-                             v_value := REPLACE(v_value,'YY','@@');
-                         END IF;
-                         --if it has 6th level value in its composite key and it is YY replace it with @@
-                         IF LENGTH(v_value) > 10 AND SUBSTR(v_value,11,2) = 'YY' THEN
-                             v_value := SUBSTR(v_value,1,10)||'@@'||SUBSTR(v_value,13);
-                         END IF;
-                     END IF;
-                     V_OUT_CLOB := V_OUT_CLOB || REPLACE(v_value,'#',' ');
-                  ELSE
-                     --below 2 variables are used to replace YY in global hierarchy 6th level with @@
-                     IF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_HDR_NAME' THEN
-                         V_HRCHY_HDR_NAME := TRIM(v_value);
-                     ELSIF IN_TABLE_NAME||' - '|| TABLE_FIELDS_REC.COLUMN_NAME = 'HIERARCHY_DETAIL - HRCHY_DTL_LEVEL' THEN
-                         V_HRCHY_DTL_LEVEL := TRIM(v_value);
-                     END IF;
-                     V_OUT_CLOB := V_OUT_CLOB || v_value;
-                  END IF;
-               END IF;   
-            END IF;
-         ELSE
-            V_CONTEXT := 'Building by extracting the Non-Existing Data';
-            V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
-         END IF;
-      END IF;
-   END LOOP;
- END IF;
-  --working just remove for debbuging un comment for writing file
-IF  V_OUT_CLOB <> EMPTY_CLOB() THEN   
-     UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
-     UTL_FILE.FCLOSE(output_file);
-ELSE
-    --the below fix has been provided only for bulk DMLs done around these two tables
-    --since the audit is going to run only for another 3 months we do not want to do a global change 
-    --and avoid regression testing by doing this way
-    IF IN_TABLE_NAME IN ('MANAGER_EMPLOYEE', 'TERRITORY_EMPLOYEE') THEN
-        UTL_FILE.FCLOSE(output_file);
-    END IF;
-END IF;
-
-EXCEPTION WHEN OTHERS THEN
-  SQ := SQLCODE;
-	SE := SQLERRM;
-	V_CONTEXT := V_CONTEXT || ' ' || SQ || ' ' || SE; 
- 
- 	ERRPKG.RAISE_ERR(-20003,'Build_File_SP in ' || IN_TABLE_NAME || ' for ' || IN_COST_CENTER || 'at ', V_CONTEXT);
-END Build_File_SP;
 
 PROCEDURE PROCESS_AUDIT_LOG(
 /**********************************************************
@@ -1377,6 +1052,8 @@ modified: 04/19/2016 jxc517 CCN Project Team....
           Added condition not to send audit for future addresses
         : 08/21/2017 gxg192 Added code to not consider the newly added audit log records
           while current audit log process is running.
+        : 06/21/2018 nxk927 CCN Project Team....
+          Removed the call BUILD_FILE_SP as we won't be writing any files any more 
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -1409,26 +1086,7 @@ BEGIN
         THEN
             V_CONTEXT:='Call procedure PARSE_DIFFERENCE_XML for every combination of table_name,transaction_id';
             PARSE_DIFFERENCE_XML( IN_TABLE_NAME
-                                  ,IN_TRANSACTION_ID
-                                  ,V_CC_CODE
-  				                        ,V_CHANGE_TYPE
-                                  ,OUT_PREV_ROW
-                                  ,OUT_CURR_ROW 
-                                  ,DIFF_XML
-                                  ,V_LOG_ID_PREV
-                                  ,V_LOG_ID
-                                  );
-
-            V_CONTEXT:='Call procedure Build_File_SP';
-            BUILD_FILE_SP(V_CC_CODE
-                          ,IN_TABLE_NAME	--in_TABLE_NAME IN VARCHAR2
-                          ,SYSDATE			--in_ROW_DATE   IN DATE
-                          ,OUT_PREV_ROW
-                          ,OUT_CURR_ROW
-                          ,DIFF_XML			--in_Row_data   IN sys.xmltype
-                          ,V_CHANGE_TYPE
-                          ,V_LOG_ID_PREV
-                          ,V_LOG_ID);
+                                  ,IN_TRANSACTION_ID);
             --set the GLOBAL_HIERARCHY_SKIP_FLAG to NULL, which means don't pick again in further batch processing
             UPDATE AUDIT_LOG
                SET GLOBAL_HIERARCHY_SKIP_FLAG = NULL
@@ -1556,11 +1214,13 @@ BEGIN
     v_max_tran_id_current_batch := get_max_trans_id_current_batch('HIERARCHY_DETAIL');
 
     --needs to remove below code once UI makes changes to disable SAVE button for archive cost centers
-    FOR rec IN (SELECT * FROM CC_DELETION_GUIDS) LOOP
-        UPDATE AUDIT_LOG
-           SET AUDIT_REC_FLAG = 'R'
-         WHERE TRANSACTION_ID LIKE '%' || rec.COST_CENTER_CODE || '%'
-           AND AUDIT_REC_FLAG IS NULL;
+    FOR rec IN  (SELECT A.ROWID
+                   FROM AUDIT_LOG A,
+                        CC_DELETION_GUIDS C
+                  WHERE AUDIT_REC_FLAG IS NULL
+                    AND (LOG_ID > v_max_tran_id_last_batch OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y')
+                    AND TRANSACTION_ID LIKE '%' || COST_CENTER_CODE || '%') LOOP
+        UPDATE AUDIT_LOG SET AUDIT_REC_FLAG = 'R' WHERE ROWID = rec.ROWID;
     END LOOP;
 
     FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
@@ -1603,6 +1263,8 @@ Modified : 02/07/2014 jxc517 CCN Project Team . . .
          : 08/23/2017 gxg192 Changes to fix ASP-835 audit issue with multiple kickoffs.
          : 10/17/2017 jxc517 CCN Project Team....
            Moved the call to get max previously processed log id before updating archive cost centers
+         : 06/21/2018 nxk927 CCN Project Team....
+           change the logic to update for archived cost center in audit log table to reduce time. 
 **********************************************************/
 IS
     CURSOR SEL_AUDIT_LOG IS
@@ -1631,13 +1293,15 @@ BEGIN
     v_max_tran_id_current_batch := get_max_trans_id_current_batch();
 
     --needs to remove below code once UI makes changes to disable SAVE button for archive cost centers
-    FOR rec IN (SELECT * FROM CC_DELETION_GUIDS) LOOP
-        UPDATE AUDIT_LOG
-           SET AUDIT_REC_FLAG = 'R'
-         WHERE TRANSACTION_ID LIKE '%' || rec.COST_CENTER_CODE || '%'
-           AND AUDIT_REC_FLAG IS NULL;
+    FOR rec IN  (SELECT A.ROWID
+                   FROM AUDIT_LOG A,
+                        CC_DELETION_GUIDS C
+                  WHERE AUDIT_REC_FLAG IS NULL
+                    AND (LOG_ID > v_max_tran_id_last_batch OR NVL(GLOBAL_HIERARCHY_SKIP_FLAG,'N') = 'Y')
+                    AND TRANSACTION_ID LIKE '%' || COST_CENTER_CODE || '%') LOOP
+        UPDATE AUDIT_LOG SET AUDIT_REC_FLAG = 'R' WHERE ROWID = rec.ROWID;
     END LOOP;
-
+    
     FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
         BEGIN
             SAVEPOINT NEXT_AUDIT_REC;
