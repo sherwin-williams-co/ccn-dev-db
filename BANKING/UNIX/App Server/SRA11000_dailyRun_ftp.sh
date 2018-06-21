@@ -14,6 +14,8 @@
 #             added a check to see if the file has data
 # Modified : 08/15/2017 nxk927 CCN Project Team.....
 #            Path changed. This needs to be changed only in Prod
+# Modified : 06/18/2018 nxk927 CCN Project Team.....
+#            adding timestamp in the ftp'ed file
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -21,6 +23,7 @@
 proc_name="SRA11000_dailyRun_ftp"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
+DT=`date +"%m%d%Y%H%M%S"`
 
 echo "Processing Started for $proc_name at $TIME on $DATE"
 if [ $FTP_INDICATOR == Y ] 
@@ -37,8 +40,8 @@ ftp -inv ${uar_host} <<FTP_MF
 quote user ${uar_user}
 quote pass ${uar_pw}
 cd "/reconnet/uardata/rt1/input"
-put SMIS1.SRA10060_* serial.dat
-put SMIS1.SRA12060_* uar.pos
+put SMIS1.SRA10060_* serial_"$DT".dat
+put SMIS1.SRA12060_* uar_"$DT".pos
 bye
 END_SCRIPT
 echo "bye the transfer is complete"
