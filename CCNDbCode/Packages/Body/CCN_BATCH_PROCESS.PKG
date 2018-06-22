@@ -779,6 +779,8 @@ modified: 03/15/2018 rxv940 CCN Project Team....
           - shell script FTP'es
         : 03/16/2018 nxk927
           polling status code Q added in the filter
+        : 06/22/2018 sxg151 CCN Project Team...
+          Added logic to send an email along with FTP ASP - 1082.
 *******************************************************************************************/
 IN_TMSTMP  IN VARCHAR2)
 AS
@@ -807,18 +809,25 @@ AS
    FILENAME            VARCHAR2(50) := 'merchtb_' || IN_TMSTMP || '.dat';
    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
    V_CLOB              CLOB;
+   V_CLOB_FOR_EMAIL    CLOB;--ASP-1082 
 
+--ASP-1082
 PROCEDURE APPEND_CLOB(
    IN_VALUE         IN     VARCHAR2,
-   IN_COST_CENTER   IN     VARCHAR2
-   )
+   IN_COST_CENTER   IN     VARCHAR2,
+   IN_OUT_MAIL_CLOB IN OUT CLOB)
 IS
    V_CLOB              CLOB;
 BEGIN
    IF IN_VALUE IS NOT NULL AND NOT REGEXP_LIKE(IN_VALUE, '^[9-9]+$' ) AND NOT REGEXP_LIKE(IN_VALUE, '^[0-0]+$' ) THEN
       V_CLOB := IN_VALUE || ',' || SUBSTR(IN_COST_CENTER, 3) || CHR(13);
       IF V_CLOB <> EMPTY_CLOB() THEN
-         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE); 
+         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+         IF IN_OUT_MAIL_CLOB <> EMPTY_CLOB() THEN
+            IN_OUT_MAIL_CLOB := IN_OUT_MAIL_CLOB || CHR(10) || V_CLOB;
+         ELSE
+            IN_OUT_MAIL_CLOB := V_CLOB;
+         END IF;
       END IF;
    END IF;
 END APPEND_CLOB;
@@ -833,22 +842,23 @@ BEGIN
       /*Fetch Bank_Card Information for each Store*/
       FOR REC_BC IN CUR_BANK_CARD (REC_CC.COST_CENTER_CODE)  LOOP
          --Append MERCHANT_ID to file
-         APPEND_CLOB(REC_BC.MERCHANT_ID, REC_BC.COST_CENTER_CODE);
+         APPEND_CLOB(REC_BC.MERCHANT_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
          --Append PCI_MERCHANT_ID to file
-         APPEND_CLOB(REC_BC.PCI_MERCHANT_ID, REC_BC.COST_CENTER_CODE);
+         APPEND_CLOB(REC_BC.PCI_MERCHANT_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
          --Append DISCOVER_ID to file
-         APPEND_CLOB(REC_BC.DISCOVER_ID, REC_BC.COST_CENTER_CODE);
+         APPEND_CLOB(REC_BC.DISCOVER_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
          --Append PCI_DISCOVER_ID to file
-         APPEND_CLOB(REC_BC.PCI_DISCOVER_ID, REC_BC.COST_CENTER_CODE);
+         APPEND_CLOB(REC_BC.PCI_DISCOVER_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
          --Append AMEX_SE_ID to file
-         APPEND_CLOB(REC_BC.AMEX_SE_ID, REC_BC.COST_CENTER_CODE);
-          --Append MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE);
-          --Append PCI_MERCH_ID_CAN_MC to file
-         APPEND_CLOB(REC_BC.PCI_MERCH_ID_CAN_MC, REC_BC.COST_CENTER_CODE);
+         APPEND_CLOB(REC_BC.AMEX_SE_ID, REC_BC.COST_CENTER_CODE, V_CLOB_FOR_EMAIL);
       END LOOP;
    END LOOP;
    UTL_FILE.FCLOSE(OUTPUT_FILE);
+   
+   --Sending mail for the category 'STORE_BANK_CARD_MERCHANT' --ASP-1082
+   IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+      MAIL_PKG.SEND_MAIL('STORE_BANK_CARD_MERCHANT', NULL, NULL, V_CLOB_FOR_EMAIL);
+   END IF;
 
 EXCEPTION
    WHEN OTHERS THEN
@@ -873,8 +883,8 @@ modified: 03/15/2018 rxv940 CCN Project Team....
 modified: 03/16/2018 nxk927
           Considering all the records without merchant id and using 0's for null merchant id, null discover id and
           null AMEX_SE_ID
-        : 06/20/2018 sxg151 CCN Project Team....
-          ASP-1082 : Calling "WRITE_CLOB_ON_SERVER" proc to generate the  file on server and dump the passed BLOB data Into the file created.
+        : 06/22/2018 sxg151 CCN Project Team...
+          Added logic to send an email along with FTP ASP - 1082.
 *******************************************************************************************/
 IN_TMSTMP  IN VARCHAR2)
 AS
@@ -926,6 +936,7 @@ AS
    --Variable Declaration
    PATH                     VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
    FILENAME                 VARCHAR2(50) := 'STORE_BANK_CARD_SERIAL_' || IN_TMSTMP || '.dat';
+   OUTPUT_FILE              UTL_FILE.FILE_TYPE;
    V_DIVISION_NO            VARCHAR2(200);
    V_AREA                   VARCHAR2(200);
    V_DISTRICT               VARCHAR2(200);
@@ -939,6 +950,10 @@ AS
    V_CLOB                   CLOB;
    V_CLOB_FOR_EMAIL         CLOB;
 BEGIN
+   OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                 ,FILENAME
+                                 , 'W' --BINARY
+                                 , 32767);
 
    FOR REC IN CUR_ADDRESS LOOP
       AAT_ADDRESS_VW(REC.COST_CENTER_CODE) := REC;
@@ -1008,17 +1023,23 @@ BEGIN
                    FILL_SPACES(13);
 
       IF V_CLOB <> EMPTY_CLOB() THEN
+         UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
          IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-            V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10)|| V_CLOB;
+            V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
          ELSE
             V_CLOB_FOR_EMAIL := V_CLOB;
          END IF;
       END IF;
    END LOOP;
 
-   CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER(PATH, FILENAME, V_CLOB_FOR_EMAIL);--ASP-1082
+   UTL_FILE.FCLOSE(OUTPUT_FILE);
+   --Sending mail for the category 'STORE_BANK_CARD_SERIAL'
+   IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+      MAIL_PKG.SEND_MAIL('STORE_BANK_CARD_SERIAL', NULL, NULL, V_CLOB_FOR_EMAIL);
+   END IF;
 EXCEPTION
    WHEN OTHERS THEN
+      UTL_FILE.FCLOSE(OUTPUT_FILE);
       RAISE;
 END GNRT_STORE_BANK_CARD_SERIAL_FL;
 
