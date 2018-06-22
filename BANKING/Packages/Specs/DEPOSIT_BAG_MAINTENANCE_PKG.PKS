@@ -9,6 +9,20 @@ Changed :
 
 TYPE REF_CURSOR IS REF CURSOR;
 
+PROCEDURE IF_EXISTS_UPD_BAG_TICK_REC(
+/*******************************************************************************
+  This procedure will check if the deposit bag exists for cost center
+  If it exists we can use the bag
+
+Created : 05/22/2018 nxk927 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE IN  VARCHAR2,
+IN_BANK_ACCT_NBR    IN  VARCHAR2,
+IN_EFFECTIVE_DATE   IN  DATE,
+IN_EXPIRATION_DATE  IN  DATE DEFAULT NULL,
+IN_FUTURE_ID        IN  VARCHAR2 DEFAULT NULL);
+
 PROCEDURE DELETE_DEPOSIT_BAG_DTLS(
 /*******************************************************************************
 This procedure is intended to get the BANK_DEP_BAG_TICK record
