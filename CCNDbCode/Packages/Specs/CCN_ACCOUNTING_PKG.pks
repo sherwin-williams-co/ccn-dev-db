@@ -26,5 +26,13 @@ created : 06/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
 IN_DATE IN DATE)
 ;
-     
+
+PROCEDURE SEND_EPM_FILES
+/****************************************************************************** 
+ This procedure will generate the Account Report and EPM Files and email the files.
+Created : 05/31/2018 sxg151 -- CCN Project Team
+Changed :
+******************************************************************************/
+;
+
 END CCN_ACCOUNTING_PKG;
