@@ -6,6 +6,8 @@
 #                 CCN_ACCOUNTING_PKG.GEN_CCN_ACCOUNTING_REPORT
 #
 # Created  : 06/19/2017 axt754 CCN Project Team.....
+# Modified : 06/25/2018 sxg151 CCN Project Team....
+#            ASP-1075 Added New Prod SEND_EPM_FILES to Send Accounting and EPM files together.
 # 
 ###############################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
@@ -26,7 +28,7 @@ set verify off;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 
-execute CCN_ACCOUNTING_PKG.GEN_CCN_ACCOUNTING_REPORT();
+execute CCN_ACCOUNTING_PKG.SEND_EPM_FILES();
 
 exit;
 END
