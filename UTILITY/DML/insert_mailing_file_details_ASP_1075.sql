@@ -1,38 +1,36 @@
 /*******************************************************************************
-Insert scripts to insert record for filename'CCN_ACCNT_REPORT/CCN_ADMIN_HRCHY_FORMAT' in 
-Mailing file deatils table 
+This script update the mailing category details in MAILING_DETAILS table
+for the group id "86" to send the both (CCN_ACCNT_REPORT/ADMIN_HRCHY_FORMAT files 
 
-CREATED : 05/31/2018 sxg151 CCN PROJECT....ASP-1075
+CREATED : 06/26/2018 sxg151 CCN PROJECT....ASP-1075
 *******************************************************************************/
 
--- INSERTING into MAILING_GROUP
-SET DEFINE OFF;
-Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) values ('113','ccnoracle.team@sherwin.com');
+--Update MAILING_DETAILS
 
--- INSERTING into MAILING_DETAILS
+UPDATE MAILING_DETAILS
+   SET  MAIL_CATEGORY = 'CCN_ACCNT_EPM_REPORT'
+       ,SUBJECT       =  'CCN Accounting/EPM Reports'
+       ,MESSAGE       = 'Please find attached the CCN Accounting/EPM Reports'
+ WHERE GROUP_ID = '86';
 
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE)
-VALUES ('CCN_EPM_FILE_REPORT',
-        '113',
-        'CCN Accounting/EPM Reports',
-        'ccnoracle.team@sherwin.com',
-        'Please find attached the CCN Accounting/EPM Reports.',
-        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
-
+-- This script inserts the file details in MAILING_FILE_DETAILS table to attached the two files in an email.
 
 INSERT INTO MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) 
-values (1,'113','CCN_ACCNT_REPORT','CCN_DATAFILES','A');
+values (1,'86','CCN_ACCNT_REPORT','CCN_DATAFILES','A');
 INSERT INTO MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_ACTIVE) 
-values (2,'113','ADMIN_HRCHY_FORMAT','CCN_DATAFILES','A');
+values (2,'86','ADMIN_HRCHY_FORMAT','CCN_DATAFILES','A');
 
 COMMIT;
 
-SELECT * FROM MAILING_FILE_DETAILS WHERE GROUP_ID = '113';
+SELECT * FROM MAILING_DETAILS  WHERE GROUP_ID = '86';
+SELECT * FROM MAILING_FILE_DETAILS WHERE GROUP_ID = '86';
+
 
 /********************************************************************
-06/20/2018. Adding .Fabio.DiSanza@sherwin.com
+06/26/2018. Adding .Fabio.DiSanza@sherwin.com
 *********************************************************************/
 --Execute only in PROD
+
 
 update mailing_group 
 set mail_id = 'ccnoracle.team@sherwin.com;psg.finplan@sherwin.com;fabio.disanza@sherwin.com;'
@@ -41,4 +39,3 @@ where group_id = '86';
 commit;
 
 select * from mailing_group where group_id = '86';
-
