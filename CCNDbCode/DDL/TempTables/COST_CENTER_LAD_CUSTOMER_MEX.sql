@@ -1,10 +1,13 @@
 /*
      Created: 03/07/2018 mxv711 CCN Project Team..
      This script creates a new exteranal table COST_CENTER_LAD_CUSTOMER_MEX for new category Latin American call centers bulk upload
+            : 06/28/2018 nxk927 CCN Project....
+               Added POS_NON_STORE_IND Field
 */
-  CREATE TABLE "COST_CENTER_LAD_CUSTOMER_MEX" 
-   (        COST_CENTER_CODE                        VARCHAR2(6), 
-        COST_CENTER_NAME                        VARCHAR2(35), 
+  DROP TABLE COST_CENTER_LAD_CUSTOMER_MEX;
+  CREATE TABLE COST_CENTER_LAD_CUSTOMER_MEX
+   (    COST_CENTER_CODE                        VARCHAR2(6),
+        COST_CENTER_NAME                        VARCHAR2(35),
         CATEGORY                                VARCHAR2(1), 
         ENTITY_TYPE                             VARCHAR2(2), 
         STATEMENT_TYPE                          VARCHAR2(2), 
@@ -74,7 +77,7 @@
         MANAGER_ID                              VARCHAR2(100), 
         ALLOCATION_CC                           VARCHAR2(10), 
         DIVISION_OFFSET                         VARCHAR2(10), 
-        POTENTIAL_OPEN_DATE                     VARCHAR2(8)
+        POS_NON_STORE_IND                       VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -157,7 +160,7 @@
                                         MANAGER_ID,
                                         ALLOCATION_CC,
                                         DIVISION_OFFSET,
-                                        POTENTIAL_OPEN_DATE)
+                                        POS_NON_STORE_IND)
                                         )
       LOCATION
        ( 'COST_CENTER_LAD_CUSTOMER_MEX.csv'

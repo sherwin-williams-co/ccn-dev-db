@@ -12,6 +12,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added Field POTENTIAL_OPEN_DATE
         : 02/02/2018 axt754 CCN Project....
           Added Fields TOTAL_SQ_FT, SALES_SQ_FT
+        : 06/28/2018 nxk927 CCN Project....
+          Added POS_NON_STORE_IND Field
 */
 
   DROP TABLE COST_CENTER_STORE;
@@ -160,8 +162,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
       CREDIT_HIERARCHY                 VARCHAR2(100),
       MANAGER_ID                       VARCHAR2(100),
       POTENTIAL_OPEN_DATE              VARCHAR2(8),
-      TOTAL_SQ_FT                      VARCHAR2(10), 
-      SALES_SQ_FT                      VARCHAR2(10)
+      TOTAL_SQ_FT                      VARCHAR2(10),
+      SALES_SQ_FT                      VARCHAR2(10),
+      POS_NON_STORE_IND                VARCHAR2(1)
       
    ) 
    ORGANIZATION EXTERNAL 
@@ -317,8 +320,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
                                         POTENTIAL_OPEN_DATE,
-                                        TOTAL_SQ_FT, 
-                                        SALES_SQ_FT)
+                                        TOTAL_SQ_FT,
+                                        SALES_SQ_FT,
+                                        POS_NON_STORE_IND)
                      )
       LOCATION
        ( 'COST_CENTER_STORE.csv'

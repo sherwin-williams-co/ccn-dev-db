@@ -9,6 +9,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
         : 04/25/2017 gxg192 Corrected compilation errors
         : 11/06/2017 axt754 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
+        : 06/28/2018 nxk927 CCN Project....
+          Added POS_NON_STORE_IND Field
 */
 
   DROP TABLE COST_CENTER_REAL_ESTATE;
@@ -132,7 +134,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
       PRICE_DISTRICT                   VARCHAR2(100),
       PRICE_DIST_EFFECTIVE_DT          VARCHAR2(8),
       CREDIT_HIERARCHY                 VARCHAR2(100),
-      MANAGER_ID                       VARCHAR2(100)
+      MANAGER_ID                       VARCHAR2(100),
+      POS_NON_STORE_IND                VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -262,7 +265,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         PRICE_DISTRICT,
                                         PRICE_DIST_EFFECTIVE_DT,
                                         CREDIT_HIERARCHY,
-                                        MANAGER_ID)
+                                        MANAGER_ID,
+                                        POS_NON_STORE_IND)
                      )
       LOCATION
        ( 'COST_CENTER_REAL_ESTATE.csv'
