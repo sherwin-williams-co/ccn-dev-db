@@ -6,7 +6,7 @@ create or replace PACKAGE BODY CCN_BUSINESS_RULES_PKG
 	This Package BODY is intended to validate business rules for
 	CCN application.  There will be a main validation program that will 
 	run through all the rules and raise the first violation hit.
-
+	
 created :kdp 4/26/2012
 revised :mdh 9/24/2012
          mdh 1/17/2013 - Address Warning Messages added
@@ -18,10 +18,10 @@ revised :mdh 9/24/2012
 PROCEDURE BUSINESS_RULES_SP( 
 /*******************************************************************************
 	 BUSINESS_RULES_SP  (XML to Rowtype Conversion)
-
+   
   This procedure is intended to pull in the XML versions of the CCN tables, and
   convert them to ROWTYPEs.
-
+  
   This procedure will then call the BUSINESS_RULES_SP (Rowtype) procedure which 
   is the "main" Business Rules procedure; which will execute each of the 
   individual business rules.    
@@ -34,11 +34,13 @@ changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
 changed : 04/17/2017 rxa457 CCN Project Team....
           Added new table DISPATCH_TERMINAL
-Changed : 02/09/2018 bxa919 CCN Project Team...
-          Added new procedure MERCHANT_ID_SP_CAN_MC to validate the numeric condition for 
-          MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
-          Removed cost center call in BANK_CARD_BR_SP procedure 
-          as there is no cost center data passed in the XML
+Changed : 03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
+		: 02/09/2018 bxa919 CCN Project Team...
+           Added new procedure MERCHANT_ID_SP_CAN_MC to validate the numeric condition for 
+           MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
+           Removed cost center call in BANK_CARD_BR_SP procedure 
+           as there is no cost center data passed in the XML.
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -46,6 +48,7 @@ Changed : 02/09/2018 bxa919 CCN Project Team...
    ,inADDRESS_USA_XMLTYPE       VARCHAR2--sys.xmltype   
    ,inADDRESS_BRB_XMLTYPE       VARCHAR2--sys.xmltype   
    ,inADMIN_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inLAD_CUSTOMER_XMLTYPE      VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE          VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inMARKETING_XMLTYPE         VARCHAR2--sys.xmltype
@@ -77,6 +80,7 @@ V_ADDRESS_OTH_ROWTYPE    ADDRESS_OTHER%ROWTYPE;
 V_ADDRESS_USA_ROWTYPE    ADDRESS_USA%ROWTYPE;   
 V_ADDRESS_BRB_ROWTYPE    ADDRESS_BRB%ROWTYPE;   
 V_ADMIN_ROWTYPE          ADMINISTRATION%ROWTYPE;
+V_LAD_CUSTOMER_ROWTYPE   LAD_CUSTOMER%ROWTYPE;
 V_BANKCARD_ROWTYPE       BANK_CARD%ROWTYPE;
 V_COST_CENTER_ROWTYPE    COST_CENTER%ROWTYPE;
 V_MARKETING_ROWTYPE      MARKETING%ROWTYPE;
@@ -193,6 +197,17 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
    END IF ;   
 --
 --
+/**  Translate LAD_CUSTOMER_XMLTYPE Table ***/
+   IF (inLAD_CUSTOMER_XMLTYPE  IS NOT NULL)  THEN
+      v_break  := ('Processing LAD_CUSTOMER XMLTYPE '); 
+      CCN_TABLE_IU_PKG.LAD_CUSTOMER_ROWTYPE_SP(
+      'LAD_CUSTOMER'  
+      ,v_ROW_DATE    
+      ,inLAD_CUSTOMER_xmltype    
+      ,v_LAD_CUSTOMER_rowtype  
+        );
+   END IF ; 
+
 /**  Translate BANK_CARD_XMLTYPE Table ***/
    IF (inBANKCARD_XMLTYPE  IS NOT NULL)  THEN
       v_break  := ('Processing Bank Card XMLTYPE '); 
@@ -405,6 +420,7 @@ v_break  := ('Entering Business Rules (rowtype)' );
    ,V_ADDRESS_USA_ROWTYPE    
    ,V_ADDRESS_BRB_ROWTYPE    
    ,V_ADMIN_ROWTYPE         
+   ,V_LAD_CUSTOMER_ROWTYPE
    ,V_BANKCARD_ROWTYPE       
    ,V_COST_CENTER_ROWTYPE    
    ,V_MARKETING_ROWTYPE      
@@ -436,7 +452,7 @@ v_break  :=  ('Completed the Business_Rules_SP (rowtype) ');
 --
 --
  EXCEPTION
-
+       
        WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,12, 500);
@@ -444,7 +460,7 @@ v_break  :=  ('Completed the Business_Rules_SP (rowtype) ');
                     v_errm ||
                     v_break
                 );   
-
+       
 END BUSINESS_RULES_SP; --XML
 
 PROCEDURE Business_Rules_sp (
@@ -453,14 +469,14 @@ PROCEDURE Business_Rules_sp (
 
 	This procedure is intended to be the "main" Business Rules procedure.  This
   routine will be excuted both by Batch and our UI Screens.
-
+  
 	Its purposes is to execute each of the individual Business Rules as defined
   in the Technical Document (Section 3.3) and housed in the Business Rules
 	Package.
-
+  
   Each Table specific business rule will be executed first if the related
   table rowtype is not "null".  
-
+  
   Finally, specific Business Rules will be executed based on changes within
   specific columns of specific tables.
 
@@ -471,6 +487,8 @@ revised : MDH 10/11/2012
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
 Changed : 04/17/17 rxa457 added new paremeter for table DISPATCH_TERMINAL
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
         : 04/10/2018 nxk927 CCN Project Team....
           Added new error to check if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
           passed as null for polling status code of P and Q for store type cost center
@@ -487,6 +505,7 @@ Changed : 06/11/2018 nxk927 CCN Project Team....
    ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
    ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE   
    ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
+   ,inLAD_CUSTOMER_ROWTYPE   IN LAD_CUSTOMER%ROWTYPE
    ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
    ,inMARKETING_ROWTYPE      IN MARKETING%ROWTYPE
@@ -505,12 +524,12 @@ Changed : 06/11/2018 nxk927 CCN Project Team....
    ,inTYPE_ROWTYPE           IN TYPE%ROWTYPE
  )
                 IS         
-v_code                 number;
-v_errm                 varchar(500);
-v_cost_center_rowtype  COST_CENTER%ROWTYPE;
-v_break                varchar(100);
-V_TERMINAL_ACTIVE_FLAG varchar2(1)  := 'Y';
-V_STATEMENT_TYPE       COST_CENTER.STATEMENT_TYPE%TYPE;
+v_code                     number;
+v_errm                     varchar(500);
+v_cost_center_rowtype      COST_CENTER%ROWTYPE;
+v_break                    varchar(100);
+V_TERMINAL_ACTIVE_FLAG     varchar2(1)  := 'Y';
+V_STATEMENT_TYPE           COST_CENTER.STATEMENT_TYPE%TYPE;
 null_prm_std_cost_idntfr   EXCEPTION;
 invalid_plling_dwnload_err EXCEPTION;
 --
@@ -594,13 +613,23 @@ v_break  := ('Entering Table Specific Business Rules'
    IF (inADMIN_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
       CCN_BUSINESS_RULES_PKG.ADMINISTRATION_BR_SP(
             inadmin_rowtype          
- 					, incost_center_rowtype); 
-
+ 		   , incost_center_rowtype); 
+      
       CCN_BUSINESS_RULES_PKG.ALLOCATION_DIV_OFFSET_BR_SP(inadmin_rowtype
                                                          ,incost_center_rowtype
                                                          ,intype_rowtype);
    END IF ;
 
+--
+--
+/**  Call LAD_CUSTOMER Table Business Rule ***/
+   IF (inLAD_CUSTOMER_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
+      CCN_BUSINESS_RULES_PKG.LAD_CUSTOMER_BR_SP(
+            inLAD_CUSTOMER_ROWTYPE          
+ 		    ,incost_center_rowtype);
+  END IF;
+--
+--
        BEGIN
            SELECT STATEMENT_TYPE
              INTO V_STATEMENT_TYPE
@@ -619,7 +648,7 @@ v_break  := ('Entering Table Specific Business Rules'
        v_break  := ('Processing BankCard Business Rules '); 
        CCN_BUSINESS_RULES_PKG.BANK_CARD_BR_SP(
             inbankcard_rowtype
-          , inpolling_rowtype); 
+          , inpolling_rowtype);
    END IF ;
    --
 --
@@ -659,7 +688,7 @@ v_break  := ('Entering Table Specific Business Rules'
        CCN_BUSINESS_RULES_PKG.PHONE_BR_SP(
  					  inphone_rowtype       
            ,incost_center_rowtype);
-
+           
    END IF ; 
 --
   IF (inPHONE_PRI_ROWTYPE.cost_center_code  IS NOT NULL)   THEN 
@@ -667,7 +696,7 @@ v_break  := ('Entering Table Specific Business Rules'
        CCN_BUSINESS_RULES_PKG.PHONE_BR_SP(
  					 inphone_rowtype  
           ,incost_center_rowtype );
-
+           
    END IF ; 
 --
   IF (inPHONE_SCD_ROWTYPE.cost_center_code  IS NOT NULL)   THEN 
@@ -675,9 +704,9 @@ v_break  := ('Entering Table Specific Business Rules'
        CCN_BUSINESS_RULES_PKG.PHONE_BR_SP(
  					  inphone_rowtype      
            ,incost_center_rowtype );
-
+           
    END IF ; 
-
+   
 --
 --
 /**  Call POLLING Table Business Rule - no rules 09/25/2012 mdh ***/
@@ -900,7 +929,7 @@ v_break  :=  ('Completed the Business_Rules_SP '
 --
 --
  EXCEPTION
-      WHEN null_prm_std_cost_idntfr THEN
+      WHEN null_prm_std_cost_idntfr THEN  
           v_code := errnums.en_null_prm_std_cost_idntfr;
           errpkg.raise_err(v_code, 'POLLING_STATUS_HIST_SP.null_prm_std_cost_idntfr ' ,
          'Polling Status code is  "'||inPOLLING_ROWTYPE.polling_status_code||'" while Primary/ standard cost identifier is a null. 
@@ -935,8 +964,8 @@ created : KDP 4/26/2012
 	,inCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
 	,inPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE)
         IS 
-
-
+                      
+                      
  non_numeric_exp 		EXCEPTION;
  invalid_merchID_exp    EXCEPTION;
  cost_center_exp 		EXCEPTION;
@@ -945,7 +974,7 @@ created : KDP 4/26/2012
 
  v_code number;
  v_errm varchar(500);
-
+ 
 	BEGIN
 
 		IF (LENGTH(TRIM(TRANSLATE(inMERCHANT_ID, ' +-.0123456789',' '))) IS NOT NULL) THEN 
@@ -968,7 +997,7 @@ created : KDP 4/26/2012
 		END IF;	
 
 	EXCEPTION
-
+	
 		WHEN non_numeric_exp THEN  
 				  v_code := errnums.en_non_numeric_err;
 			      errpkg.raise_err(v_code, 'MERCHANT_ID_SP.non_numeric_exp ' ||
@@ -995,7 +1024,7 @@ created : KDP 4/26/2012
 PROCEDURE MERCHANT_ID_SP_CAN_MC (
 /*****************************************************************************
           MERCHANT_ID_SP_CAN_MC
-
+          
 This procedure is intended enforce the Business Rules
 for numeric check on MERCH_ID_CAN_MC,PCI_MERC_ID_CAN fields 
 in BANK_CARD Table
@@ -1021,7 +1050,7 @@ IS
             RAISE non_numeric_exp_pci_can ;
         END IF;
     END IF;
-
+    
 EXCEPTION
     WHEN non_numeric_exp_merc_can THEN  
         v_code := errnums.en_non_numeric_err_can;
@@ -1037,7 +1066,7 @@ EXCEPTION
        errpkg.raise_err(v_code, v_errm ||
                         'CCN_BUSINESS_RULES_PKG ');
 END MERCHANT_ID_SP_CAN_MC; 
-
+	
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
 	MODULUS_10
@@ -1052,30 +1081,30 @@ IS
     v_curval NUMBER := 0;
     v_total NUMBER := 0;
     v_other_digit NUMBER := 1;
-
+    
 BEGIN
 
   IF(inValidate_nbr IS NULL) THEN
     RETURN 0;
   END IF;
-
+  
   FOR i IN REVERSE 1 .. LENGTH(inValidate_nbr) LOOP
-
+  
     v_curval:=SUBSTR(inValidate_nbr, i, 1);
 
     IF v_other_digit = 1 THEN
        v_other_digit := 0;
        v_curval := v_curval * 2;
-
+      
       IF(v_curval> 9) THEN
         v_curval := v_curval-9;
       END IF;
     ELSE
        v_other_digit := 1;
     END IF;
-
+   
     v_total := v_total + v_curval;
-
+  
   END LOOP;
 
   IF MOD(v_total, 10) = 0 THEN
@@ -1083,7 +1112,7 @@ BEGIN
   ELSE
     RETURN 10 - MOD(v_total, 10);
   END IF;
-
+  
 END MODULUS_10;	
 
 
@@ -1093,7 +1122,7 @@ PROCEDURE CLOSE_CCNTR_SP (
 
 	This procedure is intended enforce the Business Rules
 	for closing a cost center and verifying the following rules:
-
+  
   1.)  The close_date.COST_CENTER is populated
   2.)  The status_code.STATUS is "5" (Stores) or "X" (Territories), or "9" for all others
   3.)  Store Cost Centers are not Home Store for any Teritory Ccntr
@@ -1103,10 +1132,10 @@ PROCEDURE CLOSE_CCNTR_SP (
   All changes require a new "STATUS" table row being inserted and any
   previous active "STATUS" rows being expired using the effective date
   of the row - 1 day.
-
+  
   Also, since we now have a new "TYPE" table, any active type records, should 
   we expire them as well using the expiration date of the "STATUS" table?
-
+  
 created : NDH 05/18/2012
 revised : TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record
           MDH 05/09/2013 ORA-20010 DO not check Close_Date equal Startus Effective 
@@ -1128,7 +1157,7 @@ revised : TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
  ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE )
         IS 
-
+                         
  non_numeric_exp 		        EXCEPTION;
  invalid_ccntr_close_exp    EXCEPTION;
  invalid_status_code_exp    EXCEPTION;
@@ -1140,22 +1169,22 @@ revised : TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record
  invalid_close_status_exp   EXCEPTION;
  cstmr_accnts_close_exp     EXCEPTION;
  v_count                    NUMBER;
-
+ 
 -- v_status_rowtype  STATUS%ROWTYPE;   TAL 04/15/2012 CCNQC-018
  v_territory_rowtype TERRITORY%ROWTYPE;
 
-
+ 
  v_curr_date date := sysdate;
  v_code number;
  v_errm varchar(500);
-
+ 
 BEGIN
 /******************************************************************************
 	If the status is not an "X" or "5" and the Close date is null, 
   you should not be in this business rule.
   05/17/2013 MDH Status_Code of "9" changed to "8" for all on STORE & TERRITORY ccntrs. 
 ****************************************************************************/	
-
+ 
   IF (inSTATUS_ROWTYPE.STATUS_CODE NOT IN ('X','5','8')) AND 
      (inCOST_CENTER_ROWTYPE.CLOSE_DATE IS NULL) THEN 
         RAISE invalid_ccntr_close_exp;
@@ -1176,10 +1205,10 @@ BEGIN
     END IF;
 
 
-
+     
 /*******************************************************************************
 	get the active Status Table row.
-
+           
   an active STATUS record is defined as cost center
                                         status code
                                         effective_date.
@@ -1198,7 +1227,7 @@ BEGIN
 EXCEPTION
   WHEN NO_DATA_FOUND then
      raise no_act_status_rec_exp;
-
+  
 END;
 ******** TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record ******/
 
@@ -1241,7 +1270,7 @@ END;
           RAISE invalid_status_code_exp;
         END IF;
       END IF;
-
+        
 /*******************************************************************************
 	For Store and Territory Close Cost centers, they cannot be a HOME_STORE
   (TERRITORY Table) to any Territory or Vice Versa.
@@ -1250,7 +1279,7 @@ END;
              Must not have a Home_Store Assignment
 *******************************************************************************/	      
  BEGIN
-
+ 
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
      (inCOST_CENTER_ROWTYPE.CATEGORY = 'S')    THEN
      SELECT count(*)  INTO v_count
@@ -1277,7 +1306,7 @@ BEGIN
           inTERRITORY_ROWTYPE.COST_CENTER_CODE  <> inCOST_CENTER_ROWTYPE.cost_center_code) THEN
            RAISE no_territory_exp;
        END IF;
-
+       
        IF inTERRITORY_ROWTYPE.COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.cost_center_code  AND     
           inTERRITORY_ROWTYPE.HOME_STORE  IS NOT NULL THEN
             RAISE close_terr_asgn_store_exp;
@@ -1300,17 +1329,17 @@ as these cost center got active customer account.
      to be added from CPR
 ******************************************************************************/  
   -- raise ar_accts_assigned_exp;
-
+  
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
 	EXCEPTION
-
+	
 		WHEN invalid_ccntr_close_exp THEN  
 					v_code := errnums.en_ccntr_close_err;
 			      errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.invalid_ccntr_close_exp '
              		,'Cost Center is not in a closed status ');
-
+                
 /******* TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record *******
     when no_act_status_rec_exp then  
 		   		v_code := errnums.en_no_act_status_rec_err;
@@ -1364,7 +1393,7 @@ as these cost center got active customer account.
 					v_errm := substr(SQLERRM,1, 500);
 			      errpkg.raise_err(v_code, v_errm ||
              		'CCN_BUSINESS_RULES_PKG ');   
-
+                 
 END CLOSE_CCNTR_SP;
 
 
@@ -1382,14 +1411,14 @@ created : BLR 5/17/2012
  inCheck_digit      IN ADDRESS_USA.check_digit%TYPE
 ,inDest_point       IN ADDRESS_USA.destination_point%TYPE 
 ,inAddress_type     IN ADDRESS_USA.address_type%TYPE)   
-
+	
          IS              
  non_numeric_err  	         	EXCEPTION; 
  check_digit_err 	          	EXCEPTION;
  dest_point_err 	          	EXCEPTION;
  chk_dgt_non_numb_err        	EXCEPTION;
  dest_pt_non_numb_err        	EXCEPTION;
-
+ 
  divsor_n number;
  divend_n number;
  rem_n number;
@@ -1399,62 +1428,62 @@ created : BLR 5/17/2012
 
 
  BEGIN
-
+  
   /*check for existing cost_center number data */
-
+ 
  --Country code in Cost_center must be USA for additional checks  
  --check digit must be numeric and check digit cannot be equal to zero   
        -- v_addr_usa_rowtype.check_digit := 'F';
-
-
+       
+     
       IF (TRANSLATE(inCheck_digit, ' +-.0123456789',' ') IS NOT NULL) THEN 
          RAISE chk_dgt_non_numb_err ;
       END IF;
-
+    
       IF inCheck_digit < '0'  THEN 
           RAISE check_digit_err ;
       END IF;	
-
+      
       IF (TRANSLATE(inDest_point, ' +-.0123456789','  ') IS NOT NULL) THEN 
       	RAISE dest_pt_non_numb_err ;
 	    END IF; 
-
+    
       IF inDest_point < '00' THEN 
          RAISE dest_point_err ;
       END IF;		
-
+      
  	EXCEPTION
-
+	
 	   WHEN CHECK_DIGIT_ERR THEN  
 					v_code := errnums.en_check_digit_err;
 		      ERRPKG.RAISE_ERR(V_CODE, 'DEST_PT_CHECK_DGT_ID_SP.check_digit_err ', 
        		'CCN_BUSINESS_RULES_PKG' ||  ' - Check digit must be greater or equal to zero');   
-
+                
      WHEN chk_dgt_non_numb_err THEN  
 					v_code := errnums.en_chk_dgt_non_numb_err;
 		      errpkg.raise_err(v_code, 'DEST_PT_CHECK_DGT_ID_SP.chk_dgt_non_numb_err ',
        		'CCN_BUSINESS_RULES_PKG' ||  ' - Check digit must be numeric');   
-
+                       		             		
      WHEN DEST_POINT_ERR THEN  
 					v_code := errnums.en_dest_point_err;
 			    ERRPKG.RAISE_ERR(V_CODE, 'DEST_PT_CHECK_DGT_ID_SP.dest_point_err ',
          	'CCN_BUSINESS_RULES_PKG' ||  ' - Destination Point must be  greater or equal to zero');   
-
+          		             		
      WHEN dest_pt_non_numb_err THEN  
 					v_code := errnums.en_dest_pt_non_numb_err;
 			    errpkg.raise_err(v_code, 'DEST_PT_CHECK_DGT_ID_SP.dest_pt_non_numb_err ',
           'CCN_BUSINESS_RULES_PKG' ||  ' - Destination Point must be numeric');   
-
+                
 		 WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
 			     errpkg.raise_err(v_code, v_errm ||
           'CCN_BUSINESS_RULES_PKG ' || 'no errors found');     
-
-
+               
+                
  END DEST_PT_CHECK_DGT_ID_SP;
-
-
+ 
+ 
 PROCEDURE POLLING_STATUS_HIST_SP (
 /*******************************************************************************
 	POLLING_STATUS_HIST_SP
@@ -1489,14 +1518,14 @@ changed : 05/24/2016 jxc517 CCN Project Team....
   ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
   ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE   )
                 IS                                                                                              
-
-  invalid_poll_stat_err  	EXCEPTION;
+                
+  invalid_poll_stat_err  	 EXCEPTION;
   invalid_close_date_err     EXCEPTION;
-
+    
  v_code number;
  v_count number;
  v_errm varchar(1000);
-
+ 
 V_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE;
 V_STATUS_ROWTYPE            STATUS%ROWTYPE;
 V_TYPE_ROWTYPE              TYPE%ROWTYPE;
@@ -1509,15 +1538,15 @@ V_ADDRESS_MEX_ROWTYPE       ADDRESS_MEX%ROWTYPE;
 V_ADDRESS_OTHER_ROWTYPE     ADDRESS_OTHER%ROWTYPE;
 V_ADDRESS_USA_ROWTYPE       ADDRESS_USA%ROWTYPE;
 V_ADDRESS_BRB_ROWTYPE       ADDRESS_BRB%ROWTYPE;
-V_BANKCARD_ROWTYPE			BANK_CARD%ROWTYPE;
-
+V_BANKCARD_ROWTYPE		    BANK_CARD%ROWTYPE;
+ 
 /*
    3.3.6   POLLING STATUS HISTORY rule is checked when new cost centers are added; 
              then the Polling record must be added with a polling status of "i" for Inactive.
              When a Cost center record is changed to a status of "p" or "q" or "i";
              the business rules are as follows: 
 */
-
+    
 	--BEGIN 
      BEGIN
 IF INCOST_CENTER_ROWTYPE.COST_CENTER_CODE IS NULL THEN
@@ -1710,13 +1739,12 @@ IF inBANKCARD_ROWTYPE.COST_CENTER_CODE IS NULL THEN
    END;
 ELSE
    V_BANKCARD_ROWTYPE := inBANKCARD_ROWTYPE;
-END IF;
-
-
+END IF;    
+     
       CASE ( inPOLLING_ROWTYPE.polling_status_code) 
         WHEN 'Q' THEN
  --         ccn_business_rules_pkg.QUALITY_CTRL_STATUS_CHKS_SP 
-
+ 
 
             QUALITY_CTRL_STATUS_CHKS_SP (
             V_COST_CENTER_ROWTYPE   
@@ -1725,13 +1753,13 @@ END IF;
            ,V_TYPE_ROWTYPE           
            ,inTERMINAL_ROWTYPE       
            ,V_TERMINAL_ACTIVE_FLAG   
-           ,V_BANKCARD_ROWTYPE       ); 
-
+           ,V_BANKCARD_ROWTYPE); 
+           
  -- dbms_output.put_line('PROG 1');
-
+        
         WHEN 'P' THEN
  --         ccn_business_rules_pkg.POLLING_CTRL_STATUS_CHKS_SP    
-
+ 
 
             POLLING_CTRL_STATUS_CHKS_SP (
             V_COST_CENTER_ROWTYPE    
@@ -1750,7 +1778,7 @@ END IF;
            ,V_ADDRESS_OTHER_ROWTYPE    
            ,V_ADDRESS_USA_ROWTYPE
            ,V_ADDRESS_BRB_ROWTYPE); 
-
+           
 --   BLR  4/16/2013  CCNA-352 Added Logic for Inactive status
 --   inPOLLING_ROWTYPE.polling_status_code = 'I'; check close date in Cost
 --     Center Table is populated. Error check requested via Pat Malloy
@@ -1768,31 +1796,30 @@ to not get the error
                   raise invalid_close_date_err;
               end if;*/
               NULL;
-
+              
 --            CASE when inCOST_CENTER_ROWTYPE.close_date is NULL then
 --               raise invalid_close_date_err;
 --            END CASE;
 
         ELSE RAISE invalid_poll_stat_err;  
-
-
+       
+        
       END CASE; 
-
+      
      EXCEPTION
-
+			      	
         WHEN invalid_poll_stat_err THEN  
           v_code := errnums.en_invalid_poll_stat_err;
 		      errpkg.raise_err(v_code, 'polling_status_hist_SP.invalid_poll_stat_err ' ,
           'CCN_BUSINESS_RULES_PKG -Polling status code must be <P or Q or I>');
-
+       
 
         WHEN invalid_close_date_err THEN  
           v_code := errnums.en_invalid_close_date_err;
           --errpkg.raise_err(v_code, 'POLLING_STATUS_INACTIVE_SP.invalid_close_date_err ', 
           errpkg.raise_err(v_code, 'POLLING_STATUS_HIST_SP.invalid_close_date_err ',  --27-Aug-2013
          'CCN_BUSINESS_RULES_PKG - Close date must be entered when polling_status is Inactive'); 
-
-
+               
         WHEN OTHERS THEN
             v_code := SQLCODE;
 	          v_errm := substr(SQLERRM,1, 1000);
@@ -1801,7 +1828,7 @@ to not get the error
             );
 --           'CCN_BUSINESS_RULES_PKG.polling_status_hist_sp - No errors found');
 
-
+   
  END POLLING_STATUS_HIST_SP;
 
 
@@ -1826,7 +1853,7 @@ created : BLR 6/13/2012
     ,V_TERMINAL_ACTIVE_FLAG   IN varchar2
     ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE  )
                     IS         
-
+ 
  inactive_cost_center_err	EXCEPTION;
  invalid_cost_center_err	EXCEPTION;
  invalid_costctr_name_err EXCEPTION;
@@ -1845,20 +1872,20 @@ created : BLR 6/13/2012
 --  v_terminal_rowtype              TERMINAL%ROWTYPE; 
 --  v_bank_card_rowtype             BANK_CARD%ROWTYPE; 
  -- v_hierarchy_rowtype             HIERARCHY%ROWTYPE;
-
+  
  v_curr_date           date := sysdate; 
  v_code number;
  v_count number;
  v_errm varchar(500);
  v_terminal_count integer := 0;
-
+  
 
  BEGIN 
-
+      
 /*******************************************************************************
    3.3.7.1   A Cost Center record must exist with a Cost Center Name not null
 *******************************************************************************/      
-
+ 
 --     BEGIN
 --         
 --         select * into v_costctr_rowtype
@@ -1872,17 +1899,17 @@ created : BLR 6/13/2012
 --  See Error #01
 --         
 --    end;
-
+    
 /*******************************************************************************
    3.3.7.1a  A Cost Center Name cannot be null and polling status code must be
              a "p" or "q"
 *******************************************************************************/		  
-
+         
          IF inCOST_CENTER_ROWTYPE.cost_center_name  IS  NULL  THEN     
             RAISE invalid_costctr_name_err;
 --  See Error #02
          END IF;
-
+                 
 
 /*******************************************************************************
    3.3.7.2a  An active Status record must exist before Polling record is updated.
@@ -1939,7 +1966,7 @@ created : BLR 6/13/2012
            RAISE inactive_type_err;
       END IF;
 --  See Error #04
-
+            
      END; 
 
 /*******************************************************************************
@@ -1951,7 +1978,7 @@ created : BLR 6/13/2012
 /*******************************************************************************
    3.3.7.4   A Polling record must exist before Polling Status can be changed.
 *******************************************************************************/		
-
+     
 	     BEGIN
 --       
 --         select * into v_polling_rowtype
@@ -1967,16 +1994,16 @@ created : BLR 6/13/2012
            RAISE inactive_polling_err;
       END IF;
 --  See Error #05
-
+         
        END;  
-
+          	      	
 /**********************************************************************************
    3.3.7.5  An active Terminal record must exist before Polling record is updated.
                Active means the Effective date must be less than current date and
  	             Expiration date is zero/null.
 **********************************************************************************/		
-
-
+               
+        
 BEGIN
 
 --     select  count(1)
@@ -1995,8 +2022,8 @@ BEGIN
       END IF;
 --  See Error #06
 END;
-
-
+      
+        	      	
 /********************************************************************************
    3.3.7.6  NEED TO ADD HIERARCHY ROUTINE FOR D-A-D CHECK OF SGL division in DRM
 *********************************************************************************/	
@@ -2007,7 +2034,7 @@ END;
                 Active is:  Effective date must be less than current date and
  	              Expiration date is zero/null.
 ************************************************************************************/		
-
+  
     BEGIN
 --       select * into v_bank_card_rowtype
 --		    from  bank_card
@@ -2026,21 +2053,21 @@ END;
            RAISE inactive_bank_card_err;
       END IF;
 --  See Error #07
-
-
+         
+        
      END;
 /*******************************************************************************
   EXCEPTION ERROR PROCESSING :
 *******************************************************************************/		
-
+  
 	EXCEPTION
-
+	
 -- Error #01  
 --    when invalid_cost_center_err then  
 --         v_code := errnums.en_invalid_cost_center_err;
 --		     errpkg.raise_err(v_code, 'QUALITY_CTRL_STATUS_CHKS_SP.invalid_cost_center_err ' ,
 --         'CCN_BUSINESS_RULES_PKG - Cost Center Number "' || inCostctr_cc || '" was not found' );  	
-
+		 		
 -- Error #02 
     WHEN invalid_costctr_name_err THEN  
          v_code := errnums.en_invalid_costctr_name_err;
@@ -2060,7 +2087,7 @@ END;
 		    errpkg.raise_err(v_code, 'QUALITY_CTRL_STATUS_CHKS_SP.inactive_type_err ',
         'CCN_BUSINESS_RULES_PKG - TYPE not found for Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
         '" that has an effective date <= current date and an expiration date = 0');
-
+				
 -- Error #05         
     WHEN inactive_polling_err THEN  
 		    v_code := errnums.en_inactive_polling_err;
@@ -2093,10 +2120,10 @@ END;
 	      v_errm := substr(SQLERRM,1, 500);
         errpkg.raise_err(v_code, v_errm,
         'CCN_BUSINESS_RULES_PKG - No errors found');
-
+    
  END QUALITY_CTRL_STATUS_CHKS_SP;
-
-
+ 
+ 
  PROCEDURE POLLING_CTRL_STATUS_CHKS_SP (
 /*******************************************************************************
 	 POLLING_CTRL_STATUS_CHKS_SP
@@ -2115,6 +2142,8 @@ Modified: 07/02/2015 dxv848 modified the error message to match the condition th
                  actually causing the error.                   
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
+        : 05/29/2018 sxg151 CCN Team...
+          ASP 1069 : Added to checks for inventory indicator of "Y" if polling status is "P" and convert that into warning instead raise an error
 *******************************************************************************/	
   inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE  
  ,inPOLLING_ROWTYPE        IN POLLING%ROWTYPE
@@ -2174,8 +2203,8 @@ changed : 05/24/2016 jxc517 CCN Project Team....
  invalid_transport_type_err   EXCEPTION;
  invalid_tax_juris_err        EXCEPTION;
  invalid_tax_cmpny_code_err   EXCEPTION;
-
-
+ 
+ 
 -- invalid_hierarchy_err    EXCEPTION;
 -- inactive_hierarchy_err   EXCEPTION;
 -- invalid_sgldate_err      EXCEPTION;
@@ -2192,7 +2221,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 --  v_address_can_rowtype           ADDRESS_CAN%ROWTYPE; 
 --  v_address_mex_rowtype           ADDRESS_MEX%ROWTYPE; 
 --  v_address_other_rowtype         ADDRESS_OTHER%ROWTYPE;
-
+ 
  --v_hierarchy_rowtype             HIERARCHY%ROWTYPE;
  v_curr_date           date := sysdate;
  v_code number;
@@ -2204,7 +2233,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 /* 3.3.8.1  The Cost Center record must exist with the following fields populated:
              cost center name,  transport type (new),   tax jurisdiction (new),         
             tax company code (new).            
-
+   
 */
   BEGIN
 --    begin
@@ -2217,22 +2246,22 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 --         when no_data_found then
 --         raise invalid_cost_center_err;
 --    end;    
-
+   
          IF inCOST_CENTER_ROWTYPE.cost_center_name IS NULL THEN          
             RAISE invalid_costctr_name_err;
          END IF;
-
+         
          IF inCOST_CENTER_ROWTYPE.cost_center_name = '                                   '  THEN          
             RAISE invalid_costctr_name_err;
          END IF;
-
-
+            
+      
          IF inCOST_CENTER_ROWTYPE.transport_type IS NULL THEN         
 --            raise invalid_transport_type_err;            removed...can't change in phase one
 			  NULL;
          END IF;
-
-
+         
+          
       /*  IF  ((INPHONE_ROWTYPE.COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE 
              AND INPHONE_ROWTYPE.PHONE_NUMBER_TYPE  IN ('PRI', 'SCD', 'FAX'))
              AND (INPHONE_ROWTYPE.PHONE_NUMBER IS NULL))  
@@ -2240,14 +2269,14 @@ changed : 05/24/2016 jxc517 CCN Project Team....
              RAISE INACTIVE_PHONE_NUM_ERR;
          END IF; 
 	*/
-
+  
     IF  ((INPHONE_ROWTYPE.COST_CENTER_CODE = INPOLLING_ROWTYPE.COST_CENTER_CODE 
              AND inPHONE_PRI_ROWTYPE.phone_number_type  IN ('PRI','SCD', 'FAX'))
              AND (inPHONE_PRI_ROWTYPE.phone_number IS NULL))  
              THEN
              RAISE INACTIVE_PHONE_NUM_ERR;
          END IF; 
-
+	
 /*   3.3.8.2  The Cost Center record must exist with the phone number populated. 
 */
 --    FOR phone_rec in ( select * 
@@ -2261,11 +2290,11 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 --         
 --    END LOOP;      	
 --
-
-
+      
+ 
 /* 5-2-2013 - BLR - CCNA-351 --remove logic and simpilfied below for phone # checks.
 
-
+     
    if (inPHONE_PRI_ROWTYPE.cost_center_code is not null  
       and inPHONE_PRI_ROWTYPE.phone_number_type  in ('PRI','SCD', 'FAX')
       and inPHONE_PRI_ROWTYPE.phone_number is not null
@@ -2286,13 +2315,13 @@ changed : 05/24/2016 jxc517 CCN Project Team....
     and (inPHONE_ROWTYPE.phone_number is null))   then
         raise inactive_phone_num_err;
     end if;  
-
+    
     if ((inPHONE_PRI_ROWTYPE.cost_center_code = inCOST_CENTER_ROWTYPE.cost_center_code)  
     and (inPHONE_PRI_ROWTYPE.phone_number_type  in ('SCD','PRI','FAX'))
     and (inPHONE_PRI_ROWTYPE.phone_number is null))   then
         raise inactive_phone_num_err;
     end if;  
-
+      
   if ((inPHONE_SCD_ROWTYPE.cost_center_code = inCOST_CENTER_ROWTYPE.cost_center_code)  
     and (inPHONE_SCD_ROWTYPE.phone_number_type  in ('PRI','SCD','FAX'))
     and (inPHONE_SCD_ROWTYPE.phone_number is null))   then
@@ -2305,7 +2334,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 /* 3.3.8.3  The Store record must exist with the following field populated
             inventory indicator equal 'y' and inventory start date not zero.            
 */
-
+  
 --     BEGIN
 --         Select * into v_store_rowtype
 --         from STORE
@@ -2320,17 +2349,18 @@ changed : 05/24/2016 jxc517 CCN Project Team....
        IF inSTORE_ROWTYPE.cost_center_code <> inCOST_CENTER_ROWTYPE.cost_center_code THEN
              RAISE invalid_store_err;
        END IF;
-
+                 
          IF inSTORE_ROWTYPE.inventory_indicator <> 'Y'   THEN
-             RAISE invalid_inventory_id_err;
+             ERRPKG.STORE_WARNINGS(errnums.en_invalid_inventory_id_err, --ASP-1069
+                                     'CCN_BUSINESS_RULES_PKG - inventory_id must be a "Y"' );
         END IF;	
-
+            
          IF INSTORE_ROWTYPE.perp_inv_start_date IS NULL
           AND inSTORE_ROWTYPE.inventory_indicator = 'Y'   THEN
             RAISE inactive_store_err;
         END IF;	     
-
-
+      
+ 
 /* 3.3.8.4  An active Type record must exist:
 	    Effective_date must be less than/equal to current date.
 	    Expiration_date should be equal to zero. 
@@ -2357,7 +2387,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
       ELSE
            RAISE inactive_type_err;
       END IF;
-
+  
 /*3.3.8.4b  Checking for an active Status record	
 */  
 --  BEGIN
@@ -2410,7 +2440,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
            RAISE invalid_addr_usa_err;
       END IF;
   END IF;
-
+       
   IF inCOST_CENTER_ROWTYPE.country_code = 'MEX' THEN
 --    BEGIN
 --      select * into v_address_mex_rowtype
@@ -2433,7 +2463,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
            RAISE invalid_addr_mex_err;
       END IF;
   END IF;    
-
+  
   IF inCOST_CENTER_ROWTYPE.country_code = 'CAN' THEN
 --    BEGIN
 --      select * into v_address_can_rowtype
@@ -2467,7 +2497,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
            RAISE invalid_addr_brb_err;
       END IF;
  END IF;  
-
+ 
   IF inCOST_CENTER_ROWTYPE .country_code NOT IN ('USA', 'PRI', 'MEX', 'CAN', 'BRB') THEN
 --    BEGIN
 --      select * into v_address_other_rowtype
@@ -2490,7 +2520,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
            RAISE invalid_addr_other_err;
       END IF;
   END IF;  
-
+  
 /* 3.3.8.6  An active Cost center D-A-D record (DRM - Hiearchy). 
 	    Effective_date must be less than/equal to current date.
 	    Expiration_date should be equal to zero.
@@ -2503,7 +2533,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
         and HIERARCHY.polling_status_code  =  inpolling_status_code then
          	  raise invalid_hierarchy_err ;
     end if;
-
+    
     if HIERARCHY.EFFECTIVE_DATE > v_curr_date   and
        HIERARCHY.expiration_date  is not null 
          raise invalid_sgldate_err ;
@@ -2513,7 +2543,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 /* 3.3.8.9  The Cost Center record must exist with the following fields populated
             cost center name, transport type (new), tax jurisdiction (new), and tax company code (new).            
 */
-
+   
 --  BEGIN
 --       
 --    SELECT * into v_polling_rowtype
@@ -2530,12 +2560,12 @@ changed : 05/24/2016 jxc517 CCN Project Team....
       ELSE
            RAISE invalid_polling_err;
       END IF;
-
+  
     IF (inPOLLING_ROWTYPE.TIME_ZONE NOT IN ('0','1', '2', '3', '4', '5'))  THEN 
         RAISE invalid_time_zone_err;
     END IF;
-
-
+   
+   
     IF (inPOLLING_ROWTYPE.polling_ind IS NULL)  THEN 
         RAISE invalid_poll_ind_err;
     END IF;             
@@ -2551,16 +2581,16 @@ changed : 05/24/2016 jxc517 CCN Project Team....
     and (inPHONE_ROWTYPE.phone_number is null))   then
         raise invalid_phone_err;
     end if;  
-
+    
    */
-
+     
 /* 3.3.8.10  Check for an active Polling Terminal record:
  	     **Note there can be multiple records.  
 	     Effective_date must be less than/equal to current date
 	     Expiration_date should be equal to zero.
 */     
-
-
+   
+	     
   BEGIN
 --
 --      select  count(1)
@@ -2579,9 +2609,9 @@ changed : 05/24/2016 jxc517 CCN Project Team....
       IF    V_TERMINAL_ACTIVE_FLAG  <> 'Y'  THEN
              RAISE invalid_terminal_err;
       END IF;
-
+                
   END;        
-
+   
  /* 3.3.8.11  Check for an active SGL division record:
 	     Effective_date must be less than/equal to current date.
 	     Expiration_date should be equal to zero.            
@@ -2608,7 +2638,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
                   amex_id cannot be '999999999' and 
 	     discover_id can be null for Canada.           
 */
-
+  
   BEGIN
 --    select * into v_bank_card_rowtype
 --    from BANK_CARD
@@ -2633,218 +2663,215 @@ changed : 05/24/2016 jxc517 CCN Project Team....
       END IF;
 --
   END;  
-
-
+  
+    
     IF inBANKCARD_ROWTYPE.merchant_id = '99999999999' THEN
         RAISE invalid_merchID_err;
     END IF;		
 
-
+     
 
     IF inBANKCARD_ROWTYPE.amex_se_id = '9999999999'  THEN
         RAISE invalid_amexID_err;
     END IF;	
-
-
-
+        
+    
+             
     IF inCOST_CENTER_ROWTYPE.country_code = 'USA' THEN
         IF inBANKCARD_ROWTYPE.discover_id IS NULL THEN
            RAISE invalid_discoverid_err;
         END IF;	
     END IF;
-
-
+       
+ 
     EXCEPTION
-
+	
 --    when invalid_cost_center_err then  
 --        v_code := errnums.en_invalid_cost_center_err;
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_cost_center_err ',
 --        'CCN_BUSINESS_RULES_PKG - Cost center not found');            		             		
-
+		           		    
 --		when inactive_cost_center_err then  
 --		    v_code := errnums.en_inactive_cost_center_err;
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_cost_center ',
 --        'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration_date > 0'); 
-
+    
     WHEN invalid_transport_type_err THEN    
         v_code := errnums.en_invalid_transport_type_err;        
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_transport_type_err ',
         'CCN_BUSINESS_RULES_PKG - Transport type not entered');   
-
-
+        
+       
 --     when invalid_tax_juris_err then    
 --        v_code := errnums.en_invalid_tax_juris_err;        
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_tax_juris_err ',
 --        'CCN_BUSINESS_RULES_PKG - Tax jurisdiction not entered');   
-
+        
 --     when invalid_tax_cmpny_code_err then    
 --        v_code := errnums.en_invalid_tax_cmpny_code_err;        
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_tax_cmpny_code_err ',
 --        'CCN_BUSINESS_RULES_PKG - Tax company code not entered');           
-
+        
 --		when invalid_poll_phone_err then  
 --        v_code := errnums.en_invalid_poll_phone_err;
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_poll_phone_err ',
 --        'CCN_BUSINESS_RULES_PKG - Cost center not found');  
-
+        
  	 WHEN invalid_phone_err THEN  
         v_code := errnums.en_invalid_phone_err;
         errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_phone_err ',
          'CCN_BUSINESS_RULES_PKG -  Phone# is required for Polling phone_type = <PRI>');            		             		
-
+		           		    
 		WHEN inactive_phone_num_err THEN  
 		    v_code := errnums.en_inactive_phone_num_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_phone_num_err ',
         'CCN_BUSINESS_RULES_PKG - Phone# Must have a valid value. '); 
-
+        
     WHEN invalid_store_err THEN  
         v_code := errnums.en_invalid_store_err;
         errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_store_err ',
         'CCN_BUSINESS_RULES_PKG -  Store cannot be found');            		             		
-
+		           		    
 		WHEN inactive_store_err THEN  
 		    v_code := errnums.en_inactive_store_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_store_err ',
         'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration_date > 0'); 
+        
 
-    WHEN invalid_inventory_id_err THEN 
-         v_code := errnums.en_invalid_inventory_id_err;
-		     errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_inventory_id_err ',
-         'CCN_BUSINESS_RULES_PKG - inventory_id must be a <y>');         		             		
-
+				
 --    when invalid_type_err then  
 --        v_code := errnums.en_invalid_type_err;
 --        errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_type_err ',
 --        'CCN_BUSINESS_RULES_PKG - Type cannot be found');            		             		
-
+		           		    
 		WHEN inactive_type_err THEN  
 		    v_code := errnums.en_inactive_type_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_type_err ',
         'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration_date > 0'); 
-
+		
 --    when invalid_status_err then  
 --		    v_code := errnums.en_invalid_status_err;
 --		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_status_err ',
 --        'CCN_BUSINESS_RULES_PKG - Status cannot be found'); 
-
+		
 		WHEN inactive_status_err THEN  
 		    v_code := errnums.en_inactive_status_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_status_err ',
         'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration_date > 0'); 
-
+   	    
 		WHEN invalid_addr_usa_err THEN  
 		    v_code := errnums.en_invalid_addr_usa_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_addr_usa_err ',
         'CCN_BUSINESS_RULES_PKG - ADDRESS USA cannot be found'); 
-
+    		
     WHEN invalid_addr_mex_err THEN  
        v_code := errnums.en_invalid_addr_mex_err;
 		   errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_addr_mex_err ',
        'CCN_BUSINESS_RULES_PKG - ADDRESS MEX cannot be found'); 
-
+    			
     WHEN invalid_addr_can_err THEN  
        v_code := errnums.en_invalid_addr_can_err;
 		   errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_addr_can_err ',
        'CCN_BUSINESS_RULES_PKG - ADDRESS CAN cannot be found'); 
-
+    			      
     WHEN invalid_addr_brb_err THEN  
        v_code := errnums.en_invalid_addr_brb_err;
 		   errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_addr_brb_err ',
        'CCN_BUSINESS_RULES_PKG - ADDRESS BRB cannot be found'); 
-
+    			      
 		WHEN invalid_addr_other_err THEN  
 		      v_code := errnums.en_invalid_addr_other_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_addr_other_err ',
           'CCN_BUSINESS_RULES_PKG - ADDRESS OTHER cannot be found');
-
+          		
 		WHEN invalid_time_zone_err THEN  
 		      v_code := errnums.en_invalid_time_zone_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_time_zone_err ',
  		     'CCN_BUSINESS_RULES_PKG -  Time zone cannot be null'); 
-
+         
  		WHEN invalid_priority_err THEN  
           v_code := errnums.en_invalid_priority_err;
           errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_priority_err ', 
          'CCN_BUSINESS_RULES_PKG - Polling Priority must be null');  
-
+         
 		WHEN invalid_polling_err THEN 
           v_code := errnums.en_invalid_poll_sched_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_polling_err ',
           'CCN_BUSINESS_RULES_PKG - Polling data cannot be found');         		             		
-
+		       	   		
 --		when invalid_poll_sched_err then 
 --          v_code := errnums.en_invalid_poll_sched_err;
 --		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_poll_sched_err ',
 --          'CCN_BUSINESS_RULES_PKG - Polling schedule code cannot be null');         		             		
-
+		       	
 --		when invalid_poll_stat_err then  
 --          v_code := errnums.en_invalid_poll_stat_err;
 --		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_poll_stat_err ',
 --          'CCN_BUSINESS_RULES_PKG - Polling status code must be <P or Q>');         		             		
-
+		        	
 		WHEN invalid_poll_ind_err THEN  
           v_code := errnums.en_invalid_poll_ind_err;
           errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_poll_ind_err ', 
          'CCN_BUSINESS_RULES_PKG - Polling indicator must be = <Y or N>l'); 
-
+         
 		WHEN invalid_terminal_err THEN  
 		    v_code := errnums.en_invalid_terminal_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_terminal_err',
         'CCN_BUSINESS_RULES_PKG - Terminal data cannot be found'); 
-
+        
     WHEN inactive_bank_card_err THEN  
         v_code := errnums.en_inactive_bank_card_err;
 		    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_bank_card_err ',
         'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration date');	
-
+        
 		WHEN invalid_costctr_name_err THEN  
           v_code := errnums.en_invalid_costctr_name_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_costctr_name_err ',
           'CCN_BUSINESS_RULES_PKG - Cost Center Name cannot be null');         		             		
-
+		
     WHEN invalid_merchID_err THEN  
 		      v_code := errnums.en_invalid_merchID_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_merchID_err ',
           'CCN_BUSINESS_RULES_PKG - merch_id cannot = 9999999999'); 
-
+ 		 
 		WHEN invalid_amexid_err THEN  
 		      v_code := errnums.en_invalid_amexid_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_amexID_err',
           'CCN_BUSINESS_RULES_PKG - amex_id cannot = 999999999'); 
-
+    
 		WHEN invalid_discoverid_err THEN  
 		      v_code := errnums.en_invalid_discoverid_err;
 		      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_discoverID_err ',
          'CCN_BUSINESS_RULES_PKG - discover_id cannot be null, if USA'); 
-
+         
   --	when invalid_hierarchy_err then  
   --      v_code := errnums.en_invalid_hierarchy_err;
   --      errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.invalid_hierarchy_err ',
   --      'CCN_BUSINESS_RULES_PKG - Hierarchy cannot be found');            		             		
-
+		 
 
 	--	when inactive_hierarchy_err then  
 	--	    v_code := errnums.en_inactive_hierarchy_err;
 	--	    errpkg.raise_err(v_code, 'polling_ctrl_status_chks_sp.inactive_hierarchy_err ',
   --      'CCN_BUSINESS_RULES_PKG - Must have an effective_date > 0 and expiration_date > 0'); 
-
+		 
 
 		WHEN OTHERS THEN
         v_code := SQLCODE;
 	      v_errm := substr(SQLERRM,1, 1000);
         errpkg.raise_err(v_code, v_errm,
         'CCN_BUSINESS_RULES_PKG - No errors found');     
-
+   
 	END  POLLING_CTRL_STATUS_CHKS_SP;
-
-
+  
+  
 PROCEDURE REOPEN_CCNTR_SP  ( 
 /*****************************************************************************
 	REOPEN_CCNTR_SP
 
 	This procedure is intended enforce the Business Rules
 	for RE-opening a closed cost center and verifying the following rules:
-
+  
   1.)  The close_date.COST_CENTER is zero or null
   2.)  The status_code.STATUS is not "5" (Stores), "X" (Territories), or "9" for all others
   3.)  There is an active STATUS table row for the Cost Center
@@ -2853,10 +2880,10 @@ PROCEDURE REOPEN_CCNTR_SP  (
 
   Re-opening a closed cost center should not need to expire a previous STATUS
   table row since this was already done when the cost center was closed. 
-
+   
   Also, since we now have a new "TYPE" table, we should probably make sure a new
   TYPE table row is added in active status.  
-
+    
 created : MDH 6/01/2012
 changed:  MDH 7/25/2012
 ******************************************************************************/	
@@ -2865,7 +2892,7 @@ changed:  MDH 7/25/2012
  ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE 
  ,inTYPE_ROWTYPE         IN TYPE%ROWTYPE)
         IS 
-
+                         
  non_numeric_exp 		EXCEPTION;
  no_cost_center_exp EXCEPTION;
  invalid_reopen_ccntr_exp EXCEPTION;
@@ -2881,12 +2908,12 @@ changed:  MDH 7/25/2012
  v_curr_date date := sysdate;
  v_code number;
  v_errm varchar(500);
-
+ 
 BEGIN
 /******************************************************************************
 	Verify that the cost center is being reopened by checking the Close_Date
   against the Cost_Center_Table.
-
+  
   if the close date is not zeros and is a change to the COST_CENTER table's
   close date; then there is no re-open.
 ****************************************************************************/	
@@ -2894,12 +2921,12 @@ BEGIN
  	SELECT *  INTO v_cost_center_rowtype
 		FROM COST_CENTER 
 		WHERE COST_CENTER.cost_center_code    =  inCOST_CENTER_ROWTYPE.Cost_Center_Code; 
-
+          
  EXCEPTION
   WHEN NO_DATA_FOUND THEN
      RAISE no_cost_center_exp;
  END;
-
+ 
   IF (inCOST_CENTER_ROWTYPE.CLOSE_DATE IS NOT NULL)
 --    or
 --     ((inCOST_CENTER_ROWTYPE.CLOSE_DATE is null) and
@@ -2941,7 +2968,7 @@ BEGIN
        inSTATUS_ROWTYPE.STATUS_CODE = '5'  THEN 
           RAISE invalid_act_status_code_exp;
     END IF;
-
+    
     IF inSTATUS_ROWTYPE.STATUS_CODE = '9'  AND 
       (inTYPE_ROWTYPE.TYPE_CODE    <> '41'  AND 
        inTYPE_ROWTYPE.TYPE_CODE    <> '42') THEN 
@@ -2977,7 +3004,7 @@ BEGIN
        IF inTERRITORY_ROWTYPE.cost_center_code  <> inCOST_CENTER_ROWTYPE.cost_center_code  THEN  
              RAISE no_territory_exp;
        END IF;
-
+       
        IF inTERRITORY_ROWTYPE.cost_center_code = inCOST_CENTER_ROWTYPE.cost_center_code  AND
           ((inTERRITORY_ROWTYPE.home_store IS NULL)   OR
             inTERRITORY_ROWTYPE.home_store  = '      ')       THEN
@@ -2989,7 +3016,7 @@ BEGIN
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
 	EXCEPTION
-
+	
 		WHEN no_cost_center_exp THEN  
 					v_code := errnums.en_no_cost_center_err;
 			      errpkg.raise_err(v_code, 'REOPEN_CCNTR_SP.no_cost_center_exp '
@@ -3020,23 +3047,23 @@ BEGIN
 		   		v_code := errnums.en_terr_home_store_err;
 			      errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.terr_home_store_exp ' 
              		,'Territory Cost Center has no Home_Store assignment ');     
-
+ 
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
 			      errpkg.raise_err(v_code, v_errm ||
              		'CCN_BUSINESS_RULES_PKG ');   
-
+                
 END REOPEN_CCNTR_SP;
 
-
+ 
 PROCEDURE TERRITORY_HOME_STORE_ASSIGN_SP ( 
 /*****************************************************************************
 	TERRITORY_HOME_STORE_ASSIGNMENT_SP
 
 	This procedure is intended to enforce the Business Rules
 	for territory home store assignment and verifying the following rules:
-
+  
   1.)  The Territory Category must be "T".
   2.)  The Home Store must be populated and it must me a valid "S" ( STORE ) Cost Center.
            The Store Cost Center value must be on both the COST_CENTER table and the STORE table.
@@ -3060,7 +3087,7 @@ Modified Date         Modified By    Description
  ,inTerritory_rowtype    IN TERRITORY%ROWTYPE)
 
         IS 
-
+        
 
 -- Specify in_xxxxx_rowttype to get all the fields.
 
@@ -3079,14 +3106,14 @@ Modified Date         Modified By    Description
  v_terr_cost_center_rowtype         COST_CENTER%ROWTYPE;
  v_territory_rowtype                territory%ROWTYPE;
  v_store_rowtype                    store%ROWTYPE;
-
-
+ 
+ 
  v_curr_date date := sysdate;
  v_code   number;
  v_errm   varchar(500);
  v_count  number;
-
-
+ 
+  
 BEGIN
 
 /******************************************************************************
@@ -3096,10 +3123,10 @@ BEGIN
         IF  inTerritory_rowtype.CATEGORY    <>  'T'  THEN  
             RAISE invalid_territory_category_exp;
         END IF;
-
+        
  --       dbms_output.put_line('completed edit rule 01). ' );
-
-
+        
+   
 /******************************************************************************
   2.)  The Home Store must be populated and it must me a valid "S" ( STORE ) Cost Center.
            The Store Cost Center value must be on both the COST_CENTER table and the STORE table.
@@ -3108,7 +3135,7 @@ BEGIN
 /******************************************************************************
 	Home Store must be populated
 ****************************************************************************/	  
-
+        
         IF  inTerritory_rowtype.home_store  IS  NULL  THEN
             RAISE no_home_store_spec_exp;
         END IF;
@@ -3123,7 +3150,7 @@ BEGIN
            SELECT * INTO  v_home_cost_center_rowtype
 		         FROM cost_center 
             WHERE COST_CENTER.cost_center_code  =  inTerritory_rowtype.HOME_STORE;
-
+	
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
      RAISE no_home_store_cctr_exp;
@@ -3142,16 +3169,16 @@ END;
 	get the STORE for the HOME STORE
 ****************************************************************************/	  
 BEGIN
-
+        
  --          select count (1) into v_count
 	--	            from store 
 --		            where store.cost_center_code  =  interritory_home_store;
 	--	            where STORE.cost_center_code  =  'thomas';
-
+	
            SELECT * INTO  v_store_rowtype
 		            FROM store
 		            WHERE store.cost_center_code  = inTerritory_rowtype.home_store;
-
+            
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
      RAISE no_home_store_exp;
@@ -3179,19 +3206,19 @@ END;
 ****************************************************************************/	  
 
  --       dbms_output.put_line('completed edit rule 04A). ' );
-
+        
         IF   v_home_cost_center_rowtype.statement_type IS NOT NULL
         AND  inCOST_CENTER_rowtype.statement_type IS NOT NULL THEN
-
+        
             IF (v_home_cost_center_rowtype.statement_type  <>  inCOST_CENTER_rowtype.statement_type) THEN
                ERRPKG.STORE_WARNINGS(errnums.en_terr_store_stmnt_type_err, 
                                      'TERRITORY_HOME_STORE_ASSIGNMENT_SP.terr_store_statement_type ' );
             END IF;
-
+        
         END IF;
 
  --       dbms_output.put_line('completed edit rule 04B). ' );
-
+       
 /******************************************************************************
   5.)  The Entity_Type must be the same between the "Territory" and the "Home Store"
            or a "WildCard" denoted by a NULL value.
@@ -3202,11 +3229,11 @@ END;
 
         IF   v_home_cost_center_rowtype.entity_type  IS NOT  NULL 
         AND  inCOST_CENTER_rowtype.entity_type  IS NOT  NULL   THEN
-
+        
             IF  v_home_cost_center_rowtype.entity_type    <>   inCOST_CENTER_rowtype.entity_type  THEN 
                  RAISE terr_store_entity_type_exp;
             END IF;
-
+            
         END IF;
 
  --       dbms_output.put_line('completed edit rule 05). ' );
@@ -3214,39 +3241,39 @@ END;
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
-
+	
                WHEN invalid_territory_category_exp THEN
                     v_code := errnums.en_territory_category_err; 
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.invalid_territiry_category_exp '  ,
                    'Territory Category value is "' || inTerritory_rowtype.CATEGORY || '" and should be "T" ');
-
+                   
                WHEN no_home_store_spec_exp THEN
                     v_code := errnums.en_no_home_store_spec_err; 
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.no_home_store_specified_exp '  ,
                    'Territory Home Store was not specified ' || inTerritory_rowtype.home_store );
-
+                   
                WHEN no_home_store_cctr_exp THEN
                     v_code := errnums.en_no_home_store_cctr_err; 
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.no_home_store_cctr_exp '  ,
                    'No Cost Center found for the Home Store = ' || inTerritory_rowtype.HOME_STORE);
-
+                   
                WHEN home_store_cctr_cat_exp THEN
                     v_code := errnums.en_home_store_cctr_cat_err; 
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.home_store_cctr_cat_exp '  ,
                    'Home Store Cost Center Category is "' || v_home_cost_center_rowtype.CATEGORY || '" and should be "S" ');
-
+ 
                WHEN no_home_store_exp THEN  
                     v_code := errnums.en_no_home_store_err;
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.no_home_store_exp ' ,
                    'Store not found for Home Store = ' || inTerritory_rowtype.HOME_STORE);
-
+ 
                WHEN home_store_closed_exp THEN  
                     v_code := errnums.en_home_store_cctr_closed_err;
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.home_store_closed_exp ' ,
                    'Home Store Cost Center ' || inTerritory_rowtype.HOME_STORE || ' is Closed '); 
-
+       
                WHEN no_territory_cctr_exp THEN
                     v_code := errnums.en_no_territory_cctr_err; 
                     errpkg.raise_err(v_code, 'TERRITORY_HOME_STORE_ASSIGNMENT_SP.no_territory_cctr_exp '  ,
@@ -3258,13 +3285,13 @@ END;
                    'Territory and Home Store Entity Type mismatch - "' ||
                     v_terr_cost_center_rowtype.entity_type || '" and "' || 
                     v_home_cost_center_rowtype.entity_type || '"' ); 
-
+ 
                WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,1, 500);
                     errpkg.raise_err(v_code, v_errm ||
              		'TERRITORY_HOME_STORE_ASSIGNMENT_SP ');   
-
+ 
 
 END territory_home_store_assign_sp;
 
@@ -3276,7 +3303,7 @@ PROCEDURE CHECK_ADDRESS_TAG (
 	This procedure is intended to enforce the Business Rules
 	for Cost center insert/update to have atleast one address element
 	for  all cost center's except Territory and Dispatch Terminal
-
+  
   1.)  Check if cost center insert or update have atleast one address element added
        for  all cost center's except Territory and Dispatch Terminal 
 
@@ -3291,10 +3318,10 @@ IS
     v_errm                      VARCHAR(500);
     v_fragment_header           VARCHAR2(100);
     no_address_element_exp      EXCEPTION;
-
+  
 BEGIN
     v_fragment_header := '/COST_CENTER_UI/ADDRESS_UI_UPSERT2/ADDRESS_UI_UPSERT/*'; 
-
+    
     IF in_COST_CENTER_CATEGORY NOT IN ('T','D') and (in_ROW_DATA.EXISTSNODE(v_fragment_header) = 0) THEN
         RAISE no_address_element_exp;
     END IF;
@@ -3302,13 +3329,13 @@ BEGIN
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
 EXCEPTION	
     WHEN no_address_element_exp THEN
                     v_code := errnums.en_no_address_element_err; 
                     errpkg.raise_err(v_code, 'CHECK_ADDRESS_TAG.no_address_element_exp '  ,
                    'No address elements found for store Category "' || in_COST_CENTER_CATEGORY || '" . ');                   
-
+  
     WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,1, 500);
@@ -3316,6 +3343,7 @@ EXCEPTION
              		'CHECK_ADDRESS_TAG ');
 
 END CHECK_ADDRESS_TAG;
+
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                        TABLE SPECIFIC BUSINESS RULES SECTION
@@ -3327,7 +3355,7 @@ PROCEDURE ADDRESS_CAN_BR_SP (
 
 	This procedure is intended to enforce the Business Rules
 	for ADDRESS_CAN validation edits and verifying the following rules:
-
+      
   This list of Business Rules by field (column) for the ADDRESS_CAN Table rely 
   on the COST_CENTER having been added and are valid for Canadian Cost Centers only!
   (Statement_Type = "CN" or Country_Code = "CAN"). 
@@ -3364,67 +3392,67 @@ PROCEDURE ADDRESS_CAN_BR_SP (
   4.	Postal_Code (6-VR/BR): 
       a. This field (column) will be validated against some Canadian Postal_Code list 
           yet to be determined (Keith?).
-
+                           
   5.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
         if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
              raise warning message exception (- Warning - Address_Line changed please check Status_Code)
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.    
-
+             
   6.	TAXWARE Warning Message:  (MDH 01/15/2013)
       For "Stores" with a "Mailing" or "Physical" Address, if the Zip_Code or 
       Zip_Code_4 fields are changed (not equal to current address) show a warning
       message that the TAXWARE table must be changed.  All Updates/Inserts will
       continue.
-
+ 
  created : TAL 08/07/2012
  revosed : MDH 01/17/2013
  modified: 04/20/2016 jxc517 CCN Project Team....
            Added business rule to enforce creating future address types with only future effective date
 ******************************************************************************/	
-
+  
    inADDRESS_CAN_ROWTYPE           ADDRESS_CAN%ROWTYPE
    ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE
    )
-
+   
         IS 
-
+        
 -- Error #01a
    cctr_must_be_ent_exp            EXCEPTION;
-
+    
 -- Error #01b
    invalid_cost_center_exp         EXCEPTION;
-
+    
 -- Error #01c
    cost_center_not_can_exp         EXCEPTION;
-
+    
 -- Error #02a 
    invalid_eff_date_exp            EXCEPTION;
-
+   
 -- Error #03a  
    invalid_exp_date_exp            EXCEPTION;
-
+   
 -- Error #04a
    invalid_zip_code_exp            EXCEPTION;
-
+               
 -- Error #5
    status_check_warning_exp        EXCEPTION;
-
+                   
 -- Error #6
    taxware_check_warning_exp       EXCEPTION;
-
+   
    invld_ftr_adr_efctv_dt_err      EXCEPTION;
 
    v_cost_center_rowtype           COST_CENTER%ROWTYPE;
    v_old_address_can_rowtype       ADDRESS_CAN%ROWTYPE;   
-
+   
    v_code   number;
    v_date   date  ;
    v_curr_date date := sysdate;
    v_count  number;
    v_errm   varchar(500);
-
-
+ 
+  
 BEGIN
 
 /******************************************************************************
@@ -3450,7 +3478,7 @@ BEGIN
           RAISE cctr_must_be_ent_exp;
 -- See Error #01a.
       END IF;
-
+      
 
 /*******************************************************************************
       b. This field (column) is also verified against the COST_CENTER Table.
@@ -3461,7 +3489,7 @@ BEGIN
 	SELECT *  INTO v_cost_center_rowtype
 		 FROM cost_center 
 		WHERE cost_center.cost_center_code  =  inaddress_can_rowtype.cost_center_code;
-
+    
 EXCEPTION
   WHEN no_data_found THEN 
      --Cost Center might not be present during the creation of cost center
@@ -3474,7 +3502,7 @@ EXCEPTION
         NULL;
      END IF;
 -- See Error #01b.
-
+  
 END;
 
 /*******************************************************************************
@@ -3516,7 +3544,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 02. ' );
 
 /*******************************************************************************
@@ -3545,7 +3573,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 03. ' );   
 
 /*******************************************************************************
@@ -3569,10 +3597,10 @@ END;
           RAISE invalid_zip_code_exp;
 -- See Error #04a
       END IF;
-
+            
 --    dbms_output.put_line('completed edit rule 04. ' ); 
 
-
+        
 /*******************************************************************************
   5).	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
@@ -3581,14 +3609,14 @@ END;
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
 *******************************************************************************/
  BEGIN
-
+      
  	SELECT *  INTO v_old_address_can_rowtype
 		FROM ADDRESS_CAN 
 		WHERE ADDRESS_CAN.cost_center_code    =  inADDRESS_CAN_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_CAN.address_type        =  inADDRESS_CAN_ROWTYPE.Address_Type
       AND ADDRESS_CAN.effective_date      <= v_curr_date   
       AND ADDRESS_CAN.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_CAN_ROWTYPE.address_type IN  ('M'))
     AND ((inADDRESS_CAN_ROWTYPE.address_line_1 IS NULL  AND  v_old_address_can_rowtype.address_line_1 IS NOT NULL
@@ -3603,15 +3631,15 @@ END;
            --raise status_check_warning_exp;    commented out for now
            NULL;
   END IF;
-
+  
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+ 
 -- dbms_output.put_line('completed address_can edit rule 5. ' ); 
-
+         
 /*******************************************************************************
  6).	TAXWARE Warning Message:  (MDH 01/15/2013)
       For "Stores" with a "Mailing" or "Physical" Address, if the Zip_Code or 
@@ -3620,14 +3648,14 @@ EXCEPTION
       continue.
 *******************************************************************************/
   BEGIN
-
+      
  	SELECT *  INTO v_old_address_can_rowtype
 		FROM ADDRESS_CAN 
 		WHERE ADDRESS_CAN.cost_center_code    =  inADDRESS_CAN_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_CAN.address_type        =  inADDRESS_CAN_ROWTYPE.Address_Type
       AND ADDRESS_CAN.effective_date      <= v_curr_date   
       AND ADDRESS_CAN.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_CAN_ROWTYPE.address_type IN  ('M','P'))
     AND ((inADDRESS_CAN_ROWTYPE.postal_code IS NULL  AND  v_old_address_can_rowtype.postal_code IS NOT NULL
@@ -3636,15 +3664,15 @@ EXCEPTION
 --            raise taxware_check_warning_exp; remove for now
 			NULL;
   END IF;
-
+  
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+       
 --    dbms_output.put_line('completed edit rule 6. ' ); 
-
+        
 --    dbms_output.put_line('completed ALL edit rules). ' );
 
     IF inADDRESS_CAN_ROWTYPE.address_type = 'F' AND inADDRESS_CAN_ROWTYPE.EFFECTIVE_DATE <= TRUNC(SYSDATE) THEN
@@ -3654,9 +3682,9 @@ EXCEPTION
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
-
+          
 -- Error #01a
                WHEN cctr_must_be_ent_exp     THEN
                     v_code := errnums.en_cctr_must_be_ent_err; 
@@ -3672,14 +3700,14 @@ EXCEPTION
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.invalid_cost_center_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_can_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center was not found.' );
-
+ 
 -- Error #01c
                WHEN cost_center_not_can_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.cost_center_not_can_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_can_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center is not a Canadian Cost Center.' );
-
+                   
 -- Error #02a
                WHEN invalid_eff_date_exp     THEN
                     v_code := errnums.en_invalid_eff_date_err;
@@ -3687,35 +3715,35 @@ EXCEPTION
                    '#02a ' ||
                    'Effective_Date was entered as "' || inaddress_can_rowtype.effective_date || '", ' || 
                    'However, a valid date must be entered into this field.');   
-
+                   
 -- Error #03a
                WHEN invalid_exp_date_exp     THEN
                     v_code := errnums.en_invalid_exp_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.invalid_exp_date_exp ' ,
                    'Expiration_Date was entered as "' || inaddress_can_rowtype.expiration_date || '", ' || 
                    'However, a valid date must be entered into this field.');   
-
+                   
 -- Error #04a
                WHEN invalid_zip_code_exp     THEN
                     v_code := errnums.en_invalid_zip_code_err;
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.invalid_zip_code_exp ' ,
                    'Postal_Code was entered as "' || inaddress_can_rowtype.postal_code || '", ' || 
                    'However, this is not the correct format for a Canadian Postal Code.'); 
-
+             
 -- Error #5
                WHEN status_check_warning_exp     THEN
                     v_code := errnums.en_status_check_warning_wrn;  
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.status_check_warning_exp ' ,
                    '** WARNING ** ' ||  
                    'Address Line has been changed, please check status code for store relocation?');      
-
+                                                
 -- Error #6
                WHEN taxware_check_warning_exp     THEN
                     v_code := errnums.en_taxware_check_warning_wrn;  
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.taxware_check_warning_exp ' ,
                    '** WARNING ** ' ||  
                    'Zip Code has been changed, please check TAXWARE status for this store.');    
-
+                  
                WHEN invld_ftr_adr_efctv_dt_err THEN
                     v_code := errnums.en_invld_ftr_adr_efctv_dt_err;
                     errpkg.raise_err(v_code, 'ADDRESS_CAN_BR_SP.invld_ftr_adr_efctv_dt_err ' ,
@@ -3729,7 +3757,7 @@ PROCEDURE ADDRESS_MEX_BR_SP (
 
 	This procedure is intended to enforce the Business Rules
 	for ADDRESS_MEX validation edits and verifying the following rules:
-
+      
   This list of Business Rules by field (column) for the ADDRESS_MEX Table rely
   on the COST_CENTER having been added and are valid for Mexican Cost Centers only!
   (Statement_Type = "MX" or Country_Code = "MEX"). 
@@ -3767,7 +3795,7 @@ PROCEDURE ADDRESS_MEX_BR_SP (
       a. This field (column) is mandatory and cannot be spaces. 
       b. This field (column) will be validated against some Mexican Postal_Code list
           yet to be determined (Keith?).
-
+                    
   6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
         if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
@@ -3779,46 +3807,46 @@ PROCEDURE ADDRESS_MEX_BR_SP (
  modified: 04/20/2016 jxc517 CCN Project Team....
            Added business rule to enforce creating future address types with only future effective date
 ******************************************************************************/	
-
+  
    inADDRESS_MEX_ROWTYPE           ADDRESS_MEX%ROWTYPE
    ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE
    ) 
-
+   
         IS 
-
+        
 -- Error #01a
    cctr_must_be_ent_exp            EXCEPTION;
-
+    
 -- Error #01b
    invalid_cost_center_exp         EXCEPTION;
-
+    
 -- Error #01c
    cost_center_not_mex_exp         EXCEPTION;
-
+    
 -- Error #03a 
    invalid_eff_date_exp            EXCEPTION;
-
+   
 -- Error #04a  
    invalid_exp_date_exp            EXCEPTION;
-
+   
 -- Error #05a
    invalid_zip_code_exp            EXCEPTION;
-
+          
 -- Error #6
    status_check_warning_exp        EXCEPTION;   
-
+   
    invld_ftr_adr_efctv_dt_err      EXCEPTION;
 
    v_cost_center_rowtype           COST_CENTER%ROWTYPE;
    v_old_address_mex_rowtype       ADDRESS_MEX%ROWTYPE;   
-
+   
    v_code   number;
    v_date   date  ;
    v_curr_date date := sysdate;
    v_count  number;
    v_errm   varchar(500);
-
-
+ 
+  
 BEGIN
 
 /******************************************************************************
@@ -3844,8 +3872,8 @@ BEGIN
           RAISE cctr_must_be_ent_exp;
 -- See Error #01a.
       END IF;
-
-
+      
+      
 /*******************************************************************************
       b. This field (column) is also verified against the COST_CENTER Table.
 *******************************************************************************/
@@ -3855,7 +3883,7 @@ BEGIN
 	SELECT *  INTO v_cost_center_rowtype
 		 FROM cost_center 
 		WHERE cost_center.cost_center_code  =  inaddress_mex_rowtype.cost_center_code;
-
+     
 EXCEPTION
   WHEN no_data_found THEN 
      --Cost Center might not be present during the creation of cost center
@@ -3868,7 +3896,7 @@ EXCEPTION
         NULL;
      END IF;
 -- See Error #01b.
-
+  
 END;
 
 /*******************************************************************************
@@ -3880,7 +3908,7 @@ END;
           NULL;
 -- See Error #01c.
       END IF;
-
+       
 --    dbms_output.put_line('completed edit rule 01. ' );  
 
 
@@ -3910,7 +3938,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 03. ' );
 
 /*******************************************************************************
@@ -3939,7 +3967,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 04. ' );   
 
 /*******************************************************************************
@@ -3968,9 +3996,9 @@ END;
       b. This field (column) will be validated against some Mexican Postal_Code list
           yet to be determined (Keith?).
 *******************************************************************************/
-
+            
 --    dbms_output.put_line('completed edit rule 05. ' ); 
-
+        
 /*******************************************************************************
   6).	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
@@ -3979,14 +4007,14 @@ END;
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
 *******************************************************************************/
  BEGIN
-
+      
  	SELECT *  INTO v_old_address_mex_rowtype
 		FROM ADDRESS_MEX 
 		WHERE ADDRESS_MEX.cost_center_code    =  inADDRESS_MEX_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_MEX.address_type        =  inADDRESS_MEX_ROWTYPE.Address_Type
       AND ADDRESS_MEX.effective_date      <= v_curr_date   
       AND ADDRESS_MEX.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_MEX_ROWTYPE.address_type IN  ('M'))
     AND ((inADDRESS_MEX_ROWTYPE.address_line_1 IS NULL  AND  v_old_address_mex_rowtype.address_line_1 IS NOT NULL
@@ -4001,7 +4029,7 @@ END;
 --           raise status_check_warning_exp; remove for now.......
 			NULL;
   END IF;
-
+  
     IF inADDRESS_MEX_ROWTYPE.address_type = 'F' AND inADDRESS_MEX_ROWTYPE.EFFECTIVE_DATE <= TRUNC(SYSDATE) THEN
         RAISE invld_ftr_adr_efctv_dt_err;
     END IF;
@@ -4009,19 +4037,19 @@ END;
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+ 
 -- dbms_output.put_line('completed address_oth edit rule 6. ' ); 
-
+        
 --    dbms_output.put_line('completed ALL edit rules). ' );
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
-
+          
 -- Error #01a
                WHEN cctr_must_be_ent_exp     THEN
                     v_code := errnums.en_cctr_must_be_ent_err; 
@@ -4029,42 +4057,42 @@ EXCEPTION
                    'Cost_Center_Code was entered as "' || inaddress_mex_rowtype.cost_center_code || '", ' ||
                    'However, Cost_Center_Code must be entered , can not be "null" or "spaces", ' ||
                    'and must be 6 digits numeric.' );   
-
+                    
 -- Error #01b
                WHEN invalid_cost_center_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_MEX_BR_SP.invalid_cost_center_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_mex_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center was not found.' );
-
+ 
 -- Error #01c
                WHEN cost_center_not_mex_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_MEX_BR_SP.cost_center_not_mex_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_mex_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center is not a Mexican Cost Center.' );
-
+                   
 -- Error #03a
                WHEN invalid_eff_date_exp     THEN
                     v_code := errnums.en_invalid_eff_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_MEX_BR_SP.invalid_eff_date_exp ' ,
                    'Effective_Date was entered as "' || inaddress_mex_rowtype.effective_date || '", ' || 
                    'However, a valid date must be entered into this field.');    
-
+                   
 -- Error #04a
                WHEN invalid_exp_date_exp     THEN
                     v_code := errnums.en_invalid_exp_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_MEX_BR_SP.invalid_exp_date_exp ' ,
                    'Expiration_Date was entered as "' || inaddress_mex_rowtype.expiration_date || '", ' || 
                    'However, a valid date must be entered into this field.');    
-
+                   
 -- Error #05a
                WHEN invalid_zip_code_exp     THEN
                     v_code := errnums.en_invalid_zip_code_err;
                     errpkg.raise_err(v_code, 'ADDRESS_MEX_BR_SP.invalid_zip_code_exp ' ,
                    'Postal_Code was entered as "' || inaddress_mex_rowtype.postal_code || '", ' || 
                    'However, Mexico Postal Code format is 5 numeric digits.');  
-
+             
 -- Error #6
                WHEN status_check_warning_exp     THEN
                     v_code := errnums.en_status_check_warning_wrn;  
@@ -4084,7 +4112,7 @@ PROCEDURE ADDRESS_OTH_BR_SP (
 
 	This procedure is intended to enforce the Business Rules
 	for ADDRESS_OTH validation edits and verifying the following rules:
-
+      
   This list of Business Rules by field (column) for the ADDRESS_OTH Table rely
   on the COST_CENTER having been added and are valid for Cost Centers 
   which are not Canadian, Mexican, or U.S. Cost Centers!  These are generally International Cost Centers. 
@@ -4125,7 +4153,7 @@ PROCEDURE ADDRESS_OTH_BR_SP (
   6.	Country (25-VR/BR): 
       a. This field (column) is mandatory and cannot be spaces. 
       b. This field (column) is free form, allowing the entry of international Country Names.
-
+           
   7.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
         if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
@@ -4137,49 +4165,49 @@ PROCEDURE ADDRESS_OTH_BR_SP (
  modified: 04/20/2016 jxc517 CCN Project Team....
            Added business rule to enforce creating future address types with only future effective date
 ******************************************************************************/	
-
+  
    inADDRESS_OTH_ROWTYPE           ADDRESS_OTHER%ROWTYPE
    ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE
    )  
-
+   
         IS 
-
+        
 -- Error #01a
    cctr_must_be_ent_exp            EXCEPTION;
-
+    
 -- Error #01b
    invalid_cost_center_exp         EXCEPTION;
-
+    
 -- Error #01c
    cost_center_not_oth_exp         EXCEPTION;
-
+    
 -- Error #03a 
    invalid_eff_date_exp            EXCEPTION;
-
+   
 -- Error #04a  
    invalid_exp_date_exp            EXCEPTION;
-
+   
 -- Error #05a
    invalid_zip_code_exp            EXCEPTION;
-
+   
 -- Error #06a
    country_must_be_ent_exp         EXCEPTION;
-
+       
 -- Error #7
    status_check_warning_exp        EXCEPTION;   
-
+   
    invld_ftr_adr_efctv_dt_err      EXCEPTION;
 
    v_cost_center_rowtype           COST_CENTER%ROWTYPE;
    v_old_address_oth_rowtype       ADDRESS_OTHER%ROWTYPE;   
-
+   
    v_code   number;
    v_date   date  ;
    v_curr_date date := sysdate;
    v_count  number;
    v_errm   varchar(500);
-
-
+ 
+  
 BEGIN
 
 /******************************************************************************
@@ -4205,7 +4233,7 @@ BEGIN
           RAISE cctr_must_be_ent_exp;
 -- See Error #01a.
       END IF;
-
+            
 /*******************************************************************************
       b. This field (column) is also verified against the COST_CENTER Table.
 *******************************************************************************/
@@ -4215,7 +4243,7 @@ BEGIN
 	SELECT *  INTO v_cost_center_rowtype
 		 FROM cost_center 
 		WHERE cost_center.cost_center_code  =  inaddress_oth_rowtype.cost_center_code;
-
+      
 EXCEPTION
   WHEN no_data_found THEN 
      --Cost Center might not be present during the creation of cost center
@@ -4228,7 +4256,7 @@ EXCEPTION
 			NULL;
      END IF;
 -- See Error #01b.
-
+  
 END;
 
 /*******************************************************************************
@@ -4240,7 +4268,7 @@ END;
          NULL;
 -- See Error #01c.
       END IF;
-
+       
 --    dbms_output.put_line('completed edit rule 01. ' );  
 
 
@@ -4270,7 +4298,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 03. ' );
 
 /*******************************************************************************
@@ -4299,7 +4327,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 04. ' );   
 
 /*******************************************************************************
@@ -4320,7 +4348,7 @@ END;
           RAISE invalid_zip_code_exp;  
 -- See Error #05a
       END IF;
-
+      
 /*******************************************************************************
 	    b. This field (column) is free form, allowing the entry of international Postal Codes.
 *******************************************************************************/
@@ -4346,13 +4374,13 @@ END;
           RAISE country_must_be_ent_exp;  
 -- See Error #05a
       END IF;
-
+      
 /*******************************************************************************
       b. This field (column) is free form, allowing the entry of international Country Names.
 *******************************************************************************/
-
+            
 --    dbms_output.put_line('completed edit rule 06. ' ); 
-
+       
 /*******************************************************************************
   7).	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
@@ -4361,14 +4389,14 @@ END;
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
 *******************************************************************************/
  BEGIN
-
+      
  	SELECT *  INTO v_old_address_oth_rowtype
 		FROM ADDRESS_OTHER 
 		WHERE ADDRESS_OTHER.cost_center_code    =  inADDRESS_OTH_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_OTHER.address_type        =  inADDRESS_OTH_ROWTYPE.Address_Type
       AND ADDRESS_OTHER.effective_date      <= v_curr_date   
       AND ADDRESS_OTHER.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_OTH_ROWTYPE.address_type IN  ('M'))
     AND ((inADDRESS_OTH_ROWTYPE.address_line_1 IS NULL  AND  v_old_address_oth_rowtype.address_line_1 IS NOT NULL
@@ -4383,7 +4411,7 @@ END;
            --raise status_check_warning_exp; remove for now
            NULL;
   END IF;
-
+  
     IF inADDRESS_OTH_ROWTYPE.address_type = 'F' AND inADDRESS_OTH_ROWTYPE.EFFECTIVE_DATE <= TRUNC(SYSDATE) THEN
         RAISE invld_ftr_adr_efctv_dt_err;
     END IF;
@@ -4391,19 +4419,19 @@ END;
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+ 
  -- dbms_output.put_line('completed address_oth edit rule 7. ' ); 
-
+        
 --    dbms_output.put_line('completed ALL edit rules). ' );
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION  
-
+                   
 -- Error #01a         
                WHEN cctr_must_be_ent_exp     THEN
                     v_code := errnums.en_cctr_must_be_ent_err; 
@@ -4411,14 +4439,14 @@ EXCEPTION
                    'Cost_Center_Code was entered as "' || inaddress_oth_rowtype.cost_center_code || '", ' ||
                    'However, Cost_Center_Code must be entered , can not be "null" or "spaces", ' || 
                    'and must be 6 digits numeric.' );  
-
+                   
 -- Error #01b
                WHEN invalid_cost_center_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_OTH_BR_SP.invalid_cost_center_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_oth_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center was not found.' );
-
+ 
 -- Error #01c
                WHEN cost_center_not_oth_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
@@ -4426,35 +4454,35 @@ EXCEPTION
                    'Cost_Center_Code was entered as "' || inaddress_oth_rowtype.cost_center_code || '", ' ||
                    'and has a Country_Code of "' || v_cost_center_rowtype.country_code || '". ' ||
                    'For Address Type "OTHER" Country_Code can not be "CAN", "MEX", or "USA".' ); 
-
+                   
 -- Error #03a
                WHEN invalid_eff_date_exp     THEN
                     v_code := errnums.en_invalid_eff_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_OTH_BR_SP.invalid_eff_date_exp ' ,
                    'Effective_Date was entered as "' || inaddress_oth_rowtype.effective_date || '", ' || 
                    'However, a valid date must be entered into this field.');     
-
+                   
 -- Error #04a
                WHEN invalid_exp_date_exp     THEN
                     v_code := errnums.en_invalid_exp_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_OTH_BR_SP.invalid_exp_date_exp ' ,
                    'Expiration_Date was entered as "' || inaddress_oth_rowtype.expiration_date || '", ' || 
                    'However, a valid date must be entered into this field.');     
-
+                   
 -- Error #05a
                WHEN invalid_zip_code_exp     THEN
                     v_code := errnums.en_invalid_zip_code_err;
                     errpkg.raise_err(v_code, 'ADDRESS_OTH_BR_SP.invalid_zip_code_exp ' ,
                    'Postal_Code was entered as "' || inaddress_oth_rowtype.postal_code || '", ' || 
                    'However, Postal Code can not be "null" or "spaces".');      
-
+                   
 -- Error #06a
                WHEN country_must_be_ent_exp  THEN
                     v_code := errnums.en_country_must_be_ent_err;
                     errpkg.raise_err(v_code, 'ADDRESS_OTH_BR_SP.country_must_be_ent_exp ' ,
                    'Country was entered as "' || inaddress_oth_rowtype.country_code || '", ' || 
                    'However, Country must be entered and can not be "null" or "spaces".');  
-
+              
 -- Error #7
                WHEN status_check_warning_exp     THEN
                     v_code := errnums.en_status_check_warning_wrn;  
@@ -4475,7 +4503,7 @@ PROCEDURE ADDRESS_USA_BR_SP (
 
 	This procedure is intended to enforce the Business Rules
 	for ADDRESS_USA validation edits and verifying the following rules:
-
+      
   This list of Business Rules by field (column) for the ADDRESS_USA Table rely
   on the COST_CENTER having been added which are U.S. Cost Centers only!
   (Statement_Type = "US" or Country_Code = "USA"). 
@@ -4543,13 +4571,13 @@ PROCEDURE ADDRESS_USA_BR_SP (
       a. This field (column) is Mandatory and must be numeric and not zero. 
       b. This field (column) is required for USA "Mailing" Address.  Puerto Rico address can default to all 9"s. .
       c. We may open this check to additional Address Types for USA.
-
+      
   11.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
         if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
              raise warning message exception (- Warning - Address_Line changed please check Status_Code)
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
+      
   12.	TAXWARE Warning Message:  (MDH 01/15/2013)
       For "Stores" with a "Mailing" or "Physical" Address, if the Zip_Code or 
       Zip_Code_4 fields are changed (not equal to current address) show a warning
@@ -4562,64 +4590,64 @@ PROCEDURE ADDRESS_USA_BR_SP (
            Added business rule to enforce creating future address types with only future effective date
          : 09/22/2017 sxh487 Removed invalid_fips_code_exp exception
 ******************************************************************************/	
-
+  
    inADDRESS_USA_ROWTYPE           ADDRESS_USA%ROWTYPE
    ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE
    ) 
-
+   
         IS 
-
+        
 -- Error #01a
    cctr_must_be_ent_exp            EXCEPTION;
-
+    
 -- Error #01b
    invalid_cost_center_exp         EXCEPTION;
-
+    
 -- Error #01c
    cost_center_not_usa_exp         EXCEPTION;
-
+    
 -- Error #02a 
    invalid_eff_date_exp            EXCEPTION;
-
+   
 -- Error #03a  
    invalid_exp_date_exp            EXCEPTION;
-
+   
 -- Error #04a
    invalid_state_code_exp          EXCEPTION;
-
+   
 -- Error #05a
    invalid_zip_code_exp            EXCEPTION;
-
+   
 -- Error #06a
    invalid_zip_code_4_exp          EXCEPTION;
-
+   
 -- Error #07a
    invalid_county_exp              EXCEPTION;
-
+   
 -- Error #09a
    invalid_dest_point_exp          EXCEPTION;
-
+   
 -- Error #10a
    invalid_check_digit_exp         EXCEPTION;
-
+     
 -- Error #11
    status_check_Warning_exp        EXCEPTION;
-
+       
 -- Error #12
    taxware_check_Warning_exp      EXCEPTION;   
-
+   
    invld_ftr_adr_efctv_dt_err      EXCEPTION;
 
    v_cost_center_rowtype           COST_CENTER%ROWTYPE;
    v_old_address_usa_rowtype       ADDRESS_USA%ROWTYPE;  
-
+   
    v_code   number;
    v_date   date  ;
    v_curr_date date := sysdate;
    v_count  number;
    v_errm   varchar(500);
-
-
+ 
+  
 BEGIN
 
 /******************************************************************************
@@ -4646,7 +4674,7 @@ BEGIN
           RAISE cctr_must_be_ent_exp;
 -- See Error #01a.
       END IF;
-
+            
 /*******************************************************************************
       b. This field (column) is also verified against the COST_CENTER Table.
 *******************************************************************************/
@@ -4656,7 +4684,7 @@ BEGIN
 	SELECT *  INTO v_cost_center_rowtype
 		 FROM cost_center 
 		WHERE cost_center.cost_center_code  =  inaddress_usa_rowtype.cost_center_code;
-
+      
 EXCEPTION
   WHEN no_data_found THEN 
      --Cost Center might not be present during the creation of cost center
@@ -4669,7 +4697,7 @@ EXCEPTION
        NULL;
      END IF;
 -- See Error #01b.
-
+  
 END;
 
 /*******************************************************************************
@@ -4681,7 +4709,7 @@ END;
           NULL;
 -- See Error #01c.
       END IF;
-
+       
 --    dbms_output.put_line('completed edit rule 01. ' );  
 
 /*******************************************************************************
@@ -4710,7 +4738,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 02. ' );
 
 /*******************************************************************************
@@ -4739,7 +4767,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 --    dbms_output.put_line('completed edit rule 03. ' );   
 
 /*******************************************************************************
@@ -4847,7 +4875,7 @@ THEN
 /*******************************************************************************
 	    c. This field (column) will also be edited against some form of U.S. County API (Keith?).
 *******************************************************************************/
-
+            
 --    dbms_output.put_line('completed edit rule 07. ' );   
 
 /*******************************************************************************
@@ -4866,7 +4894,7 @@ THEN
 /*******************************************************************************
 	    c. We may build an API to obtain these values directly from HEARS (Keith?).
 *******************************************************************************/
-
+            
 --    dbms_output.put_line('completed edit rule 08. ' );   
 
 /*******************************************************************************
@@ -4897,7 +4925,7 @@ IF inaddress_usa_rowtype.COUNTRY_CODE <> 'PRI' THEN
 /*******************************************************************************
 	    c. We may open this check to additional Address Types for USA.
 *******************************************************************************/
-
+ 
 --    dbms_output.put_line('completed edit rule 09. ' ); 
 
 /*******************************************************************************
@@ -4927,9 +4955,9 @@ END IF;
 /*******************************************************************************
 	    c. We may open this check to additional Address Types for USA.
 *******************************************************************************/
-
+            
 --    dbms_output.put_line('completed edit rule 10. ' ); 
-
+       
 /*******************************************************************************
   11).	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
       For "Stores" Cost Centers with Address_Type "M" 
@@ -4938,14 +4966,14 @@ END IF;
              The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
 *******************************************************************************/
  BEGIN
-
+      
  	SELECT *  INTO v_old_address_usa_rowtype
 		FROM ADDRESS_USA 
 		WHERE ADDRESS_USA.cost_center_code    =  inADDRESS_USA_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_USA.address_type        =  inADDRESS_USA_ROWTYPE.Address_Type
       AND ADDRESS_USA.effective_date      <= v_curr_date   
       AND ADDRESS_USA.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_USA_ROWTYPE.address_type IN  ('M'))
     AND ((inADDRESS_USA_ROWTYPE.address_line_1 IS NULL  AND  v_old_address_usa_rowtype.address_line_1 IS NOT NULL
@@ -4960,15 +4988,15 @@ END IF;
            --raise status_check_warning_exp; remove for now
            NULL;
   END IF;
-
+  
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+ 
  -- dbms_output.put_line('completed address_usa edit rule 11. ' ); 
-
+         
 /*******************************************************************************
  12).	TAXWARE Warning Message:  (MDH 01/15/2013)
       For "Stores" with a "Mailing" or "Physical" Address, if the Zip_Code or 
@@ -4977,14 +5005,14 @@ EXCEPTION
       continue.
 *******************************************************************************/
   BEGIN
-
+      
  	SELECT *  INTO v_old_address_usa_rowtype
 		FROM ADDRESS_USA 
 		WHERE ADDRESS_USA.cost_center_code    =  inADDRESS_USA_ROWTYPE.Cost_Center_Code 
       AND ADDRESS_USA.address_type        =  inADDRESS_USA_ROWTYPE.Address_Type
       AND ADDRESS_USA.effective_date      <= v_curr_date   
       AND ADDRESS_USA.expiration_date  IS  NULL;
-
+      
    IF   (v_cost_center_rowtype.CATEGORY     IN  ('S'))
     AND (inADDRESS_USA_ROWTYPE.address_type IN  ('M','P'))
     AND ((inADDRESS_USA_ROWTYPE.zip_code IS NULL  AND  v_old_address_usa_rowtype.zip_code IS NOT NULL
@@ -4996,15 +5024,15 @@ EXCEPTION
 --            raise taxware_check_warning_exp; remove for now
 			NULL;
   END IF;
-
+  
 EXCEPTION
   WHEN NO_DATA_FOUND THEN
        NULL;
-
+  
  END;
-
+       
 --    dbms_output.put_line('completed edit rule 12. ' ); 
-
+        
 --    dbms_output.put_line('completed ALL edit rules). ' );
 
     IF inADDRESS_USA_ROWTYPE.address_type = 'F' AND inADDRESS_USA_ROWTYPE.EFFECTIVE_DATE <= TRUNC(SYSDATE) THEN
@@ -5014,9 +5042,9 @@ EXCEPTION
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
-
+          
 -- Error #01a
                WHEN cctr_must_be_ent_exp     THEN
                     v_code := errnums.en_cctr_must_be_ent_err; 
@@ -5024,84 +5052,84 @@ EXCEPTION
                    'Cost_Center_Code was entered as "' || inaddress_USA_rowtype.cost_center_code || '", ' ||
                    'However, Cost_Center_Code must be entered , can not be "null" or "spaces", ' ||
                    'and must be 6 digits numeric.' );   
-
+                   
 -- Error #01b
                WHEN invalid_cost_center_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_cost_center_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_USA_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center was not found.' );
-
+ 
 -- Error #01c
                WHEN cost_center_not_usa_exp  THEN  
                     v_code := errnums.en_invalid_cost_center_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.cost_center_not_usa_exp ' ,
                    'Cost_Center_Code was entered as "' || inaddress_usa_rowtype.cost_center_code || '", ' ||
                    'However, specified Cost_Center is not a United States Cost Center.' );
-
+                   
 -- Error #02a
                WHEN invalid_eff_date_exp     THEN
                     v_code := errnums.en_invalid_eff_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_eff_date_exp ' ,
                    'Effective_Date was entered as "' || inaddress_USA_rowtype.effective_date || '", ' || 
                    'However, a valid date must be entered into this field.');    
-
+                   
 -- Error #03a
                WHEN invalid_exp_date_exp     THEN
                     v_code := errnums.en_invalid_exp_date_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_exp_date_exp ' ,
                    'Expiration_Date was entered as "' || inaddress_USA_rowtype.expiration_date || '", ' || 
                    'However, a valid date must be entered into this field.');  
-
+                   
 -- Error #04a
                WHEN invalid_state_code_exp     THEN
                     v_code := errnums.en_invalid_code_detail_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.en_invalid_code_detail_err ' ,
                    'State_Code was entered as "' || inaddress_usa_rowtype.state_code || '", ' || 
                    'This value was not found on the Code_Detail table.');  
-
+                   
 -- Error #05a
                WHEN invalid_zip_code_exp     THEN
                     v_code := errnums.en_invalid_zip_code_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_zip_code_exp ' ,
                    'Zip_Code was entered as "' || inaddress_usa_rowtype.zip_code || '", ' || 
                    'However, United States Zip Code "First Five" format is 5 numeric digits.');    
-
+                   
 -- Error #06a
                WHEN invalid_zip_code_4_exp   THEN
                     v_code := errnums.en_invalid_zip_code_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_zip_code_4_exp ' ,
                    'Zip_Code Plus Four was entered as "' || inaddress_usa_rowtype.zip_code_4 || '", ' || 
                    'However, United States Zip Code "Plus Four" format is 4 numeric digits.');    
-
+                   
 -- Error #07a
                WHEN invalid_county_exp       THEN
                     v_code := errnums.en_invalid_county_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_county_exp ' ,
                    'County was entered as "' || inaddress_usa_rowtype.county || '", ' || 
                    'However, County can not be "null" or "spaces".');    
-
+                   
 -- Error #09a
                WHEN invalid_dest_point_exp       THEN
                     v_code := errnums.en_invalid_dest_point_err;
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_dest_point_exp ' ,
                    'Destination_Point was entered as "' || inaddress_usa_rowtype.destination_point || '", ' || 
                    'However, Destination_Point must be 2 numeric digits and can be "00".');    
-
+                   
 -- Error #10a
                WHEN invalid_check_digit_exp     THEN
                     v_code := errnums.en_invalid_check_digit_err;  
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.invalid_check_digit_exp ' ,
                    'Check_Digit was entered as "' || inaddress_usa_rowtype.check_digit || '", ' || 
                    'However, Check_Digit must be 1 numeric digit including "0".');    
-
+               
 -- Error #11
                WHEN status_check_warning_exp     THEN
                     v_code := errnums.en_status_check_warning_wrn;  
                     errpkg.raise_err(v_code, 'ADDRESS_USA_BR_SP.status_check_warning_exp ' ,
                    '** WARNING ** ' ||  
                    'Address Line has been changed, please check status code for store relocation?');    
-
+                                
 -- Error #12
                WHEN taxware_check_warning_exp     THEN
                     v_code := errnums.en_taxware_check_warning_wrn;  
@@ -5132,11 +5160,11 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
                       field until it's been loaded to the Administration table.
                       Reserve for future.
 *******************************************************************************/	
-
+  
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE)
                 IS         
-
+ 
  inactive_cost_center_err    	EXCEPTION;
  invalid_admin_cc_catg_err    EXCEPTION; 
  invalid_admin_category_err   EXCEPTION;   
@@ -5144,12 +5172,12 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
  invalid_admin_cc_type_err    EXCEPTION;
  invalid_intr_mail_nbr_err    EXCEPTION;
  invalid_code_detail_err      EXCEPTION;
-
+ 
  v_curr_date           date := sysdate;
  v_code number;
  v_count number;
  v_errm varchar(500);
-
+ 
 /*
    3.3.20   The list below are the business rules by column for the Administration table:
 	 **note:This table is only stored if the category of the cost_center_table is an "A".
@@ -5159,23 +5187,23 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
 /*
    3.3.20.1a  A Cost Center row is selected to validate category code is an "A"; otherwise Adminstration table cannot be added
 */	
-
-
+    
+      
      IF inCostctr_rowtype.cost_center_code <>  inAdmin_rowtype.cost_center_code THEN
 	      RAISE inactive_cost_center_err;
      END IF;   
-
+	
 /*
    3.3.20.1b  For this administration table, the category must be "A"     
 */		
       IF  NOT  common_tools.code_detail_valid('CATEGORY', inCostctr_rowtype.CATEGORY) THEN  -- value not found in table 
               RAISE invalid_admin_cc_catg_err; 
       END IF; 
-
+    
      IF inAdmin_rowtype.CATEGORY <> 'A'   THEN
          RAISE invalid_admin_category_err;
      END IF;	
-
+           
 /* 
 -- CCNA-360 - This logic is being commented out temporary via Pat Malloy request 5/2/13
 -- The filed being validated 'admin_cost_cntr_type' is a new field request
@@ -5187,7 +5215,7 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
      end if;  
 */         
     EXCEPTION
-
+              		    
       WHEN inactive_cost_center_err THEN  
 --	    v_code := errnums.en_inactive_cost_center_err;
 	    v_code := errnums.en_inactive_cost_center_err;
@@ -5204,8 +5232,8 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
         || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
         'Admin Category_Code is "' || inAdmin_rowtype.CATEGORY || '". ' ||        
         'Category code is not valid on Code table. '); 
-
-
+		
+        
 	    v_code := errnums.en_invalid_code_detail_err;
 	    errpkg.raise_err(v_code, 'ADMINISTRATION_BR_SP.invalid_admin_cc_catg_err ' ,
         'CCN_BUSINESS_RULES_PKG ' || 
@@ -5219,7 +5247,7 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
         || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
         'Category_Code is "' || inAdmin_rowtype.CATEGORY || '". ' ||
         'For an Administrative table the Category must be "A". '); 
-
+		
       WHEN invalid_intr_mail_nbr_err THEN  
 	    v_code := errnums.en_invalid_code_detail_err;
 	    errpkg.raise_err(v_code, 'ADMINISTRATION_BR_SP.invalid_intr_mail_nbr_err ',
@@ -5227,10 +5255,11 @@ REVISED : blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary
         'For Cost Center "' || inAdmin_rowtype.cost_center_code || '", ' ||
         'Internal_mail_number is "' || inAdmin_rowtype.internal_mail_number || '". ' ||
         'For a Administrative INTERNAL_MAIL_NUMBER is invalid. ');     
+        
 /*
 blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary; until
                            data is loaded - Pat MAlloy request 5/2/13.
-
+                           
       when invalid_admin_cc_type_err then  
 	    v_code := errnums.en_invalid_code_detail_err;
 	    errpkg.raise_err(v_code, 'ADMINISTRATION_BR_SP.invalid_admin_cc_type_err ',
@@ -5245,10 +5274,96 @@ blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary; until
 	    v_errm := substr(SQLERRM,1, 500);
       errpkg.raise_err(v_code, v_errm ||
         'CCN_BUSINESS_RULES_PKG ' || 'No errors found');
-
-
+     
+    
  END  ADMINISTRATION_BR_SP;
+ 
+PROCEDURE LAD_CUSTOMER_BR_SP (
+/*******************************************************************************
+	 LAD_CUSTOMER_BR_SP
 
+	This procedure is intended enforce the Business Rules
+	for verifying the CATEGORY on the LAD_CUSTOMER Table
+
+created : 02/13/2018 mxv711
+*******************************************************************************/	
+  
+  inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE)
+                IS         
+ 
+ inactive_cost_center_err           EXCEPTION;
+ invalid_lad_cust_cc_catg_err       EXCEPTION; 
+ invalid_lad_customer_catg_err      EXCEPTION;   
+
+ 
+ v_curr_date           date := sysdate;
+ v_code number;
+ v_count number;
+ v_errm varchar(500);
+ 
+/*
+   3.3.20   The list below are the business rules by column for the LAD_CUSTOMER table:
+	 **note:This table is only stored if the category of the cost_center_table is an "C".
+*/
+
+ BEGIN
+/*
+   3.3.20.1a  A Cost Center row is selected to validate category code is an "C"; otherwise LAD_CUSTOMER table cannot be added
+*/	
+    
+      
+     IF inCostctr_rowtype.cost_center_code <>  inLad_customer_rowtype.cost_center_code THEN
+	      RAISE inactive_cost_center_err;
+     END IF;   
+	
+/*
+   3.3.20.1b  For this lad_customer table, the category must be "C"     
+*/		
+      IF  NOT  common_tools.code_detail_valid('CATEGORY', inCostctr_rowtype.CATEGORY) THEN  -- value not found in table 
+            RAISE invalid_lad_cust_cc_catg_err; 
+      END IF; 
+    
+     IF inLad_customer_rowtype.CATEGORY <> 'C'   THEN
+         RAISE invalid_lad_customer_catg_err;
+     END IF;	
+           
+        
+    EXCEPTION
+              		    
+      WHEN inactive_cost_center_err THEN  
+	    v_code := errnums.en_inactive_cost_center_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.inactive_cost_center ' ,
+        'CCN_BUSINESS_RULES_PKG ' || 
+        'For Cost Center "' || inCostctr_rowtype.cost_center_code || '", ' ||
+        'LAD_CUSTOMER cost center is "' || inLad_customer_rowtype.cost_center_code || '". ' ||        
+        'Cost Center codes for LAD CUSTOMER and Cost Center do not match. ');         
+
+      WHEN invalid_lad_cust_cc_catg_err THEN
+       v_code := errnums.en_invld_lad_cust_cc_catg_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_lad_cust_cc_catg_err ' ,
+        'CCN_BUSINESS_RULES_PKG ' 
+        || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
+        'LAD_CUSTOMER Category_Code is "' || inLad_customer_rowtype.CATEGORY || '". ' ||        
+        'Category code is not valid on Code table. '); 
+        
+      WHEN invalid_lad_customer_catg_err THEN  
+	    v_code := errnums.en_invalid_lad_cust_catg_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_lad_customer_catg_err ' ,
+        'CCN_BUSINESS_RULES_PKG ' 
+        || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
+        'Category_Code is "' || inLad_customer_rowtype.CATEGORY || '". ' ||
+        'For an LAD_CUSTOMER table the Category must be "C". '); 
+		
+
+      WHEN OTHERS THEN
+      v_code := SQLCODE;
+	    v_errm := substr(SQLERRM,1, 500);
+      errpkg.raise_err(v_code, v_errm ||
+        'CCN_BUSINESS_RULES_PKG ' || 'No errors found');     
+    
+END  LAD_CUSTOMER_BR_SP;
+ 
 PROCEDURE BANK_CARD_BR_SP (
 /*******************************************************************************
 	 BANK_CARD_BR_SP
@@ -5284,7 +5399,7 @@ modified: 02/09/2017 bxa919 added code to fetch the country code from country_lo
    ,inPolling_rowtype           IN POLLING%ROWTYPE
  )
                 IS         
-
+ 
  invalid_merchid_err            EXCEPTION;
  invalid_amexid_err             EXCEPTION;
  bad_merchant_id_err            EXCEPTION;
@@ -5308,7 +5423,8 @@ modified: 02/09/2017 bxa919 added code to fetch the country code from country_lo
  v_count number;
  v_phone number;
  v_errm varchar(500);
-
+ 
+ 
 /*
    3.3.11 Bank_card History rules are checked when new cost centers is added/updated; 
              This is a "History" table. Any changes force a new row to be inserted and any
@@ -5319,48 +5435,47 @@ modified: 02/09/2017 bxa919 added code to fetch the country code from country_lo
 /*
    3.3.11.1   A Cost Center row must exist with a Cost Center Name not null
 */  
-
  BEGIN 
 
 /* 3.3.11.2a  Discover_id column must be numeric and cannot be zeros; Can be all 9's;
 	     The field can be "null" for Canadian cost centers only
 */            
-
+	     
 	   IF (TRANSLATE( inbankcard_rowtype.discover_id, ' +-.0123456789',' ') IS NOT NULL) THEN  
  	       RAISE discvr_id_nonum_err ;
      END IF;
-
+      	
 	   IF  inbankcard_rowtype.discover_id = '000000000000000' THEN
 	       RAISE discvr_id_zero_err ;
      END IF;
-
+  
 /* 3.3.11.3a The amex_se_id column must be numeric and cannot equal zeros;
 	    This field can be "null" unless Cost Center table has a polling_status_code = "P",
 	    then null is invalid
 */
-
+	    			
        IF inPolling_rowtype.cost_center_code <>  inbankcard_rowtype.cost_center_code    
           OR inPolling_rowtype.polling_status_code  <> inbankcard_rowtype.polling_status_code THEN
               RAISE invalid_polling_err;
        END IF;
-
+         
 	    IF (inbankcard_rowtype.amex_se_id IS NULL 
 	        AND  inPolling_rowtype.polling_status_code = 'P') THEN
 	        RAISE invalid_amexid_err;
       END IF;
-
+   
     IF (TRANSLATE( inbankcard_rowtype.amex_se_id, ' +-.0123456789',' ') IS NOT NULL) THEN  
  	      RAISE amex_id_nonum_err;
  	  END IF;
-
+       	
     IF inbankcard_rowtype.amex_se_id = '0000000000' THEN
 	     RAISE amex_id_zero_err ;
   	END IF;
-
+   
    IF inbankcard_rowtype.amex_se_id IS NOT NULL AND LENGTH(inbankcard_rowtype.amex_se_id) <> 10 THEN
        RAISE invalid_amex_id_size_err;
    END IF;
-
+	
    IF ((inbankcard_rowtype.PCI_MERCHANT_ID IS NULL or
         inbankcard_rowtype.PCI_DISCOVER_ID IS NULL)
         AND  inPolling_rowtype.polling_status_code = 'P') THEN
@@ -5382,7 +5497,7 @@ modified: 02/09/2017 bxa919 added code to fetch the country code from country_lo
        --UI anyways won't allow this to happen, but for batch
        RAISE invalid_merchant_id_size_err;
    END IF;
-
+   
    IF inbankcard_rowtype.merch_id_can_mc IS NOT NULL AND LENGTH(inbankcard_rowtype.merch_id_can_mc) <> 11 THEN
           RAISE invld_merch_id_mc_size_err;
    END IF;
@@ -5395,27 +5510,28 @@ modified: 02/09/2017 bxa919 added code to fetch the country code from country_lo
    IF inbankcard_rowtype.pci_merch_id_can_mc IS NOT NULL AND LENGTH(inbankcard_rowtype.pci_merch_id_can_mc) > 13 THEN
         RAISE invld_pci_merch_id_mc_size_err;
    END IF;
-
+   
 EXCEPTION
-
-
+	
+	
 		WHEN invalid_merchID_err THEN  
 		      v_code := errnums.en_invalid_merchID_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_merchID_err ',  
           'CCN_BUSINESS_RULES_PKG ' || 'merch_id cannot = 9999999999'); 
-
+       	
+          	
 		WHEN  bad_merchant_id_err THEN 
 			  --KDP maybe more detail in the message for why the error is being thrown 
 		      v_code := errnums.en_bad_merchant_id_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.bad_merchant_id_err ',
  		     'CCN_BUSINESS_RULES_PKG ' || 'error was return from merchant_s_sp procedure'); 
-
+ 		
 		WHEN discvr_id_nonum_err THEN 
           v_code := errnums.en_discvr_id_nonum_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.discvr_id_nonum_err ',
           'CCN_BUSINESS_RULES_PKG ' || 'Discover_id is not numeric');         		             		
-
-
+		
+       	
 		WHEN discvr_id_zero_err THEN  
           v_code := errnums.en_discvr_id_zero_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.discvr_id_zero_err ',
@@ -5425,39 +5541,39 @@ EXCEPTION
           v_code := errnums.en_amex_id_zero_err;
           errpkg.raise_err(v_code, 'bank_card_br_sp.amex_id_zero_err ',
          'CCN_BUSINESS_RULES_PKG '  || 'Amex_se_id cannot be zeroes');         		             		
-
+		      
 		WHEN amex_id_nonum_err	THEN  
           v_code := errnums.en_amex_id_nonum_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.amex_id_nonum_err ',
           'CCN_BUSINESS_RULES_PKG '  || 'Amex_se_id is not numeric');         		             		
-
-
+		
+		      
 		WHEN invalid_amexid_err	THEN  
           v_code := errnums.en_invalid_amexid_err;
 		      errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_amexid_err ',
           'CCN_BUSINESS_RULES_PKG '  || 'Amex_Se_id cannot be null when polling_status = P');         		             		
-
-
+		
+		
     WHEN invalid_polling_err THEN  
         v_code := errnums.en_invalid_polling_err;
         errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_polling_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'Polling row cannot be found');            		             		
-
+				
 		WHEN invalid_bank_card_err THEN  
         v_code := errnums.en_inactive_bank_card_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.inactive_bank_card_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'Bank_Card row cannot be found');
-
+   
 		WHEN invalid_cost_center_err THEN  
         v_code := errnums.en_invalid_cost_center_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_cost_center_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'Cost center row cannot be found');            		             		
-
+		  		    
 		WHEN invalid_amex_id_size_err THEN  
         v_code := errnums.en_invalid_amex_id_size_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_amex_id_size_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'AMEX ID entered is not of valid size'); 
-
+		
         WHEN invalid_discover_id_size_err THEN  
         v_code := errnums.en_invalid_dscvr_id_size_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_discover_id_size_err ',
@@ -5474,17 +5590,16 @@ EXCEPTION
         v_code := errnums.en_invld_pci_mrchnt_id_sz_err;
 		    errpkg.raise_err(v_code, 'bank_card_br_sp.invalid_pci_mrchnt_id_size_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'PCI MERCHANT ID entered is not of valid size, maximum size is 13');
-
 		WHEN invld_merch_id_mc_size_err THEN  
         v_code := errnums.en_invld_merch_id_mc_size_err;
 	    errpkg.raise_err(v_code, 'bank_card_br_sp.invld_merch_id_mc_size_err ',
 	    'CCN_BUSINESS_RULES_PKG ' || 'MERCH ID CAN MC entered is not of valid size, maximum size is 11');
-
+	
 	    WHEN invld_pci_merch_id_mc_size_err THEN  
 	    v_code := errnums.en_invld_pci_merch_mc_sz_err;
         errpkg.raise_err(v_code, 'bank_card_br_sp.invld_pci_merch_id_mc_size_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'PCI MERCH ID CAN  entered is not of valid size, maximum size is 13');
-
+        
         WHEN OTHERS THEN
         v_code := SQLCODE;
 	    v_errm := substr(SQLERRM,1, 500);
@@ -5492,14 +5607,14 @@ EXCEPTION
         'CCN_BUSINESS_RULES_PKG '  || 'No errors found');
 
 END  BANK_CARD_BR_SP;
-
+  
 PROCEDURE COST_CENTER_BR_SP  (
 /*****************************************************************************
 	COST_CENTER_BR_SP       3.3.17   'COST_CENTER' TABLE COLUMNS
 
 	This procedure is intended to enforce the Business Rules
 	for COST_CENTER validation edits and verifying the following rules:
-
+      
   The list below are the business rules by column for the COST_CENTER table:
 
     1.	Cost_Center_Code (6-VR): 
@@ -5508,7 +5623,7 @@ PROCEDURE COST_CENTER_BR_SP  (
             And the 4 digit Cost Center Number which can be any numeric or alpha-numeric number.
         The Cost_Center_Code cannot already be in the COST_CENTER table (New Function).   
         The Cost_Center_Code cannot be Spaces.
-
+        
         In Addition -- For a Cost_Center "ADD"  Address Information must also be present
        ( A Cost_Center may not be added without an Address )       
 TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an address being added also
@@ -5536,7 +5651,7 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
           Statement_Type is 'GD'    Country_Code is 'GRD'
 
           Country_Code is 'CAN'    Statement_Type is 'CN','AC','DC'
-
+          
           Country_Code is 'USA'    Statement_Type is 'US','AU','DU','CK','CP','DP','FB',
                                                      'GP','GS','MB','MZ','NP','SG','QK'
 TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN" for "USA"
@@ -5572,11 +5687,11 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
 
     9.	POS_Prog_Ver_Eff_Date: 
         There are no edits for this field.  This field can be changed, but is usually updated from Polling (CCN00500). 
-
+        
    10.  DUNS_NUMBER:
         This field is only required for Store(S) and Other(o) cost centers.
         this field cannot be spaces and must be numeric.
-
+        
  created : TAL 08/03/2012
  revised : TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN" for "USA"
            MDH 06/19/2013 added Duns_Number check.
@@ -5594,11 +5709,13 @@ changed : 09/19/2016 jxc517 CCN Project Team....
           Added statement type "VL" under USA country
 Changed : 06/27/2017 rxa457 CCN Projct Team..
             Cost Centers with category 'D" (Dispatch Terminals) need not have address codes defined. Such cost centers derive their address from their corresponding Home Store
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 Changed: 04/10/2018 nxk927 CCN Project Team....
           Added new error to checks if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
           passed as null for polling status code of P and Q for store type cost center
 ******************************************************************************/	
-
+   
    incost_center_rowtype             cost_center%ROWTYPE
   ,inaddress_can_rowtype             address_can%ROWTYPE
   ,inaddress_mex_rowtype             address_mex%ROWTYPE
@@ -5606,76 +5723,75 @@ Changed: 04/10/2018 nxk927 CCN Project Team....
   ,inaddress_usa_rowtype             address_usa%ROWTYPE
   ,inaddress_brb_rowtype             address_brb%ROWTYPE
        )
-
+   
         IS 
    V_POLLING_STATUS_CODE           POLLING.POLLING_STATUS_CODE%TYPE;
 -- Error #01a
    cost_center_pre_not_valid_exp   EXCEPTION;
-
+   
 -- Error #01b
    cost_center_suf_not_valid_exp   EXCEPTION;
-
+   
 -- Error #01c
 -- duplicate_cost_center_exp       exception;
-
+   
 -- Error #01d
    cctr_must_be_ent_exp            EXCEPTION;
-
+   
 -- Error #01x
    address_info_missing_exp        EXCEPTION;   
 -- TAL 05/23/2013 CCNA-384 When a cost center is being added 
 -- there must be an address being added also
-
+   
 -- Error #02a  
    invalid_category_exp            EXCEPTION;
-
+   
 -- Error #03a  
    invalid_statement_type_exp      EXCEPTION;
-
+   
 -- Error #04a
    invalid_country_code_exp        EXCEPTION;
-
+   
 -- Error #04b
    country_statement_match_exp     EXCEPTION;
-
+   
 -- Error #05a
 -- invalid_close_date_exp          exception;
-
+   
 -- Error #06a
    invalid_fin_close_date_exp      EXCEPTION;
-
+   
 -- Error #07a
    invalid_currency_code_exp       EXCEPTION;
-
+   
 -- Error #07b
    country_currency_match_exp      EXCEPTION;
-
+      
 -- Error #10a
    invalid_duns_nbr_exp            EXCEPTION;
    invalid_duns_nbr_size_err       EXCEPTION;
-
+      
 -- Error #10b
    INVALID_DUNS_NUM_EXP            EXCEPTION;
 -- Error #10c   
    INVALID_PRI_LOGO_GROUP          EXCEPTION;
-
-   -- Error #11
+-- Error #11
    cc_std_primry_price_err         EXCEPTION;
-
+   
    v_code   number;
    v_date   date  ;
    v_count  number;
    v_errm   varchar(500);
    v_cost_center  number   := 0 ;
-
+   
    v_address_can_rowtype        Address_CAN%ROWTYPE ;
    v_address_mex_rowtype        Address_MEX%ROWTYPE ;
    v_address_oth_rowtype        Address_OTHER%ROWTYPE ;
    v_address_usa_rowtype        Address_USA%ROWTYPE ;
-
+   
    v_code_detail_country_row          code_detail%ROWTYPE;
    v_code_detail_statement_row        code_detail%ROWTYPE;
-
+ 
    cc_standard_primary_cost_exp 		EXCEPTION;
 BEGIN
 
@@ -5686,7 +5802,7 @@ BEGIN
       b.      And the 4 digit Cost Center Number which can be any numeric or alpha-numeric number.
       c.  The Cost_Center_Code cannot already be in the COST_CENTER table (New Function).   
       d.  The Cost_Center_Code cannot be Spaces.
-
+      
         In Addition -- For a Cost_Center "ADD"  Address Information must also be present
        ( A Cost_Center may not be added without an Address )       
 TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an address being added also
@@ -5708,7 +5824,7 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
           RAISE cctr_must_be_ent_exp;
 -- See Error #01d.
       END IF;
-
+      
 /*******************************************************************************
       a. Cost_Center first 2 digits must be numeric. 
 *******************************************************************************/
@@ -5720,7 +5836,7 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
 /*******************************************************************************
       c. Cost_Center_Code cannot already be in the COST_CENTER table.
 *******************************************************************************/	
-
+     
 --begin
 --
 --      select  count(1)  into  v_count
@@ -5739,13 +5855,13 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
        ( A Cost_Center may not be added without an Address )       
 TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an address being added also
 *******************************************************************************/	
-
+     
   BEGIN
   IF incost_center_rowtype.CATEGORY NOT IN ('T','D') THEN
         SELECT  count(1)  INTO  v_count
          FROM  cost_center
          WHERE cost_center.cost_center_code     =  incost_center_rowtype.cost_center_code ;
-
+          
 --      if a Cost_Center not found - this is an add, so verify Address information is present
         IF v_count = 0 THEN
            IF inaddress_can_rowtype.cost_center_code  IS  NULL  AND
@@ -5753,7 +5869,7 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
               inaddress_oth_rowtype.cost_center_code  IS  NULL  AND
               INADDRESS_USA_ROWTYPE.COST_CENTER_CODE  IS  NULL  AND
               INADDRESS_BRB_ROWTYPE.COST_CENTER_CODE  IS  NULL  THEN
-
+                 
                  RAISE ADDRESS_INFO_MISSING_EXP; 
                  --null;
 -- See Error #01x.
@@ -5767,12 +5883,13 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
 /*******************************************************************************
   2).	Category (1-VR/BR): 
       a.  The Category determines whether a the Cost_Center is a:
-          STORE, ADMINISTRATION, REAL_ESTATE, TERRITORY, or OTHER.  
+          STORE, ADMINISTRATION, REAL_ESTATE, TERRITORY,LAD_CUSTOMER or OTHER.  
           'A' = Admisistration
           'R' = Real Estate
           'S' = Store
           'T' = Territory
           'O' = Other
+          'C' = LAD Customer
 *******************************************************************************/
 
       IF  NOT  common_tools.code_detail_valid('CATEGORY', incost_center_rowtype.CATEGORY) 
@@ -5795,7 +5912,7 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
           Statement_Type is 'GD'    Country_Code is 'GRD'          
 
           Country_Code is 'CAN'    Statement_Type is 'CN','AC','DC'
-
+          
           Country_Code is 'USA'    Statement_Type is 'US','AU','DU','CK','CP','DP','FB',
                                                      'GP','GS','MB','MZ','NP','SG','QK'
 TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN" for "USA"
@@ -5811,7 +5928,7 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
           RAISE invalid_statement_type_exp;
 -- See Error #03a
       END IF;
-
+      
 /*******************************************************************************
   4).	Country_Code (3-VR/BR):
       a.  This Field (column) cannot be null!
@@ -5826,11 +5943,11 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
           Statement_Type is 'GD'    Country_Code is 'GRD'
 
           Country_Code is 'CAN'    Statement_Type is 'CN','AC','DC'
-
+          
           Country_Code is 'USA'    Statement_Type is 'US','AU','DU','CK','CP','DP','FB',
                                                      'GP','GS','MB','MZ','NP','SG','QK'
 TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN" for "USA"
-
+                                                     
       b.  Country_Code must match to Statement_Type.
 
 *******************************************************************************/
@@ -5844,7 +5961,7 @@ TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN"
           RAISE invalid_country_code_exp;
 -- See Error #04a
       END IF;
-
+      
 /*******************************************************************************
 	    b. validate Country_Code and Statement_Type match
 *******************************************************************************/	  
@@ -5858,34 +5975,34 @@ MDH 07/02/2013 Added GD statement type and GRD for Grenada.
 
       IF (incost_center_rowtype.country_code        =   'MEX'
       AND incost_center_rowtype.statement_type  NOT IN ('MX') )
-
+      
       OR (incost_center_rowtype.country_code        =   'PRI'
       AND incost_center_rowtype.statement_type  NOT IN ('PR') )
-
+      
       OR (incost_center_rowtype.country_code        =   'TTO'
       AND incost_center_rowtype.statement_type  NOT IN ('TR') )
-
+      
       OR (incost_center_rowtype.country_code        =   'JAM'
       AND incost_center_rowtype.statement_type  NOT IN ('JM') )
-
+      
       OR (incost_center_rowtype.country_code        =   'ABW'
       AND incost_center_rowtype.statement_type  NOT IN ('AW') )
-
+      
       OR (incost_center_rowtype.country_code        =   'CUW'
       AND incost_center_rowtype.statement_type  NOT IN ('CW') )
-
+      
       OR (incost_center_rowtype.country_code        =   'ANT'
       AND incost_center_rowtype.statement_type  NOT IN ('AN') )
-
+            
       OR (incost_center_rowtype.country_code        =   'GRD'
       AND incost_center_rowtype.statement_type  NOT IN ('GD') )
-
+      
       OR (incost_center_rowtype.country_code        =   'CAN'
       AND incost_center_rowtype.statement_type  NOT IN ('CN','AC','DC','GC') )
 
       OR (incost_center_rowtype.country_code        =   'BRB'
       AND incost_center_rowtype.statement_type  NOT IN ('BB') )
-
+      
       OR (incost_center_rowtype.country_code        =   'USA'
       AND incost_center_rowtype.statement_type  NOT IN ('US','AU','DU','CK','CP','DP','FB','UN',
 --  TAL 04/29/2013 CCNQC-25 fix to Country Code must match Statement Type added "UN" for "USA"
@@ -5924,7 +6041,7 @@ MDH 07/02/2013 Added GD statement type and GRD for Grenada.
  *******************************************************************************/
 
       IF  incost_center_rowtype.financial_close_date  IS NOT  NULL    THEN
-
+      
 BEGIN
 
       v_date  :=  incost_center_rowtype.financial_close_date;
@@ -5938,7 +6055,7 @@ EXCEPTION
 END;
 
       END IF;
-
+      
 /*******************************************************************************
   7). Currency_Code (3-VR/BR):  
       a. This field is also influenced by the Country_Code,
@@ -5952,44 +6069,44 @@ END;
 
 /*******************************************************************************
 	     a. validate Currency_Code
-
+                 
 MDH 07/02/2013 Added GD statement type and GRD for Grenada.      
 *******************************************************************************/	  
 
 --  Currency_Code edit is valid for "Store" Cost_Centers only
 
       IF  incost_center_rowtype.CATEGORY  =  'S'    THEN
-
+          
           IF  NOT  common_tools.code_detail_valid('CURRENCY_CODE', incost_center_rowtype.currency_code) 
           OR   incost_center_rowtype.currency_code  IS  NULL    THEN
                RAISE invalid_currency_code_exp;
 -- See Error #07a
           END IF;
-
+          
           IF ( incost_center_rowtype.country_code    =  'USA'
           AND  incost_center_rowtype.currency_code  !=  'USD' )
-
+          
           OR ( incost_center_rowtype.country_code    =  'CAN'
           AND  incost_center_rowtype.currency_code  !=  'CAD' )
-
+                    
           OR ( incost_center_rowtype.country_code    =  'GRD'
           AND (incost_center_rowtype.currency_code  !=  'GRD'
           AND   incost_center_rowtype.currency_code  !=  'USD' ) )
-
+          
           OR ( incost_center_rowtype.country_code    =  'MEX'
           AND  substr(incost_center_rowtype.currency_code,1,2)  !=  'MX' )  
                                                                 THEN
                RAISE country_currency_match_exp;
 -- See Error #07b
           END IF;
-
+ 
         IF incost_center_rowtype.PRI_LOGO_GROUP_IND  IS NULL
          THEN 
          RAISE INVALID_PRI_LOGO_GROUP;
         END IF;   
-
+          
       END IF;
-
+      
 /*******************************************************************************
   8). POS_Prog_Ver_Nbr: 
       a. There are no edits for this field.  This field can be changed, but is usually updated from Polling (CCN00500). 
@@ -6014,7 +6131,7 @@ MDH 07/02/2013 Added GD statement type and GRD for Grenada.
       a. The duns number must be entered for Store(S) and Other(O) Cost Centers
          It cannot be null or spaces and must be numeric. 
 *******************************************************************************/	  
-
+      
 BEGIN
   IF (incost_center_rowtype.CATEGORY  IN ('S', 'O'))   THEN
       IF (incost_center_rowtype.DUNS_NUMBER IS NULL  
@@ -6039,7 +6156,7 @@ END;
  raise a warning if it is NULL. Made changes as per ASP-400 mxk766 - 
 	Standard/Primary Cost indicators
  Added by mxk766 on 8/17/2016
- Changed: nxk927 03/27/2018 CCN Project Team....
+Changed: nxk927 03/27/2018 CCN Project Team....
          Change to convert the warning to error per ASP-926
          Added Business rule to Change warning to error for "S" category cost centers 
          with polling status as "P"/"Q" 
@@ -6051,7 +6168,7 @@ BEGIN
           FROM POLLING 
          WHERE COST_CENTER_CODE = incost_center_rowtype.COST_CENTER_CODE
            AND EXPIRATION_DATE IS NULL;
-
+      
     EXCEPTION
         WHEN OTHERS THEN 
             NULL;
@@ -6062,14 +6179,14 @@ BEGIN
        AND (incost_center_rowtype.std_cost_identifier  IS NULL OR
             incost_center_rowtype.prim_cost_identifier IS NULL) THEN
          raise cc_std_primry_price_err;    
-END IF;
+    END IF;
 
 END;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
 
 -- Error #01c
@@ -6085,7 +6202,7 @@ END;
 --                  errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_cost_center_exp ' ,
 --                 'Cost_Center_Code was entered as "' || incost_center_rowtype.cost_center_code || '", ' ||
 --                 'However, specified Cost_Center was not found.' );
-
+          
 -- Error #01d
                WHEN cctr_must_be_ent_exp     THEN
                     v_code := errnums.en_cctr_must_be_ent_err; 
@@ -6100,29 +6217,29 @@ END;
                       errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.address_info_missing_exp '  ,
                      'Cost_Center_Code was entered as "' || incost_center_rowtype.cost_center_code || '". ' ||
                      'However, for new Cost Centers, Address information must also be entered.' );  
-
-
+ 
+                    
 -- Error #02a
                WHEN invalid_category_exp THEN
                     v_code := errnums.en_invalid_code_detail_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.category_not_valid_exp ' ,
                    'Category was entered as "' || incost_center_rowtype.CATEGORY || '". ' || 
                    'This value was not found on the Code_Detail table.');  
-
+                   
 -- Error #03a
                WHEN invalid_statement_type_exp THEN
                     v_code := errnums.en_invalid_code_detail_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_statement_type_exp ' ,
                    'Statement_Type was entered as "' || incost_center_rowtype.statement_type || '". ' || 
                    'This value was not found on the Code_Detail table.'); 
-
+                   
 -- Error #04a
                WHEN invalid_country_code_exp THEN
                     v_code := errnums.en_invalid_code_detail_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_country_code_exp ' ,
                    'Country_Code was entered as "' || incost_center_rowtype.country_code || '". ' || 
                    'This value was not found on the Code_Detail table.'); 
-
+                   
 -- Error #04b
                WHEN country_statement_match_exp THEN
                     v_code := errnums.en_country_stmt_match_err;
@@ -6130,28 +6247,28 @@ END;
                    'Country_Code and Statement_Type were entered as  "' || incost_center_rowtype.country_code ||
                    '" and "' || incost_center_rowtype.statement_type || '". ' ||
                    'These two fields must contain corresponding values.' );  
-
+                   
 -- Error #05a
 --               when invalid_close_date_exp then
 --                    v_code := errnums.en_invalid_close_date_err;
 --                    errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_close_date_exp ' ,
 --                   'Close_Date was entered as  "' || incost_center_rowtype.close_date || '". ' ||
 --                   'However, Close_Date can not be entered.' );  
-
+                   
 -- Error #06a
                WHEN invalid_fin_close_date_exp THEN
                     v_code := errnums.en_invalid_fin_close_date_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_fin_close_date_exp ' ,
                    'Fin_Close_Date was entered as  "' || incost_center_rowtype.financial_close_date || '". ' ||
                    'However, Fin_Close_Date must be a valid date.' );  
-
+                   
 -- Error #07a
                WHEN invalid_currency_code_exp THEN
                     v_code := errnums.en_invalid_currency_code_err;
                     errpkg.raise_err(v_code, 'COST_CENTER_BR_SP.invalid_currency_code_exp ' ,
                    'Currency_Code was entered as  "' ||  incost_center_rowtype.currency_code || '". ' ||
                    'This value was not found on the Code_Detail table.'); 
-
+                   
 -- Error #07a
                WHEN country_currency_match_exp THEN
                     v_code := errnums.en_country_currency_match_err;
@@ -6159,9 +6276,9 @@ END;
                    'Country_Code and Currency_Code were entered as  "' || incost_center_rowtype.country_code ||
                    '" and "' ||  incost_center_rowtype.currency_code || '". ' ||
                    'These two fields must contain corresponding values.' );  
-
+                   
 -- Error #08a       no edits for this field
-
+                   
 -- Error #09a       no edits for this field
 
 -- Error #10a  
@@ -6217,19 +6334,19 @@ created : BLR 8/3/2012
   inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,inOther_rowtype                  IN  OTHER%ROWTYPE )
                 IS         
-
+ 
  inactive_cost_center_err    	EXCEPTION;
  invalid_othr_cc_catg_err     EXCEPTION; 
  invalid_other_category_err   EXCEPTION;  
  invalid_code_detail_err      EXCEPTION;
-
+ 
  --v_cost_center_rowtype       COST_CENTER%ROWTYPE; 
-
+  
  v_curr_date           date := sysdate;
  v_code number;
  v_count number;
  v_errm varchar(500);
-
+ 
 /*
    3.3.20   The list below are the business ruels by column for the Administration table:
 	 **note:This table is only stored if the category of the cost_center_table is an "R".
@@ -6239,28 +6356,28 @@ created : BLR 8/3/2012
 /* 
     3.3.20.1a  A Cost Center row is selected to validate category code is an "O"; otherwise Other table cannot be added(fixed)
 */	
-
+    
       IF inCostctr_rowtype.cost_center_code <>  inOther_rowtype.cost_center_code THEN
 	       RAISE inactive_cost_center_err;
       END IF;
-
-
+    
+	
 /* 
-
+	
    3.3.20.1b  For this OTHER table, the category must be "O"     
 */		
       IF  NOT  common_tools.code_detail_valid('CATEGORY',inCostctr_rowtype.CATEGORY) THEN  -- value not found in table 
               RAISE invalid_othr_cc_catg_err; 
       END IF; 
 
-
+    
      IF inOther_rowtype.CATEGORY <> 'O'   THEN
          RAISE invalid_other_category_err;
       END IF;	
-
-
+          
+         
     EXCEPTION
-
+              		    
       WHEN inactive_cost_center_err THEN     
 	    v_code := errnums.en_inactive_cost_center_err;
 	    errpkg.raise_err(v_code, 'OTHER_BR_SP.inactive_cost_center_err ' ,
@@ -6268,7 +6385,7 @@ created : BLR 8/3/2012
         'For Other Cost Center "' || inOther_rowtype.cost_center_code || '", ' ||
         'Cost Center is "' || inCostctr_rowtype.cost_center_code || '". ' ||
         'Cost center code on the Other and Cost Center table do not match '); 
-
+		
 
       WHEN invalid_othr_cc_catg_err THEN           
 	    v_code := errnums.en_invalid_code_detail_err;
@@ -6284,31 +6401,31 @@ created : BLR 8/3/2012
         || 'For Cost Center "' || inOther_rowtype.cost_center_code || '", ' ||
         'Category_Code is "' || inOther_rowtype.CATEGORY || '". ' ||
         'For an OTHER table column Category code must be "O". '); 
-
+		
       WHEN OTHERS THEN
       v_code := SQLCODE;
 	    v_errm := substr(SQLERRM,1, 500);
       errpkg.raise_err(v_code, v_errm ||
         'CCN_BUSINESS_RULES_PKG ' || 'No errors found');
-
-
+     
+    
  END  OTHER_BR_SP; 
-
+ 
 PROCEDURE PHONE_BR_SP ( 
 /*****************************************************************************
 	PHONE_BR_SP
 
 	This procedure is intended to enforce the Business Rules
 	for PHONE validation edits and verifying the following rules:
-
+  
   First:  Phone_Number must be entered.
        a. Phone_Number must be 7 digits numeric,
           Phone_Number can not be spaces or nulls.
        b. Phone_Number can not be zeroes.
-
+       
        This check will eliminate the need for some specific Business Rules 
        edits below.
-
+  
   1.)  Phone_Number_Type (2-BR):
     	 a. For a "Polling" store (Polling_Status_Code is "P") 
           There must be a Primary (PP) and Secondary (SP) phone number present!
@@ -6336,32 +6453,32 @@ PROCEDURE PHONE_BR_SP (
            fax numbers; if Primary number exist. Program was forcing a number  
            for fax & secondary#'s
 ******************************************************************************/	
-
+  
    in_phone_rowtype             PHONE%ROWTYPE
    ,incost_center_rowtype      COST_CENTER%ROWTYPE
    )
-
+   
         IS 
 
 -- First Error a. 
    phone_nbr_not_valid_exp         EXCEPTION;
-
+   
 -- Error #02 -- tested
    area_code_not_valid_exp         EXCEPTION;
-
+      
 -- Error #04
    extension_not_valid_exp         EXCEPTION;
-
-
+  
+  
    v_code   number;
    v_errm   varchar(500);
    v_PHONE  number   := 0 ;
-
-
+ 
+  
 BEGIN
 --revised : BLR CCNA-351 04-16-13 Added to not edit phone numbers for closed
 --          cost centers.
-
+            
 IF incost_center_rowtype.cost_center_code = in_phone_rowtype.cost_center_code
    AND incost_center_rowtype.close_date > NULL     THEN
    RETURN;
@@ -6370,21 +6487,21 @@ END IF;
 IF in_phone_rowtype.phone_number_type IS NULL
     OR  in_phone_rowtype.phone_number_type = '     '  THEN
    RETURN;
-
+     
        ELSE  
-
+   
 /*******************************************************************************
  CCNA-351 - COMMENTED FIRST CHECK BECAUSE PHONE# CAN BE NULL OR ZERO FOR
              SECONDARY & FAX PHONE NUMBERS. 
-
+  
   First:  Phone_Number must be entered.
        a. Phone_Number must be 7 digits numeric,
           Phone_Number can not be spaces or nulls.
        b. Phone_Number can not be zeroes.
-
+       
        This check will eliminate the need for some specific Business Rules edits
        later in this Procedure.
-
+  
 *******************************************************************************/
 
 /*******************************************************************************
@@ -6411,7 +6528,7 @@ IF in_phone_rowtype.phone_number_type IS NULL
        b. Primary (PRI) and Secondary (SCD) phone numbers are required 
           for Store (Category "S") and Other (Category "O") Cost Centers.
        c. For BANK_CARD records there should be Two (2) Phone records (BC1 null).
-
+       
 *****       This section is not to be done till further defined      ****
             4-16-13
 *******************************************************************************/
@@ -6427,32 +6544,32 @@ IF in_phone_rowtype.phone_number_type IS NULL
 /*******************************************************************************
 	     a. validate Area_Code
 *******************************************************************************/	  
-
+      
       IF  in_phone_rowtype.phone_area_code  IS NOT  NULL   THEN
-
+      
           IF  length(in_phone_rowtype.phone_area_code)  <  3   THEN
               RAISE area_code_not_valid_exp;
 -- See Error #02
           END IF;
-
+          
           IF  NOT REGEXP_LIKE(in_phone_rowtype.phone_area_code, '^\d{3}$')
           AND NOT REGEXP_LIKE(in_phone_rowtype.phone_area_code, '^\d{4}$')   THEN
               RAISE area_code_not_valid_exp;
 -- See Error #02
           END IF;
-
+          
           IF  in_phone_rowtype.phone_area_code  =  '000'
           OR  in_phone_rowtype.phone_area_code  =  '0000'   THEN
               RAISE area_code_not_valid_exp;
 -- See Error #02
           END IF;
-
+          
       END IF;
 
 /*******************************************************************************
 	     b. Phone_Number must be entered - edits performed above
 *******************************************************************************/	  
-
+              
 --      dbms_output.put_line('completed edit rule 02. ' );   
 
 
@@ -6472,7 +6589,7 @@ IF in_phone_rowtype.phone_number_type IS NULL
 	     b. if Area_Code is entered, then Phone_Number can not be null - edits 
        performed above
 *******************************************************************************/	  
-
+       
 --      dbms_output.put_line('completed edit rule 03. ' ); 
 
 
@@ -6499,7 +6616,7 @@ IF in_phone_rowtype.phone_number_type IS NULL
 -- See Error #04
         END IF;
   END IF;   
-
+  
   DBMS_OUTPUT.PUT_LINE(in_phone_rowtype.cost_center_code || ' | ' || in_phone_rowtype.PHONE_NUMBER_TYPE || ' | ' 
               || in_phone_rowtype.PHONE_AREA_CODE || ' | '
           || in_phone_rowtype.PHONE_NUMBER
@@ -6510,17 +6627,17 @@ END IF;
 	     b. if Extension is entered, then Phone_Number can not be null - edits 
        performed above
 *******************************************************************************/	  
-
+       
 --      dbms_output.put_line('completed edit rule 04. ' );
-
+                     
 --      dbms_output.put_line('completed ALL edit rules). ' );
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
           EXCEPTION
-
+                      
 -- First Error a.
                WHEN phone_nbr_not_valid_exp THEN
                     v_code := errnums.en_invalid_phone_err;
@@ -6528,7 +6645,7 @@ END IF;
                    'Phone_Number was entered as "' || in_phone_rowtype.phone_number || '", ' ||
                    'Phone_Number must be 7 digits numeric ' ||
                    'and can not be "null", "spaces", or all "zeroes".' );
-
+                   
 -- Error #00                  
 --               when invalid_phone_request_exp then
 --                    v_code := errnums.en_invalid_phone_request_err; 
@@ -6545,7 +6662,7 @@ END IF;
 --                    inpolling_phone1_rowtype.phone_number_type || '" and "' || 
 --                    inpolling_phone2_rowtype.phone_number_type || '" ' ||
 --                    'for Polling_Status = "P", ' || 'Phone_types must be "PRI" and "SCD"' );
-
+          
 -- Error #01b                  
 --               when invalid_phone_type_exp2 then
 --                    v_code := errnums.en_invalid_phone_type_err; 
@@ -6554,14 +6671,14 @@ END IF;
 --                    inpolling_phone1_rowtype.phone_number_type || '" and "' || 
 --                    inpolling_phone2_rowtype.phone_number_type || '" ' ||
 --                    'for Category = "S" or "O", ' || 'Phone_types must be "PRI" and "SCD"' );
-
+                   
 -- Error #01c
 --               when invalid_eff_date_exp then
 --                    v_code := errnums.en_invalid_eff_date_err; 
 --                    v_code := errnums.en_invalid_polling_err; 
 --                    errpkg.raise_err(v_code, 'PHONE_VALIDATION_EDITS_SP.invalid_eff_date_exp '  ,
 --                   'Effective Date entered "' || ineffective_date || '" is not a valid date');
-
+                   
 -- Error #02 -- tested
                WHEN area_code_not_valid_exp THEN
                     v_code := errnums.en_invalid_phone_err;
@@ -6569,7 +6686,7 @@ END IF;
                    'Area_Code was entered as "' || in_phone_rowtype.phone_area_code || '", ' || 
                    'If entered, Area_Code must be 3 or 4 digits numeric ' ||
                    'and can not contain "spaces" or be all "zeroes".');
-
+                   
 -- Error #04 -- tested
                WHEN extension_not_valid_exp THEN
                     v_code := errnums.en_invalid_phone_err;
@@ -6577,13 +6694,13 @@ END IF;
                    'Extension was entered as  "' || in_phone_rowtype.phone_extension || '", ' || 
                    'If entered, Extension must be from 1 to 6 digits numeric ' ||
                    'and can not contain "spaces" or be all "zeroes".');
-
+                    
 
 END PHONE_BR_SP;
 
 
 
-
+ 
 /*******************************************************************************
 --PROCEDURE POLLING_BR_SP (
 	 POLLING_BR_SP
@@ -6609,18 +6726,18 @@ created : BLR 8/3/2012
  ,inReal_estate_rowtype   IN  REAL_ESTATE%ROWTYPE )
 
                 IS         
-
+ 
  inactive_cost_center_err	    EXCEPTION;
  invalid_code_detail_err	    EXCEPTION;
  invalid_re_cc_catg_err       EXCEPTION; 
  invalid_re_category_err      EXCEPTION; 
-
-
+ 
+ 
  v_curr_date           date := sysdate;
  v_code number;
  v_count number;
  v_errm varchar(500);
-
+ 
 /*
    3.3.20   The list below are the business ruels by column for the Administration table:
 	 **note:This table is only stored if the category of the cost_center_table is an "R".
@@ -6630,11 +6747,11 @@ created : BLR 8/3/2012
 /*
    3.3.20.1a  A Cost Center row is selected to validate category code is an "R"; otherwise Real_Estate table cannot be added
 */
-
+	   
       IF inCostctr_rowtype.cost_center_code <>  inReal_estate_rowtype.cost_center_code THEN
 	       RAISE inactive_cost_center_err;
       END IF;   
-
+	
 /*
    3.3.20.1b  For this administration table, the category must be "R"     
 */		
@@ -6642,14 +6759,14 @@ created : BLR 8/3/2012
               RAISE invalid_re_cc_catg_err; 
       END IF; 
 
-
+    
      IF inReal_estate_rowtype.CATEGORY <> 'R'   THEN
          RAISE invalid_re_category_err;
       END IF;	
-
-
+      
+            
     EXCEPTION
-
+              		    
        WHEN inactive_cost_center_err THEN  
 	     v_code := errnums.en_inactive_cost_center_err;
 	     errpkg.raise_err(v_code, 'REAL_ESTATE_BR_SP.inactive_cost_center ',
@@ -6657,7 +6774,7 @@ created : BLR 8/3/2012
         'For R/E Cost Center "' || inReal_estate_rowtype.cost_center_code || '", ' ||
         'For CC Cost Center "' || inCostctr_rowtype.cost_center_code || '", ' ||
         'Cost center codes on Real Estate and Cost Center table do not match '); 
-
+         
       WHEN invalid_re_category_err THEN        
       v_code := errnums.en_invalid_re_category_err;
 	    errpkg.raise_err(v_code, 'REAL_ESTATE_BR_SP.invalid_re_category_err ' ,
@@ -6672,15 +6789,15 @@ created : BLR 8/3/2012
         'For Cost Center "' || inReal_estate_rowtype.cost_center_code || '", ' ||
         'Category_Code is "' || inCostctr_rowtype.CATEGORY || '". ' ||
         'invalid category code on the Code Detail table '); 
-
-
+        
+      		
       WHEN OTHERS THEN
       v_code := SQLCODE;
 	    v_errm := substr(SQLERRM,1, 500);
       errpkg.raise_err(v_code, v_errm ||
         'CCN_BUSINESS_RULES_PKG '  || 'No errors found');
-
-
+     
+    
  END  REAL_ESTATE_BR_SP;
 
 PROCEDURE SALES_REP_BR_SP ( 
@@ -6689,14 +6806,14 @@ PROCEDURE SALES_REP_BR_SP (
 
 	This procedure is intended to enforce the Business Rules
 	for Sales Rep validation edits and verifying the following rules:
-
+  
   The GEMS Emplyee I.D. must be numeric and must be on the EMP_Data file
        which is a veiw of the GEMS database.  
-
+ 
   Please note that the Social Security Number is only used to initially load 
        the data from the legacy IDMS Database.  It will be deleted and thus not
        used within this procedure. 
-
+               
   In Addition:
 
   1.)  Gems_Employee_ID (7-BR): 
@@ -6704,34 +6821,34 @@ PROCEDURE SALES_REP_BR_SP (
           primary key to the SALES_REP Table.  
        This field (column) will be validated against the EMP_Data view from 
           the GEMS database.
-
+      
  2.)  Social Security Number (9-VR/BR): 
        This field (column) is temporary and used only to load the initial data
           from the legacy IDMS CCN Database.
-
+           
  3.)  Expiration_Date (VR/BR): 
        When entered, the expiration date cannot be less than the effective date. 
           the COMMON_PKG rules do not apply here since the SALES_REP table is
           not a history record. 
-
+ 
  4.)  Employee_Code: 
        This field (column) must be on the CODE_DETAIL table.           
-
+      
  5.)  Employee_Code (2-VR/BR): 
        The following rules apply: 
           Employee_Code is "13" - Employee must be on disability
           Employee_Code is "15" - Employee should be terminated and Exp_date is not null.
           Employee_Code is "10" - This is a new employee.
-
-
+          
+ 
 created : MDH 08/01/2012
 ******************************************************************************/	
-
+  
    inSALES_REP_ROWTYPE   IN  SALES_REP%ROWTYPE )
 --  ,inTERRITORY_ROWTYPE   IN  TERRITORY%rowtype )
 
         IS 
-
+        
 -- Specify in_xxxxx_rowttype to get all the fields.
 
  gems_emp_id_non_num_exp           EXCEPTION;
@@ -6748,18 +6865,18 @@ created : MDH 08/01/2012
  invalid_emp_code_dec_exp          EXCEPTION;
  invalid_emp_code_ret_exp          EXCEPTION; 
  invalid_emp_code_non_exp          EXCEPTION;
-
+  
  v_emp_data_rowtype          EMP_DATA%ROWTYPE;
-
+   
  v_curr_date date := sysdate;
  v_code   number;
  v_errm   varchar(500);
  v_count  number;
  v_terminal  number;
  v_date   date;
-
-
-
+ 
+ 
+  
 BEGIN
 
 /*******************************************************************************
@@ -6784,11 +6901,11 @@ END;
 --
 /*******************************************************************************
   The Social Security Number must be numeric.
-
+  
  2.)  Social Security Number (9-VR/BR): 
        This field (column) is temporary and used only to load the initial data
           from the legacy IDMS CCN Database.
-
+           
   This Social Security Number will be deleted in Phase II of the CCN project as
   it was only needed to load the Sales_Rep data from the Legacy IDMS CCN
   Database into the CCN Oracle Database.
@@ -6808,12 +6925,12 @@ BEGIN
         FROM  EMP_DATA
         WHERE EMP_DATA.employee_number =  inSALES_REP_ROWTYPE.gems_employee_id;
    END IF ;
-
+   
     IF v_emp_data_rowtype.emp_payroll_status NOT IN ('A')  THEN 
             RAISE emp_data_not_act_exp;
 --  See Third Error C-1
       END IF;
-
+   
    EXCEPTION
      WHEN no_data_found THEN
          RAISE no_emp_data_exp;
@@ -6844,12 +6961,12 @@ END;
 --
 --
 /*******************************************************************************
-
+     
  3B.)  Expiration_Date (VR/BR): 
        When entered, the expiration date cannot be less than the effective date. 
           the COMMON_PKG rules do not apply here since the SALES_REP table is
           not a history record. 
-
+ 
 *******************************************************************************/	 
 --
 /*******************************************************************************
@@ -6898,7 +7015,7 @@ END;
 --
 --
 /*******************************************************************************
-
+     
  5.)  Employee_Code (2-VR/BR): 
        The following rules apply: 
           Employee_Code is "13" - Employee must be on disability
@@ -6946,7 +7063,7 @@ END ;
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
-
+	
  EXCEPTION
 
 -- First Error A                   
@@ -7039,7 +7156,7 @@ END ;
                     v_errm := substr(SQLERRM,1, 500);
                     errpkg.raise_err(v_code, v_errm ||
              		'TERRITORY_BR_SP Error ');   
-
+ 
 
 END SALES_REP_BR_SP;
 
@@ -7075,7 +7192,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
 
   inStore_rowtype                  IN  STORE%ROWTYPE
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE)
-
+ 
                 IS
  inactive_cost_center_err      EXCEPTION;
  invalid_store_category_err    EXCEPTION;
@@ -7089,12 +7206,12 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
  cn_ac_prmry_stndrd_cc_ind     EXCEPTION;
  non_cn_ac_prmry_std_cc_ind    EXCEPTION;
 
-
+   
  v_curr_date           date := sysdate;
  v_code number;
  v_count number;
  v_errm varchar(500);
-
+ 
 /*
    3.3.19   Store Category rule is checked when new cost centers are added; 
              then the Store record is only added if the category of the Cost_Center table is "S":            
@@ -7109,8 +7226,8 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
     IF  inCC_rowtype.cost_center_code <> inStore_rowtype.cost_center_code THEN
 	            RAISE inactive_cost_center_err; 
       END IF;    
-
-
+    
+	
 /*
    3.3.19.1b  For this STORE table validation check, the category should be "S"     
 */		
@@ -7122,7 +7239,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
 		  IF (inCC_rowtype.CATEGORY <> 'S' )   THEN
          RAISE invalid_category_err;
       END IF;	
-
+    
 /* 3.3.19.2a  Check the "INVENTORY_INDICATOR" column validation is set to 'N';
 	     If not set, this date will be "NULL".
 */  
@@ -7130,11 +7247,11 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
        IF  NOT  common_tools.code_detail_valid('INVENTORY_INDICATOR',inStore_rowtype.inventory_indicator) THEN 
             RAISE invalid_inventory_id_err; 
        END IF; 
-
+       
 --   BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore checking inventory start date;
 --                   because when indicator is an "N" then inventory strat date will always be NULL.
 --                   removed code check for error mentioned above.        
-
+      
 /* 3.3.19.2b  Check the "INVENTORY_INDICATOR" column is set to 'Y';
 	     If this field is not populated, the current system date will be used.
 */            
@@ -7142,7 +7259,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
             AND inStore_rowtype.perp_inv_start_date IS NULL THEN  
                 RAISE set_perp_inv_dt_err;
       END IF;
-
+        
 	/* 3.3.19.2a  Check the "CLASSIFICATION_CODE" column  - only verify if not null mdh 10/03/2012 per Pat Malloy;
   */  
        IF (inSTORE_rowtype.classification_code IS NOT NULL) THEN
@@ -7150,7 +7267,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
               RAISE invalid_class_cd_err; 
          END IF; 
         END IF;
-
+         
 /* 3.3.19.2a  Check the "RURAL_METRO_ZONE_CODE" column MUST BE 1,2, OR 3;	    
 */  
        IF (inSTORE_rowtype.rural_metro_zone_code IS NOT NULL) THEN -- changed by TAL946
@@ -7175,7 +7292,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
             NVL(inCC_rowtype.prim_cost_identifier, 'XX') = '08') THEN
            RAISE non_cn_ac_prmry_std_cc_ind;
        END IF;
-
+  
        --CN/AC statement types can have primary/standard cost center indicator as "08" alone
        IF NVL(inCC_rowtype.statement_type, 'XX') IN ('CN', 'AC')  AND
            (NVL(inCC_rowtype.std_cost_identifier, 'XX') <> '08'
@@ -7186,7 +7303,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
     END IF;
 
     EXCEPTION
-
+              		    
       WHEN inactive_cost_center_err THEN  
         v_code := errnums.en_inactive_cost_center_err;
         errpkg.raise_err(v_code, 'store_br_sp.inactive_cost_center_err ',
@@ -7194,8 +7311,8 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
         'For Store Cost Center "' ||  inStore_rowtype.cost_center_code || '", ' ||
         'For CC Cost Center "' || inCC_rowtype.cost_center_code || '". ' ||
         'Cost Center codes are invalid; do not match Cost Center and Store tables'); 
-
-
+     
+      
       WHEN invalid_category_err THEN  
         v_code := errnums.en_invalid_category_err;
         errpkg.raise_err(v_code, 'store_br_sp_BR_SP.invalid_category_err ',
@@ -7203,7 +7320,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
         'For Store Cost Center "' ||  inStore_rowtype.cost_center_code || '", ' ||
         'CC Category_Code is "' || inCC_rowtype.CATEGORY || '". ' ||
         'When storing category for Store table; category must equal S on Cost Center Table '); 
-
+     
      WHEN invalid_store_category_err THEN                        
         v_code := errnums.en_invalid_code_detail_err;
         errpkg.raise_err(v_code, 'store_br_sp_BR_SP.invalid_store_category_err ',
@@ -7211,13 +7328,13 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
         'Store Cost Center is "' ||  inStore_rowtype.cost_center_code || '", ' ||
         'Category_Code is "' || inStore_rowtype.CATEGORY || '". ' ||
         'The STORE Table category column is invalid;  not found on Code Detail  '); 
-
-
+     		
+     		
      WHEN set_perp_inv_dt_err THEN  
           v_code := errnums.en_set_perp_inv_dt_err;
           errpkg.raise_err(v_code, 'store_br_sp.set_perp_inv_dt_err ',
         'CCN_BUSINESS_RULES_PKG ' || 'Perp_inv_start_date must be entered when inventory_indicator = <Y>'); 
-
+	        
       WHEN invalid_class_cd_err THEN  
          v_code := errnums.en_invalid_code_detail_err;
           errpkg.raise_err(v_code, 'store_br_sp.invalid_class_cd_err ' ,
@@ -7232,7 +7349,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
         'Store Cost Center is "' || inStore_rowtype.cost_center_code || '", ' ||
         'Rural Metro Code is "' || inStore_rowtype.rural_metro_zone_code || '". ' ||
         'For a Store table Rural Metro Code must be 1,2,3 or Null. '); 
-
+              
       WHEN  invalid_sell_store_flag_err     THEN  
          v_code := errnums.en_invalid_code_detail_err;
          errpkg.raise_err(v_code, 'store_br_sp.invalid_sell_store_flag_err  ',
@@ -7240,7 +7357,7 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
         'Store Cost Center is "' || inStore_rowtype.cost_center_code || '", ' ||
         'Selling_store_flag is "' || inStore_rowtype.selling_store_flag || '". ' ||
         'For a Store table the selling_store_flag  must be "Y" or "N" '); 
-
+        
      WHEN  invalid_inventory_id_err     THEN
           v_code := errnums.en_invalid_code_detail_err;
           errpkg.raise_err(v_code, 'store_br_sp.invalid_inventory_id_err  ',
@@ -7262,16 +7379,16 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
 	    v_errm := substr(SQLERRM,1, 500);
       errpkg.raise_err(v_code, v_errm ||
         'CCN_BUSINESS_RULES_PKG '  || 'No errors found');
-
+     
  END  STORE_BR_SP;
-
+ 
 PROCEDURE DISPATCH_TERMINAL_BR_SP(
 /*******************************************************************************
     DISPATCH_TERMINAL_BR_SP
     This procedure is intended enforce the Business Rules
     for verifying specific columns on the DISPATCH_TERMINAL Table
     created : rxa457 4/17/17 CCN PROJECT TEAM..
-	modified: nxk927 02/22/18 CCN PROJECT TEAM..
+    modified: nxk927 02/22/18 CCN PROJECT TEAM..
               removed the raise error for closed date issue
 *******************************************************************************/
     inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
@@ -7359,14 +7476,14 @@ IS
     v_errm := SUBSTR(SQLERRM, 1, 500);
     errpkg.raise_err(v_code, v_errm || 'CCN_BUSINESS_RULES_PKG ' || 'No errors found');
   END DISPATCH_TERMINAL_BR_SP;
-
+  
  PROCEDURE TERMINAL_BR_SP ( 
 /*****************************************************************************
 	TERMINAL_BR_SP
 
 	This procedure is intended to enforce the Business Rules
 	for terminal validation edits and verifying the following rules:
-
+  
   First, there must be a POLLING Table row for the Cost Center 
        to which a terminal is being added.
   Second, each Terminal Row added is checked against all other Terminal Rows 
@@ -7374,7 +7491,7 @@ IS
        There cannot be any duplication of Terminal_Number for any Terminals for a Cost Center.  
        This means that no other terminals in a set can have the same terminal number 
        with a zero Expiration_Date.
-
+       
   In Addition:
 
   1.)  Terminal_Number (5-BR): 
@@ -7401,7 +7518,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal Ãƒâ€šÃ‚Â¿rowsÃƒâ€šÃ‚Â¿ must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal rows must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
@@ -7416,9 +7533,9 @@ Modified: 06/02/2015 jxc517 CCN Project....
           for that cost center
         : 05/26/2016 nxk927 CCN Project....
           Reverted the PCI changes to move the ADDRESS_BRB changes ahead.
-        : 01/24/2018 sxg151 Removed PCI_TERMINAL_ID logic   
+        : 01/24/2018 sxg151 Removed PCI_TERMINAL_ID logic  
 ******************************************************************************/	
-
+  
     IN_TERMINAL_ROWTYPE    IN   TERMINAL%ROWTYPE,
      IN_POLLING_ROWTYPE     IN   POLLING%ROWTYPE
     ) 
@@ -7433,21 +7550,21 @@ Modified: 06/02/2015 jxc517 CCN Project....
  expdt_must_be_gt_effdt_exp        EXCEPTION;
  no_terminal_cctr_exp              EXCEPTION;
  actv_dup_terr_exists_err          EXCEPTION;
-
+ 
  v_cost_center_rowtype             cost_center%ROWTYPE;
  v_polling_rowtype                 polling%ROWTYPE;
  v_terminal_rowtype                terminal%ROWTYPE;
  v_duplicate_rowtype               terminal%ROWTYPE;
-
+  
  v_curr_date date := sysdate;
  v_code   number;
  v_errm   varchar(500);
  v_count  number;
  v_terminal  number;
  v_date   date;
-
-
-
+ 
+ 
+  
 BEGIN
 
 /*******************************************************************************
@@ -7463,13 +7580,13 @@ BEGIN
            SELECT * INTO  v_cost_center_rowtype
             FROM  cost_center
             WHERE cost_center.cost_center_code  =  in_terminal_rowtype.cost_center_code ;
-
+	 
 EXCEPTION
   WHEN no_data_found THEN
      RAISE no_cost_center_exp;
 --  See First Error A
 END;
-
+        
 /*******************************************************************************
 	  get POLLING for the specified Cost Center
 *******************************************************************************/	  
@@ -7491,7 +7608,7 @@ WHEN no_data_found THEN
      END IF;
  --  See First Error B
 END;
-
+        
 /*******************************************************************************
     Second, each Terminal Row added is checked against all other Terminal Rows 
             for that Cost Center.  
@@ -7517,7 +7634,7 @@ END;
 --      end if;    
 --  See Second Error
 --end;
-
+        
 /*******************************************************************************
   1.)  Terminal_Number (5-BR): 
        This field cannot be spaces and must be numeric.  
@@ -7537,32 +7654,32 @@ END;
           RAISE invalid_terminal_nbr_exp; 
 -- See Error #01a. 
       END IF;
-
+           
 /*******************************************************************************
   2.)  POS_Last_Tran_Date: 
        There are no edits for this field.  
        This field can be changed, but is usually updated from Polling (CCN00500).
 *******************************************************************************/	 
-
+           
 /*******************************************************************************
   3.)  POS_Last_Tran_Number (5): 
        There are no edits for this field.  
        This field can be changed, but is usually updated from Polling (CCN00500).
-
+  
 *******************************************************************************/	 
-
+           
 /*******************************************************************************
   4.)  POS_Prog_Ver_Nbr: 
        There are no edits for this field.  
        This field can be changed, but is usually updated from Polling (CCN00500). 
 *******************************************************************************/	 
-
+           
 /*******************************************************************************
   5.)  POS_Prog_Ver_Eff_Date: 
        There are no edits for this field.  
        This field can be changed, but is usually updated from Polling (CCN00500). 
 *******************************************************************************/	 
-
+           
 /*******************************************************************************
   6.)  Effective_Date (VR): 
        There must be a valid date in this field (column). 
@@ -7611,7 +7728,7 @@ END;
 /*******************************************************************************
        expiration_date can not be less than effective_date
 *******************************************************************************/	 
-
+        
         IF  in_terminal_rowtype.expiration_date  IS NOT  NULL  THEN
             IF  in_terminal_rowtype.expiration_date  <  in_terminal_rowtype.effective_date  THEN
                 RAISE expdt_must_be_gt_effdt_exp;
@@ -7648,14 +7765,14 @@ END;
                     v_code := errnums.en_no_cost_center_err; 
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.no_cost_center '  ,
                    'Cost_Center "' || in_terminal_rowtype.cost_center_code || '" not found ' );
-
+	
 -- First Error B
                WHEN invalid_polling_exp  THEN
                     v_code := errnums.en_invalid_polling_err; 
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.invalid_polling_exp '  ,
                    'Polling not found for Cost_Center "' || in_terminal_rowtype.cost_center_code || 
                    '" Polling_Status "' || in_terminal_rowtype.polling_status_code || '"' );
-
+               
 -- Second Error    
                WHEN duplicate_terminal_exp THEN
                     v_code := errnums.en_duplicate_terminal_err; 
@@ -7670,55 +7787,54 @@ END;
                    'Terminal Number was entered as "' || in_terminal_rowtype.terminal_number || '", ' ||
                    'Terminal Number must be 5 digit numeric ' ||
                    'and can not equal "spaces" or all "zeroes"' );
-
+                   
 -- Error #06
                WHEN invalid_eff_date_exp THEN
                     v_code := errnums.en_invalid_eff_date_err;
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.invalid_eff_date_exp '  ,
                    'Effective Date entered "' || in_terminal_rowtype.effective_date || '" is not a valid date');
-
+                   
 -- Error #07A
                WHEN invalid_exp_date_exp THEN
                     v_code := errnums.en_invalid_exp_date_err;
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.invalid_exp_date_exp '  ,
                    'Expiration Date entered "' || in_terminal_rowtype.expiration_date || '" is not a valid date');
-
+ 
  -- Error #07B
                WHEN expdt_must_be_gt_effdt_exp THEN  
                     v_code := errnums.en_expdt_must_be_gt_effdt_err;
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.expdt_must_be_gt_effdt_exp ' ,
                    'Expiration Date entered "' || in_terminal_rowtype.expiration_date || 
                    '" must be Greater Than the Effective Date entered "' || in_terminal_rowtype.effective_date || '"');
-
+  
                WHEN actv_dup_terr_exists_err THEN  
                     v_code := errnums.en_actv_dup_terr_exists_err;
                     errpkg.raise_err(v_code, 'TERMINAL_VALIDATION_EDITS_SP.actv_dup_terr_exists_err ' ,
                    'Terminal number entered "'||in_terminal_rowtype.terminal_number||'" is used for some other active terminal cost center record');
-
   -- Others
                WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,1, 500);
                     errpkg.raise_err(v_code, v_errm ||
              		'TERMINAL_VALIDATION_EDITS_SP Error ');   
-
+ 
 
 END TERMINAL_BR_SP;
-
+ 
 PROCEDURE TERRITORY_BR_SP ( 
 /*****************************************************************************
 	TERRITORY_BR_SP
 
 	This procedure is intended to enforce the Business Rules
 	for Territory validation edits and verifying the following rules:
-
+  
   First, there must be a COST_CENTER Table row for the Cost Center 
        to which a Territory is being added and/or changed.
   Second, the Teritory can only be added if the Category on the COST_CENTER 
        table is a "T". 
   Third, the Territory_Sales_Mgr_Code must be valid in the TERRITORY_SALES_MBR
        table.
-
+              
   In Addition:
 
   1.)  Territory_Sales_Mgr_Code (7-BR): 
@@ -7742,15 +7858,15 @@ PROCEDURE TERRITORY_BR_SP (
        a "Store" Cost Center.  This field can only be null if the Territory is
        "closed" (i.e. Close_Date is not null).
        Please refer to Business Rule 3.3.1 
-
+ 
 created : MDH 07/31/2012
 ******************************************************************************/	
-
+  
    inCOST_CENTER_ROWTYPE  IN  COST_CENTER%ROWTYPE
   ,inTERRITORY_ROWTYPE    IN  TERRITORY%ROWTYPE )
 
         IS 
-
+        
 -- Specify in_xxxxx_rowttype to get all the fields.
 
  no_cost_center_exp                EXCEPTION;
@@ -7764,16 +7880,16 @@ created : MDH 07/31/2012
  invalid_home_store_desig1_exp     EXCEPTION;
  INVALID_HOME_STORE_DESIG2_EXP     EXCEPTION;
  invalid_terr_sls_mgr_code_EXP     EXCEPTION;
-
+    
  v_curr_date date := sysdate;
  v_code   number;
  v_errm   varchar(500);
  v_count  number;
  v_terminal  number;
  v_date   date;
-
-
-
+ 
+ 
+  
 BEGIN
 
 /*******************************************************************************
@@ -7816,7 +7932,7 @@ Second, the Teritory can only be added if the Category on the COST_CENTER
             RAISE invalid_category2_exp;
 --  See Third Error C-2
       END IF;
-
+   
 END;      
 --
 /*******************************************************************************
@@ -7870,7 +7986,7 @@ END ;
        a "Store" Cost Center.  This field can only be null if the Territory is
        "closed" (i.e. Close_Date is not null).
        Please refer to Business Rule 3.3.1 
-
+ 
 *******************************************************************************/	 
 BEGIN
        IF (inTERRITORY_ROWTYPE.home_store  IS NULL   AND
@@ -7878,13 +7994,13 @@ BEGIN
             RAISE invalid_home_store_desig1_exp;
 --  See Seventh Error G-1            
        END IF;
-
+       
        IF (inTERRITORY_ROWTYPE.home_store IS NOT NULL  AND
            inCOST_CENTER_ROWTYPE.close_date IS NOT NULL)  THEN 
              RAISE invalid_home_store_desig2_exp;
 --  See Seventh Error G-2
       END IF;
-
+   
 END ;
 --
 /*******************************************************************************
@@ -7949,14 +8065,14 @@ END ;
                     errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_home_store_desig2_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Home Store not Required for closed territory"' || '"');      
-
+                              
 -- Others
                WHEN OTHERS THEN
                     v_code := SQLCODE;
                     v_errm := substr(SQLERRM,1, 500);
                     errpkg.raise_err(v_code, v_errm ||
              		'TERRITORY_BR_SP Error ');   
-
+ 
 END TERRITORY_BR_SP;
 
 PROCEDURE COMPARE_ZIPCODE_SP(
@@ -7971,7 +8087,8 @@ PROCEDURE COMPARE_ZIPCODE_SP(
      5.If zip code in both tables as null then send an email.
 
 created : 04/22/2015 SXT410 CCN Project...
-revised : 
+revised : 05/18/2018 sxg151 CCN Team...
+          ASP-911 Added WARNING If zip code in taxware with value as null and not matching with address zip code
 *******************************************************************************/
     IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
 )
@@ -8007,13 +8124,15 @@ BEGIN
 
     IF (NVL(V_TAXWARE_ZIP_CODE,'X') <> NVL(v_ZIP_CODE,'XX')) THEN
        MAIL_PKG.SEND_MAIL('TAXWARE_WARNING_MESSAGE', NULL, UPPER(IN_COST_CENTER), NULL);
+       ERRPKG.STORE_WARNINGS(errnums.en_zip_code_missmatch_err,-- ASP-911
+                              'Taxware Zip Code Does Not Match With Address Zip Code');
     END IF;
-
+       
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
         NULL;
 END COMPARE_ZIPCODE_SP;
-
+   
 PROCEDURE TERMINAL_COUNT_BR_SP(
 /*****************************************************************************
 TERMINAL_COUNT_BR_SP
@@ -8066,7 +8185,7 @@ END TERMINAL_COUNT_BR_SP;
 PROCEDURE POLLING_QUALITY_STATUS_CHKS_SP (
 /*******************************************************************************
 This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q".
-
+	
 created : 11/28/2017 sxg151 CCN Team.... ASP-911
 changed : 
 *******************************************************************************/	
@@ -8269,5 +8388,32 @@ EXCEPTION
      
     
  END  ALLOCATION_DIV_OFFSET_BR_SP;
+
+ PROCEDURE VALIDATE_CATEGORY(
+/*******************************************************************************
+  This Procedure is designed to Validate Category of cost center
+
+  Created: 03/02/2018 mxv711 ASP-824:bulk upload changes
+
+*******************************************************************************/
+    IN_CATEGORY         IN   VARCHAR2
+) 
+IS
+v_code                  NUMBER;
+    
+exc_invalid_category_err EXCEPTION; 
+BEGIN
+    IF  NOT  common_tools.code_detail_valid('CATEGORY', IN_CATEGORY ) THEN  -- value not found in table 
+        RAISE exc_invalid_category_err; 
+    END IF;
+    
+EXCEPTION    
+    WHEN exc_invalid_category_err THEN  
+	    v_code := errnums.en_invalid_category_err;
+	    errpkg.raise_err(v_code, 'VALIDATE_CATEGORY.exc_invalid_category_err ' ,
+        'CCN_BUSINESS_RULES_PKG.VALIDATE_CATEGORY ' || 'Category_Code: ' || IN_CATEGORY || 
+        ' IS InValid Category');  
+        RAISE;
+END VALIDATE_CATEGORY;
 
 END CCN_BUSINESS_RULES_PKG;
