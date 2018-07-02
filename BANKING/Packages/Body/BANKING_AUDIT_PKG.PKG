@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY BANKING_AUDIT_PKG AS
+create or replace PACKAGE BODY BANKING_AUDIT_PKG AS
 /*********************************************************** 
 This package has procedures and functions related to the audit_log table
 
@@ -318,77 +318,6 @@ BEGIN
     OUT_LOG_ID        := V_LOG_ID_CURR;
 END PARSE_DIFFERENCE_XML; 
 
-PROCEDURE BUILD_FILE_SP (
-/**********************************************************
-This procedure is intended to build a file based on the table layout
-in order to be consumed by the Mainframe to backfill Legacy MainFrame
-
-Created : 09/15/2015 jcx517 CCN project....
-Changed : 10/27/2015 jcx517 CCN project....
-          Added the OWNER clause in the cursor as ALL_* gets same table data from
-          other schemas as well
-**********************************************************/
-    IN_TABLE_NAME  IN     VARCHAR2,
-    IN_ROW_DATE    IN     DATE,
-    IN_PREV_ROW    IN     SYS.XMLTYPE,
-    IN_CURR_ROW    IN     SYS.XMLTYPE,
-    IN_ROW_DATA    IN     SYS.XMLTYPE,
-    IN_CHANGE_TYPE IN     VARCHAR2,
-    IN_LOG_ID_PREV IN     NUMBER,
-    IN_LOG_ID      IN     NUMBER,
-    IN_CC_CODE     IN     VARCHAR2)
-IS
-    CURSOR TABLE_FIELDS_CUR IS
-        SELECT COLUMN_NAME,
-               DECODE(DATA_TYPE, 'DATE', 8, DATA_LENGTH) COLUMN_SIZE,
-               DATA_TYPE,
-               COLUMN_ID
-          FROM ALL_TAB_COLUMNS
-         WHERE TABLE_NAME = IN_TABLE_NAME
-           AND OWNER = 'BANKING'
-         ORDER BY COLUMN_ID ASC;
-    PATH                VARCHAR2(50) := 'BANKING_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE UNTIL NEW ONE CREATED
-    FILENAME            VARCHAR2(50) := IN_TABLE_NAME || '_backfeed' ;
-    STAMP               VARCHAR2(50) := TO_CHAR(SYSTIMESTAMP,'HH24:MI:SS:FF6'); -- USED TO CREATE TIMESTAMP FOR DATA FILE 
-    V_COST_CENTER       VARCHAR2(6)  := '      '; --ADDED FOR SPACES WITH TABLES THAT DON'T USE COST CENTER
-    V_CHANGE_TYPE       VARCHAR2(1)  := IN_CHANGE_TYPE;
-    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
-    V_OUT_CLOB          CLOB;
-    V_VALUE             VARCHAR2(32000);
-    V_EXTRACTED_VALUE   VARCHAR2(32000);
-    V_CONTEXT           VARCHAR2(200);
-BEGIN
-    V_CONTEXT := 'Creating the file on server';
-    OUTPUT_FILE := UTL_FILE.FOPEN(PATH,
-                                  FILENAME || STAMP,
-                                  'w', --binary
-                                  32767);
-   IF IN_CC_CODE IS NOT NULL THEN
-      V_COST_CENTER := IN_CC_CODE; 
-   END IF;
-    V_CONTEXT := 'Generating the CLOB Output';
-    V_OUT_CLOB := TO_CHAR(SYSDATE,'YYYYMMDDHH24MISS') ||
-                  V_COST_CENTER ||
-                  RPAD(IN_TABLE_NAME,25) ||
-                  TRIM(LPAD(IN_LOG_ID,14,'0')) ||
-                  V_CHANGE_TYPE;
-    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-        IF (IN_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-            V_CONTEXT := 'Building by extracting the Existing Data';
-            V_EXTRACTED_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL());
-            V_VALUE := UPPER(RPAD(V_EXTRACTED_VALUE, NVL(TABLE_FIELDS_REC.COLUMN_SIZE,LENGTH(V_EXTRACTED_VALUE))));
-            V_OUT_CLOB := V_OUT_CLOB || V_VALUE;
-        ELSE
-            V_CONTEXT := 'Building by extracting the Non-Existing Data';
-            V_OUT_CLOB := V_OUT_CLOB || RPAD(' ',TABLE_FIELDS_REC.COLUMN_SIZE);
-        END IF;
-    END LOOP;
-    IF V_OUT_CLOB <> EMPTY_CLOB() THEN   
-        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-        UTL_FILE.FCLOSE(OUTPUT_FILE);
-    END IF;
-END BUILD_FILE_SP;
-
 PROCEDURE PROCESS_AUDIT_LOG(
 /**********************************************************
 This procedure is the core process that performs the required operations
@@ -398,6 +327,8 @@ Created : 09/15/2015 jcx517 CCN project....
 Changed : 10/27/2015 jcx517 CCN project....
           Added condition around BUILD_FILE_SP call, as this call will not
           be needed if the difference XML itself is null
+        : 06/29/2018 kxm302 CCN Project....
+          Removed the call BUILD_FILE_SP as we won't be writing any files any more
 **********************************************************/
     IN_TRANSACTION_ID     IN     VARCHAR2,
     IN_TABLE_NAME         IN     VARCHAR2,
@@ -426,18 +357,7 @@ BEGIN
                          DIFF_XML,
                          V_LOG_ID_PREV,
                          V_LOG_ID);
-    IF DIFF_XML IS NOT NULL THEN
-        V_CONTEXT:='Call procedure Build_File_SP';
-        BUILD_FILE_SP(IN_TABLE_NAME, --in_TABLE_NAME IN VARCHAR2
-                      SYSDATE, --in_ROW_DATE   IN DATE
-                      OUT_PREV_ROW,
-                      OUT_CURR_ROW,
-                      DIFF_XML, --in_Row_data   IN sys.xmltype
-                      V_CHANGE_TYPE,
-                      V_LOG_ID_PREV,
-                      V_LOG_ID,
-                      V_CC_CODE);
-    END IF;
+
     OUT_BANK_ACCOUNT_NBR := V_BANK_ACCOUNT_NBR;
     OUT_CC_CODE          := V_CC_CODE;
     OUT_CONTEXT          := V_CONTEXT;
@@ -528,6 +448,7 @@ BEGIN
 
     v_max_tran_id_last_batch := get_max_trans_id_last_batch();
     v_max_tran_id_current_batch := get_max_trans_id_current_batch();
+
     FOR SEL_AUDIT_REC IN SEL_AUDIT_LOG LOOP
         BEGIN
             SAVEPOINT NEXT_AUDIT_REC;
@@ -559,4 +480,3 @@ EXCEPTION
 END SELECT_AUDIT_LOG;
 
 END BANKING_AUDIT_PKG;
-
