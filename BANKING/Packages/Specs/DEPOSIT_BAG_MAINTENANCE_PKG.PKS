@@ -4,9 +4,7 @@ This Package contains all the procedures used in
 deposit bag update maintenance window
 
 Created : 07/15/2015 axk326/jxc517 CCN Project....
-Changed : 07/10/2018 nxk927 CCN Project....
-          removed the effective date parameter as for deposit bag effective date
-          shouldn't be changed
+Changed :
 **********************************************************/
 
 TYPE REF_CURSOR IS REF CURSOR;
@@ -17,7 +15,9 @@ PROCEDURE IF_EXISTS_UPD_BAG_TICK_REC(
   If it exists we can use the bag
 
 Created : 05/22/2018 nxk927 CCN Project....
-Changed : 
+Changed : 07/10/2018 nxk927 CCN Project....
+          removed the effective date parameter as for deposit bag effective date
+          shouldn't be changed
 *******************************************************************************/
 IN_COST_CENTER_CODE IN  VARCHAR2,
 IN_BANK_ACCT_NBR    IN  VARCHAR2,
