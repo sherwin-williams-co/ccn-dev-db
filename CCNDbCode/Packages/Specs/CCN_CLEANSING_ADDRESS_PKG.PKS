@@ -17,31 +17,7 @@ Changed :
 *******************************************************************************/
 ;
 
-PROCEDURE ADDRESS_USA_I_SP (
-/*******************************************************************************
-This procedure will compare the mailing address effective date and standardized address effective date. 
-if they are not equal, update the expiration date of old record and insert a record with new effective date 
-and address.
-
-Created :  07/06/2018 pxa852 Address Object....
-Changed :
-*******************************************************************************/
-in_Row_data             IN  ADDRESS_USA%ROWTYPE
-);
-
-PROCEDURE ADDRESS_CAN_I_SP (
-/*******************************************************************************
-This procedure will compare the mailing address effective date and standardized address effective date. 
-if they are not equal, update the expiration date of old record and insert a record with new effective date 
-and address.
-
-Created :  07/06/2018 pxa852 Address Object....
-Changed :
-*******************************************************************************/
-in_Row_data             IN  ADDRESS_CAN%ROWTYPE
-);
-
-FUNCTION SET_USA_CLEANSING_FLAG_SP ( 
+FUNCTION GET_USA_CLEANSING_FLAG_FNC ( 
 /**********************************************************
 This function will return 'Y' OR NULL
 parameters: Address row
@@ -52,7 +28,7 @@ IN_ADDRESS_USA_ROW   IN    ADDRESS_USA%ROWTYPE
 )
 RETURN varchar2;
 
-FUNCTION SET_CAN_CLEANSING_FLAG_SP ( 
+FUNCTION GET_CAN_CLEANSING_FLAG_FNC ( 
 /**********************************************************
 This function will return 'Y' OR NULL
 parameters: Address row

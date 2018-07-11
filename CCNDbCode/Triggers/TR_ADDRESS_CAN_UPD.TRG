@@ -6,13 +6,15 @@ create or replace TRIGGER COSTCNTR.TR_ADDRESS_CAN_UPD
               Code added to insert Descartes Address feed trigger action table
    Modified : 11/15/2017 jxc517 CCN Project Team...
               Fixed the code to handle inserts/updates properly
+   Modified : 07/11/2018 pxa852 CCn Project Team...
+              Added condition to trigger polling dowloads only for mailing address type
 ****************************************************************************/
 BEFORE INSERT or UPDATE ON COSTCNTR.ADDRESS_CAN
 REFERENCING NEW AS NEW OLD AS OLD
 FOR EACH ROW
 DECLARE
 
-	  v_transaction_id varchar2(500);
+    v_transaction_id varchar2(500);
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_address_can_row ADDRESS_CAN%ROWTYPE; 
@@ -21,8 +23,8 @@ begin
 
 		v_address_can_row.cost_center_code  := :NEW.cost_center_code;
 		v_address_can_row.ADDRESS_TYPE      := :NEW.ADDRESS_TYPE;
-    v_address_can_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
-    v_address_can_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
+        v_address_can_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
+        v_address_can_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
 		v_address_can_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
 		v_address_can_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;	
 		v_address_can_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
@@ -30,7 +32,7 @@ begin
 		v_address_can_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
 		v_address_can_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
 		v_address_can_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
-    v_address_can_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
+        v_address_can_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
 	
 	SELECT XMLELEMENT ( "ADDRESS_CAN",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -88,7 +90,7 @@ begin
                 ,'TR_ADDRESS_CAN_UPD');
      --END IF;
 BEGIN
-IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_can_row.COST_CENTER_CODE)='S' AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M'  THEN
+IF NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' AND POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_can_row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN
         POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_address_can_row.COST_CENTER_CODE,
                                               'ADDRESS_CAN',

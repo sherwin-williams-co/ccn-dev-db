@@ -7,6 +7,9 @@ create or replace TRIGGER COSTCNTR.TR_ADDRESS_USA_UPD
               Code added to insert Descartes Address feed trigger action table
    Modified : 11/15/2017 jxc517 CCN Project Team...
               Fixed the code to handle inserts/updates properly
+   Modified : 07/11/2018 pxa852 CCn Project Team...
+              Added condition to trigger polling dowloads only for mailing address 
+              type
 ****************************************************************************/
 before insert or update ON COSTCNTR.ADDRESS_USA 
 referencing old as old new as new 
@@ -102,7 +105,7 @@ begin
                 ,'TR_ADDRESS_USA_UPD');
      --END IF;      
 BEGIN
-IF POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_usa_Row.COST_CENTER_CODE)='S' AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' THEN
+IF NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' AND POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_usa_Row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN   
    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_address_usa_Row.COST_CENTER_CODE,
                                          'ADDRESS_USA',
@@ -125,6 +128,7 @@ ELSIF UPDATING THEN
    END IF;
 END IF;
 END IF;
+
 ---START -- CODE TO HANDLE DESCARTES ADDRESS FEED 
 IF :NEW.EXPIRATION_DATE IS NULL AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' THEN
     IF UPDATING THEN

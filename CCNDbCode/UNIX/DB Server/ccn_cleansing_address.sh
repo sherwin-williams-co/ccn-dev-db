@@ -5,7 +5,9 @@ cd /app/ccn/dev/batchJobs
 #
 # Description   : This script is to run the following:
 #                 CCN_CLEANSING_ADDRESS_PKG.CCN_CLEANSING_ADDRESS
-#
+#                 Consider only store cost centers
+#                 Create/update a standardized record in addres_usa and address_can tables.
+#                 
 # Created  : 07/09/2018 pxa852 CCN Project Team.....
 ###############################################################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
@@ -50,8 +52,6 @@ then
 
    cd $HOME/
    ./send_mail.sh CCN_CLEANSING_ERROR 
-
-   echo "processing FAILED for $proc at ${TIME} on ${DATE}" 
 
    exit 1
 fi

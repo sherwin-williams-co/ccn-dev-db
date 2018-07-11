@@ -1,4 +1,4 @@
-CREATE OR REPLACE TYPE BODY address_can_ot AS
+create or replace TYPE BODY address_can_ot AS
 
 CONSTRUCTOR FUNCTION address_can_ot(IN_COST_CENTER_CODE IN    VARCHAR2,
                                     IN_ADDRESS_TYPE     IN    VARCHAR2) RETURN SELF AS RESULT
@@ -16,10 +16,24 @@ It has 1 Constructor and 2 Functions
 
 Created : 09/28/2016 jxc517 CCN Project....
 Changed : 04/03/2017 gxg192 Added comments block.
+Modified : 07/11/2018 pxa852 CCN Project team...
+           updated to select only needed columns for reporting as we added a new field to 
+           address_can table for cleansing process
 *****************************************************************************/
     SELF.COST_CENTER_CODE := IN_COST_CENTER_CODE;
     BEGIN
-        SELECT *
+        SELECT COST_CENTER_CODE,
+               ADDRESS_TYPE,
+               EFFECTIVE_DATE,
+               EXPIRATION_DATE,
+               ADDRESS_LINE_1,
+               ADDRESS_LINE_2,
+               ADDRESS_LINE_3,
+               CITY,
+               PROVINCE_CODE,
+               POSTAL_CODE,
+               VALID_ADDRESS,
+               COUNTRY_CODE
           INTO SELF.COST_CENTER_CODE,
                SELF.ADDRESS_TYPE,
                SELF.EFFECTIVE_DATE,
