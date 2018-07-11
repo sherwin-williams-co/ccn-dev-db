@@ -3162,4 +3162,16 @@ exc_invalid_plling_dwnload_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_plling_dwnload_err , -20203);
 
+/*********************************************************** 
+The "potential_opn_dt_err" passes a numerical error of -20204.
+An error occurs when potential open date prior to current date
+
+created : 07/11/2018 sxg151 CCN Project asp-867
+revisions: 
+************************************************************/
+en_invalid_pot_open_dt_err CONSTANT NUMBER := -20204;
+exc_invalid_pot_open_dt_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_pot_open_dt_err , -20204);
+
 END ERRNUMS;
