@@ -9,7 +9,7 @@ SET DEFINE OFF;
 INSERT INTO MAILING_GROUP(GROUP_ID,
                           MAIL_ID
                           ) 
-                  VALUES ('118',
+                  VALUES ('117',
                           'ccnoracle.team@sherwin.com'
                           );
 
@@ -23,7 +23,7 @@ INSERT INTO MAILING_DETAILS(MAIL_CATEGORY,
                             SIGNATURE
                             )
                      VALUES('LOAD_SWC_PN_SQFT_INT',
-                            '118',
+                            '117',
                             'Load to CCN_SWC_PN_SQFT_INT failed',
                             'ccnoracle.team@sherwin.com',
                             'Loading data into CCN_SWC_PN_SQFT_INT failed',
