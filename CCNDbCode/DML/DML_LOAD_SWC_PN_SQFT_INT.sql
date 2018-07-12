@@ -24,9 +24,9 @@ INSERT INTO MAILING_DETAILS(MAIL_CATEGORY,
                             )
                      VALUES('LOAD_SWC_PN_SQFT_INT',
                             '118',
-                            'Load CCN_SWC_PN_SQFT_INT completed',
+                            'Load to CCN_SWC_PN_SQFT_INT failed',
                             'ccnoracle.team@sherwin.com',
-                            'The load process  LOAD_SWC_PN_SQFT_INT completed successfully',
+                            'Loading data into CCN_SWC_PN_SQFT_INT failed',
                             'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT'
                             );
 

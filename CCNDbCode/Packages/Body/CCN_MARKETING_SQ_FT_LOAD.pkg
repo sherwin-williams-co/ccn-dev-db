@@ -111,6 +111,7 @@ This procedures takes care of following things as part of batch load process
 
 Created : 02/09/2018 axt754 -- CCN Project Team
 Changes : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
+        : 07/11/2018 kxm302 To get data from CCN_SWC_PN_SQFT_INT instead of view 
 ******************************************************************************/
 IS 
     V_CC_CLOB           CLOB;
@@ -124,7 +125,7 @@ BEGIN
     -- Start Batch Process
     BEGIN    
         FOR REC IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, M.COST_CENTER_CODE MRKT_CC_CODE
-                      FROM SWC_PN_SQFT_INT_V A,
+                      FROM CCN_SWC_PN_SQFT_INT A,
                            COST_CENTER CC,
                            MARKETING M
                      --Get al records from external table even if they are not present in CCN
@@ -136,9 +137,9 @@ BEGIN
                      --This avoids unnecessary looping of data every day
                        AND (NVL(A.LEASE_OR_OWNED,'X') <> NVL(CC.LEASE_OWN_CODE, 'X')
                             OR
-                            NVL(A.SALES_AREA,-1) <> NVL(M.SALES_SQ_FT,-1)
+                            NVL(A.LEASING_SALES_SQ_FT,-1) <> NVL(M.SALES_SQ_FT,-1)
                             OR
-                            NVL(A.PREMISES_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
+                            NVL(A.LEASING_TOTAL_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
             IF rec.CC_CODE IS NULL THEN
                 V_CC_CLOB := rec.COST_CENTER || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
             ELSE
@@ -147,8 +148,8 @@ BEGIN
                 END IF;
                 UPDATE_PROCESS(rec.COST_CENTER,
                                rec.LEASE_OR_OWNED,
-                               rec.PREMISES_SQ_FT,
-                               rec.SALES_AREA);
+                               rec.LEASING_TOTAL_SQ_FT,
+                               rec.LEASING_SALES_SQ_FT);
             END IF;
         END LOOP;
         IF V_CC_CLOB <> EMPTY_CLOB() THEN
@@ -182,12 +183,12 @@ Created : 07/10/2018 kxm302 -- CCN Project Team
 *******************************************************************************/
 IS
      CURSOR SWC_PN_SQFT_INT_V_CUR_NEW_RECS IS
-     SELECT *
-          FROM SWC_PN_SQFT_INT_V A
+       SELECT *
+         FROM SWC_PN_SQFT_INT_V A
          --get all the records that are not present in CCN_SWC_PN_SQFT_INT  table
-         WHERE NOT EXISTS (SELECT 1
-                             FROM CCN_SWC_PN_SQFT_INT
-                            WHERE A.COST_CENTER = COST_CENTER); 
+        WHERE NOT EXISTS (SELECT 1
+                            FROM CCN_SWC_PN_SQFT_INT
+                           WHERE A.COST_CENTER = COST_CENTER); 
  
      CURSOR SWC_PN_SQFT_INT_V_EXTNG_RECS IS
         SELECT *
@@ -196,51 +197,51 @@ IS
          WHERE EXISTS (SELECT 1
                          FROM CCN_SWC_PN_SQFT_INT B
                         WHERE A.COST_CENTER = COST_CENTER
-                          AND (A.SALES_AREA <> B.Leasing_Sales_Sq_Ft OR
-                               A.PREMISES_SQ_FT <> B.Leasing_Total_Sq_Ft OR
+                          AND (A.SALES_AREA <> B.LEASING_SALES_SQ_FT OR
+                               A.PREMISES_SQ_FT <> B.LEASING_TOTAL_SQ_FT OR
                                A.LEASE_OR_OWNED   <> B.LEASE_OR_OWNED   OR
                                A.DIVISION <> B.DIVISION));
 
     V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_SWC_SQFT_BATCH', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
 
     FOR rec IN SWC_PN_SQFT_INT_V_CUR_NEW_RECS LOOP --Loop through new records and insert into CCN
         BEGIN
-            INSERT INTO CCN_SWC_PN_SQFT_INT(DIVISION,COST_CENTER,Leasing_Sales_Sq_Ft,Leasing_Total_Sq_Ft,LEASE_OR_OWNED) 
+        
+            INSERT INTO CCN_SWC_PN_SQFT_INT(DIVISION,COST_CENTER,LEASING_SALES_SQ_FT,LEASING_TOTAL_SQ_FT,LEASE_OR_OWNED) 
                 VALUES (rec.DIVISION, rec.COST_CENTER, rec.SALES_AREA, rec.PREMISES_SQ_FT, rec.LEASE_OR_OWNED);
         EXCEPTION
             WHEN OTHERS THEN 
                 V_TRANS_STATUS := 'ERROR';
-                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_BATCH', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
         END;
     END LOOP;
 
     FOR rec IN SWC_PN_SQFT_INT_V_EXTNG_RECS LOOP --Loop through existing records,backup and update in CCN
         BEGIN
             UPDATE CCN_SWC_PN_SQFT_INT
-               SET Leasing_Sales_Sq_Ft    = rec.SALES_AREA,
-                   Leasing_Total_Sq_Ft    = rec.PREMISES_SQ_FT,
+               SET LEASING_SALES_SQ_FT    = rec.SALES_AREA,
+                   LEASING_TOTAL_SQ_FT    = rec.PREMISES_SQ_FT,
                    LEASE_OR_OWNED         = rec.LEASE_OR_OWNED,
                    DIVISION               = rec.DIVISION
              WHERE COST_CENTER            = rec.COST_CENTER;
             -- insert into History table 
-            INSERT INTO CCN_SWC_PN_SQFT_INT_HIST(DIVISION,COST_CENTER,Leasing_Sales_Sq_Ft,Leasing_Total_Sq_Ft,LEASE_OR_OWNED,LOAD_DATE) 
+            INSERT INTO CCN_SWC_PN_SQFT_INT_HIST(DIVISION,COST_CENTER,LEASING_SALES_SQ_FT,LEASING_TOTAL_SQ_FT,LEASE_OR_OWNED,LOAD_DATE) 
                 VALUES (rec.DIVISION, rec.COST_CENTER, rec.SALES_AREA, rec.PREMISES_SQ_FT, rec.LEASE_OR_OWNED,SYSDATE);
         EXCEPTION
             WHEN OTHERS THEN                 
                 V_TRANS_STATUS := 'ERROR';
-                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_BATCH', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
         END;
     END LOOP;
 
     COMMIT;
 
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_SWC_SQFT_BATCH', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    MAIL_PKG.SEND_MAIL('LOAD_SWC_PN_SQFT_INT', NULL, NULL, NULL);
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||'LOAD_SWC_PN_SQFT_INT'  || ' errors found');

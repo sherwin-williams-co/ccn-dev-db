@@ -17,19 +17,22 @@
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc  at $TIME on $DATE"
-sqlplus -s -l $sqlplus_user/$sqlplus_pw <<EOF
-SET NEWPAGE 0
-SET SPACE 0
-SET LINESIZE 1000
-SET PAGESIZE 0
-SET ECHO OFF
-SET FEEDBACK OFF
-SET HEADING OFF
-set TERM OFF
-
-EXECUTE CCN_MARKETING_SQ_FT_LOAD.LOAD_SWC_PN_SQFT_INT();	
- 
-exit;
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<EOF
+set heading off;
+set verify off;
+set serveroutput on;
+var exitCode number;
+WHENEVER OSERROR EXIT 1
+WHENEVER SQLERROR EXIT 1
+BEGIN
+    :exitCode := 0;
+    CCN_MARKETING_SQ_FT_LOAD.LOAD_SWC_PN_SQFT_INT();
+Exception
+when others then
+    :exitCode := 2;
+END;
+/
+exit :exitCode
 EOF
 ############################################################################
 #                           ERROR STATUS CHECK 
@@ -38,13 +41,13 @@ status=$?
 if test $status -ne 0
 then
      TIME=`date +"%H:%M:%S"`
+     cd $HOME
+     ./send_mail.sh "LOAD_SWC_PN_SQFT_INT" "Load to CCN_SWC_PN_SQFT_INT failed"
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"  
-
 exit 0
-
 ############################################################################
