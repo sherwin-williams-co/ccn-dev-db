@@ -11,6 +11,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added Fields PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY
         : 06/28/2018 nxk927 CCN Project....
           Added POS_NON_STORE_IND Field
+        : 07/11/2018 nxk927 CCN Project....
+          Changed the address column size from 35 to 100
 */
 
   DROP TABLE COST_CENTER_REAL_ESTATE;
@@ -55,9 +57,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
       USA_ADDRESS_TYPE                 VARCHAR2(2),
       USA_EFFECTIVE_DATE               VARCHAR2(8),
       USA_EXPIRATION_DATE              VARCHAR2(8),
-      USA_ADDRESS_LINE_1               VARCHAR2(35),
-      USA_ADDRESS_LINE_2               VARCHAR2(35),
-      USA_ADDRESS_LINE_3               VARCHAR2(35),
+      USA_ADDRESS_LINE_1               VARCHAR2(100),
+      USA_ADDRESS_LINE_2               VARCHAR2(100),
+      USA_ADDRESS_LINE_3               VARCHAR2(100),
       USA_CITY                         VARCHAR2(25),
       USA_STATE_CODE                   VARCHAR2(2),
       USA_ZIP_CODE                     VARCHAR2(5),
@@ -71,9 +73,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
       CAN_ADDRESS_TYPE                 VARCHAR2(2),
       CAN_EFFECTIVE_DATE               VARCHAR2(8),
       CAN_EXPIRATION_DATE              VARCHAR2(8),
-      CAN_ADDRESS_LINE_1               VARCHAR2(35),
-      CAN_ADDRESS_LINE_2               VARCHAR2(35),
-      CAN_ADDRESS_LINE_3               VARCHAR2(35),
+      CAN_ADDRESS_LINE_1               VARCHAR2(100),
+      CAN_ADDRESS_LINE_2               VARCHAR2(100),
+      CAN_ADDRESS_LINE_3               VARCHAR2(100),
       CAN_CITY                         VARCHAR2(25),
       CAN_PROVINCE_CODE                VARCHAR2(2),
       CAN_POSTAL_CODE                  VARCHAR2(6),
@@ -82,9 +84,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
       MEX_ADDRESS_TYPE                 VARCHAR2(2),
       MEX_EFFECTIVE_DATE               VARCHAR2(8),
       MEX_EXPIRATION_DATE              VARCHAR2(8),
-      MEX_ADDRESS_LINE_1               VARCHAR2(35),
-      MEX_ADDRESS_LINE_2               VARCHAR2(35),
-      MEX_ADDRESS_LINE_3               VARCHAR2(35),
+      MEX_ADDRESS_LINE_1               VARCHAR2(100),
+      MEX_ADDRESS_LINE_2               VARCHAR2(100),
+      MEX_ADDRESS_LINE_3               VARCHAR2(100),
       MEX_CITY                         VARCHAR2(25),
       MEX_PROVINCE_CODE                VARCHAR2(5),
       MEX_POSTAL_CODE                  VARCHAR2(5),
@@ -93,9 +95,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
       OTHER_ADDRESS_TYPE               VARCHAR2(2),
       OTHER_EFFECTIVE_DATE             VARCHAR2(8),
       OTHER_EXPIRATION_DATE            VARCHAR2(8),
-      OTHER_ADDRESS_LINE_1             VARCHAR2(35),
-      OTHER_ADDRESS_LINE_2             VARCHAR2(35),
-      OTHER_ADDRESS_LINE_3             VARCHAR2(35),
+      OTHER_ADDRESS_LINE_1             VARCHAR2(100),
+      OTHER_ADDRESS_LINE_2             VARCHAR2(100),
+      OTHER_ADDRESS_LINE_3             VARCHAR2(100),
       OTHER_CITY                       VARCHAR2(25),
       OTHER_PROVINCE_CODE              VARCHAR2(25),
       OTHER_STATE_CODE                 VARCHAR2(25),

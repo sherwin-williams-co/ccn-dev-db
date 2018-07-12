@@ -3,6 +3,8 @@
      This script creates a new exteranal table COST_CENTER_LAD_CUSTOMER_MEX for new category Latin American call centers bulk upload
             : 06/28/2018 nxk927 CCN Project....
                Added POS_NON_STORE_IND Field
+            : 07/11/2018 nxk927 CCN Project....
+              Changed the address column size from 35 to 100
 */
   DROP TABLE COST_CENTER_LAD_CUSTOMER_MEX;
   CREATE TABLE COST_CENTER_LAD_CUSTOMER_MEX
@@ -44,9 +46,9 @@
         MEX_ADDRESS_TYPE                        VARCHAR2(2), 
         MEX_EFFECTIVE_DATE                      VARCHAR2(8), 
         MEX_EXPIRATION_DATE                     VARCHAR2(8), 
-        MEX_ADDRESS_LINE_1                      VARCHAR2(35), 
-        MEX_ADDRESS_LINE_2                      VARCHAR2(35), 
-        MEX_ADDRESS_LINE_3                      VARCHAR2(35), 
+        MEX_ADDRESS_LINE_1                      VARCHAR2(100), 
+        MEX_ADDRESS_LINE_2                      VARCHAR2(100), 
+        MEX_ADDRESS_LINE_3                      VARCHAR2(100), 
         MEX_CITY                                VARCHAR2(25), 
         MEX_PROVINCE_CODE                       VARCHAR2(5), 
         MEX_POSTAL_CODE                         VARCHAR2(5), 
