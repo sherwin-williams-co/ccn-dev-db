@@ -1,0 +1,24 @@
+/*---------------------------------------
+Below script will manually mark the drafts as paid as per email sent by Katie Pschesang
+
+--MARK AS PAID
+Store	Draft	Paid Date
+768614	1015-7	6/29/18
+
+Created: 07/13/2018 sxg151
+------------------------------------------*/
+
+-- MARK AS PAID
+
+SELECT * FROM STORE_DRAFTS WHERE COST_CENTER_CODE = '768614' AND CHECK_SERIAL_NUMBER = '0861410157';
+UPDATE STORE_DRAFTS
+   SET PAID_DATE = '29-JUN-2018',
+       PAY_INDICATOR = 'Y',
+	   BANK_PAID_AMOUNT = DECODE(AMOUNT_CHANGE_DATE, NULL, ORIGINAL_NET_AMOUNT, NET_AMOUNT),
+	   GROSS_AMOUNT = NVL(GROSS_AMOUNT, ORIGINAL_NET_AMOUNT),
+	   NET_AMOUNT = NVL(NET_AMOUNT, ORIGINAL_NET_AMOUNT)
+ WHERE COST_CENTER_CODE = '768614'
+   AND CHECK_SERIAL_NUMBER = '0861410157';
+
+
+COMMIT;
