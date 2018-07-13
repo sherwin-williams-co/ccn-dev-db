@@ -1,0 +1,30 @@
+/*******************************************************************************
+Grant select permission to utility for each hierarchy detail view.
+
+Permission needs to be granted to utility on all hierarchy details views to generate excel spreadsheet.
+
+  CREATED : 07/12/2018 pxa852 CCN Project...
+*******************************************************************************/
+
+GRANT SELECT ON ADMINORG_HIERARCHY_ATTRBT_VW TO CCN_UTILITY;
+
+GRANT SELECT ON ADMIN_TO_SALES_AREA_HRCHY_VW TO CCN_UTILITY;
+
+GRANT SELECT ON ADMIN_TO_SALES_DIST_HRCHY_VW TO CCN_UTILITY;
+
+GRANT SELECT ON ADMIN_TO_SALES_DIV_HRCHY_VW TO CCN_UTILITY;
+
+GRANT SELECT ON ALTERNATE_DAD_DETAIL_VIEW TO CCN_UTILITY;
+
+GRANT SELECT ON CREDIT_HIERARCHY_DETAIL_VIEW TO CCN_UTILITY;
+
+GRANT SELECT ON GLOBAL_HIERARCHY_ATTRBT_VW TO CCN_UTILITY;
+
+GRANT SELECT ON LEGACY_GL_DIVISION_DETAIL_VIEW TO CCN_UTILITY; 
+
+GRANT SELECT ON PRICE_DISTRICT_DETAIL_VIEW TO CCN_UTILITY; 
+
+GRANT SELECT ON FACTS_DIVISION_DETAIL_VIEW TO CCN_UTILITY; 
+
+
+commit;
