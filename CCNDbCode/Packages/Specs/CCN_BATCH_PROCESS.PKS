@@ -106,7 +106,7 @@ Changed :
 ;
 PROCEDURE GEN_ADMINORG_HRCHY_ATTR_FILE;
 /******************************************************************************
-  This Procedure Will generate csv  report from ADMINORG_HIERARCHY_ATTRBT_VW
+  This Procedure Will generate xlsx  report from ADMINORG_HIERARCHY_ATTRBT_VW
 
 Created : 07/09/2018 kxm302 CCN Project....
 Changed :
