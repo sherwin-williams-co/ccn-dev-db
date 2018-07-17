@@ -15,10 +15,13 @@ Insert into MAILING_FILE_DETAILS (FILE_ID,GROUP_ID,FILE_NAME,DIRECTORY_NAME,IS_A
 
 REM INSERTING into MAILING_DETAILS
 SET DEFINE OFF;
-Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) values ('ADMINORG_HIERARCHY_MNTHLY_PRCSS','116','Report for AdminOrg hierarchy','ccnoracle.team@sherwin.com','Please find the attached AdminOrg hierarchy details with this email','Thanks,
-Keith D. Parker
-IT Manager
-Sherwin Williams - Stores IT');
+Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
+values ('ADMINORG_HIERARCHY_MNTHLY_PRCSS',
+        '116',
+        'Report for AdminOrg hierarchy',
+        'ccnoracle.team@sherwin.com',
+        'Please find the attached AdminOrg hierarchy details with this email.',
+        'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 COMMIT;
 
