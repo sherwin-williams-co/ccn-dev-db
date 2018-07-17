@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ##########################################################################################
-# Script Name   :  load_adminorg_file.sh
+# Script Name   :  generate_adminorg_file.sh
 # purpose of this script will be to send files to Jeffery team on Adminorg_hierarchy_attributes
 # details and perform the following steps:
 # 1. establish connection to SQLPLUS
@@ -12,6 +12,8 @@
 # Date Updated: 
 #
 ##########################################################################################
+# Change directory to home path
+cd /app/ccn/dev
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
