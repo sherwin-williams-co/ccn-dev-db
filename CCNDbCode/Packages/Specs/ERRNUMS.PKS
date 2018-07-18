@@ -3174,4 +3174,15 @@ exc_invalid_pot_open_dt_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pot_open_dt_err , -20204);
 
+/*********************************************************** 
+The "en_standardized_addr_chng_err" passes a numerical error of -20205.
+If Standardized address is updated from address window
+
+created :  07/18/2018 pxa852 CCN Project Team...
+************************************************************/
+en_standardized_addr_chng_err      CONSTANT NUMBER := -20205;
+exc_standardized_addr_chng_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_standardized_addr_chng_err , -20205);
+
 END ERRNUMS;

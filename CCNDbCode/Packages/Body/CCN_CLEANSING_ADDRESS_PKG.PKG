@@ -1,5 +1,85 @@
 create or replace PACKAGE BODY CCN_CLEANSING_ADDRESS_PKG AS
 
+PROCEDURE UPDATE_CLEANSING_FLAG(
+/*******************************************************************************
+This procedure will set the cleansing flag to null if ccn address mataches 
+with the address in address_geo_v 
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+IN_COST_CENTER_CODE IN   VARCHAR2,
+IN_CLEANSING_FLAG   IN   VARCHAR2
+)
+IS
+PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE ADDRESS_USA
+       SET CLEANSING_FLAG           = IN_CLEANSING_FLAG 
+    WHERE UPPER(COST_CENTER_CODE)   = UPPER(IN_COST_CENTER_CODE)
+      AND ADDRESS_TYPE              = 'S'
+      AND CLEANSING_FLAG            = 'Y';
+      
+    IF SQL%ROWCOUNT = 0 THEN
+        UPDATE ADDRESS_CAN
+           SET CLEANSING_FLAG           = IN_CLEANSING_FLAG
+        WHERE UPPER(COST_CENTER_CODE)   = UPPER(IN_COST_CENTER_CODE)
+          AND ADDRESS_TYPE              = 'S'
+          AND CLEANSING_FLAG            = 'Y';
+    END IF;
+    COMMIT;
+END UPDATE_CLEANSING_FLAG;
+
+FUNCTION GET_GEO_ADDRESS_RECORD(
+/*******************************************************************************
+This function will return row from address_geo_v 
+Cost center code is the input parameter
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+  IN_COST_CENTER_CODE IN   VARCHAR2)
+RETURN ADDRESS_GEO_V%ROWTYPE
+IS
+    V_ADDRESS_GEO_ROW   ADDRESS_GEO_V%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_ADDRESS_GEO_ROW
+      FROM ADDRESS_GEO_V
+     WHERE UPPER(STORE)   = UPPER(IN_COST_CENTER_CODE);
+    RETURN V_ADDRESS_GEO_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_GEO_ADDRESS_RECORD;
+
+FUNCTION CHECK_DATA_AVALBLTY_IN_TABLE(
+/*******************************************************************************
+This function will return count from address_usa/address_can table.
+Table name, cost center and mailing address effective date are the inputs
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+IN_TABLE_NAME     IN VARCHAR2,
+IN_COST_CENTER    IN VARCHAR2,
+IN_EFFECTIVE_DATE IN DATE)
+RETURN NUMBER
+IS
+    V_RETURN_VALUE NUMBER := 0;
+BEGIN
+    EXECUTE IMMEDIATE
+      'BEGIN
+           SELECT COUNT(*) 
+             INTO :1 
+             FROM ' || IN_TABLE_NAME ||
+          ' WHERE UPPER(COST_CENTER_CODE) = UPPER(''' || IN_COST_CENTER || ''')
+              AND EFFECTIVE_DATE = ''' || IN_EFFECTIVE_DATE || '''
+              AND ADDRESS_TYPE   = ''S''
+              AND EXPIRATION_DATE IS NOT NULL;
+       END;'
+    USING OUT V_RETURN_VALUE;
+  
+    RETURN V_RETURN_VALUE;
+END CHECK_DATA_AVALBLTY_IN_TABLE;
+
 PROCEDURE GET_ACTV_ADDRESS_USA_BY_TYPE(
 /*******************************************************************************
 This procedure is used to return effective date for address type 'M' and 'S'
@@ -61,7 +141,9 @@ BEGIN
     --Get the effective date for standardized address type
     GET_ACTV_ADDRESS_USA_BY_TYPE(in_row_data.COST_CENTER_CODE, 'S', V_STRND_ADDRESS_USA_ROW);
      --Compare the mailing address effective date and standardized address effective date
-    IF in_row_data.EFFECTIVE_DATE <> V_STRND_ADDRESS_USA_ROW.EFFECTIVE_DATE THEN
+    IF in_row_data.EFFECTIVE_DATE <> V_STRND_ADDRESS_USA_ROW.EFFECTIVE_DATE AND 
+       CHECK_DATA_AVALBLTY_IN_TABLE('ADDRESS_USA',in_row_data.COST_CENTER_CODE, in_row_data.EFFECTIVE_DATE)=0 
+      THEN
     --If not equal, expire the old standardized record
         COMMON_TOOLS.EXPIRE_DATA_SP('ADDRESS_USA'
                                     ,in_row_data.COST_CENTER_CODE
@@ -74,17 +156,26 @@ EXCEPTION
         BEGIN
             --Update the standardized address if there is any changes in address
             UPDATE ADDRESS_USA
-               SET ROW = in_row_data
-            WHERE UPPER(COST_CENTER_CODE)             = UPPER(in_row_data.COST_CENTER_CODE)
-              AND ADDRESS_TYPE                        = in_row_data.ADDRESS_TYPE
-              AND EFFECTIVE_DATE                      = in_row_data.EFFECTIVE_DATE
-              AND (NVL(ADDRESS_LINE_1,'XXX')          <> NVL(in_row_data.ADDRESS_LINE_1,'XXX')   OR
-                   NVL(ADDRESS_LINE_2,'XXX')          <> NVL(in_row_data.ADDRESS_LINE_2,'XXX')   OR
-                   NVL(CITY,'XXX')                    <> NVL(in_row_data.CITY,'XXX')             OR
-                   NVL(STATE_CODE,'XXX')              <> NVL(in_row_data.STATE_CODE,'XXX')       OR
-                   NVL(ZIP_CODE,'XXX')                <> NVL(in_row_data.ZIP_CODE,'XXX')         OR
-                   NVL(ZIP_CODE_4,'XXX')              <> NVL(in_row_data.ZIP_CODE_4,'XXX')       OR
-                   NVL(COUNTRY_CODE,'XXX')            <> NVL(in_row_data.COUNTRY_CODE,'XXX'));
+               SET --ROW = in_row_data
+                ADDRESS_LINE_1    = in_row_data.ADDRESS_LINE_1,
+                ADDRESS_LINE_2    = in_row_data.ADDRESS_LINE_2,
+                CITY              = in_row_data.CITY,
+                STATE_CODE        = in_row_data.STATE_CODE,
+                ZIP_CODE          = in_row_data.ZIP_CODE,
+                ZIP_CODE_4        = in_row_data.ZIP_CODE_4,
+                DESTINATION_POINT = in_row_data.DESTINATION_POINT,
+                CHECK_DIGIT       = in_row_data.CHECK_DIGIT ,
+                COUNTRY_CODE      = in_row_data.COUNTRY_CODE  
+            WHERE NVL(UPPER(COST_CENTER_CODE),'XXX') = NVL(UPPER(in_row_data.COST_CENTER_CODE),'XXX')
+              AND NVL(ADDRESS_TYPE,'XXX')            = NVL(in_row_data.ADDRESS_TYPE,'XXX')
+              AND NVL(EFFECTIVE_DATE,SYSDATE)        = NVL(V_STRND_ADDRESS_USA_ROW.EFFECTIVE_DATE,SYSDATE)
+              AND (NVL(ADDRESS_LINE_1,'XXX')         <> NVL(in_row_data.ADDRESS_LINE_1,'XXX')   OR
+                   NVL(ADDRESS_LINE_2,'XXX')         <> NVL(in_row_data.ADDRESS_LINE_2,'XXX')   OR
+                   NVL(CITY,'XXX')                   <> NVL(in_row_data.CITY,'XXX')             OR
+                   NVL(STATE_CODE,'XXX')             <> NVL(in_row_data.STATE_CODE,'XXX')       OR
+                   NVL(ZIP_CODE,'XXX')               <> NVL(in_row_data.ZIP_CODE,'XXX')         OR
+                   NVL(ZIP_CODE_4,'XXX')             <> NVL(in_row_data.ZIP_CODE_4,'XXX')       OR
+                   NVL(COUNTRY_CODE,'XXX')           <> NVL(in_row_data.COUNTRY_CODE,'XXX'));
         EXCEPTION
             WHEN OTHERS THEN 
                 errpkg.raise_err(SQLCODE, 'ADDRESS_USA_I_SP, ' || ' ' || SUBSTR(SQLERRM,1,200) || ';  ' || 'ADDRESS USA Update Error' );
@@ -109,7 +200,9 @@ BEGIN
     --Get the effective date for standardized address type
     GET_ACTV_ADDRESS_CAN_BY_TYPE(in_row_data.COST_CENTER_CODE, 'S', V_STRND_ADDRESS_CAN_ROW);
     --Compare the mailing address effective date and standardized address effective date
-    IF in_row_data.EFFECTIVE_DATE <> V_STRND_ADDRESS_CAN_ROW.EFFECTIVE_DATE THEN
+    IF in_row_data.EFFECTIVE_DATE <> V_STRND_ADDRESS_CAN_ROW.EFFECTIVE_DATE AND
+       CHECK_DATA_AVALBLTY_IN_TABLE('ADDRESS_CAN',in_row_data.COST_CENTER_CODE, in_row_data.EFFECTIVE_DATE)=0 
+       THEN
      --If not equal, expire the old standardized record
         COMMON_TOOLS.EXPIRE_DATA_SP('ADDRESS_CAN'
                                     ,in_row_data.COST_CENTER_CODE
@@ -122,10 +215,16 @@ EXCEPTION
         BEGIN
             --Update the standardized address if there is any change in address
             UPDATE ADDRESS_CAN
-               SET ROW = in_row_data
-            WHERE UPPER(COST_CENTER_CODE)             = UPPER(in_row_data.COST_CENTER_CODE)
-              AND ADDRESS_TYPE                        = in_row_data.ADDRESS_TYPE
-              AND EFFECTIVE_DATE                      = in_row_data.EFFECTIVE_DATE 
+               SET --ROW = in_row_data
+                ADDRESS_LINE_1 = in_row_data.ADDRESS_LINE_1,
+                ADDRESS_LINE_2 = in_row_data.ADDRESS_LINE_2,
+                CITY           = in_row_data.CITY,
+                PROVINCE_CODE  = in_row_data.PROVINCE_CODE,
+                POSTAL_CODE    = in_row_data.POSTAL_CODE,
+                COUNTRY_CODE   = in_row_data.COUNTRY_CODE            
+            WHERE NVL(UPPER(COST_CENTER_CODE),'XXX')  = NVL(UPPER(in_row_data.COST_CENTER_CODE),'XXX')
+              AND NVL(ADDRESS_TYPE,'XXX')             = NVL(in_row_data.ADDRESS_TYPE,'XXX')
+              AND NVL(EFFECTIVE_DATE,SYSDATE)         = NVL(V_STRND_ADDRESS_CAN_ROW.EFFECTIVE_DATE,SYSDATE) 
               AND (NVL(ADDRESS_LINE_1,'XXX')          <> NVL(in_row_data.ADDRESS_LINE_1,'XXX')   OR
                    NVL(ADDRESS_LINE_2,'XXX')          <> NVL(in_row_data.ADDRESS_LINE_2,'XXX')   OR
                    NVL(CITY,'XXX')                    <> NVL(in_row_data.CITY,'XXX')             OR
@@ -139,6 +238,124 @@ EXCEPTION
     WHEN OTHERS THEN
         errpkg.raise_err(SQLCODE, 'ADDRESS_CAN_I_SP, ' || ' ' || SUBSTR(SQLERRM,1,200) || ';  ' || 'ADDRESS CAN Error' );
 END ADDRESS_CAN_I_SP;
+
+PROCEDURE CCN_USA_CLEANSING_FLAG_U_PKG
+/*******************************************************************************
+This procedure is used to compare the ccn standardized address with the address in address_geo_v
+and if matched reset the cleansing flag to null
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+IS
+    CURSOR ADDRESS_USA_REC IS
+        SELECT *
+          FROM ADDRESS_USA 
+         WHERE ADDRESS_TYPE            = 'S'
+           AND CLEANSING_FLAG          = 'Y'
+           AND EXPIRATION_DATE IS NULL;
+
+    V_ADDRESS_GEO_ROW   ADDRESS_GEO_V%ROWTYPE;
+BEGIN
+    --LOOP through the each store record with cleasing 'Y'
+    FOR rec in ADDRESS_USA_REC LOOP
+        V_ADDRESS_GEO_ROW := GET_GEO_ADDRESS_RECORD(rec.COST_CENTER_CODE);
+
+        IF (NVL(rec.ADDRESS_LINE_1,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET,'XXX')     AND
+            NVL(rec.ADDRESS_LINE_2,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET2,'XXX')    AND
+            NVL(rec.CITY,'XXX')           = NVL(V_ADDRESS_GEO_ROW.CITY,'XXX')       AND
+            NVL(rec.STATE_CODE,'XXX')     = NVL(V_ADDRESS_GEO_ROW.STATE,'XXX')      AND
+            NVL(rec.ZIP_CODE,'XXX')       = NVL(TRIM(V_ADDRESS_GEO_ROW.ZIP),'XXX')  AND
+            NVL(rec.ZIP_CODE_4,'XXX')     = NVL(TRIM(V_ADDRESS_GEO_ROW.ZIP4),'XXX') AND
+            NVL(rec.COUNTRY_CODE,'XXX')   = NVL(V_ADDRESS_GEO_ROW.COUNTRY_3,'XXX')) THEN
+            UPDATE_CLEANSING_FLAG(rec.COST_CENTER_CODE, NULL);
+        END IF;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||' CCN_CLEANSING_ADDRESS '  || ' errors found');
+END CCN_USA_CLEANSING_FLAG_U_PKG;
+
+PROCEDURE CCN_CAN_CLEANSING_FLAG_U_PKG
+/*******************************************************************************
+This procedure is used to compare the ccn standardized address with the address in address_geo_v
+and if matched reset the cleansing flag to null
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+IS
+    CURSOR ADDRESS_CAN_REC IS
+        SELECT *
+          FROM ADDRESS_CAN 
+         WHERE ADDRESS_TYPE            = 'S'
+           AND CLEANSING_FLAG          = 'Y'
+           AND EXPIRATION_DATE IS NULL;
+        
+    V_ADDRESS_GEO_ROW   ADDRESS_GEO_V%ROWTYPE;
+BEGIN
+    --LOOP through the each store record with cleasing 'Y'
+    FOR rec in ADDRESS_CAN_REC LOOP
+        V_ADDRESS_GEO_ROW := GET_GEO_ADDRESS_RECORD(rec.COST_CENTER_CODE);
+                       
+        IF (NVL(rec.ADDRESS_LINE_1,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET,'XXX')     AND
+            NVL(rec.ADDRESS_LINE_2,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET2,'XXX')    AND
+            NVL(rec.CITY,'XXX')           = NVL(V_ADDRESS_GEO_ROW.CITY,'XXX')       AND
+            NVL(rec.PROVINCE_CODE,'XXX')  = NVL(V_ADDRESS_GEO_ROW.STATE,'XXX')      AND
+            NVL(rec.POSTAL_CODE,'XXX')    = NVL(TRIM(V_ADDRESS_GEO_ROW.ZIP)||TRIM(V_ADDRESS_GEO_ROW.ZIP4),'XXX') AND
+            NVL(rec.COUNTRY_CODE,'XXX')   = NVL(V_ADDRESS_GEO_ROW.COUNTRY_3,'XXX')) THEN
+            UPDATE_CLEANSING_FLAG(rec.COST_CENTER_CODE, NULL);
+        END IF;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||' CCN_CLEANSING_ADDRESS '  || ' errors found');
+END CCN_CAN_CLEANSING_FLAG_U_PKG;
+
+PROCEDURE CCN_STNDRD_ADDR_MISMATCH_PKG
+/*******************************************************************************
+This procedure is used to generate a standardized mismatch report and send it in an email
+
+Created : 07/17/2018 pxa852 Address Object....
+*******************************************************************************/
+IS
+    CURSOR ADDRESS_MISMATCH_REC IS
+        SELECT COST_CENTER_CODE
+          FROM ADDRESS_USA 
+         WHERE ADDRESS_TYPE            = 'S'
+           AND CLEANSING_FLAG          = 'Y'
+           AND EXPIRATION_DATE IS NULL
+        UNION
+        SELECT COST_CENTER_CODE
+          FROM ADDRESS_CAN 
+         WHERE ADDRESS_TYPE            = 'S'
+           AND CLEANSING_FLAG          = 'Y'
+           AND EXPIRATION_DATE IS NULL;
+
+    V_CLOB              CLOB;
+    V_HEADER_CLOB       CLOB;
+    PATH        	    VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME  	        VARCHAR2(50) := 'CCN_STANDARDIZED_ADDRESS_MISMATCH_' || TO_CHAR(SYSDATE,'DD_MON_RRRR') || '.csv';
+    OUTPUT_FILE         UTL_FILE.FILE_TYPE;
+BEGIN
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH
+                                   ,FILENAME
+                                   ,'W' --BINARY
+                                  ,32767);
+    V_HEADER_CLOB := 'COST_CENTER_CODE';
+    UTL_FILE.PUT_LINE(OUTPUT_FILE,  V_HEADER_CLOB, TRUE);
+    --LOOP through the each store record in ADDRESS_MISMATCH_REC cursor
+    FOR rec in ADDRESS_MISMATCH_REC LOOP
+        V_CLOB :=  to_char(rec.COST_CENTER_CODE);
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    END LOOP;
+    -- If clob is empty then dont send an email
+    IF V_CLOB <> EMPTY_CLOB() THEN
+     MAIL_PKG.SEND_MAIL('CCN_STANDARDIZED_ADDRESS_MISMATCH', NULL, NULL, V_CLOB);
+    END IF;
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||' CCN_CLEANSING_ADDRESS '  || ' errors found');
+END CCN_STNDRD_ADDR_MISMATCH_PKG;
 
 PROCEDURE CCN_CLEANSING_ADDRESS
 /*******************************************************************************
@@ -161,13 +378,19 @@ IS
           FROM ADDRESS_GEO_V A,
                COST_CENTER CC
          WHERE UPPER(A.STORE)     = UPPER(CC.COST_CENTER_CODE)
-           AND CC.CATEGORY        = 'S';
+           AND CC.CATEGORY        = 'S'
+           AND CC.COUNTRY_CODE IN ('USA', 'CAN', 'PRI');
 
     V_ADDRESS_USA_ROW            ADDRESS_USA%ROWTYPE;
     V_ADDRESS_CAN_ROW            ADDRESS_CAN%ROWTYPE;
     V_COUNT                      INTEGER;
 BEGIN
---  LOOP through the each store record in address_geo_v
+    --Initial run will not have any records with cleasing flag as "Y"
+    --So below two calls does nothing for the first run
+    CCN_USA_CLEANSING_FLAG_U_PKG();
+    CCN_CAN_CLEANSING_FLAG_U_PKG();
+
+    --LOOP through the each store record in address_geo_v
     FOR rec in ADDRESS_GEO_REC LOOP
         V_ADDRESS_USA_ROW := NULL;
         V_ADDRESS_CAN_ROW := NULL;
@@ -180,7 +403,7 @@ BEGIN
                   FROM ADDRESS_USA 
                  WHERE UPPER(COST_CENTER_CODE) = UPPER(rec.STORE) 
                    AND CLEANSING_FLAG          = 'Y';
-            
+
                 IF V_COUNT = 0 THEN
                     -- Get the effective date for mailing address type
                     GET_ACTV_ADDRESS_USA_BY_TYPE(rec.STORE, 'M', V_ADDRESS_USA_ROW);
@@ -194,12 +417,14 @@ BEGIN
                     V_ADDRESS_USA_ROW.STATE_CODE                := rec.STATE;
                     V_ADDRESS_USA_ROW.ZIP_CODE                  := TRIM(rec.ZIP);
                     V_ADDRESS_USA_ROW.ZIP_CODE_4                := TRIM(rec.ZIP4);
+                    V_ADDRESS_USA_ROW.FIPS_CODE                 := NULL;
                     V_ADDRESS_USA_ROW.COUNTRY_CODE              := rec.COUNTRY_3;
                         
                     --expire the old standardized record and creates/updates a new record
-                    ADDRESS_USA_I_SP (V_ADDRESS_USA_ROW);
+                    ADDRESS_USA_I_SP(V_ADDRESS_USA_ROW);
                 END IF;
             ELSIF rec.COUNTRY_3 = 'CAN' THEN
+                
                 SELECT COUNT(1)
                   INTO V_COUNT 
                   FROM ADDRESS_CAN 
@@ -227,11 +452,14 @@ BEGIN
             END IF;
         EXCEPTION
             WHEN OTHERS THEN
+                UPDATE_CLEANSING_FLAG(rec.STORE, 'Y');
                 ROLLBACK TO SVPNT;
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, ' CCN_CLEANSING_ADDRESS ', SUBSTR(SQLERRM,1,500), rec.STORE);
         END;
         COMMIT;
     END LOOP;
+
+    CCN_STNDRD_ADDR_MISMATCH_PKG();
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||' CCN_CLEANSING_ADDRESS '  || ' errors found');
@@ -264,7 +492,7 @@ BEGIN
              WHEN OTHERS THEN
                  V_ADDRESS_USA_ROW := NULL;
          END;
-
+dbms_output.put_line(V_ADDRESS_USA_ROW.COST_CENTER_CODE);
         -- comparing old and new address and return 'Y' if they are not equal else return null  
         IF V_ADDRESS_USA_ROW.COST_CENTER_CODE IS NOT NULL  AND
           (NVL(IN_ADDRESS_USA_ROW.ADDRESS_LINE_1,'XXX')            <> NVL(V_ADDRESS_USA_ROW.ADDRESS_LINE_1,'XXX')  OR
@@ -275,6 +503,8 @@ BEGIN
            NVL(IN_ADDRESS_USA_ROW.ZIP_CODE_4, 'XXX')               <> NVL(V_ADDRESS_USA_ROW.ZIP_CODE_4,'XXX')      OR
            NVL(IN_ADDRESS_USA_ROW.COUNTRY_CODE, 'XXX')             <> NVL(V_ADDRESS_USA_ROW.COUNTRY_CODE,'XXX')) THEN
             V_RETURN_VALUE := 'Y';
+            ERRPKG.STORE_WARNINGS(errnums.en_standardized_addr_chng_err,
+                            'Standardized address is updated as requested, please contact data services to discuss about the issue');
         END IF;
     END IF;     
     RETURN V_RETURN_VALUE;
@@ -311,22 +541,24 @@ BEGIN
                    V_ADDRESS_CAN_ROW := NULL;
          END;
        
-    -- comparing old and new address and return 'Y' if they are not equal else return null    
+         -- comparing old and new address and return 'Y' if they are not equal else return null    
          IF   V_ADDRESS_CAN_ROW.COST_CENTER_CODE IS NOT NULL  AND
-             (NVL(IN_ADDRESS_CAN_ROW.ADDRESS_LINE_1,'XXX')              <> NVL(V_ADDRESS_CAN_ROW.ADDRESS_LINE_1,'XXX')   OR
-              NVL(IN_ADDRESS_CAN_ROW.ADDRESS_LINE_2,'XXX')              <> NVL(V_ADDRESS_CAN_ROW.ADDRESS_LINE_2,'XXX')   OR
-              NVL(IN_ADDRESS_CAN_ROW.CITY,'XXX')                        <> NVL(V_ADDRESS_CAN_ROW.CITY,'XXX')             OR
-              NVL(IN_ADDRESS_CAN_ROW.PROVINCE_CODE,'XXX')               <> NVL(V_ADDRESS_CAN_ROW.PROVINCE_CODE,'XXX')    OR
-              NVL(IN_ADDRESS_CAN_ROW.POSTAL_CODE,'XXX')                 <> NVL(V_ADDRESS_CAN_ROW.POSTAL_CODE,'XXX')      OR
-              NVL(IN_ADDRESS_CAN_ROW.COUNTRY_CODE,'XXX')                <> NVL(V_ADDRESS_CAN_ROW.COUNTRY_CODE,'XXX'))  THEN
-              V_RETURN_VALUE  :=  'Y';     
+             (NVL(IN_ADDRESS_CAN_ROW.ADDRESS_LINE_1,'XXX')  <> NVL(V_ADDRESS_CAN_ROW.ADDRESS_LINE_1,'XXX')   OR
+              NVL(IN_ADDRESS_CAN_ROW.ADDRESS_LINE_2,'XXX')  <> NVL(V_ADDRESS_CAN_ROW.ADDRESS_LINE_2,'XXX')   OR
+              NVL(IN_ADDRESS_CAN_ROW.CITY,'XXX')            <> NVL(V_ADDRESS_CAN_ROW.CITY,'XXX')             OR
+              NVL(IN_ADDRESS_CAN_ROW.PROVINCE_CODE,'XXX')   <> NVL(V_ADDRESS_CAN_ROW.PROVINCE_CODE,'XXX')    OR
+              NVL(IN_ADDRESS_CAN_ROW.POSTAL_CODE,'XXX')     <> NVL(V_ADDRESS_CAN_ROW.POSTAL_CODE,'XXX')      OR
+              NVL(IN_ADDRESS_CAN_ROW.COUNTRY_CODE,'XXX')    <> NVL(V_ADDRESS_CAN_ROW.COUNTRY_CODE,'XXX'))  THEN
+              V_RETURN_VALUE  :=  'Y';   
+              ERRPKG.STORE_WARNINGS(errnums.en_standardized_addr_chng_err,
+                                    'Standardized address is updated as requested, please contact data services to discuss about the issue');
           END IF;  
      END IF;
      RETURN V_RETURN_VALUE;
 EXCEPTION
     WHEN OTHERS THEN 
          RETURN V_RETURN_VALUE;
- 
-END GET_CAN_CLEANSING_FLAG_FNC;
+ END GET_CAN_CLEANSING_FLAG_FNC;
+
 
 END CCN_CLEANSING_ADDRESS_PKG;
