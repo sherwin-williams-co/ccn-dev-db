@@ -1,0 +1,754 @@
+create or replace PACKAGE BODY MAIL_PKG AS
+PROCEDURE WRITE_CLOB(
+/******************************************************************************
+This procedure will create file on server and dump the passed BLOB data Into the file created
+IN_CONNECTION - The connection string to write/attach the email to
+IN_CLOB       - The attachment data
+created : 06/03/2015 jxc517 CCN Project....
+Modified:
+******************************************************************************/
+IN_OUT_CONNECTION  IN OUT   UTL_SMTP.connection,
+IN_CLOB            IN       CLOB)
+IS
+    -- Define output file directory
+    V_LENGTH          NUMBER := DBMS_LOB.GETLENGTH(IN_CLOB);
+    V_START           NUMBER := 1;
+    V_BYTE_LENGTH     NUMBER := 32000;
+    V_TEMP_LENGTH     NUMBER;
+    V_TEMP_CLOB       CLOB;
+BEGIN
+    -- Save blob length in temporary variable
+    V_TEMP_LENGTH := V_LENGTH;
+    IF V_LENGTH < 32760 THEN
+        UTL_SMTP.write_data(IN_OUT_CONNECTION, IN_CLOB);
+    ELSE -- write in pieces
+        V_START := 1;
+        WHILE V_START < V_LENGTH AND V_BYTE_LENGTH > 0 LOOP
+            DBMS_LOB.READ(IN_CLOB,
+                          V_BYTE_LENGTH,
+                          V_START,
+                          V_TEMP_CLOB);
+            UTL_SMTP.write_data(IN_OUT_CONNECTION, V_TEMP_CLOB);
+            -- Set the start position for the next cut
+            V_START       := V_START + V_BYTE_LENGTH;
+            -- Set the end position if less than 32000 bytes
+            V_TEMP_LENGTH := V_TEMP_LENGTH - V_BYTE_LENGTH;
+            IF V_TEMP_LENGTH < 32000 THEN
+                V_BYTE_LENGTH := V_TEMP_LENGTH;
+            END IF;
+        END LOOP;
+    END IF;
+END WRITE_CLOB;
+
+
+PROCEDURE FILE_ATTACHMENTS(
+/****************************************************************
+   This Procedure is used Attach the list of files to the mail
+created : 05/02/2016 AXD783
+changed :02/20/2018 bxa919 CCN Project Team....
+          Added aditional logic to process the excel file.The 
+          excel file is opened in using BFilename which 
+          returns a BFILE locator that is associated with physical LOB binary file 
+          on the server and writes the Content of attachment using UTL_ENCODE.Base64_Encode function
+          which encode RAW data into a standard encoded format, so that the data can 
+          be transported between hosts 
+        :03/14/2018 bxa919 CCN Project Team....
+          Added condition check for 'CCN_STORE_INFO_IN_TB' category to an email the file as attachement
+        : 05/31/2018 sxg CCN Team...
+          ASP-1075 :Added condition check for 'CCN_ACCNT_REPORT' and 'ADMIN_HRCHY_FORMAT' category to an email the file as attachement.
+        : 07/18/2018 : pxa852 CCN Project team...
+          ASP-873 Added condition to check for 'CCN_STANDARDIZED_ADDRESS_MISMATCH' to send the file as an attachment in email.
+*****************************************************************/
+ in_MAIL_CATEGORY VARCHAR2
+,v_conn IN OUT utl_smtp.connection
+                          )
+IS
+  v_boundry                 VARCHAR2(200)        := '-----AABCDEFBBCCC0123456789DE';
+  crlf                      VARCHAR2 (2) := CHR (13) || CHR (10);
+  filehandler               UTL_FILE.FILE_TYPE;
+  v_file_name               VARCHAR2(100);
+  vLine                     VARCHAR2(4000);
+  v_length                  NUMBER;
+  v_blocksize               NUMBER;
+  v_exists                  BOOLEAN;
+  v_date                    DATE;
+  file_not_found            EXCEPTION;
+BEGIN
+    FOR REC IN (SELECT mf.file_name,mf.directory_name
+                  FROM mailing_file_details mf
+                      ,mailing_details md
+                 WHERE mf.group_id = md.group_id
+                   AND md.mail_category =UPPER(in_MAIL_CATEGORY)) LOOP
+                  -- v_date := TRUNC(SYSDATE);
+        IF REC.FILE_NAME IN ('STORE_PDH_HRCHY_MAIL') THEN
+            v_file_name:= REC.file_name|| '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx' ;
+        ELSIF REC.FILE_NAME IN ('STORE_INFO_IN_TB_CCN08900_D') THEN
+            v_file_name:= REC.file_name|| '_' || TO_CHAR(SYSDATE,'RRMMDD') ||'.dat' ;
+        ELSIF REC.FILE_NAME IN ('ADMIN_HRCHY_FORMAT') THEN
+            v_file_name:= REC.file_name|| '_' || TO_CHAR(SYSDATE,'MMDDYY') ||'.dat' ;
+        ELSIF REC.FILE_NAME IN ('CCN_ACCNT_REPORT') THEN
+            v_file_name:= REC.file_name|| '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' ;
+        ELSIF REC.FILE_NAME IN ('CCN_STANDARDIZED_ADDRESS_MISMATCH') THEN
+            v_file_name:= REC.file_name|| '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' ; 
+        ELSE
+            v_file_name := REC.file_name||to_char(SYSDATE,'_MMDDYY')||'.csv';
+        END IF;
+
+        -- Check the file exists and if the size of the file.
+        utl_file.fgetattr(rec.directory_name, v_file_name, v_exists, v_length,v_blocksize);
+        IF NOT v_exists THEN
+            RAISE FILE_NOT_FOUND;
+        END IF;
+        filehandler := utl_file.fopen(rec.directory_name, v_file_name, 'R');
+        utl_smtp.write_data(v_conn, '--' || v_boundry || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, 'Content-Transfer-encoding: base64' || utl_tcp.crlf );
+        utl_smtp.write_data(v_conn, 'Content-Disposition: attachment; filename="' || v_file_name || '"' || UTL_TCP.crlf);
+        utl_smtp.write_data(v_conn, UTL_TCP.crlf);
+        --Content for the file that is being sent
+        DECLARE
+            l_source_file       bfile ;
+            ln_length           number(10) ;
+            ln_buffer_size      integer := 57 ;
+            lv_raw              raw(57) ;
+            i                   integer := 1;
+        BEGIN
+            l_source_file := bfilename(rec.directory_name, v_file_name) ; 
+            dbms_lob.fileopen( l_source_file, dbms_lob.file_readonly ) ;
+            ln_length := dbms_lob.getlength( l_source_file ) ;
+
+            WHILE I < ln_length loop
+                dbms_lob.read( l_source_file, ln_buffer_size, i, lv_raw ) ;
+                utl_smtp.write_raw_data( v_conn, utl_encode.base64_encode( lv_raw ) ) ;
+                i := i + ln_buffer_size ;
+            END LOOP ;
+        END;
+            utl_file.fclose(filehandler);
+    END LOOP;
+EXCEPTION
+    WHEN file_not_found THEN
+        DBMS_OUTPUT.PUT_LINE('File Name :'||v_file_name ||' Not Found');
+    WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error THEN
+        raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE(sqlerrm);
+END FILE_ATTACHMENTS;
+PROCEDURE SEND_MAIL(
+/******************************************************************************************************
+SEND_MAIL
+  This procedure will send emails based on the MAIL_CATEGORY of the mail
+  Currently we have below categories:
+                    INIT_LOAD_START
+                    INIT_LOAD_END
+                    HIER_LOAD_START
+                    HIER_LOAD_END
+                    STOP_JBOSS
+                    START_JBOSS
+                    INCOMPLETE_CC
+                    ADD_TERMINAL
+for more info please refer to the documentation on mail_pkg
+IN_MAIL_CATEGORY  - Input MAIL CATEGORY for which email needs to be sent
+IN_TERMINL_NUMBER - The Terminal Number being added
+IN_COST_CENTER_CD - The Cost Center for which the terminal number was added to
+IN_CLOB           - The list of Hierarchy territory cost center transfer
+created : 03/03/2013 sxh487 CCN Project....
+Updated : 09/18/2014 nxk
+          02/10/2015 jxc517 CCN Project Team.....
+                     Added JOB_CODE_TRANSALATION to send emails for missing JOB CODE combinations
+		    : 04/08/2015 nxk / axk326 CCN Project Team....
+		                 Added mail category for sending Canadian Automotive and Non Automotive files
+        : 04/22/2015 sxt410 CCN Project Team.....
+                     Added mail category TAXWARE_WARNING_MESSAGE to send an email
+                     when Taxware Zip code doesn't match with Address Zip code.
+        : 09/02/2015 nxk927 CCN Project Team....
+                    added mail categories for the SD 1099 report
+                    1) SD_1099_NO_VNDR_ON_BNK_TP_RPRT
+                    2) SD_1099_MTCHD_PRCSNG_RPRT
+                    3) SD_1099_NO_MTCHD_VENDOR_RPRT
+                    4) SD_1099_TXPYR_ID_AP_TRNS_CRT
+        : 01/11/2016 jxc517 CCN Project Team....
+                    added mail categories for the SD G/L Unbooked report
+                    1) SD_GAINLOSS_UNBOOKED_RPRT
+        : 02/19/2016 mxr916 CCN Project Team....
+                     added mail category to send  SD 1099 report for every quarterly
+                     1) SD_1099_QRTLY_RPT
+        : 03/02/2016 nxk927 CCN Project Team...
+                    added new mail category PCI_POS_TERMINAL_MISMATCH to send email with the
+                    PCI TERMINAL ID not matching the terminal numbers
+        : 03/30/2016 nxk927 CCN Project Team...
+                     added new mail category NEWLY_CRTD_COST_CENTER to send email with the
+                     list of newly created cost centers
+        : 04/05/2016 nxk927 CCN Project Team...
+                     reverting the code to remove PCI_POS_TERMINAL_MISMATCH and move
+                     NEWLY_CRTD_COST_CENTER category to higher environment before PCI_POS_TERMINAL_MISMATCH
+        : 04/05/2016 nxk927 CCN Project Team...
+                     adding PCI_POS_TERMINAL_MISMATCH category back
+        : 04/05/2016 nxk927 CCN Project Team...
+                     Removed the replace function that was used to replace the '.txt' to ''
+                     for deposit ticket
+        : 04/27/2016 jxc517 CCN Project Team....
+                     Added SD_90_DAY_STOP_PAY_RPT for 90 day stop pay email
+        : 05/24/2016 nxk927 CCN Project Team...
+                     reverting the code to move SD_90_DAY_STOP_PAY_RPT ahead of other changes
+        : 05/24/2016 nxk927 CCN Project Team...
+                     reverting the code after moving SD_90_DAY_STOP_PAY_RPT ahead of other changes
+
+        : 08/30/2016 nxk927 CCN Project Team....
+                     Already present deposit ticket category modified to use for current requirement
+                     passing the path in the clob
+        : 10/03/2016 mxk766 CCN Project Team....
+          Added code to handle the background process check
+        : 10/25/2016 nxk927 CCN Project Team....
+          reverting code to move to prod with the PCI_POS_TERMINAL changes.
+        : 10/25/2016 nxk927 CCN Project Team....
+          reverting code after moving PCI_POS_TERMINAL changes to prod]
+        : 10/25/2016 nxk927 CCN Project Team....
+          added new category INSTALLER_RETAINAGE_REFUND
+        : 11/21/2016 sxh487 CCN Project Team....
+          Added code for Deposit Ticket/Bags ordered
+        : 12/21/2016 gxg192 CCN Project Team....
+          Added code for Deposit Ticket/Bag order error report
+        : 01/05/2017 MXK766 CCN Project Team....
+          Added code for STOREDRAFTS_RECONCILE_FILES_GEN.
+        : 01/16/2017 gxg192 CCN Project Team....
+          Added code for Deposit Ticket FTP failure
+        :01/19/2017 MXK766 CCN Project Team....
+          Added code for POLLING_FAILURE_MAIL, ARCHIVINGPROCESSFAILURE and FTPFAILURE. 
+        : 01/26/2017 gxg192 CCN Project Team....
+          Added code for Deposit Bag FTP failure
+        : 02/24/2017 AXT754 CCN Project Team....
+          Added Code for SUNTRUST DRAFT AUDIT RECORDS READ - STBD1300,SUNTRUST DRAFT MAINT RECORDS WRITTEN - STBD1300
+        : 04/03/2017 gxg192 CCN Project Team....
+          Added code for USA/Canada Selling store email
+		    : 02/24/2017 pxb712 CCN Project Team....
+		      Removed the message 'V_MESSAGE' set for 'PCI_POS_TERMINAL_MISMATCH'
+        :05/11/2017 RXA457 - asp-781 for CCN Project Team.. To email  log file if STRDRFT MONTHLY_PROCESS_RUN_BP process fails
+        :05/30/2017 RXA457 - asp-772 for CCN Project Team.. To email  Price District Reporting Hierarchy Report for Stores Pricing group
+        :06/08/2017 axt754 - changes to Selling stores to handle large volume of data
+        :06/13/2017 sxp130 - ASP_802 for CCN Project Team.. To email Price District Future Hierarchy - PRICE_DIST_FUTURE_HIER
+        :06/22/2017 gxg192 Changes for banking pos data load and diff process
+        :06/23/2017 nxk927 added new category for the bank account mismatch for the SRA11000 input files
+        :06/26/2017 sxp130 - ASP_805 for CCN Project Team.. To email DEP_BAG_TICK_ONHAND_QTY_RPT AND DEP_TICK_ONHAND_QTY_RPT
+        :06/28/2017 nxk927
+         using write clob procedure to handle big file	
+        :06/27/2017 axt754 - added code for ccn accounting view report
+        :08/15/2017 nxk927 - added new category SRA11000_MISSING_CC
+        :08/15/2017 jxc517 CCN Project Team....
+        :Added code for PD_HRCHY_BULK_INSERT_FAIL, PD_HRCHY_BULK_TRANSFER_FAIL
+        :08/18/2017 rxv940 CCN Project Team....
+        :Changes for "RequestidFailure" Mail category added
+        :10/02/2017 rxa457 CCN Project Team....
+          store merchant file name changed to merchtb.dat and
+           and "Error handling email config for DESCARTES_HRCHY_FILE_ERROR"
+        :10/11/2017 rxa457 CCN Project Team....
+         Added a new mail category DESCARTES_ADDR_FEED_FAIL for Descartes address feed failure
+        :01/18/2018 mxv711 CCN Project Team...
+         Added a new Mail Category CCN_MAPS_FEED for sending Maps Feed to esri software
+        : 01/31/2018 sxg151 CCN Project Team...
+                    Removed  mail category PCI_POS_TERMINAL_MISMATCH to stop sending email
+        :02/20/2018 bxa919 CCN Project Team....
+         Added condition for STORE_PDH_HRCHY_MAIL category as this proces places file in DB server and the
+         corresponding file need to be attached in the email..
+        :02/09/2018 sxg151 CCN Project Team....
+         Added code for CC_UI_BULK_LOAD_PROCESS_FAIL,HRCHY_BULK_TRANSFER_FAIL,HRCHY_BULK_INSERT_FAIL,UI_BULK_TERR_TYP_LOAD_PRCS_FAIL - ASP-975
+        :02/27/2018 axt754 CCN Project Team....
+         Added code for banking concentration cc, which are active and not having tickt/bag details
+        :03/14/2018 bxa919 CCN Project Team....
+         Added condition check for 'CCN_STORE_INFO_IN_TB' category to invoke FILE ATTACHEMENT procedure
+         in order send file as attachement
+        :03/14/2018 rxv940 CCN Project Team....
+         Removed code for mail category 'STORE_BANK_CARD_MERCHANT' and 'STORE_BANK_CARD_SERIAL'
+         - Files are getting FTP'ed
+        :03/15/2018 bxa919 CCN Project Team...
+         Added code for new mail category 'SD_90_DAY_VOID_PAY_RPT'
+        : 03/20/2018 rxv940 CCN Project Team....
+          Added mailing logic for MAIL_CATEGORY "LOAD_CCN_ADDRESS_GEO_DETAILS"
+        : 04/10/2018 nxk927
+          Added new category POS_START_DATE_EXT_LST
+        :06/22/2018 sxg151 CCN Project Team....
+         Added  code for mail category 'STORE_BANK_CARD_MERCHANT' and 'STORE_BANK_CARD_SERIAL'-- ASP-1082
+        :06/26/2018 sxg151 CCN Project Team...
+         Added New Mailing category "CCN_ACCNT_EPM_REPORT" ASP- 1075.
+        :07/11/2018 kxm302 CCN Project Team...         
+         Added New Mailing category "LOAD_SWC_PN_SQFT_INT" ASP- 1096.
+        :07/18/2018 pxa852 CCN Project Team...         
+         Added New Mailing category "'CCN_STANDARDIZED_ADDRESS_MISMATCH'" ASP-873.
+/******************************************************************************************************/
+IN_MAIL_CATEGORY VARCHAR2,
+IN_TERMINL_NUMBER IN NUMBER DEFAULT NULL,
+IN_COST_CENTER_CD IN VARCHAR2 DEFAULT NULL,
+IN_CLOB IN CLOB DEFAULT NULL
+)
+IS
+   v_mail_host   VARCHAR2 (30) := 'smtp.sherwin.com'; --'sthq.sherwin.com';
+   v_mail_conn   UTL_SMTP.connection;
+   v_recipient   VARCHAR2(32000);
+   v_index       number;
+   crlf          VARCHAR2 (2) := CHR (13) || CHR (10);
+   l_boundary1    VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE1';
+   l_boundary     VARCHAR2(50) := '-----AABCDEFBBCCC0123456789DE';
+   v_add_src      VARCHAR2(4000);
+   VTOLIST        VARCHAR2(4000);
+   v_addr         VARCHAR2(4000);
+   SLEN           NUMBER := 1;
+   V_INCOMPLETE_CC_COUNT NUMBER := 0;
+   V_WRONG_CAT_COUNT NUMBER := 0;
+   V_message     VARCHAR2(4000);
+   IN_ENVIRONMENT VARCHAR2(100);
+BEGIN
+    SELECT sys_context('USERENV','DB_NAME') INTO IN_ENVIRONMENT FROM dual;
+    IF IN_ENVIRONMENT = 'STCCND' THEN
+        IN_ENVIRONMENT := 'Development : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNT' THEN
+        IN_ENVIRONMENT := 'Test : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNQ' THEN
+        IN_ENVIRONMENT := 'QA : ';
+    ELSIF IN_ENVIRONMENT = 'STCCNP' THEN
+        IN_ENVIRONMENT := 'Production : ';
+    ELSE
+        IN_ENVIRONMENT := 'Unknown : ';
+    END IF;
+    --Loop through all the emails for this passed category code
+    --select the email IDs of all the recipients in the group based on the MAIL_CATEGORY
+    --ex: MAIL_CATEGORY = 'INCOMPLETE_CC' has a GROUP_ID of 5
+     FOR REC IN (SELECT A.*, B.MAIL_ID FROM MAILING_DETAILS A, MAILING_GROUP B
+                  WHERE A.MAIL_CATEGORY = IN_MAIL_CATEGORY
+                    AND A.group_id = b.group_id) LOOP
+      --Don't send an email if there are no incomeplete cost centers
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         BEGIN
+            SELECT COUNT(*) INTO V_INCOMPLETE_CC_COUNT
+              FROM COST_CENTER
+             WHERE GLOBAL_HIERARCHY_IND <> 'Y';
+         EXCEPTION
+            WHEN OTHERS THEN
+               V_INCOMPLETE_CC_COUNT := 0;
+         END;
+         IF V_INCOMPLETE_CC_COUNT = 0 THEN
+            EXIT;
+         END IF;
+        ELSIF IN_MAIL_CATEGORY = 'WRONG_CAT' THEN
+         BEGIN
+            SELECT COUNT(T.username) INTO V_WRONG_CAT_COUNT
+              FROM COST_CENTER C, TERR_PH_UPDATE T--TERRITORY_PH_UP t
+             WHERE UPPER(substr(T.username, 2,4)) = substr(C.cost_center_code, 3,4)
+             AND c.CATEGORY <> 'T';
+         EXCEPTION
+            WHEN OTHERS THEN
+               V_WRONG_CAT_COUNT := 0;
+         END;
+         IF V_WRONG_CAT_COUNT = 0 THEN
+            EXIT;
+         END IF;
+      END IF;
+        v_mail_conn := UTL_SMTP.open_connection (v_mail_host, 25);
+        UTL_SMTP.helo (v_mail_conn, v_mail_host);
+        UTL_SMTP.mail (v_mail_conn, rec.FROM_P);
+        IF(instr(rec.mail_id,';') = 0) THEN
+           UTL_SMTP.RCPT(V_MAIL_CONN, REC.MAIL_ID);
+           VTOLIST := REC.MAIL_ID;
+        ELSE
+           V_ADD_SRC := REC.MAIL_ID || ';';
+           WHILE(instr(v_add_src,';',slen) > 0) LOOP
+               v_addr := substr(v_add_src, slen, instr(substr(v_add_src, slen),';')-1);
+               slen := slen+instr(substr(v_add_src, slen),';');
+               vTolist := vTolist || ', ' || v_addr;
+               utl_smtp.rcpt(v_mail_conn, v_addr);
+           END LOOP;
+        END IF;
+      IF IN_MAIL_CATEGORY = 'ADD_TERMINAL' THEN
+         V_MESSAGE := REPLACE(REPLACE(REC.MESSAGE, 'XXXXX', IN_TERMINL_NUMBER), 'CCCCCC' ,IN_COST_CENTER_CD);
+      ELSIF IN_MAIL_CATEGORY = 'TAXWARE_WARNING_MESSAGE' THEN
+         V_MESSAGE := REPLACE(REC.MESSAGE, 'CCCCC', IN_COST_CENTER_CD);
+      ELSIF IN_MAIL_CATEGORY IN ('DEPOSIT_TICKET_FILE','DEPOSIT_TCKT_FTP_FAILED','DEPOSIT_BAG_FTP_FAILED') THEN
+         V_MESSAGE := REPLACE(REPLACE(REC.MESSAGE, 'CCCCCC', IN_COST_CENTER_CD),'ZZZ' ,IN_CLOB);
+      ELSIF IN_MAIL_CATEGORY IN( 'BG_PROCESSES_FAILURE','ALL_BG_PROCESSES_EXECUTING','POLLING_FAILURE_MAIL','FTPFAILURE', 'ARCHIVINGPROCESSFAILURE', 'RequestidFailure', 'DESCARTES_ADDR_FEED_FAIL') THEN
+         V_MESSAGE := IN_CLOB;
+      ELSIF IN_MAIL_CATEGORY IN( 'DEP_BAGORD_ERROR_RPT','DEP_TICKORD_ERROR_RPT' ) THEN
+         IF IN_CLOB <> EMPTY_CLOB() THEN
+            V_MESSAGE := REC.MESSAGE;
+         ELSE
+            V_MESSAGE := 'Today''s batch completed with No errors.';
+         END IF;
+      ELSE
+         V_MESSAGE := REC.MESSAGE;
+      END IF;
+      UTL_SMTP.open_data(v_mail_conn);
+      --Set the required message paremeters
+      UTL_SMTP.write_data(v_mail_conn, 'Date: ' || TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS') || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'To: ' || vTolist || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'From: ' || rec.FROM_P || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Subject: ' || IN_ENVIRONMENT || rec.SUBJECT || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'MIME-Version: 1.0' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: multipart/mixed; boundary="' || l_boundary || '"' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+      --Boundary should be set for this email body
+      UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary1 || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+      UTL_SMTP.write_data(v_mail_conn, 'Hi All' || crlf || crlf
+                                       || V_MESSAGE  || CRLF || CRLF
+                                       || 'Please let us know if there are any issues.' || CRLF || CRLF
+                                       || REC.SIGNATURE || CRLF);
+      IF IN_MAIL_CATEGORY = 'INCOMPLETE_CC' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Number, Cost Center Name,' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         FOR rec IN (SELECT COST_CENTER_CODE, COST_CENTER_NAME FROM COST_CENTER WHERE GLOBAL_HIERARCHY_IND <> 'Y') LOOP
+            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.COST_CENTER_NAME || ',' || UTL_TCP.crlf);
+         END LOOP;
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'WRONG_CAT' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Number, Category, UserName' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         FOR rec IN (SELECT UPPER(substr(T.username, 2,4)) USERNAME,
+                            C.CATEGORY AS CATEGORY,
+                            C.COST_CENTER_CODE
+                       FROM TERR_PH_UPDATE T, cost_center C
+                      WHERE  UPPER(substr(T.username, 2,4)) = substr(C.cost_center_code, 3,4)
+                        AND c.CATEGORY <> 'T') LOOP
+            UTL_SMTP.write_data(v_mail_conn, rec.COST_CENTER_CODE || ',' || rec.CATEGORY || ',' || rec.USERNAME || ',' || UTL_TCP.crlf);
+         END LOOP;
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('HIER_TRNSFR_TERRITORY', 'HIER_TRNSFR_DAD_CHNG_TERRITORY') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'From Hierarchy, To Hierarchy, Cost Center Code' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_PAIDS_LOAD_ERRORS', 'SD_DRFT_LOAD_ERRORS') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Cost Center Code, Error' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_DAILY_RECONCILIATION') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Serial #, Calculated Item Name, Calculated Item Value' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_DLY_SNTRST_MAINT','SD_DLY_SNTRST_AUDIT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('JOB_CODE_TRANSALATION') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'Job Title, Job Family, Job Type' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('CAN_NON_AUTO_DRAFT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'DLY_DRAFT_CAN_NAM'|| TO_CHAR(TRUNC(SYSDATE),'MMDDRRRR') || '"' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, IN_CLOB || UTL_TCP.CRLF);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('CAN_AUTO_DRAFT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'DLY_DRAFT_CAN_AM'|| TO_CHAR(TRUNC(SYSDATE),'MMDDRRRR') || '"' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, IN_CLOB || UTL_TCP.CRLF);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('DAD_COMPARISON_FILE') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || 'export_' || replace(to_char(trunc(sysdate),'dd-Mon-yyyy'),'-', '') || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, DAD_GIVEN, DAD_ACTUAL, DAD, POLLING_GIVEN, POLLING_ACTUAL, POLLING_STATUS, CURRENCY_GIVEN, CURRENCY_ACTUAL, CURRENCY_CODE, ACTIVE_INACTIVE, CATEGORY, LEGACY_DIVISION_GIVEN, LEGACY_DIVISION_ACTUAL, LEGACY_DIVISION_STATUS' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('OUTSTANDING_DRAFT_EXC_C101', 'OUTSTANDING_DRAFT_EXC_C400') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY  || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE,STORE_NUMBER,CHECK_SERIAL_NUMBER,TRANSACTION_DATE,TERMINAL_NUMBER,TRANSACTION_NUMBER,CUSTOMER_ACCOUNT_NUMBER,CUSTOMER_JOB_NUMBER,PAYEE_NAME,NET_AMOUNT,POS_TRANSACTION_CODE' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_1099_NO_VNDR_ON_BNK_TP_RPRT', 'SD_1099_MTCHD_PRCSNG_RPRT','SD_1099_NO_MTCHD_VENDOR_RPRT', 'SD_1099_TXPYR_ID_AP_TRNS_CRT', 'SD_1099_QRTLY_RPT', 'SD_90_DAY_STOP_PAY_RPT','SD_90_DAY_VOID_PAY_RPT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY  || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+      ELSIF IN_MAIL_CATEGORY IN ('INSTALLER_RETAINAGE_REFUND') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY  || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+      ELSIF IN_MAIL_CATEGORY IN ('SD_GAINLOSS_UNBOOKED_RPRT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY  || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, PL_GAIL_LOSS, BOOK_DATE' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('NEWLY_CRTD_COST_CENTER') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'NWLY_CRTED_COST_CENTER, COST_CENTER_NAME, OPEN_DATE ' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('STORE_BANK_DPST_RECON_DT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header fot the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, CENTURY, BANK_DEP_AMT, BANK_ACCOUNT_NBR, BANK_AUTO_REC_IND, TRANSACTION_DATE, LOAD_DATE ' ||  UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('DEP_TICKORD_EXC_RPT', 'DEP_BAG_TICKORD_EXC_RPT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SELLING_STORES_MAIL_USA','SELLING_STORES_MAIL_CAN') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn,IN_CLOB);
+
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      --Do not go into below condition if the input clob is empty as we should not attach anything
+      ELSIF IN_MAIL_CATEGORY IN ('DEP_BAGORD_ERROR_RPT','DEP_TICKORD_ERROR_RPT') AND IN_CLOB <> EMPTY_CLOB() THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STOREDRAFTS_RECONCILE_FILES_GEN' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      -- added mail category for Bank reconcile diff file process.
+      ELSIF IN_MAIL_CATEGORY = 'BANKING_RECONCILE_FILES_GEN' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      ELSIF IN_MAIL_CATEGORY = 'MONTHLY_REPORTS_RUN_BP' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.txt' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_MAIL' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);  
+      ELSIF IN_MAIL_CATEGORY = 'STORE_PDH_HRCHY_ERROR' THEN
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.txt' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STORE_BANK_CARD_MERCHANT' THEN-- ASP-1082
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="merchtb.dat"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STORE_BANK_CARD_SERIAL' THEN -- ASP-1082
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.dat' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'STORE_BANK_CARD_ERROR' THEN
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.txt' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'PRICE_DIST_FUTURE_HIER' THEN  --ASP_802
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('ACH_DRAFT_BNK_ACT_MISMTH_RPT','MISCTRAN_BNK_ACT_MISMTH_RPT','OVERSHRT_BNK_ACT_MISMTH_RPT','SUMMARY_BNK_ACT_MISMTH_RPT') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, BANK_ACCOUNT_NBR, ORIGINATED_BANK_ACCNT_NBR ' ||  UTL_TCP.crlf);
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'DEP_BAG_TICK_ONHAND_QTY_RPT' THEN    --ASP_805
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'DEP_TICK_ONHAND_QTY_RPT' THEN   --ASP_805
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('SRA11000_MISSING_CC') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Header for the excel that is being sent
+         UTL_SMTP.write_data(v_mail_conn, 'COST_CENTER_CODE, ORIGINATED_BANK_ACCNT_NBR ' ||  UTL_TCP.crlf);
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY IN ('PD_HRCHY_BULK_INSERT_FAIL', 'PD_HRCHY_BULK_TRANSFER_FAIL','CC_UI_BULK_LOAD_PROCESS_FAIL','HRCHY_BULK_TRANSFER_FAIL','HRCHY_BULK_INSERT_FAIL','UI_BULK_TERR_TYP_LOAD_PRCS_FAIL') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'DESCARTES_HRCHY_FILE_ERROR' THEN
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '.txt' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, IN_CLOB || ',' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'CCN_MAPS_FEED' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      ELSIF IN_MAIL_CATEGORY IN ('CC_TCKTS_NOT_EXISTS','CC_TCKT_BAG_NOT_EXISTS') THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY || '_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'CCN_STORE_INFO_IN_TB' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      ELSIF IN_MAIL_CATEGORY = 'LOAD_CCN_ADDRESS_GEO_DETAILS' THEN
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      ELSIF IN_MAIL_CATEGORY = 'CCN_ACCNT_EPM_REPORT' THEN   --ASP-1075
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn);
+      ELSIF IN_MAIL_CATEGORY = 'CCN_STANDARDIZED_ADDRESS_MISMATCH' THEN
+         FILE_ATTACHMENTS(IN_MAIL_CATEGORY,v_mail_conn); 
+      ELSIF IN_MAIL_CATEGORY = 'POS_START_DATE_EXT_LST' THEN
+         --Boundary should be set for this email to attach an excel
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, 'Content-Type: text/plain' || UTL_TCP.CRLF);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Disposition: attachment; filename="' || IN_MAIL_CATEGORY ||'_' || TO_CHAR(SYSDATE,'MMDDYYYYHHMMSS') || '.csv' || '"' || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, UTL_TCP.crlf);
+         --Content for the excel that is being sent
+         WRITE_CLOB(v_mail_conn, IN_CLOB);
+      ELSIF IN_MAIL_CATEGORY = 'LOAD_SWC_PN_SQFT_INT' THEN  
+         UTL_SMTP.write_data(v_mail_conn, '--' || l_boundary || UTL_TCP.crlf);
+         UTL_SMTP.write_data(v_mail_conn, 'Content-Type: text/plain' || UTL_TCP.crlf);
+         UTL_SMTP.WRITE_DATA(V_MAIL_CONN, '--' || L_BOUNDARY || '--' || UTL_TCP.CRLF);
+      END IF ; 	 
+      UTL_SMTP.close_data(v_mail_conn);
+      UTL_SMTP.quit (v_mail_conn);
+   END LOOP;
+EXCEPTION
+   WHEN UTL_SMTP.transient_error OR UTL_SMTP.permanent_error
+   THEN
+      raise_application_error (-20000, 'Unable to send mail: ' || SQLERRM);
+END SEND_MAIL;
+END MAIL_PKG;
