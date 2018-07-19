@@ -4,7 +4,7 @@
 # Description   : This script will FTP the Store Bank Card File to SMIS Server.
 #
 # Created  	: 03/06/2018 sxg151 CCN Project Team.....
-# Modified      : 07/19/2018 sxg151 CCN Project Team..... Removed "Binary" while FTPing ASP-1082.
+# Modified      : 07/19/2018 sxg151 CCN Project Team..... Removed "Binary" Binary replacing CRLF to LF while FTPing to Window server Which is messing the line alignments.
 ###############################################################################################################################
 . /app/ccn/host.sh
 
