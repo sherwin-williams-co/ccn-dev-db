@@ -12,14 +12,15 @@
 # 4. call the script that will FTP the time stamped file to the mainframe
 #
 # Date Created: 10/25/2012 TAL
-# Date Updated: 
-#
+# Date Updated: 07/19/2018 kxm302 CCN Project....
+#               Removed moving backfeed files process as no files created as per audit process
+#               cleanup in cost center
 ##########################################################################################
 
 echo " begin audit_load.sh script"
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. `cut -d/ -f1-4 <<<"${PWD}"`/ccn.config
+. /app/ccn/host.sh
 
 # establish parameter names for this script
 PROC="audit_load.sql"
@@ -54,10 +55,6 @@ if test $status -ne 0
      TIME=`date +"%H:%M:%S"`
      echo " processing of $PROC failed at ${TIME} on ${DATE}"
      exit 1;
-else
-   #move all the datafiles for backFeed to current
-   mv `find $DATAFILES/*_backfeed* -type f` $CUR_DIR
-   echo " Successfully moved datafiles to current at ${TIME} on ${DATE} "
 fi
 
 echo "ending audit_load.sh script "

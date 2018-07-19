@@ -14,6 +14,8 @@
 # Revised           :  SH  06/20/2013
 #                   :  sxh487 09/16/2015 Added the concatenation for CCN and Banking backfeed 
 #                   :  sxh487 09/17/2015 Moved the audit_ftp.sh outside this script
+#                   :  kxm302 7/19/2018  CCN Project...
+#                      Removed Concate Backfeed files  as per audit process cleanup in CCN
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -40,23 +42,6 @@ if test $status -ne 0
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
-
-##############################################################################
-#  Execute Backfeed_CAT.sh to Concatenate all the files in order to send to MF
-##############################################################################
-echo "Concatenating Started at ${TIME} on ${DATE}"
-./Backfeed_CAT.sh
-##############################################
-#    ERROR STATUS CHECK Backfeed_CAT.sh 
-##############################################
-status=$?
-if test $status -ne 0
-   then
-     echo "processing FAILED for Backfeed_CAT at ${TIME} on ${DATE}"
-     exit 1;
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Processing Finished for Backfeed_CAT at ${TIME} on ${DATE}"
 
 ############################################################################
 #   execute incomplete_cc.sh shell to send Incomplete cost centers to specified people
