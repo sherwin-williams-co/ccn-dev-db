@@ -12,7 +12,9 @@
 #                audit_ftp.sh   -->  Move and FTP the BackFeed File to the CCN DB Server
 #
 # Created : 09/16/2015 jxc517 CCN Project....
-# Revised :
+# Revised : 7/19/2018  kxm302 CCN Project...
+#           Removed Concate Backfeed files and FTP to CCN DB Server as per audit process cleanup
+#           in Banking
 ##############################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -40,44 +42,6 @@ fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
 
-echo "Processing Started for concatenation process at ${TIME} on ${DATE}"
-##############################################################################
-#  Execute Backfeed_CAT.sh to Concatenate all the files in order to send to MF
-##############################################################################
-echo "Concatenating Started at ${TIME} on ${DATE}"
-./Backfeed_CAT.sh
-##############################################
-#    ERROR STATUS CHECK Backfeed_CAT.sh 
-##############################################
-status=$?
-if test $status -ne 0
-   then
-     echo "processing FAILED for Backfeed_CAT at ${TIME} on ${DATE}"
-     exit 1;
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Processing Finished for concatenation  at ${TIME} on ${DATE}"
-
-echo "Processing Started for audit_ftp at ${TIME} on ${DATE}"
-############################################################################
-#   execute audit_ftp.sh shell to send CCN Backfeed File to CCN DB Server
-############################################################################
-./audit_ftp.sh
-##############################################
-#    ERROR STATUS CHECK audit_ftp shell
-##############################################
-status=$?
-if test $status -ne 0
-   then
-     TIME=`date +"%H:%M:%S"`
-     echo "processing FAILED for audit_ftp at ${TIME} on ${DATE}"
-     exit 1;
-fi
-TIME=`date +"%H:%M:%S"`
-echo "Processing Finished for audit_ftp at ${TIME} on ${DATE}"
-
-echo "Processing finished for backfeed process at ${TIME} on ${DATE}"  
-exit 0
 ############################################################################
 #                     END  of  PROGRAM  
 ############################################################################

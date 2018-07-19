@@ -11,7 +11,9 @@
 # 4. call the script that will FTP the time stamped file to the CCN DB Server
 #
 # Created : 09/16/2015 jxc517 CCN Project....
-# Revised :
+# Revised : 07/19/2018 kxm302 CCN Project....
+#           Removed moving backfeed files process as no files created as per audit process
+#           cleanup in Banking
 ##########################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
@@ -41,11 +43,6 @@ if test $status -ne 0
      TIME=`date +"%H:%M:%S"`
      echo " processing of $PROC failed at ${TIME} on ${DATE}"
      exit 1;
-else
-   #move all the initLoad for backFeed to current
-   mv `find $DATAFILES/*_backfeed* -type f` $CUR_DIR
-   TIME=`date +"%H:%M:%S"`
-   echo " Successfully moved backfeed files in initLoad folder to current at ${TIME} on ${DATE} "
 fi
 
 echo "Processing Finished for $PROC at $TIME on $DATE"
