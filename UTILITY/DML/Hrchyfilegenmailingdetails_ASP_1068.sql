@@ -15,7 +15,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('113','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('CCN_HRCHY_MAIL',
+values ('CCN_HIERARCHY_FILE_MAIL',
         '113',
         'Report for all Hierarchy types of a Cost Center',
         'ccnoracle.team@sherwin.com',
@@ -24,7 +24,7 @@ values ('CCN_HRCHY_MAIL',
 
 -- INSERTING into MAILING_FILE_DETAILS
 
-Insert into MAILING_FILE_DETAILS values (1,'113','CCN_HRCHY_MAIL','CCN_DATAFILES','A');
+Insert into MAILING_FILE_DETAILS values (1,'113','CCN_HIERARCHY_FILE_MAIL','CCN_DATAFILES','A');
         
 
 commit;
