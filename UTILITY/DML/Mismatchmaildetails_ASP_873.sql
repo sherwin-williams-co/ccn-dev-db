@@ -15,7 +15,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('118','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('STANDARDIZED_ADDRESS_MISMATCH_MAIL',
+values ('CCN_STANDARDIZED_ADDRESS_MISMATCH',
         '118',
         'CCN and data services standardized address mismatch',
         'ccnoracle.team@sherwin.com',
