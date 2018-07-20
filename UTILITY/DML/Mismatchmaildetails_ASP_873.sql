@@ -22,8 +22,5 @@ values ('STANDARDIZED_ADDRESS_MISMATCH_MAIL',
         'Attached are the list of cost centers whose standardized address in CCN do not match data services.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
--- INSERTING into MAILING_FILE_DETAILS
-
-Insert into MAILING_FILE_DETAILS values (1,'118','STANDARDIZED_ADDRESS_MISMATCH_MAIL','CCN_DATAFILES','A');        
 
 commit;

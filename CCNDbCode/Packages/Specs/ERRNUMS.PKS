@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999ï¿½.
+An error occurs when Amex ID is = `999999999¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `yï¿½.
+An error occurs when inventory_id not = `y¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Yï¿½ or `Nï¿½.
+An error occurs when Polling_Ind not = `Y¿ or `N¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -3173,5 +3173,16 @@ en_invalid_pot_open_dt_err CONSTANT NUMBER := -20204;
 exc_invalid_pot_open_dt_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pot_open_dt_err , -20204);
+
+/***********************************************************
+The "en_standardized_addr_chng_err" passes a numerical error of -20205.
+If Standardized address is updated from address window
+
+created :  07/18/2018 pxa852 CCN Project Team...
+************************************************************/
+en_standardized_addr_chng_err      CONSTANT NUMBER := -20205;
+exc_standardized_addr_chng_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_standardized_addr_chng_err , -20205);
 
 END ERRNUMS;
