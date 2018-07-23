@@ -3,8 +3,6 @@
   CREATED : 04/27/2018 sxg151 CCN Project...ASP 867
 *******************************************************************************/
 
---Deleting the POTENTIAL_OPEN_DATE column from COST_CENTER table .
-Alter table COST_CENTER DROP COLUMN POTENTIAL_OPEN_DATE;
 
 --Adding the POTENTIAL_OPEN_DATE column in STORE table. 
 ALTER TABLE STORE ADD POTENTIAL_OPEN_DATE DATE;
