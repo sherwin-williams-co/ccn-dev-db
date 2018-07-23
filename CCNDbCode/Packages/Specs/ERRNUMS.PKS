@@ -95,7 +95,7 @@ en_non_numeric_err CONSTANT NUMBER := -20005;
 exc_non_numeric_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_non_numeric_err , -20005);                           
-
+                             
 /*********************************************************** 
 The "invalid_merchid_err" passes a numerical error of -20006.
 The invalid merchant ID is generataed by our Business Rules process
@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999Â¿.
+An error occurs when Amex ID is = `999999999¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `yÂ¿.
+An error occurs when inventory_id not = `y¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
+An error occurs when Polling_Ind not = `Y¿ or `N¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -1109,7 +1109,7 @@ The "no_emp_data_err" passes a numerical error of -20080.
 This error will check to make sure that the Sales Rep has
 a valid GEMS record (EMP_DATA) and that the Sales Rep's
 Payroll status is "Active"
-
+                                               
 created : 08/3/2012 cbd CCN Project
 revisions: 
 
@@ -2020,7 +2020,7 @@ PRAGMA EXCEPTION_INIT
 The "no_migrations_detaill_err" passes a numerical error of -20149.
 This error will check to make sure that there is one or more
 MIGRATIONS_DETAIL rows for each MIGRATIONS_HEADER record processed.
-
+                                                      
 created : 02/11/2013 cbd CCN Project
 revisions: 
 
@@ -2034,7 +2034,7 @@ PRAGMA EXCEPTION_INIT
 The "migration_update_err" passes a numerical error of -20150.
 An error occurs when migration_id and environment keys
 do not match  Migration_Header and Migration_Detail tables. 
-
+                                                      
 created : 02/13/2013 cbd CCN Project
 revisions: 
 
@@ -2646,7 +2646,7 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/*********************************************************** 
+/***********************************************************
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place
@@ -2873,6 +2873,39 @@ exc_invalid_terminal_count_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 /***********************************************************
+The "invalid_accnt_nbr_err" passes a numerical error of -20179.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/02/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_accnt_nbr_err CONSTANT NUMBER := -20179;
+exc_invalid_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_accnt_nbr_err , -20179);
+
+/***********************************************************
+The "invalid_prog_name_err" passes a numerical error of -20180.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_prog_name_err CONSTANT NUMBER := -20180;
+exc_invalid_prog_name_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_prog_name_err , -20180);
+
+/***********************************************************
+The "prog_name_del_err" passes a numerical error of -20181.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_prog_name_del_err CONSTANT NUMBER := -20181;
+exc_prog_name_del_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
+
+/***********************************************************
 The "no_address_element_err" passes a numerical error of -20182.
 An error occurs when cost center insert or update do not have address element.
 
@@ -2884,11 +2917,11 @@ exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
 /*********************************************************** 
-The "EN_CSTMR_ACCNTS_CLOSE_ERR" passes a numerical error of -20185.
+The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
 which are present in CUSTOMER_TAXID_VW_COSTCNTR Table 
 
-created : 11/13/2017 bxa919  CCN Project Team...
+created : 11/17/2017 bxa919  CCN Project Team...
 revisions: 
 ************************************************************/
 en_cstmr_accnts_close_err      CONSTANT NUMBER := -20185;
@@ -2999,7 +3032,6 @@ en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20193;
 exc_invld_pci_merch_mc_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_merch_mc_sz_err , -20193);
-
 /*********************************************************** 
 The "null_prm_std_cost_idntfr" passes a numerical error of -20199.
 An error occurs when PRIM / STD cost identifier is null for a 
