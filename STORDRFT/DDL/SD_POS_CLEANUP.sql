@@ -1,3 +1,7 @@
+/*
+Created : nxk927 07/23/2018
+          cleaning up all store drafts. Removing all the pos tables and packages as we don't need them any more
+*/
 DROP TABLE POS_CUSTOMER_BANK_CARD;
 DROP TABLE POS_CUSTOMER_DETAILS;
 DROP TABLE POS_CUSTOMER_FORM_OF_PAY;
