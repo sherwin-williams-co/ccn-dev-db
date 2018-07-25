@@ -41,7 +41,7 @@ if test $status -ne 0
 fi
 TIME=`date +"%H:%M:%S"`
 echo "Processing Finished for audit_load at ${TIME} on ${DATE}"
-
+exit 0
 ############################################################################
 #                     END  of  PROGRAM  
 ############################################################################
