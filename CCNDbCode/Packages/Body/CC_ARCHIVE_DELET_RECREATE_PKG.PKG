@@ -250,5 +250,98 @@ EXCEPTION
       RAISE;
 END PROCESS;
 
-END CC_ARCHIVE_DELET_RECREATE_PKG;
+PROCEDURE EXECUTE_DYNAMIC_SQL_COMMAND(
+IN_SQL_COMMAND VARCHAR2)
+IS
+BEGIN
+    EXECUTE IMMEDIATE IN_SQL_COMMAND;
+END EXECUTE_DYNAMIC_SQL_COMMAND;
 
+PROCEDURE CRT_LD_ARC_BU_TBL_FRM_ARC_TBL (
+/*******************************************************************************
+This procedure is intended to create backup table and insert archive table data into backup table.
+
+Created : 07/24/2018 pxa852 Address Object....
+Changed :
+*******************************************************************************/
+      IN_ARCIVE_TABLE_NAME      IN     VARCHAR2)
+IS
+BEGIN
+    --create archive backup table. creating this table for taking backup of archive table data.
+    EXECUTE_DYNAMIC_SQL_COMMAND('CREATE TABLE ' || IN_ARCIVE_TABLE_NAME || '_BU' || ' AS SELECT * FROM ' || IN_ARCIVE_TABLE_NAME || ' WHERE 1=2');
+    -- insert archive table data into backup table. Storing the archive table data into a backup table.
+    EXECUTE_DYNAMIC_SQL_COMMAND('INSERT INTO ' || IN_ARCIVE_TABLE_NAME || '_BU' || ' SELECT * FROM ' || IN_ARCIVE_TABLE_NAME);
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'CRT_LD_ARC_BU_TBL_FRM_ARC_TBL', SQLERRM, SQLCODE);
+END CRT_LD_ARC_BU_TBL_FRM_ARC_TBL;
+
+PROCEDURE DRP_RECRT_ARC_TBL_FRM_ACTL_TB (
+/*******************************************************************************
+This procedure is intended to drop the archive table, recreate it
+
+Created :07/24/2018 pxa852 Address Object....
+Changed :
+*******************************************************************************/
+      IN_ARCIVE_TABLE_NAME      IN     VARCHAR2)
+AS
+BEGIN
+    --drop archive table
+    EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || IN_ARCIVE_TABLE_NAME);
+    -- recreate archive table with the new fields
+    EXECUTE_DYNAMIC_SQL_COMMAND('CREATE TABLE ' || IN_ARCIVE_TABLE_NAME || ' AS SELECT * FROM ' || SUBSTR(IN_ARCIVE_TABLE_NAME, 5) || ' WHERE 1=2');
+    -- alter archive table to add archive date column
+    EXECUTE_DYNAMIC_SQL_COMMAND('ALTER TABLE ' || IN_ARCIVE_TABLE_NAME || ' ADD ARCHIVE_DATE DATE');
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'DRP_RECRT_ARC_TBL_FRM_ACTL_TB', SQLERRM, SQLCODE);
+END DRP_RECRT_ARC_TBL_FRM_ACTL_TB;
+
+PROCEDURE LD_RCRTD_ARC_TBL_FRM_ARC_BU (
+/*******************************************************************************
+This procedure is intended load the data into archive table from backup table
+
+Created :07/24/2018 pxa852 Address Object....
+Changed :
+*******************************************************************************/
+      IN_ARCIVE_TABLE_NAME      IN     VARCHAR2)
+AS
+      V_COLUMNS                 VARCHAR2(2000);
+BEGIN
+    -- take all the columns names from backup table and store it in a variable
+    FOR rec in (SELECT * FROM USER_TAB_COLUMNS WHERE TABLE_NAME = IN_ARCIVE_TABLE_NAME || '_BU' ORDER BY COLUMN_ID) LOOP
+        V_COLUMNS := V_COLUMNS || ',' || rec.COLUMN_NAME;
+    END LOOP;
+    -- insert backup table data into archive table.
+    EXECUTE_DYNAMIC_SQL_COMMAND('INSERT INTO ' || IN_ARCIVE_TABLE_NAME || ' (' || SUBSTR(V_COLUMNS,2) || ') ' ||
+                                'SELECT ' || SUBSTR(V_COLUMNS,2) || ' FROM ' || IN_ARCIVE_TABLE_NAME || '_BU');
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'LD_RCRTD_ARC_TBL_FRM_ARC_BU', SQLERRM, SQLCODE);
+END LD_RCRTD_ARC_TBL_FRM_ARC_BU;
+
+PROCEDURE CREATE_TEMP_ARCHIVE_TABLES_SP (
+/*******************************************************************************
+This procedure is intended to create backup table and insert archive table data into backup table.
+Also, call another procedure which will drop the archive table and recreate it with new fields.
+
+Created : 07/24/2018 pxa852 Address Object....
+Changed :
+*******************************************************************************/
+      IN_ARCIVE_TABLE_NAME      IN     VARCHAR2)
+AS
+BEGIN
+    --Create archive backup table and load archive table data into backup table
+    CRT_LD_ARC_BU_TBL_FRM_ARC_TBL(IN_ARCIVE_TABLE_NAME);
+    --drop archive table and recreate it using actual table
+    DRP_RECRT_ARC_TBL_FRM_ACTL_TB(IN_ARCIVE_TABLE_NAME);
+    --insert the backup table data into archive table
+    LD_RCRTD_ARC_TBL_FRM_ARC_BU(IN_ARCIVE_TABLE_NAME);
+    --Drop backup table
+    EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || IN_ARCIVE_TABLE_NAME || '_BU');
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'CREATE_TEMP_ARCHIVE_TABLES_SP', SQLERRM, SQLCODE);
+END CREATE_TEMP_ARCHIVE_TABLES_SP;
+
+END CC_ARCHIVE_DELET_RECREATE_PKG;
