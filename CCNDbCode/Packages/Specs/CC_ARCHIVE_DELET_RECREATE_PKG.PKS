@@ -12,7 +12,7 @@ TYPE REF_CURSOR IS REF CURSOR;
 PROCEDURE PROCESS
 /**********************************************************
   This procedure is the core procedure that gets invoked
-	for bulk cost center deletions from CCN application
+  for bulk cost center deletions from CCN application
   
   We need to archive the existing cost center details
   Delete the exisitng cost center details
@@ -33,6 +33,5 @@ Created :  07/24/2018 pxa852 Address Object....
 Changed :
 *******************************************************************************/
 ;
-
 
 END CC_ARCHIVE_DELET_RECREATE_PKG;

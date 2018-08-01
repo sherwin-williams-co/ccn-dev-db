@@ -251,7 +251,13 @@ EXCEPTION
 END PROCESS;
 
 PROCEDURE EXECUTE_DYNAMIC_SQL_COMMAND(
-IN_SQL_COMMAND VARCHAR2)
+/*******************************************************************************
+This procedure is used to execute SQL statements dynamically.
+
+Created : 07/24/2018 pxa852 Address Object....
+Changed :
+*******************************************************************************/
+     IN_SQL_COMMAND VARCHAR2)
 IS
 BEGIN
     EXECUTE IMMEDIATE IN_SQL_COMMAND;
@@ -259,7 +265,7 @@ END EXECUTE_DYNAMIC_SQL_COMMAND;
 
 PROCEDURE CRT_LD_ARC_BU_TBL_FRM_ARC_TBL (
 /*******************************************************************************
-This procedure is intended to create backup table and insert archive table data into backup table.
+This procedure is intended to create backup table with the archive table data.
 
 Created : 07/24/2018 pxa852 Address Object....
 Changed :
@@ -268,9 +274,7 @@ Changed :
 IS
 BEGIN
     --create archive backup table. creating this table for taking backup of archive table data.
-    EXECUTE_DYNAMIC_SQL_COMMAND('CREATE TABLE ' || IN_ARCIVE_TABLE_NAME || '_BU' || ' AS SELECT * FROM ' || IN_ARCIVE_TABLE_NAME || ' WHERE 1=2');
-    -- insert archive table data into backup table. Storing the archive table data into a backup table.
-    EXECUTE_DYNAMIC_SQL_COMMAND('INSERT INTO ' || IN_ARCIVE_TABLE_NAME || '_BU' || ' SELECT * FROM ' || IN_ARCIVE_TABLE_NAME);
+    EXECUTE_DYNAMIC_SQL_COMMAND('CREATE TABLE ' || IN_ARCIVE_TABLE_NAME || '_BU' || ' AS SELECT * FROM ' || IN_ARCIVE_TABLE_NAME);
 EXCEPTION
     WHEN OTHERS THEN
         COMMON_TOOLS.LOG_ERROR('000000', 'CRT_LD_ARC_BU_TBL_FRM_ARC_TBL', SQLERRM, SQLCODE);
@@ -305,7 +309,7 @@ This procedure is used to convert the data if the data type of a column is chang
 If data type of a column is changed to number from varchar, used to_number function to convert the varchar data to number
 and insert the data into archive table.
 If data type of a column is changed to varchar from number, then used to_char function to convert number to a character
-If data type of a clumn is changed to date, then used to_date function to convert it to a date format.
+If data type of a column is changed to date, then used to_date function to convert it to a date format.
 
 Created :07/24/2018 pxa852 Address Object....
 Changed :
@@ -318,12 +322,15 @@ Changed :
 AS
       V_COL_DATA_TYPE                USER_TAB_COLUMNS.DATA_TYPE%TYPE;
 BEGIN
+    --store the data type of a archive table column in a variable and use it when comparing with the datatype of a column in backup table
     SELECT DATA_TYPE
       INTO V_COL_DATA_TYPE
       FROM USER_TAB_COLUMNS
     WHERE TABLE_NAME = IN_ARCIVE_TABLE_NAME
       AND COLUMN_NAME=IN_COLUMN_NAME;
-
+    --if new data type is varchar2 then append to_char function to column name.
+    --if new data type is number then append to_number function to column name.
+    --if new data type is date then append to_date function to column name.
     IF IN_DATA_TYPE <> V_COL_DATA_TYPE THEN
        IF V_COL_DATA_TYPE     = 'VARCHAR2' THEN
           OUT_COLUMN_VALUE   := 'TO_CHAR(' || IN_COLUMN_NAME ||')';
@@ -344,7 +351,7 @@ END DT_MISMAT_COL_BW_BU_ACT_TBLS;
 
 PROCEDURE LD_RCRTD_ARC_TBL_FRM_ARC_BU (
 /*******************************************************************************
-This procedure is intended load the data into archive table from backup table
+This procedure is intended to load the data into archive table from backup table
 
 Created :07/24/2018 pxa852 Address Object....
 Changed :
@@ -356,8 +363,10 @@ AS
       V_INSERT_COLUMNS                 VARCHAR2(2000);
       V_OUT_COLUMN                     VARCHAR2(2000);
 BEGIN
-    -- take all the columns names from backup table and store it in a variable
+    -- Loop through all column names in a backup table and concatenate all columns seperated by comma and store it in a variable.
     FOR rec in (SELECT * FROM USER_TAB_COLUMNS WHERE TABLE_NAME = IN_ARCIVE_TABLE_NAME || '_BU' ORDER BY COLUMN_ID) LOOP
+             -- this procedure will check if datatype changes or not.
+             -- if it changes, append the conversion function to covert the data when loading into archive table.
              DT_MISMAT_COL_BW_BU_ACT_TBLS (IN_ARCIVE_TABLE_NAME, rec.COLUMN_NAME, rec.DATA_TYPE, V_OUT_COLUMN);
              V_SELECT_COLUMNS := V_SELECT_COLUMNS || ',' || V_OUT_COLUMN;
              V_INSERT_COLUMNS := V_INSERT_COLUMNS || ',' || rec.COLUMN_NAME;
@@ -376,8 +385,9 @@ PROCEDURE RECREATE_MISMTCH_ARCHV_TBL_SP
 This procedure will compare actual tables and archive tables and find out the tables
 which has new fields added and consider them further process.
 This procedure will also call other procedures which will
-create backup table and insert archive table data into backup table.
-drop the archive table and recreate it with new fields.
+create backup table and insert archive table data into backup table(taking backup
+of archive table before dropping and recreating it).
+then drop the archive table and recreate it with new fields.
 Load the backup table data into archive table.
 drop the backup table.
 
@@ -386,21 +396,22 @@ Changed :
 *******************************************************************************/
 AS
 BEGIN
-    FOR rec in (SELECT DISTINCT 'ARC_'||A.TABLE_NAME TABLE_NAME
-                  FROM USER_TAB_COLUMNS A,
-                       USER_TAB_COLUMNS B
-                WHERE A.TABLE_NAME  = SUBSTR(B.TABLE_NAME(+), 5)
-                  AND A.COLUMN_NAME = B.COLUMN_NAME(+)
-                  AND A.COLUMN_ID   = B.COLUMN_ID(+)
-                  AND A.DATA_TYPE   = B.DATA_TYPE(+)
-                  AND B.TABLE_NAME IS NULL
-                  AND B.COLUMN_NAME IS NULL
-                  AND A.TABLE_NAME IN (SELECT SUBSTR(TABLE_NAME, 5) FROM USER_TABLES WHERE TABLE_NAME LIKE 'ARC%')) LOOP
+    FOR rec in (SELECT DISTINCT 'ARC_' || ACTL_TBL.TABLE_NAME TABLE_NAME
+                  FROM USER_TAB_COLUMNS ACTL_TBL,
+                       USER_TAB_COLUMNS ARCHV_TBL
+                WHERE ACTL_TBL.TABLE_NAME  = SUBSTR(ARCHV_TBL.TABLE_NAME(+), 5)
+                  AND ACTL_TBL.COLUMN_NAME = ARCHV_TBL.COLUMN_NAME(+)
+                  AND ACTL_TBL.COLUMN_ID   = ARCHV_TBL.COLUMN_ID(+)
+                  AND ACTL_TBL.DATA_TYPE   = ARCHV_TBL.DATA_TYPE(+)
+                  AND ARCHV_TBL.TABLE_NAME IS NULL
+                  AND ARCHV_TBL.COLUMN_NAME IS NULL
+                  AND ACTL_TBL.TABLE_NAME <> 'AUDIT_LOG'
+                  AND ACTL_TBL.TABLE_NAME IN (SELECT SUBSTR(TABLE_NAME, 5) FROM USER_TABLES WHERE TABLE_NAME LIKE 'ARC%')) LOOP
         --Create archive backup table and load archive table data into backup table
         CRT_LD_ARC_BU_TBL_FRM_ARC_TBL(rec.TABLE_NAME);
         --drop archive table and recreate it using actual table
         DRP_RECRT_ARC_TBL_FRM_ACTL_TB(rec.TABLE_NAME);
-        --insert the backup table data into archive table
+        --insert the backup table data into archive table.
         LD_RCRTD_ARC_TBL_FRM_ARC_BU(rec.TABLE_NAME);
         --Drop backup table
         EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || rec.TABLE_NAME || '_BU');
