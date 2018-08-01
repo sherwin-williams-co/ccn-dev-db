@@ -258,6 +258,7 @@ IS
     --storing cost center code, ccn standardized address which has cleansing flag set to 'Y'.
     CURSOR ADDRESS_MISMATCH_REC IS
         SELECT COST_CENTER_CODE,
+               --This is concatenated cost center USA address that gets populated into excel
                ADDRESS_LINE_1 || NVL2(ADDRESS_LINE_2, ',' || CHR(13) || ADDRESS_LINE_2, '') || NVL2(ADDRESS_LINE_3, ',' || CHR(13) || ADDRESS_LINE_3, '') ||
                    NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(COUNTY, ',' || CHR(13) || COUNTY, '') ||
                    NVL2(STATE_CODE, ',' || CHR(13) || STATE_CODE, '') ||
@@ -268,6 +269,7 @@ IS
            AND EXPIRATION_DATE IS NULL
         UNION
         SELECT COST_CENTER_CODE,
+               --This is concatenated cost center Canadian address that gets populated into excel
                ADDRESS_LINE_1 || NVL2(ADDRESS_LINE_2, ',' || CHR(13) || ADDRESS_LINE_2, '') || NVL2(ADDRESS_LINE_3, ',' || CHR(13) || ADDRESS_LINE_3, '') ||
                    NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(PROVINCE_CODE , ',' || CHR(13) || PROVINCE_CODE, '') ||
                    NVL2(POSTAL_CODE, ',' || POSTAL_CODE, '') || CHR(13) || COUNTRY_CODE AS ADDRESS_VAL
@@ -276,34 +278,37 @@ IS
            AND CLEANSING_FLAG          = 'Y'
            AND EXPIRATION_DATE IS NULL;
 
-    V_GEO_ADDR     VARCHAR2(2000);
-    V_COUNT        NUMBER;
+    V_GEO_ADDR       VARCHAR2(2000);
+    V_EXCEL_ROW      NUMBER;
+    V_FILE_NAME      VARCHAR2(100) := 'CCN_STANDARDIZED_ADDRESS_MISMATCH_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.xlsx';
+    V_DIRECTORY_NAME VARCHAR2(100) := 'CCN_LOAD_FILES';
 BEGIN
-    --creating new sheet
+    --creating new sheet named "Results"
     CCN_SPREADSHEET_PKG.NEW_SHEET('Results');
-    V_COUNT := 1;
-    --set the width for cost center code column
+
+    --Add headers at row-1 of the excel along their width defined, as needed
+    V_EXCEL_ROW := 1;
     CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(1, 20 ,1);
-    --add cost center code column name to the CELL in new sheet.
-    CCN_SPREADSHEET_PKG.CELL(1, V_COUNT, 'Cost Center Code', IN_SHEET => 1);
-    --set the width for CCN standrdized address column
+    CCN_SPREADSHEET_PKG.CELL(1, V_EXCEL_ROW, 'Cost Center Code', IN_SHEET => 1);
     CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(2, 50 ,1);
-    --add CCN Cleansing/Standardized Address column name to the CELL in new sheet.
-    CCN_SPREADSHEET_PKG.CELL(2, V_COUNT, 'CCN Cleansing/Standardized Address', IN_SHEET => 1);
-    --set the width for 3rd column i.e.Data Center Cleansing/Standardized Address.
+    CCN_SPREADSHEET_PKG.CELL(2, V_EXCEL_ROW, 'CCN Cleansing/Standardized Address', IN_SHEET => 1);
     CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(3, 50 ,1);
-    --add 3rd column i.e.Data Center Cleansing/Standardized Address.
-    CCN_SPREADSHEET_PKG.CELL(3, V_COUNT, 'Data Center Cleansing/Standardized Address', IN_SHEET => 1);
-    --Loop through each mismatch record in cursor
+    CCN_SPREADSHEET_PKG.CELL(3, V_EXCEL_ROW, 'Data Center Cleansing/Standardized Address', IN_SHEET => 1);
+
+    --Loop through each mismatch record in the cursor
     FOR rec IN ADDRESS_MISMATCH_REC LOOP
-        -- increase the count and use it when sending the mail
-        V_COUNT := V_COUNT + 1;
-        --passing cost center code and ccn standardized address values to the sheet
-        CCN_SPREADSHEET_PKG.CELL(1, V_COUNT, rec.COST_CENTER_CODE, IN_SHEET => 1);
-        CCN_SPREADSHEET_PKG.CELL(2, V_COUNT, rec.ADDRESS_VAL, IN_SHEET => 1);
+        -- increase the excel row count and use it to populate corresponidng cell in the excel
+        V_EXCEL_ROW := V_EXCEL_ROW + 1;
+
+        --Populating mismatched CCN cost center code
+        CCN_SPREADSHEET_PKG.CELL(1, V_EXCEL_ROW, rec.COST_CENTER_CODE, IN_SHEET => 1);
+        --Populating mismatched CCN address
+        CCN_SPREADSHEET_PKG.CELL(2, V_EXCEL_ROW, rec.ADDRESS_VAL, IN_SHEET => 1);
         BEGIN
-            -- select and assign data services addess/geo address into a variable
-            SELECT STREET || NVL2(STREET2, ',' || CHR(13) || STREET2, '') ||
+            -- --Getting mismatched GEO address from data services
+            SELECT
+                   --This is concatenated cost center GEO address that gets populated into excel
+                   STREET || NVL2(STREET2, ',' || CHR(13) || STREET2, '') ||
                    NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(COUNTY, ',' || CHR(13) || COUNTY, '') ||
                    NVL2(STATE, ',' || CHR(13) || STATE, '') ||
                    NVL2(ZIP, ',' || ZIP, '') || NVL2(ZIP4, '-' || ZIP4, '') || CHR(13) || COUNTRY_3
@@ -311,17 +316,18 @@ BEGIN
               FROM CCN_ADDRESS_GEO_V_DETAILS
              WHERE STORE   = rec.COST_CENTER_CODE;
         EXCEPTION
-            WHEN OTHERS THEN NULL;
+            WHEN OTHERS THEN
+                NULL;
         END;
-        --passing geo address to the 3rd cell/column.
-        CCN_SPREADSHEET_PKG.CELL(3, V_COUNT, V_GEO_ADDR, IN_SHEET => 1);
+        --Populating mismatched GEO address from data services
+        CCN_SPREADSHEET_PKG.CELL(3, V_EXCEL_ROW, V_GEO_ADDR, IN_SHEET => 1);
     END LOOP;
-    --generate mismatch report and save it to directory on server.
-    CCN_SPREADSHEET_PKG.SAVE('CCN_LOAD_FILES', 'CCN_STANDARDIZED_ADDRESS_MISMATCH_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.xlsx');
+    --Save the generated excel on the server as per defined file location and file name
+    CCN_SPREADSHEET_PKG.SAVE(V_DIRECTORY_NAME, V_FILE_NAME);
 
-    -- If clob is empty then don't send an email
-    IF V_COUNT > 1 THEN
-       MAIL_PKG.SEND_MAIL('CCN_STANDARDIZED_ADDRESS_MISMATCH');
+    -- If there is actual differences (excluding header) we need to send email
+    IF V_EXCEL_ROW > 1 THEN
+        MAIL_PKG.SEND_MAIL('CCN_STANDARDIZED_ADDRESS_MISMATCH');
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
