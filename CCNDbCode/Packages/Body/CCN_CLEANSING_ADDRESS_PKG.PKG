@@ -224,13 +224,13 @@ IS
          WHERE ADDRESS_TYPE            = 'S'
            AND CLEANSING_FLAG          = 'Y'
            AND EXPIRATION_DATE IS NULL;
-        
+
     V_ADDRESS_GEO_ROW   CCN_ADDRESS_GEO_V_DETAILS%ROWTYPE;
 BEGIN
     --LOOP through the each store record with cleasing 'Y'
     FOR rec in ADDRESS_CAN_REC LOOP
         V_ADDRESS_GEO_ROW := GET_GEO_ADDRESS_RECORD(rec.COST_CENTER_CODE);
-                       
+
         IF (NVL(rec.ADDRESS_LINE_1,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET,'XXX')     AND
             NVL(rec.ADDRESS_LINE_2,'XXX') = NVL(V_ADDRESS_GEO_ROW.STREET2,'XXX')    AND
             NVL(rec.CITY,'XXX')           = NVL(V_ADDRESS_GEO_ROW.CITY,'XXX')       AND
@@ -254,27 +254,59 @@ Changed :
 *******************************************************************************/
 IS
     CURSOR ADDRESS_MISMATCH_REC IS
-        SELECT COST_CENTER_CODE
-          FROM ADDRESS_USA 
+        SELECT COST_CENTER_CODE,
+               ADDRESS_LINE_1 || NVL2(ADDRESS_LINE_2, ',' || CHR(13) || ADDRESS_LINE_2, '') || NVL2(ADDRESS_LINE_3, ',' || CHR(13) || ADDRESS_LINE_3, '') ||
+                   NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(COUNTY, ',' || CHR(13) || COUNTY, '') ||
+                   NVL2(STATE_CODE, ',' || CHR(13) || STATE_CODE, '') ||
+                   NVL2(ZIP_CODE, ',' || ZIP_CODE, '') || NVL2(ZIP_CODE_4, '-' || ZIP_CODE_4, '') || CHR(13) || COUNTRY_CODE AS ADDRESS_VAL
+          FROM ADDRESS_USA
          WHERE ADDRESS_TYPE            = 'S'
            AND CLEANSING_FLAG          = 'Y'
            AND EXPIRATION_DATE IS NULL
         UNION
-        SELECT COST_CENTER_CODE
+        SELECT COST_CENTER_CODE,
+               ADDRESS_LINE_1 || NVL2(ADDRESS_LINE_2, ',' || CHR(13) || ADDRESS_LINE_2, '') || NVL2(ADDRESS_LINE_3, ',' || CHR(13) || ADDRESS_LINE_3, '') ||
+                   NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(PROVINCE_CODE , ',' || CHR(13) || PROVINCE_CODE, '') ||
+                   NVL2(POSTAL_CODE, ',' || POSTAL_CODE, '') || CHR(13) || COUNTRY_CODE AS ADDRESS_VAL
           FROM ADDRESS_CAN 
          WHERE ADDRESS_TYPE            = 'S'
            AND CLEANSING_FLAG          = 'Y'
            AND EXPIRATION_DATE IS NULL;
 
-    V_CLOB              CLOB;
+    V_GEO_ADDR     VARCHAR2(2000);
+    V_COUNT        NUMBER;
 BEGIN
-    FOR rec in ADDRESS_MISMATCH_REC LOOP
-        V_CLOB :=  rec.COST_CENTER_CODE || CHR(10) || V_CLOB;
+    CCN_SPREADSHEET_PKG.NEW_SHEET('Results');
+    V_COUNT := 1;
+    CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(1, 20 ,1);
+    CCN_SPREADSHEET_PKG.CELL(1, V_COUNT, 'Cost Center Code', IN_SHEET => 1);
+    CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(2, 50 ,1);
+    CCN_SPREADSHEET_PKG.CELL(2, V_COUNT, 'CCN Cleansing/Standardized Address', IN_SHEET => 1);
+    CCN_SPREADSHEET_PKG.SET_COLUMN_WIDTH(3, 50 ,1);
+    CCN_SPREADSHEET_PKG.CELL(3, V_COUNT, 'Data Center Cleansing/Standardized Address', IN_SHEET => 1);
+
+    FOR rec IN ADDRESS_MISMATCH_REC LOOP
+        V_COUNT := V_COUNT + 1;
+        CCN_SPREADSHEET_PKG.CELL(1, V_COUNT, rec.COST_CENTER_CODE, IN_SHEET => 1);
+        CCN_SPREADSHEET_PKG.CELL(2, V_COUNT, rec.ADDRESS_VAL, IN_SHEET => 1);
+        BEGIN
+            SELECT STREET || NVL2(STREET2, ',' || CHR(13) || STREET2, '') ||
+                   NVL2(CITY, ',' || CHR(13) || CITY, '') || NVL2(COUNTY, ',' || CHR(13) || COUNTY, '') ||
+                   NVL2(STATE, ',' || CHR(13) || STATE, '') ||
+                   NVL2(ZIP, ',' || ZIP, '') || NVL2(ZIP4, '-' || ZIP4, '') || CHR(13) || COUNTRY_3
+              INTO V_GEO_ADDR
+              FROM CCN_ADDRESS_GEO_V_DETAILS
+             WHERE STORE   = rec.COST_CENTER_CODE;
+        EXCEPTION
+            WHEN OTHERS THEN NULL;
+        END;
+        CCN_SPREADSHEET_PKG.CELL(3, V_COUNT, V_GEO_ADDR, IN_SHEET => 1);
     END LOOP;
+    CCN_SPREADSHEET_PKG.SAVE('CCN_LOAD_FILES', 'CCN_STANDARDIZED_ADDRESS_MISMATCH_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.xlsx');
+
     -- If clob is empty then don't send an email
-    IF V_CLOB <> EMPTY_CLOB() THEN
-       V_CLOB := 'COST_CENTER_CODE' || CHR(10) || V_CLOB;
-       MAIL_PKG.SEND_MAIL('CCN_STANDARDIZED_ADDRESS_MISMATCH', NULL, NULL, V_CLOB);
+    IF V_COUNT > 1 THEN
+       MAIL_PKG.SEND_MAIL('CCN_STANDARDIZED_ADDRESS_MISMATCH');
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
@@ -391,7 +423,6 @@ BEGIN
         SAVEPOINT SVPNT;
         BEGIN
             IF rec.COUNTRY_3 IN ('USA', 'PRI') THEN
-               --SELECT * FROM ADDRESS_USA WHERE COST_CENTER_CODE=''
                 -- Get the effective date for mailing address type
                 GET_ACTV_ADDRESS_USA_BY_TYPE(rec.STORE, 'M', V_ADDRESS_USA_ROW);
                 --Check if standardized address mismatches data services geo address
@@ -407,7 +438,7 @@ BEGIN
                     V_ADDRESS_USA_ROW.FIPS_CODE                 := NULL;
                     V_ADDRESS_USA_ROW.COUNTY                    := rec.COUNTY;
                     V_ADDRESS_USA_ROW.COUNTRY_CODE              := rec.COUNTRY_3;
-                        
+
                     --expire the old standardized record and creates/updates a new record
                     ADDRESS_USA_I_SP(V_ADDRESS_USA_ROW);
                 END IF;
