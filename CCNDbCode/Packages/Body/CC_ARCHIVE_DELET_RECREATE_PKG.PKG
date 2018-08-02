@@ -281,7 +281,7 @@ EXCEPTION
         RAISE;
 END CRT_LD_ARC_BU_TBL_FRM_ARC_TBL;
 
-PROCEDURE DRP_RECRT_ARC_TBL_FRM_ACTL_TB (
+PROCEDURE RECRT_ARC_TBL_FRM_ACTL_TB (
 /*******************************************************************************
 This procedure is intended to drop the archive table, recreate it
 
@@ -291,17 +291,15 @@ Changed :
       IN_ARCIVE_TABLE_NAME      IN     VARCHAR2)
 AS
 BEGIN
-    --drop archive table
-    EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || IN_ARCIVE_TABLE_NAME);
     -- recreate archive table with the new fields
     EXECUTE_DYNAMIC_SQL_COMMAND('CREATE TABLE ' || IN_ARCIVE_TABLE_NAME || ' AS SELECT * FROM ' || SUBSTR(IN_ARCIVE_TABLE_NAME, 5) || ' WHERE 1=2');
     -- alter archive table to add archive date column
     EXECUTE_DYNAMIC_SQL_COMMAND('ALTER TABLE ' || IN_ARCIVE_TABLE_NAME || ' ADD ARCHIVE_DATE DATE');
 EXCEPTION
     WHEN OTHERS THEN
-        COMMON_TOOLS.LOG_ERROR('000000', 'DRP_RECRT_ARC_TBL_FRM_ACTL_TB', SQLERRM, SQLCODE);
+        COMMON_TOOLS.LOG_ERROR('000000', 'RECRT_ARC_TBL_FRM_ACTL_TB', SQLERRM, SQLCODE);
         RAISE;
-END DRP_RECRT_ARC_TBL_FRM_ACTL_TB;
+END RECRT_ARC_TBL_FRM_ACTL_TB;
 
 PROCEDURE DT_MISMAT_COL_BW_BU_ACT_TBLS(
 /*******************************************************************************
@@ -328,9 +326,9 @@ BEGIN
       FROM USER_TAB_COLUMNS
     WHERE TABLE_NAME = IN_ARCIVE_TABLE_NAME
       AND COLUMN_NAME=IN_COLUMN_NAME;
-    --if new data type is varchar2 then append to_char function to column name.
-    --if new data type is number then append to_number function to column name.
-    --if new data type is date then append to_date function to column name.
+    --if new data type is varchar2 then append to_char function.
+    --if new data type is number then append to_number function.
+    --if new data type is date then append to_date function.
     IF IN_DATA_TYPE <> V_COL_DATA_TYPE THEN
        IF V_COL_DATA_TYPE     = 'VARCHAR2' THEN
           OUT_COLUMN_VALUE   := 'TO_CHAR(' || IN_COLUMN_NAME ||')';
@@ -380,41 +378,111 @@ EXCEPTION
         RAISE;
 END LD_RCRTD_ARC_TBL_FRM_ARC_BU;
 
-PROCEDURE RECREATE_MISMTCH_ARCHV_TBL_SP
+FUNCTION IS_ARCHIVE_TABLE_EXISTS_FNC(
+/**********************************************************
+This function is to find out whether archive table exists in db or not.
+
+Created : 08/02/2018 pxa852 CCN Project Team....
+Changed:
+**********************************************************/
+    IN_ARCIVE_TABLE_NAME    IN      VARCHAR2)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE      VARCHAR2(1) := 'N';
+    V_COUNT             INTEGER;
+BEGIN
+     SELECT COUNT(*)
+       INTO V_COUNT
+       FROM USER_TABLES
+     WHERE TABLE_NAME   = IN_ARCIVE_TABLE_NAME;
+
+     IF V_COUNT > 0 THEN
+        V_RETURN_VALUE := 'Y';
+     END IF;
+     RETURN V_RETURN_VALUE;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_ARCHIVE_TABLE_EXISTS_FNC;
+
+PROCEDURE CREAT_LOAD_ARCHIVE_BACKUP_SP (
 /*******************************************************************************
 This procedure will compare actual tables and archive tables and find out the tables
 which has new fields added and consider them further process.
 This procedure will also call other procedures which will
 create backup table and insert archive table data into backup table(taking backup
 of archive table before dropping and recreating it).
-then drop the archive table and recreate it with new fields.
-Load the backup table data into archive table.
-drop the backup table.
+then drop archive table and recreate it with new fields.
+Load backup table data into archive table.
+drop backup table.
+
+Created : 07/26/2018 pxa852 CCN Project team....
+Changed :
+*******************************************************************************/
+      IN_ARCIVE_TABLE_NAME      IN     VARCHAR2
+)
+AS
+BEGIN
+    FOR rec in  (SELECT DISTINCT 'ARC_' || ACTL_TBL.TABLE_NAME TABLE_NAME
+                   FROM USER_TAB_COLUMNS ACTL_TBL,
+                        USER_TAB_COLUMNS ARCHV_TBL
+                 WHERE ACTL_TBL.TABLE_NAME  = SUBSTR(ARCHV_TBL.TABLE_NAME(+), 5)
+                   AND ACTL_TBL.COLUMN_NAME = ARCHV_TBL.COLUMN_NAME(+)
+                   AND ACTL_TBL.COLUMN_ID   = ARCHV_TBL.COLUMN_ID(+)
+                   AND ACTL_TBL.DATA_TYPE   = ARCHV_TBL.DATA_TYPE(+)
+                   AND ARCHV_TBL.TABLE_NAME IS NULL
+                   AND ARCHV_TBL.COLUMN_NAME IS NULL
+                   AND ACTL_TBL.TABLE_NAME = SUBSTR(IN_ARCIVE_TABLE_NAME, 5)) LOOP
+
+           --Create archive backup table and load archive table data into backup table
+           CRT_LD_ARC_BU_TBL_FRM_ARC_TBL(rec.TABLE_NAME);
+           --if archive table exists and if there is any mismatch in the table structure then drop and recreate it with the actual table structure.
+           --if archive table exists, drop it.Recreate it in next step
+           EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || rec.TABLE_NAME);
+           RECRT_ARC_TBL_FRM_ACTL_TB(rec.TABLE_NAME);
+           --insert the backup table data into archive table.
+           LD_RCRTD_ARC_TBL_FRM_ARC_BU(rec.TABLE_NAME);
+           --Drop backup table
+           EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || rec.TABLE_NAME || '_BU');
+
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'CREAT_LOAD_ARCHIVE_BACKUP_SP', SQLERRM, SQLCODE);
+        RAISE;
+END CREAT_LOAD_ARCHIVE_BACKUP_SP;
+
+PROCEDURE RECREATE_MISMTCH_ARCHV_TBL_SP
+/*******************************************************************************
+This procedure will go through the each actual table name in insertorder table
+if there is no archive table created in db for the actual table, then it will create a new archive table.
+If archive table already exists and if there are any mismatches in tables strutures
+then this procedure will perform following
+1.take backup of archive table
+2.drop archive table
+3.recreate archive table with new structural changes
+4.load data into archive table from backup table
+5.drop archive backup table
 
 Created : 07/26/2018 pxa852 CCN Project team....
 Changed :
 *******************************************************************************/
 AS
 BEGIN
-    FOR rec in (SELECT DISTINCT 'ARC_' || ACTL_TBL.TABLE_NAME TABLE_NAME
-                  FROM USER_TAB_COLUMNS ACTL_TBL,
-                       USER_TAB_COLUMNS ARCHV_TBL
-                WHERE ACTL_TBL.TABLE_NAME  = SUBSTR(ARCHV_TBL.TABLE_NAME(+), 5)
-                  AND ACTL_TBL.COLUMN_NAME = ARCHV_TBL.COLUMN_NAME(+)
-                  AND ACTL_TBL.COLUMN_ID   = ARCHV_TBL.COLUMN_ID(+)
-                  AND ACTL_TBL.DATA_TYPE   = ARCHV_TBL.DATA_TYPE(+)
-                  AND ARCHV_TBL.TABLE_NAME IS NULL
-                  AND ARCHV_TBL.COLUMN_NAME IS NULL
-                  AND ACTL_TBL.TABLE_NAME <> 'AUDIT_LOG'
-                  AND ACTL_TBL.TABLE_NAME IN (SELECT SUBSTR(TABLE_NAME, 5) FROM USER_TABLES WHERE TABLE_NAME LIKE 'ARC%')) LOOP
-        --Create archive backup table and load archive table data into backup table
-        CRT_LD_ARC_BU_TBL_FRM_ARC_TBL(rec.TABLE_NAME);
-        --drop archive table and recreate it using actual table
-        DRP_RECRT_ARC_TBL_FRM_ACTL_TB(rec.TABLE_NAME);
-        --insert the backup table data into archive table.
-        LD_RCRTD_ARC_TBL_FRM_ARC_BU(rec.TABLE_NAME);
-        --Drop backup table
-        EXECUTE_DYNAMIC_SQL_COMMAND('DROP TABLE ' || rec.TABLE_NAME || '_BU');
+    FOR rec in (SELECT 'ARC_' || TABLE_NAME ARC_TABLE_NAME
+                   FROM INSERTORDER INS_ORD
+                 WHERE TABLE_NAME NOT IN ('SALES_REP','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                 ORDER BY TABLE_ORDER DESC) LOOP
+
+       IF IS_ARCHIVE_TABLE_EXISTS_FNC(rec.ARC_TABLE_NAME) = 'Y' THEN
+          --If there are any structural changes then this procedure will create backup table, recreate and load archive table, and drop backup table.
+          CREAT_LOAD_ARCHIVE_BACKUP_SP(rec.ARC_TABLE_NAME);
+       ELSE
+          --if archive table does not exists then this procedure will create archive table
+          RECRT_ARC_TBL_FRM_ACTL_TB(rec.ARC_TABLE_NAME);
+       END IF;
+
     END LOOP;
 EXCEPTION
     WHEN OTHERS THEN
