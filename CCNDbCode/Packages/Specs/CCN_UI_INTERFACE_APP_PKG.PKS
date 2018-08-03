@@ -42,17 +42,15 @@ created :  09/05/2012 BLR CCN UI Project....
 ;
 
 
-  PROCEDURE COST_CENTER_UI_SP ( IN_COST_CENTER               IN  COST_CENTER.COST_CENTER_CODE%TYPE
-          ,OUT_COST_CENTER_REF_CUR      OUT SYS_REFCURSOR
-          ,OUT_CC_CATEGORY_REF_CUR      OUT SYS_REFCURSOR
-          ,OUT_STATUS_REF_CUR           OUT SYS_REFCURSOR
-          ,OUT_TYPE_REF_CUR             OUT SYS_REFCURSOR
-          ,OUT_MARKETING_REF_CUR        OUT SYS_REFCURSOR
-          ,OUT_TAXWARE_REF_CUR          OUT SYS_REFCURSOR
-          ,OUT_PHONE_REF_CUR            OUT SYS_REFCURSOR
-          ,OUT_ADDRESS_REF_CUR          OUT SYS_REFCURSOR
-          ,OUT_CURR_CONV_REF_CUR        OUT SYS_REFCURSOR
-          ,OUT_NON_TW_RATES_REF_CUR     OUT SYS_REFCURSOR)
+  PROCEDURE COST_CENTER_UI_SP ( IN_Cost_center IN COST_CENTER.cost_center_code%type
+                 , OUT_COST_CENTER_REF_CUR  OUT sys_refcursor
+                 , OUT_CC_CATEGORY_REF_CUR  OUT sys_refcursor
+                 , OUT_STATUS_REF_CUR       OUT sys_refcursor
+                 , OUT_TYPE_REF_CUR         OUT sys_refcursor
+                 , OUT_MARKETING_REF_CUR    OUT sys_refcursor
+                 , OUT_TAXWARE_REF_CUR      OUT sys_refcursor
+                 , OUT_PHONE_REF_CUR        OUT sys_refcursor
+                 , OUT_ADDRESS_REF_CUR      OUT sys_refcursor)
  /******************************************************************************
 	COST_CENTER_UI_SP   --    Cost Center User Interface Procedure
 
@@ -61,7 +59,6 @@ created :  09/05/2012 BLR CCN UI Project....
   STATUS, TYPE, MARKETING, PHONE, TAXWARE, and ADDRESS tables.  
 
 created : 09/06/2012 MDH CCN Project....
-Changed : 11/21/2017 axt754 Added REF CURSORS to Get the NON_TAXWARE DEATILS
 *******************************************************************************/
 ;
 
@@ -663,7 +660,7 @@ Created : 08/16/2017 axt754 -- CCN Project Team
 ******************************************************************************/
     in_accnt_nbr             IN           VARCHAR2
     ,out_gl_accnt_refcursor     OUT          SYS_REFCURSOR);
-    
+
 PROCEDURE COST_CENTER_DSC_CODES_SP(
 /******************************************************************************
 This procedure is intended to return a ref cursor with data from COST_CENTER_DSC_CODES 
@@ -672,104 +669,8 @@ Created : 12/13/2017 SXG151 CCN Project....
 Modified:
 *******************************************************************************/
   IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
-  OUT_DSC_CODES          OUT REF_CURSOR);  
+  OUT_DSC_CODES          OUT REF_CURSOR);
 
-PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
-/*******************************************************************************
-This procedure is intended to return a ref cursor with data from
-from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
-Country code as input
-
-Created : 11/01/2017 axt754 CCN Project....
-*******************************************************************************/
-    IN_COUNTRY_CODE                   IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
-    IN_STATE_CODE                     IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,
-    OUT_CURR_CONV_REF_CUR                OUT REF_CURSOR,
-    OUT_NON_TW_RATES_REF_CUR             OUT REF_CURSOR
-    ) ;
-    
-PROCEDURE NON_TAXWARE_UI_UPSERT_SP(
-/******************************************************************************
-This procedure takes XML which has COUNTRY_CODE and does the following
-1)Inserts/Updates CURRENCY CONVERSION Information for given country code other than USA
-2)Inserts/Updates the given NON TAXWARE information in the XML to the the given COUNTRY_CODE
-
--- NON USA
-<NON_TAXWARE_UI>
-   <USER_ID>axt754</USER_ID>
-   <COUNTRY_CODE>ABW</COUNTRY_CODE>
-   <CURRENCY_CONVERSION_TBL>
-      <CURRENCY_CONVERSION>
-         <EFFECTIVE_DATE>04-01-2014</EFFECTIVE_DATE>
-         <EXPIRATION_DATE></EXPIRATION_DATE>
-         <CONVERSION_RATE>1.79</CONVERSION_RATE>
-         <DISPLAY_VAT_FLAG>yes</DISPLAY_VAT_FLAG>
-         <CURRENCY_TYPE>AWG</CURRENCY_TYPE>
-         <TAXID_NUMBER>5034215</TAXID_NUMBER>
-         <TAXID_DESCRIPTION>TAX ID #</TAXID_DESCRIPTION>
-         <VAT_TAX_ID></VAT_TAX_ID>
-      </CURRENCY_CONVERSION>
-   </CURRENCY_CONVERSION_TBL>
-   <NON_TAXWARE_RATES_TBL>
-      <NON_TAXWARE_RATES>
-         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
-         <TAX_TYPE>VAT</TAX_TYPE>
-         <TAX_CODE>70001</TAX_CODE>
-         <TAX_RATE>1.5</TAX_RATE>
-         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
-         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
-         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
-         <EXPIRATION_DATE></EXPIRATION_DATE>
-      </NON_TAXWARE_RATES>
-      <NON_TAXWARE_RATES>
-         <STATEMENT_TYPE>AA</STATEMENT_TYPE>
-         <TAX_TYPE>SALES TAX</TAX_TYPE>
-         <TAX_CODE>10001</TAX_CODE>
-         <TAX_RATE>1.5</TAX_RATE>
-         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
-         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
-         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
-         <EXPIRATION_DATE></EXPIRATION_DATE>
-      </NON_TAXWARE_RATES>
-   </NON_TAXWARE_RATES_TBL>
-</NON_TAXWARE_UI>
-
--- USA
-<NON_TAXWARE_UI>
-   <USER_ID>axt754</USER_ID>
-   <COUNTRY_CODE>USA</COUNTRY_CODE>
-   <NON_TAXWARE_RATES_USA_TBL>
-      <NON_TAXWARE_RATES_USA>
-         <STATE_CODE>HI</STATE_CODE>
-         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
-         <TAX_TYPE>VAT</TAX_TYPE>
-         <TAX_CODE>70001</TAX_CODE>
-         <TAX_RATE>1.5</TAX_RATE>
-         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
-         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
-         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
-         <EXPIRATION_DATE></EXPIRATION_DATE>
-      </NON_TAXWARE_RATES_USA>
-      <NON_TAXWARE_RATES_USA>
-         <STATE_CODE>OH</STATE_CODE>
-         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
-         <TAX_TYPE>VAT</TAX_TYPE>
-         <TAX_CODE>70001</TAX_CODE>
-         <TAX_RATE>1.6</TAX_RATE>
-         <TAX_RATE_DESCRIPTION>1.600%</TAX_RATE_DESCRIPTION>
-         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
-         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
-         <EXPIRATION_DATE></EXPIRATION_DATE>
-      </NON_TAXWARE_RATES_USA>
-   </NON_TAXWARE_RATES_USA_TBL>
-</NON_TAXWARE_UI>
-
- 
---created : 11/01/2017 axt754 CCN Project....
---*******************************************************************************/
---
-    IN_ROW_DATA  IN  CLOB);  
-    
 FUNCTION ADMIN_COST_CNTR_FIELDS_ENBLE(
 /*****************************************************************************
 This procedure takes the cost center code as input and checks if type_code of cost center
