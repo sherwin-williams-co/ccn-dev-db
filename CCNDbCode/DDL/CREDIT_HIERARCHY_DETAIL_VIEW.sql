@@ -1,17 +1,14 @@
-CREATE OR REPLACE VIEW CREDIT_HIERARCHY_DETAIL_VIEW
-AS
+CREATE OR REPLACE VIEW CREDIT_HIERARCHY_DETAIL_VIEW AS 
   SELECT
 /*******************************************************************************
 This View will give all the credit hierarchy details for the cost center passed
-
 Created  : 03/23/2016 jxc517 CCN Project....
 Modified : 08/19/2016 vxv336 Removed SYSOUT
            09/06/2016 vxv336 Removed ACM, DCM, RCM and added DCO, DCO_DESC
            01/18/2016 gxg192 Changes for fetching DCO_DESC value
            05/19/2017 axt754 Changes for fetching EMAIL_NUMBER value
-           05/30/2017 gxg192 Changes to remove COST_CENTER field as it containing
-                      the same data as it is in COST_CENTER_CODE field.
          : 03/23/2017 bxa919 Chnaged the EMAIL_NUMBER value to DISTRICT_EMAIL_NUMBER
+         : 08/03/2017 nxk927 Changed the call the get the DCO Description
 *******************************************************************************/
        DISTINCT
         CC.STATEMENT_TYPE
@@ -23,6 +20,7 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
        ,H.DIVISION_VAL DIVISION
        ,H.AREA_VAL AREA
        ,H.DISTRICT_VAL DISTRICT
+       ,H.COST_CENTER_CODE AS COST_CENTER
        ,H.GROUP_VAL_NAME GROUP_NAME
        ,H.DIVISION_VAL_NAME DIVISION_NAME
        ,H.AREA_VAL_NAME AREA_NAME
@@ -43,13 +41,12 @@ Modified : 08/19/2016 vxv336 Removed SYSOUT
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
                                                 'DCO') DCO
-       ,CCN_HIERARCHY.COST_CENTER_DESCRIPTION(
-                              CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(
+       ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(
                                                                                      H.HRCHY_HDR_NAME,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL),
-                                                'DCO')) DCO_DESC
+                                                'DCO_DESC') DCO_DESC
        ,CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(H.HRCHY_HDR_NAME,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL,
                                                                                      H.GROUP_VAL || H.DIVISION_VAL ||H.AREA_VAL || H.DISTRICT_VAL || H.COST_CENTER_CODE,
