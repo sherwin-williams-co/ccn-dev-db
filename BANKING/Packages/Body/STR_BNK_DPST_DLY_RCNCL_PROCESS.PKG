@@ -66,7 +66,7 @@ BEGIN
                        '  FROM ' || IN_TABLE_NAME ||
                        ' WHERE LOAD_DATE =  TO_DATE('''||TO_CHAR(IN_DATE,'DD-MON-YYYY')||''',''DD-MON-YYYY'')' ||
                        '   AND BANK_ACCOUNT_NBR <> ORIGINATED_BANK_ACCNT_NBR';
-                       
+
     OPEN MISMATHC_REFCUR FOR  V_MISMATCH_QUERY;
     LOOP
         FETCH MISMATHC_REFCUR INTO V_COST_CENTER_CODE, V_BANK_ACCT_NBR,V_ORG_BANK_ACCT_NBR;
@@ -951,105 +951,6 @@ BEGIN
     UTL_FILE.FCLOSE(UAR_POSITION_OTPT_FL);
 END GENERATE_UAR_POS_FILE;
 
-PROCEDURE LOAD_POS_SUMMARY_EXTRCT_DATA(
-/*****************************************************************************
-	This procedure will load the POS data from  CCN_BATCH_SUMMARY into POS_SUMMARY_EXTRCT_CNTRL_FL
-
-Created : 06/22/2018 nxk927 CCN Project....
-Changed : 
-*****************************************************************************/
-    IN_DATE            IN         DATE)
-IS
-CURSOR SUM_CUR IS
-    SELECT STORE_NO STORENBR,
-           SUM(BANK_DEP_BATCH) BANK_DEP_AMT,
-           GET_BNK_ACCNT_NBR_FOR_CC(STORE_NO,POS_TRAN_DT) AS BANK_ACCOUNT_NBR,
-           POS_TRAN_DT TRANSACTION_DATE,
-           RLS_RUN_CYCLE,
-           IN_DATE AS LOAD_DATE
-     FROM PNP.CCN_BATCH_SUMMARY SM
-    WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
-                              FROM POS_CCN_LOAD_STATUS
-                             WHERE TRUNC(START_TS) >= IN_DATE - DECODE(TO_CHAR(TRUNC(SYSDATE), 'D'),3,3,1)
-                               AND TRUNC(START_TS) <  IN_DATE
-                               AND STATUS_CODE = 'C')
-      AND BANK_DEP_BATCH <> '0'
-    GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE;
-    V_COUNT NUMBER := 0;
-    V_COUNT1 NUMBER := 0;
-    V_LEAD_BANK_CC_REC LEAD_BANK_CC%ROWTYPE;
-BEGIN
-    FOR REC IN SUM_CUR LOOP
-        V_COUNT1 := 0;
-        SELECT COUNT(*)
-          INTO V_COUNT1
-          FROM BANK_ACCOUNT
-         WHERE BANK_ACCOUNT_NBR    = REC.BANK_ACCOUNT_NBR
-           AND BANK_AUTO_RECON_IND = 'Y';
-
-        IF V_COUNT1 <> 0 OR REC.BANK_ACCOUNT_NBR IS NULL THEN
-           INSERT INTO POS_SUMMARY_EXTRCT_CNTRL_FL VALUES (REC.STORENBR,
-                                                           REC.BANK_DEP_AMT,
-                                                           REC.BANK_ACCOUNT_NBR,
-                                                           REC.TRANSACTION_DATE,
-                                                           REC.LOAD_DATE,
-                                                           REC.BANK_ACCOUNT_NBR,
-                                                           REC.RLS_RUN_CYCLE);
-        END IF;
-
-        V_COUNT := V_COUNT +1;
-        IF V_COUNT = 1000 then
-            COMMIT;
-            V_COUNT := 0;
-        END IF;
-    END LOOP;
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_POS_SUMMARY_EXTRCT_DATA',
-                                   SQLERRM,
-                                   '2222222222',
-                                   '222222',
-                                   'POS_SUMMARY_EXTRCT_CNTRL_FL');
-        RAISE;
-
-END LOAD_POS_SUMMARY_EXTRCT_DATA;
-
-PROCEDURE LOAD_POS_SUMMARY_EXTRCT_FL_HST
-/*****************************************************************************
-	This procedure will load the data into POS_SUMMARY_EXTRCT_CNTRL_HST from
-  POS_SUMMARY_EXTRCT_CNTRL_FL where the records are older than 90 days
-
-Created : 07/05/2018 nxk927 CCN Project....
-Changed : 07/09/2018 nxk927 CCN Project....
-          Removed the intermediate commit
-*****************************************************************************/
-IS
-CURSOR SUM_CUR IS
-    SELECT *
-      FROM POS_SUMMARY_EXTRCT_CNTRL_FL
-     WHERE TRANSACTION_DATE < TRUNC(SYSDATE) - 90;
-
-BEGIN
-    FOR REC IN SUM_CUR LOOP
-        INSERT INTO POS_SUMMARY_EXTRCT_CNTRL_HST VALUES REC;
-    END LOOP;
-    DELETE 
-      FROM POS_SUMMARY_EXTRCT_CNTRL_FL
-     WHERE TRANSACTION_DATE < TRUNC(SYSDATE) - 90;
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.LOAD_POS_SUMMARY_EXTRCT_FL_HST',
-                                   SQLERRM,
-                                   '2222222222',
-                                   '222222',
-                                   'LOAD_POS_SUMMARY_EXTRCT_FL_HST');
-        RAISE;
-END LOAD_POS_SUMMARY_EXTRCT_FL_HST;
-
 PROCEDURE LOAD_SUMMARY_EXTRCT_CNTRL_FL(
 /*****************************************************************************
 	This procedure will load the data into SUMMARY_EXTRCT_CNTRL_FL_PREV from
@@ -1087,24 +988,29 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Passing the transaction date to get the bank account number rather than the in_date
         : 10/04/2017 nxk927 CCN Project....
           added a logic to see if the data has been previously loaded.
-        : 07/09/2018 nxk927 CCN Project....
-          changed the data source to local table as we will be loading the data daily in our local table
-          (POS_SUMMARY_EXTRCT_CNTRL_FL). This table will be loaded daily in POS_BANKING_DAILY_LOAD package
-          Removed the unnecessary code
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
 CURSOR SUM_CUR IS
-    SELECT COST_CENTER_CODE STORENBR,
-           BANK_DEP_AMT,
-           GET_BNK_ACCNT_NBR_FOR_CC(COST_CENTER_CODE,TRANSACTION_DATE) AS BANK_ACCOUNT_NBR,
-           TRANSACTION_DATE,
-           RLS_RUN_CYCLE,
-           IN_DATE AS LOAD_DATE
-      FROM POS_SUMMARY_EXTRCT_CNTRL_FL SM
+    SELECT SM.*
+      FROM (
+            SELECT STORE_NO STORENBR,
+                   SUM(BANK_DEP_BATCH) BANK_DEP_AMT,
+                   GET_BNK_ACCNT_NBR_FOR_CC(STORE_NO,POS_TRAN_DT) AS BANK_ACCOUNT_NBR,
+                   POS_TRAN_DT TRANSACTION_DATE,
+                   RLS_RUN_CYCLE,
+                   IN_DATE AS LOAD_DATE
+              FROM PNP.CCN_BATCH_SUMMARY SM
+             WHERE RLS_RUN_CYCLE IN (SELECT RLS_RUN_CYCLE
+                                       FROM POS_CCN_LOAD_STATUS
+                                      WHERE TRUNC(START_TS) >= IN_DATE - DECODE(TO_CHAR(TRUNC(SYSDATE), 'D'),3,3,1)
+                                        AND TRUNC(START_TS) < IN_DATE
+                                        AND STATUS_CODE = 'C')
+               AND BANK_DEP_BATCH <> '0'
+             GROUP BY STORE_NO,POS_TRAN_DT,RLS_RUN_CYCLE) SM
      WHERE NOT EXISTS (SELECT 1
                          FROM SUMMARY_EXTRCT_CNTRL_FL
-                        WHERE SUBSTR(COST_CENTER_CODE,-4)= SM.COST_CENTER_CODE
+                        WHERE SUBSTR(COST_CENTER_CODE,-4)= SM.STORENBR
                           AND BANK_DEP_AMT               = SM.BANK_DEP_AMT
                           --this comparision is before loading into actual table SUMMARY_EXTRCT_CNTRL_FL
                           AND TRANSACTION_DATE           = SM.TRANSACTION_DATE);
@@ -1122,9 +1028,6 @@ BEGIN
            AND BANK_AUTO_RECON_IND = 'Y';
 
         IF V_COUNT1 <> 0 THEN
-           UPDATE POS_SUMMARY_EXTRCT_CNTRL_FL
-              SET BANK_ACCOUNT_NBR = REC.BANK_ACCOUNT_NBR
-            WHERE BANK_ACCOUNT_NBR IS NULL;
            REC.BANK_ACCOUNT_NBR := FORMAT_INPUT_FOR_FILE(REPLACE(REC.BANK_ACCOUNT_NBR,'-'), '0', 17);
 
            INSERT INTO SUMMARY_EXTRCT_CNTRL_FL VALUES (COST_CENTER_LOOK_UP_FNC(LTRIM(RTRIM(REC.STORENBR))),
@@ -1372,6 +1275,8 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           Removed the function from the procedure
           Calling the UPDATE_MISTRAN_DUP to update the duplicate records in
           misctran_detail table
+        : 08/08/2018 jxc517 CCN Project....
+          Removed TO_NUMBER on TRAN_SEQNUM as the data type is changed to VARCHAR2(9)
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -1433,7 +1338,7 @@ BEGIN
                                      REC.AMOUNT/100,
                                      REC.TRANSACTION_DATE,
                                      REC.TCODE,
-                                     TO_NUMBER(REC.TRAN_SEQNUM),
+                                     REC.TRAN_SEQNUM,
                                      REC.DB_CR_CODE,
                                      REC.SNZ_SAM_CODE,
                                      REC.LOAD_DATE,
@@ -1467,10 +1372,7 @@ PROCEDURE LOAD_DATA(
   for the UAR.POSITION file
 
 Created : 07/27/2015 nxk927 CCN Project....
-Changed : 06/22/2018 nxk927 CCN Project....
-          Added to call to load the data in different table before loading in the SUMMARY_EXTRCT_CNTRL_FL table.
-Changed : 07/05/2018 nxk927 CCN Project....
-          Added to call to load the data in history table for those records that are older than 90 days
+Changed :
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1482,16 +1384,6 @@ BEGIN
     CCN_BATCH_PKG.INSERT_BATCH_JOB('BDP_DLY_RCNCL_PRCSS', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP();
     BEGIN
-        V_START_TIME := DBMS_UTILITY.GET_TIME;
-        --load the current SUMMARY CONTROL Data to history table
-        LOAD_POS_SUMMARY_EXTRCT_FL_HST;
-        DBMS_OUTPUT.PUT_LINE('LOAD_POS_SUMMARY_EXTRCT_FL_HST : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
-        V_START_TIME := DBMS_UTILITY.GET_TIME;
-        --load the current SUMMARY CONTROL SRA10510 file for use in next run
-        LOAD_POS_SUMMARY_EXTRCT_DATA(IN_DATE);
-        DBMS_OUTPUT.PUT_LINE('LOAD_POS_SUMMARY_EXTRCT_DATA : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --load the current SUMMARY CONTROL SRA10510 file for use in next run
         LOAD_SUMMARY_EXTRCT_CNTRL_FL(IN_DATE);
@@ -1506,7 +1398,7 @@ BEGIN
         --load the current MISCTRAN file for use in next run
         LOAD_MISCTRAN(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('LOAD_MISCTRAN : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-        
+
         V_START_TIME := DBMS_UTILITY.GET_TIME;
         --Load STR_BNK_DPST_DLY_RCNCL_TBL [Mark IV SRA10001 table]
         LOAD_STR_BNK_DPST_DLY_RCNCL_TB(IN_DATE);
@@ -1563,7 +1455,7 @@ BEGIN
         --Generate UAR POSITION FILE [SRA12060] file using SRA10520, SRA11063, SRA13514
         GENERATE_UAR_POS_FILE(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GENERATE_UAR_POS_FILE : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-        
+
         GNRTE_NO_CONCERNTRATION_RPT(IN_DATE);
         DBMS_OUTPUT.PUT_LINE('GNRTE_NO_CONCERNTRATION_RPT : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
     EXCEPTION
@@ -1679,7 +1571,7 @@ BEGIN
            AND NVL(SNZ_SAM_CODE,'AAA')     = NVL(REC.TRAN_CODE,'AAA')
            AND TRAN_SEQNUM                 = REC.TRAN_SEQNUM
            AND LOAD_DATE                  < IN_DATE;
-        
+
         V_COUNT := V_COUNT +1;
         IF V_COUNT = 1000 THEN
            COMMIT;
@@ -1739,6 +1631,8 @@ Changed : 06/20/2017 jxc517/nxk927 CCN Project....
           removed the function from the procedure
           Calling the UPDATE_OVERSHRT_DUP to update the duplicate records in
           misctran_detail table
+        : 08/08/2018 jxc517 CCN Project....
+          Removed TO_NUMBER on TRAN_SEQNUM as the data type is changed to VARCHAR2(9)
 *****************************************************************************/
     IN_DATE            IN         DATE)
 IS
@@ -1793,7 +1687,7 @@ BEGIN
                                          rec.CODE1,
                                          rec.LOAD_DATE,
                                          V_SRC_BANK_ACCOUNT_NBR);
-        
+
         IF (V_SRC_BANK_ACCOUNT_NBR = '00000004600146239' AND REC.TCODE = '2551')
             OR (V_SRC_BANK_ACCOUNT_NBR = '00000004600146212' AND REC.TCODE = '2550') THEN
             V_BANK_ACCOUNT_NBR := V_SRC_BANK_ACCOUNT_NBR;
@@ -1805,7 +1699,7 @@ BEGIN
                                      rec.AMOUNT/100,
                                      rec.TRANSACTION_DATE,
                                      rec.TCODE,
-                                     TO_NUMBER(rec.TRAN_SEQNUM),
+                                     rec.TRAN_SEQNUM,
                                      rec.TRAN_CODE,
                                      rec.LOAD_DATE,
                                      V_SRC_BANK_ACCOUNT_NBR);
