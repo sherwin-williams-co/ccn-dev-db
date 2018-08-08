@@ -6,6 +6,8 @@ This package is intended will return data for the cost_center table
 
 created : 09/18/2012 TAL -- CCN coding project
 changed : 09/21/2012 TAL -- Split into Table_UI and Interface_UI
+        : 07/24/2018 kxm302 CCN Project Team...
+		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
@@ -186,28 +188,6 @@ IN_COST_CENTER - Input Cost Center to be removed
 created : 01/29/2013 jxc517 CCN Project....
 **********************************************************/
           IN_COST_CENTER IN VARCHAR2);
-
-PROCEDURE SELECT_HIERARCHY_AUDIT_LOG
-/**********************************************************
-SELECT_HIERARCHY_AUDIT_LOG
-
-Wrapper for call to CCN_AUDIT_PKG.SELECT_HIERARCHY_AUDIT_LOG
-
-created : 03/11/2014 jxc517 CCN Project Team . . .
-modified :
-**********************************************************/
-;
-
-PROCEDURE SELECT_AUDIT_LOG
-/**********************************************************
-SELECT_AUDIT_LOG
-
-Wrapper for call to CCN_AUDIT_PKG.SELECT_AUDIT_LOG
-
-created : 03/11/2014 jxc517 CCN Project Team . . .
-modified :
-**********************************************************/
-;
 
  PROCEDURE RELEASE_OBJECT(
  /******************************************************************************
