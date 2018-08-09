@@ -1515,4 +1515,131 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20999, 'CCN_HIERARCHY_FILE_GEN_PKG.GENERATE_COSTCNTR_HRCHY_FILE','GENERATE COST CENTER HIERARCHY REPORTING FAILED AT '||SQLCODE||' : '|| SQLERRM);
 END GEN_ADMINORG_HRCHY_ATTR_FILE;
 
+PROCEDURE CCN5000_RPRT43
+/******************************************************************************
+  This Procedure takes care of generating CCN05000 REPORT 43
+
+Created : 08/09/2018 kxm302 CCN Project....
+Changed :
+*******************************************************************************/
+IS
+    PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME                    VARCHAR2(50) := 'CCN5000_RPRT43_' || TO_CHAR(SYSDATE,'MMDDRR') || '.csv'; --File Name
+    OUTPUT_FILE                 UTL_FILE.FILE_TYPE;
+    OUT_TYPE_REF_CUR            SYS_REFCURSOR;
+    V_CLOB                      CLOB;
+    V_CLOB_FOR_EMAIL            CLOB;
+    V_STORE_NO                  VARCHAR2(50);
+    V_COST_CENTER_CODE          VARCHAR2(50);
+    V_COST_CENTER_NAME          VARCHAR2(50);
+    V_DIVISION                  VARCHAR2(50);
+    V_AREA                      VARCHAR2(50);
+    V_DISTRICT                  VARCHAR2(50);
+    V_AREA_NAME                 VARCHAR2(50);
+    V_DISTRICT_NAME             VARCHAR2(50);
+    V_LEGACY_DIVISION           VARCHAR2(50);
+    V_FACTS_DIVISION            VARCHAR2(50);
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH ,
+                                   FILENAME,
+                                   'W' --BINARY
+                                   ,32767);
+
+    V_CLOB := 'STORE_NO,' ||
+              'COST_CENTER_CODE,' ||
+              'COST_CENTER_NAME,' ||
+              'DIVISION,' ||
+              'AREA,' ||
+              'DISTRICT,' ||
+              'AREA_NAME,' ||
+              'DISTRICT_NAME,' ||
+              'LEGACY_DIVISION,' ||
+              'FACTS_DIVISION'||
+              CHR(10)
+              ;
+
+    V_CLOB_FOR_EMAIL := V_CLOB;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+
+    OPEN OUT_TYPE_REF_CUR FOR
+      SELECT CTE.STORE_NO,
+             CTE.COST_CENTER_CODE,
+             CTE.COST_CENTER_NAME,
+             CTE.DIVISION,
+             CTE.AREA,
+             CTE.DISTRICT,
+             CTE.AREA_NAME,
+             CTE.DISTRICT_NAME,
+             HVW1.LEGACY_DIVISION,
+             HVW2.DIVISION FACTS_DIVISION
+      FROM (SELECT SUBSTR(C.COST_CENTER_CODE,3) STORE_NO,
+              C.COST_CENTER_CODE,
+              UPPER(C.COST_CENTER_NAME) COST_CENTER_NAME,
+              HVW.DIVISION,
+              HVW.AREA,
+              HVW.DISTRICT,
+              HVW.AREA_NAME,
+              HVW.DISTRICT_NAME
+         FROM COST_CENTER C
+         JOIN HIERARCHY_DETAIL_VIEW HVW
+        ON  C.COST_CENTER_CODE = HVW.COST_CENTER_CODE
+        AND HVW.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
+        AND HVW.DIVISION || HVW.AREA || HVW.DISTRICT NOT LIKE '%@@%'
+        AND NOT EXISTS
+        (SELECT 1 FROM CC_DELETION_GUIDS CC WHERE C.COST_CENTER_CODE = CC.COST_CENTER_CODE )
+         ) CTE
+        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW1
+        ON  CTE.COST_CENTER_CODE = HVW1.COST_CENTER_CODE
+        AND  HVW1.HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION'
+        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW2
+        ON  CTE.COST_CENTER_CODE = HVW2.COST_CENTER_CODE
+        AND  HVW2.HRCHY_HDR_NAME = 'FACTS_DIVISION'
+          /*added below order as the previous report was sorted russian format*/
+        ORDER BY NLSSORT(CTE.COST_CENTER_CODE, 'NLS_SORT=russian');
+
+
+    LOOP
+        FETCH OUT_TYPE_REF_CUR INTO V_STORE_NO,
+                                    V_COST_CENTER_CODE,
+                                    V_COST_CENTER_NAME,
+                                    V_DIVISION,
+                                    V_AREA,
+                                    V_DISTRICT,
+                                    V_AREA_NAME,
+                                    V_DISTRICT_NAME,
+                                    V_LEGACY_DIVISION,
+                                    V_FACTS_DIVISION;
+        EXIT WHEN OUT_TYPE_REF_CUR%NOTFOUND;
+        V_CLOB              := ( V_STORE_NO || ',' ||
+                                V_COST_CENTER_CODE || ',' ||
+                                REPLACE(V_COST_CENTER_NAME, ',', '') || ',' ||
+                                V_DIVISION || ',' ||
+                                V_AREA || ',' ||
+                                V_DISTRICT || ',' ||
+                                REPLACE(V_AREA_NAME, ',', '') || ',' ||
+                                REPLACE(V_DISTRICT_NAME, ',', '') || ',' ||
+                                V_LEGACY_DIVISION || ',' ||
+                                V_FACTS_DIVISION ||
+                                CHR(10));
+
+        V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || V_CLOB;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+
+    END LOOP;
+
+    CLOSE OUT_TYPE_REF_CUR;
+
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+    IF V_CLOB <> EMPTY_CLOB() THEN
+        MAIL_PKG.SEND_MAIL('CCN5000_RPRT43', NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+	    UTL_FILE.FCLOSE(OUTPUT_FILE);
+        ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.CCN5000_RPRT43','GENERATE CCN05000 REPORT 43  FAILED AT '||SQLCODE||' : '|| SQLERRM);
+END CCN5000_RPRT43;
+
 END CCN_BATCH_PROCESS;
