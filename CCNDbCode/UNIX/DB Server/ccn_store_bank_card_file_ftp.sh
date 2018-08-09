@@ -5,6 +5,7 @@
 #
 # Created  	: 03/06/2018 sxg151 CCN Project Team.....
 # Modified      : 07/19/2018 sxg151 CCN Project Team..... Removed "Binary" Binary replacing CRLF to LF while FTPing to Window server Which is messing the line alignments.
+#               : 08/09/2018 sxg151 CCN Project Team..... ASP-1116 Added code to send files to diffrent directories
 ###############################################################################################################################
 . /app/ccn/host.sh
 
@@ -23,8 +24,9 @@ cd $DATADIR
 ftp -inv "${uar_host}"<<END_SCRIPT
 quote USER ${uar_user}
 quote PASS ${uar_pw}
-cd ${str_bnk_crd_srl_mrchnt_files_ftp_path}
+cd ${str_bnk_crd_mrchnt_files_ftp_path}
 put $FILENAME
+cd ${str_bnk_crd_srl_files_ftp_path}
 put $FILENAME2
 quit
 END_SCRIPT
