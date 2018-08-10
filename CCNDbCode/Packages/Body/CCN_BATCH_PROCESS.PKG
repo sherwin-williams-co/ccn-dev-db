@@ -1569,4 +1569,94 @@ EXCEPTION
         errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
 END UPD_STORE_DESCARTES_DLVRY_CODE;
 
+PROCEDURE CC_NUMERIC_SEQ_ROSTER_RPT
+/**********************************************************
+This process takes care of generating CCN05000 REPORT 43
+
+Created : 08/08/2018 kxm302 CCN project Team....
+**********************************************************/
+IS
+    CURSOR cc_numeric_seq IS
+      SELECT CTE.STORE_NO,
+             CTE.COST_CENTER_CODE,
+             CTE.COST_CENTER_NAME,
+             CTE.DIVISION,
+             CTE.AREA,
+             CTE.DISTRICT,
+             CTE.AREA_NAME,
+             CTE.DISTRICT_NAME,
+             HVW1.LEGACY_DIVISION,
+             HVW2.DIVISION FACTS_DIVISION
+      FROM (SELECT SUBSTR(C.COST_CENTER_CODE,3) STORE_NO,
+              C.COST_CENTER_CODE,
+              UPPER(C.COST_CENTER_NAME) COST_CENTER_NAME,
+              HVW.DIVISION,
+              HVW.AREA,
+              HVW.DISTRICT,
+              HVW.AREA_NAME,
+              HVW.DISTRICT_NAME
+         FROM COST_CENTER C
+         JOIN HIERARCHY_DETAIL_VIEW HVW
+        ON  C.COST_CENTER_CODE = HVW.COST_CENTER_CODE
+        AND HVW.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
+        AND HVW.DIVISION || HVW.AREA || HVW.DISTRICT NOT LIKE '%@@%'
+        AND NOT EXISTS
+        (SELECT 1 FROM CC_DELETION_GUIDS CC WHERE C.COST_CENTER_CODE = CC.COST_CENTER_CODE )
+         ) CTE
+        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW1
+        ON  CTE.COST_CENTER_CODE = HVW1.COST_CENTER_CODE
+        AND  HVW1.HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION'
+        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW2
+        ON  CTE.COST_CENTER_CODE = HVW2.COST_CENTER_CODE
+        AND  HVW2.HRCHY_HDR_NAME = 'FACTS_DIVISION'
+          /*added below order as the previous report was sorted russian format*/
+        ORDER BY NLSSORT(CTE.COST_CENTER_CODE, 'NLS_SORT=russian');
+
+    PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME                    VARCHAR2(50) := 'CC_NUMERIC_SEQ_ROSTER_RPT_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.csv'; --File Name
+    OUTPUT_FILE                 UTL_FILE.FILE_TYPE;
+    V_CLOB                      CLOB;
+    V_DELIMITER_VAL             VARCHAR2(1) := ',';
+BEGIN
+
+    OUTPUT_FILE := UTL_FILE.FOPEN (PATH ,
+                                   FILENAME,
+                                   'W' --BINARY
+                                   ,32767);
+
+    V_CLOB := 'STORE_NO'              || V_DELIMITER_VAL ||
+              'COST_CENTER_CODE'      || V_DELIMITER_VAL ||
+              'COST_CENTER_NAME'      || V_DELIMITER_VAL ||
+              'DIVISION'              || V_DELIMITER_VAL ||
+              'AREA'                  || V_DELIMITER_VAL ||
+              'DISTRICT'              || V_DELIMITER_VAL ||
+              'AREA_NAME'             || V_DELIMITER_VAL ||
+              'DISTRICT_NAME'         || V_DELIMITER_VAL ||
+              'LEGACY_DIVISION'       || V_DELIMITER_VAL ||
+              'FACTS_DIVISION'        ;
+    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    FOR rec IN cc_numeric_seq LOOP
+        V_CLOB              := rec.STORE_NO                           || V_DELIMITER_VAL ||
+                               rec.COST_CENTER_CODE                   || V_DELIMITER_VAL ||
+                               REPLACE(rec.COST_CENTER_NAME, ',', '') || V_DELIMITER_VAL ||
+                               rec.DIVISION                           || V_DELIMITER_VAL ||
+                               rec.AREA                               || V_DELIMITER_VAL ||
+                               rec.DISTRICT                           || V_DELIMITER_VAL ||
+                               REPLACE(rec.AREA_NAME, ',', '')        || V_DELIMITER_VAL ||
+                               REPLACE(rec.DISTRICT_NAME, ',', '')    || V_DELIMITER_VAL ||
+                               rec.LEGACY_DIVISION                    || V_DELIMITER_VAL ||
+                               rec.FACTS_DIVISION                     ;
+        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+    END LOOP;
+    MAIL_PKG.SEND_MAIL('CC_NUMERIC_SEQ_ROSTER_RPT');
+
+    UTL_FILE.FCLOSE(OUTPUT_FILE);
+EXCEPTION
+    WHEN OTHERS THEN
+    IF UTL_FILE.IS_OPEN(OUTPUT_FILE) THEN
+       UTL_FILE.FCLOSE(OUTPUT_FILE);
+    END IF;
+    ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.CC_NUMERIC_SEQ_ROSTER_RPT','GENERATE CC_NUMERIC_SEQ_ROSTER_RPT  FAILED AT '||SQLCODE||' : '|| SQLERRM);
+END CC_NUMERIC_SEQ_ROSTER_RPT;
+
 END CCN_BATCH_PROCESS;
