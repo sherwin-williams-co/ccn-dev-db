@@ -5,7 +5,7 @@ to the batch process
 
 Created  : 04/04/2016 nxk927 CCN project
 Modified : 05/25/2017 rxa457 CCN PROJECT TEAM..
-Modified : 06/02/2017 sxp130 ASP-795 CCN project
+Modified : 06/02/2017 sxp130 ASP-795 CCN project 
 ************************************************************/
   
 PROCEDURE NEWLY_CRTD_COST_CENTER
@@ -1515,96 +1515,58 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20999, 'CCN_HIERARCHY_FILE_GEN_PKG.GENERATE_COSTCNTR_HRCHY_FILE','GENERATE COST CENTER HIERARCHY REPORTING FAILED AT '||SQLCODE||' : '|| SQLERRM);
 END GEN_ADMINORG_HRCHY_ATTR_FILE;
 
-PROCEDURE CC_NUMERIC_SEQ_ROSTER_RPT
-/**********************************************************
-This process takes care of generating CCN05000 REPORT 43
+PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE
+/******************************************************************************
+This Procedure Will update the store descartes delivery code.
 
-Created : 08/10/2018 kxm302 CCN project Team....
-**********************************************************/
+Created : 07/31/2018 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
 IS
-    CURSOR cc_numeric_seq IS
-      SELECT CTE.STORE_NO,
-             CTE.COST_CENTER_CODE,
-             CTE.COST_CENTER_NAME,
-             CTE.DIVISION,
-             CTE.AREA,
-             CTE.DISTRICT,
-             CTE.AREA_NAME,
-             CTE.DISTRICT_NAME,
-             HVW1.LEGACY_DIVISION,
-             HVW2.DIVISION FACTS_DIVISION
-      FROM (SELECT SUBSTR(C.COST_CENTER_CODE,3) STORE_NO,
-              C.COST_CENTER_CODE,
-              UPPER(C.COST_CENTER_NAME) COST_CENTER_NAME,
-              HVW.DIVISION,
-              HVW.AREA,
-              HVW.DISTRICT,
-              HVW.AREA_NAME,
-              HVW.DISTRICT_NAME
-         FROM COST_CENTER C
-         JOIN HIERARCHY_DETAIL_VIEW HVW
-        ON  C.COST_CENTER_CODE = HVW.COST_CENTER_CODE
-        AND HVW.HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
-        AND HVW.DIVISION || HVW.AREA || HVW.DISTRICT NOT LIKE '%@@%'
-        AND NOT EXISTS
-        (SELECT 1 FROM CC_DELETION_GUIDS CC WHERE C.COST_CENTER_CODE = CC.COST_CENTER_CODE )
-         ) CTE
-        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW1
-        ON  CTE.COST_CENTER_CODE = HVW1.COST_CENTER_CODE
-        AND  HVW1.HRCHY_HDR_NAME = 'LEGACY_GL_DIVISION'
-        LEFT JOIN HIERARCHY_DETAIL_VIEW HVW2
-        ON  CTE.COST_CENTER_CODE = HVW2.COST_CENTER_CODE
-        AND  HVW2.HRCHY_HDR_NAME = 'FACTS_DIVISION'
-          /*added below order as the previous report was sorted russian format*/
-        ORDER BY NLSSORT(CTE.COST_CENTER_CODE, 'NLS_SORT=russian');
-
-    PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME                    VARCHAR2(50) := 'CC_NUMERIC_SEQ_ROSTER_RPT_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') || '.csv'; --File Name
-    OUTPUT_FILE                 UTL_FILE.FILE_TYPE;
-    V_CLOB                      CLOB;
-    V_DELIMITER_VAL            VARCHAR2(1) := ',';
+    V_DESCARTES_DELIVERY_CODE         STORE.DESCARTES_DELIVERY_CODE%TYPE;
+    V_START_TIME                      DATE := SYSDATE;
+    V_CLOB_FOR_EMAIL                  CLOB;
+    invalid_dscrts_dlry_code_err      EXCEPTION;
 BEGIN
+    FOR rec IN (SELECT * FROM STORE_DESCARTES_DEL_CODE_UPD)LOOP
+        SAVEPOINT STORE_DESCARTES_DEL_CODE_UPD;
 
-    OUTPUT_FILE := UTL_FILE.FOPEN (PATH ,
-                                   FILENAME,
-                                   'W' --BINARY
-                                   ,32767);
+        BEGIN
+            IF rec.DESCARTES_DELIVERY_CODE IS NOT NULL THEN
+               IF  NOT  common_tools.code_detail_valid('DESCARTES_DELIVERY_CODE',  rec.DESCARTES_DELIVERY_CODE) THEN
+                   RAISE  invalid_dscrts_dlry_code_err;
+               END IF;
+            END IF;
+            UPDATE STORE
+                SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
+            WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE
+              AND NVL(DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X');
+        EXCEPTION
+            WHEN invalid_dscrts_dlry_code_err THEN
+                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
+                                            'invalid_dscrts_dlry_code_err ',
+                                            'Descartes Delivery Code must be "S" or "G" or "B" or null.',
+                                            rec.COST_CENTER_CODE);
 
-    V_CLOB := 'STORE_NO'              || V_DELIMITER_VAL ||
-              'COST_CENTER_CODE'      || V_DELIMITER_VAL ||
-              'COST_CENTER_NAME'      || V_DELIMITER_VAL ||
-              'DIVISION'              || V_DELIMITER_VAL ||
-              'AREA'                  || V_DELIMITER_VAL ||
-              'DISTRICT'              || V_DELIMITER_VAL ||
-              'AREA_NAME'             || V_DELIMITER_VAL ||
-              'DISTRICT_NAME'         || V_DELIMITER_VAL ||
-              'LEGACY_DIVISION'       || V_DELIMITER_VAL ||
-              'FACTS_DIVISION'        ;
-    UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
-
-    FOR rec IN cc_numeric_seq LOOP
-        V_CLOB              := rec.STORE_NO                           || V_DELIMITER_VAL ||
-                               rec.COST_CENTER_CODE                   || V_DELIMITER_VAL ||
-                               REPLACE(rec.COST_CENTER_NAME, ',', '') || V_DELIMITER_VAL ||
-                               rec.DIVISION                           || V_DELIMITER_VAL ||
-                               rec.AREA                               || V_DELIMITER_VAL ||
-                               rec.DISTRICT                           || V_DELIMITER_VAL ||
-                               REPLACE(rec.AREA_NAME, ',', '')        || V_DELIMITER_VAL ||
-                               REPLACE(rec.DISTRICT_NAME, ',', '')    || V_DELIMITER_VAL ||
-                               rec.LEGACY_DIVISION                    || V_DELIMITER_VAL ||
-                               rec.FACTS_DIVISION                     ;
-        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_CLOB, TRUE);
+            WHEN OTHERS THEN
+                ROLLBACK TO STORE_DESCARTES_DEL_CODE_UPD;
+                --write to error log
+                errpkg.INSERT_ERROR_LOG_SP(SQLCODE, 'UPD_STORE_DESCARTES_DLVRY_CODE', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
+        END;
+        COMMIT;
     END LOOP;
-
-    MAIL_PKG.SEND_MAIL('CC_NUMERIC_SEQ_ROSTER_RPT');
-
-    UTL_FILE.FCLOSE(OUTPUT_FILE);
+    --this process will email an error report to CCN team if there are any errors in error_log table.
+    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
+    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+    --sending mail only if there are error records.
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
+        MAIL_PKG.SEND_MAIL('STORE_DSCRTS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
-	    IF UTL_FILE.IS_OPEN(OUTPUT_FILE) THEN
-            UTL_FILE.FCLOSE(OUTPUT_FILE);
-        END IF;
-        ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.CC_NUMERIC_SEQ_ROSTER_RPT','GENERATE CC_NUMERIC_SEQ_ROSTER_RPT  FAILED AT '||SQLCODE||' : '|| SQLERRM);
-END CC_NUMERIC_SEQ_ROSTER_RPT;
+        -- Logging of error
+        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
+END UPD_STORE_DESCARTES_DLVRY_CODE;
 
 END CCN_BATCH_PROCESS;
