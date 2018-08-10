@@ -6,7 +6,7 @@ to the batch process
 Created  : 04/04/2016 nxk927 CCN project
 Modified : 06/02/2017 sxp130 ASP-795 CCN project
 ************************************************************/
-  
+
 PROCEDURE NEWLY_CRTD_COST_CENTER
 /**********************************************************
 	This procedure is intended to generate a file with the list of new cost centers
@@ -75,7 +75,7 @@ Created : 11/03/2017 BXA919 CCN project Team.... - ASP-800
 Changed :
 **********************************************************/
  ;
- 
+
 PROCEDURE POS_TERM_TRAN_UPDATE
 /**********************************************************
 	This procedure is intended to UPDATE POS_LAST_TRAN_DATE and POS_LAST_TRAN_NUMBER
@@ -121,13 +121,12 @@ Changed :
 *******************************************************************************/
 ;
 
-PROCEDURE CCN5000_RPRT43
+PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE;
 /******************************************************************************
-  This Procedure takes care of generating CCN05000 REPORT 43
+  This Procedure Will update the store descartes delivery code and send error report to CCN team
 
-Created : 08/09/2018 kxm302 CCN Project....
+Created : 07/31/2018 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
-;
 
 END CCN_BATCH_PROCESS;

@@ -1,0 +1,32 @@
+
+/*
+Script Name : STORE_DESCARTES_DEL_CODE_UPD.sql
+Purpose     : For creating STORE_DESCARTES_DEL_CODE_UPD table.
+              This is an external table which is used for    storing data from STORE_DESCARTES_DELIVERY_CODE_UPDATE.csv
+             loaded through batch process.
+
+Created : 08/09/2018 pxa852 CCN Project....
+*/
+
+CREATE TABLE STORE_DESCARTES_DEL_CODE_UPD
+   (COST_CENTER_CODE VARCHAR2(6),
+    DESCARTES_DELIVERY_CODE VARCHAR2(1)
+   )
+   ORGANIZATION EXTERNAL
+    (TYPE ORACLE_LOADER
+      DEFAULT DIRECTORY "CCN_LOAD_FILES"
+      ACCESS PARAMETERS
+      (RECORDS DELIMITED BY NEWLINE SKIP 1
+          badfile "CCN_LOAD_FILES":'STORE_DESCARTES_DELIVERY_CODE_UPDATE.bad'
+          logfile "CCN_LOAD_FILES":'STORE_DESCARTES_DELIVERY_CODE_UPDATE.log'
+             FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+             LRTRIM
+             MISSING FIELD VALUES ARE NULL
+             (COST_CENTER_CODE,
+              DESCARTES_DELIVERY_CODE
+              )
+       )
+      LOCATION
+       ( 'STORE_DESCARTES_DELIVERY_CODE_UPDATE.csv'
+       )
+    ) REJECT LIMIT UNLIMITED;

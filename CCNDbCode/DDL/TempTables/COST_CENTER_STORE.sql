@@ -1,3 +1,4 @@
+
 /*
 Script Name: COST_CENTER_STORE.sql
 Purpose    : For dropping and creating the COST_CENTER_STORE table.
@@ -16,6 +17,9 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added POS_NON_STORE_IND Field
         : 07/11/2018 nxk927 CCN Project....
           Changed the address column size from 35 to 100
+        : 08/01/2018 pxa852 CCN Project....
+          Added field DESCARTES_DELIVERY_CODE....ASP 1109
+
 */
 
   DROP TABLE COST_CENTER_STORE;
@@ -166,8 +170,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
       POTENTIAL_OPEN_DATE              VARCHAR2(8),
       TOTAL_SQ_FT                      VARCHAR2(10),
       SALES_SQ_FT                      VARCHAR2(10),
-      POS_NON_STORE_IND                VARCHAR2(1)
-      
+      POS_NON_STORE_IND                VARCHAR2(1),
+      DESCARTES_DELIVERY_CODE          VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -324,7 +328,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         POTENTIAL_OPEN_DATE,
                                         TOTAL_SQ_FT,
                                         SALES_SQ_FT,
-                                        POS_NON_STORE_IND)
+                                        POS_NON_STORE_IND,
+                                        DESCARTES_DELIVERY_CODE)
                      )
       LOCATION
        ( 'COST_CENTER_STORE.csv'
