@@ -1,0 +1,14 @@
+/*
+     DELETE_ROLE_CODE_SDUS2.sql
+     Created : sxg151 CCN Project Team....
+     Changed :
+     This Script delete the  ROLE_CODE SDUS2 from ROLE_DETAILS TABLE
+*/
+
+SELECT * FROM ROLE_DETAILS WHERE ROLE_CODE = 'SDUS2';
+
+DELETE FROM ROLE_DETAILS WHERE ROLE_CODE = 'SDUS2';
+-- Commit The transaction
+COMMIT;
+
+SELECT * FROM ROLE_DETAILS WHERE ROLE_CODE = 'SDUS2';
