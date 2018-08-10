@@ -16,7 +16,7 @@
 cd /app/ccn/dev
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. /app/ccn/BMChost.sh
+. /app/ccn/host.sh
 
  proc="CC_NUMERIC_SEQ_ROSTER_RPT"
  LOGDIR="$HOME/datafiles/log"
@@ -25,7 +25,7 @@ cd /app/ccn/dev
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
 echo "Processing Started for $proc  at $TIME on $DATE"
-sqlplus -s -l $sqlplus_user/$sqlplus_pw@$sqlplus_host >> $LOGDIR/$proc"_"$TimeStamp.log <<EOF
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<EOF
 set heading off;
 set verify off;
 set serveroutput on;
@@ -50,7 +50,7 @@ if test $status -ne 0
 then
      TIME=`date +"%H:%M:%S"`
      cd $HOME
-     ./send_mail.sh "CC_NUMERIC_SEQ_ROSTER_RPT" "The CCN NUmeric Sequence Roster Report generate failed"
+     ./send_mail.sh "CC_NUMERIC_SEQ_ROSTER_RPT" "The CCN Numeric Sequence Roster Report generate failed"
      echo "processing FAILED for $proc at ${TIME} on ${DATE}"
      exit 1;
 fi
