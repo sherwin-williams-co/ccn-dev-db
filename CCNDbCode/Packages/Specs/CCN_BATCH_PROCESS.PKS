@@ -122,20 +122,11 @@ Changed :
 ;
 
 PROCEDURE CC_NUMERIC_SEQ_ROSTER_RPT
-/******************************************************************************
-  This Procedure takes care of generating CCN05000 REPORT 43
+/**********************************************************
+This process takes care of generating CCN05000 REPORT 43
 
-Created : 08/09/2018 kxm302 CCN Project....
-Changed :
-*******************************************************************************/
+Created : 08/08/2018 kxm302 CCN project Team....
+**********************************************************/
 ;
-
-PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE;
-/******************************************************************************
-  This Procedure Will update the store descartes delivery code.
-
-Created : 07/31/2018 pxa852 CCN Project Team....
-Changed :
-*******************************************************************************/
 
 END CCN_BATCH_PROCESS;
