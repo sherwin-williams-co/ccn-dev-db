@@ -3187,8 +3187,7 @@ PRAGMA EXCEPTION_INIT
 
 /***********************************************************
 The "en_invalid_dcrts_dlry_cd_err" passes a numerical error of -20206.
-This error occurs when descartes delivery code field receives a value other than "S",
-"G", "B" or null.
+This error occurs when descartes delivery code field receives a value other than picklist item "DESCARTES_DELIVERY_CODE" value.
 
 created :  08/09/2018 pxa852 CCN Project Team...
 ************************************************************/
