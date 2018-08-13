@@ -3185,5 +3185,18 @@ exc_standardized_addr_chng_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_standardized_addr_chng_err , -20205);
 
+/***********************************************************
+The "en_invalid_dcrts_dlry_cd_err" passes a numerical error of -20206.
+This error occurs when descartes delivery code field receives a value other than "S",
+"G", "B" or null.
+
+created :  08/09/2018 pxa852 CCN Project Team...
+************************************************************/
+en_invalid_dcrts_dlry_cd_err      CONSTANT NUMBER := -20206;
+exc_invalid_dcrts_dlry_cd_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_dcrts_dlry_cd_err , -20206);
+
 END ERRNUMS;
 
+END ERRNUMS;
