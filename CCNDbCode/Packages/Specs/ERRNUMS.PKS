@@ -43,7 +43,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_cost_center_err" passes a numerical error of -20002.
 An error occurs when Cost_Center effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -475,7 +475,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "inactive_bank_card_err" passes a numerical error of -20033.
-An error occurs when the effective date > current date  date > 0.
+An error occurs when the effective date > current date & expiration date > 0.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -580,7 +580,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_status_err" passes a numerical error of -20041.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -607,7 +607,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_type_err" passes a numerical error of -20043.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -634,7 +634,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_terminal_err" passes a numerical error of -20045.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -661,7 +661,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_store_err" passes a numerical error of -20047.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -688,7 +688,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_usa_err" passes a numerical error of -20049.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -715,7 +715,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_mex_err" passes a numerical error of -20051.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -742,7 +742,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_can_err" passes a numerical error of -20053.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -769,7 +769,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_othr_err" passes a numerical error of -20055.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -796,7 +796,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_hierarchy_err" passes a numerical error of -20057.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -836,7 +836,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_polling_err" passes a numerical error of -20060.
 An error occurs when Polling effective date >
-current date  date not null.
+current date & expiratin date not null.
 
 created : 06/08/2012 cbd CCN Project
 revisions: 
@@ -2103,7 +2103,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores  or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric. 
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2403,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores  or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric. 
 
 created : 07/01/2013 SH CCN Project
 revisions: 
@@ -2646,7 +2646,7 @@ exc_invalid_pci_id_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_pci_id_err , -20529);
 
-/***********************************************************
+/*********************************************************** 
 The "hrchy_cc_ftr_exists_err" passes a numerical error of -20531
 This error will state that the cost center being modifed
 has a future already in place
@@ -2916,6 +2916,29 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/***********************************************************
+The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
+An error occurs when effective date is the past than the current effective date
+
+created : 11/09/2017 axt754  CCN Project Team....
+revisions:
+************************************************************/
+EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
+EXC_EN_DATE_PASSED_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
+
+/*********************************************************** 
+The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
+This error will state the country code is missing in currency conversion. 
+
+created : 11/10/2017 axt754  CCN Project Team...
+revisions: 
+************************************************************/
+EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
+EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
+
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2942,6 +2965,31 @@ exc_no_taxware_nontaxware_info EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
 
+/***********************************************************
+The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
+This error will says that there is duplicate of sorted
+sequence number under a program
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
+exc_gl_ps_dup_sort_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_ps_dup_sort_seq_err , -20190);
+
+/***********************************************************
+The "invalid_gl_num_len_err" passes a numerical error of -20191
+This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
+exc_invalid_gl_num_len_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_gl_num_len_err , -20191);
+
 /*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
@@ -2954,6 +3002,32 @@ en_no_alloc_cc_div_offset      CONSTANT NUMBER := -20187;
 exc_no_alloc_cc_div_offset EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_alloc_cc_div_offset , -20187);
+
+/*********************************************************** 
+The "invalid_lad_customer_catg_err" passes a numerical error of -20195.
+An error occurs when category for lad_customer not equal to  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_lad_cust_catg_err CONSTANT NUMBER := -20195;
+invalid_lad_customer_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_customer_catg_err , -20195);
+
+/*********************************************************** 
+The "invalid_lad_cust_cc_catg_err" passes a numerical error of -20196.
+An error occurs when CODE detail table does not contain category_code  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invld_lad_cust_cc_catg_err CONSTANT NUMBER := -20196;
+invalid_lad_cust_cc_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_cust_cc_catg_err , -20196);
 
 /*********************************************************** 
 The "invalid_allocation_cc" passes a numerical error of -20197.
@@ -3032,6 +3106,7 @@ en_invld_pci_merch_mc_sz_err CONSTANT NUMBER := -20193;
 exc_invld_pci_merch_mc_sz_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invld_pci_merch_mc_sz_err , -20193);
+
 /*********************************************************** 
 The "null_prm_std_cost_idntfr" passes a numerical error of -20199.
 An error occurs when PRIM / STD cost identifier is null for a 
@@ -3109,5 +3184,19 @@ en_standardized_addr_chng_err      CONSTANT NUMBER := -20205;
 exc_standardized_addr_chng_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_standardized_addr_chng_err , -20205);
+
+/***********************************************************
+The "en_invalid_dcrts_dlry_cd_err" passes a numerical error of -20206.
+This error occurs when descartes delivery code field receives a value other than "S",
+"G", "B" or null.
+
+created :  08/09/2018 pxa852 CCN Project Team...
+************************************************************/
+en_invalid_dcrts_dlry_cd_err      CONSTANT NUMBER := -20206;
+exc_invalid_dcrts_dlry_cd_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_dcrts_dlry_cd_err , -20206);
+
+END ERRNUMS;
 
 END ERRNUMS;

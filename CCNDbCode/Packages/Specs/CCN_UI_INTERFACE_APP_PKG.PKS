@@ -672,7 +672,7 @@ Created : 12/13/2017 SXG151 CCN Project....
 Modified:
 *******************************************************************************/
   IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
-  OUT_DSC_CODES          OUT REF_CURSOR);
+  OUT_DSC_CODES          OUT REF_CURSOR);  
 
 PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
 /*******************************************************************************
@@ -768,7 +768,7 @@ This procedure takes XML which has COUNTRY_CODE and does the following
 --created : 11/01/2017 axt754 CCN Project....
 --*******************************************************************************/
 --
-    IN_ROW_DATA  IN  CLOB);
+    IN_ROW_DATA  IN  CLOB);  
 
 FUNCTION ADMIN_COST_CNTR_FIELDS_ENBLE(
 /*****************************************************************************
@@ -793,5 +793,17 @@ Created : 12/05/2017 axt754 -- CCN Project Team
 Changes :
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
+
+PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
+/******************************************************************************
+This procedure is the core process for updating the descartes delivery code field.
+This process is involked by UI for bulk update of descartes delivery code.
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created : 08/01/2018 pxa852 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_BLOB            IN       BLOB);
 
 END CCN_UI_INTERFACE_APP_PKG;
