@@ -1,7 +1,7 @@
 
 /*
-Script Name : STORE_DESCARTES_DEL_CODE_UPD.sql
-Purpose     : For creating STORE_DESCARTES_DEL_CODE_UPD table.
+Script Name : TEMP_STR_DSCRTS_DLVRY_CD_UPD.sql
+Purpose     : For creating TEMP_STR_DSCRTS_DLVRY_CD_UPDtable.
               This is an external table which is used for    storing data from STORE_DESCARTES_DELIVERY_CODE_UPDATE.csv
              loaded through batch process.
 
