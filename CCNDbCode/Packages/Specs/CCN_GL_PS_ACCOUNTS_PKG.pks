@@ -235,4 +235,13 @@ Created : 08/16/2017 axt754 -- CCN Project Team
     in_accnt_nbr             IN           VARCHAR2
     ,out_gl_accnt_refcursor     OUT       SYS_REFCURSOR);
 
+PROCEDURE GENERATE_PRIMESUB_DETAILS_RPT
+/******************************************************************************
+This procedure is intended to generate an PrimeSub details and email it to Pat team.
+
+Filters:
+Created : 08/16/2018 kxm302 CCN project Team....
+******************************************************************************/
+;
+
 END CCN_GL_PS_ACCOUNTS_PKG;
