@@ -1,6 +1,7 @@
   /*
 Created : 08/14/2018 pxa852 CCN Project....
-          This table will hold the data for POS_SUMM_EXTRCT_CNTRL_FL_TST
+          This table will hold the data for POS_SUMM_EXTRCT_CNTRL_FL_TST.
+          This table is created for testing purpose.
 */
 
 CREATE TABLE SUMMAR_EXTRCT_CNTRL_FL_TST

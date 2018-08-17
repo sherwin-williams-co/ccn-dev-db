@@ -1,6 +1,6 @@
 /*
 Created : 08/14/2018 pxa852 CCN Project....
-          This table will hold the data for PNP.CCN_BATCH_SUMMARY table.
+          This table will hold the data for PNP.CCN_BATCH_SUMMARY table. This table is created for testing purpose.
 */
  CREATE TABLE POS_SUMM_EXTRCT_CNTRL_FL_TST
    (COST_CENTER_CODE          VARCHAR2(6),

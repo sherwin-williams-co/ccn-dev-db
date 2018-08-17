@@ -1,8 +1,10 @@
 create or replace PACKAGE STR_BNK_DPST_RCNCL_PRCSS_TST
 AS
 /**********************************************************
-  This Package contains procedured to perform the "Store Bank
-  Deposit Daily Reconciliation" process
+  This Package contains procedures to perform the "Store Bank
+  Deposit Daily Reconciliation" process.
+  This is the parallel process created for "Store Bank
+  Deposit Daily Reconciliation" process for testing pusrpose.
 
 Created : 06/19/2015 jxc517 CCN Project....
 Changed :

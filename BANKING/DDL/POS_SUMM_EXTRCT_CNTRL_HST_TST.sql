@@ -1,6 +1,7 @@
   /*
 Created : 08/14/2018 pxa852 CCN Project....
           This table will hold the history information.
+          This table is created for testing purpose.
 */
 
 CREATE TABLE POS_SUMM_EXTRCT_CNTRL_HST_TST
