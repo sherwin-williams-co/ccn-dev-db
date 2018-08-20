@@ -19,7 +19,7 @@ SET DEFINE OFF;
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 values ('CC_NUMERIC_SEQ_ROSTER_RPT',
         '120',
-        'CC_NUMERIC_SEQ_ROSTER_RPT',
+        'Cost Center Numeric Sequence Roster Report',
         'ccnoracle.team@sherwin.com',
         'Please find the attached Cost Center Numeric Sequence Roster Report.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
