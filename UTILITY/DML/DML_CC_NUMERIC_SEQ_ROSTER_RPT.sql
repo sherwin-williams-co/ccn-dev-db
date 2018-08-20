@@ -2,7 +2,8 @@
 Below script is created to insert data into MAILING_GROUP and MAILING_DETAILS table
 for CC_NUMERIC_SEQ_ROSTER_RPT to Mobius Team.
 Created : 08/10/2018 kxm302 CCN Project 
-Modified:
+Modified: 08/20/2018 kxm302 CCN Project
+        : changed the subject line for the report.
 **********************************************************************************/
 
 REM INSERTING into MAILING_GROUP
