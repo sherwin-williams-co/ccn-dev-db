@@ -1,55 +1,6 @@
 create or replace PACKAGE BODY CCN_GL_PS_ACCOUNTS_PKG
 AS
 
-FUNCTION PRGM_SORT_SEQ_BR_SP(
-/******************************************************************************
-This procedures takes PROGRAM REC  as input and
-raises exception if there are  Duplicate sort sequence value for a program
-Created  : 02/01/2018 axt754 -- CCN Project Team
-Modified : 02/13/2018 axt754 -- CCN Project Team
-           Use Single loop to find the duplicates,
-           Created a temporary table type v_data, That stores the sort seq while looping
-           through PROGRAM_ACCNTS_TAB. If we came across the next same sort seq through
-           PROGRAM_ACCNTS_TAB, for every iteration this checks with v_data and if the
-           sort seq exists in v_data then Returns 'Y', which means duplicate found
-******************************************************************************/
-    PROGRAM_ACCNTS_TAB IN PRGM_ACCNTS_TAB_TYPE) RETURN VARCHAR2
-IS
-   v_return_value         VARCHAR2(1) := 'N';
-   TYPE sort_seq_tt IS TABLE OF VARCHAR2(100) INDEX BY PLS_INTEGER;
-   v_data                 sort_seq_tt;
-BEGIN
-    FOR table_index in 1..PROGRAM_ACCNTS_TAB.LAST LOOP
-        --Check with temp table type if the value exists
-        IF v_data.EXISTS(NVL(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE,0)) THEN
-            --If Exists Return 'Y', That indicates Duplicates
-            v_return_value := 'Y';
-            EXIT;
-        END IF;
-        --If not Exits then insert into temp table type
-        IF NVL(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE,0) <> 0 THEN
-            v_data(PROGRAM_ACCNTS_TAB(table_index).SORTED_SEQUENCE) := PROGRAM_ACCNTS_TAB(table_index).GL_PS_ACCOUNT_NUMBER;
-        END IF;
-    END LOOP;
-    RETURN v_return_value;
-END PRGM_SORT_SEQ_BR_SP;
-
-FUNCTION GL_ACCNT_NBR_LENGTH_BR_SP(
-/******************************************************************************
-This procedures takes gl_account_number as input and validates if the length of
-given gl_account_number is excatly 7 or not
-created : 02/01/2018 axt754 -- CCN Project Team
-******************************************************************************/
-    IN_GL_ACCOUNT_NUMBER IN GENERAL_LEDGER_ACCOUNTS.GL_ACCOUNT_NUMBER%TYPE) RETURN VARCHAR2
-IS
-   gl_accnt_not_valid VARCHAR2(1)  := 'N';
-BEGIN
-   IF LENGTH(IN_GL_ACCOUNT_NUMBER) <> 7 THEN
-       gl_accnt_not_valid := 'Y';
-   END IF;
-   RETURN gl_accnt_not_valid;
-END GL_ACCNT_NBR_LENGTH_BR_SP;
-
 FUNCTION PRAGRAM_DELETE_BR_SP(
 /******************************************************************************
 This procedures takes PROGRAM REC  as input and
@@ -330,23 +281,19 @@ given PROGRAM related information
    
 Created : 03/15/2017 axt754 -- CCN Project Team
 Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
-        : 02/13/2018 axt754 -- Added Business Rule to check if there is any duplicate
-                               Sorted Sequence under a Program
 ******************************************************************************/
     in_xml          IN          CLOB) 
 IS
-    v_programs_frag        CLOB;
-    v_xml                  SYS.XMLTYPE := XMLTYPE(in_xml);
-    v_prog_rec             PROGRAMS%ROWTYPE;
-    v_prg_accnts_frag      CLOB;
-    v_prg_accnts_rec       PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
-    v_break                VARCHAR2(100);
-    v_code                 NUMBER;
-    v_errm                 VARCHAR2(500);
-    v_ps_count             NUMBER := 1;
-    v_user_id              VARCHAR2(10) := NULL;
-    gl_ps_dup_sort_seq_err EXCEPTION;
-    PRGM_ACCNTS_TAB        PRGM_ACCNTS_TAB_TYPE;
+    v_programs_frag   CLOB;
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prog_rec        PROGRAMS%ROWTYPE;
+    v_prg_accnts_frag CLOB;
+    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_ps_count        NUMBER := 1;
+    v_user_id         VARCHAR2(10) := NULL;
 BEGIN
 
     -- GET USER ID
@@ -367,7 +314,9 @@ BEGIN
                                              ,v_prog_rec);
         -- Assign Created_by
         v_prog_rec.created_by := v_user_id;
-
+        -- Insert into PROGRAMS
+        v_break := 'Insert into PROGRAMS';
+        CCN_TABLE_IU_PKG.PROGRAMS_I_SP(v_prog_rec);
     END IF;
 
     --********************************************************************************
@@ -387,36 +336,12 @@ BEGIN
         IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
             v_prg_accnts_rec.shared := 'false';
         END IF;
-
-        PRGM_ACCNTS_TAB(NVL(PRGM_ACCNTS_TAB.LAST,0)+1) := v_prg_accnts_rec;
-        v_ps_count := v_ps_count +1;
-    END LOOP;
-
-    IF NVL(PRGM_ACCNTS_TAB.LAST,0) <> 0 THEN
-        -- Validate for duplicate of sorted sequence under a program
-        IF PRGM_SORT_SEQ_BR_SP(PRGM_ACCNTS_TAB)= 'Y' THEN
-            RAISE gl_ps_dup_sort_seq_err;
-        END IF;
-    END IF;
-
-    -- Insert into PROGRAMS
-    v_break := 'Insert into PROGRAMS';
-    CCN_TABLE_IU_PKG.PROGRAMS_I_SP(v_prog_rec);
-
-    IF NVL(PRGM_ACCNTS_TAB.LAST,0) <> 0 THEN
         -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
         v_break := 'Insert into PRGM_GL_ACCNT_RLTN_DTLS';
-        FOR tbl_idx IN 1..PRGM_ACCNTS_TAB.LAST LOOP
-            CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(PRGM_ACCNTS_TAB(tbl_idx));
-        END LOOP;
-    END IF;
-
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(v_prg_accnts_rec);
+        v_ps_count := v_ps_count +1;
+    END LOOP;
 EXCEPTION
-     WHEN gl_ps_dup_sort_seq_err THEN
-        v_code := errnums.en_gl_ps_dup_sort_seq_err;
-        errpkg.raise_err(v_code
-                         ,'PROG_GL_ACCOUNTS_UI_UPSERT_SP.dup_sort_seq_error '
-                         ,'Duplicate sorted sequence for program is found for Program name "' ||  v_prog_rec.program_name ||'" .' );
     WHEN OTHERS THEN
         v_code := SQLCODE;
         v_errm := substr(SQLERRM,1, 500);
@@ -463,22 +388,19 @@ ACCOUNT information
 Created : 03/15/2017 axt754 -- CCN Project Team
 Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
         : 08/25/2017 axt754 -- No Insert of New Accounts
-        : 02/13/2018 axt754 -- Added Business Rule to check Length of General Ledger
-                               Account Number should be 7
 ******************************************************************************/
     in_xml          IN          CLOB)
 IS
-    v_gl_accnts_frag       CLOB;
-    v_xml                  SYS.XMLTYPE := XMLTYPE(in_xml);
-    v_gl_accnts_rec        GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
-    v_prg_accnts_frag      CLOB;
-    v_prg_accnts_rec       PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
-    v_break                VARCHAR2(100);
-    v_code                 NUMBER;
-    v_errm                 VARCHAR2(500);
-    v_ps_count             NUMBER := 1;
-    v_user_id              VARCHAR2(10) := NULL;
-    invalid_gl_num_len_err EXCEPTION;
+    v_gl_accnts_frag   CLOB;
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_gl_accnts_rec   GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
+    v_prg_accnts_frag  CLOB;
+    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_ps_count        NUMBER := 1;
+    v_user_id         VARCHAR2(10) := NULL;
 BEGIN
     -- GET USER ID
     IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/USER_ID/text()') = 1) THEN
@@ -498,11 +420,6 @@ BEGIN
                                                 ,v_gl_accnts_rec);
         -- Assign Created By
         v_gl_accnts_rec.created_by := v_user_id;
-
-        -- Check GL_ACCNT_NBR validation;
-       IF GL_ACCNT_NBR_LENGTH_BR_SP(v_gl_accnts_rec.gl_account_number)= 'Y' THEN
-           RAISE invalid_gl_num_len_err;
-       END IF;
         -- INSERT into general_ledger_accounts table
         v_break := 'UPDATE general_ledger_accounts table ';
         CCN_TABLE_IU_PKG.GL_ACCOUNTS_I_SP(v_gl_accnts_rec);
@@ -530,11 +447,6 @@ BEGIN
         v_ps_count := v_ps_count +1;
     END LOOP;
 EXCEPTION
-    WHEN invalid_gl_num_len_err THEN
-        v_code := errnums.en_invalid_gl_num_len_err;
-        errpkg.raise_err(v_code
-                         ,'GL_ACCOUNTS_PROG_UI_UPSERT_SP.gl_accnt_not_valid_error '
-                         ,'Length of General Ledger Account Number should be 7.' );
     WHEN OTHERS THEN
         v_code := SQLCODE;
         v_errm := substr(SQLERRM,1, 500);
