@@ -76,19 +76,6 @@ changed :
 IN_ROW   IN     CUSTOMER_DEPOSIT_HEADER%ROWTYPE
 );
 
-PROCEDURE CUST_DEPOSIT_I_SP(
-/*******************************************************************************
-CUST_DEPOSIT_I_SP
-
-This procedure is intended to insert new customer_deposit records
-created : 02/27/2018 SXH487 -- ccn project
-changed :
-
-*******************************************************************************/
-IN_CUST_DEPOSIT_rec   IN     CUSTOMER_DEPOSIT%ROWTYPE,
-OUT_TRANGUID          OUT    CUSTOMER_DEPOSIT.TRANSACTION_GUID%TYPE
-);
-
 PROCEDURE CUST_DEPOSIT_CREDIT_I_SP(
 /*******************************************************************************
 CUST_DEPOSIT_CREDIT_I_SP
