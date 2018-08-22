@@ -7,7 +7,6 @@ Changed : 08/22/2018 pxa852 CCn Project Team...
           This script is modified to add new fields POS Start and POS End Date.
 *******************************************************************************/
 DROP TABLE CCN_PRICING_DISTRICT_CAN;
-DROP SYNONYM CCN_PRICING_DISTRICT_CAN;
 
 CREATE TABLE CCN_PRICING_DISTRICT_CAN(
      STORE_NO                       VARCHAR2(6),

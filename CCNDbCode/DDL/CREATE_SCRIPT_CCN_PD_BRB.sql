@@ -6,7 +6,6 @@ Changed : 08/22/2018 pxa852 CCN Project Team...
            This table is modified to add POS Start Date and POS End Date fields.
 *******************************************************************************/
 DROP TABLE CCN_PRICING_DISTRICT_BRB;
-DROP SYNONYM CCN_UTILITY.CCN_PRICING_DISTRICT_BRB;
 
 CREATE TABLE CCN_PRICING_DISTRICT_BRB(
     STORE_NO                                  VARCHAR2(6),
