@@ -1,6 +1,8 @@
 create or replace PACKAGE CCN_GL_PS_ACCOUNTS_PKG
 AS
 TYPE REF_CURSOR IS REF CURSOR;
+TYPE PRGM_ACCNTS_TAB_TYPE IS TABLE OF PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE INDEX BY BINARY_INTEGER;
+
 PROCEDURE GL_ACCOUNTS_PROG_UI_DELETE_SP(
 /******************************************************************************
 This procedure takes XML which has GL ACCOUNT NUMBER and DELETES 
@@ -35,13 +37,13 @@ Programs information given in the XML, that were attached to GL ACCOUNT NUMBER
       </PRGM_GL_ACCNT_RLTN_DTLS>
     </PRGM_GL_ACCNT_RLTN_DTLS_TBL>      
 </ACCOUNTS_UI>
-   
+
 Created : 03/15/2017 axt754 -- CCN Project Team
 Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
         : 08/25/2017 axt754 -- No Delete of Existing Accounts
 ******************************************************************************/
     in_xml          IN          CLOB);
-    
+
 PROCEDURE PROGRAM_UI_DELETE_SP(
 /******************************************************************************
 This procedure takes XML as input Which has PROGRAM information 
@@ -58,7 +60,7 @@ and Deletes the PROGRAM related information
       </PROGRAMS>
     </PROGRAMS_TBL> 
 </ACCOUNTS_UI>
-   
+
 Created : 03/15/2017 axt754 -- CCN Project Team
 Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
         : 08/24/2017 axt754 -- If a Program has the accounts in relation donot delete program
