@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIERARCHY
+create or replace PACKAGE ccn_hierarchy
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
@@ -8,14 +8,14 @@ This procedure will elminate special characters
 
 Created : 06/23/2013 jxc517 CCN Project....
 **********************************************************/
-    IO_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE);
+    IO_HIERARCHY_DETAIL_ROW IN OUT HIERARCHY_DETAIL%ROWTYPE); 
 
 PROCEDURE update_cc_global_hrchy_ind(
 /***********************************************************
-      update_cc_global_hrchy_ind 
-      This Procedure will update COST_CENTER.GLOBAL_HIERARCHY_IND 
+      update_cc_global_hrchy_ind
+      This Procedure will update COST_CENTER.GLOBAL_HIERARCHY_IND
       based on passed input cost center
-      
+
 Created : 09/12/2013 CCN Project
 ************************************************************/
 in_COST_CENTER_CODE   IN   VARCHAR2);
@@ -27,14 +27,14 @@ PROCEDURE hierarchy_insert_wrapper
 /**********************************************************
 	RETURN_HIERARCHY
 
-	This procedure will return a ref cursor with data from 
+	This procedure will return a ref cursor with data from
 	from the hierarchy_detail table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP)
 	and level
 	ex. CCN_HIERARCHY.RETURN_HIERARCHY('DAD Structure','703252','DOWN',OUT_DEFINED_REF_CURSOR)
 
 created : 03/22/2012 OD CCN Project....
 **********************************************************/
-		PROCEDURE RETURN_HIERARCHY (	
+		PROCEDURE RETURN_HIERARCHY (
 						IN_HEADER_NAME 		IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
 			    , 	IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
 			    ,	IN_LEVEL		IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
@@ -44,13 +44,13 @@ created : 03/22/2012 OD CCN Project....
 					   );
 
 
-PROCEDURE RETURN_HIERARCHY_LAST_LVL (	
+PROCEDURE RETURN_HIERARCHY_LAST_LVL (
 /**********************************************************
 	RETURN_HIERARCHY
 
-	This procedure will return a ref cursor with data from 
+	This procedure will return a ref cursor with data from
 	from the hierarchy_detail lowest level table based on header name, current value , t
-	
+
 
 created : 06/22/2012 kdp CCN Project....
 Modified: 10/16/2014 Axk326 CCN Project....
@@ -63,11 +63,11 @@ Modified: 10/16/2014 Axk326 CCN Project....
 			   );
 
 
-PROCEDURE RETURN_HIERARCHY_DETAIL_CC_LVL (	
+PROCEDURE RETURN_HIERARCHY_DETAIL_CC_LVL (
 /**********************************************************
 	RETURN_HIERARCHY_DETAIL_CC_LVL
 
-	This procedure will return a ref cursor with data from 
+	This procedure will return a ref cursor with data from
 	from the hierarchy_detail lowest level table based on header name, current value , t
 
 
@@ -83,14 +83,14 @@ created : 02/20/2012 kdp CCN Project....Phase 1.1
 /**********************************************************
 	RETURN_HIERARCHY
 
-	This procedure will return a ref cursor with data from 
+	This procedure will return a ref cursor with data from
 	from the hierarchy_detail table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP)
 	and structure as of history date (NULL if you want current structure which is also the DEFAULT)
 	ex. CCN_HIERARCHY.RETURN_HIERARCHY('DAD Structure','703252','DOWN',TO_DATE(03/24/2011','MM/DD/YYYY'),OUT_DEFINED_REF_CURSOR)
 
 created : 03/22/2012 OD CCN Project....
 **********************************************************/
-		PROCEDURE RETURN_HIERARCHY_HIST (	
+		PROCEDURE RETURN_HIERARCHY_HIST (
 						IN_HEADER_NAME 	IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE
 					    , 	IN_CURR_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
 					    ,	IN_LEVEL	IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE
@@ -98,11 +98,11 @@ created : 03/22/2012 OD CCN Project....
 					    ,	IN_HIST_DATE	IN HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
 					    ,   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
 					   );
-		PROCEDURE RETURN_HIERARCHY_UP (	
+		PROCEDURE RETURN_HIERARCHY_UP (
 /**********************************************************
 	RETURN_DAD
 
-	This procedure will return a ref cursor with DAD data from 
+	This procedure will return a ref cursor with DAD data from
 	from the hierarchy_detail table based on just the header name, cost center or last level value
 	ex. CCN_HIERARCHY.RETURN_HIERARCHY('DAD Structure','703252','DOWN',OUT_DEFINED_REF_CURSOR)
 
@@ -112,22 +112,22 @@ created : 07/22/2012 OD CCN Project....
 					    , 	IN_ROW_VAL	IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_ROW_VAL%TYPE
 					    ,   OUT_HIERARCHY_REF_CUR IN OUT REF_CURSOR
 					   );
-PROCEDURE HIERARCHY_PICKLIST(	
+PROCEDURE HIERARCHY_PICKLIST(
 /**********************************************************
 	HIERARCHY_PICKLIST
 
-	This procedure will return data in ref_cursor 
+	This procedure will return data in ref_cursor
         from HIERARCHY_DETAIL depending on the input params
-        Ex - If all the Areas need to be returned for a Given 
+        Ex - If all the Areas need to be returned for a Given
         Division then the XML from the UI will have Hierarchy Name
         and Hierarchy Detail level '2' and current division ='04'
-        
+
 <HIERARCHY_DETAIL>
   <row_data>
-      <USER_ID>xxxxxx</USER_ID> 
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
-      <HRCHY_LEVEL1>04</HRCHY_LEVEL1> 
+      <USER_ID>xxxxxx</USER_ID>
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL>
+      <HRCHY_LEVEL1>04</HRCHY_LEVEL1>
       <HRCHY_LEVEL2>02</HRCHY_LEVEL2>
       <HRCHY_LEVEL3>35</HRCHY_LEVEL3>
       <HRCHY_LEVEL4>708113</HRCHY_LEVEL4>
@@ -140,22 +140,22 @@ modified: 09/25/2014 jxc517 CCN Project.....passing user_id to restrict users wi
   in_XML                VARCHAR2,--XMLTYPE,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR);
 
-PROCEDURE HIERARCHY_STMNT_TYPE_PICKLIST(	
+PROCEDURE HIERARCHY_STMNT_TYPE_PICKLIST(
 /**********************************************************
 	HIERARCHY_STMNT_TYPE_PICKLIST
 
-	This procedure will return data in ref_cursor 
-        for statement type from HIERARCHY_DETAIL depending 
+	This procedure will return data in ref_cursor
+        for statement type from HIERARCHY_DETAIL depending
         on the input params
-        Ex - If all the Areas need to be returned for a Given 
+        Ex - If all the Areas need to be returned for a Given
         Division then the XML from the UI will have Hierarchy Name
         and Hierarchy Detail level '2' and current division ='04'
-        
+
 <HIERARCHY_DETAIL>
   <row_data>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL> 
-      <HRCHY_LEVEL1>04</HRCHY_LEVEL1> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_DTL_LEVEL>4</HRCHY_DTL_LEVEL>
+      <HRCHY_LEVEL1>04</HRCHY_LEVEL1>
       <HRCHY_LEVEL2>02</HRCHY_LEVEL2>
       <HRCHY_LEVEL3>35</HRCHY_LEVEL3>
       <HRCHY_LEVEL4>708113</HRCHY_LEVEL4>
@@ -166,8 +166,8 @@ created : 02/13/2013 SH CCN Project....
 **********************************************************/
   in_XML                VARCHAR2,--XMLTYPE,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR);
-  
-PROCEDURE HIERARCHY_HDR_DESC_PICKLIST(	
+
+PROCEDURE HIERARCHY_HDR_DESC_PICKLIST(
 /**********************************************************
 	HIERARCHY_HDR_DESC_PICKLIST
 
@@ -176,7 +176,7 @@ PROCEDURE HIERARCHY_HDR_DESC_PICKLIST(
 
 <HIERARCHY_DETAIL>
   <row_data>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
   </row_data>
 </HIERARCHY_DETAIL>
 created : 02/13/2013 SH CCN Project....
@@ -184,18 +184,18 @@ created : 02/13/2013 SH CCN Project....
   in_XML                VARCHAR2,
   OUT_HIERARCHY_REF_CUR OUT REF_CURSOR
   );
- 
+
 PROCEDURE HIERARCHY_HEADER_INSERT(
 /**********************************************************
 	HIERARCHY_HEADER_INSERT
 
 	This procedure will insert into the table HIERARCHY_HEADER
-        
+
 <HIERARCHY_HEADER>
   <row_data>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_HDR_LEVELS>04</HRCHY_HDR_LEVELS> 
-      <HRCHY_HDR_DESC>Div Area Dist Structure</HRCHY_HDR_DESC> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_HDR_LEVELS>04</HRCHY_HDR_LEVELS>
+      <HRCHY_HDR_DESC>Div Area Dist Structure</HRCHY_HDR_DESC>
       <UPPER_LVL_VER_DESC>Statement Type</UPPER_LVL_VER_DESC>
   </row_data>
 </HIERARCHY_HEADER>
@@ -208,23 +208,23 @@ PROCEDURE HIERARCHY_HEADER_ATTR_UPDATE(
 /**********************************************************
 	HIERARCHY_HEADER_ATTR_UPDATE
 
-	This procedure will update the attributes in the table HIERARCHY_HEADER 
-        
+	This procedure will update the attributes in the table HIERARCHY_HEADER
+
 <HIERARCHY_HEADER>
   <row_data>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_HDR_LEVELS>04</HRCHY_HDR_LEVELS> 
-      <HRCHY_HDR_DESC>Div Area Dist Structure</HRCHY_HDR_DESC> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_HDR_LEVELS>04</HRCHY_HDR_LEVELS>
+      <HRCHY_HDR_DESC>Div Area Dist Structure</HRCHY_HDR_DESC>
       <attributes>
-	   <upper_lvl_ver_desc> 
+	   <upper_lvl_ver_desc>
 	      <Name>statement_type</Name>
 	      <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	      <Name>ManagerName</Name>
               <Description>CC Mgr Name</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	       <Name>state_code</Name>
 	       <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
@@ -232,7 +232,7 @@ PROCEDURE HIERARCHY_HEADER_ATTR_UPDATE(
   </row_data>
 </HIERARCHY_HEADER>
 
-created : 02/24/2014 jxc517 CCN Project. . . 
+created : 02/24/2014 jxc517 CCN Project. . .
 **********************************************************/
     in_XML                CLOB);
 
@@ -240,13 +240,13 @@ PROCEDURE HIERARCHY_DESCRIPTION_INSERT(
 /**********************************************************
 	HIERARCHY_DESCRIPTION_INSERT
 
-	This procedure will insert into the table HIERARCHY_DESCRIPTION 
-        
+	This procedure will insert into the table HIERARCHY_DESCRIPTION
+
 <HIERARCHY_DESCRIPTION>
   <row_data>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_HDR_LEVEL_NBR>04</HRCHY_HDR_LEVELS> 
-      <HRCHY_HDR_LVL_DESC>Div Area Dist Structure</HRCHY_HDR_DESC> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_HDR_LEVEL_NBR>04</HRCHY_HDR_LEVELS>
+      <HRCHY_HDR_LVL_DESC>Div Area Dist Structure</HRCHY_HDR_DESC>
   </row_data>
 </HIERARCHY_DESCRIPTION>
 
@@ -258,52 +258,52 @@ PROCEDURE HIERARCHY_DSCRPTN_ATTR_UPDATE(
 /**********************************************************
 	HIERARCHY_DSCRPTN_ATTR_UPDATE
 
-	This procedure will update the attributes in the table HIERARCHY_DESCRIPTION 
-        
+	This procedure will update the attributes in the table HIERARCHY_DESCRIPTION
+
 <HIERARCHY_DESCRIPTION>
   <row_data>
     <HRCHY_LEVELS>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_HDR_LVL_NBR>03</HRCHY_HDR_LVL_NBR> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_HDR_LVL_NBR>03</HRCHY_HDR_LVL_NBR>
       <HRCHY_HDR_LVL_DESC>AREA</HRCHY_HDR_LVL_DESC>
       <HRCHY_GLOBAL_LVL_NBR>9</HRCHY_GLOBAL_LVL_NBR>
       <LVL_VALUE_SIZE>2</LVL_VALUE_SIZE>
       <attributes>
-	   <upper_lvl_ver_desc> 
+	   <upper_lvl_ver_desc>
 	      <Name>statement_type</Name>
 	      <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	      <Name>ManagerName</Name>
               <Description>CC Mgr Name</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	       <Name>state_code</Name>
 	       <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
       </attributes>
-    </HRCHY_LEVELS> 
+    </HRCHY_LEVELS>
   	<HRCHY_LEVELS>
-      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME> 
-      <HRCHY_HDR_LVL_NBR>04</HRCHY_HDR_LVL_NBR> 
-      <HRCHY_HDR_LVL_DESC>DIST</HRCHY_HDR_LVL_DESC> 
+      <HRCHY_HDR_NAME>DAD STRUCTURE</HRCHY_HDR_NAME>
+      <HRCHY_HDR_LVL_NBR>04</HRCHY_HDR_LVL_NBR>
+      <HRCHY_HDR_LVL_DESC>DIST</HRCHY_HDR_LVL_DESC>
       <HRCHY_GLOBAL_LVL_NBR>9</HRCHY_GLOBAL_LVL_NBR>
       <LVL_VALUE_SIZE>2</LVL_VALUE_SIZE>
       <attributes>
-	   <upper_lvl_ver_desc> 
+	   <upper_lvl_ver_desc>
 	      <Name>statement_type</Name>
 	      <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	      <Name>ManagerName</Name>
               <Description>CC Mgr Name</Description>
 	   </upper_lvl_ver_desc>
-           <upper_lvl_ver_desc> 
+           <upper_lvl_ver_desc>
 	       <Name>state_code</Name>
 	       <Description>pkListValue</Description>
 	   </upper_lvl_ver_desc>
       </attributes>
-    </HRCHY_LEVELS> 
+    </HRCHY_LEVELS>
   </row_data>
 </HIERARCHY_DESCRIPTION>
 
@@ -313,12 +313,12 @@ created : 02/03/2014 JXC517 CCN Project....
 
 FUNCTION CURRENT_LVL_EXISTS (
 /***********************************************************
-      CURRENT_LVL_EXISTS 
-      This Procedure will check for the current record 
+      CURRENT_LVL_EXISTS
+      This Procedure will check for the current record
       before the insert for Duplicates
 
       IN_FLAG          'H' for History table and NULL for Detail table
-      
+
 Created : 07/25/2013 CCN Project
 ************************************************************/
 IN_FLAG                  IN  VARCHAR2,
@@ -327,8 +327,8 @@ RETURN VARCHAR2;
 
 PROCEDURE GET_PREVIOUS_LVL(
 /***********************************************************
-      GET_PREVIOUS_LVL 
-      This Procedure get the previous record 
+      GET_PREVIOUS_LVL
+      This Procedure get the previous record
 
       IN_FLAG          'H' for History table and NULL for Detail table
 
@@ -340,24 +340,24 @@ Created : 07/25/2013 CCN Project
 
 FUNCTION HIERARCHY_DESC_RETURN (
 /***********************************************************
-      HIERARCHY_DESC_RETURN 
-      This Procedure will return the Hierarchy level DESC 
+      HIERARCHY_DESC_RETURN
+      This Procedure will return the Hierarchy level DESC
       from HIERARCHY_DETAIL for any curr val passed and for any
-      level. This is used for the insert into hist for Transfer 
+      level. This is used for the insert into hist for Transfer
       process.
 input param : in_HRCHY_DTL_CURR_LVL_VAL
 Created : 03/19/2013 SH CCN Project
-revised : 05/02/2013 kdp ccn Header Name to query 
+revised : 05/02/2013 kdp ccn Header Name to query
 ************************************************************/
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 RETURN VARCHAR2;
 
 FUNCTION HIERARCHY_ATTRIBUTE_RETURN (
 /***********************************************************
-      HIERARCHY_ATTRIBUTE_RETURN 
-      This Procedure will return the Hierarchy level Attributes 
+      HIERARCHY_ATTRIBUTE_RETURN
+      This Procedure will return the Hierarchy level Attributes
       from HIERARCHY_DETAIL for any curr val passed and for any
-      level. 
+      level.
 
 input param : in_HRCHY_DTL_CURR_LVL_VAL
 Created : 08/02/2013 CCN Project
@@ -368,7 +368,7 @@ RETURN XMLTYPE;
 FUNCTION COST_CENTER_DESCRIPTION(
 /***********************************************************
 COST_CENTER_DESCRIPTION
-      This function will return the COST_CENTER_NAME 
+      This function will return the COST_CENTER_NAME
       from COST_CENTER into HRCHY_DTL_DESC
 Created : 08/23/2013 CCN Project
 ************************************************************/
@@ -378,7 +378,7 @@ RETURN VARCHAR2;
 FUNCTION GET_MGR_NAME_FNC(
 /***********************************************************
 GET_MGR_NAME_FNC
-      This function will return the MANAGER_NAME 
+      This function will return the MANAGER_NAME
       from COST_CENTER into HRCHY_DTL_DESC
 Created : 10/07/2014 axk326 ccn project
 ************************************************************/
@@ -388,7 +388,7 @@ RETURN VARCHAR2;
 FUNCTION GET_TYPE_FNC(
 /***********************************************************
 GET_TYPE_FNC
-      This function will return the MANAGER_NAME 
+      This function will return the MANAGER_NAME
       from COST_CENTER into HRCHY_DTL_DESC
 Created : 10/07/2014 axk326 ccn project
 ************************************************************/
@@ -398,7 +398,7 @@ RETURN VARCHAR2;
 FUNCTION GET_CATEGORY_FNC(
 /***********************************************************
 GET_CATEGORY_FNC
-      This function will return the MANAGER_NAME 
+      This function will return the MANAGER_NAME
       from COST_CENTER into HRCHY_DTL_DESC
 Created : 10/07/2014 axk326 ccn project
 ************************************************************/
@@ -427,10 +427,10 @@ Created : 10/28/2013 CCN Project
 
 FUNCTION HIERARCHY_EFF_DATE_RETURN (
 /***********************************************************
-      HIERARCHY_EFF_DATE_RETURN 
-      This Procedure will return the Hierarchy level Effective Date 
+      HIERARCHY_EFF_DATE_RETURN
+      This Procedure will return the Hierarchy level Effective Date
       from HIERARCHY_DETAIL for any curr val passed and for any
-      level. 
+      level.
 
 input param : IN_HIERARCHY_DETAIL_ROW
 Created : 08/02/2013 CCN Project
@@ -440,10 +440,10 @@ RETURN DATE;
 
 FUNCTION HIERARCHY_EXP_DATE_RETURN (
 /***********************************************************
-      HIERARCHY_EXP_DATE_RETURN 
-      This Procedure will return the Hierarchy level Expiration Date 
+      HIERARCHY_EXP_DATE_RETURN
+      This Procedure will return the Hierarchy level Expiration Date
       from HIERARCHY_DETAIL for any curr val passed and for any
-      level. 
+      level.
 
 input param : IN_HIERARCHY_DETAIL_ROW
 Created : 08/02/2013 CCN Project
@@ -451,12 +451,24 @@ Created : 08/02/2013 CCN Project
 IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 RETURN DATE;
 
+
+FUNCTION IS_VALID_HEADER_LVL(
+/***********************************************************
+This Procedure will return true if the hierarchy header 
+matches with the hierarchy level passed in the xml. 
+
+Created : 09/04/2013 jxc517 CCN Project
+************************************************************/
+    IN_HRCHY_HDR_NAME       IN VARCHAR2,
+    IN_HRCHY_DTL_LEVEL      IN VARCHAR2)
+RETURN BOOLEAN;
+
 PROCEDURE HIERARCHY_DELETE_WRAPPER(
 /***********************************************************
-      HIERARCHY_DELETE_WRAPPER 
+      HIERARCHY_DELETE_WRAPPER
       This Procedure will delete from HIERARCHY_DETAIL or
       HIERARCHY_DETAIL_HST based on the in_flag
-      level. 
+      level.
 
       IN_FLAG                  IN  VARCHAR2,
 
@@ -468,13 +480,13 @@ IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 
 PROCEDURE HIERARCHY_UPDATE_WRAPPER(
 /***********************************************************
-      HIERARCHY_UPDATE_WRAPPER 
+      HIERARCHY_UPDATE_WRAPPER
       This Procedure will update from HIERARCHY_DETAIL or
       HIERARCHY_DETAIL_HST based on the in_flag
-      level. 
-      
+      level.
+
       IN_FLAG                  IN  VARCHAR2,
-  
+
 input param : in_HRCHY_DTL_CURR_LVL_VAL
 Created : 08/02/2013 CCN Project
 ************************************************************/
@@ -538,9 +550,9 @@ Example Input:
 </HIERARCHY_DETAIL>
 
 Created : 01/17/2014 jxc517 CCN Project Team....
-update  : 09/18/2014 NXK927  -- Hier territory cost center tranfer(mail) 
+update  : 09/18/2014 NXK927  -- Hier territory cost center tranfer(mail)
 modified: 02/02/2015 axk326 CCN Project Team...
-          Added Upper() function while selecting from any table 
+          Added Upper() function while selecting from any table
           based on COST_CENTER_CODE
 Modified: 10/14/2015 SXT410 CCN Project Team...
           Adding HRCHY_DTL_EXP_DATE As Sysdate For Expired Hierarchy Level.
@@ -578,7 +590,7 @@ Example Input:
         <attributes>
             <upper_lvl_ver_desc>
                 <Name>Statement Type</Name>
-                <Description>Picklist Value</Description>
+                <Description>pkListValue</Description>
                 <Value>US</Value>
             </upper_lvl_ver_desc>
         </attributes>
@@ -593,14 +605,14 @@ Modified: 03/31/2016 jxc517 CCN Project....
 **********************************************************/
     IN_XML                IN     CLOB,
     IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N');
-
-PROCEDURE HIERARCHY_HDR_PICKLIST(	
+    
+PROCEDURE HIERARCHY_HDR_PICKLIST(
 /**********************************************************
 	HIERARCHY_HDR_DESC_PICKLIST
 
 	This procedure will return the data in ref cursor
         from HIERARCHY_HEADER and HIERARCHY_DESCRIPTION
-        
+
 
 created : 04/25/2013 kdp CCN Project....
 modified: 08/27/2014 jxc517 CCN Project
@@ -611,9 +623,9 @@ modified: 08/27/2014 jxc517 CCN Project
 
 FUNCTION VALIDATE_HIERARCHY(
 /*******************************************************************************
- VALIDATE_HIERARCHY  
-   
-  This procedure will validate the hierarchy from bottom to top and raise 
+ VALIDATE_HIERARCHY
+
+  This procedure will validate the hierarchy from bottom to top and raise
   corresponding error if particular level value doesn't exist
 
 created : JXC517 11/14/2013
@@ -654,7 +666,7 @@ Example Input:
         <attributes>
             <upper_lvl_ver_desc>
                 <Name>Statement Type</Name>
-                <Description>Picklist Value</Description>
+                <Description>pkListValue</Description>
                 <Value>US</Value>
             </upper_lvl_ver_desc>
         </attributes>
@@ -702,7 +714,7 @@ Inputs:
 IN_HIERARCHY_DETAIL_REC     -      HIERARCHY_DETAIL%ROWTYPE
 
 Created : 10/12/2015 jxc517
-Revised : 
+Revised :
 **********************************************************/
 IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE);
 
@@ -737,7 +749,7 @@ Example Input:
         <attributes>
             <upper_lvl_ver_desc>
                 <Name>Statement Type</Name>
-                <Description>Picklist Value</Description>
+                <Description>pkListValue</Description>
                 <Value>US</Value>
             </upper_lvl_ver_desc>
         </attributes>
@@ -748,13 +760,13 @@ Created : 01/17/2014 JXC517
 
 **********************************************************/
     IN_XML                CLOB);
-    
+
 PROCEDURE GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************
-      GET_RQSTD_ATTRIBUTE_VALUE 
+      GET_RQSTD_ATTRIBUTE_VALUE
       This Procedure will get the requested attribute value for from
       the passed UPPER_LVL_VER_DESC XML
-      
+
 Created : 30/14/2014 jxc517 CCN Project
 ************************************************************/
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
@@ -763,14 +775,26 @@ Created : 30/14/2014 jxc517 CCN Project
 
 FUNCTION GET_RQSTD_ATTRIBUTE_VALUE(
 /***********************************************************
-      This function will return the requested attribute value for 
+      This function will return the requested attribute value for
       the passed UPPER_LVL_VER_DESC XML
-      
+
 Created : 04/23/2015 jxc517 CCN Project
 ************************************************************/
     IN_UPPER_LVL_VER_VALUE  IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
     IN_ATTRIBUTE_NAME       IN     VARCHAR2) RETURN VARCHAR2;
 
+
+FUNCTION VALIDATE_DCO_COST_CENTER(
+/***********************************************************
+This Function will validate the passed cost center code and 
+return 'Y', if the cost center is present else return 'N'
+If this functions retruns 'N' Then UI is Throwing the following error
+"DCO CostCenter Not Found. Please enter the correct DCO CostCenter."
+Created : 01/25/2018 axt754 CCN Project Team....
+Modified: 
+************************************************************/
+    IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
+)RETURN VARCHAR2;
 
 FUNCTION RETURN_LVL_VALUE_SIZE(
 /*******************************************************************************
@@ -793,18 +817,6 @@ created : 06/12/2017 sxp130 ASP_802 ccn project team....
 **********************************************************/
 ;
 
-FUNCTION VALIDATE_DCO_COST_CENTER(
-/***********************************************************
-This Function will validate the passed cost center code and 
-return 'Y', if the cost center is present else return 'N'
-If this functions retruns 'N' Then UI is Throwing the following error
-"DCO CostCenter Not Found. Please enter the correct DCO CostCenter."
-Created : 01/25/2018 axt754 CCN Project Team....
-Modified: 
-************************************************************/
-    IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
-)RETURN VARCHAR2;
-
 FUNCTION IS_COST_CENTER_LVL(
 /***********************************************************
 This function will return true if the passed level is cost center level
@@ -816,5 +828,5 @@ Modified:
     IN_HEADER_NAME     IN         VARCHAR2,
     IN_CC_LVL_NBR      IN         VARCHAR2,
     IN_CURR_ROW_VAL    IN         VARCHAR2 DEFAULT NULL) RETURN VARCHAR2;
-
+    
 END CCN_HIERARCHY;

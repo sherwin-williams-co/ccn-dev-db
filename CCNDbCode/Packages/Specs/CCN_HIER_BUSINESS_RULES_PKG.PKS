@@ -279,8 +279,7 @@ PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
   created : 09/01/2016 MXK766 CCN Project Team....
   Modified: 
 ********************************************************************************/
-IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
-IN_COSTCENTER_YN        IN VARCHAR2);
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
 
 FUNCTION IS_HRCHY_TO_EQUAL_HRCHY_FROM(
 /***********************************************************
@@ -310,5 +309,16 @@ Modified:
 ************************************************************/
     IN_HIERARCHY_DETAIL_REC     IN     HIERARCHY_DETAIL%ROWTYPE)
 RETURN VARCHAR2;
+
+PROCEDURE VLDT_RLS_FOR_LATIN_AMRIC_DIV(
+/*******************************************************************************
+This procedure will validate the business rules for global hierarchies under doamin 02
+which will be holding latin america division cost centers
+
+created : jxc517 08/20/2018 CCN Project Team....
+changed :
+********************************************************************************/
+    IN_HIERARCHY_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE,
+    IN_FLAG                 IN     VARCHAR2);
 
 END CCN_HIER_BUSINESS_RULES_PKG;

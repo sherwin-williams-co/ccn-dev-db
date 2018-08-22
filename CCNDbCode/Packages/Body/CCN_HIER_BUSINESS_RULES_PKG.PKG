@@ -980,16 +980,16 @@ BEGIN
        END IF;
        
        IF UPPER(V_HRCHY_HDR_NAME) = 'GLOBAL_HIERARCHY' then
-          IF v_hrchy_dtl_level = '9' THEN
-              V_CONTEXT := 'Calling the cost_center_change_Rules';
-              CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
-              V_CONTEXT := 'Calling the VALIDATE_CC_SALES_MANAGER_LVL';
-              CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_CC_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL,
-                                                                        IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
-          ELSIF v_hrchy_dtl_level = '6' THEN
-              V_CONTEXT := 'Calling the VALIDATE_SALES_MANAGER_LVL';
-              CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
-          END IF;
+           IF v_hrchy_dtl_level = '9' THEN
+               V_CONTEXT := 'Calling the cost_center_change_Rules';
+               CCN_HIER_BUSINESS_RULES_PKG.cost_center_change_Rules(V_HRCHY_HDR_NAME, V_HRCHY_DTL_LEVEL);
+               V_CONTEXT := 'Calling the VALIDATE_CC_SALES_MANAGER_LVL';
+               CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_CC_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL,
+                                                                         IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+           ELSIF v_hrchy_dtl_level = '6' THEN
+               V_CONTEXT := 'Calling the VALIDATE_SALES_MANAGER_LVL';
+               CCN_HIER_BUSINESS_RULES_PKG.VALIDATE_SALES_MANAGER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL);
+           END IF;
        END IF;
 
        V_HRCHY_DTL_EXP_DATE := IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE;
@@ -1076,29 +1076,25 @@ PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
 /*******************************************************************************
   This procedure will validate the business rules for adminorg Hierarchy,
   where duplication of a Cost Center in the same hierarchy is not allowed
-  created : 09/01/2016 MXK766 CCN Project....
+
+created : 09/01/2016 MXK766 CCN Project....
+modified: 05/15/2018 nxk927 CCN Project....
+          Business rule changed to check the levels.
+          Once the level is present, the same level can not come again at any
+          other level for admin org
 ********************************************************************************/
-IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
-IN_COSTCENTER_YN        IN VARCHAR2)
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE)
 IS
    V_COUNT         PLS_INTEGER := 0;
    V_CC_EXISTS_ERR EXCEPTION;
 BEGIN
-   IF IN_COSTCENTER_YN ='Y' THEN
-      SELECT COUNT(1)
-      INTO  V_COUNT
-      FROM  HIERARCHY_DETAIL
-      WHERE HRCHY_HDR_NAME           = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
-      AND   HRCHY_DTL_CURR_ROW_VAL   = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
-   ELSIF IN_COSTCENTER_YN='N' THEN
-      SELECT COUNT(1)
-      INTO V_COUNT
-      FROM  HIERARCHY_DETAIL
-      WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
-      AND   HRCHY_DTL_LEVEL        = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL
-      AND   HRCHY_DTL_CURR_LVL_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_LVL_VAL;
-   END IF;
-   IF V_COUNT>0 THEN
+   SELECT COUNT(1)
+     INTO V_COUNT
+     FROM HIERARCHY_DETAIL
+    WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+      AND HRCHY_DTL_CURR_ROW_VAL = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL;
+
+   IF V_COUNT > 0 THEN
       RAISE V_CC_EXISTS_ERR;
    END IF;
 END DUP_ADMINORG_LVL_VALIDATION;
@@ -1161,5 +1157,117 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VALUE;
 END IS_HRCHY_EFFCTV_EXP_PAST;
+
+PROCEDURE VLDT_RLS_FOR_LATIN_AMRIC_DIV(
+/*******************************************************************************
+This procedure will validate the business rules for global hierarchies under doamin 02
+which will be holding latin america division cost centers
+
+created : jxc517 08/20/2018 CCN Project Team....
+changed :
+********************************************************************************/
+    IN_HIERARCHY_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE,
+    IN_FLAG                 IN     VARCHAR2)
+IS
+    V_CONTEXT                     VARCHAR2(3000);
+    V_LAST_LEVEL_FLAG             VARCHAR2(1);
+    V_LVL_VALUE_SIZE              HIERARCHY_DESCRIPTION.LVL_VALUE_SIZE%TYPE;
+    V_HIERARCHY_DETAIL_ROW_PREV   HIERARCHY_DETAIL%ROWTYPE;
+    BUSSINESS_RULES_ERR_CODE      INTEGER;
+    BUSSINESS_RULES_ERR_DESC      VARCHAR2(2000);
+    BUSINESS_RULES_EXCEPTION      EXCEPTION;
+BEGIN
+    --DUPLICATE_LEVEL_VALIDATION
+    --This procedure will validate the business rules same Hierarchy, 
+    --where duplication of a Cost Center in the same hierarchy is not allowed
+    IF IN_FLAG = 'INSERT' THEN
+        BEGIN
+             V_CONTEXT := 'Calling the DUPLICATE_COST_CENTER';
+             CCN_HIER_BUSINESS_RULES_PKG.DUPLICATE_LEVEL_VALIDATION(IN_HIERARCHY_DETAIL_ROW);
+        EXCEPTION
+            WHEN OTHERS THEN
+                BUSSINESS_RULES_ERR_CODE := ERRNUMS.EN_CC_EXISTS_ERR; 
+                BUSSINESS_RULES_ERR_DESC := 'At Level-'|| IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL ||' the Value ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL
+                                              || ' already exists in Hierarchy ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
+            RAISE BUSINESS_RULES_EXCEPTION;
+        END;
+        V_CONTEXT := 'Validating LVL_VALUE_SIZE for the passed HRCHY_DTL_CURR_ROW_VAL';
+        BEGIN
+            SELECT NVL(LVL_VALUE_SIZE,0)
+              INTO V_LVL_VALUE_SIZE
+              FROM HIERARCHY_DESCRIPTION
+             WHERE HRCHY_HDR_NAME    = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME
+               AND HRCHY_HDR_LVL_NBR = IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_LVL_VALUE_SIZE := 0;
+        END;
+        IF LENGTH(IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL) <> V_LVL_VALUE_SIZE THEN
+            BUSSINESS_RULES_ERR_CODE := ERRNUMS.EN_LVL_VAL_SIZE_ERR;
+            BUSSINESS_RULES_ERR_DESC := 'The size of level ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL 
+                   || ' in ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME 
+                   || ' hierarchy should be ' || V_LVL_VALUE_SIZE || ' characters';
+            RAISE BUSINESS_RULES_EXCEPTION;
+        END IF;
+    END IF;
+
+     SELECT DECODE(HRCHY_HDR_LEVELS,IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL,'Y','N')
+       INTO V_LAST_LEVEL_FLAG
+       FROM HIERARCHY_HEADER
+      WHERE HRCHY_HDR_NAME = IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME;
+
+     --Below condition makes sure that the validations for cost center level and previous levels are properly seperated
+     IF V_LAST_LEVEL_FLAG = 'Y' THEN
+         V_CONTEXT := 'Calling the Business Rules pkg';
+         BEGIN
+             --So once the business rule is violated BUSSINESS_RULES_ERR_CODE is set to corresponding warning #
+             --No further validation of rules is needed at other levels as this warning is generic
+             IF BUSSINESS_RULES_ERR_CODE IS NULL THEN
+                 IF IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE IS NOT NULL THEN
+                     V_CONTEXT := 'Calling the HIERARCHY_EXPIRATION_RULES';
+                     CCN_HIER_BUSINESS_RULES_PKG.HIERARCHY_EXPIRATION_RULES(IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME,
+                                                                            IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL,
+                                                                            IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_EXP_DATE);
+                 END IF;
+             END IF;
+         EXCEPTION
+             --Allow the process to continue, as these are just warnings
+             WHEN OTHERS THEN
+                 BUSSINESS_RULES_ERR_CODE   := SQLCODE;
+                 BUSSINESS_RULES_ERR_DESC   := SQLERRM;
+                 RAISE BUSINESS_RULES_EXCEPTION;
+         END;
+
+         --Validate if the header name matches with the number of levels passed
+         --This validation should be done only once, that too for the last level OR first iteration
+         --We don't need these validations on FROM side of the transfer
+         V_CONTEXT := 'Validating Header levels';
+         IF NOT CCN_HIERARCHY.IS_VALID_HEADER_LVL(IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME,
+                                                  IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL) THEN
+             BUSSINESS_RULES_ERR_CODE   := errnums.en_invalid_levels_err;
+             BUSSINESS_RULES_ERR_DESC   := 'The number of levels for the Hierarchy ' || IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME || ' is not in range';
+             RAISE BUSINESS_RULES_EXCEPTION;
+         END IF;
+
+         V_CONTEXT := 'Validating previous level exists or not';
+         --Get the previous level record, if one exists
+         GET_PREVIOUS_LVL(NULL,
+                          IN_HIERARCHY_DETAIL_ROW,
+                          V_HIERARCHY_DETAIL_ROW_PREV);
+         IF V_HIERARCHY_DETAIL_ROW_PREV.HRCHY_DTL_CURR_LVL_VAL IS NULL THEN
+             -- We should no longer recursively insert previous levels as it is the responsibility of UI and Send files
+             -- to have all the previous levels sent properly. If not sent, an erorr will be logged stating the same
+             BUSSINESS_RULES_ERR_CODE   := errnums.en_previous_level_missing_err;
+             BUSSINESS_RULES_ERR_DESC   := 'Level ' || (IN_HIERARCHY_DETAIL_ROW.HRCHY_DTL_LEVEL - '1') || ' is missing in ' ||
+                                           IN_HIERARCHY_DETAIL_ROW.HRCHY_HDR_NAME || ' hierarchy';
+             RAISE BUSINESS_RULES_EXCEPTION;
+         END IF;
+    END IF;
+EXCEPTION
+    WHEN BUSINESS_RULES_EXCEPTION THEN
+        ERRPKG.RAISE_ERR(BUSSINESS_RULES_ERR_CODE,BUSSINESS_RULES_ERR_DESC);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(-20004,'VLDT_RLS_FOR_LATIN_AMRIC_DIV ',V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM);
+END VLDT_RLS_FOR_LATIN_AMRIC_DIV;
 
 END CCN_HIER_BUSINESS_RULES_PKG;
