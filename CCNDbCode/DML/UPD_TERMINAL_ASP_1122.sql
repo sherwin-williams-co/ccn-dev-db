@@ -47,3 +47,6 @@ BEGIN
   COMMIT;
 END;
 
+-- Drop Temp Table.
+
+DROP TABLE TERMINAL_TEMP;
