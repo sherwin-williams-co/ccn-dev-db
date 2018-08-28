@@ -71,7 +71,7 @@ des_file_name=`ls -lrt /app/ccn/dev/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -
 ftpResult=`ftp -n $ccn_phone_host <<FTP_MF
 quote USER $ccn_phone_user
 quote PASS $ccn_phone_pw
-put $src_file_path /app/banking/dev/datafiles/$des_file_name
+put $src_file_path $des_file_path/$des_file_name
 bye
 FTP_MF`
 echo "FTP to Server COMPLETED" >> $LOGDIR/$proc"_"$TimeStamp.log
