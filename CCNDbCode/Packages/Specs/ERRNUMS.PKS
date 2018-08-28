@@ -43,7 +43,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_cost_center_err" passes a numerical error of -20002.
 An error occurs when Cost_Center effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -475,7 +475,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "inactive_bank_card_err" passes a numerical error of -20033.
-An error occurs when the effective date > current date  date > 0.
+An error occurs when the effective date > current date & expiration date > 0.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -580,7 +580,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_status_err" passes a numerical error of -20041.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -607,7 +607,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_type_err" passes a numerical error of -20043.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -634,7 +634,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_terminal_err" passes a numerical error of -20045.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -661,7 +661,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_store_err" passes a numerical error of -20047.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -688,7 +688,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_usa_err" passes a numerical error of -20049.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -715,7 +715,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_mex_err" passes a numerical error of -20051.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -742,7 +742,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_can_err" passes a numerical error of -20053.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -769,7 +769,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_addr_othr_err" passes a numerical error of -20055.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -796,7 +796,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_hierarchy_err" passes a numerical error of -20057.
 An error occurs when effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -836,7 +836,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_polling_err" passes a numerical error of -20060.
 An error occurs when Polling effective date >
-current date  date not null.
+current date & expiration date not null.
 
 created : 06/08/2012 cbd CCN Project
 revisions: 
@@ -2103,7 +2103,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores  or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2403,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores  or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 07/01/2013 SH CCN Project
 revisions: 
