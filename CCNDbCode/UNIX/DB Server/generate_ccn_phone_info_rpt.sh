@@ -68,9 +68,9 @@ echo "FTP to Server Started" >> $LOGDIR/$proc"_"$TimeStamp.log
 src_file_path="/app/ccn/dev/datafiles/CCN_PHONE_INFO*.xlsx"
 des_file_name=`ls -lrt /app/ccn/dev/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -d'/' -f1|rev`
 
-ftpResult=`ftp -n $CCN_PHONE_INFO_HOST <<FTP_MF
-quote USER $CCN_PHONE_INFO_USERNAME
-quote PASS $CCN_PHONE_INFO_PASSWORD
+ftpResult=`ftp -n $ccn_phone_host <<FTP_MF
+quote USER $ccn_phone_user
+quote PASS $ccn_phone_pw
 put $src_file_path /app/banking/dev/datafiles/$des_file_name
 bye
 FTP_MF`
