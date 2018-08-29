@@ -13,7 +13,7 @@
 
 proc_name="SRA11000_load_data_test"
 DATA_FILES_PATH="$HOME/initLoad"
-ARCHIVE_PATH="$HOME/SRA11000PARALLEL"
+ARCHIVE_PARALLEL_PATH="$HOME/SRA11000PARALLEL"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
 LOAD_DATE=`date +"%d-%^b-%Y"`
@@ -24,10 +24,10 @@ echo "Processing Started for $proc_name at $TIME on $DATE"
 #          Control will output if directory with that date exists
 #################################################################
 if [ -d "$ARCHIVE_PATH/$FOLDER" ]; then
-   echo "Directory $ARCHIVE_PATH/$FOLDER exists"
+   echo "Directory $ARCHIVE_PARALLEL_PATH/$FOLDER exists"
 else
-   echo "Directory $ARCHIVE_PATH/$FOLDER does not exists, creating one. . ."
-   mkdir $ARCHIVE_PATH/$FOLDER
+   echo "Directory $ARCHIVE_PARALLEL_PATH/$FOLDER does not exists, creating one. . ."
+   mkdir $ARCHIVE_PARALLEL_PATH/$FOLDER
 fi
 
 #################################################################
@@ -72,14 +72,14 @@ TIME=`date +"%H:%M:%S"`
 #################################################################
 if ls $DATA_FILES_PATH/SMIS1.SRA12060_* &> /dev/null; then
    echo "$DATA_FILES_PATH/SMIS1.12060_* files exist "
-   mv $DATA_FILES_PATH/SMIS1.SRA12060_* $ARCHIVE_PATH/$FOLDER
+   mv $DATA_FILES_PATH/SMIS1.SRA12060_* $ARCHIVE_PARALLEL_PATH/$FOLDER
 else
    echo "$DATA_FILES_PATH/SMIS1.SRA12060_* files does not exist"
 fi
 
 if ls $DATA_FILES_PATH/SMIS1.SRA10060_* &> /dev/null; then
    echo "$DATA_FILES_PATH/SMIS.SRA10060_* files exists "
-   mv $DATA_FILES_PATH/SMIS1.SRA10060_* $ARCHIVE_PATH/$FOLDER
+   mv $DATA_FILES_PATH/SMIS1.SRA10060_* $ARCHIVE_PARALLEL_PATH/$FOLDER
 else
    echo "$DATA_FILES_PATH/SMIS1.SRA10060_* files does not exist"
 fi
