@@ -77,13 +77,6 @@ else
    echo "$DATA_FILES_PATH/SMIS1.SRA12060_* files does not exist"
 fi
 
-if ls $DATA_FILES_PATH/SMIS1.SRA10060_* &> /dev/null; then
-   echo "$DATA_FILES_PATH/SMIS.SRA10060_* files exists "
-   mv $DATA_FILES_PATH/SMIS1.SRA10060_* $ARCHIVE_PARALLEL_PATH/$FOLDER
-else
-   echo "$DATA_FILES_PATH/SMIS1.SRA10060_* files does not exist"
-fi
-
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 exit 0
