@@ -17,6 +17,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
           Added POS_NON_STORE_IND Field
         : 07/11/2018 nxk927 CCN Project....
           Changed the address column size from 35 to 100
+        : 08/01/2018 pxa852 CCN Project....
+          Added field DESCARTES_DELIVERY_CODE....ASP 1109
 
 */
 
@@ -168,7 +170,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
       POTENTIAL_OPEN_DATE              VARCHAR2(8),
       TOTAL_SQ_FT                      VARCHAR2(10),
       SALES_SQ_FT                      VARCHAR2(10),
-      POS_NON_STORE_IND                VARCHAR2(1)
+      POS_NON_STORE_IND                VARCHAR2(1),
+      DESCARTES_DELIVERY_CODE          VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -177,7 +180,7 @@ Changed : 04/25/2017 gxg192 CCN Project....
       ( RECORDS DELIMITED BY NEWLINE SKIP 1
           badfile "CCN_LOAD_FILES":'COST_CENTER_STORE.bad'
           logfile "CCN_LOAD_FILES":'COST_CENTER_STORE.log'
-          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LRTRIM
+          FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LDRTRIM
           MISSING FIELD VALUES ARE NULL
           REJECT ROWS WITH ALL NULL FIELDS
                                        (COST_CENTER_CODE,
@@ -325,7 +328,8 @@ Changed : 04/25/2017 gxg192 CCN Project....
                                         POTENTIAL_OPEN_DATE,
                                         TOTAL_SQ_FT,
                                         SALES_SQ_FT,
-                                        POS_NON_STORE_IND)
+                                        POS_NON_STORE_IND,
+                                        DESCARTES_DELIVERY_CODE)
                      )
       LOCATION
        ( 'COST_CENTER_STORE.csv'
