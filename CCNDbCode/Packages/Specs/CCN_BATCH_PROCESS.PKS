@@ -129,4 +129,13 @@ Created : 08/08/2018 kxm302 CCN project Team....
 **********************************************************/
 ;
 
+PROCEDURE GENERATE_CCN_PHONE_INFO_RPT;
+/******************************************************************************
+This procedure is intended to generate an CCN Phone details xlsx  report from CCN_PHONE_INFO_VW.
+
+Filters:
+Created : 08/23/2018 kxm302 CCN project Team....
+*******************************************************************************/
+;
+
 END CCN_BATCH_PROCESS;
