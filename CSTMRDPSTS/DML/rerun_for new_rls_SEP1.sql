@@ -3,6 +3,8 @@
 --select distinct customer_account_number FROM CUSTOMER_DEPOSIT_DETAILS WHERE rls_run_cycle in('1665,'1666') and customer_account_number IN
 --(select acctnbr from PNP.pre_go_live_headers where rls_run_cycle =0);
 
+CREATE INDEX CUSTOMER_DEPOSIT_DETAILS_INDX ON CUSTOMER_DEPOSIT_DETAILS (CUSTOMER_ACCOUNT_NUMBER);
+
 DELETE FROM CUST_DEP_REDEMPTION_DETAILS WHERE customer_account_number IN
 ('1',
 '100901958',
