@@ -65,8 +65,8 @@ echo "Processing finished for $proc at ${TIME} on ${DATE}"
 ############################################################################
 
 echo "FTP to Server Started" >> $LOGDIR/$proc"_"$TimeStamp.log
-src_file_path="/app/ccn/dev/datafiles/CCN_PHONE_INFO*.xlsx"
-des_file_name=`ls -lrt /app/ccn/dev/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -d'/' -f1|rev`
+src_file_path="$HOME/datafiles/CCN_PHONE_INFO*.xlsx"
+des_file_name=`ls -lrt $HOME/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -d'/' -f1|rev`
 
 ftpResult=`ftp -n $ccn_phone_host <<FTP_MF
 quote USER $ccn_phone_user
