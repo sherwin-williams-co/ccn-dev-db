@@ -92,16 +92,9 @@ fi
 
 echo "Starting archiving the FTP file" >> $LOGDIR/$proc"_"$TimeStamp.log
 
-mv -f $src_file_path /app/ccn/dev/archive
+mv -f $src_file_path $HOME/archive
 echo "The archive file processing completed successfully" >> $LOGDIR/$proc"_"$TimeStamp.log
 exit 0;
 
 ############################################################################
-
-
-
-
-
-
-
 
