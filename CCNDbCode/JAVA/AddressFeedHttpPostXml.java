@@ -34,7 +34,7 @@ public class AddressFeedHttpPostXml{
 				response = "about to process the request with key : " + request.getKey();
 				try{
 					System.out.println("Processing request GUID : "+request.getKey());
-					response = postdata(prop.getProperty("descartesUrl"), request.getValue());
+					response = postdata(prop.getProperty("descartesUrl"), request.getValue(), request.getKey());
 					System.out.println("Updating the response");
 					DBConnectionDscrts.setResponse(request.getKey(), response);
 					DBConnectionDscrts.conn.commit();
@@ -61,7 +61,7 @@ public class AddressFeedHttpPostXml{
 			}
 		}
 	}
-	public static String postdata(String urlPath, String inRequest) throws Exception {
+	public static String postdata(String urlPath, String inRequest, String inGUID) throws Exception {
 		String responseVal = "";
 		URL url = new URL(urlPath);
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -79,6 +79,9 @@ public class AddressFeedHttpPostXml{
 		BufferedReader in   = new BufferedReader (new InputStreamReader (content));
 		String line;
 		while ((line = in.readLine()) != null) {
+			if (line.contains("<Result>FAILURE</Result>")){
+				DBConnectionDscrts.sendMail("DESCARTES_ADDR_FEED_FAIL", "Error in processing GUID "+ inGUID);
+			}
 			responseVal = responseVal + line;
 		}
 		return responseVal;
