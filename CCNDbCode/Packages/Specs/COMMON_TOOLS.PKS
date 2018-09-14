@@ -8,6 +8,8 @@ available to be used by the entire schema
 		this is created since oracle cannot handle blank strings being converted to 
 		date fields
 created : 08/24/2010 kdp Payroll reporting project.....
+        : 09/13/2018 kxm302 CCN Project Team...
+		: Removed GET_CC_MANAGER_NAME function ASP-1128
 ************************************************************/
    
 PROCEDURE ALTER_ALL_TRIGGERS   
@@ -450,15 +452,5 @@ Modified:
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_GEO_TYPE       IN     VARCHAR2
     ) RETURN VARCHAR2;
-
-FUNCTION GET_CC_MANAGER_NAME(
-/***********************************************************
-This function will return Manager Name for given Cost Center Code
-
-Created : 03/28/2018 sxg151 CCN Project ASP-1048
-modified: 
-************************************************************/
-    IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
-RETURN VARCHAR2;
 
 END COMMON_TOOLS;

@@ -25,6 +25,8 @@ Modified : 11/12/2015 sxt410 CCN Project...
            Adding new attribute "CITY/SLS MGR FLAG" to the view and its description
          : 03/28/2018 sxg151 CCN Project Team...
            Calling COMMON_TOOLS.GET_CC_MANAGER_NAME function to get the Mgr Name
+         : 09/13/2018 kxm302 CCN Project Team...
+		   Replaced the function(COMMON_TOOLS.GET_CC_MANAGER_NAME to CCN_DERIVED_VALUES.GET_CC_MANAGER_NAME)  to get CC_MGR_NAME ASP-1128.
 *******************************************************************************/
        A.STATEMENT_TYPE,
        A.HRCHY_HDR_NAME,
@@ -73,7 +75,7 @@ Modified : 11/12/2015 sxt410 CCN Project...
        A.SPECIAL_ROLES_UPPER_VALUE,
        A.CC_UPPER_LVL_VALUE
   FROM (SELECT GV.*,
-               COMMON_TOOLS.GET_CC_MANAGER_NAME(GV.COST_CENTER_CODE) CC_MGR_NAME,
+               CCN_DERIVED_VALUES.GET_CC_MANAGER_NAME(GV.COST_CENTER_CODE) CC_MGR_NAME,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN, GV.DOMAIN||GV."GROUP", '~~~') DOMAIN_UPPER_VALUE,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN||GV."GROUP", GV.DOMAIN||GV."GROUP"||GV.DIVISION, GV.DOMAIN) GROUP_UPPER_VALUE,
                COMMON_TOOLS.GET_UPPER_LVL_VER_VALUE(GV.HRCHY_HDR_NAME, GV.DOMAIN||GV."GROUP"||GV.DIVISION, GV.DOMAIN||GV."GROUP"||GV.DIVISION||GV.AREA, GV.DOMAIN||GV."GROUP") DIV_UPPER_VALUE,
