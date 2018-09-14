@@ -11,14 +11,14 @@
 # 4. Archive the file after FTP completed
 #
 # Date Created: 08/23/2018 kxm302
-# Date Updated: 
+# Date Updated: 09/14/2018 updated FTP details with braces
 #
 ##########################################################################################
 # Change directory to home path
 cd /app/ccn/dev
 
 # below command will get the path for ccn.config respective to the environment from which it is run from
-. /app/ccn/host.sh
+. /app/ccn/BMChost.sh
 
  proc="GENERATE_CCN_PHONE_INFO_RPT"
  LOGDIR="$HOME/datafiles/log"
@@ -68,12 +68,13 @@ echo "FTP to Server Started" >> $LOGDIR/$proc"_"$TimeStamp.log
 src_file_path="$HOME/datafiles/CCN_PHONE_INFO*.xlsx"
 des_file_name=`ls -lrt $HOME/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -d'/' -f1|rev`
 
-ftpResult=`ftp -n $ccn_phone_host <<FTP_MF
-quote USER $ccn_phone_user
-quote PASS $ccn_phone_pw
-put $src_file_path $des_file_path/$des_file_name
+ftpResult=`ftp -n "${ccn_phone_host}" <<FTP_MF
+quote USER "${ccn_phone_user}"
+quote PASS "${ccn_phone_pw}"
+put "${src_file_path}" "${des_file_path}"/"${des_file_name}"
 bye
 FTP_MF`
+echo $ftpResult >> $LOGDIR/$proc"_"$TimeStamp.log
 echo "FTP to Server COMPLETED" >> $LOGDIR/$proc"_"$TimeStamp.log
 
 ############################################################################
