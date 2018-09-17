@@ -44,15 +44,6 @@ created : 11/02/2015 axk326 CCN Project Team....
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
-PROCEDURE SELECT_AUDIT_LOG
-/*******************************************************
-Selects all rows from audit_log that have changed from
-the last run of the backfeed process
-
-created : 06/07/2012
-*******************************************************/
-;  
-
 PROCEDURE AUDIT_FIELDS_IU(
 /**********************************************************
 	AUDIT_FIELDS_IU
