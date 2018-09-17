@@ -14,7 +14,6 @@ cmd_path="$HOME/datafiles"
 while true; do
    if [ -s $cmd_path/cmd_start.sh ]
    then
-      sh $HOME/bnkng_audit_strt_ftp.sh
 	  
       now=`date +"%Y-%m-%d.%H%M%S"`
       renamedfile="$cmd_path/cmd_start.$now.sh"
