@@ -1,6 +1,6 @@
-create or replace PACKAGE          "CCN_DERIVED_VALUES" AS
+create or replace PACKAGE          "CCN_DERIVED_VALUES" AS 
 /*********************************************************** 
-This package SPEC is intended to derive values for CCN user
+This package SPEC is intended to derive values for CCN user   
 
 created : 09/13/2018 kxm302 CCN Proeject Team.....
         : Derives Cost Center Manager Name ASP - 1128
