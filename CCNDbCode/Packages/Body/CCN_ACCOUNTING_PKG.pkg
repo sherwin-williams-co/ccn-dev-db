@@ -21,6 +21,7 @@ Modified: 07/11/2017 pxb712 -- Change to add a new column STATUS_CODE in CCN_ACC
           03/28/2018 sxg151 -- Replaced the function(CCN_HIERARCHY.GET_MGR_NAME_FNC to COMMON_TOOLS.GET_CC_MANAGER_NAME)  to get MGR_NAME
           06/12/2018 sxg151 -- Added BEGIN_DATE,TYPE_CODE and TYPE_CODE_DESC  in CCN_ACCOUNTING_TBL ASP-1075.
 		  09/13/2018 kxm302 -- Replaced the function(COMMON_TOOLS.GET_CC_MANAGER_NAME to CCN_DERIVED_VALUES.GET_CC_MANAGER_NAME)  to get MGR_NAME ASP-1128.
+          09/20/2018 kxm302 -- Accounting Report update to add address fields ASP-1130.
 ******************************************************************************/
 IN_DATE IN DATE)
 IS 
@@ -42,7 +43,7 @@ IS
              ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('CURRENCY_CODE','COD',CURRENCY_CODE) CURRENCY_CODE_DESC
              ,BEGIN_DATE
          FROM COST_CENTER;
-        
+
     CURSOR GET_MARKETING_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT MKT_MISSION
               ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('MKT_MISSION','COD',MKT_MISSION) MKT_MISSION_DESC
@@ -52,7 +53,7 @@ IS
               ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('MKT_WAREHOUSE_SIZE','COD',MKT_WAREHOUSE_SIZE) MKT_WAREHOUSE_SIZE_DESC
           FROM MARKETING
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-         
+
     CURSOR GET_HIERARCHY_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT GLOBAL_DOMAIN "DOMAIN"
                ,GLOBAL_DOMAIN_NAME "DOMAIN_NAME"
@@ -76,7 +77,7 @@ IS
                ,COA_DIVISION_NAME
           FROM GLBL_FACTS_LEGACY_VIEW
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-         
+
     CURSOR GET_MGR_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT DIV_MGR_NAME
                ,AREA_MGR_NAME
@@ -85,17 +86,22 @@ IS
                ,CCN_DERIVED_VALUES.GET_CC_MANAGER_NAME(COST_CENTER_CODE) CC_MGR_NAME
           FROM GLOBAL_HIERARCHY_ATTRBT_VW
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-         
-    CURSOR GET_STATE_CODE(IN_COST_CENTER_CODE VARCHAR2) IS
-        SELECT STATE_CODE
+
+    CURSOR GET_ADDRESS_DETAILS(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT  STATE_CODE
                ,STATE_CODE_DESCRIPTION
                ,PROVINCE_CODE
                ,PROVINCE_CODE_DESCRIPTION
+               ,ADDRESS_LINE_1
+               ,ADDRESS_LINE_2
+               ,ADDRESS_LINE_3
+               ,CITY
+               ,NVL(ZIP_CODE,POSTAl_CODE) ZIP_CODE
           FROM ADDRESS_VW
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+         WHERE  COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND ADDRESS_TYPE = 'M'
            AND EXPIRATION_DATE IS NULL;
-           
+
      CURSOR GET_STATUS_CODE(IN_COST_CENTER_CODE VARCHAR2) IS
         SELECT STATUS_CODE
               ,CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STATUS_CODE','COD',STATUS_CODE) STATUS_CODE_DESC
@@ -118,14 +124,14 @@ IS
 
     V_CCN_ACCOUNTING_ROWTYPE CCN_ACCOUNTING_TBL%ROWTYPE;
     V_COUNT                   NUMBER := 0;
-    
+
 BEGIN
     -- If we need to re run the report, then delete and re load the data for the re run date
     DELETE FROM CCN_ACCOUNTING_TBL WHERE LOAD_DATE = IN_DATE;
-    
+
     FOR CC_REC IN GET_CC_DETAILS LOOP
         V_CCN_ACCOUNTING_ROWTYPE := NULL;
-        
+
         -- LOAD CC DETAILS
         V_CCN_ACCOUNTING_ROWTYPE.COST_CENTER_CODE        := CC_REC.COST_CENTER_CODE;
         V_CCN_ACCOUNTING_ROWTYPE.COST_CENTER_NAME        := CC_REC.COST_CENTER_NAME;
@@ -157,7 +163,7 @@ BEGIN
                  NULL;
            END;
         END LOOP;
-        
+
         -- LOAD HIERARCHY DETAILS
         FOR REC IN GET_HIERARCHY_DETAILS(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
@@ -186,7 +192,7 @@ BEGIN
                  NULL;
            END;
        END LOOP;
-       
+
        -- LOAD MANAGER DETAILS
         FOR REC IN GET_MGR_DETAILS(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
@@ -206,20 +212,25 @@ BEGIN
                  NULL;
            END;
         END LOOP;
-        
-        -- LOAD STATE DETAILS
-        FOR REC IN GET_STATE_CODE(CC_REC.COST_CENTER_CODE) LOOP
+
+        -- LOAD ADDRESS DETAILS
+        FOR REC IN GET_ADDRESS_DETAILS(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
               V_CCN_ACCOUNTING_ROWTYPE.STATE_CODE           := REC.STATE_CODE;
               V_CCN_ACCOUNTING_ROWTYPE.STATE_DESCRIPTION    := REC.STATE_CODE_DESCRIPTION;
               V_CCN_ACCOUNTING_ROWTYPE.PROVINCE_CODE        := REC.PROVINCE_CODE;
               V_CCN_ACCOUNTING_ROWTYPE.PROVINCE_DESCRIPTION := REC.PROVINCE_CODE_DESCRIPTION;
+              V_CCN_ACCOUNTING_ROWTYPE.ADDRESS_LINE_1       := REC.ADDRESS_LINE_1;
+              V_CCN_ACCOUNTING_ROWTYPE.ADDRESS_LINE_2       := REC.ADDRESS_LINE_2;
+              V_CCN_ACCOUNTING_ROWTYPE.ADDRESS_LINE_3       := REC.ADDRESS_LINE_3;
+              V_CCN_ACCOUNTING_ROWTYPE.ZIP_CODE              := REC.ZIP_CODE;
+              V_CCN_ACCOUNTING_ROWTYPE.CITY                 := REC.CITY;
            EXCEPTION
               WHEN OTHERS THEN
                  NULL;
            END;
         END LOOP;
-        
+
         -- LOAD STATUS DETAILS
        FOR REC IN GET_STATUS_CODE(CC_REC.COST_CENTER_CODE) LOOP
            BEGIN
@@ -262,7 +273,7 @@ BEGIN
            V_CCN_ACCOUNTING_ROWTYPE.DISTRICT IS NOT NULL) THEN
             INSERT INTO CCN_ACCOUNTING_TBL VALUES V_CCN_ACCOUNTING_ROWTYPE;
         END IF;
-        
+
         --COMMIT LOGIC
         V_COUNT := V_COUNT + 1;
         IF V_COUNT = 1000 THEN
@@ -270,7 +281,7 @@ BEGIN
             V_COUNT := 0;
         END IF;
     END LOOP;
-    
+
     COMMIT;
 EXCEPTION 
     WHEN OTHERS THEN
@@ -351,14 +362,19 @@ BEGIN
                ',ZONE'||
                ',ZONE_NAME'||
                ',SPECIAL_ROLES'||
-               ',SPECIAL_ROLES_NAME'||CHR(10);
-   
+               ',SPECIAL_ROLES_NAME'||
+               ',ADDRESS_LINE_1'||
+               ',ADDRESS_LINE_2'||
+               ',ADDRESS_LINE_3'||
+               ',CITY'||
+               ',ZIP_CODE'||CHR(10);
+
    FOR REC IN (SELECT *
                  FROM CCN_ACCOUNTING_TBL
                 WHERE LOAD_DATE = (SELECT MAX(LOAD_DATE)
                                      FROM CCN_ACCOUNTING_TBL)) LOOP
-                 
-                 
+
+
        -- Appended '="attribute"', so that if opened in excel the '0' on left side wouldn't be ignored..
 
         V_CLOB_REC := '="' || REC.COST_CENTER_CODE || '",' ||
@@ -417,14 +433,19 @@ BEGIN
                       '="' || NVL(REC."ZONE",'N/A') || '",' ||
                       '"' || NVL(REC.ZONE_NAME,'N/A') || '",' ||
                       '="' || NVL(REC.SPECIAL_ROLES,'N/A') || '",' ||
-                      '"' || NVL(REC.SPECIAL_ROLES_NAME,'N/A') || '"' || CHR(10);
+                      '"' || NVL(REC.SPECIAL_ROLES_NAME,'N/A') || '",' ||
+                      '="' || NVL(REC.ADDRESS_LINE_1,'N/A') || '",' ||
+                      '="' || NVL(REC.ADDRESS_LINE_2,'N/A') || '",' ||
+                      '="' || NVL(REC.ADDRESS_LINE_3,'N/A') || '",' ||
+                      '="' || NVL(REC.CITY,'N/A') || '",' ||
+                      '="' || NVL(REC.ZIP_CODE,'N/A') || '",' || CHR(10);
                  V_CLOB := V_CLOB || V_CLOB_REC;
    END LOOP;
 
     CCN_COMMON_TOOLS.WRITE_CLOB_ON_SERVER('CCN_DATAFILES',
                                           'CCN_ACCNT_REPORT_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.csv',
                                            V_CLOB);
-   
+
 EXCEPTION 
     WHEN OTHERS THEN
        DBMS_OUTPUT.PUT_LINE('FAILED TO GENERATE CCN APPLICATION VIEW REPORT');
