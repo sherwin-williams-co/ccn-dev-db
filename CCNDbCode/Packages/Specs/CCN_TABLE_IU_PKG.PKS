@@ -20,7 +20,7 @@ changed : 12/16/2014 AXK326 CCN Project Team....
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
 	All_TABLE_COL_S_SP
-	
+
 	This procedure is intended to return a ref cursor with datPOLLING_S_SPa from 
 	from the all_table_col table.  
 
@@ -28,7 +28,7 @@ created : 04/26/2012 kdp CCN Project....
 *******************************************************************************/
 			in_TABLE_NAME IN ALL_TAB_COLUMNS.TABLE_NAME%TYPE
 			,out_all_tab_ref_cur OUT ref_cursor	);    
-      
+
 
 	PROCEDURE ADDRESS_CAN_S_SP  (IN_COST_CENTER   IN ADDRESS_CAN.COST_CENTER_CODE%TYPE
                               ,IN_ADDRESS_TYPE  IN ADDRESS_CAN.ADDRESS_TYPE%TYPE
@@ -43,7 +43,7 @@ created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
 ;
 
-       
+
 	PROCEDURE ADDRESS_MEX_S_SP  (IN_COST_CENTER   IN ADDRESS_MEX.COST_CENTER_CODE%TYPE
                               ,IN_ADDRESS_TYPE  IN ADDRESS_MEX.ADDRESS_TYPE%TYPE
                               ,OUT_ADDRESS_MEX_REF_CUR OUT REF_CURSOR)
@@ -123,7 +123,7 @@ created : 02/20/2018 mxv711 CCN Project....
 created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
-  
+
 PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     IN  batch_job.batch_job_name%type
                         , in_batch_job_number   IN  batch_job.batch_job_number%type
 			, out_BATCH_JOB_REF_CUR OUT REF_CURSOR)
@@ -322,13 +322,13 @@ PROCEDURE EXPIRE_POLLING_DATA_SP
 ( IN_POLLING_ROW POLLING%ROWTYPE 
 /*******************************************************************************
     EXPIRE_POLLING_DATA_SP
-    
+
     This procedure is intended to expire Previous row of data based on 
     Cost_center_code and Polling_status_code.
 
 created : 02/18/2015 SXT410 CCN Project....
 revised : 
-    
+
 *******************************************************************************/
 );
 
@@ -758,7 +758,7 @@ PROCEDURE PHONE_I_SP (
 
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
-  
+
 	OracleTableName -Table name for row -varible 
             (based on the table that was updated)
         current date - 
@@ -1694,7 +1694,7 @@ created : 02/22/2018 mxv711 CCN Project....
 ,in_Row_data   IN varchar2 --sys.xmltype
 ,out_lad_customer_type  OUT LAD_CUSTOMER%ROWTYPE
 );
- 
+
 PROCEDURE BANK_CARD_ROWTYPE_SP (
 /*******************************************************************************
 	BANK_CARD_ROWTYPE_SP
@@ -1794,7 +1794,7 @@ revised :
 ,in_TABLE_NAME           IN  VARCHAR2 
 ,in_ROW_DATE             IN  DATE 
 ,in_Row_data             IN  varchar2--sys.xmltype
- 
+
 );
 
 PROCEDURE PHONE_ROWTYPE_SP (
@@ -1805,7 +1805,7 @@ PROCEDURE PHONE_ROWTYPE_SP (
 
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
-  
+
 	OracleTableName -Table name for row -varible 
             (based on the table that was updated)
         current date - 
@@ -2001,7 +2001,7 @@ created : 09/26/2012 TAL -- CCN Project....
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TYPE_ROWTYPE        OUT TYPE%ROWTYPE
 );
-   
+
 
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
 
@@ -2039,11 +2039,11 @@ PROCEDURE CC_ADDTL_TABLES_UI_SP (
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
- 
+
    in_table_name          IN  varchar2   
   ,in_row_data           IN  varchar2  --sys.xmltype
   );
-  
+
 PROCEDURE CC_ADDRESS_TABLES_UI_SP ( 
  /******************************************************************************
     CC_ADDRESS_TABLES_UI_SP   --   create/update tables
@@ -2057,13 +2057,13 @@ PROCEDURE CC_ADDRESS_TABLES_UI_SP (
             ,  ADDRESS_CAN
             ,  ADDRESS_MEX
             ,  ADDRESS_OTHER
-           
+
             tables.  
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
- 
- 
+
+
 in_table_name          IN  varchar2 
 ,in_row_data            IN  varchar2  --sys.xmltype
 );  
@@ -2121,7 +2121,7 @@ changed :
     in_table_name     IN        VARCHAR2,
     in_row_date       IN        DATE,
     in_row_data       IN        VARCHAR2);
-	
+
 PROCEDURE HIERARCHY_TRANSFER_I_SP(
 /*******************************************************************************
 This procedure is intended to insert new HIERARCHY_TRANSFER_MAIL records
@@ -2260,7 +2260,7 @@ Created : 03/15/2017 axt754 -- CCN Project Team
     in_gl_accnt_frag IN     CLOB,
     in_table_name    IN     VARCHAR2,
     out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
-    
+
 
 PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
 /*******************************************************************************
@@ -2389,5 +2389,26 @@ Created : 09/05/2017 axt754 CCN Project....
 Changed :
 *******************************************************************************/
     IN_NON_TW_RATES_USA_ROW      IN NON_TAXWARE_RATES_USA%ROWTYPE);
+
+PROCEDURE STORE_HST_I_SP(
+/*******************************************************************************
+This procedure is intended to insert previous STORE record into store_hst
+table for Historical purpose.
+
+created : 09/26/2018 pxa852 CCN Project....
+revised :
+*******************************************************************************/
+IN_STORE_ROW IN STORE%ROWTYPE
+);
+
+PROCEDURE GET_PREVIOUS_STORE_RECORD(
+/*******************************************************************************
+This procedure is used to return the old store record to maintain the history of old stores.
+
+Created : 09/26/2018 pxa852 Project Team....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE      IN     VARCHAR2,
+    OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
 END CCN_TABLE_IU_PKG;

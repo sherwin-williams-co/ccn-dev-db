@@ -1631,10 +1631,13 @@ Created : 07/31/2018 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
 IS
+    V_PREV_STORE_ROW                  STORE%ROWTYPE;
     V_START_TIME                      DATE := SYSDATE;
     V_CLOB_FOR_EMAIL                  CLOB;
+    V_BULK_LOAD_LKUP_ID               NUMBER;
     invalid_dscrts_dlry_code_err      EXCEPTION;
 BEGIN
+    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_STORE_DSCRTS_DLVRY_CD_LOAD', V_BULK_LOAD_LKUP_ID);
     FOR rec IN (SELECT * FROM TEMP_STR_DSCRTS_DLVRY_CD_UPD)LOOP
         SAVEPOINT STORE_DESCARTES_DEL_CODE_UPD;
 
@@ -1644,10 +1647,17 @@ BEGIN
                    RAISE  invalid_dscrts_dlry_code_err;
                END IF;
             END IF;
-            UPDATE STORE
-                SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
-            WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE
-              AND NVL(DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X');
+            --This procedure will get the previous store record and insert it into history table if the old and new descartes delivery code field values are not equal.
+            --Then update the decsrates delivery code field with the new value.
+            CCN_TABLE_IU_PKG.GET_PREVIOUS_STORE_RECORD(rec.COST_CENTER_CODE, V_PREV_STORE_ROW);
+
+            IF NVL(V_PREV_STORE_ROW.DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X') THEN
+               CCN_TABLE_IU_PKG.STORE_HST_I_SP(V_PREV_STORE_ROW);
+               UPDATE STORE
+                   SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
+               WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE;
+
+            END IF;
         EXCEPTION
             WHEN invalid_dscrts_dlry_code_err THEN
                  errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
@@ -1670,8 +1680,13 @@ BEGIN
         V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
         MAIL_PKG.SEND_MAIL('STORE_DSCRTS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
     END IF;
+    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
 EXCEPTION
     WHEN OTHERS THEN
+        -- The below call to reset the flag should always be the first line of the exception block
+        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
+        -- this call in the first line of exception block we make sure no other errors blocks the reset process
+        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
         -- Logging of error
         errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
 END UPD_STORE_DESCARTES_DLVRY_CODE;
