@@ -85,4 +85,11 @@ SELECT * FROM SECURITY_MATRIX WHERE USER_ID IN ('axt720','ncj812') AND ROLE_CODE
 DELETE FROM SECURITY_MATRIX WHERE USER_ID IN ('axt720','ncj812') AND ROLE_CODE = 'CCNUS2';
 --2 Row(s) Deleted
 
+--Below script will add OTP173, DAF328 users to a new role code CCNUS1,SDUS to select, as they need access on cost center and store drafts to interns ASP-1137
+
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('OTP173','OTP173','CCNUS1');
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('OTP173','OTP173','SDUS');
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('DAF328','DAF328','CCNUS1');
+Insert into SECURITY_MATRIX (USER_ID,PASSWORD,ROLE_CODE) values ('DAF328','DAF328','SDUS');
+
 COMMIT;
