@@ -1,6 +1,4 @@
-
-
-  ********************************************************************************** 
+/**********************************************************************************
 This script is used to create picklist values for descartes delivery code field in ccn.
 
 Created : 08/09/2018 pxa852 CCN Project ASP-1109....
