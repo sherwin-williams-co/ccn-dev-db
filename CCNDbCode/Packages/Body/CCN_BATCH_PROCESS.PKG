@@ -1623,74 +1623,6 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.CC_NUMERIC_SEQ_ROSTER_RPT','GENERATE CC_NUMERIC_SEQ_ROSTER_RPT  FAILED AT '||SQLCODE||' : '|| SQLERRM);
 END CC_NUMERIC_SEQ_ROSTER_RPT;
 
-PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE
-/******************************************************************************
-This Procedure Will update the store descartes delivery code.
-
-Created : 07/31/2018 pxa852 CCN Project Team....
-Changed :
-*******************************************************************************/
-IS
-    V_PREV_STORE_ROW                  STORE%ROWTYPE;
-    V_START_TIME                      DATE := SYSDATE;
-    V_CLOB_FOR_EMAIL                  CLOB;
-    V_BULK_LOAD_LKUP_ID               NUMBER;
-    invalid_dscrts_dlry_code_err      EXCEPTION;
-BEGIN
-    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_STORE_DSCRTS_DLVRY_CD_LOAD', V_BULK_LOAD_LKUP_ID);
-    FOR rec IN (SELECT * FROM TEMP_STR_DSCRTS_DLVRY_CD_UPD)LOOP
-        SAVEPOINT STORE_DESCARTES_DEL_CODE_UPD;
-
-        BEGIN
-            IF rec.DESCARTES_DELIVERY_CODE IS NOT NULL THEN
-               IF  NOT  common_tools.code_detail_valid('DESCARTES_DELIVERY_CODE',  rec.DESCARTES_DELIVERY_CODE) THEN
-                   RAISE  invalid_dscrts_dlry_code_err;
-               END IF;
-            END IF;
-            --This procedure will get the previous store record and insert it into history table if the old and new descartes delivery code field values are not equal.
-            --Then update the decsrates delivery code field with the new value.
-            CCN_TABLE_IU_PKG.GET_PREVIOUS_STORE_RECORD(rec.COST_CENTER_CODE, V_PREV_STORE_ROW);
-
-            IF NVL(V_PREV_STORE_ROW.DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X') THEN
-               CCN_TABLE_IU_PKG.STORE_HST_I_SP(V_PREV_STORE_ROW);
-               UPDATE STORE
-                   SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
-               WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE;
-
-            END IF;
-        EXCEPTION
-            WHEN invalid_dscrts_dlry_code_err THEN
-                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
-                                            'invalid_dscrts_dlry_code_err ',
-                                            'Descartes Delivery Code must be a valid value as per picklist item "DESCARTES_DELIVERY_CODE".',
-                                            rec.COST_CENTER_CODE);
-
-            WHEN OTHERS THEN
-                ROLLBACK TO STORE_DESCARTES_DEL_CODE_UPD;
-                --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(SQLCODE, 'UPD_STORE_DESCARTES_DLVRY_CODE', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
-        END;
-        COMMIT;
-    END LOOP;
-    --this process will email an error report to CCN team if there are any errors in error_log table.
-    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
-    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
-    --sending mail only if there are error records.
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
-        MAIL_PKG.SEND_MAIL('STORE_DSCRTS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
-    END IF;
-    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
-EXCEPTION
-    WHEN OTHERS THEN
-        -- The below call to reset the flag should always be the first line of the exception block
-        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
-        -- this call in the first line of exception block we make sure no other errors blocks the reset process
-        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
-        -- Logging of error
-        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
-END UPD_STORE_DESCARTES_DLVRY_CODE;
-
 PROCEDURE GENERATE_CCN_PHONE_INFO_RPT
 /******************************************************************************
 This procedure is intended to generate an CCN Phone details xlsx  report from CCN_PHONE_INFO_VW.
@@ -1733,5 +1665,79 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20999, 'CCN_BATCH_PROCESS.GENERATE_CCN_PHONE_INFO_RPT','GENERATE PHONE DETAILS REPORTING FAILED AT '||SQLCODE||' : '|| SQLERRM);
 
 END GENERATE_CCN_PHONE_INFO_RPT;
+
+PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE
+/******************************************************************************
+This Procedure Will update the store descartes delivery code.
+
+Created : 07/31/2018 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+IS
+    V_PREV_STORE_ROW                  STORE%ROWTYPE;
+    V_START_TIME                      DATE := SYSDATE;
+    V_CLOB_FOR_EMAIL                  CLOB;
+    V_BULK_LOAD_LKUP_ID               NUMBER;
+    invalid_dscrts_dlry_code_err      EXCEPTION;
+BEGIN
+    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_STORE_DSCRTS_DLVRY_CD_LOAD', V_BULK_LOAD_LKUP_ID);
+    FOR rec IN (SELECT * FROM TEMP_STR_DSCRTS_DLVRY_CD_UPD)LOOP
+        SAVEPOINT STORE_DESCARTES_DEL_CODE_UPD;
+
+        BEGIN
+            IF rec.DESCARTES_DELIVERY_CODE IS NOT NULL THEN
+               IF NOT common_tools.code_detail_valid('DESCARTES_DELIVERY_CODE',  rec.DESCARTES_DELIVERY_CODE) THEN
+                   RAISE  invalid_dscrts_dlry_code_err;
+               END IF;
+            END IF;
+            --This procedure will get the previous store record and insert it into history table if the old and new descartes delivery code field values are not equal.
+            --Then update the decsrates delivery code field with the new value.
+            CCN_TABLE_IU_PKG.GET_PREVIOUS_STORE_RECORD(rec.COST_CENTER_CODE, V_PREV_STORE_ROW);
+
+            IF V_PREV_STORE_ROW.COST_CENTER_CODE IS NULL THEN
+                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
+                                            'invalid_dscrts_dlry_code_err ',
+                                            'Cost center is not present in CCN (or) not a store category to update descartes delivery code',
+                                            rec.COST_CENTER_CODE);
+            ELSE
+                IF NVL(V_PREV_STORE_ROW.DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X') THEN
+                    CCN_TABLE_IU_PKG.STORE_HST_I_SP(V_PREV_STORE_ROW);
+                    UPDATE STORE
+                       SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
+                     WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE;
+                END IF;
+            END IF;
+        EXCEPTION
+            WHEN invalid_dscrts_dlry_code_err THEN
+                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
+                                            'invalid_dscrts_dlry_code_err ',
+                                            'Descartes Delivery Code must be a valid value as per picklist item "DESCARTES_DELIVERY_CODE".',
+                                            rec.COST_CENTER_CODE);
+
+            WHEN OTHERS THEN
+                ROLLBACK TO STORE_DESCARTES_DEL_CODE_UPD;
+                --write to error log
+                errpkg.INSERT_ERROR_LOG_SP(SQLCODE, 'UPD_STORE_DESCARTES_DLVRY_CODE', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
+        END;
+        COMMIT;
+    END LOOP;
+    --this process will email an error report to CCN team if there are any errors in error_log table.
+    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
+    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+    --sending mail only if there are error records.
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
+        MAIL_PKG.SEND_MAIL('STORE_DSCRTS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
+    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- The below call to reset the flag should always be the first line of the exception block
+        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
+        -- this call in the first line of exception block we make sure no other errors blocks the reset process
+        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
+        -- Logging of error
+        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
+END UPD_STORE_DESCARTES_DLVRY_CODE;
 
 END CCN_BATCH_PROCESS;
