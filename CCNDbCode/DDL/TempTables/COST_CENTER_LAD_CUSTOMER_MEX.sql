@@ -5,7 +5,7 @@
                Added POS_NON_STORE_IND Field
             : 07/11/2018 nxk927 CCN Project....
               Changed the address column size from 35 to 100
-            : 10/01/2018 kxm302/sxg151 CCN Project....
+            : 10/01/2018 sxg151 CCN Project....
               Added LAD_CUSTOMER_TYPE Field
 */
   DROP TABLE COST_CENTER_LAD_CUSTOMER_MEX;
@@ -80,7 +80,6 @@
         CREDIT_HIERARCHY                        VARCHAR2(100), 
         MANAGER_ID                              VARCHAR2(100), 
         ALLOCATION_CC                           VARCHAR2(10), 
-        DIVISION_OFFSET                         VARCHAR2(10), 
         POS_NON_STORE_IND                       VARCHAR2(1),
         LAD_CUSTOMER_TYPE                       VARCHAR2(2)
    ) 
@@ -164,7 +163,6 @@
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
                                         ALLOCATION_CC,
-                                        DIVISION_OFFSET,
                                         POS_NON_STORE_IND,
                                         LAD_CUSTOMER_TYPE)
                                         )
@@ -174,4 +172,3 @@
     )
    REJECT LIMIT UNLIMITED ;
 /
-
