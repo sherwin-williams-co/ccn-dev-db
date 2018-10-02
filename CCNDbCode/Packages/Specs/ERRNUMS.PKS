@@ -3196,4 +3196,26 @@ exc_invalid_dcrts_dlry_cd_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_dcrts_dlry_cd_err , -20206);
 
+/***********************************************************
+The "en_invalid_lad_cust_type_err" passes a numerical error of -20207.
+This error occurs when Lad_customer_type in LAD_CUSTOMER not in CODE_DETAIL table.
+
+created :  10/01/2018 kxm302/sxg151 CCN Project Team...
+************************************************************/
+en_invalid_lad_cust_type_err      CONSTANT NUMBER := -20207;
+exc_invalid_lad_cust_type_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_lad_cust_type_err , -20207);
+
+/***********************************************************
+The "en_invalid_allocation_cc_err" passes a numerical error of -20208.
+This error occurs when Lad_customer_type in LAD_CUSTOMER not in CODE_DETAIL table.
+
+created :  10/01/2018 kxm302/sxg151 CCN Project Team...
+************************************************************/
+en_invalid_allocation_cc_err      CONSTANT NUMBER := -20208;
+exc_invalid_allocation_cc_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_allocation_cc_err , -20208);
+
 END ERRNUMS;
