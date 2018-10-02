@@ -3218,4 +3218,15 @@ exc_invalid_allocation_cc_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_allocation_cc_err , -20208);
 
+/***********************************************************
+The "en_allocation_cc_null_err" passes a numerical error of -20209.
+This error occurs when ALLOCATION_CC is null for LAD Customer cost center.
+
+created :  10/02/2018 sxg151 CCN Project Team...
+************************************************************/
+en_allocation_cc_null_err      CONSTANT NUMBER := -20209;
+exc_allocation_cc_null_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_allocation_cc_null_err , -20209);
+
 END ERRNUMS;
