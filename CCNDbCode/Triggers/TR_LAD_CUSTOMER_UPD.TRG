@@ -11,14 +11,17 @@ DECLARE
 BEGIN
     v_lad_customer_row.cost_center_code           := :new.cost_center_code;
     v_lad_customer_row.category                   := :new.category;
-    v_lad_customer_row.LAD_CUSTOMER_TYPE          := :new.LAD_CUSTOMER_TYPE;
-    v_lad_customer_row.ALLOCATION_CC              := :new.ALLOCATION_CC;
+    v_lad_customer_row.lad_customer_type          := :new.lad_customer_type;
+    v_lad_customer_row.allocation_cc              := :new.allocation_cc;
+
 
     SELECT XMLELEMENT ( "LAD_CUSTOMER",
                        XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                                       'http://www.oracle.com/Employee.xsd' AS "xsi:nonamespaceSchemaLocation" ),
        		XMLForest(v_lad_customer_row.cost_center_code       cost_center_code,
-       		          v_lad_customer_row.category               category)) AS "result"
+       		          v_lad_customer_row.category               category,
+                      v_lad_customer_row.lad_customer_type      lad_customer_type,
+                      v_lad_customer_row.allocation_cc          allocation_cc)) AS "result"
 			,XMLELEMENT ( "PrimaryKey",
 	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                 				  'http://www.oracle.com/Employee.xsd' AS
