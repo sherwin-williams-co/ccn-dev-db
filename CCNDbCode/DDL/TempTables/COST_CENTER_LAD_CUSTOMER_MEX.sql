@@ -79,9 +79,9 @@
         PRICE_DIST_EFFECTIVE_DT                 VARCHAR2(8), 
         CREDIT_HIERARCHY                        VARCHAR2(100), 
         MANAGER_ID                              VARCHAR2(100), 
-        ALLOCATION_CC                           VARCHAR2(10), 
-        POS_NON_STORE_IND                       VARCHAR2(1),
-        LAD_CUSTOMER_TYPE                       VARCHAR2(2)
+        ALLOCATION_CC                           VARCHAR2(10),
+        LAD_CUSTOMER_TYPE                       VARCHAR2(2),
+        POS_NON_STORE_IND                       VARCHAR2(1)
    ) 
    ORGANIZATION EXTERNAL 
     ( TYPE ORACLE_LOADER
@@ -163,8 +163,8 @@
                                         CREDIT_HIERARCHY,
                                         MANAGER_ID,
                                         ALLOCATION_CC,
-                                        POS_NON_STORE_IND,
-                                        LAD_CUSTOMER_TYPE)
+                                        LAD_CUSTOMER_TYPE,
+                                        POS_NON_STORE_IND)
                                         )
       LOCATION
        ( 'COST_CENTER_LAD_CUSTOMER_MEX.csv'

@@ -3209,7 +3209,7 @@ PRAGMA EXCEPTION_INIT
 
 /***********************************************************
 The "en_invalid_allocation_cc_err" passes a numerical error of -20208.
-This error occurs when Lad_customer_type in LAD_CUSTOMER not in CODE_DETAIL table.
+This error occurs when Allocation costmer Code is not in CCN(Cost_Center) Table.
 
 created :  10/01/2018 kxm302/sxg151 CCN Project Team...
 ************************************************************/
