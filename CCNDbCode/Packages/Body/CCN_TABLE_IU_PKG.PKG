@@ -2951,6 +2951,52 @@ EXCEPTION
         NULL;
 END GET_PREVIOUS_STORE_RECORD;
 
+PROCEDURE LAD_CUSTOMER_HST_I_SP
+(
+/*******************************************************************************
+This procedure is intended to insert previous LAD_CUSTOMER record into LAD_CUSTOMER_HST
+table for Historical purpose.
+
+Created : 10/10/2018 sxg151 CCN Project....
+        : ASP-970
+Changed :
+*******************************************************************************/
+IN_LAD_CUSTOMER_ROW IN LAD_CUSTOMER%ROWTYPE
+)
+IS
+BEGIN
+    INSERT INTO LAD_CUSTOMER_HST
+    VALUES (IN_LAD_CUSTOMER_ROW.COST_CENTER_CODE,
+            IN_LAD_CUSTOMER_ROW.CATEGORY,
+            IN_LAD_CUSTOMER_ROW.LAD_CUSTOMER_TYPE,
+            IN_LAD_CUSTOMER_ROW.ALLOCATION_CC,
+            SYSDATE
+            );
+
+END LAD_CUSTOMER_HST_I_SP;
+
+PROCEDURE GET_PREVIOUS_LAD_CUSTOMER_RECORD(
+/*******************************************************************************
+This procedure is used to return the old LAD_CUSTOMER record to maintain the history of old LAD_CUSTOMER.
+
+Created : 10/04/2018 sxg151 CCN Project...
+        : ASP-970
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE             IN     VARCHAR2,
+    OUT_PREV_LAD_CUSTOMER_REC       OUT    LAD_CUSTOMER%ROWTYPE)
+IS
+BEGIN
+    SELECT *
+      INTO OUT_PREV_LAD_CUSTOMER_REC
+      FROM LAD_CUSTOMER
+    WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END GET_PREVIOUS_LAD_CUSTOMER_RECORD;
+
 PROCEDURE REAL_ESTATE_I_SP (
 /******************************************************************************
     REAL_ESTATE_I_SP
@@ -4630,7 +4676,8 @@ PROCEDURE LAD_CUSTOMER_U_SP (
         xml file - the data being inserted
 
 created : 02/13/2018 mxv711 CCN Project....
-
+Modified: 10/04/2018 sxg151 CCn Project team...
+          ASP-970 : Added code to insert data into LAD_CUSTOMER table if there are any changes.
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 in_COST_CENTER          IN  LAD_CUSTOMER.COST_CENTER_CODE%TYPE,
@@ -4643,6 +4690,7 @@ in_Row_data             IN  varchar2--sys.xmltype
  v_code number;
  v_errm varchar2(500);
  v_LAD_CUSTOMER_row LAD_CUSTOMER%ROWTYPE;
+ v_PREV_LAD_CUSTOMER_ROW LAD_CUSTOMER%ROWTYPE;
 --
 --
 --
@@ -4659,9 +4707,20 @@ BEGIN
     ,v_LAD_CUSTOMER_row  
     ); 
 
- END;      
+ END;
+    --ASP-970
+    --This procedure will get the previous lad_customer record and compare it with the current values.
+    --If they are not equal then insert the old record into history table and then update the lad_customer table with new values.
+    GET_PREVIOUS_LAD_CUSTOMER_RECORD(v_LAD_CUSTOMER_row.COST_CENTER_CODE,V_PREV_LAD_CUSTOMER_ROW);
 
-      UPDATE LAD_CUSTOMER set ROW = v_LAD_CUSTOMER_row WHERE UPPER(cost_center_code) = UPPER(v_LAD_CUSTOMER_row.cost_center_code);
+    -- conditionally move data into history table (if there is something actually getting updated)
+    IF (NVL(V_PREV_LAD_CUSTOMER_ROW.LAD_CUSTOMER_TYPE, '0')           <>  NVL(v_LAD_CUSTOMER_row.LAD_CUSTOMER_TYPE, '0') OR
+        NVL(V_PREV_LAD_CUSTOMER_ROW.ALLOCATION_CC, '0')               <>  NVL(v_LAD_CUSTOMER_row.ALLOCATION_CC, '0')) THEN
+            LAD_CUSTOMER_HST_I_SP(V_PREV_LAD_CUSTOMER_ROW);
+    END IF;
+
+    UPDATE LAD_CUSTOMER set ROW    = v_LAD_CUSTOMER_row
+     WHERE UPPER(cost_center_code) = UPPER(v_LAD_CUSTOMER_row.cost_center_code);
 
   EXCEPTION
       WHEN OTHERS THEN 
