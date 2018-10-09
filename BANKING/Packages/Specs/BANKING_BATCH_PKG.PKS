@@ -34,4 +34,14 @@ IN_LOAD_DATE      IN DATE
 )
 ;
 
+PROCEDURE BANKING_CONCENTRATION_MONTHLY_RPT
+/******************************************************************************
+  This procedure is used to generate banking member concentration monthly
+  report and send it to user.
+
+Created : 10/09/2018 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+;
+
 END BANKING_BATCH_PKG;
