@@ -6,16 +6,16 @@ Modified:
 **********************************************************************************/
 -- INSERTING into MAILING_GROUP
 
-Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('124','ccnoracle.team@sherwin.com,marcy.lee@sherwin.com');
+Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('124','ccnoracle.team@sherwin.com;marcy.lee@sherwin.com');
 
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 values ('BANKING_MEMBER_CONCENTRATION_RPT',
         '124',
-        'Banking Concentration Monthly Report',
+        'Monthly Banking Concentration Report',
         'ccnoracle.team@sherwin.com',
-        'Please find the attached banking concentration monthly report with this email.',
+        'Attached are the requested member concentration details as of DD-MON-YYYY.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 -- INSERTING into MAILING_FILE_DETAILS
