@@ -12,12 +12,14 @@ cd /app/ccn/dev
 . /app/ccn/BMChost.sh
 
 proc="Hierarchy_detail_daily_snapshot"
-LOGDIR="$HOME/batchJobs"
-DATE=`date +"%m-%d-%Y"`
-TIME=`date +"%H:%M:%S"`
+ LOGDIR="$HOME/batchJobs"
+ TIME=`date +"%H:%M:%S"`
+ DATE=`date +"%m/%d/%Y"`
+ TimeStamp=`date '+%Y%m%d%H%M%S'`
+
 echo "Processing Started for $proc at $TIME on $DATE" 
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$DATE.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
 WHENEVER OSERROR EXIT 1
