@@ -17,32 +17,46 @@ proc="Hierarchy_detail_daily_snapshot"
  DATE=`date +"%m/%d/%Y"`
  TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-echo "Processing Started for $proc at $TIME on $DATE" 
+echo "Processing Started for $proc at $TIME on $DATE" >> $LOGDIR/$proc"_"$TimeStamp.log
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
+set serveroutput on;
+var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 
-execute HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT;
-
-exit;
+DECLARE
+BEGIN
+    :exitCode := 0;
+    HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT;
+Exception
+    when others then
+        DBMS_OUTPUT.PUT_LINE('Hierarchy_detail_daily_snapshot FAILED '||SQLERRM || ' : ' ||SQLCODE);
+    :exitCode:=1;
+END;
+/
+exit :exitCode
 END
 
 ############################################################################
 #                           ERROR STATUS CHECK
 ############################################################################
 status=$?
-TIME=`date +"%H:%M:%S"`
-if [ $status -ne 0 ]
+if test $status -ne 0
 then
-    echo " $proc_name --> processing FAILED while executing Hierarchy_detail_daily_snapshot.sh at $DATE:$TIME "
-    $HOME/send_mail.sh HIERARCHY_DETAIL_SNAPSHOT_ERROR
-     exit 1
+   TIME=`date +"%H:%M:%S"`
+   echo "processing FAILED for $proc at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
+
+   cd $HOME/
+   ./send_mail.sh HIERARCHY_DETAIL_SNAPSHOT_ERROR
+
+   exit 1
 fi
 
-echo " $proc_name --> Processing Finished at $DATE:$TIME "
-exit 0
+TIME=`date +"%H:%M:%S"`
+echo "Process to create/update standardized address executed successfully at ${TIME} on ${DATE}" >> $LOGDIR/$proc"_"$TimeStamp.log
 
+exit 0
 ############################################################################
