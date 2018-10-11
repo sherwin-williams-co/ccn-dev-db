@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `y?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `Y? or `N?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -836,7 +836,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_polling_err" passes a numerical error of -20060.
 An error occurs when Polling effective date >
-current date & expiratin date not null.
+current date & expiration date not null.
 
 created : 06/08/2012 cbd CCN Project
 revisions: 
@@ -2103,7 +2103,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2403,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 07/01/2013 SH CCN Project
 revisions: 
@@ -2916,29 +2916,6 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
-/***********************************************************
-The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
-An error occurs when effective date is the past than the current effective date
-
-created : 11/09/2017 axt754  CCN Project Team....
-revisions:
-************************************************************/
-EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
-EXC_EN_DATE_PASSED_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
-
-/*********************************************************** 
-The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
-This error will state the country code is missing in currency conversion. 
-
-created : 11/10/2017 axt754  CCN Project Team...
-revisions: 
-************************************************************/
-EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
-EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
-
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2966,31 +2943,6 @@ PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
 
 /***********************************************************
-The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
-This error will says that there is duplicate of sorted
-sequence number under a program
-
-Created  : 02/01/2018 axt754 CCN Project Team....
-Modified :
-************************************************************/
-en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
-exc_gl_ps_dup_sort_seq_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_gl_ps_dup_sort_seq_err , -20190);
-
-/***********************************************************
-The "invalid_gl_num_len_err" passes a numerical error of -20191
-This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
-
-Created  : 02/01/2018 axt754 CCN Project Team....
-Modified :
-************************************************************/
-en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
-exc_invalid_gl_num_len_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_gl_num_len_err , -20191);
-
-/*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
 '01'
@@ -3195,38 +3147,5 @@ en_invalid_dcrts_dlry_cd_err      CONSTANT NUMBER := -20206;
 exc_invalid_dcrts_dlry_cd_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_dcrts_dlry_cd_err , -20206);
-
-/***********************************************************
-The "en_invalid_lad_cust_type_err" passes a numerical error of -20207.
-This error occurs when Lad_customer_type in LAD_CUSTOMER not in CODE_DETAIL table.
-
-created :  10/01/2018 kxm302/sxg151 CCN Project Team...
-************************************************************/
-en_invalid_lad_cust_type_err      CONSTANT NUMBER := -20207;
-exc_invalid_lad_cust_type_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_lad_cust_type_err , -20207);
-
-/***********************************************************
-The "en_invalid_allocation_cc_err" passes a numerical error of -20208.
-This error occurs when Allocation costmer Code is not in CCN(Cost_Center) Table.
-
-created :  10/01/2018 kxm302/sxg151 CCN Project Team...
-************************************************************/
-en_invalid_allocation_cc_err      CONSTANT NUMBER := -20208;
-exc_invalid_allocation_cc_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_allocation_cc_err , -20208);
-
-/***********************************************************
-The "en_allocation_cc_null_err" passes a numerical error of -20209.
-This error occurs when ALLOCATION_CC is null for LAD Customer cost center.
-
-created :  10/02/2018 sxg151 CCN Project Team...
-************************************************************/
-en_allocation_cc_null_err      CONSTANT NUMBER := -20209;
-exc_allocation_cc_null_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_allocation_cc_null_err , -20209);
 
 END ERRNUMS;
