@@ -1,4 +1,4 @@
-/**********************************************************************************
+/********************************************************************************** 
 This script is created to insert records into MAILING_GROUP and MAILING_DETAILS tables for generating store descartes delivery code update failure report.
 
 Created : 08/09/2018 pxa852 CCN Project ASP-1109....
@@ -7,7 +7,7 @@ Modified:
 
 SET DEFINE OFF;
 
-Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('121','ccnoracle.team@sherwin.com,smis@sherwin.com');
+Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('121','ccnoracle.team@sherwin.com;smis@sherwin.com');
 
 -- INSERTING into MAILING_DETAILS
 

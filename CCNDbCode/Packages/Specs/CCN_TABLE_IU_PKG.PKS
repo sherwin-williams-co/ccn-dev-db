@@ -20,7 +20,7 @@ changed : 12/16/2014 AXK326 CCN Project Team....
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
 	All_TABLE_COL_S_SP
-	
+
 	This procedure is intended to return a ref cursor with datPOLLING_S_SPa from 
 	from the all_table_col table.  
 
@@ -28,7 +28,7 @@ created : 04/26/2012 kdp CCN Project....
 *******************************************************************************/
 			in_TABLE_NAME IN ALL_TAB_COLUMNS.TABLE_NAME%TYPE
 			,out_all_tab_ref_cur OUT ref_cursor	);    
-      
+
 
 	PROCEDURE ADDRESS_CAN_S_SP  (IN_COST_CENTER   IN ADDRESS_CAN.COST_CENTER_CODE%TYPE
                               ,IN_ADDRESS_TYPE  IN ADDRESS_CAN.ADDRESS_TYPE%TYPE
@@ -43,7 +43,7 @@ created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
 ;
 
-       
+
 	PROCEDURE ADDRESS_MEX_S_SP  (IN_COST_CENTER   IN ADDRESS_MEX.COST_CENTER_CODE%TYPE
                               ,IN_ADDRESS_TYPE  IN ADDRESS_MEX.ADDRESS_TYPE%TYPE
                               ,OUT_ADDRESS_MEX_REF_CUR OUT REF_CURSOR)
@@ -98,6 +98,17 @@ created : 03/20/2012 mdh CCN Project....
 *******************************************************************************/
 ;
 
+  PROCEDURE LAD_CUSTOMER_S_SP (in_COST_CENTER IN LAD_CUSTOMER.COST_CENTER_CODE%TYPE
+							, out_LAD_CUSTOMER_REF_CUR OUT REF_CURSOR)
+/*******************************************************************************
+	LAD_CUSTOMER_S_SP
+
+	This procedure is intended to return a ref cursor with data from 
+	from the LAD_CUSTOMER table.  
+
+created : 02/20/2018 mxv711 CCN Project....
+*******************************************************************************/
+;
 
 	PROCEDURE BANK_CARD_S_SP  (IN_COST_CENTER           IN BANK_CARD.COST_CENTER_CODE%TYPE
                             ,IN_POLLING_STATUS_CODE   IN BANK_CARD.POLLING_STATUS_CODE%TYPE
@@ -112,7 +123,7 @@ created : 03/20/2012 mdh CCN Project....
 created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
-  
+
 PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     IN  batch_job.batch_job_name%type
                         , in_batch_job_number   IN  batch_job.batch_job_number%type
 			, out_BATCH_JOB_REF_CUR OUT REF_CURSOR)
@@ -311,13 +322,13 @@ PROCEDURE EXPIRE_POLLING_DATA_SP
 ( IN_POLLING_ROW POLLING%ROWTYPE 
 /*******************************************************************************
     EXPIRE_POLLING_DATA_SP
-    
+
     This procedure is intended to expire Previous row of data based on 
     Cost_center_code and Polling_status_code.
 
 created : 02/18/2015 SXT410 CCN Project....
 revised : 
-    
+
 *******************************************************************************/
 );
 
@@ -747,7 +758,7 @@ PROCEDURE PHONE_I_SP (
 
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
-  
+
 	OracleTableName -Table name for row -varible 
             (based on the table that was updated)
         current date - 
@@ -1663,7 +1674,27 @@ created : 09/21/2012 blr CCN Project....
 ,in_Row_data   IN varchar2 --sys.xmltype
 ,out_administration_type  OUT ADMINISTRATION%ROWTYPE
 );
- 
+
+PROCEDURE LAD_CUSTOMER_ROWTYPE_SP (
+/*******************************************************************************
+	LAD_CUSTOMER_ROWTYPE_SP
+
+	This procedure is intended to Insert new LAD_CUSTOMER records
+
+	CostCenter - Cost Center that changed
+	OracleTableName -Table name for row -varible 
+            (based on the table that was updated)
+        current date - 
+        xml file - the data being inserted
+
+created : 02/22/2018 mxv711 CCN Project....
+*******************************************************************************/
+ in_TABLE_NAME IN VARCHAR2
+,in_ROW_DATE   IN DATE
+,in_Row_data   IN varchar2 --sys.xmltype
+,out_lad_customer_type  OUT LAD_CUSTOMER%ROWTYPE
+);
+
 PROCEDURE BANK_CARD_ROWTYPE_SP (
 /*******************************************************************************
 	BANK_CARD_ROWTYPE_SP
@@ -1763,7 +1794,7 @@ revised :
 ,in_TABLE_NAME           IN  VARCHAR2 
 ,in_ROW_DATE             IN  DATE 
 ,in_Row_data             IN  varchar2--sys.xmltype
- 
+
 );
 
 PROCEDURE PHONE_ROWTYPE_SP (
@@ -1774,7 +1805,7 @@ PROCEDURE PHONE_ROWTYPE_SP (
 
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
-  
+
 	OracleTableName -Table name for row -varible 
             (based on the table that was updated)
         current date - 
@@ -1970,7 +2001,7 @@ created : 09/26/2012 TAL -- CCN Project....
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TYPE_ROWTYPE        OUT TYPE%ROWTYPE
 );
-   
+
 
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
 
@@ -2008,11 +2039,11 @@ PROCEDURE CC_ADDTL_TABLES_UI_SP (
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
- 
+
    in_table_name          IN  varchar2   
   ,in_row_data           IN  varchar2  --sys.xmltype
   );
-  
+
 PROCEDURE CC_ADDRESS_TABLES_UI_SP ( 
  /******************************************************************************
     CC_ADDRESS_TABLES_UI_SP   --   create/update tables
@@ -2026,13 +2057,13 @@ PROCEDURE CC_ADDRESS_TABLES_UI_SP (
             ,  ADDRESS_CAN
             ,  ADDRESS_MEX
             ,  ADDRESS_OTHER
-           
+
             tables.  
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
- 
- 
+
+
 in_table_name          IN  varchar2 
 ,in_row_data            IN  varchar2  --sys.xmltype
 );  
@@ -2090,7 +2121,7 @@ changed :
     in_table_name     IN        VARCHAR2,
     in_row_date       IN        DATE,
     in_row_data       IN        VARCHAR2);
-	
+
 PROCEDURE HIERARCHY_TRANSFER_I_SP(
 /*******************************************************************************
 This procedure is intended to insert new HIERARCHY_TRANSFER_MAIL records
@@ -2098,6 +2129,137 @@ created : 04/19/2017 pxb712 CCN Project Team....
 changed :
 *******************************************************************************/
 IN_HIERARCHY_TRANSFER_ROW IN HIERARCHY_TRANSFER_MAIL%ROWTYPE);
+
+PROCEDURE GL_ACCNTS_PROG_NAME_S_SP(
+/******************************************************************************
+This procedures takes program name or accnt number as input and
+retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_accnt_number         IN     VARCHAR2,
+    out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
+
+PROCEDURE PROG_GL_ACCOUNTS_S_SP(
+/******************************************************************************
+This procedures takes Program Name as input and
+retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prog_name            IN     VARCHAR2,
+    out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_U_SP(
+/******************************************************************************
+This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
+ updates the data into tables PRGM_GL_ACCNT_RLTN_DTLS
+Created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_I_SP(
+/******************************************************************************
+This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
+inserts the data into tables PRGM_GL_ACCNT_RLTN_DTLS
+Created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as input and converts into rowtype of PRGM_GL_ACCNT_RLTN_DTLS
+Created : 03/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prg_accnt_frag IN     CLOB,
+    in_table_name     IN     VARCHAR2,
+    out_prg_accnt_rec    OUT PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_D_SP(
+/******************************************************************************
+This procedures takes  PRGM_GL_ACCNT_RLTN_DTLSrec as input and deletes the data from
+PRGM_GL_ACCNT_RLTN_DTLS table.
+Created : 03/23/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PROGRAMS_S_SP(
+/******************************************************************************
+This procedures takes Program Name as input and
+retreives the data from table PROGRAMS as REF CURSOR.
+Created : 08/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prog_name IN     VARCHAR2,
+    out_prog_rec    OUT SYS_REFCURSOR);
+
+
+PROCEDURE PROGRAMS_U_SP(
+/******************************************************************************
+This procedures takes PROGRAMS TABLE ROWTYPE as input and
+updates the data into tables PROGRAMS
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_I_SP(
+/******************************************************************************
+This procedures takes PROGRAMS ROWTYPE as input and
+inserts the data into tables PROGRAMS
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as input and converts the data into PROGRAMS
+rowtype
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_program_frag  IN     CLOB,
+    in_table_name    IN     VARCHAR2,
+    out_program_rec     OUT PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_D_SP(
+/******************************************************************************
+This procedures takes PROGRAM REC  as input and
+deletes the data from table PROGRAMS table.
+Created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE GL_ACCOUNTS_S_SP(
+/******************************************************************************
+This procedures takes GL ACCOUNT NUMBER as input and
+retreives the data from table GENERAL_LEDGER_ACCOUNTS as REF CURSOR.
+Created : 03/23/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_accnt_nbr IN     VARCHAR2,
+    out_gl_accnt    OUT SYS_REFCURSOR);
+
+PROCEDURE GL_ACCOUNTS_U_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
+ updates the data into tables GENERAL_LEDGER_ACCOUNTS
+Created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+PROCEDURE GL_ACCOUNTS_I_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
+inserts the data into tables GENERAL_LEDGER_ACCOUNTS
+Created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+
+PROCEDURE GL_ACCOUNTS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as converts the data into
+GENERAL_LEDGER_ACCOUNTS rowtype
+Created : 03/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnt_frag IN     CLOB,
+    in_table_name    IN     VARCHAR2,
+    out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
 
 PROCEDURE STORE_HST_I_SP(
 /*******************************************************************************
