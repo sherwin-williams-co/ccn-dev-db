@@ -4,10 +4,12 @@
 # Description : Purpose of this script is to invoke HIERARCHY_BATCH_PKG.HIERARCHY_DETAIL_SNAPSHOT
 #               at Daily base to load data from HIERARCHY_DETAIL Table to HIERARCHY_DETAIL_DAILY_SNAP Table
 #
-# Date Created: 12/20/2017 SXG151
+# Date Created: 10/11/2018 SXG151
 ###############################################################################################################################
+cd /app/ccn/dev
+
 # below command will get the path for config respective to the environment from which it is run from
-. /app/ccn/host.sh
+. /app/ccn/BMChost.sh
 
 proc="Hierarchy_detail_daily_snapshot"
 LOGDIR="$HOME/batchJobs"
