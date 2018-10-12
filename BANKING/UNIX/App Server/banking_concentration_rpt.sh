@@ -1,4 +1,5 @@
 #!/bin/sh
+cd /app/banking/test
 #################################################################
 # Script name   : banking_concentration_rpt.sh
 #
@@ -9,7 +10,7 @@
 # Modified 
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
-. /app/banking/dev/banking.config
+. /app/banking/test/banking.config
 
 proc_name="banking_concentration_rpt"
 LOGDIR=$HOME/logs
