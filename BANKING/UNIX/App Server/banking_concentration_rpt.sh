@@ -15,7 +15,7 @@ cd /app/banking/test
 proc_name="banking_concentration_rpt"
 LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
-DATE=`date +"%m/%d/%Y"`
+DATE=`date +"%d-%b-%y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
@@ -27,7 +27,7 @@ var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 exec :exitCode := 0;
-EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT();
+EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT('$DATE');
 exit :exitCode;
 END
 

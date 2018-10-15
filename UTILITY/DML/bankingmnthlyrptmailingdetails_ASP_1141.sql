@@ -18,6 +18,4 @@ values ('BANKING_MEMBER_CONCENTRATION_RPT',
         'Attached are the requested member concentration details as of DD-MON-YYYY.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
--- INSERTING into MAILING_FILE_DETAILS
-
 commit;
