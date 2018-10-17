@@ -16,4 +16,13 @@ modified:
     IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2;
 
+PROCEDURE CALCULATE_MARKETING_FIELDS(
+/******************************************************************************
+This procedures takes Marketing record as input and
+calculates the sq foot values
+created : 10/17/2018 pxa852 CCN Project Team...
+Changed :
+******************************************************************************/
+    IO_MARKETING_REC    IN OUT   MARKETING%ROWTYPE);
+
 END CCN_DERIVED_VALUES;

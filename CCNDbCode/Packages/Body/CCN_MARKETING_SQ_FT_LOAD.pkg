@@ -5,34 +5,114 @@ This package is intended update the data in Marketing table
 Created : 12/05/2017 axt754 -- CCN Project Team...
 Changed : 
 ******************************************************************************/
+PROCEDURE GET_MARKETING_REC_SP(
+/*******************************************************************************
+This procedure is used to return marketing record and calculate the sq ft values.
+
+Created : 10/17/2018 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE      IN     VARCHAR2,
+    IN_SALES_SQ_FT           IN     MARKETING.SALES_SQ_FT%TYPE,
+    IN_TOTAL_SQ_FT           IN     MARKETING.TOTAL_SQ_FT%TYPE,
+    OUT_MARKETING_ROW         OUT   MARKETING%ROWTYPE)
+IS
+BEGIN
+  BEGIN
+    SELECT *
+      INTO OUT_MARKETING_ROW
+      FROM MARKETING
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND EXPIRATION_DATE IS NULL;
+    EXCEPTION
+    WHEN OTHERS THEN
+        --Marketing information not available yet
+        OUT_MARKETING_ROW.COST_CENTER_CODE := IN_COST_CENTER_CODE;
+        OUT_MARKETING_ROW.CATEGORY         := 'S';
+        OUT_MARKETING_ROW.MARKETING_TYPE   := 'SW';
+        OUT_MARKETING_ROW.EFFECTIVE_DATE   := TRUNC(SYSDATE);
+    END;
+    --Calculate the values
+        OUT_MARKETING_ROW.TOTAL_SQ_FT      := IN_TOTAL_SQ_FT;
+        IF IN_SALES_SQ_FT IS NOT NULL THEN
+            OUT_MARKETING_ROW.SALES_SQ_FT  := IN_SALES_SQ_FT;
+        END IF;
+        CCN_DERIVED_VALUES.CALCULATE_MARKETING_FIELDS(OUT_MARKETING_ROW);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'GET_MARKETING_REC_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END GET_MARKETING_REC_SP;
+
+PROCEDURE UPDATE_MARKETING_DETAILS(
+/*******************************************************************************
+This package is intended update the data in Marketing table
+
+Created : 12/05/2017 axt754 -- CCN Project Team...
+Changed : 10/17/2018 pxa852 CCN Project Team...
+          Modified update statement to pass effective date and category values
+*******************************************************************************/
+    IN_MARKETING_ROW  MARKETING%ROWTYPE)
+IS
+BEGIN
+    INSERT INTO MARKETING VALUES IN_MARKETING_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        UPDATE MARKETING SET ROW = IN_MARKETING_ROW
+        WHERE COST_CENTER_CODE = IN_MARKETING_ROW.COST_CENTER_CODE
+         AND EFFECTIVE_DATE   = IN_MARKETING_ROW.EFFECTIVE_DATE
+         AND CATEGORY         = IN_MARKETING_ROW.CATEGORY;
+END UPDATE_MARKETING_DETAILS;
+
+PROCEDURE INIT_LOAD_PROCESS
+/*******************************************************************************
+This procedures takes care of following things
+  # Updates the Marketing table with SALES_SQ_FT and WAREHOUSE_SQ_FT
+  # This will update all rows in marketing for a given COST_CENTER_CODE
+  # Insert new Marketing records with effective date as SYSDATE if not found
+  # re-calculates MKT_SALES_FLOOR_SIZE and MKT_WAREHOUSE_SIZE
+
+created : 10/10/2018 sxh487 CCN Project....
+*******************************************************************************/
+IS
+   V_MARKETING_ROW   MARKETING%ROWTYPE;
+BEGIN
+    FOR rec IN (SELECT * FROM TEMP_MKT_SALES_UPD ORDER BY COST_CENTER) LOOP
+        GET_MARKETING_REC_SP(rec.COST_CENTER, rec.SALES_SQ_FT, rec.TOTAL_SQ_FT, V_MARKETING_ROW);
+        UPDATE_MARKETING_DETAILS(V_MARKETING_ROW);
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'SQFT_INIT_LOAD_PROCESS ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END INIT_LOAD_PROCESS;
 
 PROCEDURE UPDATE_PROCESS(
 /******************************************************************************
 This procedures takes care of following things
   # Updates the Marketing table with TOTAL_SQ_FT,SALES_SQ_FT and WAREHOUSE_SQ_FT
-  # This will update all rows in marketing for a given COST_CENTER_CODE irrespective
-    of EFFECTIVE_DATE
 
 Created : 12/05/2017 axt754 -- CCN Project Team
-Changes :
+Changes : 10/17/2018 pxa852 CCN Project Team...
+          Earlier it was updating all rows in marketing for a given cost center irrespective of effective date.
+          Modified code to update only the current record so that it wont update expired records.
 ******************************************************************************/
     IN_COST_CENTER_CODE   IN     VARCHAR2,
     IN_LEASE_OR_OWNED     IN     VARCHAR2,
     IN_TOTAL_SQ_FT        IN     VARCHAR2,
     IN_SALES_SQ_FT        IN     VARCHAR2)
 IS
+    V_MARKETING_ROW   MARKETING%ROWTYPE;
 BEGIN
     UPDATE COST_CENTER
-       SET LEASE_OWN_CODE   = IN_LEASE_OR_OWNED
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       SET LEASE_OWN_CODE          = IN_LEASE_OR_OWNED
+     WHERE COST_CENTER_CODE        = IN_COST_CENTER_CODE
        AND NVL(LEASE_OWN_CODE,'X') <> NVL(IN_LEASE_OR_OWNED, 'X');
 
-    UPDATE MARKETING
-       SET TOTAL_SQ_FT     = IN_TOTAL_SQ_FT,
-           SALES_SQ_FT     = IN_SALES_SQ_FT,
-           WAREHOUSE_SQ_FT = IN_TOTAL_SQ_FT - IN_SALES_SQ_FT
+    GET_MARKETING_REC_SP(IN_COST_CENTER_CODE, IN_TOTAL_SQ_FT, IN_SALES_SQ_FT, V_MARKETING_ROW);
+
+    UPDATE MARKETING SET ROW    = V_MARKETING_ROW
      WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
-       AND (NVL(SALES_SQ_FT,-1) <> NVL(IN_SALES_SQ_FT,-1) OR NVL(TOTAL_SQ_FT,-1) <> NVL(IN_TOTAL_SQ_FT,-1));
+       AND EXPIRATION_DATE IS NULL
+       AND (NVL(SALES_SQ_FT,-1)    <> NVL(IN_SALES_SQ_FT,-1) OR NVL(TOTAL_SQ_FT,-1) <> NVL(IN_TOTAL_SQ_FT,-1));
 EXCEPTION
     WHEN OTHERS THEN
       ERRPKG.RAISE_ERR(SQLCODE, 'UPDATE_MARKETING ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
@@ -50,6 +130,8 @@ Changes : 04/03/2018 sxh487 Added exception block in the select
            Added logging for cost centers that does not have marketing information
            Added polling flags reset to suppress pos downloads triggers
         : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
+        : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
+          to consider only active records
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
@@ -66,6 +148,7 @@ BEGIN
                    AND A.COST_CENTER_CODE = M.COST_CENTER_CODE(+)
                    --null lease own codes are for offices as per Sachin's team, so ignore those
                    AND A.LEASE_OWN_CODE IS NOT NULL
+                   AND M.EXPIRATION_DATE IS NULL
                  --Consider only the records that needs to be updated
                  --This avoids unnecessary looping of data every day
                    AND (NVL(A.LEASE_OWN_CODE,'X') <> NVL(CC.LEASE_OWN_CODE, 'X')
@@ -111,6 +194,8 @@ This procedures takes care of following things as part of batch load process
 
 Created : 02/09/2018 axt754 -- CCN Project Team
 Changes : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
+        : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
+          to consider only active records
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
@@ -132,6 +217,7 @@ BEGIN
                        AND A.COST_CENTER = M.COST_CENTER_CODE(+)
                        --null lease own codes are for offices as per Sachin's team, so ignore those
                        AND A.LEASE_OR_OWNED IS NOT NULL
+                       AND M.EXPIRATION_DATE IS NULL
                      --Consider only the records that needs to be updated
                      --This avoids unnecessary looping of data every day
                        AND (NVL(A.LEASE_OR_OWNED,'X') <> NVL(CC.LEASE_OWN_CODE, 'X')
@@ -172,105 +258,4 @@ EXCEPTION
         POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
         ERRPKG.RAISE_ERR(SQLCODE, 'BATCH_PROCESS_SQ_FT_LD ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END BATCH_PROCESS_SQ_FT_LD;
-
-PROCEDURE LOAD_SWC_PN_SQFT_INT_HST
-/*****************************************************************************
-    LOAD_SWC_PN_SQFT_INT_HST
-
-This procedure will load the history for that run
-
-created : 07/16/2018 kxm302 CCN Project Team
-revision: 07/20/2018 kxm302 CCN Project Team
-          Adding LEASING_TOTAL_SQ_FT in loop to have values populated.
-
-*****************************************************************************/
-IS
-    CURSOR CCN_SWC_PN_SQFT_CUR IS
-        SELECT *
-          FROM CCN_SWC_PN_SQFT_INT;
-
-    V_COMMIT                          NUMBER:=0;
-    V_CCN_SQFT_INT_HST_ROW            CCN_SWC_PN_SQFT_INT_HIST%ROWTYPE;
-    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE;
-BEGIN
-    FOR rec IN CCN_SWC_PN_SQFT_CUR LOOP
-        BEGIN
-            V_CCN_SQFT_INT_HST_ROW.COST_CENTER             := rec.COST_CENTER;
-            V_CCN_SQFT_INT_HST_ROW.DIVISION                := rec.DIVISION;
-            V_CCN_SQFT_INT_HST_ROW.LEASE_OR_OWNED          := rec.LEASE_OR_OWNED;
-            V_CCN_SQFT_INT_HST_ROW.LEASING_SALES_SQ_FT     := rec.LEASING_SALES_SQ_FT;
-            V_CCN_SQFT_INT_HST_ROW.LEASING_TOTAL_SQ_FT     := rec.LEASING_TOTAL_SQ_FT;
-            V_CCN_SQFT_INT_HST_ROW.LOAD_DATE               := SYSDATE;
-
-            INSERT INTO CCN_SWC_PN_SQFT_INT_HIST VALUES V_CCN_SQFT_INT_HST_ROW;
-
-            V_COMMIT := V_COMMIT + 1;
-            IF V_COMMIT > 500 THEN
-                COMMIT;
-                V_COMMIT := 0;
-            END IF;
-        EXCEPTION
-            WHEN OTHERS THEN
-               V_TRANS_STATUS := 'ERROR';
-               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                           'LOAD_SWC_PN_SQFT_INT_HST',
-                                           SQLERRM,
-                                           rec.COST_CENTER);
-        END;
-    END LOOP;
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
-                                    'LOAD_SWC_PN_SQFT_INT_HST',
-                                    SQLERRM,
-                                    '000000');
-END LOAD_SWC_PN_SQFT_INT_HST;
-
-PROCEDURE LOAD_SWC_PN_SQFT_INT
-/******************************************************************************
-This procedures takes care of following things as part of batch load process
-  # Get the data from SWC_PN_SQFT_INT_V and load to CCN_SWC_PN_SQFT_INT table
-
-Created : 07/16/2018 kxm302 -- CCN Project Team
-*******************************************************************************/
-IS
-     CURSOR SWC_PN_SQFT_INT_CUR IS
-       SELECT *
-         FROM SWC_PN_SQFT_INT_V A;
-         --get all the records that are not present in CCN_SWC_PN_SQFT_INT  table
-
-    V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
-    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-    V_COUNT                           NUMBER:=0;
-BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;    
-    LOAD_SWC_PN_SQFT_INT_HST();
-    --Deleting the data from CCN_SWC_PN_SQFT_INT table before inserting
-    DELETE FROM CCN_SWC_PN_SQFT_INT;
-    FOR rec IN SWC_PN_SQFT_INT_CUR LOOP
-        BEGIN
-           INSERT INTO CCN_SWC_PN_SQFT_INT VALUES rec;
-            V_COUNT := V_COUNT + 1;
-            IF V_COUNT > 500 THEN
-                COMMIT;
-                V_COUNT := 0;
-            END IF;
-        EXCEPTION
-            WHEN OTHERS THEN
-                V_TRANS_STATUS := 'ERROR';
-                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
-        END;
-    END LOOP;
-    COMMIT;
-
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
-    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-EXCEPTION
-    WHEN OTHERS THEN
-         ROLLBACK;
-         ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||'LOAD_SWC_PN_SQFT_INT'  || ' errors found');
-END LOAD_SWC_PN_SQFT_INT;
-
 END CCN_MARKETING_SQ_FT_LOAD;
