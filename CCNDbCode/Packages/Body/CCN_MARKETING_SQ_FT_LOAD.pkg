@@ -1,6 +1,6 @@
 create or replace package body CCN_MARKETING_SQ_FT_LOAD AS 
 /****************************************************************************** 
-This package is intended update the data in Marketing table 
+This package is intended update the data in Marketing table
 
 Created : 12/05/2017 axt754 -- CCN Project Team...
 Changed : 
@@ -13,8 +13,8 @@ Created : 10/17/2018 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
     IN_COST_CENTER_CODE      IN     VARCHAR2,
-    IN_SALES_SQ_FT           IN     MARKETING.SALES_SQ_FT%TYPE,
-    IN_TOTAL_SQ_FT           IN     MARKETING.TOTAL_SQ_FT%TYPE,
+    IN_TOTAL_SQ_FT           IN     VARCHAR2,
+    IN_SALES_SQ_FT           IN     VARCHAR2,
     OUT_MARKETING_ROW         OUT   MARKETING%ROWTYPE)
 IS
 BEGIN
@@ -37,7 +37,9 @@ BEGIN
         IF IN_SALES_SQ_FT IS NOT NULL THEN
             OUT_MARKETING_ROW.SALES_SQ_FT  := IN_SALES_SQ_FT;
         END IF;
+
         CCN_DERIVED_VALUES.CALCULATE_MARKETING_FIELDS(OUT_MARKETING_ROW);
+
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'GET_MARKETING_REC_SP ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
@@ -58,9 +60,9 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         UPDATE MARKETING SET ROW = IN_MARKETING_ROW
-        WHERE COST_CENTER_CODE = IN_MARKETING_ROW.COST_CENTER_CODE
-         AND EFFECTIVE_DATE   = IN_MARKETING_ROW.EFFECTIVE_DATE
-         AND CATEGORY         = IN_MARKETING_ROW.CATEGORY;
+          WHERE COST_CENTER_CODE = IN_MARKETING_ROW.COST_CENTER_CODE
+            AND EFFECTIVE_DATE   = IN_MARKETING_ROW.EFFECTIVE_DATE
+            AND CATEGORY         = IN_MARKETING_ROW.CATEGORY;
 END UPDATE_MARKETING_DETAILS;
 
 PROCEDURE INIT_LOAD_PROCESS
@@ -77,7 +79,7 @@ IS
    V_MARKETING_ROW   MARKETING%ROWTYPE;
 BEGIN
     FOR rec IN (SELECT * FROM TEMP_MKT_SALES_UPD ORDER BY COST_CENTER) LOOP
-        GET_MARKETING_REC_SP(rec.COST_CENTER, rec.SALES_SQ_FT, rec.TOTAL_SQ_FT, V_MARKETING_ROW);
+        GET_MARKETING_REC_SP(rec.COST_CENTER, rec.TOTAL_SQ_FT, REPLACE(rec.SALES_SQ_FT, CHR(13),''), V_MARKETING_ROW);
         UPDATE_MARKETING_DETAILS(V_MARKETING_ROW);
     END LOOP;
 EXCEPTION
@@ -109,7 +111,7 @@ BEGIN
 
     GET_MARKETING_REC_SP(IN_COST_CENTER_CODE, IN_TOTAL_SQ_FT, IN_SALES_SQ_FT, V_MARKETING_ROW);
 
-    UPDATE MARKETING SET ROW    = V_MARKETING_ROW
+    UPDATE MARKETING SET ROW       = V_MARKETING_ROW
      WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER_CODE)
        AND EXPIRATION_DATE IS NULL
        AND (NVL(SALES_SQ_FT,-1)    <> NVL(IN_SALES_SQ_FT,-1) OR NVL(TOTAL_SQ_FT,-1) <> NVL(IN_TOTAL_SQ_FT,-1));
@@ -132,6 +134,7 @@ Changes : 04/03/2018 sxh487 Added exception block in the select
         : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
         : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
           to consider only active records
+          modified code to pass null value for sales sq ft as we should not update it through the batch upload.
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
@@ -162,10 +165,11 @@ BEGIN
             IF rec.MRKT_CC_CODE IS NULL THEN
                 V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER_CODE ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
             END IF;
+            --passing null to sales sq ft as we should not touch the sales sq ft values through batch upload.
             UPDATE_PROCESS(rec.COST_CENTER_CODE,
                            rec.LEASE_OWN_CODE,
                            rec.TOTAL_SQ_FT,
-                           rec.SALES_SQ_FT);
+                           NULL);
         END IF;
     END LOOP;
 
@@ -196,6 +200,7 @@ Created : 02/09/2018 axt754 -- CCN Project Team
 Changes : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
         : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
           to consider only active records
+          modified code to pass null value for sales sq ft as we should not update it through GSV.
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
@@ -231,10 +236,11 @@ BEGIN
                 IF rec.MRKT_CC_CODE IS NULL THEN
                     V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
                 END IF;
+                --passing null to sales sq ft as we should not touch the marketing sales sq ft value when loading through the Global supply view.
                 UPDATE_PROCESS(rec.COST_CENTER,
                                rec.LEASE_OR_OWNED,
                                rec.PREMISES_SQ_FT,
-                               rec.SALES_AREA);
+                               NULL);
             END IF;
         END LOOP;
         IF V_CC_CLOB <> EMPTY_CLOB() THEN
