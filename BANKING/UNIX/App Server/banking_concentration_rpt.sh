@@ -1,5 +1,5 @@
 #!/bin/sh
-cd /app/banking/test
+cd /app/banking/dev
 #################################################################
 # Script name   : banking_concentration_rpt.sh
 #
@@ -10,9 +10,11 @@ cd /app/banking/test
 # Modified 
 #################################################################
 # below command will get the path for banking.config respective to the environment from which it is run from
-. /app/banking/test/banking.config
+. /app/banking/dev/banking.config
 
 proc_name="banking_concentration_rpt"
+START_DATE=$1
+END_DATE=$2
 LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%d-%b-%y"`
@@ -27,7 +29,7 @@ var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 exec :exitCode := 0;
-EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT('$DATE');
+EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT('$1','$2');
 exit :exitCode;
 END
 
