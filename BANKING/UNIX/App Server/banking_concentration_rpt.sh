@@ -13,8 +13,7 @@ cd /app/banking/dev
 . /app/banking/dev/banking.config
 
 proc_name="banking_concentration_rpt"
-START_DATE=$1
-END_DATE=$2
+IN_RUN_DATE=$1
 LOGDIR=$HOME/logs
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%d-%b-%y"`
@@ -29,7 +28,7 @@ var exitCode number;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 exec :exitCode := 0;
-EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT('$1','$2');
+EXECUTE BANKING_BATCH_PKG.BANKING_CONCENTRATION_MONTHLY_RPT('$IN_RUN_DATE');
 exit :exitCode;
 END
 

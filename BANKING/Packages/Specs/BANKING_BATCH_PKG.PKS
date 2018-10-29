@@ -42,7 +42,5 @@ PROCEDURE BANKING_CONCENTRATION_MONTHLY_RPT(
 Created : 10/09/2018 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
- IN_FROM_DATE            IN         DATE,
- IN_TO_DATE              IN         DATE);
-
+ IN_RUN_DATE            IN         DATE);
 END BANKING_BATCH_PKG;
