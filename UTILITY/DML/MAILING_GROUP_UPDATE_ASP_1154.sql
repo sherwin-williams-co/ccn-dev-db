@@ -7,7 +7,7 @@ Modified:
 SELECT * FROM MAILING_GROUP WHERE GROUP_ID = '120';
 
 UPDATE MAILING_GROUP
-   SET MAIL_ID = 'ccnoracle.team@sherwin.com;katie.m.pschesang@sherwin.com'
+   SET MAIL_ID = 'ccnoracle.team@sherwin.com;jessica.l.ator@sherwin.com;katie.m.pschesang@sherwin.com'
  WHERE GROUP_ID = '120';
 
 COMMIT;
