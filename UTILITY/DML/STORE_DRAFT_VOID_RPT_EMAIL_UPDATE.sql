@@ -1,6 +1,10 @@
-/*--------------------------------------------------------------------------------
-Removing Katie.M.Pschesang@sherwin.com and adding lee.Niedenthal@sherwin.com to the distribution list. 
----------------------------------------------------------------------------------*/
+/**********************************************************************************
+Removing Katie.M.Pschesang@sherwin.com and adding lee.Niedenthal@sherwin.com to the distribution list.
+
+Created : 11/01/2018 pxa852 CCN Project ASP-1160....
+Modified:
+**********************************************************************************/
+
 select * from mailing_group where group_id = '39';
 
 update mailing_group
