@@ -54,7 +54,8 @@ in_tran_guid
 created : 05/29/2018 sxh487 ccn project
 modified:
 **********************************************************/
-IN_TRAN_GUID   IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE)
+IN_TRAN_GUID     IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE,
+IN_RLS_RUN_CYCLE IN  CCN_SALES_LINES_T.RLS_RUN_CYCLE%TYPE)
 RETURN NUMBER;
 
 FUNCTION COST_CENTER_LOOK_UP_FNC(
