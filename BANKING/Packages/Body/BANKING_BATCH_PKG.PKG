@@ -57,6 +57,87 @@ DELETE  FROM MEMBER_BANK_CONCENTRATION_CC WHERE LOAD_DATE = IN_LOAD_DATE;
    Commit;
 END LOAD_MEMER_BANK_CONCENT_CC;
 
+FUNCTION IS_LEAD_ON_DATE_PASSED_FNC(
+/***********************************************************
+This function will check if the cost center is lead or not
+on the date passed
+Created : 11/08/2018 pxa852 CCN Project Team....
+Changed :
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2
+IS
+   V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+
+     SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+        INTO V_RETURN_VAL
+        FROM LEAD_BANK_CC
+      WHERE LEAD_STORE_NBR = IN_COST_CENTER
+        AND BANK_TYPE_CODE IN ('L','I')
+        AND EFFECTIVE_DATE <= IN_EFFECTIVE_DATE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_LEAD_ON_DATE_PASSED_FNC;
+
+FUNCTION IS_LEAD_IN_HIST_ON_DATE_PASSED_FNC(
+/***********************************************************
+If the cost center is not a lead for the date passed
+then this function will check if the cost center is lead or not
+in the history on the date passed
+Created : 11/08/2018 pxa852 CCN Project Team....
+Changed :
+************************************************************/
+    IN_COST_CENTER           IN     VARCHAR2,
+    IN_EFFECTIVE_DATE        IN     DATE) RETURN VARCHAR2
+IS
+   V_RETURN_VAL VARCHAR2(1) := 'N';
+BEGIN
+
+     SELECT CASE WHEN COUNT(*) > 0 THEN 'Y' ELSE 'N' END
+        INTO V_RETURN_VAL
+        FROM LEAD_BANK_CC_HIST
+      WHERE LEAD_STORE_NBR = IN_COST_CENTER
+        AND BANK_TYPE_CODE IN ('L','I')
+        AND EFFECTIVE_DATE <= IN_EFFECTIVE_DATE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_LEAD_IN_HIST_ON_DATE_PASSED_FNC;
+
+PROCEDURE GENERATE_LEAD_MEMBER_EMAIL_CLOB(
+/*******************************************************************
+This procedure will prepare the email clob for each Member/Lead cost center
+
+Created : 11/08/2018 pxa852 CCn Project Team...
+Changed :
+********************************************************************/
+IN_MEMBER_STORE_NBR  IN VARCHAR2,
+IN_MEMBER_STORE_NAME IN VARCHAR2,
+IN_LEAD_STORE_NBR    IN VARCHAR2,
+IN_LEAD_STORE_NAME   IN VARCHAR2,
+IN_BANK_ACCOUNT_NBR  IN VARCHAR2,
+IN_BANK_ACCOUNT_NAME IN VARCHAR2,
+OUT_CLOB_FOR_EMAIL    OUT CLOB)
+IS
+   CURSOR member_bank_cc_cur IS
+      SELECT LEAD_STORE_NBR,
+             Member_Store_Nbr
+        FROM Member_Bank_Cc;
+BEGIN
+OUT_CLOB_FOR_EMAIL  := '="' || IN_MEMBER_STORE_NBR   || '",' ||
+                       '"'  || IN_MEMBER_STORE_NAME  || '",' ||
+                       '="' || IN_LEAD_STORE_NBR     || '",' ||
+                       '"'  || IN_LEAD_STORE_NAME    || '",' ||
+                       '="' || IN_BANK_ACCOUNT_NBR   || '",' ||
+                       '"'  || IN_BANK_ACCOUNT_NAME  || '"' ;
+END GENERATE_LEAD_MEMBER_EMAIL_CLOB;
+
 PROCEDURE BANKING_CONCENTRATION_MONTHLY_RPT (
 /**********************************************************
 This procedure is intended to generate banking concentration report on monthly basis
@@ -89,19 +170,67 @@ IS
          FROM Member_Bank_Concentration_Cc M
         WHERE M.LOAD_DATE = TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM') ORDER BY 1;
 
+   CURSOR LEAD_OR_INDEPENDANT IS
+       SELECT (SELECT C.COST_CENTER_NAME
+                 FROM COST_CENTER C
+                WHERE C.COST_CENTER_CODE = L.LEAD_STORE_NBR) LEAD_STORE_NAME,
+              L.LEAD_STORE_NBR,
+              L.LEAD_BANK_ACCOUNT_NBR BANK_ACCOUNT_NBR ,
+              (SELECT B.BANK_NAME
+                 FROM BANK_ACCOUNT B
+                WHERE B.BANK_ACCOUNT_NBR =  L.LEAD_BANK_ACCOUNT_NBR
+              ) BANK_ACCOUNT_NAME
+         FROM LEAD_BANK_CC L
+        WHERE L.EXPIRATION_DATE IS NULL
+          AND L.EFFECTIVE_DATE <=  TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM');
+
     V_CLOB_FOR_EMAIL            CLOB;
+    OUT_CLOB_FOR_EMAIL          CLOB;
+    V_CLOB_FOR_EMAIL1           CLOB;
+    V_LEAD_BANK_HIST_REC        LEAD_BANK_CC_HIST%ROWTYPE;
+    V_LEAD_STORE_NAME           COST_CENTER.COST_CENTER_NAME%TYPE;
+    V_BANK_ACCOUNT_NAME         BANK_ACCOUNT.BANK_NAME%TYPE;
 BEGIN
     FOR rec IN BANKING_MEMBER LOOP
-        V_CLOB_FOR_EMAIL  := '="' || rec.MEMBER_STORE_NBR   || '",' ||
-                             '"'  || rec.MEMBER_STORE_NAME  || '",' ||
-                             '="' || rec.LEAD_STORE_NBR     || '",' ||
-                             '"'  || rec.LEAD_STORE_NAME    || '",' ||
-                             '="' || rec.BANK_ACCOUNT_NBR   || '",' ||
-                             '"'  || rec.BANK_ACCOUNT_NAME  || '"'  || CHR(10) || V_CLOB_FOR_EMAIL ;
+        GENERATE_LEAD_MEMBER_EMAIL_CLOB(rec.MEMBER_STORE_NBR,rec.MEMBER_STORE_NAME, rec.LEAD_STORE_NBR,rec.LEAD_STORE_NAME,
+                                        rec.BANK_ACCOUNT_NBR, rec.BANK_ACCOUNT_NAME, OUT_CLOB_FOR_EMAIL);
+        V_CLOB_FOR_EMAIL  := OUT_CLOB_FOR_EMAIL || CHR(10) || V_CLOB_FOR_EMAIL ;
+    END LOOP;
+
+    FOR rec1 IN LEAD_OR_INDEPENDANT LOOP
+        IF IS_LEAD_ON_DATE_PASSED_FNC(rec1.LEAD_STORE_NBR,TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')) = 'Y' THEN
+           GENERATE_LEAD_MEMBER_EMAIL_CLOB(NULL,NULL, rec1.LEAD_STORE_NBR,rec1.LEAD_STORE_NAME,
+                                            rec1.BANK_ACCOUNT_NBR, rec1.BANK_ACCOUNT_NAME, OUT_CLOB_FOR_EMAIL);
+           V_CLOB_FOR_EMAIL1  := OUT_CLOB_FOR_EMAIL || CHR(10) || V_CLOB_FOR_EMAIL1 ;
+        ELSE
+           IF IS_LEAD_IN_HIST_ON_DATE_PASSED_FNC(rec1.LEAD_STORE_NBR,TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')) = 'Y' THEN
+              SELECT H.*
+                     INTO V_LEAD_BANK_HIST_REC
+                FROM LEAD_BANK_CC_HIST H
+               WHERE H.LEAD_STORE_NBR = rec1.LEAD_STORE_NBR
+                 AND H.BANK_TYPE_CODE IN ('L','I')
+                 AND H.EFFECTIVE_DATE IN (SELECT MAX(EFFECTIVE_DATE)
+                                            FROM LEAD_BANK_CC_HIST
+                                           WHERE LEAD_STORE_NBR=rec1.LEAD_STORE_NBR
+                                             AND EFFECTIVE_DATE <= TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM'));
+              BEGIN
+                  SELECT B.BANK_NAME INTO V_BANK_ACCOUNT_NAME
+                    FROM BANK_ACCOUNT B
+                   WHERE B.BANK_ACCOUNT_NBR =  V_LEAD_BANK_HIST_REC.LEAD_BANK_ACCOUNT_NBR;
+              EXCEPTION 
+                  WHEN OTHERS THEN
+                      NULL;
+              END;
+
+                GENERATE_LEAD_MEMBER_EMAIL_CLOB(NULL,NULL,rec1.LEAD_STORE_NBR,rec1.LEAD_STORE_NAME,
+                                                V_LEAD_BANK_HIST_REC.LEAD_BANK_ACCOUNT_NBR, V_BANK_ACCOUNT_NAME, OUT_CLOB_FOR_EMAIL);
+                V_CLOB_FOR_EMAIL1  := OUT_CLOB_FOR_EMAIL || CHR(10) || V_CLOB_FOR_EMAIL1 ;
+           END IF;
+        END IF;
     END LOOP;
     --sending mail only if the clob is not empty.
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL := 'MEMBER_STORE_NBR,MEMBER_STORE_NAME,LEAD_STORE_NBR,LEAD_STORE_NAME,BANK_ACCOUNT_NBR,BANK_ACCOUNT_NAME' || CHR(10) || V_CLOB_FOR_EMAIL;
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() OR V_CLOB_FOR_EMAIL1 <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL := 'MEMBER_STORE_NBR,MEMBER_STORE_NAME,LEAD_STORE_NBR,LEAD_STORE_NAME,BANK_ACCOUNT_NBR,BANK_ACCOUNT_NAME' || CHR(10) || V_CLOB_FOR_EMAIL || V_CLOB_FOR_EMAIL1;
         MAIL_PKG.SEND_MAIL('BANKING_MEMBER_CONCENTRATION_RPT'||IN_RUN_DATE,NULL, NULL, V_CLOB_FOR_EMAIL);
     END IF;
 
