@@ -37,7 +37,7 @@ BEGIN
            SET D.CSTMR_DPST_SALES_LN_ITM_AMT = (rec.CSTMR_DPST_SALES_LN_ITM_AMT/2)
          WHERE rowid = rec.row_id;   
     END LOOP;
-    --COMMIT;
+    COMMIT;
 
     FOR rec in CUST_DEPOSITS_ACCT LOOP
         DELETE FROM CUST_DEP_CREDIT_DETAILS C     WHERE C.CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
@@ -86,7 +86,7 @@ BEGIN
                  V_TEMP_ROW := NULL;
                  V_COMMIT := V_COMMIT + 1;
                  IF V_COMMIT > 500 THEN
-                    --COMMIT;
+                    COMMIT;
                     V_COMMIT := 0;
                  END IF;
               EXCEPTION
@@ -94,7 +94,7 @@ BEGIN
                       ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE, 'LOAD_CUSTOMER_DEPOSIT_DETAILS', SQLERRM, rec1.COST_CENTER_CODE, rec1.CUSTOMER_ACCOUNT_NUMBER, 'CUSTOMER_DEPOSIT_DETAILS');
               END;
         END LOOP;
-      --  COMMIT;
+        COMMIT;
     END LOOP;
 EXCEPTION
    WHEN OTHERS THEN
