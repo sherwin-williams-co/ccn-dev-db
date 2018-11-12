@@ -7,6 +7,8 @@ Created : gxg192 01/23/2017
 Modified: gxg192 01/25/2017 1. Changes to use delete statement instead of truncate
                             2. Changes to use cursor instead of block insert
                             3. Changes to handle exception.
+        : kxm302 11/12/2018 CCN Project Team...
+        : Include only current transactions for LEAD_BANK_CC and BANK_ACCOUNT ASP-1163
 ********************************************************************/
 DECLARE
 
@@ -20,7 +22,10 @@ DECLARE
           L.BANK_TYPE_CODE
      FROM LEAD_BANK_CC L, BANK_ACCOUNT B
     WHERE L.LEAD_BANK_ACCOUNT_NBR = B.BANK_ACCOUNT_NBR
-      AND B.BANK_AUTO_RECON_IND = 'Y';
+      AND B.BANK_AUTO_RECON_IND = 'Y'
+      AND B.UPDATE_DATE < TRUNC(SYSDATE)
+      AND L.UPDATE_DATE < TRUNC(SYSDATE);
+;
 
    V_ERROR_FLAG     VARCHAR2(1) := 'N';
 
@@ -75,3 +80,4 @@ EXCEPTION
       :exitcode := 2; 
 END;
 /
+
