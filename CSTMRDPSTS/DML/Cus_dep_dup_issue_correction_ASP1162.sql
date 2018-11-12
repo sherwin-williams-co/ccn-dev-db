@@ -1,45 +1,46 @@
+/*
+Below script will resolve the duplciates issue that happened due to 0 run cycles
+
+Created : 11/12/2018 jxc517 CCN Project Team....
+Changed :
+*/
+
 DECLARE
-CURSOR CUST_DEPOSITS IS
+    CURSOR CUST_DEPOSITS_ACCT IS
+        SELECT DISTINCT CUSTOMER_ACCOUNT_NUMBER
+          FROM CUSTOMER_DEPOSIT_HEADER
+         WHERE CUSTOMER_ACCOUNT_NUMBER IN (
+          '301148623','302632096','304005135','423860329','572460111','575028493'
+          );
+
+    CURSOR CUST_DEPOSITS(IN_ACOUNT     VARCHAR2) IS
        SELECT A.*,
               rowid row_id
          FROM CUSTOMER_DEPOSIT_DETAILS A
         WHERE /*TRANSACTION_TYPE = 'REDEMPTION'
          AND */TRANSACTION_DATE BETWEEN '01-OCT-2017' AND '31-AUG-2018'
+         AND CUSTOMER_ACCOUNT_NUMBER     = IN_ACOUNT
          AND CSTMR_DPST_SALES_LN_ITM_AMT <> (SELECT SUM(EXTENDED_PRICE)
                                                FROM CCN_SALES_LINES_T
                                               WHERE NON_MERCH_CODE = '05'
                                                 AND RLS_RUN_CYCLE  = A.RLS_RUN_CYCLE
                                                 AND TRAN_GUID      = A.TRANSACTION_GUID);
                                                 
-CURSOR CUST_DEPOSITS_ACCT IS
-       SELECT DISTINCT A.CUSTOMER_ACCOUNT_NUMBER
-         FROM CUSTOMER_DEPOSIT_DETAILS A
-        WHERE /*TRANSACTION_TYPE = 'REDEMPTION'
-         AND */TRANSACTION_DATE BETWEEN '01-OCT-2017' AND '31-AUG-2018'
-         AND CSTMR_DPST_SALES_LN_ITM_AMT <> (SELECT SUM(EXTENDED_PRICE)
-                                               FROM CCN_SALES_LINES_T
-                                              WHERE NON_MERCH_CODE = '05'
-                                                AND RLS_RUN_CYCLE  = A.RLS_RUN_CYCLE
-                                                AND TRAN_GUID      = A.TRANSACTION_GUID);
-                                                     
    --variable declaration
-   V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
    V_CREDIT_ROW     CUST_DEP_CREDIT_DETAILS%ROWTYPE;
    V_REDEMPTION_ROW CUST_DEP_REDEMPTION_DETAILS%ROWTYPE;
    V_RUNNING_TOTAL  NUMBER := 0;
-   V_COMMIT         NUMBER := 0;
    V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE;
    V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE;
    V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE;
 BEGIN
-    FOR rec in CUST_DEPOSITS LOOP
-        UPDATE CUSTOMER_DEPOSIT_DETAILS D
-           SET D.CSTMR_DPST_SALES_LN_ITM_AMT = (rec.CSTMR_DPST_SALES_LN_ITM_AMT/2)
-         WHERE rowid = rec.row_id;   
-    END LOOP;
-    COMMIT;
-
     FOR rec in CUST_DEPOSITS_ACCT LOOP
+        FOR rec2 in CUST_DEPOSITS(rec.CUSTOMER_ACCOUNT_NUMBER) LOOP
+            UPDATE CUSTOMER_DEPOSIT_DETAILS D
+               SET D.CSTMR_DPST_SALES_LN_ITM_AMT = (rec2.CSTMR_DPST_SALES_LN_ITM_AMT/2)
+             WHERE rowid = rec2.row_id;  
+        END LOOP;
+
         DELETE FROM CUST_DEP_CREDIT_DETAILS C     WHERE C.CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
         DELETE FROM CUST_DEP_REDEMPTION_DETAILS R WHERE R.CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
         V_RUNNING_TOTAL := 0;
@@ -81,13 +82,6 @@ BEGIN
                     TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(V_REDEMPTION_ROW);
                  ELSE
                    NULL;
-                 END IF; 
-                 
-                 V_TEMP_ROW := NULL;
-                 V_COMMIT := V_COMMIT + 1;
-                 IF V_COMMIT > 500 THEN
-                    COMMIT;
-                    V_COMMIT := 0;
                  END IF;
               EXCEPTION
                  WHEN OTHERS THEN
