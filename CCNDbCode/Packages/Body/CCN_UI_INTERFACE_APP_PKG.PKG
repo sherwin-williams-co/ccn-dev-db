@@ -10,6 +10,8 @@ changed : 09/21/2012 TAL -- Split into Table_IU and Interface_UI
         : 04/17/2017 rxa457 -- ASP-763 Return data with respect to the newly added table DISPATCH_TERMINAL
         : 07/24/2018 kxm302 CCN Project Team...
 		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
+        : 11/12/2018 mxs216 -- ASP-1158, Business rule to stop users from updating **L* archived cost centers
+
 ******************************************************************************/
 
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
@@ -1051,6 +1053,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
         :11/13/17 mxv711 CCN Project team.. added ASP-909-Business rule to stop insert/update cost center if there are no address details
 Changed:  03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
+        : 11/12/2018 mxs216 -- ASP-1158, Business rule to stop users from updating **L* archived cost centers
 *******************************************************************************/
 IN_FLAG      IN VARCHAR2,
 IN_ROW_DATA  IN VARCHAR2)
@@ -1100,6 +1103,10 @@ IS
 
    V_FRAGMENT_HEADER           VARCHAR2(100);
 
+   v_code                      number;
+   arch_change_not_alwd_err    EXCEPTION;
+   v_cost_center_code_err      VARCHAR2(50);
+
 BEGIN
 
    CASE
@@ -1132,6 +1139,14 @@ BEGIN
                                                  ,V_ROW_DATE    
                                                  ,V_XML_FRAG    
                                                  ,V_COST_CENTER_ROWTYPE );
+
+          --Checking if Cost Center is Archieved or not using COMMON_TOOLS.PURGE_CCN_EXISTS, if archieved returns Y, if not returns N.
+          IF common_tools.PURGE_CCN_EXISTS (V_COST_CENTER_ROWTYPE.COST_CENTER_CODE) = 'Y' THEN
+              v_cost_center_code_err := V_COST_CENTER_ROWTYPE.COST_CENTER_CODE; 
+              RAISE arch_change_not_alwd_err; 
+          END IF; 
+
+
 		 -- Basic Addres element validation.
          CCN_BUSINESS_RULES_PKG.CHECK_ADDRESS_TAG(V_COST_CENTER_ROWTYPE.CATEGORY,V_ROW_DATA );										 
 
@@ -1155,6 +1170,13 @@ BEGIN
                CCN_TABLE_IU_PKG.POLLING_ROWTYPE_SP('POLLING'  
                                                    ,V_XML_FRAG    
                                                    ,V_POLLING_ROWTYPE );
+
+                --Checking if Cost Center is Archieved or not using COMMON_TOOLS.PURGE_CCN_EXISTS, if archieved returns Y, if not returns N. -- Added by mxs216
+                IF common_tools.PURGE_CCN_EXISTS (V_POLLING_ROWTYPE.COST_CENTER_CODE) = 'Y' THEN
+                    v_cost_center_code_err := V_POLLING_ROWTYPE.COST_CENTER_CODE;
+                    RAISE arch_change_not_alwd_err; 
+                END IF;
+
             ELSE NULL;
 
          END CASE;
@@ -1402,6 +1424,19 @@ BEGIN
                                             V_XML_TYPE_FRAG);
 
 EXCEPTION
+
+    WHEN arch_change_not_alwd_err THEN
+    
+      --Close the cursor if it is already open
+      IF V_GENERIC_CURSOR%ISOPEN THEN
+          CLOSE V_GENERIC_CURSOR;
+      END IF;
+      
+       v_code := errnums.en_arch_change_not_alwd_err;
+       errpkg.raise_err(v_code
+                       ,'VALIDATE_BUSINESS_RULES.arch_change_not_alwd_err, '
+                       ,'Changes not allowed in archieved cost center: ' || v_cost_center_code_err ); 
+
    WHEN OTHERS THEN
       --Close the cursor if it is already open
       IF V_GENERIC_CURSOR%ISOPEN THEN
