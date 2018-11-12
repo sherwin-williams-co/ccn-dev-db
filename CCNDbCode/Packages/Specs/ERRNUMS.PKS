@@ -3229,4 +3229,15 @@ exc_allocation_cc_null_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_allocation_cc_null_err , -20209);
 
+
+/*********************************************************** 
+The "archieved_changes_not_allowed_err" passes a numerical error of -20210.
+This error occurs when customer trying to update an Archieved cost center.
+
+created :  11/05/2018, mxs216,  ASP-1158
+************************************************************/
+
+en_arch_change_not_alwd_err      CONSTANT NUMBER := -20210;
+exc_arch_change_not_alwd_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_arch_change_not_alwd_err , -20210);
 END ERRNUMS;
