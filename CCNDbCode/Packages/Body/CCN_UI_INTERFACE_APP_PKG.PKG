@@ -10,8 +10,6 @@ changed : 09/21/2012 TAL -- Split into Table_IU and Interface_UI
         : 04/17/2017 rxa457 -- ASP-763 Return data with respect to the newly added table DISPATCH_TERMINAL
         : 07/24/2018 kxm302 CCN Project Team...
 		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
-        : 11/12/2018 mxs216 -- ASP-1158, Business rule to stop users from updating **L* archived cost centers
-
 ******************************************************************************/
 
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
@@ -1053,7 +1051,6 @@ changed : 05/24/2016 jxc517 CCN Project Team....
         :11/13/17 mxv711 CCN Project team.. added ASP-909-Business rule to stop insert/update cost center if there are no address details
 Changed:  03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
-        : 11/12/2018 mxs216 -- ASP-1158, Business rule to stop users from updating **L* archived cost centers
 *******************************************************************************/
 IN_FLAG      IN VARCHAR2,
 IN_ROW_DATA  IN VARCHAR2)
@@ -1103,10 +1100,6 @@ IS
 
    V_FRAGMENT_HEADER           VARCHAR2(100);
 
-   v_code                      number;
-   arch_change_not_alwd_err    EXCEPTION;
-   v_cost_center_code_err      VARCHAR2(50);
-
 BEGIN
 
    CASE
@@ -1139,14 +1132,6 @@ BEGIN
                                                  ,V_ROW_DATE    
                                                  ,V_XML_FRAG    
                                                  ,V_COST_CENTER_ROWTYPE );
-
-          --Checking if Cost Center is Archieved or not using COMMON_TOOLS.PURGE_CCN_EXISTS, if archieved returns Y, if not returns N.
-          IF common_tools.PURGE_CCN_EXISTS (V_COST_CENTER_ROWTYPE.COST_CENTER_CODE) = 'Y' THEN
-              v_cost_center_code_err := V_COST_CENTER_ROWTYPE.COST_CENTER_CODE; 
-              RAISE arch_change_not_alwd_err; 
-          END IF; 
-
-
 		 -- Basic Addres element validation.
          CCN_BUSINESS_RULES_PKG.CHECK_ADDRESS_TAG(V_COST_CENTER_ROWTYPE.CATEGORY,V_ROW_DATA );										 
 
@@ -1160,17 +1145,6 @@ BEGIN
             WHEN IN_FLAG = 'ADDRESS' THEN
                --Set the XML search header for Address UI Process
                V_FRAGMENT_HEADER := '/ADDRESS_UI_UPSERT/';
-
-               v_xml_frag := v_row_data.EXTRACT('/ADDRESS_UI_UPSERT').GETCLOBVAL();
-               SELECT DISTINCT (extractvalue(column_value, 'COST_CENTER_CODE'))
-                 INTO V_COST_CENTER_ROWTYPE.COST_CENTER_CODE
-                 FROM TABLE(XMLSequence(XMLTYPE(IN_ROW_DATA).extract('/ADDRESS_UI_UPSERT/*/COST_CENTER_CODE')));
-    
-                --Checking if Cost Center is Archieved or not using COMMON_TOOLS.PURGE_CCN_EXISTS, if archieved returns Y, if not returns N.
-                IF common_tools.PURGE_CCN_EXISTS (V_COST_CENTER_ROWTYPE.COST_CENTER_CODE) = 'Y' THEN
-                    RAISE arch_change_not_alwd_err; 
-                END IF; 
-
             WHEN IN_FLAG = 'POLLING' THEN
                --Set the XML search header for Polling UI Process
                V_FRAGMENT_HEADER := '/POLLING_UI/';
@@ -1181,13 +1155,6 @@ BEGIN
                CCN_TABLE_IU_PKG.POLLING_ROWTYPE_SP('POLLING'  
                                                    ,V_XML_FRAG    
                                                    ,V_POLLING_ROWTYPE );
-
-                --Checking if Cost Center is Archieved or not using COMMON_TOOLS.PURGE_CCN_EXISTS, if archieved returns Y, if not returns N. -- Added by mxs216
-                IF common_tools.PURGE_CCN_EXISTS (V_POLLING_ROWTYPE.COST_CENTER_CODE) = 'Y' THEN
-                    v_cost_center_code_err := V_POLLING_ROWTYPE.COST_CENTER_CODE;
-                    RAISE arch_change_not_alwd_err; 
-                END IF;
-
             ELSE NULL;
 
          END CASE;
@@ -1435,19 +1402,6 @@ BEGIN
                                             V_XML_TYPE_FRAG);
 
 EXCEPTION
-
-    WHEN arch_change_not_alwd_err THEN
-    
-      --Close the cursor if it is already open
-      IF V_GENERIC_CURSOR%ISOPEN THEN
-          CLOSE V_GENERIC_CURSOR;
-      END IF;
-      
-       v_code := errnums.en_arch_change_not_alwd_err;
-       errpkg.raise_err(v_code
-                       ,'VALIDATE_BUSINESS_RULES.arch_change_not_alwd_err, '
-                       ,'Changes not allowed in archieved cost center: ' || v_cost_center_code_err ); 
-
    WHEN OTHERS THEN
       --Close the cursor if it is already open
       IF V_GENERIC_CURSOR%ISOPEN THEN
@@ -2369,6 +2323,23 @@ EXCEPTION
         CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
         errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) || ' PROCESS_SQ_FT_LD Error');
 END PROCESS_SQ_FT_LD;
+
+PROCEDURE HIERARCHY_FILE_GEN_UI_SP (
+/******************************************************************************
+This procedure is intended to call and execute hierarchy file generation process.
+Cost center code is the input parameter.
+
+Created  : 07/23/2018 pxa852 CCN Project Team....
+Modified :
+*******************************************************************************/
+    IN_COST_CENTER_CODE    IN   COST_CENTER.COST_CENTER_CODE%TYPE)
+
+IS
+BEGIN
+
+    CCN_HIERARCHY_FILE_GEN_PKG.GENERATE_COSTCNTR_HRCHY_FILE(IN_COST_CENTER_CODE);
+
+END HIERARCHY_FILE_GEN_UI_SP;
 
 PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
 /******************************************************************************
