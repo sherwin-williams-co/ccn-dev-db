@@ -1288,19 +1288,20 @@ PROCEDURE POS_TERM_TRAN_UPDATE
 Created : 12/01/2017 nxk927 CCN project
 Changed : 05/30/2018 nxk927 CCN project
           Loading the POS_CCN_LOAD_STATUS before getting the max run cycle
-        : 11/13/2018 pxa852 CCN project
-          Used cost center lookp function to improve the performance.
+Changed : 11/13/2018 pxa852 CCN project...
+          Included exception block
+          used cost center lookup function to improve the performance
 **********************************************************/
 IS
     CURSOR POS_TERM_DTS(IN_RUNCYCLE IN VARCHAR2) IS
-    SELECT TRAN_DATE, STORE_NO, TERMNBR, TRANNBR,POS_VERSION_NUMBER
-      FROM PNP_CCN_HEADERS  A
-     WHERE RLS_RUN_CYCLE = IN_RUNCYCLE
-       AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
-                               FROM PNP_CCN_HEADERS  B
-                              WHERE RLS_RUN_CYCLE = A.RLS_RUN_CYCLE
-                                AND STORE_NO      = A.STORE_NO
-                                AND TERMNBR       = A.TERMNBR);
+        SELECT TRAN_DATE, STORE_NO, TERMNBR, TRANNBR,POS_VERSION_NUMBER
+          FROM PNP_CCN_HEADERS  A
+         WHERE RLS_RUN_CYCLE = IN_RUNCYCLE
+           AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
+                                   FROM PNP_CCN_HEADERS  B
+                                  WHERE RLS_RUN_CYCLE = A.RLS_RUN_CYCLE
+                                    AND STORE_NO      = A.STORE_NO
+                                    AND TERMNBR       = A.TERMNBR);
     V_CONTEXT    VARCHAR2(200);
     V_START_TIME NUMBER;
     V_RUNCYCLE   VARCHAR2(10);
@@ -1310,24 +1311,29 @@ BEGIN
     V_START_TIME := DBMS_UTILITY.GET_TIME;
     V_CONTEXT := 'Load POS_CCN_LOAD_STATUS Table ';
     LOAD_POS_CCN_LOAD_STATUS(V_RUNCYCLE);
-    DBMS_OUTPUT.PUT_LINE('POS_CCN_LOAD_STATUS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
     V_START_TIME := DBMS_UTILITY.GET_TIME;
     V_CONTEXT := 'Updating TERMINAL Table ';
     FOR REC IN POS_TERM_DTS(V_RUNCYCLE) LOOP
-        UPDATE TERMINAL
-           SET POS_LAST_TRAN_DATE                        = REC.TRAN_DATE,
-               POS_LAST_TRAN_NUMBER                      = LPAD(REC.TRANNBR, 5, '0'),
-               POS_VERSION_NBR                           = REC.POS_VERSION_NUMBER
-         WHERE COST_CENTER_CODE                          = COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(REC.STORE_NO)
-           AND TERMINAL_NUMBER                           = REC.TERMNBR
-           AND (NVL(POS_LAST_TRAN_DATE,(TRUNC(SYSDATE))) <> NVL(REC.TRAN_DATE,TRUNC(SYSDATE)+1) OR
-                NVL(POS_LAST_TRAN_NUMBER,-1)             <> NVL(LPAD(REC.TRANNBR, 5, '0'),-2) OR
-                NVL(POS_VERSION_NBR,-1)                  <> NVL(REC.POS_VERSION_NUMBER,-2))
-           AND EXPIRATION_DATE IS NULL;
+        BEGIN
+            UPDATE TERMINAL
+               SET POS_LAST_TRAN_DATE                        = REC.TRAN_DATE,
+                   POS_LAST_TRAN_NUMBER                      = LPAD(REC.TRANNBR, 5, '0')
+             WHERE COST_CENTER_CODE                          = COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(REC.STORE_NO)
+               AND TERMINAL_NUMBER                           = REC.TERMNBR
+               AND (NVL(POS_LAST_TRAN_DATE,(TRUNC(SYSDATE))) <> NVL(REC.TRAN_DATE,TRUNC(SYSDATE)+1) OR
+                    NVL(POS_LAST_TRAN_NUMBER,-1)             <> NVL(LPAD(REC.TRANNBR, 5, '0'),-2))
+               AND EXPIRATION_DATE IS NULL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, ' POS_TERM_TRAN_UPDATE ', SUBSTR(SQLERRM,1,500), rec.STORE_NO);
+        END;
+        COMMIT;
     END LOOP;
-    COMMIT;
-    DBMS_OUTPUT.PUT_LINE('TERMINAL Table Updated in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||' POS_TERM_TRAN_UPDATE '  || ' errors found');
 END POS_TERM_TRAN_UPDATE;
 
 FUNCTION GET_LOAD_RUNCYCLE
