@@ -640,5 +640,16 @@ created  : 01/16/2018 BXA919
  ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
  
+   PROCEDURE CHECK_ARCHIVED_COST_CENTER (
+   /*****************************************************************************
+   CHECK_ARCHIVED_COST_CENTER
+
+   This procedure is intended to enforce the Business Rules
+   to stop users from updating **L* archived cost centers:
+
+   1.)  Check if cost center is archived, if Yes through error.
+   created : mxs216 on 11/14/2018, ASP-1158
+   ******************************************************************************/
+   IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
 
 END CCN_BUSINESS_RULES_PKG;
