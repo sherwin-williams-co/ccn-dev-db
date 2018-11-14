@@ -3231,13 +3231,13 @@ PRAGMA EXCEPTION_INIT
 
 
 /*********************************************************** 
-The "archieved_changes_not_allowed_err" passes a numerical error of -20210.
+The "en_chn_not_ald_in_arch_cc_err" passes a numerical error of -20210.
 This error occurs when customer trying to update an Archieved cost center.
 
-created :  11/05/2018, mxs216,  ASP-1158
+created : 11/14/2018, mxs216, ASP - 1158
 ************************************************************/
+en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
+exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_chn_not_ald_in_arch_cc_err , -20210);
 
-en_arch_change_not_alwd_err      CONSTANT NUMBER := -20210;
-exc_arch_change_not_alwd_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_arch_change_not_alwd_err , -20210);
 END ERRNUMS;
