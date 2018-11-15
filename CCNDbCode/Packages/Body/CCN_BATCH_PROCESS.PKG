@@ -1259,7 +1259,7 @@ with data extracted from PNP_CCN_LOAD_STATUS
 created : 05/30/2018 nxk927 CCN Project....
 changed : 
 *****************************************************************************/
-IN_RUN_CYCLE     IN VARCHAR2)
+IN_RUN_CYCLE     IN NUMBER)
 AS
 
 CURSOR POS_SD_CUR IS
@@ -1288,33 +1288,35 @@ PROCEDURE POS_TERM_TRAN_UPDATE
 Created : 12/01/2017 nxk927 CCN project
 Changed : 05/30/2018 nxk927 CCN project
           Loading the POS_CCN_LOAD_STATUS before getting the max run cycle
-Changed : 11/13/2018 pxa852 CCN project...
-          Included exception block
-          used cost center lookup function to improve the performance
+Changed : 11/13/2018 pxa852 CCN project
+          Included exception block and used cost center lookup function
 **********************************************************/
 IS
-    CURSOR POS_TERM_DTS(IN_RUNCYCLE IN VARCHAR2) IS
-        SELECT TRAN_DATE, STORE_NO, TERMNBR, TRANNBR,POS_VERSION_NUMBER
-          FROM PNP_CCN_HEADERS  A
-         WHERE RLS_RUN_CYCLE = IN_RUNCYCLE
-           AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
-                                   FROM PNP_CCN_HEADERS  B
-                                  WHERE RLS_RUN_CYCLE = A.RLS_RUN_CYCLE
-                                    AND STORE_NO      = A.STORE_NO
-                                    AND TERMNBR       = A.TERMNBR);
     V_CONTEXT    VARCHAR2(200);
     V_START_TIME NUMBER;
-    V_RUNCYCLE   VARCHAR2(10);
+    V_RUNCYCLE   NUMBER(38);
+
+    CURSOR POS_TERM_DTS IS
+        SELECT MAX (TRAN_DATE) KEEP (DENSE_RANK LAST ORDER BY TRAN_TIMESTAMP)
+               TRAN_DATE,
+               STORE_NO,
+               TERMNBR,
+               MAX (TRANNBR) KEEP (DENSE_RANK LAST ORDER BY TRAN_TIMESTAMP) TRANNBR,
+               MAX (POS_VERSION_NUMBER) KEEP (DENSE_RANK LAST ORDER BY TRAN_TIMESTAMP) POS_VERSION_NUMBER
+          FROM costcntr.PNP_CCN_HEADERS A
+         WHERE RLS_RUN_CYCLE = V_RUNCYCLE
+         GROUP BY STORE_NO, TERMNBR;
 BEGIN
     V_RUNCYCLE := GET_LOAD_RUNCYCLE();
 
     V_START_TIME := DBMS_UTILITY.GET_TIME;
     V_CONTEXT := 'Load POS_CCN_LOAD_STATUS Table ';
     LOAD_POS_CCN_LOAD_STATUS(V_RUNCYCLE);
+    DBMS_OUTPUT.PUT_LINE('POS_CCN_LOAD_STATUS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
 
     V_START_TIME := DBMS_UTILITY.GET_TIME;
     V_CONTEXT := 'Updating TERMINAL Table ';
-    FOR REC IN POS_TERM_DTS(V_RUNCYCLE) LOOP
+    FOR REC IN POS_TERM_DTS LOOP
         BEGIN
             UPDATE TERMINAL
                SET POS_LAST_TRAN_DATE                        = REC.TRAN_DATE,
@@ -1345,9 +1347,9 @@ FUNCTION GET_LOAD_RUNCYCLE
 Created : 09/28/2017 nxk927 CCN Project....
 Changed :
 *******************************************************************************/
-RETURN VARCHAR2
+RETURN NUMBER
 IS
-    V_RETURN_VALUE      VARCHAR2(10);
+    V_RETURN_VALUE      NUMBER(38);
 BEGIN
     SELECT RLS_RUN_CYCLE
       INTO V_RETURN_VALUE
