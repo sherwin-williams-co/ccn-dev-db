@@ -90,9 +90,10 @@ FUNCTION GET_LOAD_RUNCYCLE
   This function will get the runcycle for the days load
 
 Created : 09/28/2017 nxk927 CCN Project....
-Changed :
+Changed : 11/15/2018 pxa852 CCN Project...
+          Changed the datatype to number as run cycle id is a number in PNP_CCN_HEADER
 *******************************************************************************/
-RETURN VARCHAR2;
+RETURN NUMBER;
 
 PROCEDURE LOAD_ADDRESS_GEO_DETAILS
 /******************************************************************************
