@@ -2,7 +2,7 @@
 /*
 Below script will update net balance amount for CUSTOMER_DEPOSIT_DETAILS
 
-Created : 11/19/2018 kxm302 CCN Project Team....
+Created : 11/19/2018 sxh487/kxm302 CCN Project Team....
 Changed :
 */
 DECLARE
