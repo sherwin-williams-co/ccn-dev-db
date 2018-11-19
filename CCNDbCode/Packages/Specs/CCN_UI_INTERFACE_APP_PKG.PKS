@@ -794,16 +794,6 @@ Changes :
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
 
-PROCEDURE HIERARCHY_FILE_GEN_UI_SP (
-/******************************************************************************
-This procedure is intended to call and execute hierarchy file generation process.
-Cost center code is the input parameter.
-
-Created  : 07/23/2018 pxa852 CCN Project Team....
-Modified :
-*******************************************************************************/
-    IN_COST_CENTER_CODE    IN   COST_CENTER.COST_CENTER_CODE%TYPE);
-
 PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
 /******************************************************************************
 This procedure is the core process for updating the descartes delivery code field.
