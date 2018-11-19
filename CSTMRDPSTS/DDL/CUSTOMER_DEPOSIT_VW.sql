@@ -6,7 +6,7 @@ This view will provide the CUSTOMER_DEPOSIT information.
 
 Created  : 03/23/2018 sxh487 CCN Project
 Modified : 05/29/2018 sxh487 Added CSTMR_DPST_SALES_LN_ITM_AMT
-         : 11/19/2017 kxm302 Removed filter on CUSTOMER_ACCOUNT_NUMBER to include all customers
+         : 11/06/2018 sxg151 Rename column's to (ORGNL_DEPOSIT_TRANSACTION_NBR,ORGNL_DEPOSIT_TERMINAL_NBR,ORGNL_DEPOSIT_TRANSACTION_DATE)
 *******************************************************************************/
          CDD.CUSTOMER_ACCOUNT_NUMBER AS CUSTOMER_NUMBER,
          CDD.COST_CENTER_CODE AS STORE,
@@ -18,9 +18,9 @@ Modified : 05/29/2018 sxh487 Added CSTMR_DPST_SALES_LN_ITM_AMT
          CDD.TRAN_TIMESTAMP,
          CDD.CSTMR_DPST_SALES_LN_ITM_AMT,
          CDD.CUSTOMER_NET_BALANCE AS CUST_REM_BALANCE,
-         CDR.ORIGINAL_DEP_TRANS_NBR,
-         CDR.ORIGINAL_DEP_TERM_NBR,
-         CDR.ORIGINAL_DEP_TRAN_DATE,
+         CDR.ORGNL_DEPOSIT_TRANSACTION_NBR,
+         CDR.ORGNL_DEPOSIT_TERMINAL_NBR,
+         CDR.ORGNL_DEPOSIT_TRANSACTION_DATE,
          REFERENCE_NUMBER,
          CLEARED_REASON,
          NOTES,
