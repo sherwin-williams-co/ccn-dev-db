@@ -215,10 +215,12 @@ based on the input header name and detail value from
 TRANSLATION_DETAIL table
 
 Created : 12/03/2015 jxc517 CCN Project....
-Modified: 
+Modified: 11/19/2018 pxa852 CCN Project team...
+          Modified code to pass transalation name as a parameter
 **********************************************************/
 IN_CODE_HEADER_NAME      IN     VARCHAR2,
-IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2;
+IN_CODE_DETAIL_VALUE     IN     VARCHAR2,
+IN_CODE_TRANSLATION_NAME IN     VARCHAR2) RETURN VARCHAR2;
 
 FUNCTION GET_DATAFILE_PATH_FNC(
 /**************************************************************** 
@@ -294,20 +296,10 @@ FUNCTION GET_COST_CENTER_DSC_CODES(
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
 from COST_CENTER_DSC_CODES 
 Created : 02/22/2018 SXG151 CCN Project....
+Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
-
-FUNCTION GET_ADDRESS_GEO(
-/**********************************************************
-This Function is intended to return Latitude,longitude from CCN_ADDRESS_GEO_DETAILS
-
-Created : 03/14/2018 rxv940 CCN Project.... ASP-976
-Modified:
-**********************************************************/
-    IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
-    IN_GEO_TYPE       IN     VARCHAR2
-    ) RETURN VARCHAR2;
 
 END CCN_COMMON_TOOLS;
