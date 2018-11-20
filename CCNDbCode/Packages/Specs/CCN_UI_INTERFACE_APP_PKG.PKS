@@ -806,4 +806,13 @@ Modified:
 ******************************************************************************/
     IN_BLOB            IN       BLOB);
 
+PROCEDURE GENERATE_PRIMESUB_DETAILS_RPT
+/**********************************************************
+This procedure is intended to generate an PrimeSub details and email it to Pat team.
+
+Filters:
+Created : 08/16/2018 kxm302 CCN project Team....
+**********************************************************/
+;
+
 END CCN_UI_INTERFACE_APP_PKG;
