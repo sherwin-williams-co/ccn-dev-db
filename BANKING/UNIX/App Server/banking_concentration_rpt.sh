@@ -25,9 +25,9 @@ case "$IN_RUN_DATE" in ([0-3][0-9]-[A-Z][A-Z][A-Z]-[12][0189][0-9][0-9])
   (*) dtformat="N";;
 esac
 
-if [[ "$dtformat" = "N" ]] ; then
+if [[ "$dtformat" = "N" && "$IN_RUN_DATE" != "" ]] ; then
    echo $IN_RUN_DATE is NOT a valid DD-MON-YYYY date
-   exit;
+   exit 1
 fi
 
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
