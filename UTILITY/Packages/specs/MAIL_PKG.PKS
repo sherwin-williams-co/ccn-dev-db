@@ -21,10 +21,14 @@ IN_TERMINL_NUMBER - The Terminal Number being added
 IN_COST_CENTER_CD - The Cost Center for which the terminal number was added to
 
 created : 03/03/2013 sxh487 CCN Project....
+changed : 11/26/2018 pxa852 CCN Proect team...
+          Added G_DATE variable
 **********************************************************/
 IN_MAIL_CATEGORY VARCHAR2,
 IN_TERMINL_NUMBER IN NUMBER default NULL,
 IN_COST_CENTER_CD IN VARCHAR2 default NULL,
 IN_CLOB IN CLOB DEFAULT NULL);
+
+G_DATE DATE;
 
 END mail_pkg;

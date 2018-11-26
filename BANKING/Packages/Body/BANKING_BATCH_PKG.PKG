@@ -68,6 +68,7 @@ Created : 10/09/2018 pxa852 CCN project Team....
 **********************************************************/
     IN_RUN_DATE            IN         DATE)
 IS
+    V_DATE              DATE := TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM');
     CURSOR BANKING_MEMBER IS
     --this query will get all the member details which are in concentration as of passed date
         SELECT A.MEMBER_STORE_NBR,
@@ -90,7 +91,7 @@ IS
                                                 AND ROWNUM < 2)
                ) BANK_ACCOUNT_NAME
           FROM Member_Bank_Concentration_Cc A
-         WHERE A.LOAD_DATE = TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')
+         WHERE A.LOAD_DATE = V_DATE
         UNION
         --This sql will return all the lead and independant members which are in concentration(active) as of passed date.
         SELECT NULL AS MEMBER_STORE_NBR,
@@ -105,11 +106,11 @@ IS
                  WHERE B.BANK_ACCOUNT_NBR = L.LEAD_BANK_ACCOUNT_NBR
                    AND ROWNUM < 2) BANK_ACCOUNT_NAME
           FROM LEAD_BANK_CC L
-         WHERE L.EFFECTIVE_DATE <= TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')-1
+         WHERE L.EFFECTIVE_DATE < V_DATE
         UNION
         --This sql returns all lead and independant details from history which are in concentration(active) as of passed date
         --If lead/independant is expired after the passed date (as of date/run date) and effective date is before the passed date,
-        -- then that means the lead/indepedant is active as of that date.
+        -- then that means the lead/indepedant is active as of run date.
         SELECT NULL AS MEMBER_STORE_NBR,
                NULL AS MEMBER_STORE_NAME,
                H.LEAD_STORE_NBR,
@@ -122,8 +123,8 @@ IS
                  WHERE B.BANK_ACCOUNT_NBR = H.LEAD_BANK_ACCOUNT_NBR
                    AND ROWNUM < 2) BANK_ACCOUNT_NAME
           FROM LEAD_BANK_CC_HIST H
-         WHERE H.EFFECTIVE_DATE <= TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')-1
-           AND H.EXPIRATION_DATE > TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')-1
+         WHERE H.EFFECTIVE_DATE < V_DATE
+           AND H.EXPIRATION_DATE >= V_DATE
         UNION
         --This sql returns active lead details of members if we missed any in the first sql.
         SELECT NULL AS MEMBER_STORE_NBR,
@@ -139,10 +140,10 @@ IS
                    AND ROWNUM < 2) BANK_ACCOUNT_NAME
           FROM (SELECT DISTINCT LEAD_STORE_NBR
                   FROM Member_Bank_Concentration_Cc
-                 WHERE LOAD_DATE = TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM')) A;
+                 WHERE LOAD_DATE = V_DATE) A;
 
-    V_CLOB_FOR_EMAIL            CLOB;
-    V_CLOB                      CLOB;
+    V_CLOB_FOR_EMAIL    CLOB;
+    V_CLOB              CLOB;
 BEGIN
     V_CLOB_FOR_EMAIL := 'MEMBER_STORE_NBR,MEMBER_STORE_NAME,LEAD_STORE_NBR,LEAD_STORE_NAME,BANK_ACCOUNT_NBR,BANK_ACCOUNT_NAME';
     FOR rec IN BANKING_MEMBER LOOP
@@ -154,10 +155,8 @@ BEGIN
                              '"'  || REC.BANK_ACCOUNT_NAME  || '"' ;
         V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
     END LOOP;
-  --sending mail only if the clob is not empty.
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        MAIL_PKG.SEND_MAIL('BANKING_MEMBER_CONCENTRATION_RPT'||TRUNC(NVL(IN_RUN_DATE, SYSDATE),'MM'),NULL, NULL, V_CLOB_FOR_EMAIL);
-    END IF;
+    MAIL_PKG.G_DATE := V_DATE;
+    MAIL_PKG.SEND_MAIL('BANKING_MEMBER_CONCENTRATION_RPT',NULL, NULL, V_CLOB_FOR_EMAIL);
 
 EXCEPTION
     WHEN OTHERS THEN

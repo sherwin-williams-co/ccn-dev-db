@@ -15,7 +15,7 @@ values ('BANKING_MEMBER_CONCENTRATION_RPT',
         '124',
         'Monthly Banking Concentration Report',
         'ccnoracle.team@sherwin.com',
-        'Attached are the requested member concentration details as of DD-MON-YYYY.',
+        'Attached are the requested banking concentration details as of DD-MON-YYYY.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 
 commit;
