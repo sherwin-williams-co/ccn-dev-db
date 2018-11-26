@@ -1,8 +1,8 @@
 
   /********************************************************************************** 
-This script is created to insert data into MAILING_GROUP and MAILING_DETAILS table for Cleansing address batch process.
+This script is created to insert data into MAILING_GROUP and MAILING_DETAILS table for banking concentration report error.
 
-Created : 07/11/2018 pxa852 CCN Project ASP-873....
+Created : 11/26/2018 pxa852 CCN Project ASP-1141....
 Modified: 
 **********************************************************************************/
 -- INSERTING into MAILING_GROUP

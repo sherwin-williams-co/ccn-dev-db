@@ -11,7 +11,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('124','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('BANKING_MEMBER_CONCENTRATION_RPT',
+values ('BANKING_CONCENTRATION_RPT',
         '124',
         'Monthly Banking Concentration Report',
         'ccnoracle.team@sherwin.com',
