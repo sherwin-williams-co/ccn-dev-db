@@ -20,6 +20,16 @@ DATE=`date +"%d-%b-%y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 echo "Processing Started for $proc_name at $TIME on $DATE"
 
+case "$IN_RUN_DATE" in ([0-3][0-9]-[A-Z][A-Z][A-Z]-[12][0189][0-9][0-9])
+      dtformat="Y";;
+  (*) dtformat="N";;
+esac
+
+if [[ "$dtformat" = "N" ]] ; then
+   echo $IN_RUN_DATE is NOT a valid DD-MON-YYYY date
+   exit;
+fi
+
 sqlplus -s -l $banking_sqlplus_user@$banking_sqlplus_sid/$banking_sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
 set heading off;
 set verify off;
