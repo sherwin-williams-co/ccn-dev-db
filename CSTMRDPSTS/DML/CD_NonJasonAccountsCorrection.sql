@@ -10,6 +10,10 @@ SELECT *
    AND TRANSACTION_DATE < '01-SEP-2017';
 
 COMMIT;
+--Create below backup table only after running the above insert statement.
+create table cust_dep_det_NOV18 as select * from CUSTOMER_DEPOSIT_DETAILS;
+create table cust_dep_crd_NOV18 as select * from CUST_DEP_CREDIT_DETAILS;
+create table cust_dep_red_NOV18 as select * from CUST_DEP_REDEMPTION_DETAILS;
 
 DECLARE
    V_LOAD_DATE      DATE;
