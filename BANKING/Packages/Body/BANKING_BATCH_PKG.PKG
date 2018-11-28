@@ -59,6 +59,35 @@ DELETE  FROM MEMBER_BANK_CONCENTRATION_CC WHERE LOAD_DATE = IN_LOAD_DATE;
    Commit;
 END LOAD_MEMER_BANK_CONCENT_CC;
 
+FUNCTION GET_BANK_ACCOUNT_NAME(
+/******************************************************************************
+ This function will return bank account name of a lead bank account number
+ which is active as of passed date.
+
+created : 11/27/2018 pxa852 CCN Project....
+revised :
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR IN VARCHAR2,
+IN_DATE             IN DATE) RETURN VARCHAR2
+IS
+V_BANK_ACCOUNT_NAME  BANK_ACCOUNT.BANK_NAME%TYPE;
+BEGIN
+    SELECT A.BANK_NAME
+           INTO V_BANK_ACCOUNT_NAME
+        FROM (SELECT * FROM BANK_ACCOUNT
+               UNION
+              SELECT * FROM BANK_ACCOUNT_HIST) A
+       WHERE BANK_ACCOUNT_NBR = IN_BANK_ACCOUNT_NBR
+         AND TRUNC(EFFECTIVE_DATE) <= IN_DATE
+         AND NVL(TRUNC(EXPIRATION_DATE), TRUNC(SYSDATE)) >= IN_DATE
+         AND ROWNUM < 2
+       ORDER BY EFFECTIVE_DATE DESC, UPDATE_DATE DESC;
+    RETURN V_BANK_ACCOUNT_NAME;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END GET_BANK_ACCOUNT_NAME;
+
 PROCEDURE BANKING_CONCENTRATION_MONTHLY_RPT (
 /**********************************************************
 This procedure is intended to generate banking concentration report on monthly basis
@@ -79,17 +108,7 @@ IS
                (SELECT C.COST_CENTER_NAME
                   FROM COST_CENTER C
                  WHERE C.COST_CENTER_CODE = A.LEAD_STORE_NBR) LEAD_STORE_NAME,
-               (SELECT L.LEAD_BANK_ACCOUNT_NBR
-                  FROM LEAD_BANK_CC L
-                 WHERE L.LEAD_STORE_NBR = A.LEAD_STORE_NBR
-                   AND ROWNUM < 2) BANK_ACCOUNT_NBR,
-               (SELECT B.BANK_NAME
-                  FROM BANK_ACCOUNT B
-                 WHERE B.BANK_ACCOUNT_NBR = (SELECT L.LEAD_BANK_ACCOUNT_NBR
-                                               FROM LEAD_BANK_CC L
-                                              WHERE L.LEAD_STORE_NBR = A.LEAD_STORE_NBR
-                                                AND ROWNUM < 2)
-               ) BANK_ACCOUNT_NAME
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(SUBSTR(A.LEAD_STORE_NBR, 3), V_DATE-1) BANK_ACCOUNT_NBR
           FROM Member_Bank_Concentration_Cc A
          WHERE A.LOAD_DATE = V_DATE
         UNION
@@ -100,11 +119,7 @@ IS
                (SELECT COST_CENTER_NAME
                   FROM COST_CENTER C
                  WHERE C.COST_CENTER_CODE = L.LEAD_STORE_NBR) LEAD_STORE_NAME,
-               L.LEAD_BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR,
-               (SELECT B.BANK_NAME
-                  FROM BANK_ACCOUNT B
-                 WHERE B.BANK_ACCOUNT_NBR = L.LEAD_BANK_ACCOUNT_NBR
-                   AND ROWNUM < 2) BANK_ACCOUNT_NAME
+               L.LEAD_BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR
           FROM LEAD_BANK_CC L
          WHERE L.EFFECTIVE_DATE < V_DATE
         UNION
@@ -117,11 +132,7 @@ IS
                (SELECT COST_CENTER_NAME
                   FROM COST_CENTER C
                  WHERE C.COST_CENTER_CODE = H.LEAD_STORE_NBR) LEAD_STORE_NAME,
-               H.LEAD_BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR,
-               (SELECT B.BANK_NAME
-                  FROM BANK_ACCOUNT B
-                 WHERE B.BANK_ACCOUNT_NBR = H.LEAD_BANK_ACCOUNT_NBR
-                   AND ROWNUM < 2) BANK_ACCOUNT_NAME
+               H.LEAD_BANK_ACCOUNT_NBR AS BANK_ACCOUNT_NBR
           FROM LEAD_BANK_CC_HIST H
          WHERE H.EFFECTIVE_DATE < V_DATE
            AND H.EXPIRATION_DATE >= V_DATE
@@ -133,26 +144,24 @@ IS
                (SELECT C.COST_CENTER_NAME
                   FROM COST_CENTER C
                  WHERE C.COST_CENTER_CODE = A.LEAD_STORE_NBR) LEAD_STORE_NAME,
-               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(SUBSTR(A.LEAD_STORE_NBR, 3), V_DATE-1) BANK_ACCOUNT_NBR,
-               (SELECT B.BANK_NAME
-                  FROM BANK_ACCOUNT B
-                 WHERE B.BANK_ACCOUNT_NBR = STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(SUBSTR(A.LEAD_STORE_NBR, 3), V_DATE-1)
-                   AND ROWNUM < 2) BANK_ACCOUNT_NAME
+               STR_BNK_DPST_DLY_RCNCL_PROCESS.GET_BNK_ACCNT_NBR_FOR_CC(SUBSTR(A.LEAD_STORE_NBR, 3), V_DATE-1) BANK_ACCOUNT_NBR
           FROM (SELECT DISTINCT LEAD_STORE_NBR
                   FROM Member_Bank_Concentration_Cc
                  WHERE LOAD_DATE = V_DATE) A;
 
     V_CLOB_FOR_EMAIL    CLOB;
     V_CLOB              CLOB;
+    V_BANK_ACCOUNT_NAME BANK_ACCOUNT.BANK_NAME%TYPE;
 BEGIN
     V_CLOB_FOR_EMAIL := 'MEMBER_STORE_NBR,MEMBER_STORE_NAME,LEAD_STORE_NBR,LEAD_STORE_NAME,BANK_ACCOUNT_NBR,BANK_ACCOUNT_NAME';
     FOR rec IN BANKING_MEMBER LOOP
+        V_BANK_ACCOUNT_NAME := GET_BANK_ACCOUNT_NAME(REC.BANK_ACCOUNT_NBR,V_DATE-1);
         V_CLOB           :=  '="' || REC.MEMBER_STORE_NBR   || '",' ||
                              '"'  || REC.MEMBER_STORE_NAME  || '",' ||
                              '="' || REC.LEAD_STORE_NBR     || '",' ||
                              '"'  || REC.LEAD_STORE_NAME    || '",' ||
                              '="' || REC.BANK_ACCOUNT_NBR   || '",' ||
-                             '"'  || REC.BANK_ACCOUNT_NAME  || '"' ;
+                             '"'  || V_BANK_ACCOUNT_NAME    || '"' ;
         V_CLOB_FOR_EMAIL := V_CLOB_FOR_EMAIL || CHR(10) || V_CLOB;
     END LOOP;
     MAIL_PKG.G_DATE := V_DATE;

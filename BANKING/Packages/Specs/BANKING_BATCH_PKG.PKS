@@ -34,6 +34,17 @@ IN_LOAD_DATE      IN DATE
 )
 ;
 
+FUNCTION GET_BANK_ACCOUNT_NAME(
+/******************************************************************************
+ This function will return bank account name of a lead bank account number
+ which is active as of passed date.
+
+created : 11/27/2018 pxa852 CCN Project....
+revised :
+*******************************************************************************/
+IN_BANK_ACCOUNT_NBR IN VARCHAR2,
+IN_DATE             IN DATE) RETURN VARCHAR2;
+
 PROCEDURE BANKING_CONCENTRATION_MONTHLY_RPT(
 /******************************************************************************
   This procedure is used to generate banking member concentration monthly
