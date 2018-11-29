@@ -1,0 +1,50 @@
+/*************************************************************************
+ This script add's a new values to TRANSACTION_SQ_ID field
+ Created : 11/28/2018 sxg151
+**************************************************************************/
+DECLARE
+CURSOR CUSTOMER_DEP_DET_CUR IS
+    SELECT a.*, rowid
+      FROM CUSTOMER_DEPOSIT_DETAILS a
+  ORDER by a.CUSTOMER_ACCOUNT_NUMBER, a.TRAN_TIMESTAMP;
+
+    V_TRANSACTION_SQ_ID NUMBER;
+    V_COUNT            NUMBER := 0;
+
+BEGIN
+    FOR rec IN CUSTOMER_DEP_DET_CUR LOOP
+        V_TRANSACTION_SQ_ID := TRANSACTION_SQ_ID.nextval;
+
+        UPDATE CUSTOMER_DEPOSIT_DETAILS
+           SET TRANSACTION_SQ_ID  = V_TRANSACTION_SQ_ID
+         WHERE ROWID      = rec.rowid;
+
+        UPDATE CUST_DEP_CREDIT_DETAILS  
+           SET TRANSACTION_SQ_ID = V_TRANSACTION_SQ_ID
+         WHERE COST_CENTER_CODE   = rec.COST_CENTER_CODE
+           AND TRANSACTION_DATE   = rec.TRANSACTION_DATE
+           AND TERMINAL_NUMBER    = rec.TERMINAL_NUMBER
+           AND TRANSACTION_NUMBER = rec.TRANSACTION_NUMBER
+           AND CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
+
+        UPDATE CUST_DEP_REDEMPTION_DETAILS  
+           SET TRANSACTION_SQ_ID = V_TRANSACTION_SQ_ID
+         WHERE COST_CENTER_CODE   = rec.COST_CENTER_CODE
+           AND TRANSACTION_DATE   = rec.TRANSACTION_DATE
+           AND TERMINAL_NUMBER    = rec.TERMINAL_NUMBER
+           AND TRANSACTION_NUMBER = rec.TRANSACTION_NUMBER
+           AND CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
+
+        V_COUNT   := V_COUNT + 1;
+            IF V_COUNT > 500 THEN
+               COMMIT;
+               V_COUNT := 0;
+            END IF;
+    END LOOP;
+COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('FAILED ' || SQLCODE || ' ' || SQLERRM);
+END;
+/
