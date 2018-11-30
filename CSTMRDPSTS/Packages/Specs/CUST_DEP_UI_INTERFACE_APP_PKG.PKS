@@ -119,7 +119,7 @@ and Inserts/Updates the DB with the information from UI
 This is a wrapper for the customer deposit upsert procedure
 created : 05/04/2018 sxh487 -- CCN Project Team
 ******************************************************************************/
-    IN_CUST_HEADER_XML   IN     CLOB,
-    IN_CUST_DETAIL_XML   IN     CLOB);
+    IN_CUST_HEADERXML   IN   CLOB,
+    IN_CUST_DETAIL_XML  IN   CLOB);
 
 END CUST_DEP_UI_INTERFACE_APP_PKG;
