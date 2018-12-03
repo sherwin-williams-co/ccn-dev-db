@@ -1751,4 +1751,75 @@ EXCEPTION
         errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
 END UPD_STORE_DESCARTES_DLVRY_CODE;
 
+
+PROCEDURE HRCHY_BULK_ATTR_UPDATE
+/*******************************************************************************
+This procedure is using for Hierarchy Bulk attribute update process 
+
+created : 12/03/2018, mxs216, CCN Project.... ASP-1169
+
+*******************************************************************************/
+IS
+
+    -- Loading data from template (.csv) using external table
+    CURSOR HRCHY_BULK_ATTR_UPD_CUR IS
+       SELECT *
+         FROM temp_hierarchy_bulk_attr_upd;
+
+--    V_EXISTING_XML          XMLTYPE;
+    V_ATTRIBUTE_NAME        VARCHAR2(150);
+    V_ATTRIBUTE_VALUE       VARCHAR2(100);
+    V_COUNT                 NUMBER := 1;
+    V_STMNT_TYPE_ATTR_POS   NUMBER := NULL;
+    V_UPPER_LVL_VER_VALUE   HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
+
+BEGIN 
+
+    -- reading attributes and values from template (.csv)
+    FOR rec IN HRCHY_BULK_ATTR_UPD_CUR LOOP
+        V_COUNT := 1;
+        SELECT UPPER_LVL_VER_VALUE
+          INTO V_UPPER_LVL_VER_VALUE
+          FROM hierarchy_detail
+         WHERE hrchy_hdr_name         = rec.hrchy_hdr_name
+           AND hrchy_dtl_level        = rec.hrchy_dtl_level
+           AND hrchy_dtl_curr_row_val = rec.hrchy_dtl_curr_row_val
+           AND ROWNUM = 1;
+
+        WHILE V_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
+            -- Extracting Attribute Name from the XML
+            V_ATTRIBUTE_NAME := UPPER(REPLACE(V_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+            -- Comparing Attribute Name from XML to the attribute name from flat file, if matching then extract the value from XML
+            IF V_ATTRIBUTE_NAME = rec.ATTR_NAME THEN
+                V_ATTRIBUTE_VALUE := V_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Value/text()').GETSTRINGVAL();
+                -- If Attribute Value from XML to attribute value from flat file, if different than flat file value then get the XML position and update
+                IF V_ATTRIBUTE_VALUE <> rec.ATTR_VALUE THEN
+                    V_STMNT_TYPE_ATTR_POS := V_COUNT;
+                END IF;
+                EXIT;
+            END IF;
+            V_COUNT := V_COUNT + 1;
+        END LOOP;
+
+        IF V_STMNT_TYPE_ATTR_POS IS NOT NULL THEN
+           UPDATE hierarchy_detail
+              SET UPPER_LVL_VER_VALUE = UPDATEXML(V_UPPER_LVL_VER_VALUE,
+                                                 '/attributes/upper_lvl_ver_desc['||V_STMNT_TYPE_ATTR_POS||']/Value/text()',
+                                                 rec.ATTR_VALUE)
+            WHERE hrchy_hdr_name         = rec.hrchy_hdr_name
+              AND hrchy_dtl_level        = rec.hrchy_dtl_level
+              AND hrchy_dtl_curr_row_val = rec.hrchy_dtl_curr_row_val;
+           COMMIT;
+           V_STMNT_TYPE_ATTR_POS := NULL;
+        END IF;
+
+    END LOOP; -- External table loop
+
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'HIERARCHY_BATCH_PKG.HRCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
+        ERRPKG.RAISE_ERR(errnums.en_hrchy_bulk_attr_update_err, 'CCN_BATCH_PROCESS.HRCHY_BULK_ATTR_UPDATE', SQLERRM);
+
+END HRCHY_BULK_ATTR_UPDATE;
+
 END CCN_BATCH_PROCESS;

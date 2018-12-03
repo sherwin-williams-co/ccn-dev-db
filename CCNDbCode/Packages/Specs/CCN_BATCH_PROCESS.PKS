@@ -147,4 +147,11 @@ Filters:
 Created : 08/23/2018 kxm302 CCN project Team....
 *******************************************************************************/
 
+PROCEDURE HRCHY_BULK_ATTR_UPDATE;
+/*******************************************************************************
+This procedure is using for Hierarchy Bulk attribute update process 
+
+created : 12/03/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+
 END CCN_BATCH_PROCESS;

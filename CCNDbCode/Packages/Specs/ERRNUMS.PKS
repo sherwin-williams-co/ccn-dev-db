@@ -3240,4 +3240,14 @@ en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
 exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_chn_not_ald_in_arch_cc_err , -20210);
 
+/*********************************************************** 
+The "en_hrchy_bulk_attr_update_err" passes a numerical error of -20213.
+This error occurs during Hierarchy Bulk attribute update using template/process in the batch window
+
+created : 12/03/2018, mxs216, ASP - 1169
+************************************************************/
+en_hrchy_bulk_attr_update_err      CONSTANT NUMBER := -20213;
+exc_hrchy_bulk_attr_update_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_hrchy_bulk_attr_update_err, -20213);
+
 END ERRNUMS;
