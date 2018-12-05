@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE COSTCNTR.CCN_HIERARCHY_UPLOAD
+create or replace PACKAGE          CCN_HIERARCHY_UPLOAD
     AS
 
 PROCEDURE BUILD_HIERARCHY_INSERT_CLOB(
@@ -87,5 +87,12 @@ created : 08/26/2016 MXK766 CCN Project....
     IN_COMPOSITE_KEYVALUE  IN        VARCHAR2,
     IN_EFFECTIVE_DATE      IN        DATE,
     OUT_XML_AS_CLOB        OUT       CLOB);
+
+PROCEDURE HRCHY_BULK_ATTR_UPDATE;
+/*******************************************************************************
+This procedure is using for Hierarchy Bulk attribute update process 
+
+created : 12/05/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
 
 END CCN_HIERARCHY_UPLOAD;

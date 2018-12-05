@@ -714,4 +714,110 @@ EXCEPTION
       RAISE;
 END HIERARCHY_BULK_LOAD_PROCESS;
 
+PROCEDURE HRCHY_BULK_ATTR_UPDATE
+/*******************************************************************************
+This procedure is using for Hierarchy Bulk attribute update process
+
+created : 12/05/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+IS
+    -- Cursor to hold the key values to reduce the no of UPDATE
+    CURSOR HRCHY_HDR_NAME_CUR IS
+       SELECT DISTINCT HRCHY_HDR_NAME,
+              hrchy_dtl_level,
+              hrchy_dtl_curr_row_val
+         FROM temp_hierarchy_bulk_attr_upd;
+
+    -- Loading data from template (.csv) using external table
+    CURSOR HRCHY_BULK_ATTR_UPD_CUR(p_hrchy_hdr_name         IN VARCHAR2,
+                                   p_hrchy_dtl_level        IN VARCHAR2,
+                                   P_hrchy_dtl_curr_row_val IN VARCHAR2)
+    IS
+    SELECT *
+      FROM temp_hierarchy_bulk_attr_upd
+     WHERE HRCHY_HDR_NAME = p_hrchy_hdr_name;
+
+    V_ATTRIBUTE_NAME   VARCHAR2(150);
+    V_ATTRIBUTE_VALUE  VARCHAR2(100);
+    V_COUNT            NUMBER := 1;
+    V_ATTR_POS         NUMBER := NULL;
+    V_ATTR_VALUE       NUMBER;
+    V_FINAL_XML        XMLTYPE;
+    V_UPPER_LVL_VER_VALUE  HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
+
+BEGIN
+  -- Cursor with unique key values
+  FOR rec_name IN HRCHY_HDR_NAME_CUR LOOP
+    -- Cursor with all values from flat file
+    FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.HRCHY_HDR_NAME,
+                                      rec_name.hrchy_dtl_level,
+                                      rec_name.hrchy_dtl_curr_row_val) LOOP
+        V_COUNT := 1;
+        BEGIN
+           -- Reading the existing XML value
+           SELECT UPPER_LVL_VER_VALUE
+             INTO V_UPPER_LVL_VER_VALUE
+             FROM hierarchy_detail_120318
+            WHERE hrchy_hdr_name         = rec.HRCHY_HDR_NAME
+              AND hrchy_dtl_level        = rec.hrchy_dtl_level
+              AND hrchy_dtl_curr_row_val = rec.hrchy_dtl_curr_row_val
+              AND ROWNUM = 1;
+        EXCEPTION
+          WHEN NO_DATA_FOUND THEN
+             COMMON_TOOLS.LOG_ERROR('000000', rec.hrchy_hdr_name||'-'||rec.hrchy_dtl_level||'-'||rec.hrchy_dtl_curr_row_val||
+                   '-'||'Not found in HEIRARCHY_DETAIL', SQLERRM, SQLCODE);
+          WHEN OTHERS THEN
+              COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HRCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
+        END;
+        IF V_UPPER_LVL_VER_VALUE IS NOT NULL THEN
+            -- Building new XML using the existing XML
+            WHILE V_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
+                -- Extracting name from existing XML
+                V_ATTRIBUTE_NAME := UPPER(REPLACE(V_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+                -- Comparing attribute name
+                IF V_ATTRIBUTE_NAME = UPPER(rec.ATTR_NAME) THEN
+                   IF V_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']' || '/Value/text()') = 1 THEN
+                      -- Extracting attribute value from the existing XML
+                      V_ATTRIBUTE_VALUE :=  V_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Value/text()').GETSTRINGVAL();
+                   ELSE
+                      V_ATTRIBUTE_VALUE := 'XX';
+                   END IF;
+                   -- Comparing attribute value
+                   IF V_ATTRIBUTE_VALUE <> rec.ATTR_VALUE THEN
+                      -- Picking up attribute position
+                      V_ATTR_POS := V_COUNT;
+                   END IF;
+                   EXIT;
+                END IF;
+                V_COUNT := V_COUNT + 1;
+            END LOOP;
+            -- Updating the XML variable
+            IF V_ATTR_POS IS NOT NULL THEN
+                SELECT UPDATEXML(NVL(V_FINAL_XML, V_UPPER_LVL_VER_VALUE),
+                                 '/attributes/upper_lvl_ver_desc['||V_ATTR_POS||']/Value/text()',
+                                 rec.ATTR_VALUE)
+                  INTO V_FINAL_XML
+                  FROM DUAL;
+                  V_ATTR_POS := NULL;
+            END IF;
+       END IF; -- checking if existing column value is NULL
+    END LOOP;
+
+    IF V_FINAL_XML IS NOT NULL THEN
+        UPDATE hierarchy_detail_120318
+           SET UPPER_LVL_VER_VALUE = V_FINAL_XML
+         WHERE hrchy_hdr_name         = rec_name.HRCHY_HDR_NAME
+               AND hrchy_dtl_level        = rec_name.hrchy_dtl_level
+               AND hrchy_dtl_curr_row_val = rec_name.hrchy_dtl_curr_row_val;
+        COMMIT;
+        V_FINAL_XML := NULL;
+    END IF;
+  END LOOP; -- Hierarchy name only cursor
+
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR('000000', 'HIERARCHY_BATCH_PKG.HRCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
+        ERRPKG.RAISE_ERR(errnums.en_hrchy_bulk_attr_update_err, 'HIERARCHY_BATCH_PKG.HRCHY_BULK_ATTR_UPDATE', SQLERRM);
+END;
+
 END CCN_HIERARCHY_UPLOAD;
