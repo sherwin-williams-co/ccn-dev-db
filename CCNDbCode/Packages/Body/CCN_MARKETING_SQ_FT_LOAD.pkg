@@ -214,7 +214,7 @@ BEGIN
     -- Start Batch Process
     BEGIN
         FOR REC IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, M.COST_CENTER_CODE MRKT_CC_CODE
-                      FROM SWC_PN_SQFT_INT_V A,
+                      FROM CCN_SWC_PN_SQFT_INT A,
                            COST_CENTER CC,
                            MARKETING M
                      --Get al records from external table even if they are not present in CCN
@@ -227,9 +227,9 @@ BEGIN
                      --This avoids unnecessary looping of data every day
                        AND (NVL(A.LEASE_OR_OWNED,'X') <> NVL(CC.LEASE_OWN_CODE, 'X')
                             OR
-                            NVL(A.SALES_AREA,-1) <> NVL(M.SALES_SQ_FT,-1)
+                            NVL(A.LEASING_SALES_SQ_FT,-1) <> NVL(M.SALES_SQ_FT,-1)
                             OR
-                            NVL(A.PREMISES_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
+                            NVL(A.LEASING_TOTAL_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
             IF rec.CC_CODE IS NULL THEN
                 V_CC_CLOB := rec.COST_CENTER || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
             ELSE
@@ -239,7 +239,7 @@ BEGIN
                 --passing null to sales sq ft as we should not touch the marketing sales sq ft value when loading through the Global supply view.
                 UPDATE_PROCESS(rec.COST_CENTER,
                                rec.LEASE_OR_OWNED,
-                               rec.PREMISES_SQ_FT,
+                               rec.LEASING_TOTAL_SQ_FT,
                                NULL);
             END IF;
         END LOOP;
@@ -264,4 +264,105 @@ EXCEPTION
         POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
         ERRPKG.RAISE_ERR(SQLCODE, 'BATCH_PROCESS_SQ_FT_LD ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
 END BATCH_PROCESS_SQ_FT_LD;
+
+PROCEDURE LOAD_SWC_PN_SQFT_INT_HST
+/*****************************************************************************
+    LOAD_SWC_PN_SQFT_INT_HST
+
+This procedure will load the history for that run
+
+created : 07/16/2018 kxm302 CCN Project Team
+revision:
+
+*****************************************************************************/
+  IS
+    CURSOR CCN_SWC_PN_SQFT_CUR IS
+        SELECT *
+          FROM CCN_SWC_PN_SQFT_INT;
+
+    V_COMMIT                          NUMBER:=0;
+    V_CCN_SQFT_INT_HST_ROW            CCN_SWC_PN_SQFT_INT_HIST%ROWTYPE;
+    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE;
+BEGIN
+    FOR rec IN CCN_SWC_PN_SQFT_CUR LOOP
+        BEGIN
+            V_CCN_SQFT_INT_HST_ROW.COST_CENTER             := rec.COST_CENTER;
+            V_CCN_SQFT_INT_HST_ROW.DIVISION                := rec.DIVISION;
+            V_CCN_SQFT_INT_HST_ROW.LEASE_OR_OWNED          := rec.LEASE_OR_OWNED;
+            V_CCN_SQFT_INT_HST_ROW.LEASING_SALES_SQ_FT     := rec.LEASING_SALES_SQ_FT;
+            V_CCN_SQFT_INT_HST_ROW.LEASING_TOTAL_SQ_FT     := rec.LEASING_TOTAL_SQ_FT;
+            V_CCN_SQFT_INT_HST_ROW.LOAD_DATE               := SYSDATE;
+
+            INSERT INTO CCN_SWC_PN_SQFT_INT_HIST VALUES V_CCN_SQFT_INT_HST_ROW;
+
+            V_COMMIT := V_COMMIT + 1;
+            IF V_COMMIT > 500 THEN
+                COMMIT;
+                V_COMMIT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+               V_TRANS_STATUS := 'ERROR';
+               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
+                                           'LOAD_SWC_PN_SQFT_INT_HST',
+                                           SQLERRM,
+                                           rec.COST_CENTER);
+        END;
+    END LOOP;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
+                                    'LOAD_SWC_PN_SQFT_INT_HST',
+                                    SQLERRM,
+                                    '000000');
+END LOAD_SWC_PN_SQFT_INT_HST;
+
+PROCEDURE LOAD_SWC_PN_SQFT_INT
+/******************************************************************************
+This procedures takes care of following things as part of batch load process
+  # Get the data from SWC_PN_SQFT_INT_V and load to CCN_SWC_PN_SQFT_INT table
+
+Created : 07/16/2018 kxm302 -- CCN Project Team
+*******************************************************************************/
+  IS
+     CURSOR SWC_PN_SQFT_INT_CUR IS
+       SELECT *
+         FROM SWC_PN_SQFT_INT_V A;
+         --get all the records that are not present in CCN_SWC_PN_SQFT_INT  table
+
+    V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+    V_COUNT                           NUMBER:=0;
+BEGIN
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    LOAD_SWC_PN_SQFT_INT_HST();
+
+    --Deleting the data from CCN_SWC_PN_SQFT_INT table before inserting
+    DELETE FROM CCN_SWC_PN_SQFT_INT;
+
+    FOR rec IN SWC_PN_SQFT_INT_CUR LOOP
+        BEGIN
+           INSERT INTO CCN_SWC_PN_SQFT_INT VALUES rec;
+            V_COUNT := V_COUNT + 1;
+            IF V_COUNT > 500 THEN
+                COMMIT;
+                V_COUNT := 0;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                V_TRANS_STATUS := 'ERROR';
+                ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'LD_SWC_SQFT_DTLS', SUBSTR(SQLERRM,1,500), rec.COST_CENTER);
+        END;
+    END LOOP;
+    COMMIT;
+    BATCH_PROCESS_SQ_FT_LD();
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('LD_SWC_SQFT_DTLS', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+EXCEPTION
+    WHEN OTHERS THEN
+         ROLLBACK;
+         ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||'LOAD_SWC_PN_SQFT_INT'  || ' errors found');
+END LOAD_SWC_PN_SQFT_INT;
 END CCN_MARKETING_SQ_FT_LOAD;

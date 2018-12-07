@@ -39,4 +39,13 @@ Created : 02/09/2018 axt754 -- CCN Project Team
 Changes :
 ******************************************************************************/
 ;
+
+PROCEDURE LOAD_SWC_PN_SQFT_INT
+/******************************************************************************
+This procedures takes care of following things as part of batch load process
+  # Get the data from SWC_PN_SQFT_INT_V and load to CCN_SWC_PN_SQFT_INT table
+
+Created : 07/10/2018 kxm302 -- CCN Project Team
+*******************************************************************************/
+;
 END CCN_MARKETING_SQ_FT_LOAD;
