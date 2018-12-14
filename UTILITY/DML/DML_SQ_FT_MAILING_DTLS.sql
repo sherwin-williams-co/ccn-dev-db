@@ -5,6 +5,8 @@ Purpose    :
 
 Created : 02/20/2018 axt754 CCN Project....
 Changed : 04/13/2018 changed the body and subject
+        : 12/14/2018 pxa852 CCn Project Team...
+          Included pat m malloy in the mailing group
 */
 
 INSERT INTO MAILING_GROUP (GROUP_ID,MAIL_ID) VALUES ('104','ccnoracle.team@sherwin.com;pmmalloy@sherwin.com');
