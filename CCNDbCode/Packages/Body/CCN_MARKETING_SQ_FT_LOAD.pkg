@@ -1,5 +1,5 @@
-create or replace package body CCN_MARKETING_SQ_FT_LOAD AS 
-/****************************************************************************** 
+create or replace package body CCN_MARKETING_SQ_FT_LOAD AS
+/******************************************************************************
 This package is intended update the data in Marketing table
 
 Created : 12/05/2017 axt754 -- CCN Project Team...
@@ -134,15 +134,19 @@ Changes : 04/03/2018 sxh487 Added exception block in the select
         : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
         : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
           to consider only active records
-          modified code to pass null value for sales sq ft as we should not update it through the batch upload.
+          modified code to include pass null value for sales sq ft as we should not update it through the batch upload.
+        : 12/14/2018 pxa852 CCN Project Team...
+          Modified code to include Cost center name, category and global hierarchy details in error report as per user request
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
     V_BULK_LOAD_LKUP_ID NUMBER;
+    V_GLOBAL_HIERARCHY  HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('UI_SQ_FT_LOAD', V_BULK_LOAD_LKUP_ID);
     -- Start Batch Process
-    FOR rec IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, M.COST_CENTER_CODE MRKT_CC_CODE
+    FOR rec IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, CC.COST_CENTER_NAME, CC.CATEGORY,
+                       M.COST_CENTER_CODE MRKT_CC_CODE
                   FROM TEMP_MARKETING_SQ_FT_UPD A,
                        COST_CENTER CC,
                        MARKETING M
@@ -160,10 +164,29 @@ BEGIN
                         OR
                         NVL(A.TOTAL_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
         IF rec.CC_CODE IS NULL THEN
-           V_CC_CLOB := rec.COST_CENTER_CODE || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
+           V_CC_CLOB := rec.COST_CENTER_CODE
+                        || ','|| ''
+                        || ','|| ''
+                        || ','|| ''
+                        || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
         ELSE
             IF rec.MRKT_CC_CODE IS NULL THEN
-                V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER_CODE ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
+               BEGIN
+                        SELECT SUBSTR(H.HRCHY_DTL_CURR_LVL_VAL,1,
+                                      LENGTH(H.HRCHY_DTL_CURR_LVL_VAL)-6)
+                               INTO V_GLOBAL_HIERARCHY
+                          FROM HIERARCHY_DETAIL H
+                         WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
+                          AND H.HRCHY_DTL_CURR_ROW_VAL = REC.CC_CODE;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            NULL;
+                END;
+                V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER_CODE
+                             ||  ','|| REC.COST_CENTER_NAME
+                             ||  ','|| REC.CATEGORY
+                             ||  ','|| V_GLOBAL_HIERARCHY
+                             ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
             END IF;
             --passing null to sales sq ft as we should not touch the sales sq ft values through batch upload.
             UPDATE_PROCESS(rec.COST_CENTER_CODE,
@@ -174,7 +197,7 @@ BEGIN
     END LOOP;
 
     IF V_CC_CLOB <> EMPTY_CLOB() THEN
-        V_CC_CLOB := 'COST_CENTER_CODE, '|| 'COMMENTS'  ||CHR(10)||V_CC_CLOB;
+        V_CC_CLOB := 'COST_CENTER_CODE, COST_CENTER_NAME, CATEGORY, GLOBAL_HIERARCHY, COMMENTS'  ||CHR(10)||V_CC_CLOB;
         MAIL_PKG.SEND_MAIL('SQ_FT_CC_NOT_EXISTS_IN_CCN', NULL, NULL,V_CC_CLOB);
     END IF;
     -- Commit The transactions
@@ -201,19 +224,23 @@ Changes : 04/13/2018 sxh487 Moved the Update_Process outside the IF condition
         : 10/17/2018 pxa852 Inlcuded expiration_date is null condition
           to consider only active records
           modified code to pass null value for sales sq ft as we should not update it through GSV.
+        : 12/14/2018 pxa852 CCN Project Team...
+          Modified code to include Cost center name, category and global hierarchy details in error report as per user request
 ******************************************************************************/
 IS
     V_CC_CLOB           CLOB;
     V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BULK_LOAD_LKUP_ID NUMBER;
+    V_GLOBAL_HIERARCHY  HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BATCH_SQ_FT_LOAD', V_BULK_LOAD_LKUP_ID);
     CCN_BATCH_PKG.INSERT_BATCH_JOB('SQ_FT_BATCH', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     -- Start Batch Process
     BEGIN
-        FOR REC IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, M.COST_CENTER_CODE MRKT_CC_CODE
+        FOR REC IN (SELECT A.*, CC.COST_CENTER_CODE CC_CODE, CC.COST_CENTER_NAME, CC.CATEGORY,
+                           M.COST_CENTER_CODE MRKT_CC_CODE
                       FROM CCN_SWC_PN_SQFT_INT A,
                            COST_CENTER CC,
                            MARKETING M
@@ -231,10 +258,29 @@ BEGIN
                             OR
                             NVL(A.LEASING_TOTAL_SQ_FT,-1) <> NVL(M.TOTAL_SQ_FT,-1))) LOOP
             IF rec.CC_CODE IS NULL THEN
-                V_CC_CLOB := rec.COST_CENTER || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
+                V_CC_CLOB := rec.COST_CENTER
+                             || ','|| ''
+                             || ','|| ''
+                             || ','|| ''
+                             || ','|| ' Cost Center not present in CCN to update Lease Owned Code ' || CHR(10)|| V_CC_CLOB;
             ELSE
                 IF rec.MRKT_CC_CODE IS NULL THEN
-                    V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
+                    BEGIN
+                        SELECT SUBSTR(H.HRCHY_DTL_CURR_LVL_VAL,1,
+                                      LENGTH(H.HRCHY_DTL_CURR_LVL_VAL)-6)
+                               INTO V_GLOBAL_HIERARCHY
+                          FROM HIERARCHY_DETAIL H
+                         WHERE HRCHY_HDR_NAME = 'GLOBAL_HIERARCHY'
+                          AND H.HRCHY_DTL_CURR_ROW_VAL = REC.CC_CODE;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            NULL;
+                    END;
+                    V_CC_CLOB := V_CC_CLOB || REC.COST_CENTER
+                                 ||  ','|| REC.COST_CENTER_NAME
+                                 ||  ','|| REC.CATEGORY
+                                 ||  ','|| V_GLOBAL_HIERARCHY
+                                 ||  ','|| ' Marketing information is not present in CCN to update Sq Footage details'||CHR(10);
                 END IF;
                 --passing null to sales sq ft as we should not touch the marketing sales sq ft value when loading through the Global supply view.
                 UPDATE_PROCESS(rec.COST_CENTER,
@@ -244,7 +290,7 @@ BEGIN
             END IF;
         END LOOP;
         IF V_CC_CLOB <> EMPTY_CLOB() THEN
-            V_CC_CLOB := 'COST_CENTER_CODE, '|| 'COMMENTS'  ||CHR(10)||V_CC_CLOB;
+            V_CC_CLOB := 'COST_CENTER_CODE, COST_CENTER_NAME, CATEGORY, GLOBAL_HIERARCHY, COMMENTS' ||CHR(10)||V_CC_CLOB;
             MAIL_PKG.SEND_MAIL('SQ_FT_CC_NOT_EXISTS_IN_CCN', NULL, NULL,V_CC_CLOB);
         END IF;
         -- Commit The transactions
@@ -365,4 +411,5 @@ EXCEPTION
          ROLLBACK;
          ERRPKG.RAISE_ERR(SQLCODE, SUBSTR(SQLERRM,1, 500) ||'LOAD_SWC_PN_SQFT_INT'  || ' errors found');
 END LOAD_SWC_PN_SQFT_INT;
+
 END CCN_MARKETING_SQ_FT_LOAD;
