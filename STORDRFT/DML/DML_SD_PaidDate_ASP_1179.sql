@@ -3,7 +3,7 @@ Below script will manually mark the drafts as paid as per email sent by Marissa 
 
 Store	Draft	Paid Date
 707535	1909-7	11/30/2018 - reverse Stop Payment and Mark as paid.
-702845	6919-1	11/7/2018  - reverse Stop Payment and Mark as paid.
+702845	6919-1	11/7/2018  - Mark as paid.
 703126	1460-5	11/5/2018  - reverse Stop Payment and Mark as paid.
  
 Created: 12/17/2018 kxm302
@@ -28,7 +28,7 @@ UPDATE STORE_DRAFTS
 --1 Row(s) Updated
 
 
---Reverse stop payment
+--Mark as paid
 
 
 SELECT * FROM STORE_DRAFTS WHERE CHECK_SERIAL_NUMBER ='0284569191';
@@ -36,9 +36,6 @@ SELECT * FROM STORE_DRAFTS WHERE CHECK_SERIAL_NUMBER ='0284569191';
 UPDATE STORE_DRAFTS 
    SET PAID_DATE = '07-NOV-2018',
        PAY_INDICATOR = 'Y',
-       STOP_INDICATOR = 'N',
-       OPEN_INDICATOR = 'Y',
-       STOP_PAY_MARKED_BY_CCN_IND = NULL,
        BANK_PAID_AMOUNT = DECODE(AMOUNT_CHANGE_DATE, NULL, ORIGINAL_NET_AMOUNT, NET_AMOUNT), 
        GROSS_AMOUNT = NVL(GROSS_AMOUNT, ORIGINAL_NET_AMOUNT),
        NET_AMOUNT = NVL(NET_AMOUNT, ORIGINAL_NET_AMOUNT),
