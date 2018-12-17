@@ -1,5 +1,6 @@
 /*
 Below script will update the marketing mission code as per the excel provided by Jeffrey
+Note* Init load process inserted marketing information for the belw Costcenters with MKT_SESSION Is NULL. Updating  MKT_MISSION which missing in the earlier update script(CC_MKT_MISSION_Update_ASP_1173.sql).
 
 Created : sxg151 12/17/2018 CCN Project Team ASP-1173
 Changed:
