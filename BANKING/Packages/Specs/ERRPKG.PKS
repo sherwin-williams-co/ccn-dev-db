@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE ERRPKG
+create or replace PACKAGE ERRPKG
 AS
 /*********************************************************** 
 This package will hold all procedures/functions used to process business
@@ -69,5 +69,14 @@ Changed :
 *******************************************************************************/
 ;
 
-END ERRPKG;
+PROCEDURE ERROR_DETAILS(
+/******************************************************************************
+This Procedure will fetch the records from Error_log table.
+Created : 12/17/2018 pxa852 CCN Project Team....
 
+*******************************************************************************/
+    IN_START_TIME       IN     DATE,
+    IN_END_TIME         IN     DATE,
+    OUT_CLOB_FOR_EMAIL     OUT CLOB);
+
+END ERRPKG;
