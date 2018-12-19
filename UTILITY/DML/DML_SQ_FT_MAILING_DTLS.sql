@@ -6,10 +6,10 @@ Purpose    :
 Created : 02/20/2018 axt754 CCN Project....
 Changed : 04/13/2018 changed the body and subject
         : 12/14/2018 pxa852 CCn Project Team...
-          Included pat m malloy in the mailing group
+          Included SMIS team in the mailing group
 */
 
-INSERT INTO MAILING_GROUP (GROUP_ID,MAIL_ID) VALUES ('104','ccnoracle.team@sherwin.com;pmmalloy@sherwin.com');
+INSERT INTO MAILING_GROUP (GROUP_ID,MAIL_ID) VALUES ('104','ccnoracle.team@sherwin.com;SMIS@sherwin.com');
 
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY, GROUP_ID, SUBJECT, FROM_P, MESSAGE, SIGNATURE) 
                      VALUES ('SQ_FT_CC_NOT_EXISTS_IN_CCN', 
@@ -17,5 +17,5 @@ INSERT INTO MAILING_DETAILS (MAIL_CATEGORY, GROUP_ID, SUBJECT, FROM_P, MESSAGE, 
                              'CCN Sq Footage Batch Process Error', 
                              'ccnoracle.team@sherwin.com', 
                              'Please find the attachment that contains the reason for which cost centers lease/own code (or) sq footage update failed.', 
-                             'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');                     
+                             'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
 COMMIT;
