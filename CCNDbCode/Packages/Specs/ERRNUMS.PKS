@@ -3240,14 +3240,30 @@ en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
 exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_chn_not_ald_in_arch_cc_err , -20210);
 
-/*********************************************************** 
-The "en_hrchy_bulk_attr_update_err" passes a numerical error of -20213.
-This error occurs during Hierarchy Bulk attribute update using template/process in the batch window
+/***********************************************************
+The "en_cost_center_not_passed_err" passes a numerical error of -20211.
+This error occurs when cost center is not passed for generating a hierarchy report.
+If user clicks on hierarchy report link with out passing the cost center code,
+then this exception will be raised with the below message
+"Please enter a costcenter either 4 or 6 digits to generate report"
 
-created : 12/03/2018, mxs216, ASP - 1169
+created : 11/20/2018 pxa852 CCN Project Team...
 ************************************************************/
-en_hrchy_bulk_attr_update_err      CONSTANT NUMBER := -20213;
-exc_hrchy_bulk_attr_update_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_hrchy_bulk_attr_update_err, -20213);
+en_cost_center_not_passed_err      CONSTANT NUMBER := -20211;
+exc_cost_center_not_passed_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_cost_center_not_passed_err , -20211);
+
+/***********************************************************
+The "en_hrchy_dtls_not_exist_err" passes a numerical error of -20212.
+This error occurs when hierarchy details are not exist for a passed cost center.
+When user clicks on hierachy report link for a cost center and if they are
+not exists then this eexception will be raised with the below message
+"Hierarchy details are not exist for a selected cost center"
+
+created : 11/20/2018 pxa852 CCN Project Team...
+************************************************************/
+en_hrchy_dtls_not_exist_err      CONSTANT NUMBER := -20212;
+exc_hrchy_dtls_not_exists_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_hrchy_dtls_not_exists_err , -20212);
 
 END ERRNUMS;

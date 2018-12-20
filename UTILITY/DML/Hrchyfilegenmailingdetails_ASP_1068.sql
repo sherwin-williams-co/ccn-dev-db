@@ -17,7 +17,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('113','ccnoracle.team@sherwin
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 values ('CCN_HIERARCHY_FILE_MAIL',
         '113',
-        'Report for all Hierarchy types of a Cost Center',
+        'Report for all Hierarchy types of a Cost Center CCCCCC',
         'ccnoracle.team@sherwin.com',
         'Please find the attached Hierarchy reporting details with this email.',
         'Thanks,'||CHR(10)||'Keith D. Parker'||CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
