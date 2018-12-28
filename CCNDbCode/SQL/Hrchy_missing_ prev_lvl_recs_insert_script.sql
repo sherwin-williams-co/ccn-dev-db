@@ -22,7 +22,12 @@ BEGIN
                                       AND HRCHY_DTL_NEXT_LVL_VAL = HD.HRCHY_DTL_CURR_LVL_VAL)) LOOP
         CCN_HIERARCHY.GET_PREVIOUS_LVL(NULL,rec,V_HD_REC);
         IF V_HD_REC.HRCHY_HDR_NAME IS NULL THEN
-           DBMS_OUTPUT.PUT_LINE('Previous level not attached to any other cost center : ' ||rec.HRCHY_DTL_CURR_LVL_VAL);
+           DBMS_OUTPUT.PUT_LINE('Previous level not attached to any other cost center : ' || rec.HRCHY_HDR_NAME || '-' ||
+                                                                                  rec.HRCHY_DTL_LEVEL || '-' ||
+                                                                                  rec.HRCHY_DTL_PREV_LVL_VAL || '-' ||
+                                                                                  rec.HRCHY_DTL_CURR_LVL_VAL || '-' ||
+                                                                                  rec.HRCHY_DTL_NEXT_LVL_VAL
+                                                                                  );
         ELSIF NVL(V_HD_REC.HRCHY_DTL_NEXT_LVL_VAL,'~~~') = '~~~' THEN
            --If previous level's Next Value is ~~~, we need to update that with current level value
            V_HD_REC.HRCHY_DTL_NEXT_LVL_VAL := rec.HRCHY_DTL_CURR_LVL_VAL;
