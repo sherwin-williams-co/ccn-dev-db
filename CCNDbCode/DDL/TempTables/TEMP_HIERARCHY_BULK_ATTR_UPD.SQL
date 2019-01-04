@@ -20,7 +20,7 @@ END;
   CREATE TABLE "COSTCNTR"."TEMP_HIERARCHY_BULK_ATTR_UPD" 
    ("HRCHY_HDR_NAME" VARCHAR2(100 BYTE), 
 	"HRCHY_DTL_LEVEL" VARCHAR2(2 BYTE), 
-	"HRCHY_DTL_CURR_ROW_VAL" VARCHAR2(100 BYTE), 
+	"HRCHY_DTL_CURR_LVL_VAL" VARCHAR2(100 BYTE),
 	"ATTR_NAME" VARCHAR2(100 BYTE), 
 	"ATTR_VALUE" VARCHAR2(100 BYTE)
    ) 
@@ -36,7 +36,7 @@ END;
           REJECT ROWS WITH ALL NULL FIELDS
                                        (HRCHY_HDR_NAME,
                                         HRCHY_DTL_LEVEL,
-                                        HRCHY_DTL_CURR_ROW_VAL,
+                                        HRCHY_DTL_CURR_LVL_VAL,
                                         ATTR_NAME,
                                         ATTR_VALUE)
                              )

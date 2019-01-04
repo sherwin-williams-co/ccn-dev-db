@@ -605,7 +605,7 @@ Modified: 03/31/2016 jxc517 CCN Project....
 **********************************************************/
     IN_XML                IN     CLOB,
     IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N');
-    
+
 PROCEDURE HIERARCHY_HDR_PICKLIST(
 /**********************************************************
 	HIERARCHY_HDR_DESC_PICKLIST
@@ -828,5 +828,48 @@ Modified:
     IN_HEADER_NAME     IN         VARCHAR2,
     IN_CC_LVL_NBR      IN         VARCHAR2,
     IN_CURR_ROW_VAL    IN         VARCHAR2 DEFAULT NULL) RETURN VARCHAR2;
-    
+
+FUNCTION GET_HD_UPPER_LVL_VER_VALUE(
+/*******************************************************************************
+This function will return Attributes (HIRARCHY_DETAIL.UPPER_LVL_VER_VALUE) for given Hierarchy Information
+
+Created : 12/19/2018 mxs216 CCN Project...
+Modified:
+*******************************************************************************/
+    IN_HRCHY_HDR_NAME          IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+    IN_HRCHY_DTL_LEVEL         IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE,
+    IN_HRCHY_DTL_CURR_LVL_VAL  IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE)
+RETURN XMLTYPE;
+
+PROCEDURE BUILD_XML_HRCHY_BULK_ATTR_UPD(
+/*******************************************************************************
+This procedure is Building XML using the existing XML
+
+created : 12/17/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+    IN_V_UPPER_LVL_VER_VALUE IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IO_FINAL_XML             IN OUT XMLTYPE,
+    IN_REC_ATTR_NAME         VARCHAR2,
+    IN_REC_ATTR_VALUE        VARCHAR2);
+
+PROCEDURE UPDATE_HD_UPR_LVL_VER_VALUE(
+/*******************************************************************************
+This procedure is using for Updating UPPER_LVL_VER_VALUE column in HIERARCHY_DETAIL TABLE
+
+created : 12/17/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+    IN_FINAL_XML                 IN HIERARCHY_DETAIL.upper_lvl_ver_value%TYPE,
+    IN_HRCHY_HDR_NAME            IN HIERARCHY_DETAIL.hrchy_hdr_name%TYPE,
+    IN_HRCHY_DTL_LEVEL           IN HIERARCHY_DETAIL.hrchy_dtl_level%TYPE,
+    IN_HRCHY_DTL_CURR_LVL_VAL    IN HIERARCHY_DETAIL.hrchy_dtl_curr_lvl_val%TYPE);
+
+PROCEDURE HIERARCHY_BULK_ATTR_UPDATE_SP(
+/**********************************************************
+This procedure will be called from UI for bulk attribute update process
+It is intended to read the attribute from HIERARCHY_BULK_ATTR_UPDATE.csv and update hierarchy_detail file accordingly.
+
+created : 12/10/2018 mxs216 ASP-1169 CCN project team....
+**********************************************************/
+    IN_BLOB            IN       BLOB);
+
 END CCN_HIERARCHY;

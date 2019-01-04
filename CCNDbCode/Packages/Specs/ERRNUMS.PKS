@@ -3229,7 +3229,6 @@ exc_allocation_cc_null_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_allocation_cc_null_err , -20209);
 
-
 /*********************************************************** 
 The "en_chn_not_ald_in_arch_cc_err" passes a numerical error of -20210.
 This error occurs when customer trying to update an Archieved cost center.
@@ -3265,5 +3264,45 @@ created : 11/20/2018 pxa852 CCN Project Team...
 en_hrchy_dtls_not_exist_err      CONSTANT NUMBER := -20212;
 exc_hrchy_dtls_not_exists_err    EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_hrchy_dtls_not_exists_err , -20212);
+
+/***********************************************************
+The "en_hrchy_bulk_attr_update_err" passes a numerical error of -20213.
+This error occurs during Hierarchy Bulk attribute update using template/process in the batch window
+
+created : 12/03/2018, mxs216, ASP - 1169 CCN Project Team...
+************************************************************/
+en_hrchy_bulk_attr_update_err    CONSTANT NUMBER := -20213;
+exc_hrchy_bulk_attr_update_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_hrchy_bulk_attr_update_err, -20213);
+
+/***********************************************************
+The "en_invalid_hrchy_name_err" passes a numerical error of -20215.
+This error occurs when hierarchy not exists in HIERARCHY_HEADER
+
+created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team
+************************************************************/
+en_invalid_hrchy_name_err    CONSTANT NUMBER := -20215;
+exc_invalid_hrchy_name_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_name_err, -20215);
+
+/***********************************************************
+The "en_invalid_attr_name_err" passes a numerical error of -20216.
+This error occurs when attribute name not exists in hierarchy_description.upper_lvl_ver_value column
+
+created : 12/26/2018 mxs216 CCN Project Team...
+************************************************************/
+en_invalid_attr_name_err     CONSTANT NUMBER := -20216;
+exc_invalid_attr_name_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_attr_name_err, -20216);
+
+/***********************************************************
+The "en_invalid_attr_value_err" passes a numerical error of -20217.
+This error occurs when attribute value not found in code_detail table.
+
+created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team
+************************************************************/
+en_invalid_attr_value_err    CONSTANT NUMBER := -20217;
+exc_invalid_attr_value_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
 
 END ERRNUMS;
