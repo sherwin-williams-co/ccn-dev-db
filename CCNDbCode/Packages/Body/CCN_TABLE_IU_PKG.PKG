@@ -7360,6 +7360,43 @@ BEGIN
 
 END TAXWARE_ROWTYPE_SP;
 
+FUNCTION LB_CC_QA_TERMINAL_NUMBER_SP
+RETURN NUMBER
+IS
+    V_TERMINAL_NUMBER  NUMBER := NULL;
+    V_COST_CENTER_CODE COST_CENTER.COST_CENTER_CODE%TYPE;
+BEGIN
+    SELECT NVL(MAX(TERMINAL_NUMBER), 99749) + 1
+      INTO V_TERMINAL_NUMBER
+      FROM TERMINAL
+     WHERE TERMINAL_NUMBER BETWEEN 99750 AND 99999;
+                  
+    --For the first time, we need to allow terminal number 99750, but once it crosses 99999 we should not allow it again
+    IF V_TERMINAL_NUMBER = 99750 THEN
+        BEGIN 
+        SELECT COST_CENTER_CODE
+          INTO V_COST_CENTER_CODE
+          FROM TERMINAL
+         WHERE TERMINAL_NUMBER = 99750;
+        EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+             V_COST_CENTER_CODE := NULL;
+        END;
+        IF V_COST_CENTER_CODE IS NOT NULL THEN
+            errpkg.raise_err(errnums.en_invalid_qa_terr_nbr_err,
+                            ' LB_CC_QA_TERMINAL_NUMBER_SP ', 
+                            'TERMINAL number ' || V_TERMINAL_NUMBER || ' is already used by ' || V_COST_CENTER_CODE || ' in QA');
+        END IF;
+    ELSIF V_TERMINAL_NUMBER NOT BETWEEN 99750 AND 99999 THEN
+        errpkg.raise_err(errnums.en_invalid_qa_terr_nbr_err,
+                        ' LB_CC_QA_TERMINAL_NUMBER_SP ', 
+                        'TERMINAL number ' || V_TERMINAL_NUMBER || ' that is outside 99750 to 99999 can not be used for "LB" prefix cost centers');
+    END IF;
+    RETURN V_TERMINAL_NUMBER;
+EXCEPTION
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, ' LB_CC_QA_TERMINAL_NUMBER_SP ',  SQLERRM);
+END LB_CC_QA_TERMINAL_NUMBER_SP;
 
 PROCEDURE TERMINAL_ROWTYPE_SP (
 /******************************************************************************
@@ -7428,7 +7465,12 @@ BEGIN
           CASE table_fields_rec.column_name
             WHEN 'COST_CENTER_CODE'     THEN  v_terminal_row.cost_center_code       := UPPER(v_row_value);
             WHEN 'POLLING_STATUS_CODE'  THEN  V_TERMINAL_ROW.POLLING_STATUS_CODE    := V_ROW_VALUE;
-            WHEN 'TERMINAL_NUMBER'      THEN  V_TERMINAL_ROW.TERMINAL_NUMBER        := V_ROW_VALUE;
+			WHEN 'TERMINAL_NUMBER'      THEN  
+                IF SYS_CONTEXT('USERENV','DB_NAME') = 'STCCNQ' AND SUBSTR(v_terminal_row.cost_center_code, 0, 2) = 'LB' THEN
+                    V_TERMINAL_ROW.TERMINAL_NUMBER := LB_CC_QA_TERMINAL_NUMBER_SP;
+                ELSE
+                    V_TERMINAL_ROW.TERMINAL_NUMBER := V_ROW_VALUE;
+                END IF;
             WHEN 'EFFECTIVE_DATE'       THEN  v_terminal_row.effective_date         := to_date(v_row_value,'MM-DD-YYYY');
             WHEN 'EXPIRATION_DATE'      THEN  v_terminal_row.expiration_date        := to_date(v_row_value,'MM-DD-YYYY');
             WHEN 'POS_LAST_TRAN_DATE'   THEN  v_terminal_row.pos_last_tran_date     := to_date(v_row_value,'MM-DD-YYYY');

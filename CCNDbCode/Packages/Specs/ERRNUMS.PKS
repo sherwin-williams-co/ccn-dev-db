@@ -3305,4 +3305,14 @@ en_invalid_attr_value_err    CONSTANT NUMBER := -20217;
 exc_invalid_attr_value_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
 
+/*********************************************************** 
+The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
+This error occurs when attribute value not found in code_detail table.
+
+created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
+exc_invalid_qa_terr_nbr_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
+
 END ERRNUMS;
