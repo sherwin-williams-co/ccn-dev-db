@@ -3196,7 +3196,7 @@ The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
 Number Range BETWEEN 99750 AND 99999 Allowed only for QA COST CENTER with Prefix 'LB'.
 This error is thrown when Number Range Not BETWEEN 99750 AND 99999.
 
-created : 01/10/2019 jc ASP - 1192 CCN Project Team...
+created : 01/10/2019 jc/pxm158 ASP - 1192 CCN Project Team...
 ************************************************************/
 en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
 exc_invalid_qa_terr_nbr_err   EXCEPTION;
