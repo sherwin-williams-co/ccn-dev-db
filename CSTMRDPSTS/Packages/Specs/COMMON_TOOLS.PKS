@@ -4,6 +4,9 @@ This package SPEC is intended to hold reuseable objects that are
 available to be used by the entire schema
 
 created : 09/27/2017 sxh487 CCN project.....
+Changed : 01/15/2019 pxa852 CCN Project Team...
+          Removed BUILD_DEP_DET_HST_FROM_CURR process
+          as we are not creating credit deposit details history any more
 ************************************************************/
 
 --global variable
@@ -21,11 +24,11 @@ RETURN VARCHAR2;
 
 FUNCTION IS_ACCOUNT_OPEN(
 /***********************************************************
-	This function will return a 'Y' if the Account is open 
+	This function will return a 'Y' if the Account is open
   or 'N' if the Account has a closed_date
-    
+
 Created : 05/02/2018 sxh487
-Changed : 
+Changed :
 ************************************************************/
 IN_CUSTOMER_ACCOUNT_NUMBER  IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
 RETURN VARCHAR2;
@@ -98,33 +101,21 @@ RETURN VARCHAR2;
 
 FUNCTION BUILD_DEP_HDR_HST_FROM_CURR(
 /***********************************************************
-	This function will build the history record from 
-  current CUSTOMER_DEPOSIT_HEADER record 
-    
+	This function will build the history record from
+  current CUSTOMER_DEPOSIT_HEADER record
+
 Created : 05/02/2018 sxh487
 Changed : 
 ************************************************************/
 IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
 RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
 
-FUNCTION BUILD_DEP_DET_HST_FROM_CURR(
-/***********************************************************
-	This function will build the history record from 
-  current CUSTOMER_DEPOSIT_DETAILS record
-    
-Created : 04/18/2018 sxh487
-Changed : 
-************************************************************/
-IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
-) 
-RETURN CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE;
-
 FUNCTION GET_CUST_DEPOSIT_DETAILS_rec(
 /***********************************************************
-	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
-    
+	This function will get the current CUSTOMER_DEPOSIT_DETAILS record
+
 Created : 09/05/2018 sxh487
-Changed : 
+Changed :
 ************************************************************/
 IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
 )

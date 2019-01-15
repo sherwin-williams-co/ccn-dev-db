@@ -383,6 +383,12 @@ changed : 01/26/2018 sxh487 Added logic to get the last cumulative total for cal
         : 08/22/2018 sxh487 Removed the total_sales field population as it is not being used
         : 11/06/2018 sxg151 Rename column's to (ORGNL_DEPOSIT_TRANSACTION_NBR,ORGNL_DEPOSIT_TERMINAL_NBR,ORGNL_DEPOSIT_TRANSACTION_DATE)
         : 11/30/2018 sxg151 Added the new field population here to make sure daily load won't fail
+        : 01/11/2018 pxa852 CCN Project Team...
+          Modified code to populate the new table which will store the deposit (remaining total balance)
+          and redemption (original deposit transaction details) details.
+          Earlier deposit data with remianing total balance is storing in CUST_DEP_CREDIT_DETAILS table and
+          Redemption data is storing in CUST_DEP_REDEMPTION_DETAILS table. Now data from these tables is
+          storing in one table i.e.CUST_DEP_CRD_RED_DETAILS.
 ******************************************************************************/
 IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 IS
@@ -445,37 +451,24 @@ BEGIN
          V_TEMP_ROW.TRANSACTION_SQ_ID           := TRANSACTION_SQ_ID.NEXTVAL;
 
          TABLE_IU_PKG.CUST_DEP_DET_I_SP(V_TEMP_ROW);
-         IF V_TEMP_ROW.TRANSACTION_TYPE = 'DEPOSIT' THEN
-            V_CREDIT_ROW.CREDIT_ID                := SEQ_CREDIT_ID.nextval;
-            V_CREDIT_ROW.COST_CENTER_CODE         := V_TEMP_ROW.COST_CENTER_CODE;
-            V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER  := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
-            V_CREDIT_ROW.TRANSACTION_NUMBER       := V_TEMP_ROW.TRANSACTION_NUMBER;
-            V_CREDIT_ROW.TRANSACTION_DATE         := V_TEMP_ROW.TRANSACTION_DATE;
-            V_CREDIT_ROW.TERMINAL_NUMBER          := V_TEMP_ROW.TERMINAL_NUMBER;
-            V_CREDIT_ROW.DEPOSIT_REMAINING_BAL    := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
-            V_CREDIT_ROW.TRAN_TIMESTAMP           := V_TEMP_ROW.TRAN_TIMESTAMP;
-            V_CREDIT_ROW.LOAD_DATE                := V_LOAD_DATE;
-            
-            TABLE_IU_PKG.CUST_DEPOSIT_CREDIT_I_SP(V_CREDIT_ROW);
-         ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
-               CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD( V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE, V_ORIG_DEP_NBR, V_ORIG_TERM_NBR, V_ORIG_TRAN_DATE);
-               V_REDEMPTION_ROW.REDEMPTION_ID                  := SEQ_REDEMPTION_ID.nextval;
-               V_REDEMPTION_ROW.COST_CENTER_CODE               := V_TEMP_ROW.COST_CENTER_CODE;
-               V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER        := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
-               V_REDEMPTION_ROW.TRANSACTION_NUMBER             := V_TEMP_ROW.TRANSACTION_NUMBER;
-               V_REDEMPTION_ROW.TRANSACTION_DATE               := V_TEMP_ROW.TRANSACTION_DATE;
-               V_REDEMPTION_ROW.TERMINAL_NUMBER                := V_TEMP_ROW.TERMINAL_NUMBER;
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := V_ORIG_DEP_NBR;  
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := V_ORIG_TERM_NBR;
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := V_ORIG_TRAN_DATE;
-               V_REDEMPTION_ROW.TRAN_TIMESTAMP                 := V_TEMP_ROW.TRAN_TIMESTAMP;
-               V_REDEMPTION_ROW.LOAD_DATE                      := V_LOAD_DATE;
-               
-               TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(V_REDEMPTION_ROW);
-         ELSE
-           NULL;
+         V_CREDIT_RED_ROW.TRANSACTION_SQ_ID              := V_TEMP_ROW.TRANSACTION_SQ_ID;
+         V_CREDIT_RED_ROW.CRD_RED_SEQ                    := CRD_RED_SEQ.NEXTVAL;
+         V_CREDIT_RED_ROW.TRANSACTION_TYPE               := V_TEMP_ROW.TRANSACTION_TYPE;
+         V_CREDIT_RED_ROW.DEPOSIT_REMAINING_BAL          := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
+         --passing null to original transaction details as these will always be null for deposit records.
+         --for redemptions, if there is any remaining deposit balance then deposit transaction details will be passed to redemption
+         V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
+         V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
+         V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
+         IF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
+            CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD( V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE, V_ORIG_DEP_NBR, V_ORIG_TERM_NBR, V_ORIG_TRAN_DATE);
+            V_CREDIT_RED_ROW.DEPOSIT_REMAINING_BAL  := NULL;
+            V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := V_ORIG_DEP_NBR;
+            V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := V_ORIG_TERM_NBR;
+            V_CREDIT_RED_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := V_ORIG_TRAN_DATE;
          END IF; 
-         
+         TABLE_IU_PKG.CUST_DEPOSIT_CRD_RED_I_SP(V_CREDIT_RED_ROW);
+
          V_TEMP_ROW := NULL;
          V_COMMIT := V_COMMIT + 1;
          IF V_COMMIT > 500 THEN

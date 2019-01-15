@@ -41,6 +41,8 @@ and updates the Deposit with remaining balance
  
 Created : 03/26/2018 SXH487
 Changed : 11/26/2018 ASP-1150 : Renamed input variable name( TOTAL_SALES to CSTMR_DPST_SALES_LN_ITM_AMT)
+        : 01/11/2019 pxa852 CCN Project Team...
+          Modified code to use new table CUST_DEP_CRD_RED_DETAILS and update the deposit remaining balance
 **********************************************************/
     IN_CSTMR_DPST_SALES_LN_ITM_AMT IN      CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE,
     IN_CUSTOMER_ACCOUNT_NUMBER     IN      CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
@@ -51,15 +53,18 @@ Changed : 11/26/2018 ASP-1150 : Renamed input variable name( TOTAL_SALES to CSTM
 )
 IS
     CURSOR ALL_DEPS IS
-        SELECT a.*, rowid, count(*) over () TOT_DEP_CNT
-          FROM CUST_DEP_CREDIT_DETAILS a
-         WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
-           AND TRANSACTION_DATE <= IN_TRANSACTION_DATE
-           AND DEPOSIT_REMAINING_BAL > 0
-           ORDER BY TRAN_TIMESTAMP;
-    
-    V_CNT           NUMBER :=0;
-    V_DEP_REM_BAL   CUST_DEP_CREDIT_DETAILS.DEPOSIT_REMAINING_BAL%TYPE;
+        SELECT CDD.TRANSACTION_NUMBER,CDD.TERMINAL_NUMBER, CDD.TRANSACTION_DATE,cr.*,
+               count(*) over () TOT_DEP_CNT
+          FROM CUST_DEP_CRD_RED_DETAILS cr, CUSTOMER_DEPOSIT_DETAILS cdd
+         WHERE cdd.CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+           AND cdd.TRANSACTION_TYPE <> 'REDEMPTION'
+           AND cr.TRANSACTION_SQ_ID = cdd.TRANSACTION_SQ_ID
+           AND cdd.TRANSACTION_DATE <= IN_TRANSACTION_DATE
+           AND cr.DEPOSIT_REMAINING_BAL > 0
+           ORDER BY cdd.TRAN_TIMESTAMP;
+
+    V_CNT                           NUMBER :=0;
+    V_DEP_REM_BAL                   CUST_DEP_CRD_RED_DETAILS.DEPOSIT_REMAINING_BAL%TYPE;
     V_CSTMR_DPST_SALES_LN_ITM_AMT   CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE := -(IN_CSTMR_DPST_SALES_LN_ITM_AMT);
 BEGIN  
     FOR each_dep IN ALL_DEPS LOOP
@@ -68,7 +73,6 @@ BEGIN
         OUT_TERMINAL_NUMBER    := each_dep.TERMINAL_NUMBER;
         OUT_TRANSACTION_DATE   := each_dep.TRANSACTION_DATE;
         V_DEP_REM_BAL          := NULL;
-
         --if the redemption is greater than the balance on the deposit
         --then update the Deposit with -ve bal
         IF V_CSTMR_DPST_SALES_LN_ITM_AMT > each_dep.DEPOSIT_REMAINING_BAL THEN
@@ -83,9 +87,9 @@ BEGIN
             V_DEP_REM_BAL := each_dep.DEPOSIT_REMAINING_BAL - V_CSTMR_DPST_SALES_LN_ITM_AMT;
             V_CSTMR_DPST_SALES_LN_ITM_AMT := 0;
         END IF;
-        UPDATE CUST_DEP_CREDIT_DETAILS
-           SET DEPOSIT_REMAINING_BAL = V_DEP_REM_BAL
-          WHERE ROWID      = each_dep.rowid;
+        UPDATE CUST_DEP_CRD_RED_DETAILS
+           SET DEPOSIT_REMAINING_BAL   = V_DEP_REM_BAL
+          WHERE TRANSACTION_SQ_ID      = each_dep.TRANSACTION_SQ_ID;
 
         IF V_CSTMR_DPST_SALES_LN_ITM_AMT = 0 THEN
             EXIT;
