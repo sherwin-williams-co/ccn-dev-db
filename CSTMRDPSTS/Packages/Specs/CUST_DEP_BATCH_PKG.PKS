@@ -33,5 +33,29 @@ IN_BATCH_JOB_NAME      IN BATCH_JOB.BATCH_JOB_NAME%TYPE,
 IN_BATCH_JOB_NUMBER    IN BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
 IN_TRANS_STATUS        IN BATCH_JOB.TRANS_STATUS%TYPE
 );
+PROCEDURE LOCK_DATABASE_SP
+/*****************************************************************************
+Name:    : LOCK_DATABASE_SP
+Created  : 01/15/2019 sxg151 CCN Team....
+Modified :
+******************************************************************************/
+;
 
+PROCEDURE UNLOCK_DATABASE_SP
+/*****************************************************************************
+Name:    : UNLOCK_DATABASE_SP
+Created  : 01/15/2019 sxg151 CCN Team....
+Modified :
+******************************************************************************/
+;
+
+PROCEDURE DAILY_NET_BAL_CLOSE_DATE_UPD
+/******************************************************************************
+DAILY_NET_BAL_CLOSE_DATE_UPD -  This procedure is intended to update the record in the CUSTOMER_DEPOSIT_DETAILS which net Balance is zero.
+
+Created  : 01/15/2019 sxg151 CCN Team....
+         : ASP-1187.
+Modified :
+*******************************************************************************/
+;
 END CUST_DEP_BATCH_PKG;

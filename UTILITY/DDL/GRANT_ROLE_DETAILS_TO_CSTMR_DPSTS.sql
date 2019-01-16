@@ -1,0 +1,4 @@
+-- Grant ROLE_DETAILS to CSTMR_DPSTS to update the table.
+-- created by sxg151 on 01/15/2019
+
+GRANT SELECT,UPDATE ON ROLE_DETAILS TO CSTMR_DPSTS;
