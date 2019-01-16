@@ -133,12 +133,12 @@ BEGIN
         WHEN 'USA' THEN
            CCN_TABLE_IU_PKG.ADDRESS_USA_S_SP(v_home_store  
                                             ,inAddressType
-                                            ,out_ADDRESS_REF_CUR);     
+                                            ,out_ADDRESS_REF_CUR);
 
         WHEN 'PRI' THEN
            CCN_TABLE_IU_PKG.ADDRESS_USA_S_SP(v_home_store  
                                             ,inAddressType
-                                            ,out_ADDRESS_REF_CUR);    
+                                            ,out_ADDRESS_REF_CUR);
 
         WHEN 'CAN' THEN
             CCN_TABLE_IU_PKG.ADDRESS_CAN_S_SP(v_home_store 
@@ -195,19 +195,22 @@ modified: 02/02/2015 axk326 CCN Project Team...
           04/07/2016 axd783 Modified cost_center_look_up_fnc call to show the list of Duplicate Cost Centers in error message
           04/17/2017 modified by rxa457 for asp-763
             Handle UPSERT related to the new table Dispatch_Terminal
+          11/21/2017 axt754 Added REF CURSORS to Get the NON_TAXWARE DETAILS
 Changed:  03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 *******************************************************************************/
            IN_COST_CENTER               IN  COST_CENTER.COST_CENTER_CODE%TYPE
           ,OUT_COST_CENTER_REF_CUR      OUT SYS_REFCURSOR
-          ,OUT_CC_CATEGORY_REF_CUR      OUT SYS_REFCURSOR    
-          ,OUT_STATUS_REF_CUR           OUT SYS_REFCURSOR     
-          ,OUT_TYPE_REF_CUR             OUT SYS_REFCURSOR   
-          ,OUT_MARKETING_REF_CUR        OUT SYS_REFCURSOR   
-          ,OUT_TAXWARE_REF_CUR          OUT SYS_REFCURSOR    
-          ,OUT_PHONE_REF_CUR            OUT SYS_REFCURSOR     
-          ,OUT_ADDRESS_REF_CUR          OUT SYS_REFCURSOR)
-IS   
+          ,OUT_CC_CATEGORY_REF_CUR      OUT SYS_REFCURSOR
+          ,OUT_STATUS_REF_CUR           OUT SYS_REFCURSOR
+          ,OUT_TYPE_REF_CUR             OUT SYS_REFCURSOR
+          ,OUT_MARKETING_REF_CUR        OUT SYS_REFCURSOR
+          ,OUT_TAXWARE_REF_CUR          OUT SYS_REFCURSOR
+          ,OUT_PHONE_REF_CUR            OUT SYS_REFCURSOR
+          ,OUT_ADDRESS_REF_CUR          OUT SYS_REFCURSOR
+          ,OUT_CURR_CONV_REF_CUR        OUT SYS_REFCURSOR
+          ,OUT_NON_TW_RATES_REF_CUR     OUT SYS_REFCURSOR)
+IS
 
 v_code                            number;
 v_errm                            VARCHAR(500);
@@ -395,6 +398,12 @@ BEGIN --  COST_CENTER_UI_SP
                    ,v_cost_center_rowtype.country_code
                    ,v_address_type
                    ,out_address_ref_cur);
+
+     v_break  := ('Call to NON_TAXWARE Details UI SP ' );
+
+     CCN_NON_TAXWARE_PKG.NON_TW_CURR_CONV_CC_UI_SP(v_cost_center
+                                                  ,OUT_CURR_CONV_REF_CUR
+                                                  ,OUT_NON_TW_RATES_REF_CUR);
 --
      v_break  := ('Ended call to COST_CENTER_UI_SP ' );
 --   
@@ -1047,6 +1056,7 @@ changed : 05/24/2016 jxc517 CCN Project Team....
 Changed:  03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
         : 11/27/2018 mxs216, ASP-1158, Business rule to stop users from updating **L* archived cost centers
+        : 01/16/2019 mxs216, ASP-1198, added business rule in CCN for territory category cost centers to always have open_date populated.
 *******************************************************************************/
 IN_FLAG      IN VARCHAR2,
 IN_ROW_DATA  IN VARCHAR2)
@@ -1128,6 +1138,9 @@ BEGIN
                                                  ,V_ROW_DATE    
                                                  ,V_XML_FRAG    
                                                  ,V_COST_CENTER_ROWTYPE );
+
+         -- Checking if open date has been populated for Territory cost center
+         CCN_BUSINESS_RULES_PKG.CHECK_TERRITORY_CC_OPEN_DT(V_COST_CENTER_ROWTYPE);
 
          -- Check if passed cost center is eligible for updates
          CCN_BUSINESS_RULES_PKG.CHECK_ARCHIVED_COST_CENTER(V_COST_CENTER_ROWTYPE.COST_CENTER_CODE);
@@ -1427,6 +1440,7 @@ Changed : jxc517 01/09/2018 CCN Project Team...
          FOR LB cost centers in QA alone, we need to allow terminal numbers between 99750 to 99999
          For any environment apart from QA, terminal numbers between 99750 to 99999 are not allowed   
          Related logic for QA environmnet will be found in CCN_TABLE_IU_PKG.TERMINAL_NUMBER_ROWTYPE_SP
+	
 *************************************************************************/
    RETURN NUMBER
 AS 
@@ -1442,12 +1456,12 @@ BEGIN
       SELECT NVL(MAX(TERMINAL_NUMBER), 0) + 1 INTO V_SEQUENCE_NUMBER 
         FROM TERMINAL
        WHERE TERMINAL_NUMBER NOT IN ('99308', '99112', '99111', '71882')
-         AND TERMINAL_NUMBER NOT BETWEEN 99750 AND 99999;-- Number Range Allowed only for QA COST CENTER with Prefix 'LB'
+         AND TERMINAL_NUMBER NOT BETWEEN 99750 AND 99999;-- Number Range Allowed only for QA COST CENTER with Prefix 'LB'	   
 
       CASE
          WHEN V_SEQUENCE_NUMBER  IN ('99308','71882') THEN  V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 1;
          WHEN V_SEQUENCE_NUMBER   = '99111' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 2; --(because of two consecutive terminal numbers '99111' and '99112')
-         WHEN V_SEQUENCE_NUMBER   = '99750' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 250; --(because of those 250 terminal values being used for "LB" cost centers in QA environment)		 
+         WHEN V_SEQUENCE_NUMBER   = '99750' THEN V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER + 250; --(because of those 250 terminal values being used for "LB" cost centers in QA environment)		 		 
          ELSE V_SEQUENCE_NUMBER := V_SEQUENCE_NUMBER ;
       END CASE;
 
@@ -2170,7 +2184,124 @@ EXCEPTION
         errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) || ' COST_CENTER_DSC_CODES_SP Error');
 END  COST_CENTER_DSC_CODES_SP;
 
+PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
+/*******************************************************************************
+This procedure is intended to return a ref cursor with data from
+from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
+Country code as input
 
+
+created : 11/01/2017 axt754 CCN Project....
+*******************************************************************************/
+
+    IN_COUNTRY_CODE                   IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
+    IN_STATE_CODE                     IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,
+    OUT_CURR_CONV_REF_CUR                OUT REF_CURSOR,
+    OUT_NON_TW_RATES_REF_CUR             OUT REF_CURSOR
+    )
+IS
+
+
+BEGIN
+    CCN_NON_TAXWARE_PKG.NON_TAXWARE_CURR_CONV_UI_SP(IN_COUNTRY_CODE
+                                                    ,IN_STATE_CODE
+                                                    ,OUT_CURR_CONV_REF_CUR
+                                                    ,OUT_NON_TW_RATES_REF_CUR);
+EXCEPTION
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) || ' NON_TAXWARE_CURR_CONV_UI_SP Error');
+END NON_TAXWARE_CURR_CONV_UI_SP;
+
+PROCEDURE NON_TAXWARE_UI_UPSERT_SP(
+/******************************************************************************
+This procedure takes XML which has COUNTRY_CODE and does the following
+1)Inserts/Updates CURRENCY CONVERSION Information for given country code other than USA
+2)Inserts/Updates the given NON TAXWARE information in the XML to the the given COUNTRY_CODE
+
+-- NON USA
+<NON_TAXWARE_UI>
+   <USER_ID>axt754</USER_ID>
+   <COUNTRY_CODE>ABW</COUNTRY_CODE>
+   <CURRENCY_CONVERSION_TBL>
+      <CURRENCY_CONVERSION>
+         <EFFECTIVE_DATE>04-01-2014</EFFECTIVE_DATE>
+         <EXPIRATION_DATE></EXPIRATION_DATE>
+         <CONVERSION_RATE>1.79</CONVERSION_RATE>
+         <DISPLAY_VAT_FLAG>yes</DISPLAY_VAT_FLAG>
+         <CURRENCY_TYPE>AWG</CURRENCY_TYPE>
+         <TAXID_NUMBER>5034215</TAXID_NUMBER>
+         <TAXID_DESCRIPTION>TAX ID #</TAXID_DESCRIPTION>
+         <VAT_TAX_ID></VAT_TAX_ID>
+      </CURRENCY_CONVERSION>
+   </CURRENCY_CONVERSION_TBL>
+   <NON_TAXWARE_RATES_TBL>
+      <NON_TAXWARE_RATES>
+         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
+         <TAX_TYPE>VAT</TAX_TYPE>
+         <TAX_CODE>70001</TAX_CODE>
+         <TAX_RATE>1.5</TAX_RATE>
+         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
+         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
+         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
+         <EXPIRATION_DATE></EXPIRATION_DATE>
+      </NON_TAXWARE_RATES>
+      <NON_TAXWARE_RATES>
+         <STATEMENT_TYPE>AA</STATEMENT_TYPE>
+         <TAX_TYPE>SALES TAX</TAX_TYPE>
+         <TAX_CODE>10001</TAX_CODE>
+         <TAX_RATE>1.5</TAX_RATE>
+         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
+         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
+         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
+         <EXPIRATION_DATE></EXPIRATION_DATE>
+      </NON_TAXWARE_RATES>
+   </NON_TAXWARE_RATES_TBL>
+</NON_TAXWARE_UI>
+
+-- USA
+<NON_TAXWARE_UI>
+   <USER_ID>axt754</USER_ID>
+   <COUNTRY_CODE>USA</COUNTRY_CODE>
+   <NON_TAXWARE_RATES_USA_TBL>
+      <NON_TAXWARE_RATES_USA>
+         <STATE_CODE>HI</STATE_CODE>
+         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
+         <TAX_TYPE>VAT</TAX_TYPE>
+         <TAX_CODE>70001</TAX_CODE>
+         <TAX_RATE>1.5</TAX_RATE>
+         <TAX_RATE_DESCRIPTION>1.500%</TAX_RATE_DESCRIPTION>
+         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
+         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
+         <EXPIRATION_DATE></EXPIRATION_DATE>
+      </NON_TAXWARE_RATES_USA>
+      <NON_TAXWARE_RATES_USA>
+         <STATE_CODE>OH</STATE_CODE>
+         <STATEMENT_TYPE>AW</STATEMENT_TYPE>
+         <TAX_TYPE>VAT</TAX_TYPE>
+         <TAX_CODE>70001</TAX_CODE>
+         <TAX_RATE>1.6</TAX_RATE>
+         <TAX_RATE_DESCRIPTION>1.600%</TAX_RATE_DESCRIPTION>
+         <REGISTRATION_NUMBER></REGISTRATION_NUMBER>
+         <EFFECTIVE_DATE>12-01-2015</EFFECTIVE_DATE>
+         <EXPIRATION_DATE></EXPIRATION_DATE>
+      </NON_TAXWARE_RATES_USA>
+   </NON_TAXWARE_RATES_USA_TBL>
+</NON_TAXWARE_UI>
+
+
+--created : 11/01/2017 axt754 CCN Project....
+--******************************************************************************/
+--
+    IN_ROW_DATA  IN  CLOB)
+IS
+BEGIN
+    CCN_NON_TAXWARE_PKG.NON_TAXWARE_UI_UPSERT_SP(IN_ROW_DATA);
+EXCEPTION
+    WHEN OTHERS THEN
+
+
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) || ' NON_TAXWARE_UI_UPSERT_SP Error');
+END NON_TAXWARE_UI_UPSERT_SP;
 
 FUNCTION ADMIN_COST_CNTR_FIELDS_ENBLE(
 /*****************************************************************************
@@ -2218,6 +2349,23 @@ EXCEPTION
         errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) || ' PROCESS_SQ_FT_LD Error');
 END PROCESS_SQ_FT_LD;
 
+PROCEDURE HIERARCHY_FILE_GEN_UI_SP (
+/******************************************************************************
+This procedure is intended to call and execute hierarchy file generation process.
+Cost center code is the input parameter.
+
+Created  : 07/23/2018 pxa852 CCN Project Team....
+Modified :
+*******************************************************************************/
+    IN_COST_CENTER_CODE    IN   COST_CENTER.COST_CENTER_CODE%TYPE)
+
+IS
+BEGIN
+
+    CCN_HIERARCHY_FILE_GEN_PKG.GENERATE_COSTCNTR_HRCHY_FILE(IN_COST_CENTER_CODE);
+
+END HIERARCHY_FILE_GEN_UI_SP;
+
 PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
 /******************************************************************************
 This procedure is the core process for updating the descartes delivery code field.
@@ -2264,4 +2412,3 @@ EXCEPTION
 END GENERATE_PRIMESUB_DETAILS_RPT;
 
 END CCN_UI_INTERFACE_APP_PKG;
-

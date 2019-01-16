@@ -18,10 +18,10 @@ revised :mdh 9/24/2012
 PROCEDURE Business_Rules_sp (
 /*******************************************************************************
 	 BUSINESS_RULES_SP  (XML to Rowtype Conversion)
-   
+
   This procedure is intended to pull in the XML versions of the CCN tables, and
   convert them to ROWTYPEs.
-  
+
   This procedure will then call the BUSINESS_RULES_SP (Rowtype) procedure which 
   is the "main" Business Rules procedure; which will execute each of the 
   individual business rules.    
@@ -63,14 +63,14 @@ PROCEDURE Business_Rules_sp (
 
 	This procedure is intended to be the "main" Business Rules procedure.  This
   routine will be excuted both by Batch and our UI Screens.
-  
+
 	Its purposes is to execute each of the individual Business Rules as defined
   in the Technical Document (Section 3.3) and housed in the Business Rules
 	Package.
-  
+
   Each Table specific business rule will be executed first if the related
   table rowtype is not "null".  
-  
+
   Finally, specific Business Rules will be executed based on changes within
   specific columns of specific tables.
 
@@ -116,7 +116,7 @@ created : 4/26/2012
 	inMERCHANT_ID IN BANK_CARD.MERCHANT_ID%TYPE
  ,inCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE);
-  
+
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
 	MODULUS_10
@@ -135,7 +135,7 @@ PROCEDURE CLOSE_CCNTR_SP (
 	This procedure is intended enforce the Business Rules
 	for closing a cost center and verifying the Close_Date, Status_Code, and
   Effective_Date on the various Tables.  
-    
+
 created : MDH 5/18/2012
 changed:  MDH 7/25/2012
 ******************************************************************************/	
@@ -240,11 +240,11 @@ created : BLR 5/21/2012
 PROCEDURE REOPEN_CCNTR_SP  ( 
 /*****************************************************************************
 	REOPEN_CCNTR_SP
-  
+
   This procedure is intended enforce the Business Rules for Re-Opening a
 	closed cost center and verifying the Close_Date, Status_Code, Tyep_Code,
   Effective_Date and Expiration_Date on the various Tables.  
-	    
+
 created : NDH 6/01/2012
 ******************************************************************************/	
   inSTATUS_ROWTYPE      IN STATUS%ROWTYPE
@@ -260,7 +260,7 @@ PROCEDURE TERRITORY_HOME_STORE_ASSIGN_SP (
 	This procedure is intended enforce the Business Rules
 	for Territory Home Store assignment and Territory Category, Home Store, 
   Home Store not Closed, Statement Type, and Entity Type.
-    
+
 created : TAL 06/01/2012
 ******************************************************************************/	
   inCOST_CENTER_ROWTYPE    IN   COST_CENTER%ROWTYPE
@@ -274,7 +274,7 @@ PROCEDURE CHECK_ADDRESS_TAG (
 
 	This procedure is intended to enforce the Business Rules
 	for Cost center insert/update to have atleast one address element:
-  
+
   1.)  Check if cost center insert or update have atleast one address element added.
 
 
@@ -299,7 +299,7 @@ PROCEDURE ADDRESS_CAN_BR_SP (
 
 created : TAL 8/7/2012
 *******************************************************************************/	
-  
+
   inaddress_can_rowtype            IN  ADDRESS_CAN%ROWTYPE
   ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE);
 
@@ -313,10 +313,10 @@ PROCEDURE ADDRESS_MEX_BR_SP (
 
 created : TAL 8/7/2012
 *******************************************************************************/	
-  
+
   inaddress_mex_rowtype            IN  ADDRESS_MEX%ROWTYPE
   ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE);
-  
+
 PROCEDURE ADDRESS_OTH_BR_SP (
 /*******************************************************************************
 	 ADDRESS_OTHER_BR_SP
@@ -327,10 +327,10 @@ PROCEDURE ADDRESS_OTH_BR_SP (
 
 created : TAL 8/7/2012
 *******************************************************************************/	
-  
+
   inaddress_oth_rowtype             IN  ADDRESS_OTHER%ROWTYPE
   ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE);
-  
+
 PROCEDURE ADDRESS_USA_BR_SP (
 /*******************************************************************************
 	 ADDRESS_USA_BR_SP
@@ -341,7 +341,7 @@ PROCEDURE ADDRESS_USA_BR_SP (
 
 created : TAL 8/7/2012
 *******************************************************************************/	
-  
+
   inaddress_usa_rowtype            IN  ADDRESS_USA%ROWTYPE
   ,inCOST_CENTER_ROWTYPE           IN  COST_CENTER%ROWTYPE);
 
@@ -355,10 +355,10 @@ PROCEDURE ADMINISTRATION_BR_SP (
 
 created : BLR 8/3/2012
 *******************************************************************************/	
-  
+
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
- 
+
 PROCEDURE LAD_CUSTOMER_BR_SP (
 /*******************************************************************************
 	 LAD_CUSTOMER_BR_SP
@@ -370,7 +370,7 @@ PROCEDURE LAD_CUSTOMER_BR_SP (
 created : 03/08/2018 mxv711 CCN Project Team..
           asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 *******************************************************************************/	
-  
+
   inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
 
@@ -432,7 +432,7 @@ created : BLR 8/3/2012
 *******************************************************************************/	
   inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,inOther_rowtype                  IN  OTHER%ROWTYPE );
- 
+
 PROCEDURE PHONE_BR_SP (
 /*******************************************************************************
 	 PHONE_BR_SP
@@ -446,7 +446,7 @@ created : TAL 7/31/2012
     in_phone_rowtype             PHONE%ROWTYPE
    ,incost_center_rowtype      COST_CENTER%ROWTYPE
    );
-   
+
 
 PROCEDURE REAL_ESTATE_BR_SP (
 /*******************************************************************************
@@ -460,7 +460,7 @@ created : BLR 8/3/2012
 ******************************************************************************/	
   inCostctr_rowtype       IN  COST_CENTER%ROWTYPE
  ,inReal_estate_rowtype   IN  REAL_ESTATE%ROWTYPE );
- 
+
 /*******************************************************************************
 --PROCEDURE POLLING_BR_SP (
 	 POLLING_BR_SP
@@ -479,7 +479,7 @@ PROCEDURE SALES_REP_BR_SP (
 	This procedure is intended enforce the Business Rules
 	for SALES_REP Validation editas and verifying all fields (columns) 
   associated to this table.
-    
+
 created : MDH 08/01/2012
 ******************************************************************************/	
   inSALES_REP_ROWTYPE      IN   SALES_REP%ROWTYPE )
@@ -509,7 +509,7 @@ created : BLR 7/26/2012
 
   inStore_rowtype                  IN  STORE%ROWTYPE
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE);
-  
+
 PROCEDURE DISPATCH_TERMINAL_BR_SP(
 /******************************************************************************
     DISPATCH_TERMINAL_BR_SP
@@ -519,7 +519,7 @@ PROCEDURE DISPATCH_TERMINAL_BR_SP(
 *******************************************************************************/
     inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
     inCC_rowtype                IN COST_CENTER%ROWTYPE);
-	  
+
 PROCEDURE TERMINAL_BR_SP (
 /*******************************************************************************
 	 TERMINAL_BR_SP
@@ -530,7 +530,7 @@ PROCEDURE TERMINAL_BR_SP (
 
 created : TAL 7/27/2012
 *******************************************************************************/	
-  
+
    IN_TERMINAL_ROWTYPE            IN   TERMINAL%ROWTYPE,
    in_polling_rowtype     IN   polling%ROWTYPE);
 
@@ -542,7 +542,7 @@ PROCEDURE TERRITORY_BR_SP (
 	This procedure is intended enforce the Business Rules
 	for Territory validation editas and verifying all fields (columns) 
   associated to this table.
-    
+
 created : MDH 07/31/2012
 ******************************************************************************/	
     inCOST_CENTER_ROWTYPE      IN   COST_CENTER%ROWTYPE
@@ -552,7 +552,7 @@ created : MDH 07/31/2012
 PROCEDURE COMPARE_ZIPCODE_SP(
 /*******************************************************************************
     COMPARE_ZIPCODE_SP
-    
+
     This procedure is to compare the Taxware Zip code with Address Zip code.
      1.If there is no record in taxware for given cost center then do nothing.   
      2.If taxware zip code does not match with address zip code then send an email.
@@ -591,7 +591,7 @@ Modified :
   INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
 );
 
-  
+
 FUNCTION ADMIN_COST_CNTR_BR_SP(
 /*****************************************************************************
 This procedure takes the cost center code as input and checks if admin_cost_cntr_type
@@ -613,7 +613,7 @@ Created : axt754 01/19/2018 CCN Project Team....
           mandatory category "A" and type_code '41'
 REVISED :
 *******************************************************************************/	
-  
+
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,intype_rowtype                   IN  TYPE%ROWTYPE);  
@@ -639,7 +639,7 @@ created  : 01/16/2018 BXA919
  ,in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
  ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
- 
+
 
 PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
@@ -651,5 +651,17 @@ to stop users from updating **L* archived cost centers:
 created : mxs216 on 11/14/2018, ASP-1158
 ******************************************************************************/
  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
+
+PROCEDURE CHECK_TERRITORY_CC_OPEN_DT (
+/*****************************************************************************
+    This function is intended to enforce the business rule in CCN
+    for territory category cost centers to always have open_date populated.
+
+    1.)  Check if cost center Category = 'T' and OPEN_DATE is null, if Yes through error.
+
+ created : mxs216 on 01/16/2019, ASP-1198 CCN Project Team....
+Modified :
+******************************************************************************/
+    IN_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE);
 
 END CCN_BUSINESS_RULES_PKG;

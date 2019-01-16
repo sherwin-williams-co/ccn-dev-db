@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999?.
+An error occurs when Amex ID is = `999999999¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y?.
+An error occurs when inventory_id not = `y¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y? or `N?.
+An error occurs when Polling_Ind not = `Y¿ or `N¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -836,7 +836,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_polling_err" passes a numerical error of -20060.
 An error occurs when Polling effective date >
-current date & expiration date not null.
+current date & expiratin date not null.
 
 created : 06/08/2012 cbd CCN Project
 revisions: 
@@ -2103,7 +2103,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric.
+Stores & Others or that the duns number is not numeric. 
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2403,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric.
+Stores & Others or that the duns number is not numeric. 
 
 created : 07/01/2013 SH CCN Project
 revisions: 
@@ -2916,6 +2916,29 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
+/***********************************************************
+The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
+An error occurs when effective date is the past than the current effective date
+
+created : 11/09/2017 axt754  CCN Project Team....
+revisions:
+************************************************************/
+EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
+EXC_EN_DATE_PASSED_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
+
+/*********************************************************** 
+The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
+This error will state the country code is missing in currency conversion. 
+
+created : 11/10/2017 axt754  CCN Project Team...
+revisions: 
+************************************************************/
+EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
+EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
+
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2943,6 +2966,31 @@ PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
 
 /***********************************************************
+The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
+This error will says that there is duplicate of sorted
+sequence number under a program
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
+exc_gl_ps_dup_sort_seq_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_gl_ps_dup_sort_seq_err , -20190);
+
+/***********************************************************
+The "invalid_gl_num_len_err" passes a numerical error of -20191
+This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
+
+Created  : 02/01/2018 axt754 CCN Project Team....
+Modified :
+************************************************************/
+en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
+exc_invalid_gl_num_len_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_gl_num_len_err , -20191);
+
+/*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
 '01'
@@ -3181,15 +3229,42 @@ exc_allocation_cc_null_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_allocation_cc_null_err , -20209);
 
+
 /*********************************************************** 
 The "en_chn_not_ald_in_arch_cc_err" passes a numerical error of -20210.
 This error occurs when customer trying to update an Archieved cost center.
 
-created : 11/27/2018, mxs216, ASP - 1158
+created : 11/14/2018, mxs216, ASP - 1158
 ************************************************************/
 en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
 exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_chn_not_ald_in_arch_cc_err , -20210);
+
+/***********************************************************
+The "en_cost_center_not_passed_err" passes a numerical error of -20211.
+This error occurs when cost center is not passed for generating a hierarchy report.
+If user clicks on hierarchy report link with out passing the cost center code,
+then this exception will be raised with the below message
+"Please enter a costcenter either 4 or 6 digits to generate report"
+
+created : 11/20/2018 pxa852 CCN Project Team...
+************************************************************/
+en_cost_center_not_passed_err      CONSTANT NUMBER := -20211;
+exc_cost_center_not_passed_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_cost_center_not_passed_err , -20211);
+
+/***********************************************************
+The "en_hrchy_dtls_not_exist_err" passes a numerical error of -20212.
+This error occurs when hierarchy details are not exist for a passed cost center.
+When user clicks on hierachy report link for a cost center and if they are
+not exists then this eexception will be raised with the below message
+"Hierarchy details are not exist for a selected cost center"
+
+created : 11/20/2018 pxa852 CCN Project Team...
+************************************************************/
+en_hrchy_dtls_not_exist_err      CONSTANT NUMBER := -20212;
+exc_hrchy_dtls_not_exists_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_hrchy_dtls_not_exists_err , -20212);
 
 /*********************************************************** 
 The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
@@ -3201,5 +3276,15 @@ created : 01/10/2019 jc/pxm158 ASP - 1192 CCN Project Team...
 en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
 exc_invalid_qa_terr_nbr_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
+
+/***********************************************************
+The "en_territory_cc_open_date_err" passes a numerical error of -20220.
+This error occurs when open date not populated for Territory cost center.
+
+created : 01/16/2019 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
+exc_open_date_req_terri_cc_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
 END ERRNUMS;
