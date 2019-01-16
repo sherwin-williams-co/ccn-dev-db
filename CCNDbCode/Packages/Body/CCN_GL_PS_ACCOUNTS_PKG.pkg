@@ -1,6 +1,613 @@
 create or replace PACKAGE BODY CCN_GL_PS_ACCOUNTS_PKG
 AS
 
+FUNCTION PRAGRAM_DELETE_BR_SP(
+/******************************************************************************
+This procedures takes PROGRAM REC  as input and
+returns the count of accounts associated to program
+Created : 08/30/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE) RETURN NUMBER 
+IS
+    v_accnts_count NUMBER :=0;
+BEGIN
+    SELECT COUNT(*)
+      INTO v_accnts_count
+      FROM PRGM_GL_ACCNT_RLTN_DTLS
+     WHERE UPPER(program_name) = UPPER(program_rec.program_name);
+
+    RETURN v_accnts_count;
+
+END PRAGRAM_DELETE_BR_SP;
+
+PROCEDURE GL_ACCOUNTS_PROG_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML which has GL ACCOUNT NUMBER and DELETES 
+Programs information given in the XML, that were attached to GL ACCOUNT NUMBER 
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+    <GENERAL_LEDGER_ACCOUNTS_TBL>
+      <GENERAL_LEDGER_ACCOUNTS>
+            <GL_ACCOUNT_NUMBER>33388809</GL_ACCOUNT_NUMBER>
+            </DESCRIPTION>
+            <PROFIT_OR_LOSS>65</PROFIT_OR_LOSS>
+            <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+            <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </GENERAL_LEDGER_ACCOUNTS>
+    </GENERAL_LEDGER_ACCOUNTS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>      
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+        : 08/25/2017 axt754 -- No Delete of Existing Accounts
+******************************************************************************/
+    in_xml          IN          CLOB) 
+IS
+    v_ps_count        NUMBER := 1;
+    v_prg_accnts_frag  CLOB;
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prg_accnts_rec   PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_account_number  VARCHAR2(20);
+BEGIN
+    -- GET ACCOUNT NUMBER
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/GENERAL_LEDGER_ACCOUNTS_TBL/GENERAL_LEDGER_ACCOUNTS/GL_ACCOUNT_NUMBER/text()') = 1) THEN
+        v_account_number := v_xml.EXTRACT('/ACCOUNTS_UI/GENERAL_LEDGER_ACCOUNTS_TBL/GENERAL_LEDGER_ACCOUNTS/GL_ACCOUNT_NUMBER/text()').GETSTRINGVAL();
+    END IF;
+
+    --********************************************************************************
+    -- PRGM_GL_ACCNT_RLTN_DTLS delete process 
+    --*********************************************************************************
+    WHILE v_xml.EXISTSNODE('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']') = 1 LOOP
+        v_prg_accnts_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']').GETCLOBVAL();
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_ROWTYPE_SP(v_prg_accnts_frag
+                                                      ,'PRGM_GL_ACCNT_RLTN_DTLS'
+                                                      ,v_prg_accnts_rec);
+        -- Assign account number
+        v_prg_accnts_rec.gl_ps_account_number := v_account_number;
+        IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
+            v_prg_accnts_rec.shared := 'false';
+        END IF;
+        -- DELETE from PRGM_GL_ACCNT_RLTN_DTLS 
+        v_break := 'DELETE from PRGM_GL_ACCNT_RLTN_DTLS';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_D_SP(v_prg_accnts_rec);
+        v_ps_count := v_ps_count +1;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+        v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code
+                         ,v_errm ||'GL_ACCOUNTS_PROG_UI_DELETE_SP Error Last Break Point was ' || v_break);
+
+END GL_ACCOUNTS_PROG_UI_DELETE_SP;
+
+PROCEDURE PROGRAM_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML as input Which has PROGRAM information 
+and Deletes the PROGRAM related information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL> 
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+        : 08/24/2017 axt754 -- If a Program has the accounts in relation donot delete program
+******************************************************************************/
+    in_xml          IN          CLOB)
+IS 
+    v_programs_frag     CLOB;
+    v_xml               SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prog_rec          PROGRAMS%ROWTYPE;
+    v_break             VARCHAR2(100);
+    accnts_exists_error EXCEPTION;
+    v_code              NUMBER;
+    v_errm              VARCHAR2(500);
+BEGIN
+    --********************************************************************************
+    -- Programs delete process 
+    --*********************************************************************************
+    IF v_xml.EXISTSNODE('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS') = 1 THEN
+        v_programs_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS').GETCLOBVAL();
+
+        -- call Procedure to DELETE from PROGRAMS
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PROGRAMS_ROWTYPE_SP(v_programs_frag
+                                             ,'PROGRAMS'
+                                             ,v_prog_rec);
+        -- VALIDATIONS 
+        IF (PRAGRAM_DELETE_BR_SP(v_prog_rec) > 0 ) THEN
+            raise accnts_exists_error;
+        END IF;
+        -- DELETE from PROGRAMS 
+        v_break := 'DELETE from PROGRAMS';
+        CCN_TABLE_IU_PKG.PROGRAMS_D_SP(v_prog_rec);
+    END IF;
+EXCEPTION
+    WHEN accnts_exists_error THEN 
+        v_code := errnums.en_prog_name_del_err;
+        errpkg.raise_err(v_code
+                         ,'PROGRAM_UI_DELETE_SP.accnt_exists_error '
+                         ,'Accounts Exists for program "' ||  v_prog_rec.program_name ||'" .' );
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+        v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code
+                         ,v_errm ||'PROGRAM_UI_DELETE_SP Error Last Break Point was ' || v_break);
+END PROGRAM_UI_DELETE_SP;
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML as input Which has PROGRAM information 
+and Deletes the account information given in XML, attached to program
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL> 
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388809</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388810</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+******************************************************************************/
+    in_xml          IN          CLOB)
+IS
+    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_ps_count        NUMBER := 1;
+    v_program_name    VARCHAR2(100);
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prg_accnts_frag CLOB;
+BEGIN    
+    -- GET PROGRAM NAME
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS/PROGRAM_NAME/text()') = 1) THEN
+        v_program_name := v_xml.EXTRACT('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS/PROGRAM_NAME/text()').GETSTRINGVAL();
+    END IF;
+    --********************************************************************************
+    -- PRGM_GL_ACCNT_RLTN_DTLS delete process 
+    --*********************************************************************************
+    WHILE v_xml.EXISTSNODE('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']') = 1 LOOP
+        v_prg_accnts_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']').GETCLOBVAL();
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_ROWTYPE_SP(v_prg_accnts_frag
+                                                      ,'PRGM_GL_ACCNT_RLTN_DTLS'
+                                                      ,v_prg_accnts_rec);
+        -- Assign Program Name fields
+        v_prg_accnts_rec.program_name := v_program_name;
+        IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
+            v_prg_accnts_rec.shared := 'false';
+        END IF;
+        -- DELETE from PRGM_GL_ACCNT_RLTN_DTLS
+        v_break := 'DELETE from PRGM_GL_ACCNT_RLTN_DTLS';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_D_SP(v_prg_accnts_rec);
+        v_ps_count := v_ps_count +1;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+        v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code
+                         ,v_errm ||'PROG_GL_ACCOUNTS_UI_DELETE_SP Error Last Break Point was ' || v_break);
+
+END PROG_GL_ACCOUNTS_UI_DELETE_SP;
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_UPSERT_SP(
+/******************************************************************************
+This procedure takes XML which has PROGRAM_NAME and Inserts/Updates 
+the given ACCOUNT_NUMBERS in the XML to the the PROGRAM Or Inserts/Updates 
+given PROGRAM related information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <USER_ID>axt754</USER_ID>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL> 
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388809</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388810</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
+******************************************************************************/
+    in_xml          IN          CLOB) 
+IS
+    v_programs_frag   CLOB;
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_prog_rec        PROGRAMS%ROWTYPE;
+    v_prg_accnts_frag CLOB;
+    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_ps_count        NUMBER := 1;
+    v_user_id         VARCHAR2(10) := NULL;
+BEGIN
+
+    -- GET USER ID
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/USER_ID/text()') = 1) THEN
+        v_user_id := v_xml.EXTRACT('/ACCOUNTS_UI/USER_ID/text()').GETSTRINGVAL();
+    END IF;
+
+   --********************************************************************************
+   -- Programs insert/update process 
+   --*********************************************************************************
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS') = 1) THEN
+        v_programs_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PROGRAMS_TBL/PROGRAMS').GETCLOBVAL();
+        -- call Procedure to insert/update into PROGRAMS
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PROGRAMS_ROWTYPE_SP(v_programs_frag
+                                             ,'PROGRAMS'
+                                             ,v_prog_rec);
+        -- Assign Created_by
+        v_prog_rec.created_by := v_user_id;
+        -- Insert into PROGRAMS
+        v_break := 'Insert into PROGRAMS';
+        CCN_TABLE_IU_PKG.PROGRAMS_I_SP(v_prog_rec);
+    END IF;
+
+    --********************************************************************************
+    -- PRGM_GL_ACCNT_RLTN_DTLS insert/update process 
+    --*********************************************************************************
+    WHILE v_xml.EXISTSNODE('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']') = 1 LOOP
+        v_prg_accnts_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']').GETCLOBVAL();
+        -- call Procedure to insert/update into PRGM_GL_ACCNT_RLTN_DTLS
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_ROWTYPE_SP(v_prg_accnts_frag
+                                                      ,'PRGM_GL_ACCNT_RLTN_DTLS'
+                                                      ,v_prg_accnts_rec);
+        -- Assign Created_by and Program Name fields
+        v_prg_accnts_rec.program_name := v_prog_rec.program_name;
+        v_prg_accnts_rec.created_by   := v_user_id;
+        IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
+            v_prg_accnts_rec.shared := 'false';
+        END IF;
+        -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
+        v_break := 'Insert into PRGM_GL_ACCNT_RLTN_DTLS';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(v_prg_accnts_rec);
+        v_ps_count := v_ps_count +1;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+        v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code
+                         ,v_errm ||'PROG_GL_ACCOUNTS_UI_UPSERT_SP Error Last Break Point was ' || v_break);
+END PROG_GL_ACCOUNTS_UI_UPSERT_SP;
+
+PROCEDURE GL_ACCOUNTS_PROG_UI_UPSERT_SP(
+/******************************************************************************
+This procedure takes XML which has GL_ACCOUNT_NUMBER and Inserts/Updates 
+the given PROGRAMS in the XML to the the GL_ACCOUNT_NUMBER Or Updates given GL 
+ACCOUNT information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <USER_ID>axt754</USER_ID>
+   <GENERAL_LEDGER_ACCOUNTS_TBL>
+      <GENERAL_LEDGER_ACCOUNTS>
+            <GL_ACCOUNT_NUMBER>33388809</GL_ACCOUNT_NUMBER>
+            </DESCRIPTION>
+            <PROFIT_OR_LOSS>65</PROFIT_OR_LOSS>
+            <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+            <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </GENERAL_LEDGER_ACCOUNTS>
+    </GENERAL_LEDGER_ACCOUNTS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example11</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>     
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
+        : 08/25/2017 axt754 -- No Insert of New Accounts
+******************************************************************************/
+    in_xml          IN          CLOB)
+IS
+    v_gl_accnts_frag   CLOB;
+    v_xml             SYS.XMLTYPE := XMLTYPE(in_xml);
+    v_gl_accnts_rec   GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
+    v_prg_accnts_frag  CLOB;
+    v_prg_accnts_rec  PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE;
+    v_break           VARCHAR2(100);
+    v_code            NUMBER;
+    v_errm            VARCHAR2(500);
+    v_ps_count        NUMBER := 1;
+    v_user_id         VARCHAR2(10) := NULL;
+BEGIN
+    -- GET USER ID
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/USER_ID/text()') = 1) THEN
+        v_user_id := v_xml.EXTRACT('/ACCOUNTS_UI/USER_ID/text()').GETSTRINGVAL();
+    END IF;
+
+    --********************************************************************************
+    -- general_ledger_accounts insert/update process 
+    --*********************************************************************************
+    IF (v_xml.EXISTSNODE('/ACCOUNTS_UI/GENERAL_LEDGER_ACCOUNTS_TBL/GENERAL_LEDGER_ACCOUNTS') = 1) THEN
+        v_gl_accnts_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/GENERAL_LEDGER_ACCOUNTS_TBL/GENERAL_LEDGER_ACCOUNTS').GETCLOBVAL();
+        -- call Procedure to insert/update into GENERAL_LEDGER_ACCOUNTS
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.GL_ACCOUNTS_ROWTYPE_SP(v_gl_accnts_frag
+                                                ,'GENERAL_LEDGER_ACCOUNTS'
+                                                ,v_gl_accnts_rec);
+        -- Assign Created By
+        v_gl_accnts_rec.created_by := v_user_id;
+        -- INSERT into general_ledger_accounts table
+        v_break := 'UPDATE general_ledger_accounts table ';
+        CCN_TABLE_IU_PKG.GL_ACCOUNTS_I_SP(v_gl_accnts_rec);
+    END IF;
+    --********************************************************************************
+    -- PRGM_GL_ACCNT_RLTN_DTLS insert/update process 
+    --*********************************************************************************
+    WHILE v_xml.EXISTSNODE('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']') = 1 LOOP
+        v_prg_accnts_frag        := v_xml.EXTRACT('/ACCOUNTS_UI/PRGM_GL_ACCNT_RLTN_DTLS_TBL/PRGM_GL_ACCNT_RLTN_DTLS[' ||v_ps_count|| ']').GETCLOBVAL();
+        -- call Procedure to insert/update into PRGM_GL_ACCNT_RLTN_DTLS
+        -- Convert XML to ROWTYPE
+        v_break := 'Convert XML to ROWTYPE';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_ROWTYPE_SP(v_prg_accnts_frag
+                                                      ,'PRGM_GL_ACCNT_RLTN_DTLS'
+                                                      ,v_prg_accnts_rec);
+        -- Assign Created by and account Number fields
+        v_prg_accnts_rec.gl_ps_account_number := v_gl_accnts_rec.gl_account_number;
+        v_prg_accnts_rec.created_by           := v_user_id;
+        IF NVL(v_prg_accnts_rec.shared,'X') = 'X' THEN
+            v_prg_accnts_rec.shared := 'false';
+        END IF;
+        -- Insert into PRGM_GL_ACCNT_RLTN_DTLS
+        v_break := 'Update into PRGM_GL_ACCNT_RLTN_DTLS';
+        CCN_TABLE_IU_PKG.PRGRM_GL_ACCOUNTS_I_SP(v_prg_accnts_rec);
+        v_ps_count := v_ps_count +1;
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        v_code := SQLCODE;
+        v_errm := substr(SQLERRM,1, 500);
+        errpkg.raise_err(v_code
+                        ,v_errm ||'GL_ACCOUNTS_PROG_UI_UPSERT_SP Error Last Break Point was ' || v_break);
+END GL_ACCOUNTS_PROG_UI_UPSERT_SP;
+
+PROCEDURE GL_ACCOUNTS_PROG_UI_S_SP(
+/****************************************************************************** 
+This procedures account number as input and retrives programs that were associated
+with the given account and the account information as well. 
+Created : 08/15/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+     in_accnt_nbr             IN      VARCHAR2
+     ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
+     ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR) 
+IS
+    v_gl_account_row       GENERAL_LEDGER_ACCOUNTS%ROWTYPE;
+    invalid_accnt_nbr_err  EXCEPTION;
+    v_code                 NUMBER;     
+BEGIN
+    -- Look up for the given account number in GENERAL_LEDGER_ACCOUNTS
+    BEGIN
+        SELECT *
+          INTO v_gl_account_row
+          FROM GENERAL_LEDGER_ACCOUNTS
+         WHERE GL_ACCOUNT_NUMBER =  in_accnt_nbr;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE invalid_accnt_nbr_err;
+    END;
+    CCN_TABLE_IU_PKG.GL_ACCNTS_PROG_NAME_S_SP(in_accnt_nbr
+                                              ,out_prg_accnt_refcursor);
+
+    CCN_TABLE_IU_PKG.GL_ACCOUNTS_S_SP(in_accnt_nbr
+                                      ,out_gl_accnt_refcursor);
+EXCEPTION
+    WHEN invalid_accnt_nbr_err THEN  
+        v_code := errnums.en_invalid_accnt_nbr_err;
+        errpkg.raise_err(v_code
+                         ,'GL_ACCOUNTS_PROG_UI_S_SP.invalid_accnt_nbr_err '
+                         ,'Account Number "' ||  in_accnt_nbr || '" was not found.');
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) ||' GL_ACCOUNTS_PROG_UI_UPSERT_SP Error');
+END GL_ACCOUNTS_PROG_UI_S_SP;
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_S_SP(
+/****************************************************************************** 
+This procedure program name as input and gives the accounts related to Program
+related information
+
+Created : 08/15/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+     in_prog_name             IN           VARCHAR2
+     ,out_prg_refcursor          OUT       SYS_REFCURSOR
+     ,out_prg_accnt_refcursor    OUT       SYS_REFCURSOR) 
+IS
+    v_program_row          PROGRAMS%ROWTYPE;
+    invalid_prog_name_err  EXCEPTION;
+    v_code                 NUMBER;
+BEGIN
+    -- Look up for the given Program name in PROGRAMS
+    BEGIN
+        SELECT *
+          INTO v_program_row
+          FROM PROGRAMS
+         WHERE UPPER(program_name) =  UPPER(in_prog_name);
+    EXCEPTION
+       WHEN NO_DATA_FOUND THEN
+           RAISE invalid_prog_name_err;
+    END;
+    CCN_TABLE_IU_PKG.PROG_GL_ACCOUNTS_S_SP(in_prog_name
+                                              ,out_prg_accnt_refcursor);
+
+    CCN_TABLE_IU_PKG.PROGRAMS_S_SP(in_prog_name
+                                   ,out_prg_refcursor);
+EXCEPTION
+    WHEN invalid_prog_name_err THEN  
+        v_code := errnums.en_invalid_prog_name_err;
+        errpkg.raise_err(v_code
+                         ,'PROG_GL_ACCOUNTS_UI_S_SP.invalid_prog_name_err '
+                         ,'Program Name "' ||  in_prog_name || '" was not found - Would you like to Add? ');
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) ||' PROG_GL_ACCOUNTS_UI_S_SP Error');
+END PROG_GL_ACCOUNTS_UI_S_SP;
+
+PROCEDURE PROGRAMS_UI_S_SP(
+/****************************************************************************** 
+This procedures takes program name as input and retrives the data from 
+PROGRAMS Table, if the program name is not passed then retrives all the program
+names from PROGRAMS Table
+
+Created : 08/16/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_prog_name             IN           VARCHAR2
+    ,out_prg_refcursor          OUT       SYS_REFCURSOR) 
+IS
+    v_program_count        NUMBER := 0;
+    invalid_prog_name_err  EXCEPTION;
+    v_code                 NUMBER;     
+BEGIN
+    -- Look up for the given Program name in PROGRAMS
+    SELECT COUNT(*)
+      INTO v_program_count
+      FROM PROGRAMS
+     WHERE UPPER(program_name) =  UPPER(NVL(in_prog_name,program_name));
+
+    IF v_program_count = 0 THEN 
+        RAISE invalid_prog_name_err;   
+    END IF;  
+    CCN_TABLE_IU_PKG.PROGRAMS_S_SP(in_prog_name
+                                   ,out_prg_refcursor);
+EXCEPTION
+    WHEN invalid_prog_name_err THEN  
+         v_code := errnums.en_invalid_prog_name_err;
+         errpkg.raise_err(v_code
+                          ,'PROGRAMS_UI_S_SP.invalid_prog_name_err '
+                          ,'Program Name "' ||  in_prog_name || '" was not found - Would you like to Add? ');
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) ||' PROGRAMS_UI_SP Error');
+END PROGRAMS_UI_S_SP;
+
+PROCEDURE GL_ACCOUNTS_UI_S_SP(
+/****************************************************************************** 
+This procedures takes GL_ACCOUNT_NUMBER as input and retrives the data from 
+GENERAL_LEDGER_ACCOUNTS Table, if the GL_ACCOUNT_NUMBER is not passed then retrives all the accounts
+from GENERAL_LEDGER_ACCOUNTS Table
+
+Created : 08/16/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_accnt_nbr             IN           VARCHAR2
+    ,out_gl_accnt_refcursor     OUT       SYS_REFCURSOR) 
+IS
+    v_gl_account_count     NUMBER := 0;
+    invalid_accnt_nbr_err  EXCEPTION;
+    v_code                 NUMBER;      
+BEGIN
+    -- Look up for the given account number in GENERAL_LEDGER_ACCOUNTS
+    SELECT COUNT(*)
+      INTO v_gl_account_count
+      FROM GENERAL_LEDGER_ACCOUNTS
+     WHERE GL_ACCOUNT_NUMBER =  NVL(in_accnt_nbr, GL_ACCOUNT_NUMBER);
+    IF v_gl_account_count = 0 THEN 
+       RAISE invalid_accnt_nbr_err;    
+    END IF; 
+    CCN_TABLE_IU_PKG.GL_ACCOUNTS_S_SP(in_accnt_nbr
+                                      ,out_gl_accnt_refcursor);
+EXCEPTION
+    WHEN invalid_accnt_nbr_err THEN  
+         v_code := errnums.en_invalid_accnt_nbr_err;
+         errpkg.raise_err(v_code
+                          ,'GL_ACCOUNTS_UI_S_SP.invalid_accnt_nbr_err '
+                          ,'Account Number "' ||  in_accnt_nbr || '" was not found.');
+    WHEN OTHERS THEN
+        errpkg.raise_err(SQLCODE, SUBSTR(SQLERRM, 1, 500) ||' GL_ACCOUNTS_UI_SP Error');
+END GL_ACCOUNTS_UI_S_SP;
+
 FUNCTION CHECK_DATA_AVALBLTY_IN_TABLE(
 IN_TABLE_NAME    IN VARCHAR2)
 RETURN NUMBER
@@ -9,8 +616,8 @@ IS
 BEGIN
     EXECUTE IMMEDIATE
       'BEGIN
-           SELECT COUNT(*) 
-             INTO :1 
+           SELECT COUNT(*)
+             INTO :1
              FROM ' || IN_TABLE_NAME || ';
      END;'
   USING OUT V_RETURN_VALUE;
@@ -18,16 +625,17 @@ BEGIN
   RETURN V_RETURN_VALUE;
 END CHECK_DATA_AVALBLTY_IN_TABLE;
 
-PROCEDURE GENERATE_PRIMESUB_DETAILS_RPT 
-/**********************************************************
+PROCEDURE GENERATE_PRIMESUB_DETAILS_RPT
+/******************************************************************************
 This procedure is intended to generate an PrimeSub details and email it to Pat team.
 
 Filters:
 Created : 08/16/2018 kxm302 CCN project Team....
-**********************************************************/
+        : 10/11/2018 kxm302 Added description column for the PRGM_GL_ACCNT_RLTN_DTLS
+******************************************************************************/
 IS
     PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
-    FILENAME                    VARCHAR2(50) := 'CCN_PRIMESUB_DETAILS' || '_'|| TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx'; 
+    FILENAME                    VARCHAR2(50) := 'CCN_PRIMESUB_DETAILS' || '_'|| TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx';
 
 BEGIN
      --Below condition is used to fetch the count of the records in order invoke the spreadsheet proc
@@ -35,13 +643,13 @@ BEGIN
         --Creating first sheet of the excel - PRGM_GL_ACCNT_RLTN_DTLS
          CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT PRGM.GL_PS_ACCOUNT_NUMBER,
                                                  GL.DESCRIPTION,
-                                                 PRGM.PROGRAM_NAME, 
+                                                 PRGM.PROGRAM_NAME,
                                                  PRGM.SORTED_SEQUENCE,
                                                  PRGM.SHARED,
                                                  PRGM.EFFECTIVE_DATE,
                                                  PRGM.CREATED_BY,
-                                                 PRGM.EXPIRATION_DATE       
-                                          FROM PRGM_GL_ACCNT_RLTN_DTLS PRGM ,
+                                                 PRGM.EXPIRATION_DATE
+                                          FROM PRGM_GL_ACCNT_RLTN_DTLS PRGM,
                                                GENERAL_LEDGER_ACCOUNTS GL
                                           WHERE PRGM.GL_PS_ACCOUNT_NUMBER=GL.GL_ACCOUNT_NUMBER
                                           ORDER BY PRGM.GL_PS_ACCOUNT_NUMBER,PRGM.PROGRAM_NAME', TRUE, NULL, NULL, NULL, 'PrimeSubs');
@@ -55,13 +663,13 @@ BEGIN
       IF CHECK_DATA_AVALBLTY_IN_TABLE('PROGRAMS') > 0 THEN
          --Creating next sheet of the excel - PROGRAMS
          CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT * FROM PROGRAMS ORDER BY PROGRAM_NAME', TRUE, NULL, NULL, NULL, 'Program');
-      END IF; 
-      
+      END IF;
+
       --Creating the final excel based on the path and file name provided
       --NOTE: The clob is built in the package "CCN_SPREADSHEET_PKG" which will be used by the below call
       CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
-      --Below procedure will send the excel file as attachment through email based on the mail category 
-      MAIL_PKG.SEND_MAIL('CCN_PRIMESUB_DETAILS'); 
+      --Below procedure will send the excel file as attachment through email based on the mail category
+      MAIL_PKG.SEND_MAIL('CCN_PRIMESUB_DETAILS');
 EXCEPTION
    WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(-20999, 'CCN_PRIMESUB_PKG.GENERATE_PRIMESUB_DETAIL_FILE','GENERATE PRIME SUB DETAILS REPORTING FAILED AT '||SQLCODE||' : '|| SQLERRM);
