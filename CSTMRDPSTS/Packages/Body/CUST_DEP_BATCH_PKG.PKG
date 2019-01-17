@@ -6,121 +6,6 @@ job table
 created : 09/27/2017 sxh487 CCN project
 revisions: 
 ************************************************************/
-  
-PROCEDURE INSERT_BATCH_JOB (
-/**********************************************************
-INSERT_BATCH_JOB
-
-This procedure is intended to insert a record in the Batch_Job
-table with the details related to the batch run
-created : 09/27/2017 sxh487 CCN project
-**********************************************************/
-    IN_BATCH_JOB_NAME      IN  BATCH_JOB.BATCH_JOB_NAME%TYPE,
-    OUT_BATCH_NUMBER       OUT BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
-    IN_SERVER_NAME         IN  BATCH_JOB.SERVER_NAME%TYPE DEFAULT NULL,
-    IN_LOG_FILE            IN  BATCH_JOB.LOG_FILE%TYPE DEFAULT NULL
- )
-IS
-
-V_CONTEXT	    VARCHAR2(200);
-SQ		    INTEGER;
-SE		    VARCHAR2(1000);
-
-BEGIN
-  INSERT
-  INTO BATCH_JOB
-    (
-      BATCH_JOB_NAME,
-      BATCH_JOB_NUMBER,
-      BATCH_JOB_STATUS,
-      BATCH_JOB_START_DATE,
-      BATCH_JOB_END_DATE,
-      BATCH_JOB_LAST_RUN_DATE,
-      TRANS_STATUS,
-      SERVER_NAME,
-      LOG_FILE
-    )
-    VALUES
-    (
-      IN_BATCH_JOB_NAME,
-      BATCH_JOB_NUMBER_SEQ.NEXTVAL,
-      'PROCESSING',
-      SYSDATE,
-      NULL,
-      NULL,
-      NULL,
-      IN_SERVER_NAME,
-      IN_LOG_FILE
-    ) RETURNING BATCH_JOB_NUMBER INTO OUT_BATCH_NUMBER;
-
-END INSERT_BATCH_JOB;
-
-PROCEDURE UPDATE_BATCH_JOB(
-/**********************************************************
-UPDATE_BATCH_JOB
-
-This procedure is intended to update the record in the Batch_Job
-table with the Status of - IN_PROCESSING, COMPLETED OR ERROR
-created : 09/27/2017 sxh487 CCN project
-**********************************************************/
-    IN_BATCH_JOB_NAME      IN BATCH_JOB.BATCH_JOB_NAME%TYPE,
-    IN_BATCH_JOB_NUMBER    IN BATCH_JOB.BATCH_JOB_NUMBER%TYPE,
-    IN_TRANS_STATUS        IN BATCH_JOB.TRANS_STATUS%TYPE
-                          )
-IS
-
-V_CONTEXT	VARCHAR2(200);
-SQ		INTEGER;
-SE		VARCHAR2(1000);
-
-BEGIN
-      UPDATE BATCH_JOB
-         SET BATCH_JOB_STATUS = 'COMPLETED',
-             TRANS_STATUS = IN_TRANS_STATUS,
-             BATCH_JOB_END_DATE  =  SYSDATE,
-             BATCH_JOB_LAST_RUN_DATE = SYSDATE
-       WHERE BATCH_JOB_NAME      =  IN_BATCH_JOB_NAME
-         AND BATCH_JOB_NUMBER    =  IN_BATCH_JOB_NUMBER;
-        
-END UPDATE_BATCH_JOB;
-
-PROCEDURE LOCK_DATABASE_SP
-/*****************************************************************************
-Name:    : LOCK_DATABASE_SP
-Created  : 01/15/2019 sxg151 CCN Team....
-Modified :
-******************************************************************************/
-IS
-
-PRAGMA AUTONOMOUS_TRANSACTION;
-
-BEGIN
-    UPDATE ROLE_DETAILS
-       SET INSERT_FLAG = 'Y',
-           UPDATE_FLAG = 'Y'
-     WHERE ROLE_CODE = 'batusr';
-
-    COMMIT;
-END LOCK_DATABASE_SP;
-
-PROCEDURE UNLOCK_DATABASE_SP
-/*****************************************************************************
-Name:    : UNLOCK_DATABASE_SP
-Created  : 01/15/2019 sxg151 CCN Team....
-Modified :
-******************************************************************************/
-IS
-
-PRAGMA AUTONOMOUS_TRANSACTION;
-
-BEGIN
-    UPDATE ROLE_DETAILS
-       SET INSERT_FLAG = 'N',
-           UPDATE_FLAG = 'N'
-     WHERE ROLE_CODE = 'batusr';
-
-    COMMIT;
-END UNLOCK_DATABASE_SP;
 
 PROCEDURE DAILY_NET_BAL_CLOSE_DATE_UPD
 /******************************************************************************
@@ -134,20 +19,20 @@ IS
     V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_CUSTOMER_NET_BALANCE            CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_NET_BALANCE%TYPE;
-
+    
     CURSOR main_cursor IS
         SELECT DISTINCT CUSTOMER_ACCOUNT_NUMBER,
-                        TRANSACTION_DATE
-                   FROM CUSTOMER_DEPOSIT_DETAILS a
-      WHERE CUSTOMER_NET_BALANCE = 0
-        AND CLOSED_DATE IS NULL
-        AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
-                                FROM CUSTOMER_DEPOSIT_DETAILS b
-                               WHERE b.CUSTOMER_ACCOUNT_NUMBER = a.CUSTOMER_ACCOUNT_NUMBER);
+               TRANSACTION_DATE
+          FROM CUSTOMER_DEPOSIT_DETAILS a
+         WHERE CUSTOMER_NET_BALANCE = 0
+           AND CLOSED_DATE IS NULL
+           AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
+                                   FROM CUSTOMER_DEPOSIT_DETAILS b
+                                  WHERE b.CUSTOMER_ACCOUNT_NUMBER = a.CUSTOMER_ACCOUNT_NUMBER);
 BEGIN
 
-    INSERT_BATCH_JOB('NET_BAL_CLOSE_DT_UPD',V_BATCH_NUMBER);
-    LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    CCN_BATCH_PKG.INSERT_BATCH_JOB('NET_BAL_CLOSE_DT_UPD',V_BATCH_NUMBER);
+    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
     FOR rec IN main_cursor LOOP
         UPDATE CUSTOMER_DEPOSIT_DETAILS
@@ -155,8 +40,8 @@ BEGIN
                NOTES       = NVL(NOTES,'UPDATED BY BATCH JOB')
          WHERE CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER;
     END LOOP;
-    UPDATE_BATCH_JOB('NET_BAL_CLOSE_DT_UPD', V_BATCH_NUMBER, V_TRANS_STATUS);
-    UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('NET_BAL_CLOSE_DT_UPD', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
     WHEN OTHERS THEN
         V_TRANS_STATUS := 'ERROR';
@@ -167,8 +52,8 @@ EXCEPTION
                                          '000000000',
                                          'CUSTOMER_DEPOSIT_DETAILS');
 
-    UPDATE_BATCH_JOB('NET_BAL_CLOSE_DT_UPD', V_BATCH_NUMBER, V_TRANS_STATUS);
-    UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+    CCN_BATCH_PKG.UPDATE_BATCH_JOB('NET_BAL_CLOSE_DT_UPD', V_BATCH_NUMBER, V_TRANS_STATUS);
+    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 END DAILY_NET_BAL_CLOSE_DATE_UPD;
 
 END CUST_DEP_BATCH_PKG;
