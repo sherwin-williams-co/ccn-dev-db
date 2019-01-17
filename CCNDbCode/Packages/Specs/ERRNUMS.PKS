@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999Â¿.
+An error occurs when Amex ID is = `999999999¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `yÂ¿.
+An error occurs when inventory_id not = `y¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
+An error occurs when Polling_Ind not = `Y¿ or `N¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -3276,5 +3276,15 @@ created : 01/10/2019 jc/pxm158 ASP - 1192 CCN Project Team...
 en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
 exc_invalid_qa_terr_nbr_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
+
+/***********************************************************
+The "en_territory_cc_open_date_err" passes a numerical error of -20220.
+This error occurs when open date not populated for Territory cost center.
+
+created : 01/16/2019 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
+exc_open_date_req_terri_cc_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
 END ERRNUMS;
