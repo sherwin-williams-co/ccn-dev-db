@@ -1,5 +1,7 @@
 /*********************************************************************************
    This script is for inserting data provided by Marissa
+   Create the new table with the name CD_MARY_04JAN2019 before running this script.Import the data into this table from
+   the Excel provided by Marissa
    
    created : 01/04/2019  pxa852 CCN Project
 *********************************************************************************/
