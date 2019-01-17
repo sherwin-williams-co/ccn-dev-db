@@ -652,16 +652,4 @@ created : mxs216 on 11/14/2018, ASP-1158
 ******************************************************************************/
  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
 
-PROCEDURE CHECK_TERRITORY_CC_OPEN_DT (
-/*****************************************************************************
-    This function is intended to enforce the business rule in CCN
-    for territory category cost centers to always have open_date populated.
-
-    1.)  Check if cost center Category = 'T' and OPEN_DATE is null, if Yes through error.
-
- created : mxs216 on 01/16/2019, ASP-1198 CCN Project Team....
-Modified :
-******************************************************************************/
-    IN_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE);
-
 END CCN_BUSINESS_RULES_PKG;
