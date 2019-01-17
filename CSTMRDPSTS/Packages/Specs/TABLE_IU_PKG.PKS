@@ -4,13 +4,7 @@ create or replace PACKAGE TABLE_IU_PKG
 /******************************************************************************
 This package is intended to control access to the core customer_deposit_details table.
 
-created  : 02/27/2018 sxh487 -- ccn coding project
-Modified : 01/15/2019 pxa852 CCN Project Team...
-           Removed following process from this package
-           customer deposit detail update process
-           customer deposit detail history records creation process
-           Customer deposit credit details insert process
-           Customer deposit redemption detail insert process
+created : 02/27/2018 sxh487 -- ccn coding project
 *******************************************************************************/
 TYPE ref_cursor IS REF CURSOR;
 TYPE CUST_DETAILS_TAB_TYPE IS TABLE OF CUSTOMER_DEPOSIT_DETAILS%ROWTYPE INDEX BY BINARY_INTEGER;
@@ -72,6 +66,15 @@ Changed :
 *******************************************************************************/
     IN_ROW IN     CUSTOMER_DEPOSIT_HEADER%ROWTYPE);
 
+PROCEDURE CUSTOMER_DEPOSIT_DETAILS_U_SP (
+/*******************************************************************************
+    This procedure is intended to updates records in CUSTOMER_DEPOSIT_DETAILS table
+
+Created : 04/23/2018 sxh487
+Changed :
+*******************************************************************************/
+    IN_ROW IN     CUSTOMER_DEPOSIT_DETAILS%ROWTYPE);
+
 PROCEDURE CUST_DEPOSIT_HDR_HIST_I_SP (
 /*******************************************************************************
     This procedure is intended to insert records into CUSTOMER_DEPOSIT_HEADER_HST table
@@ -93,16 +96,29 @@ changed :
     IN_ROW   IN     CUSTOMER_DEPOSIT_HEADER%ROWTYPE
 );
 
-PROCEDURE CUST_DEPOSIT_CRD_RED_I_SP(
+PROCEDURE CUST_DEPOSIT_CREDIT_I_SP(
 /*******************************************************************************
-CUST_DEPOSIT_CRD_RED_I_SP
+CUST_DEPOSIT_CREDIT_I_SP
 
-This procedure is intended to insert new customer_deposit_details records
-created : 01/11/2019 SXH487 -- ccn project
+This procedure is intended to insert into  CUST_DEP_CREDIT_DETAILS
+created : 02/27/2018 SXH487 -- ccn project
 changed :
 
 *******************************************************************************/
-    IN_CUST_DEP_CRD_RED_DET_rec   IN     CUST_DEP_CRD_RED_DETAILS%ROWTYPE);
+    IN_CUST_DEP_CREDIT_rec   IN     CUST_DEP_CREDIT_DETAILS%ROWTYPE
+);
+
+PROCEDURE CUST_DEPOSIT_REDEMPTION_I_SP(
+/*******************************************************************************
+CUST_DEPOSIT_REDEMPTION_I_SP
+
+This procedure is intended to insert into  CUST_DEP_REDEMPTION_DETAILS
+created : 02/27/2018 SXH487 -- ccn project
+changed :
+
+*******************************************************************************/
+    IN_CUST_DEP_REDEMPTION_rec   IN     CUST_DEP_REDEMPTION_DETAILS%ROWTYPE
+);
 
 PROCEDURE CUST_DEP_DET_I_SP(
 /*******************************************************************************
@@ -115,5 +131,32 @@ changed :
 *******************************************************************************/
     IN_CUST_DEPOSIT_DETAILS_rec   IN     CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
 );
+
+PROCEDURE CUST_DEP_DET_HST_I_SP (
+/*******************************************************************************
+ This procedure is intended to insert records into CUSTOMER_DEPOSIT_DETAILS_HIST table
+created : 02/27/2018 SXH487 -- ccn project
+changed :
+*******************************************************************************/
+    IN_ROW    IN     CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE
+);
+
+PROCEDURE CUST_DEPOSIT_CREDIT_U_SP (
+/*******************************************************************************
+    This procedure is intended to updates records in CUS_DEP_CREDIT_DETAILS table
+
+Created : 01/16/2019 pxa852/sxh487 CCN Project Team
+Changed :
+*******************************************************************************/
+    IN_ROW IN     CUST_DEP_CREDIT_DETAILS%ROWTYPE);
+
+PROCEDURE CUST_DEPOSIT_REDEMPTION_U_SP (
+/*******************************************************************************
+    This procedure is intended to updates records in CUST_DEP_REDEMPTION_DETAILS table
+
+Created : 01/16/2019 pxa852/sxh487 CCN Project team
+Changed :
+*******************************************************************************/
+    IN_ROW IN     CUST_DEP_REDEMPTION_DETAILS%ROWTYPE);
 
 END TABLE_IU_PKG;

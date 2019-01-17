@@ -1,7 +1,7 @@
 /*********************************************************************************
    This script is for inserting data provided by Marissa
    
-   created : 01/04/2019  sxg151 CCN Project
+   created : 01/04/2019  pxa852 CCN Project
 *********************************************************************************/
 DECLARE
 --variable declaration
@@ -24,21 +24,18 @@ DECLARE
         AND a.COST_CENTER_CODE        = b.COST_CENTER_CODE
         AND a.TRANSACTION_DATE        = b.TRANSACTION_DATE
         AND a.TERMINAL_NUMBER         = b.TERMINAL_NUMBER
-        AND a.TRANSACTION_NUMBER      = b.TRANSACTION_NUMBER;
+        AND a.TRANSACTION_NUMBER      = b.TRANSACTION_NUMBER
+      ORDER BY b.CUSTOMER_ACCOUNT_NUMBER, b.TRAN_TIMESTAMP;
 
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
-   V_CREDIT_ROW     CUST_DEP_CREDIT_DETAILS%ROWTYPE;
-   V_REDEMPTION_ROW CUST_DEP_REDEMPTION_DETAILS%ROWTYPE;
    V_COMMIT         NUMBER := 0;
    V_CUM_AMT        NUMBER := 0;
-   V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE;
-   V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE;
-   V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE;
    V_LOAD_DATE      DATE := SYSDATE;
 BEGIN
    FOR REC IN TEMP_CUR LOOP
       BEGIN
+
          V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT :=   -1 * REC.CSTMR_DPST_SALES_LN_ITM_AMT;
          DBMS_OUTPUT.PUT_LINE(V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT);
          V_TEMP_ROW.COST_CENTER_CODE            :=   REC.COST_CENTER_CODE;
@@ -55,12 +52,12 @@ BEGIN
                                                     ELSE
                                                         V_CUM_AMT
                                                     END)  + V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
-        DBMS_OUTPUT.PUT_LINE(V_CUM_AMT);
          V_TEMP_ROW.CUSTOMER_NET_BALANCE        :=  V_CUM_AMT;
          V_TEMP_ROW.GL_DIVISION                 :=  REC.GL_DIVISION;
          V_TEMP_ROW.RLS_RUN_CYCLE               :=  REC.RLS_RUN_CYCLE;
          V_TEMP_ROW.LOAD_DATE                   :=  V_LOAD_DATE;
-         V_TEMP_ROW.TRANSACTION_SQ_ID           := TRANSACTION_SQ_ID.NEXTVAL;
+         V_TEMP_ROW.TRANSACTION_SQ_ID           :=  TRANSACTION_SQ_ID.NEXTVAL;
+         V_TEMP_ROW.NOTES                       := 'Offset of original transaction number';
 
          TABLE_IU_PKG.CUST_DEP_DET_I_SP(V_TEMP_ROW);
 
