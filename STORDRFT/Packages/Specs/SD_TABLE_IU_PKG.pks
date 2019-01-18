@@ -623,7 +623,7 @@ PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(
 /**********************************************************
 This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table. 
 
-reated : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/
     IN_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW     IN           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE);    
@@ -643,7 +643,7 @@ PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_I_SP(
 /**********************************************************
 This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
 
-reated : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/
     IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);    
