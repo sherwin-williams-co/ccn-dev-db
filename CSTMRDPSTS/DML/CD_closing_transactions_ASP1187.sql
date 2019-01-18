@@ -4,6 +4,11 @@
    the Excel provided by Marissa
    created : 01/04/2019  pxa852 CCN Project
 *********************************************************************************/
+/*********************************************************************************
+   This script is for inserting data provided by Marissa
+
+   created : 01/04/2019  pxa852 CCN Project
+*********************************************************************************/
 DECLARE
 --variable declaration
    CURSOR TEMP_CUR IS
@@ -26,7 +31,7 @@ DECLARE
         AND a.TRANSACTION_DATE        = b.TRANSACTION_DATE
         AND a.TERMINAL_NUMBER         = b.TERMINAL_NUMBER
         AND a.TRANSACTION_NUMBER      = b.TRANSACTION_NUMBER
-      ORDER BY b.CUSTOMER_ACCOUNT_NUMBER, b.TRAN_TIMESTAMP;
+      ORDER BY a.TRAN_TIMESTAMP ;
 
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
@@ -36,16 +41,15 @@ DECLARE
 BEGIN
    FOR REC IN TEMP_CUR LOOP
       BEGIN
-
          V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT :=   -1 * REC.CSTMR_DPST_SALES_LN_ITM_AMT;
          V_TEMP_ROW.COST_CENTER_CODE            :=   REC.COST_CENTER_CODE;
-         V_TEMP_ROW.TRANSACTION_DATE            :=   TRUNC(SYSDATE);
+         V_TEMP_ROW.TRANSACTION_DATE            :=   REC.TRANSACTION_DATE + INTERVAL '1' SECOND;
          V_TEMP_ROW.TERMINAL_NUMBER             :=   REC.TERMINAL_NUMBER;
          V_TEMP_ROW.TRANSACTION_NUMBER          :=   REC.TRANSACTION_NUMBER;
          V_TEMP_ROW.TRANSACTION_GUID            :=   REC.TRANSACTION_GUID;
          V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER     :=   REC.CUSTOMER_ACCOUNT_NUMBER;
          V_TEMP_ROW.POS_TRANSACTION_CODE        :=   REC.POS_TRANSACTION_CODE;
-         V_TEMP_ROW.TRAN_TIMESTAMP              :=   SYSTIMESTAMP;
+         V_TEMP_ROW.TRAN_TIMESTAMP              :=   REC.TRAN_TIMESTAMP;
          V_TEMP_ROW.TRANSACTION_TYPE            :=   'MANUAL';
          V_CUM_AMT                             :=  (CASE WHEN REC.RNUM = 1 THEN
                                                        COMMON_TOOLS.FNC_GET_LATEST_CUM_AMT(REC.CUSTOMER_ACCOUNT_NUMBER)

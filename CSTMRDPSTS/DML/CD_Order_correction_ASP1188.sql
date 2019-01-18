@@ -11,11 +11,13 @@ DECLARE
              TERMINAL_NUMBER,
              TRANSACTION_NUMBER,
              CUSTOMER_ACCOUNT_NUMBER,
+             TRANSACTION_GUID,
+             RLS_RUN_CYCLE,
              TRAN_TIMESTAMP,
              CSTMR_DPST_SALES_LN_ITM_AMT,
              ROW_NUMBER() OVER (PARTITION BY CUSTOMER_ACCOUNT_NUMBER ORDER BY  TRAN_TIMESTAMP, TERMINAL_NUMBER) AS RNUM
         FROM CUSTOMER_DEPOSIT_DETAILS
-          ORDER BY CUSTOMER_ACCOUNT_NUMBER,TRAN_TIMESTAMP;
+        ORDER BY TRANSACTION_DATE;
 
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
@@ -27,6 +29,45 @@ DECLARE
    V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE;
    V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE;
    V_LOAD_DATE      DATE := SYSDATE;
+
+PROCEDURE OFFSET_ORIG_DEP_REM_BAL_UPD(
+/**********************************************************
+This function updates the original references for a Redemption
+and updates the Deposit with remaining balance
+
+Created :
+Changed :
+**********************************************************/
+    IN_CSTMR_DPST_SALES_LN_ITM_AMT IN      CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE,
+    IN_CUSTOMER_ACCOUNT_NUMBER     IN      CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
+    IN_TRANSACTION_DATE            IN      CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE,
+    IN_TRAN_TIMESTAMP              IN      CUSTOMER_DEPOSIT_DETAILS.TRAN_TIMESTAMP%TYPE,
+    OUT_TRANSACTION_NUMBER            OUT  CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE,
+    OUT_TERMINAL_NUMBER               OUT  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
+    OUT_TRANSACTION_DATE              OUT  CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
+)
+IS
+    CURSOR ALL_DEPS IS
+        SELECT a.*, rowid, count(*) over () TOT_DEP_CNT
+          FROM CUST_DEP_CREDIT_DETAILS a
+         WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+           AND TRANSACTION_DATE <= IN_TRANSACTION_DATE
+           AND DEPOSIT_REMAINING_BAL > 0
+           AND TRAN_TIMESTAMP   = IN_TRAN_TIMESTAMP
+           AND ROWNUM < 2;
+BEGIN
+    FOR each_dep IN ALL_DEPS LOOP
+        OUT_TRANSACTION_NUMBER := each_dep.TRANSACTION_NUMBER;
+        OUT_TERMINAL_NUMBER    := each_dep.TERMINAL_NUMBER;
+        OUT_TRANSACTION_DATE   := each_dep.TRANSACTION_DATE;
+        dbms_output.put_line(IN_TRAN_TIMESTAMP);
+       dbms_output.put_line(each_dep.TRANSACTION_NUMBER);
+       dbms_output.put_line(each_dep.TRAN_TIMESTAMP);
+        UPDATE CUST_DEP_CREDIT_DETAILS
+           SET DEPOSIT_REMAINING_BAL = 0
+          WHERE ROWID = each_dep.rowid;
+    END LOOP;
+END OFFSET_ORIG_DEP_REM_BAL_UPD;
 BEGIN
    FOR REC IN TEMP_CUR LOOP
       BEGIN
@@ -75,7 +116,22 @@ BEGIN
             END LOOP;
 
          ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
-               CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD( V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE, V_ORIG_DEP_NBR, V_ORIG_TERM_NBR, V_ORIG_TRAN_DATE);
+               OFFSET_ORIG_DEP_REM_BAL_UPD(V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT,
+                                                                rec.CUSTOMER_ACCOUNT_NUMBER,
+                                                                REC.TRANSACTION_DATE,
+                                                                REC.TRAN_TIMESTAMP,
+                                                                V_ORIG_DEP_NBR,
+                                                                V_ORIG_TERM_NBR,
+                                                                V_ORIG_TRAN_DATE);
+
+               IF V_ORIG_DEP_NBR IS NULL THEN
+                   CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(COMMON_TOOLS.GET_CSTMR_DPST_SALES_LN_ITM_AMT(rec.CUSTOMER_ACCOUNT_NUMBER, rec.COST_CENTER_CODE,rec.TRANSACTION_NUMBER,rec.TERMINAL_NUMBER,rec.TRANSACTION_DATE),
+                                                                rec.CUSTOMER_ACCOUNT_NUMBER,
+                                                                rec.TRANSACTION_DATE,
+                                                                V_ORIG_DEP_NBR,
+                                                                V_ORIG_TERM_NBR,
+                                                                V_ORIG_TRAN_DATE);
+               END IF;
                V_REDEMPTION_ROW.REDEMPTION_ID                  := SEQ_REDEMPTION_ID.nextval;
                V_REDEMPTION_ROW.COST_CENTER_CODE               := V_TEMP_ROW.COST_CENTER_CODE;
                V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER        := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
@@ -92,7 +148,7 @@ BEGIN
          ELSE
            NULL;
          END IF;
-         
+
          V_TEMP_ROW := NULL;
          V_COMMIT := V_COMMIT + 1;
          IF V_COMMIT > 500 THEN

@@ -464,23 +464,7 @@ BEGIN
             V_CREDIT_ROW.LOAD_DATE                := V_LOAD_DATE;
             
             TABLE_IU_PKG.CUST_DEPOSIT_CREDIT_I_SP(V_CREDIT_ROW);
-            FOR rec1 IN (SELECT *
-                           FROM CUST_DEP_REDEMPTION_DETAILS
-                          WHERE CUSTOMER_ACCOUNT_NUMBER = V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER
-                            AND TRANSACTION_DATE <= V_CREDIT_ROW.TRANSACTION_DATE
-                            AND ORGNL_DEPOSIT_TERMINAL_NBR IS NULL
-                          ORDER BY TRAN_TIMESTAMP) LOOP
-                CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(COMMON_TOOLS.GET_CSTMR_DPST_SALES_LN_ITM_AMT(rec1.CUSTOMER_ACCOUNT_NUMBER, rec1.COST_CENTER_CODE,rec1.TRANSACTION_NUMBER,rec1.TERMINAL_NUMBER,rec1.TRANSACTION_DATE),
-                                                                rec1.CUSTOMER_ACCOUNT_NUMBER,
-                                                                V_CREDIT_ROW.TRANSACTION_DATE,
-                                                                V_ORIG_DEP_NBR,
-                                                                V_ORIG_TERM_NBR,
-                                                                V_ORIG_TRAN_DATE);
-                rec1.ORGNL_DEPOSIT_TRANSACTION_NBR    := V_ORIG_DEP_NBR;
-                rec1.ORGNL_DEPOSIT_TERMINAL_NBR       := V_ORIG_TERM_NBR;
-                rec1.ORGNL_DEPOSIT_TRANSACTION_DATE   := V_ORIG_TRAN_DATE;
-                TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(rec1);
-            END LOOP;
+            CUST_DEP_RED_ORIGINAL_DTLS_UPD(V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER,V_CREDIT_ROW.TRANSACTION_DATE);
          ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
                CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD( V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE, V_ORIG_DEP_NBR, V_ORIG_TERM_NBR, V_ORIG_TRAN_DATE);
                V_REDEMPTION_ROW.REDEMPTION_ID            := SEQ_REDEMPTION_ID.nextval;
@@ -537,9 +521,6 @@ This procedure is a wrapper for the daily load of the customer deposit tables
 
 created : 09/08/2017 sxh487 ccn project....
 changed : 02/06/2018 sxh487 Added the Header load
-changed : 01/17/2019 sxg151 CCN project...
-        : ASP-1187 Replaced CUST_DEP_BATCH_PKG.INSERT_BATCH_JOB/UPDATE_BATCH_JOB To CCN_BATCH_PKG.INSERT_BATCH_JOB/UPDATE_BATCH_JOB
-          Added CCN_BATCH_PKG.LOCK_DATABASE_SP(),CCN_BATCH_PKG.UNLOCK_DATABASE_SP()
 ******************************************************************/
 AS
    V_CONTEXT    VARCHAR2(200);
@@ -548,8 +529,7 @@ AS
    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
    V_RLS_RUN_CYCLE     POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE;
 BEGIN
-     CCN_BATCH_PKG.INSERT_BATCH_JOB('CUS_DEP_DLY_LOAD_SP', V_BATCH_NUMBER);
-     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+     CUST_DEP_BATCH_PKG.INSERT_BATCH_JOB('CUS_DEP_DLY_LOAD_SP', V_BATCH_NUMBER);
      V_RLS_RUN_CYCLE := COMMON_TOOLS.GET_CURR_RUNCYCLE;
      --load data from pnp to customer deposits intermediate tables
      V_START_TIME := DBMS_UTILITY.GET_TIME;
@@ -582,9 +562,8 @@ BEGIN
      V_CONTEXT := 'Load CUSTOMER_DEPOSIT_DETAILS Table ';
      LOAD_CUSTOMER_DEPOSIT_DETAILS(V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.PUT_LINE('CUSTOMER_DEPOSIT_DETAILS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-	 
-     CCN_BATCH_PKG.UPDATE_BATCH_JOB('CUS_DEP_DLY_LOAD_SP', V_BATCH_NUMBER, V_TRANS_STATUS);
-     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
+
+     CUST_DEP_BATCH_PKG.UPDATE_BATCH_JOB('CUS_DEP_DLY_LOAD_SP', V_BATCH_NUMBER, V_TRANS_STATUS);
 EXCEPTION
    WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
@@ -594,5 +573,54 @@ EXCEPTION
                                     '000000000',
                                     '000000000');
 END CSTMR_DEPOSIT_DLY_LOAD_SP;
+
+PROCEDURE CUST_DEP_RED_ORIGINAL_DTLS_UPD(
+/*****************************************************************************
+This procedure will find if there are any Redemptions with out deposits then tie back that redemption to the deposit.
+
+created : 01/17/2019 pxa852 ccn project....
+changed :
+******************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER IN CUST_DEP_REDEMPTION_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
+IN_TRANSACTION_DATE        IN CUST_DEP_REDEMPTION_DETAILS.TRANSACTION_DATE%TYPE)
+IS
+
+--variable declaration
+V_DATE                       DATE := TRUNC(SYSDATE);
+
+   CURSOR TEMP_CUR IS
+      SELECT *
+        FROM CUST_DEP_REDEMPTION_DETAILS
+       WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+         AND TRANSACTION_DATE        <= IN_TRANSACTION_DATE
+         AND ORGNL_DEPOSIT_TERMINAL_NBR IS NULL
+       ORDER BY TRAN_TIMESTAMP;
+   --variable declaration
+   V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE;
+   V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE;
+   V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE;
+BEGIN
+     FOR rec IN TEMP_CUR LOOP
+         CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(COMMON_TOOLS.GET_CSTMR_DPST_SALES_LN_ITM_AMT(rec.CUSTOMER_ACCOUNT_NUMBER, rec.COST_CENTER_CODE,rec.TRANSACTION_NUMBER,rec.TERMINAL_NUMBER,rec.TRANSACTION_DATE),
+                                                         rec.CUSTOMER_ACCOUNT_NUMBER,
+                                                         IN_TRANSACTION_DATE,
+                                                         V_ORIG_DEP_NBR,
+                                                         V_ORIG_TERM_NBR,
+                                                         V_ORIG_TRAN_DATE);
+         rec.ORGNL_DEPOSIT_TRANSACTION_NBR    := V_ORIG_DEP_NBR;
+         rec.ORGNL_DEPOSIT_TERMINAL_NBR       := V_ORIG_TERM_NBR;
+         rec.ORGNL_DEPOSIT_TRANSACTION_DATE   := V_ORIG_TRAN_DATE;
+        TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(rec);
+    END LOOP;
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
+                                    'CUST_DEP_RED_ORIGINAL_DTLS_UPD',
+                                    SQLERRM,
+                                    '000000',
+                                    '000000000',
+                                    '000000000');
+END CUST_DEP_RED_ORIGINAL_DTLS_UPD;
 
 END CUSTOMER_DEPOSITS_DAILY_LOAD;
