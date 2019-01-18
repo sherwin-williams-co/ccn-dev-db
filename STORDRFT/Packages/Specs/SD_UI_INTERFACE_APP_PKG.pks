@@ -573,4 +573,99 @@ modified :
 **********************************************************/
 ;
 
+PROCEDURE GET_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS(
+/******************************************************************************
+This procedure will get 
+1) all check run type details if no input is passed
+2) specific run type details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    IN_COST_CENTER_CODE                 IN     VARCHAR2,
+    OUT_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS    OUT SYS_REFCURSOR);
+
+PROCEDURE GET_STORE_CHECK_DRAFTS_PRINT_DETAILS(
+/******************************************************************************
+This procedure will get 
+1) get run type details and store check order details for COST_CENTER or TERMINAL_NUMBER passed.
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+    IN_COST_CENTER_CODE            IN     VARCHAR2,
+    IN_TERMINAL_NUMBER             IN     VARCHAR2,
+    OUT_STORE_RUN_TYP_THRSHLD_DTLS    OUT SYS_REFCURSOR,
+    OUT_SD_CHECK_NBR_TRCKNG_DTLS      OUT SYS_REFCURSOR);
+
+PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (
+/**********************************************************
+This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table. 
+
+<SD_CHECK_NBR_PRNT_UI>
+ <SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+   <STORE_DRAFT_CHECK_RUN_TYPE>S</STORE_DRAFT_CHECK_RUN_TYPE>
+   <NO_OF_BOOKS>2</NO_OF_BOOKS>
+   <CHECKS_PER_BOOK>201</CHECKS_PER_BOOK>
+   <STORE_DRFT_THRESHOLD>10</STORE_DRFT_THRESHOLD>
+   <BANK_ACCOUNT_NBR>9823469237</BANK_ACCOUNT_NBR>
+   <BANK_ROUTING_NBR>242352353456</BANK_ROUTING_NBR>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+ </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+ <SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+   <STORE_DRAFT_CHECK_RUN_TYPE>L</STORE_DRAFT_CHECK_RUN_TYPE>
+   <NO_OF_BOOKS>2</NO_OF_BOOKS>
+   <CHECKS_PER_BOOK>76</CHECKS_PER_BOOK>
+   <STORE_DRFT_THRESHOLD>40</STORE_DRFT_THRESHOLD>
+   <BANK_ACCOUNT_NBR>9823469237</BANK_ACCOUNT_NBR>
+   <BANK_ROUTING_NBR>242352353456</BANK_ROUTING_NBR>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+ </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+</SD_CHECK_NBR_PRNT_UI>
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/ 
+    IN_XML                CLOB);
+    
+PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP (
+/**********************************************************
+This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+
+<STORE_RUN_TYP_THRSHLD_DTLS_UI>
+ <STORE_RUN_TYP_THRSHLD_DTLS>
+   <COST_CENTER_CODE>701004</COST_CENTER_CODE>
+   <STORE_DRAFT_CHECK_RUN_TYPE>S</STORE_DRAFT_CHECK_RUN_TYPE>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+ </STORE_RUN_TYP_THRSHLD_DTLS>
+</STORE_RUN_TYP_THRSHLD_DTLS_UI> 
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/ 
+    IN_XML                CLOB);    
+
+PROCEDURE GET_UNUSED_DRAFTS_PRINT_DETAILS(
+/******************************************************************************
+This procedure will get 
+1) all store check order details
+2) specific store check order details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    IN_COST_CENTER_CODE            IN     VARCHAR2,
+    OUT_UNUSED_DRAFT_PRINT_DTLS       OUT SYS_REFCURSOR);
+
+PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
+/**********************************************************
+This procedure will go ahead and place draft print order if unused drafts less then threshold.
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE            IN     VARCHAR2);
+
 END SD_UI_INTERFACE_APP_PKG;

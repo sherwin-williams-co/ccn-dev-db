@@ -1,0 +1,302 @@
+create or replace PACKAGE BODY SD_CHECK_NBR_PRINT_SRVCS
+AS
+
+FUNCTION GET_OLDEST_ACTIVE_TERMINAL_NBR(
+/**********************************************************
+This function will get oldest active TERMINAL_NUMBER for COST_CENTER passed.
+
+Created : 1/15/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN   VARCHAR2)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE VARCHAR2(5);
+BEGIN
+    SELECT MIN(TERMINAL_NUMBER)
+      INTO V_RETURN_VALUE
+      FROM TERMINAL
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND EXPIRATION_DATE IS NULL;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_OLDEST_ACTIVE_TERMINAL_NBR;
+
+FUNCTION GET_PREV_PRINT_DRAFT_END_NBR(
+/**********************************************************
+This function will get last ending draft number for COST_CENTER passed.
+
+Created : 1/15/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN    VARCHAR2
+) RETURN NUMBER
+IS
+    V_RETURN_VALUE    NUMBER;
+BEGIN
+    SELECT ORDERED_ENDNG_DRFT
+      INTO V_RETURN_VALUE
+      FROM SD_CHECK_NBR_TRCKNG_DTLS
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND CHKS_ORDERED_DATE = (SELECT MAX(CHKS_ORDERED_DATE)
+                                  FROM SD_CHECK_NBR_TRCKNG_DTLS
+                                 WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE);
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_PREV_PRINT_DRAFT_END_NBR;
+
+FUNCTION GET_STORE_DRAFT_THRESHOLD_REC(
+/**********************************************************
+This function will get run type detail for COST_CENTER passed.
+
+Created : 1/15/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN    VARCHAR2
+) RETURN STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE
+IS
+    V_RETURN_VALUE    STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_RETURN_VALUE
+      FROM STORE_RUN_TYP_THRSHLD_DTLS
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND EXPIRATION_DATE IS NULL;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_STORE_DRAFT_THRESHOLD_REC;
+
+FUNCTION GET_SD_CHK_TYP_REC(
+/**********************************************************
+This function will noof books ,checks per book , threshold, bank acccount number and routing number for run type passed.
+
+Created : 1/15/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_RUN_TYPE      IN    VARCHAR2
+) RETURN SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE
+IS
+    V_RETURN_VALUE    SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_RETURN_VALUE
+      FROM SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS
+     WHERE STORE_DRAFT_CHECK_RUN_TYPE = IN_RUN_TYPE
+       AND EXPIRATION_DATE IS NULL;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END GET_SD_CHK_TYP_REC;
+
+PROCEDURE LOAD_EXTRACT_TBL(
+/**********************************************************
+This procedure will print drafts of 2 letters 'A' and 'B' from previous end draft number for the cost center passed.
+After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE           IN      VARCHAR2,
+    IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
+    IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE)
+IS
+    V_TOTAL_CHECKS     NUMBER;
+    V_DRAFT_NBR        NUMBER;
+    V_TERMINAL_NUMBER  VARCHAR2(5) := SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(IN_COST_CENTER_CODE);
+BEGIN
+    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
+    FOR draft_iterator IN 1 .. V_TOTAL_CHECKS LOOP
+        V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator;
+        --The iteration should go back to 1001 after 9999
+        IF V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 8999;
+        END IF;
+        INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
+            TRUNC(SYSDATE),
+            draft_iterator,
+            IN_COST_CENTER_CODE,
+            V_TERMINAL_NUMBER,
+            V_DRAFT_NBR,
+            CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
+            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
+            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'8800600275',
+            'A',
+            IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
+            CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
+            NULL);
+            
+        V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
+        INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
+            TRUNC(SYSDATE),
+            draft_iterator,
+            IN_COST_CENTER_CODE,
+            V_TERMINAL_NUMBER,
+            V_DRAFT_NBR,
+            CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
+            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
+            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'8800600275',
+            'B',
+            IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
+            CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
+            NULL);
+    END LOOP;
+    INSERT INTO SD_CHECK_NBR_TRCKNG_DTLS VALUES (
+        IN_COST_CENTER_CODE,
+        TRUNC(SYSDATE),
+        IN_PREV_PRINT_DRAFT_END_NBR + 1,
+        V_DRAFT_NBR);
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END LOAD_EXTRACT_TBL;
+
+PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
+/**********************************************************
+This procedure will go ahead and place draft print order if unused drafts less then threshold.
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IS
+    CURSOR cc_main_cursor IS
+--        SELECT COST_CENTER_CODE,
+--               MAX(DRAFT_NUMBER) DRFT_NBR
+--          FROM STORE_DRAFTS
+--         WHERE COST_CENTER_CODE = '701002'
+--         GROUP BY COST_CENTER_CODE
+--         ORDER BY 1;
+        SELECT COST_CENTER_CODE,
+               COUNT(*) UNUSED_DRAFTS
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE USED_IN_POS_ON_DATE IS NULL
+           --AND COST_CENTER_CODE = '701002'
+         GROUP BY COST_CENTER_CODE
+         ORDER BY 1;
+
+    V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_PREV_END_DRFT_NBR        NUMBER;
+    V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+BEGIN
+    FOR rec IN cc_main_cursor LOOP
+        V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(rec.COST_CENTER_CODE);
+        V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(rec.COST_CENTER_CODE);
+        V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+--        IF rec.DRFT_NBR >= (V_PREV_END_DRFT_NBR - V_STR_DRFT_THRESHOLD_REC.STORE_DRFT_THRESHOLD) THEN
+        IF rec.UNUSED_DRAFTS <= V_SD_CHK_TYP_REC.STORE_DRFT_THRESHOLD THEN
+            LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
+                             V_PREV_END_DRFT_NBR,
+                             V_SD_CHK_TYP_REC);
+        END IF;
+    END LOOP;
+END SD_CHECK_NBR_PRINT_PROCESS;
+
+PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
+/**********************************************************
+This procedure will go ahead and place draft print order on demand for the cost center passed.
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE   IN    VARCHAR2)
+IS
+    V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_PREV_END_DRFT_NBR        NUMBER;
+    V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+BEGIN
+    V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(IN_COST_CENTER_CODE);
+    V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(IN_COST_CENTER_CODE);
+    V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+    LOAD_EXTRACT_TBL(IN_COST_CENTER_CODE,
+                     V_PREV_END_DRFT_NBR,
+                     V_SD_CHK_TYP_REC);
+END SD_CHECK_NBR_PRINT_PROCESS;
+
+PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (
+/**********************************************************
+This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table.
+
+<SD_CHECK_NBR_PRNT_UI>
+ <SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+   <STORE_DRAFT_CHECK_RUN_TYPE>S</STORE_DRAFT_CHECK_RUN_TYPE>
+   <NO_OF_BOOKS>2</NO_OF_BOOKS>
+   <CHECKS_PER_BOOK>201</CHECKS_PER_BOOK>
+   <STORE_DRFT_THRESHOLD>10</STORE_DRFT_THRESHOLD>
+   <BANK_ACCOUNT_NBR>9823469237</BANK_ACCOUNT_NBR>
+   <BANK_ROUTING_NBR>242352353456</BANK_ROUTING_NBR>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+   <CREATED_ON_DATE>01-11-2019</CREATED_ON_DATE>
+ </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+ <SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+   <STORE_DRAFT_CHECK_RUN_TYPE>L</STORE_DRAFT_CHECK_RUN_TYPE>
+   <NO_OF_BOOKS>2</NO_OF_BOOKS>
+   <CHECKS_PER_BOOK>76</CHECKS_PER_BOOK>
+   <STORE_DRFT_THRESHOLD>40</STORE_DRFT_THRESHOLD>
+   <BANK_ACCOUNT_NBR>9823469237</BANK_ACCOUNT_NBR>
+   <BANK_ROUTING_NBR>242352353456</BANK_ROUTING_NBR>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+   <CREATED_ON_DATE>01-11-2019</CREATED_ON_DATE>
+ </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
+</SD_CHECK_NBR_PRNT_UI>
+
+created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_XML                CLOB)
+IS
+    V_XML                                    XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_COUNT				                      NUMBER := 1;
+    V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW    SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+BEGIN
+    WHILE V_XML.EXISTSNODE('/SD_CHECK_NBR_PRNT_UI/SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS' ||  '[' || V_COUNT || ']') = 1 LOOP
+        SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROWTYPE_SP (
+               'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS',
+               V_XML.EXTRACT('/SD_CHECK_NBR_PRNT_UI/SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
+               V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
+
+        SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
+        V_COUNT := V_COUNT + 1;
+    END LOOP;
+END SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP;
+
+PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP (
+/**********************************************************
+This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+
+<STORE_RUN_TYP_THRSHLD_DTLS_UI>
+ <STORE_RUN_TYP_THRSHLD_DTLS>
+   <COST_CENTER_CODE>701004</COST_CENTER_CODE>
+   <STORE_DRAFT_CHECK_RUN_TYPE>S</STORE_DRAFT_CHECK_RUN_TYPE>
+   <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
+   <CREATED_ON_DATE>01-11-2019</CREATED_ON_DATE>
+ </STORE_RUN_TYP_THRSHLD_DTLS>
+</STORE_RUN_TYP_THRSHLD_DTLS_UI> 
+
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_XML                CLOB)
+IS
+    V_XML                                    XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_COUNT				                     NUMBER := 1;
+    V_STORE_RUN_TYP_THRSHLD_DTLS_ROW         STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+BEGIN
+        SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP(
+               'STORE_RUN_TYP_THRSHLD_DTLS',
+               V_XML.EXTRACT('/STORE_RUN_TYP_THRSHLD_DTLS_UI/STORE_RUN_TYP_THRSHLD_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
+               V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+
+        SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_I_SP(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+END STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP;
+
+END SD_CHECK_NBR_PRINT_SRVCS;

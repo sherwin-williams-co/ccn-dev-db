@@ -580,6 +580,96 @@ Changed :
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
 
+PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_SP (
+/******************************************************************************
+This procedure will get 
+1) all check run type details if no input is passed
+2) specific run type details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    OUT_REF_CUR      OUT REF_CURSOR,
+    IN_RUN_TYPE   IN     VARCHAR2 DEFAULT NULL);
+
+PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_SP (
+/******************************************************************************
+This procedure will get 
+1) all store threshold details if no input is passed
+2) specific store threshold details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    OUT_REF_CUR              OUT REF_CURSOR,
+    IN_COST_CENTER_CODE   IN     VARCHAR2 DEFAULT NULL);
+
+PROCEDURE SD_CHECK_NBR_TRCKNG_DTLS_SP (
+/******************************************************************************
+This procedure will get 
+1) all store check order details
+2) specific store check order details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    OUT_REF_CUR              OUT REF_CURSOR,
+    IN_COST_CENTER_CODE   IN     VARCHAR2 DEFAULT NULL);
+    
+PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(
+/**********************************************************
+This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table. 
+
+reated : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW     IN           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE);    
+
+PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to build the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS record type
+
+Created : 1/11/2019 kxm302 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE);
+
+PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_I_SP(
+/**********************************************************
+This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+
+reated : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);    
+
+PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to build the STORE_RUN_TYP_THRSHLD_DTLS record type
+
+Created : 1/11/2019 kxm302 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_TABLE_NAME  IN     VARCHAR2
+,IN_ROW_DATA   IN     CLOB
+,OUT_ROW_TYPE     OUT STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);
+
+PROCEDURE SD_CHECK_NBR_PRNT_EXTRCT_DTLS_SP (
+/******************************************************************************
+This procedure will get 
+1) all store check order details
+2) specific store check order details if run type is passed
+
+Created : 01/01/2019 jxc517 CCN Project Team....
+Changed : 
+******************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+    OUT_REF_CUR              OUT REF_CURSOR,
+    IN_COST_CENTER_CODE   IN     VARCHAR2 DEFAULT NULL);
 
 END SD_TABLE_IU_PKG;
-
