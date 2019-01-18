@@ -5661,6 +5661,39 @@ EXCEPTION
 
 END  BANK_CARD_BR_SP;
 
+FUNCTION CHECK_ALLOCATION_TYPE(IN_PCC_PCL_STR xmltype) RETURN NUMBER
+AS
+/******************************************************************************
+ASP-1197: Business Rule around Allocation Type details
+This FUNCTION checks if the Allocation Type is Null or has Empty Tags.
+We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+
+Created : 01/17/2019 pxm158 CCN Project Team....
+Changed :
+ ******************************************************************************/
+    lv_cnt number := 0;
+BEGIN
+    IF IN_PCC_PCL_STR IS NOT NULL THEN
+        BEGIN
+            select 1 into lv_cnt
+            from dual
+            where
+            EXISTSNODE(IN_PCC_PCL_STR,'/PCC_PCL_STR/*') > 0;
+        EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            lv_cnt := 0;
+        END;
+    ELSE
+        lv_cnt := 0;
+    END IF;
+    RETURN lv_cnt;
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR(-1,'CCN_BUSINESS_RULES_PKG.CHECK_ALLOCATION_TYPE',SQLERRM,SQLCODE);
+        RETURN lv_cnt;
+END;
+
 PROCEDURE COST_CENTER_BR_SP  (
 /*****************************************************************************
 	COST_CENTER_BR_SP       3.3.17   'COST_CENTER' TABLE COLUMNS
@@ -5769,6 +5802,13 @@ Changed: 04/10/2018 nxk927 CCN Project Team....
           passed as null for polling status code of P and Q for store type cost center
        : 01/17/2019 mxs216 ASP-1198 CCN Project Team.... 
           Added business rule for territory category cost centers to always have open_date populated.
+Changed: 01/18/2019 pxm158 CCN Project Team....
+          ASP-1197:  
+          We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+          we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+          Error message "Cost center can not be closed if Allocation Type details are present". 
+          ERRNUMS SPECS en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;		
+		  
 ******************************************************************************/	
 
    incost_center_rowtype             cost_center%ROWTYPE
@@ -5850,7 +5890,9 @@ Changed: 04/10/2018 nxk927 CCN Project Team....
    cc_standard_primary_cost_exp 		EXCEPTION;
     -- Error #12
     exc_territory_cc_open_date_err  EXCEPTION;
-
+-- Error #13
+   exc_close_date_req_alloc_type_err         EXCEPTION;
+   
 BEGIN
 
 /******************************************************************************
@@ -6218,6 +6260,8 @@ Changed: nxk927 03/27/2018 CCN Project Team....
          Change to convert the warning to error per ASP-926
          Added Business rule to Change warning to error for "S" category cost centers 
          with polling status as "P"/"Q" 
+        : pxa852 CCN Project Team...
+          01/11/2019 EXPIRATION_DATE COLUMN Changed to POLLING_EXPIRATION_DATE
 *******************************************************************************/
 BEGIN
     BEGIN 
@@ -6225,7 +6269,7 @@ BEGIN
           INTO V_POLLING_STATUS_CODE
           FROM POLLING 
          WHERE COST_CENTER_CODE = incost_center_rowtype.COST_CENTER_CODE
-           AND EXPIRATION_DATE IS NULL;
+           AND POLLING_EXPIRATION_DATE IS NULL;
 
     EXCEPTION
         WHEN OTHERS THEN 
@@ -6239,6 +6283,8 @@ BEGIN
          raise cc_std_primry_price_err;    
     END IF;
 
+END;
+
     /******************************************************************************
         12). OPEN_DATE must be populated for Territory Cost Centers.
         Added  : mxs216 ASP-1198 01/17/2019 CCN Project Team....
@@ -6247,8 +6293,16 @@ BEGIN
         RAISE exc_territory_cc_open_date_err;
     END IF;
 
-END;
-
+/*******************************************************************************
+	 13). ASP:1197 Business Rule around Allocation Type details
+	 We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+	 we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+	 Error message "Cost center can not be closed if Allocation Type details are present". 
+*******************************************************************************/
+    IF incost_center_rowtype.CLOSE_DATE IS NOT NULL AND CHECK_ALLOCATION_TYPE(incost_center_rowtype.PCC_PCL_STORE) = 1 THEN
+            RAISE exc_close_date_req_alloc_type_err;    
+    END IF;
+		
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
@@ -6372,13 +6426,18 @@ END;
                             'COST_CENTER_BR_SP.cc_std_primry_price_err'|| ' The cost center has a category S ' ||
                              'POLLING_STATUS_CODE is P or Q while the PRIMARY/ STANDARD cost identifiers are null. Please fix. '
                             );
-
     -- Error #12
     WHEN exc_territory_cc_open_date_err THEN
         errpkg.raise_err(errnums.en_territory_cc_open_date_err
                          ,'COST_CENTER_BR_SP.exc_territory_cc_open_date_err, '
                          ,'Open date is required for territory cost centers, ' );
-
+	-- Error #13 
+			   WHEN exc_close_date_req_alloc_type_err THEN
+				   v_code := errnums.en_costcntr_cc_close_date_err;
+				   ERRPKG.raise_err(v_code,
+							'COST_CENTER_BR_SP.exc_close_date_req_alloc_type_err ',
+							 'Cost Center can not be closed if Allocation Type details are present'
+							);		
 END COST_CENTER_BR_SP;
 
 /*******************************************************************************
@@ -8516,6 +8575,7 @@ EXCEPTION
         ' IS InValid Category');  
         RAISE;
 END VALIDATE_CATEGORY;
+
 
 PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
