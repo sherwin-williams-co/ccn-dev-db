@@ -49,7 +49,12 @@ BEGIN
       BEGIN
          V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT :=   -1 * REC.CSTMR_DPST_SALES_LN_ITM_AMT;
          V_TEMP_ROW.COST_CENTER_CODE            :=   REC.COST_CENTER_CODE;
-         V_TEMP_ROW.TRANSACTION_DATE            :=   REC.TRANSACTION_DATE + INTERVAL '1' SECOND;
+         V_TEMP_ROW.TRANSACTION_DATE            :=   CASE WHEN REC.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN
+                                                            REC.TRANSACTION_DATE + INTERVAL '1' SECOND
+                                                       WHEN REC.CSTMR_DPST_SALES_LN_ITM_AMT < 0 THEN
+                                                            REC.TRANSACTION_DATE - INTERVAL '1' SECOND
+                                                       ELSE REC.TRANSACTION_DATE
+                                                     END;
          V_TEMP_ROW.TERMINAL_NUMBER             :=   REC.TERMINAL_NUMBER;
          V_TEMP_ROW.TRANSACTION_NUMBER          :=   REC.TRANSACTION_NUMBER;
          V_TEMP_ROW.TRANSACTION_GUID            :=   REC.TRANSACTION_GUID;

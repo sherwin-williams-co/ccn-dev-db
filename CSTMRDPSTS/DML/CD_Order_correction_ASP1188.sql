@@ -113,7 +113,7 @@ BEGIN
                            FROM CUST_DEP_REDEMPTION_DETAILS
                           WHERE CUSTOMER_ACCOUNT_NUMBER = V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER
                             AND TRANSACTION_DATE <= V_CREDIT_ROW.TRANSACTION_DATE
-                            AND ORGNL_DEPOSIT_TERMINAL_NBR IS NULL
+                            AND ORIGINAL_DEP_TERM_NBR IS NULL
                           ORDER BY TRAN_TIMESTAMP) LOOP
                 CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(COMMON_TOOLS.GET_CSTMR_DPST_SALES_LN_ITM_AMT(rec1.CUSTOMER_ACCOUNT_NUMBER, rec1.COST_CENTER_CODE,rec1.TRANSACTION_NUMBER,rec1.TERMINAL_NUMBER,rec1.TRANSACTION_DATE),
                                                                 rec1.CUSTOMER_ACCOUNT_NUMBER,
@@ -121,9 +121,9 @@ BEGIN
                                                                 V_ORIG_DEP_NBR,
                                                                 V_ORIG_TERM_NBR,
                                                                 V_ORIG_TRAN_DATE);
-                rec1.ORGNL_DEPOSIT_TRANSACTION_NBR    := V_ORIG_DEP_NBR;
-                rec1.ORGNL_DEPOSIT_TERMINAL_NBR       := V_ORIG_TERM_NBR;
-                rec1.ORGNL_DEPOSIT_TRANSACTION_DATE   := V_ORIG_TRAN_DATE;
+                rec1.ORIGINAL_DEP_TRANS_NBR   := V_ORIG_DEP_NBR;
+                rec1.ORIGINAL_DEP_TERM_NBR    := V_ORIG_TERM_NBR;
+                rec1.ORIGINAL_DEP_TRAN_DATE   := V_ORIG_TRAN_DATE;
                 TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(rec1);
             END LOOP;
 
