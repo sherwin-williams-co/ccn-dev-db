@@ -1,11 +1,17 @@
 /*********************************************************************************
    This script is for inserting data provided by Marissa
-   Create the new table with the name CD_MARY_04JAN2019 before running this script.Import the data into this table from
-   the Excel provided by Marissa
-   created : 01/04/2019  pxa852 CCN Project
-*********************************************************************************/
-/*********************************************************************************
-   This script is for inserting data provided by Marissa
+   1) We ended up having data model changes in lower environments because of which
+      we are providing solution that work in QA and Production to clear off Marissas transactions first
+
+   2) To tie back properly and to not hinder existing data model
+      2.1) We are inserting records marissa sent in excel exactly like that except for transaction date being added with +1 second (Constraint Support)
+      2.2) We insert the transaction time stamp as is first to support redemptions tie back
+      2.3) We are reverting the transaction time stamp to sys time stamp after tie backs
+           to make sure our logic to get recent net balance works same like before
+      2.4) We wrote separate procedure for off set records for proper tie redemption/deposit back
+           and this getting invoked for regular transactions shouldn't have any impact as the
+           regular transactions should never have same transaction time stamp
+All these things need to be corrected as part of new data model that gets implemented soon in lower environments.
 
    created : 01/04/2019  pxa852 CCN Project
 *********************************************************************************/
@@ -31,7 +37,7 @@ DECLARE
         AND a.TRANSACTION_DATE        = b.TRANSACTION_DATE
         AND a.TERMINAL_NUMBER         = b.TERMINAL_NUMBER
         AND a.TRANSACTION_NUMBER      = b.TRANSACTION_NUMBER
-      ORDER BY a.TRAN_TIMESTAMP ;
+      ORDER BY a.CUSTOMER_ACCOUNT_NUMBER, a.TRAN_TIMESTAMP ;
 
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;

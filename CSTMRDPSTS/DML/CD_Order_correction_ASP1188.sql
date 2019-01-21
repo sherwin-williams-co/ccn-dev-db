@@ -1,5 +1,20 @@
 /*********************************************************************************
    This script is for inserting data into credit and redemption detail tables
+   1) We ended up having data model changes in lower environments because of which
+      we are providing solution that work in QA and Production to clear off Marissas transactions first
+
+   2) To tie back properly and to not hinder existing data model
+      2.1) We are inserting records marissa sent in excel exactly like that except for transaction date being added with +1 second (Constraint Support)
+      2.2) We insert the transaction time stamp as is first to support redemptions tie back
+      2.3) We are reverting the transaction time stamp to sys time stamp after tie backs
+           to make sure our logic to get recent net balance works same like before
+      2.4) We wrote separate procedure for off set records for proper tie redemption/deposit back
+           and this getting invoked for regular transactions shouldn't have any impact as the
+           regular transactions should never have same transaction time stamp
+All these things need to be corrected as part of new data model that gets implemented soon in lower environments.
+
+NOTE: For reruns, make a note that we need to update the transaction time stamp for off set transactions with their actual transactions
+     and tie back and revert the transaction time stamp same like before.This is utmost important going forward until things are streamlined.
    
    created : 01/04/2019  pxa852 CCN Project
 *********************************************************************************/
@@ -17,7 +32,7 @@ DECLARE
              CSTMR_DPST_SALES_LN_ITM_AMT,
              ROW_NUMBER() OVER (PARTITION BY CUSTOMER_ACCOUNT_NUMBER ORDER BY  TRAN_TIMESTAMP, TERMINAL_NUMBER) AS RNUM
         FROM CUSTOMER_DEPOSIT_DETAILS
-        ORDER BY TRANSACTION_DATE;
+        ORDER BY CUSTOMER_ACCOUNT_NUMBER, TRANSACTION_DATE;
 
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
@@ -60,9 +75,6 @@ BEGIN
         OUT_TRANSACTION_NUMBER := each_dep.TRANSACTION_NUMBER;
         OUT_TERMINAL_NUMBER    := each_dep.TERMINAL_NUMBER;
         OUT_TRANSACTION_DATE   := each_dep.TRANSACTION_DATE;
-        dbms_output.put_line(IN_TRAN_TIMESTAMP);
-       dbms_output.put_line(each_dep.TRANSACTION_NUMBER);
-       dbms_output.put_line(each_dep.TRAN_TIMESTAMP);
         UPDATE CUST_DEP_CREDIT_DETAILS
            SET DEPOSIT_REMAINING_BAL = 0
           WHERE ROWID = each_dep.rowid;
