@@ -3278,6 +3278,18 @@ exc_invalid_qa_terr_nbr_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
 
 /***********************************************************
+The "en_costcntr_not_exist_err" passes a numerical error of -20219.
+This error occurs when cost center does not exist that is entered to generate
+Hierarchy report.
+"Sorry, This cost center does not exists"
+
+created : 01/08/2019 pxa852 CCN Project Team...
+************************************************************/
+en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
+exc_costcntr_exists_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_costcntr_exists_err , -20219);
+
+/***********************************************************
 The "en_territory_cc_open_date_err" passes a numerical error of -20220.
 This error occurs when open date not populated for Territory cost center.
 
@@ -3287,14 +3299,5 @@ en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
-/*********************************************************** 
-The "en_costcntr_cc_close_date_err" passes a numerical error of -20221.
-This error occurs when close date is entered without removing Allocation type.
-
-created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
-************************************************************/
-en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
-exc_close_date_req_alloc_type_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
-
 END ERRNUMS;
+
