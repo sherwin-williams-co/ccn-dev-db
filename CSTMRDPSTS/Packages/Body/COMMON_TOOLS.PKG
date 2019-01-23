@@ -34,6 +34,34 @@ EXCEPTION
          RETURN V_RLS_RUN_CYCLE; 
 END GET_CURR_RUNCYCLE;
 
+FUNCTION IS_ACCOUNT_OPEN(
+/***********************************************************
+	This function will return a 'Y' if the Account is open 
+  or 'N' if the Account has a closed_date
+    
+Created : 05/02/2018 sxh487
+Changed : 
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER  IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
+RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(1) := 'Y';
+BEGIN
+    SELECT CASE WHEN COUNT(*) > 0 THEN 
+              'Y'
+           ELSE 
+              'N'
+           END
+      INTO V_RETURN_VAL
+      FROM CUSTOMER_DEPOSIT_DETAILS
+     WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+       AND CLOSED_DATE IS NULL;
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END IS_ACCOUNT_OPEN;
+
 FUNCTION GET_SALES_AMOUNT (
 /**********************************************************
 This function will return amt from CUST_DEP_CCN_ACCUMS_T table
@@ -70,8 +98,8 @@ parameters:
 in_tran_guid
 
 created : 05/29/2018 sxh487 ccn project
-modified: 11/13/2018 sxh487 CCN Project Team...
-          Modified code to pass run cycle id as an input parameter.
+modified: 11/15/2018 pxa852 CCN Project Team...
+          Added run cycle id parameter.
 **********************************************************/
 IN_TRAN_GUID     IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE,
 IN_RLS_RUN_CYCLE IN  CCN_SALES_LINES_T.RLS_RUN_CYCLE%TYPE)
@@ -168,8 +196,6 @@ as of the day before the current load
 
 Created : 01/25/2018 sxh487
         : 02/01/2018 sxh487 Changed the default amount to 0
-        : 08/22/2018 sxh487 Removed the closed_date condition
-          as it is not needed
 **********************************************************/
 IN_CUST_ACCOUNT_NBR IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE)
     RETURN NUMBER
@@ -183,6 +209,7 @@ BEGIN
        AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
                                FROM CUSTOMER_DEPOSIT_DETAILS
                               WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUST_ACCOUNT_NBR
+                                AND CLOSED_DATE IS NULL
                                 );
 
      RETURN V_CUSTOMER_NET_BALANCE;
@@ -219,14 +246,35 @@ FUNCTION BUILD_DEP_DET_HST_FROM_CURR(
   for insert into CUSTOMER_DEPOSIT_DETAILS_HIST
     
 Created : 04/18/2018 sxh487
-Changed : 
+Changed : 11/28/2018 sxg151 Added "TRANSACTION_SQ_ID" ASP-1150
+        : 12/03/2018 sxg151 Removed "TOTAL_SALES"  ASP-1150
 ************************************************************/
 IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE) 
 RETURN CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE
 IS
   V_CUST_DEP_DETAILS_HST_REC CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE;
 BEGIN
-    SELECT CDD.*, SYSDATE
+    SELECT CDD.COST_CENTER_CODE,
+           CDD.TRANSACTION_DATE,
+           CDD.TERMINAL_NUMBER,
+           CDD.TRANSACTION_NUMBER,
+           CDD.TRANSACTION_GUID,
+           CDD.CUSTOMER_ACCOUNT_NUMBER,
+           CDD.POS_TRANSACTION_CODE,
+           CDD.TRAN_TIMESTAMP,
+           CDD.TRANSACTION_TYPE,
+           CDD.CUSTOMER_NET_BALANCE,
+           CDD.LOAD_DATE,
+           CDD.RLS_RUN_CYCLE,
+           CDD.ADJUSTED_DATE,
+           CDD.REFERENCE_NUMBER,
+           CDD.CLEARED_REASON,
+           CDD.NOTES,
+           CDD.CLOSED_DATE,
+           CDD.GL_DIVISION,
+           CDD.CSTMR_DPST_SALES_LN_ITM_AMT,
+           SYSDATE,
+           CDD.TRANSACTION_SQ_ID
       INTO V_CUST_DEP_DETAILS_HST_REC
       FROM CUSTOMER_DEPOSIT_DETAILS CDD
      WHERE CUSTOMER_ACCOUNT_NUMBER = IN_ROW.CUSTOMER_ACCOUNT_NUMBER
@@ -266,38 +314,29 @@ EXCEPTION
         RETURN V_GL_DIVISION;
 END GET_GL_DIVISION;
 
-FUNCTION GET_CSTMR_DPST_SALES_LN_ITM_AMT(
-/*******************************************************************************
-GET_CSTMR_DPST_SALES_LN_ITM_AMT
-
-This function is intended to get the CSTMR_DPST_SALES_LN_ITM_AMT
-from customer_deposit_details table
-created : 01/08/2019 sxh487 -- ccn coding project....
-changed :
-*******************************************************************************/
-       IN_ACCT_NBR      CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
-       IN_COST_CENTER   CUSTOMER_DEPOSIT_DETAILS.COST_CENTER_CODE%TYPE,
-       IN_TRANS_NBR     CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE,
-       IN_TERM_NBR      CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
-       IN_TRAN_DATE     CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
-)
-RETURN NUMBER
+FUNCTION GET_CUST_DEPOSIT_DETAILS_rec(
+/***********************************************************
+	This function will get the current CUSTOMER_DEPOSIT_DETAILS record 
+    
+Created : 09/05/2018 sxh487
+Changed : 
+************************************************************/
+IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE) RETURN CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
 IS
-    V_CSTMR_DPST_SALES_LN_ITM_AMT    CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE:=0;
+  V_CUST_DEP_DETAILS_REC CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
 BEGIN
-      SELECT NVL(CSTMR_DPST_SALES_LN_ITM_AMT, 0)
-        INTO V_CSTMR_DPST_SALES_LN_ITM_AMT
-        FROM CUSTOMER_DEPOSIT_DETAILS
-       WHERE CUSTOMER_ACCOUNT_NUMBER = IN_ACCT_NBR
-         AND TERMINAL_NUMBER = IN_TERM_NBR
-         AND TRANSACTION_NUMBER = IN_TRANS_NBR
-         AND COST_CENTER_CODE =IN_COST_CENTER
-         AND TRANSACTION_DATE =IN_TRAN_DATE;
-
-    RETURN V_CSTMR_DPST_SALES_LN_ITM_AMT;
+    SELECT *
+      INTO V_CUST_DEP_DETAILS_REC
+      FROM CUSTOMER_DEPOSIT_DETAILS
+     WHERE CUSTOMER_ACCOUNT_NUMBER = IN_ROW.CUSTOMER_ACCOUNT_NUMBER
+       AND COST_CENTER_CODE        = IN_ROW.COST_CENTER_CODE
+       AND TRANSACTION_DATE        = IN_ROW.TRANSACTION_DATE
+       AND TERMINAL_NUMBER         = IN_ROW.TERMINAL_NUMBER
+       AND TRANSACTION_NUMBER      = IN_ROW.TRANSACTION_NUMBER;
+    RETURN V_CUST_DEP_DETAILS_REC;
 EXCEPTION
     WHEN OTHERS THEN
-       RETURN V_CSTMR_DPST_SALES_LN_ITM_AMT ;
-END GET_CSTMR_DPST_SALES_LN_ITM_AMT;
+        RETURN NULL;
+END GET_CUST_DEPOSIT_DETAILS_rec;
 
 END COMMON_TOOLS;

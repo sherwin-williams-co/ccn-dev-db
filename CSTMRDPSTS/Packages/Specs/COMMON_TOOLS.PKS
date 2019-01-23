@@ -19,6 +19,17 @@ changed :
 ******************************************************************/
 RETURN VARCHAR2;
 
+FUNCTION IS_ACCOUNT_OPEN(
+/***********************************************************
+	This function will return a 'Y' if the Account is open
+  or 'N' if the Account has a closed_date
+
+Created : 05/02/2018 sxh487
+Changed :
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER  IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
+RETURN VARCHAR2;
+
 FUNCTION GET_SALES_AMOUNT (
 /**********************************************************
 This function will return amt from PNP.ccn_accums table
@@ -43,8 +54,9 @@ in_tran_guid
 created : 05/29/2018 sxh487 ccn project
 modified:
 **********************************************************/
-IN_TRAN_GUID     IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE,
-IN_RLS_RUN_CYCLE IN  CCN_SALES_LINES_T.RLS_RUN_CYCLE%TYPE)
+IN_TRAN_GUID   IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE,
+IN_RLS_RUN_CYCLE IN  CCN_SALES_LINES_T.RLS_RUN_CYCLE%TYPE
+)
 RETURN NUMBER;
 
 FUNCTION COST_CENTER_LOOK_UP_FNC(
@@ -86,9 +98,9 @@ RETURN VARCHAR2;
 
 FUNCTION BUILD_DEP_HDR_HST_FROM_CURR(
 /***********************************************************
-	This function will build the history record from 
-  current CUSTOMER_DEPOSIT_HEADER record 
-    
+	This function will build the history record from
+  current CUSTOMER_DEPOSIT_HEADER record
+
 Created : 05/02/2018 sxh487
 Changed : 
 ************************************************************/
@@ -97,30 +109,26 @@ RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
 
 FUNCTION BUILD_DEP_DET_HST_FROM_CURR(
 /***********************************************************
-	This function will build the history record from 
+	This function will build the history record from
   current CUSTOMER_DEPOSIT_DETAILS record
-    
+
 Created : 04/18/2018 sxh487
 Changed : 
 ************************************************************/
-IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE) 
+IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
+) 
 RETURN CUSTOMER_DEPOSIT_DETAILS_HIST%ROWTYPE;
 
-FUNCTION GET_CSTMR_DPST_SALES_LN_ITM_AMT(
-/*******************************************************************************
-GET_CSTMR_DPST_SALES_LN_ITM_AMT
+FUNCTION GET_CUST_DEPOSIT_DETAILS_rec(
+/***********************************************************
+	This function will get the current CUSTOMER_DEPOSIT_DETAILS record
 
-This function is intended to get the CSTMR_DPST_SALES_LN_ITM_AMT
-from customer_deposit_details table
-created : 01/08/2019 sxh487 -- ccn coding project....
-changed :
-*******************************************************************************/
-       IN_ACCT_NBR      CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
-       IN_COST_CENTER   CUSTOMER_DEPOSIT_DETAILS.COST_CENTER_CODE%TYPE,
-       IN_TRANS_NBR     CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE,
-       IN_TERM_NBR      CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
-       IN_TRAN_DATE     CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
+Created : 09/05/2018 sxh487
+Changed :
+************************************************************/
+IN_ROW   IN  CUSTOMER_DEPOSIT_DETAILS%ROWTYPE
 )
-RETURN NUMBER;
+RETURN CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
 
 END COMMON_TOOLS;
+

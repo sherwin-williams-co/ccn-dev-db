@@ -43,14 +43,4 @@ changed : 01/26/2018 sxh487 Added logic to get the last cumulative total for cal
 ******************************************************************************/
 IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
 
-PROCEDURE CUST_DEP_RED_ORIGINAL_DTLS_UPD(
-/*****************************************************************************
-This procedure will find if there are any Redemptions with out deposits then tie back that redemption to the deposit.
-
-created : 01/17/2019 pxa852 ccn project....
-changed :
-******************************************************************************/
-IN_CUSTOMER_ACCOUNT_NUMBER IN CUST_DEP_REDEMPTION_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
-IN_TRANSACTION_DATE        IN CUST_DEP_REDEMPTION_DETAILS.TRANSACTION_DATE%TYPE);
-
 END CUSTOMER_DEPOSITS_DAILY_LOAD;
