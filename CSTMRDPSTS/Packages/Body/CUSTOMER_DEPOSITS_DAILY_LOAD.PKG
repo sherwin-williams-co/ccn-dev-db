@@ -51,6 +51,7 @@ IS
       SELECT *
         FROM PNP.CCN_ACCUMS ACC
        WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
+
    --variable declaration
    V_COMMIT           NUMBER := 0;
    V_CCN_ACCUMS_T     CUST_DEP_CCN_ACCUMS_T%ROWTYPE;
@@ -63,7 +64,8 @@ BEGIN
          V_CCN_ACCUMS_T.AMT                      :=   REC.AMT;
          V_CCN_ACCUMS_T.ACCUM_ID                 :=   REC.ACCUM_ID;
          V_CCN_ACCUMS_T.RLS_RUN_CYCLE            :=   IN_RLS_RUN_CYCLE;
-         V_CCN_ACCUMS_T.LOAD_DATE                :=   V_DATE;         
+         V_CCN_ACCUMS_T.LOAD_DATE                :=   V_DATE;
+
          INSERT INTO CUST_DEP_CCN_ACCUMS_T VALUES V_CCN_ACCUMS_T;
 
          V_CCN_ACCUMS_T := NULL;
@@ -147,7 +149,8 @@ IS
              ORIGTERM,
              ORIGTRAN
         FROM PNP.CCN_HEADERS
-       WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;                       
+       WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
+
    --variable declaration
    V_COMMIT           NUMBER := 0;
 BEGIN
@@ -264,6 +267,7 @@ IS
              ECOMMERCE_ID
         FROM PNP.CCN_SALES_LINES
        WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
+
    --variable declaration
    V_COMMIT               NUMBER := 0;
 BEGIN
@@ -331,6 +335,7 @@ V_DATE                       DATE := TRUNC(SYSDATE);
                        FROM CCN_SALES_LINES_T S
                       WHERE H.TRAN_GUID = S.TRAN_GUID
                         AND S.NON_MERCH_CODE = COMMON_TOOLS.G_NON_MERCH_CODE);
+
    --variable declaration
    V_COMMIT         NUMBER := 0;
    V_TEMP_ROW       CUSTOMER_DEPOSIT_HEADER%ROWTYPE;
@@ -348,7 +353,7 @@ BEGIN
         V_TEMP_ROW.BILLPHONE                := REC.BILLPHONE;
         V_TEMP_ROW.RLS_RUN_CYCLE            := REC.RLS_RUN_CYCLE;
         V_TEMP_ROW.LOAD_DATE                := V_DATE;
-        
+
         TABLE_IU_PKG.CUST_DEPOSIT_HEADER_I_SP(V_TEMP_ROW);    
         V_TEMP_ROW := NULL;
         V_COMMIT := V_COMMIT + 1;
@@ -381,11 +386,14 @@ changed : 01/26/2018 sxh487 Added logic to get the last cumulative total for cal
         : 03/20/2018 sxh487 Added logic to add records in CUST_DEP_CREDIT_DETAILS and CUST_DEP_REDEMPTION_DETAILS 
         : 05/29/2018 sxh487 Added NON_MERCH_CODE ='05' for line item amount
         : 08/22/2018 sxh487 Removed the total_sales field population as it is not being used
-        : 11/06/2018 sxg151 Rename column's to (ORGNL_DEPOSIT_TRANSACTION_NBR,ORGNL_DEPOSIT_TERMINAL_NBR,ORGNL_DEPOSIT_TRANSACTION_DATE)
-        : 11/30/2018 sxg151 Added the new field population here to make sure daily load won't fail
+        : 11/13/2018 sxh487 CCN Project Team...
+          Modified code to pass run cycle id as a parameter to GET_SALES_LINE_AMOUNT function.
+        : 01/16/2018 pxa852/sxh487 CCN Project Team...
+          Modified code to look back if there is any redemption for the desposit that came in today and tie back that redemption to the deposit.
 ******************************************************************************/
 IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE)
 IS
+
 --variable declaration
    CURSOR TEMP_CUR IS
       SELECT STORE_NO  AS COST_CENTER_CODE,
@@ -404,7 +412,7 @@ IS
                        FROM CCN_SALES_LINES_T S
                       WHERE H.TRAN_GUID = S.TRAN_GUID
                         AND S.NON_MERCH_CODE = COMMON_TOOLS.G_NON_MERCH_CODE);
-       
+
    --variable declaration
    V_TEMP_ROW       CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
    V_CREDIT_ROW     CUST_DEP_CREDIT_DETAILS%ROWTYPE;
@@ -442,7 +450,6 @@ BEGIN
          V_TEMP_ROW.GL_DIVISION                 :=  COMMON_TOOLS.GET_GL_DIVISION(V_TEMP_ROW.COST_CENTER_CODE);
          V_TEMP_ROW.RLS_RUN_CYCLE               :=  REC.RLS_RUN_CYCLE;
          V_TEMP_ROW.LOAD_DATE                   :=  V_LOAD_DATE;
-         V_TEMP_ROW.TRANSACTION_SQ_ID           := TRANSACTION_SQ_ID.NEXTVAL;
 
          TABLE_IU_PKG.CUST_DEP_DET_I_SP(V_TEMP_ROW);
          IF V_TEMP_ROW.TRANSACTION_TYPE = 'DEPOSIT' THEN
@@ -451,31 +458,32 @@ BEGIN
             V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER  := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
             V_CREDIT_ROW.TRANSACTION_NUMBER       := V_TEMP_ROW.TRANSACTION_NUMBER;
             V_CREDIT_ROW.TRANSACTION_DATE         := V_TEMP_ROW.TRANSACTION_DATE;
-            V_CREDIT_ROW.TERMINAL_NUMBER          := V_TEMP_ROW.TERMINAL_NUMBER;
+            V_CREDIT_ROW.TERMINAL_NUMBER          := V_TEMP_ROW.TERMINAL_NUMBER;           
             V_CREDIT_ROW.DEPOSIT_REMAINING_BAL    := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
             V_CREDIT_ROW.TRAN_TIMESTAMP           := V_TEMP_ROW.TRAN_TIMESTAMP;
             V_CREDIT_ROW.LOAD_DATE                := V_LOAD_DATE;
-            
+
             TABLE_IU_PKG.CUST_DEPOSIT_CREDIT_I_SP(V_CREDIT_ROW);
+            CUST_DEP_RED_ORIGINAL_DTLS_UPD(V_CREDIT_ROW.CUSTOMER_ACCOUNT_NUMBER,V_CREDIT_ROW.TRANSACTION_DATE);
          ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
                CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD( V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE, V_ORIG_DEP_NBR, V_ORIG_TERM_NBR, V_ORIG_TRAN_DATE);
-               V_REDEMPTION_ROW.REDEMPTION_ID                  := SEQ_REDEMPTION_ID.nextval;
-               V_REDEMPTION_ROW.COST_CENTER_CODE               := V_TEMP_ROW.COST_CENTER_CODE;
-               V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER        := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
-               V_REDEMPTION_ROW.TRANSACTION_NUMBER             := V_TEMP_ROW.TRANSACTION_NUMBER;
-               V_REDEMPTION_ROW.TRANSACTION_DATE               := V_TEMP_ROW.TRANSACTION_DATE;
-               V_REDEMPTION_ROW.TERMINAL_NUMBER                := V_TEMP_ROW.TERMINAL_NUMBER;
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := V_ORIG_DEP_NBR;  
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := V_ORIG_TERM_NBR;
-               V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := V_ORIG_TRAN_DATE;
-               V_REDEMPTION_ROW.TRAN_TIMESTAMP                 := V_TEMP_ROW.TRAN_TIMESTAMP;
-               V_REDEMPTION_ROW.LOAD_DATE                      := V_LOAD_DATE;
-               
+               V_REDEMPTION_ROW.REDEMPTION_ID            := SEQ_REDEMPTION_ID.nextval;
+               V_REDEMPTION_ROW.COST_CENTER_CODE         := V_TEMP_ROW.COST_CENTER_CODE;
+               V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER  := V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER;
+               V_REDEMPTION_ROW.TRANSACTION_NUMBER       := V_TEMP_ROW.TRANSACTION_NUMBER;
+               V_REDEMPTION_ROW.TRANSACTION_DATE         := V_TEMP_ROW.TRANSACTION_DATE;
+               V_REDEMPTION_ROW.TERMINAL_NUMBER          := V_TEMP_ROW.TERMINAL_NUMBER;           
+               V_REDEMPTION_ROW.ORIGINAL_DEP_TRANS_NBR   := V_ORIG_DEP_NBR;  
+               V_REDEMPTION_ROW.ORIGINAL_DEP_TERM_NBR    := V_ORIG_TERM_NBR;
+               V_REDEMPTION_ROW.ORIGINAL_DEP_TRAN_DATE   := V_ORIG_TRAN_DATE;
+               V_REDEMPTION_ROW.TRAN_TIMESTAMP           := V_TEMP_ROW.TRAN_TIMESTAMP;
+               V_REDEMPTION_ROW.LOAD_DATE                := V_LOAD_DATE;
+
                TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(V_REDEMPTION_ROW);
          ELSE
            NULL;
          END IF; 
-         
+
          V_TEMP_ROW := NULL;
          V_COMMIT := V_COMMIT + 1;
          IF V_COMMIT > 500 THEN
@@ -532,27 +540,27 @@ BEGIN
      V_CONTEXT := 'Load POS_CCN_LOAD_STATUS Table ';
      LOAD_POS_CSTMR_DEP_LOAD_STATUS( V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.PUT_LINE('POS_CSTMR_DEP_LOAD_STATUS loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-        
+
      V_START_TIME := DBMS_UTILITY.GET_TIME;
      V_CONTEXT := 'Load CUST_DEP_CCN_ACCUMS_T Table';
      LOAD_CUST_DEP_CCN_ACCUMS_T(V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.put_line('CUST_DEP_CCN_ACCUMS_T loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-  
+
      V_START_TIME := DBMS_UTILITY.GET_TIME;
      V_CONTEXT := 'Load CUST_DEP_CCN_HEADERS_T Table';
      LOAD_CUST_DEP_CCN_HEADERS_T(V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.put_line('CUST_DEP_CCN_HEADERS_T loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-  
+
      V_START_TIME := DBMS_UTILITY.GET_TIME;
      V_CONTEXT := 'Load CUST_DEP_CCN_SALES_LINES_T Table';
      LOAD_CUST_DEP_SALES_LINES_T(V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.put_line('CUST_DEP_CCN_SALES_LINES_T loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-     
+
      V_START_TIME := DBMS_UTILITY.GET_TIME;
      V_CONTEXT := 'Load CUSTOMER_DEPOSIT HEADER Table';
      LOAD_CUSTOMER_DEPOSIT_HDR( V_RLS_RUN_CYCLE);
      DBMS_OUTPUT.put_line('CUSTOMER_DEPOSIT HEADER loaded in : '|| (DBMS_UTILITY.GET_TIME - V_START_TIME)/100 || ' Seconds');
-  
+
      --load data from pnp to customer_deposit_details table
      V_START_TIME := DBMS_UTILITY.GET_TIME;
      V_CONTEXT := 'Load CUSTOMER_DEPOSIT_DETAILS Table ';
@@ -570,5 +578,54 @@ EXCEPTION
                                     '000000000',
                                     '000000000');
 END CSTMR_DEPOSIT_DLY_LOAD_SP;
+
+PROCEDURE CUST_DEP_RED_ORIGINAL_DTLS_UPD(
+/*****************************************************************************
+This procedure will find if there are any Redemptions with out deposits then tie back that redemption to the deposit.
+
+created : 01/17/2019 pxa852 ccn project....
+changed :
+******************************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER IN CUST_DEP_REDEMPTION_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
+IN_TRANSACTION_DATE        IN CUST_DEP_REDEMPTION_DETAILS.TRANSACTION_DATE%TYPE)
+IS
+
+--variable declaration
+V_DATE                       DATE := TRUNC(SYSDATE);
+
+   CURSOR TEMP_CUR IS
+      SELECT *
+        FROM CUST_DEP_REDEMPTION_DETAILS
+       WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+         AND TRANSACTION_DATE        <= IN_TRANSACTION_DATE
+         AND ORIGINAL_DEP_TERM_NBR IS NULL
+       ORDER BY TRAN_TIMESTAMP;
+   --variable declaration
+   V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE;
+   V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE;
+   V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE;
+BEGIN
+     FOR rec IN TEMP_CUR LOOP
+         CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(COMMON_TOOLS.GET_CSTMR_DPST_SALES_LN_ITM_AMT(rec.CUSTOMER_ACCOUNT_NUMBER, rec.COST_CENTER_CODE,rec.TRANSACTION_NUMBER,rec.TERMINAL_NUMBER,rec.TRANSACTION_DATE),
+                                                         rec.CUSTOMER_ACCOUNT_NUMBER,
+                                                         IN_TRANSACTION_DATE,
+                                                         V_ORIG_DEP_NBR,
+                                                         V_ORIG_TERM_NBR,
+                                                         V_ORIG_TRAN_DATE);
+         rec.ORIGINAL_DEP_TRANS_NBR   := V_ORIG_DEP_NBR;
+         rec.ORIGINAL_DEP_TERM_NBR    := V_ORIG_TERM_NBR;
+         rec.ORIGINAL_DEP_TRAN_DATE   := V_ORIG_TRAN_DATE;
+        TABLE_IU_PKG.CUST_DEPOSIT_REDEMPTION_I_SP(rec);
+    END LOOP;
+
+EXCEPTION
+   WHEN OTHERS THEN
+        ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
+                                    'CUST_DEP_RED_ORIGINAL_DTLS_UPD',
+                                    SQLERRM,
+                                    '000000',
+                                    '000000000',
+                                    '000000000');
+END CUST_DEP_RED_ORIGINAL_DTLS_UPD;
 
 END CUSTOMER_DEPOSITS_DAILY_LOAD;
