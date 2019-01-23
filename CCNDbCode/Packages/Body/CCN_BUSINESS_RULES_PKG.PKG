@@ -1115,6 +1115,38 @@ BEGIN
 
 END MODULUS_10;	
 
+FUNCTION CHECK_ALLOCATION_TYPE(IN_COLOR_CONSULTANT_TYPE xmltype) RETURN NUMBER
+AS
+/******************************************************************************
+ASP-1197: Business Rule around Allocation Type details
+This FUNCTION checks if the Allocation Type is Null or has Empty Tags.
+We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+
+Created : 01/17/2019 pxm158 CCN Project Team....
+Changed :
+ ******************************************************************************/
+    lv_cnt number := 0;
+BEGIN
+    IF IN_COLOR_CONSULTANT_TYPE IS NOT NULL THEN
+        BEGIN
+            select 1 into lv_cnt
+            from dual
+            where
+            EXISTSNODE(IN_COLOR_CONSULTANT_TYPE,'/COLOR_CONSULTANT_TYPE/*') > 0;
+        EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            lv_cnt := 0;
+        END;
+    ELSE
+        lv_cnt := 0;
+    END IF;
+    RETURN lv_cnt;
+EXCEPTION
+    WHEN OTHERS THEN
+        COMMON_TOOLS.LOG_ERROR(-1,'CCN_BUSINESS_RULES_PKG.CHECK_ALLOCATION_TYPE',SQLERRM,SQLCODE);
+        RETURN lv_cnt;
+END;
 
 PROCEDURE CLOSE_CCNTR_SP ( 
 /*****************************************************************************
@@ -1152,6 +1184,11 @@ revised : TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record
 	  		           in CUSTOMER_TAXID_VW_COSTCNTR table cannot be closed as 
 				   these cost center got active customer account
         : NXK927 02/22/2018        ADDED condition for the dispatch terminal to close with status of 5
+Changed: 01/18/2019 pxm158 CCN Project Team....
+          ASP-1197:  
+          We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+          we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+          Error message "Cost center can not be closed if Allocation Type details are present". 		
 ******************************************************************************/	
   inSTATUS_ROWTYPE       IN STATUS%ROWTYPE
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
@@ -1168,6 +1205,7 @@ revised : TAL 04/15/2012 CCNQC-018 Remove SELECT for Active STATUS Record
  invalid_close_date_exp     EXCEPTION;
  invalid_close_status_exp   EXCEPTION;
  cstmr_accnts_close_exp     EXCEPTION;
+ exc_close_date_req_alloc_type_err         EXCEPTION;  
  v_count                    NUMBER;
 
 -- v_status_rowtype  STATUS%ROWTYPE;   TAL 04/15/2012 CCNQC-018
@@ -1329,6 +1367,15 @@ as these cost center got active customer account.
      to be added from CPR
 ******************************************************************************/  
   -- raise ar_accts_assigned_exp;
+/*******************************************************************************
+ ASP:1197 Business Rule around Allocation Type details
+ We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
+ we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
+ Error message "Cost center can not be closed if Allocation Type details are present". 
+*******************************************************************************/
+    IF incost_center_rowtype.CLOSE_DATE IS NOT NULL AND CHECK_ALLOCATION_TYPE(incost_center_rowtype.COLOR_CONSULTANT_TYPE) = 1 THEN
+            RAISE exc_close_date_req_alloc_type_err;    
+    END IF;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
@@ -1388,6 +1435,12 @@ as these cost center got active customer account.
  -- 				v_code := errnums.en_ar_accts_assigned_err;
  --			      errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.ar_accts_assigned_exp ' ||
  --            		'Cost Center is assigned to account/job ');  
+       WHEN exc_close_date_req_alloc_type_err THEN
+           v_code := errnums.en_costcntr_cc_close_date_err;
+           ERRPKG.raise_err(v_code,
+                    'COST_CENTER_BR_SP.exc_close_date_req_alloc_type_err ',
+                     'Cost Center can not be closed if Allocation Type details are present'
+                    );			 
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);

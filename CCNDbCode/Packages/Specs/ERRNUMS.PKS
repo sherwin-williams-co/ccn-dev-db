@@ -2103,7 +2103,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric.
+Stores & Others or that the duns number is not numeric. 
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2403,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric.
+Stores & Others or that the duns number is not numeric. 
 
 created : 07/01/2013 SH CCN Project
 revisions: 
@@ -2927,12 +2927,12 @@ EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
 EXC_EN_DATE_PASSED_ERR EXCEPTION;
 PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
 
-/***********************************************************
+/*********************************************************** 
 The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
-This error will state the country code is missing in currency conversion.
+This error will state the country code is missing in currency conversion. 
 
 created : 11/10/2017 axt754  CCN Project Team...
-revisions:
+revisions: 
 ************************************************************/
 EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
 EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
@@ -2990,7 +2990,7 @@ exc_invalid_gl_num_len_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_gl_num_len_err , -20191);
 
-/***********************************************************
+/*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
 '01'
@@ -3286,5 +3286,15 @@ created : 01/16/2019 mxs216 ASP - 1169 CCN Project Team...
 en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
+
+/*********************************************************** 
+The "en_costcntr_cc_close_date_err" passes a numerical error of -20221.
+This error occurs when close date is entered without removing Allocation type.
+
+created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
+************************************************************/
+en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
+exc_close_date_req_alloc_type_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
 
 END ERRNUMS;
