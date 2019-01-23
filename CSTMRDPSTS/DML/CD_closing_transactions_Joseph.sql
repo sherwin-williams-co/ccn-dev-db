@@ -1,7 +1,7 @@
 /*********************************************************************************
    This script is for inserting data provided by Joseph
    1) We ended up having data model changes in lower environments because of which
-      we are providing solution that work in QA and Production to clear off Marissas transactions first
+      we are providing solution that work in QA and Production to clear off Joseph transactions first
 
    2) To tie back properly and to not hinder existing data model
       2.1) We are inserting records marissa sent in excel exactly like that except for transaction date being added with +1 second (Constraint Support)
@@ -24,12 +24,12 @@ DECLARE
              b.TRANSACTION_NUMBER,
              b.CUSTOMER_ACCOUNT_NUMBER,
              b.POS_TRANSACTION_CODE,
-             b.TRAN_TIMESTAMP,
+             a.TRAN_TIMESTAMP,
              b.CSTMR_DPST_SALES_LN_ITM_AMT,
-             b.GL_DIVISION,
+             a.GL_DIVISION,
              a.TRANSACTION_GUID,
              a.RLS_RUN_CYCLE,
-             ROW_NUMBER() OVER (PARTITION BY b.CUSTOMER_ACCOUNT_NUMBER ORDER BY  b.TRAN_TIMESTAMP, b.TRANSACTION_NUMBER) AS RNUM
+             ROW_NUMBER() OVER (PARTITION BY b.CUSTOMER_ACCOUNT_NUMBER ORDER BY  a.TRAN_TIMESTAMP, b.TRANSACTION_NUMBER) AS RNUM
         FROM CUSTOMER_DEPOSIT_DETAILS a,
              CD_JOSEPH_22JAN2019 b
       WHERE a.CUSTOMER_ACCOUNT_NUMBER = b.CUSTOMER_ACCOUNT_NUMBER 

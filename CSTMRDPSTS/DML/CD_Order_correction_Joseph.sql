@@ -1,7 +1,7 @@
 /*********************************************************************************
    This script is for inserting data into credit and redemption detail tables only for account number provided by Joseph
    1) We ended up having data model changes in lower environments because of which
-      we are providing solution that work in QA and Production to clear off Marissas transactions first
+      we are providing solution that work in QA and Production to clear off Joseph transactions first
 
    2) To tie back properly and to not hinder existing data model
       2.1) We are inserting records marissa sent in excel exactly like that except for transaction date being added with +1 second (Constraint Support)
