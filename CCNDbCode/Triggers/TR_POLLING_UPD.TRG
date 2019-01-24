@@ -8,8 +8,8 @@ create or replace TRIGGER "COSTCNTR".tr_polling_upd
             : 03/08/2018 nxk927 Added new field polling start date and stop date
             : 03/15/2018 nxk927 Added missing alias for the new field polling start date and stop date
             : 06/12/2018 pxa852 CCN Project Team....
-              EFFECTIVE_DATE column name changed to POLLING_EFFECTIVE_DATE and
-              EXPIRATION_DATE column name changed to POLLING_EXPIRATION_DATE
+              EFFECTIVE_DATE column name changed to POLL_STATUS_EFF_DT and
+              EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON polling
@@ -34,8 +34,8 @@ create or replace TRIGGER "COSTCNTR".tr_polling_upd
       v_polling_row.polling_ind               := :NEW.polling_ind;
       v_polling_row.next_download_block_count := :NEW.next_download_block_count;
       v_polling_row.current_flag              := :NEW.current_flag;
-      v_polling_row.polling_effective_date    := :NEW.polling_effective_date;
-      v_polling_row.polling_expiration_date   := :NEW.polling_expiration_date;
+      v_polling_row.poll_status_eff_dt        := :NEW.poll_status_eff_dt;
+      v_polling_row.poll_status_exp_dt        := :NEW.poll_status_exp_dt;
       v_polling_row.POLLING_START_DATE        := :NEW.POLLING_START_DATE;
       v_polling_row.POLLING_STOP_DATE         := :NEW.POLLING_STOP_DATE;
       
@@ -50,8 +50,8 @@ create or replace TRIGGER "COSTCNTR".tr_polling_upd
                                    v_polling_row.polling_ind polling_ind ,
                                    v_polling_row.next_download_block_count next_download_block_count ,
                                    v_polling_row.current_flag current_flag ,
-                                   v_polling_row.polling_effective_date polling_effective_date ,
-                                   v_polling_row.polling_expiration_date polling_expiration_date,
+                                   v_polling_row.poll_status_eff_dt poll_status_eff_dt ,
+                                   v_polling_row.poll_status_exp_dt poll_status_exp_dt,
                                    v_polling_row.POLLING_START_DATE POLLING_START_DATE,
                                    v_polling_row.POLLING_STOP_DATE POLLING_STOP_DATE)
                         ) AS "result" ,
