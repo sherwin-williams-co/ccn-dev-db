@@ -36,8 +36,7 @@ DECLARE
                                          '217869403',
                                          '532894623',
                                          '421452921',
-                                         '536935497',
-                                         '293860144')
+                                         '536935497')
         ORDER BY CUSTOMER_ACCOUNT_NUMBER, TRAN_TIMESTAMP;
 
    --variable declaration
