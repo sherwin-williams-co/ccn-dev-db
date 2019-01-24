@@ -19,6 +19,7 @@ IS
     V_BATCH_NUMBER                    BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS                    BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_CUSTOMER_NET_BALANCE            CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_NET_BALANCE%TYPE;
+    V_COUNT                           NUMBER;
 
     CURSOR main_cursor IS
         SELECT CUSTOMER_ACCOUNT_NUMBER,
@@ -32,14 +33,30 @@ BEGIN
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
       FOR rec IN main_cursor LOOP
-          UPDATE CUSTOMER_DEPOSIT_DETAILS
-             SET CLOSED_DATE = TRUNC(SYSDATE),
-                 NOTES       = NVL(NOTES, 'UPDATED BY BATCH JOB')
-           WHERE CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER
-             AND TRAN_TIMESTAMP          <= rec.TRAN_TIMESTAMP
-             AND CLOSED_DATE IS NULL;
-      END LOOP;
+          V_COUNT:= V_COUNT+1;
+          BEGIN
+              UPDATE CUSTOMER_DEPOSIT_DETAILS
+                 SET CLOSED_DATE = TRUNC(SYSDATE),
+                     NOTES       = NVL(NOTES, 'UPDATED BY BATCH JOB')
+               WHERE CUSTOMER_ACCOUNT_NUMBER = rec.CUSTOMER_ACCOUNT_NUMBER
+                 AND TRAN_TIMESTAMP          <= rec.TRAN_TIMESTAMP
+                 AND CLOSED_DATE IS NULL;
 
+              IF V_COUNT = 500 THEN
+                  COMMIT;
+                  V_COUNT := 0;
+              END IF;
+          EXCEPTION
+              WHEN OTHERS THEN
+                       ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
+                                                   'DAILY_NET_BAL_CLOSE_DATE_UPD',
+                                                    SQLERRM,
+                                                   '000000',
+                                                    REC.CUSTOMER_ACCOUNT_NUMBER,
+                                                   'CUSTOMER_DEPOSIT_DETAILS');
+          END;
+      END LOOP;
+      COMMIT;
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('NET_BAL_CLOSE_DT_UPD', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
