@@ -2411,4 +2411,15 @@ Changed :
     IN_COST_CENTER_CODE      IN     VARCHAR2,
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
+FUNCTION SYNC_ALLOCATION_TYPE(
+/******************************************************************************
+This function syncs column PCC_PCL_STORE based on data in column COLOR_CONSULTANT_TYPE
+
+Created : 01/23/2019 pxm158 CCN Project Team....
+Changed :
+ ******************************************************************************/
+    IN_COLOR_CONSULTANT_TYPE IN XMLTYPE,
+    IN_PCC_PCL_STORE         IN XMLTYPE) 
+RETURN XMLTYPE;
+
 END CCN_TABLE_IU_PKG;

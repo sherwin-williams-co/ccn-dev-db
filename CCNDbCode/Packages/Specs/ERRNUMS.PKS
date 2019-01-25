@@ -3299,5 +3299,15 @@ en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
+/*********************************************************** 
+The "en_costcntr_cc_close_date_err" passes a numerical error of -20221.
+This error occurs when close date is entered without removing Allocation type.
+
+created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
+************************************************************/
+en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
+exc_close_date_req_alloc_type_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
+
 END ERRNUMS;
 
