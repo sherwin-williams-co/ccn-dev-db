@@ -7,6 +7,8 @@
 #
 # Created       : 01/14/2019 sxg151 CCN Project Team.....
 ###############################################################################################################################
+cd /app/cstmrdpsts/batchJobs
+
 # below command will get the path for cstmr_dep.config respective to the environment from which it is run from
 . /app/cstmrdpsts/cstmr_dep.config
 
