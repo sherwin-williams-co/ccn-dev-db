@@ -108,4 +108,13 @@ changed :
 *****************************************************************************/
     IN_CHECK_SERIAL_NUMBER IN    STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE);
 
+PROCEDURE SD_RUN_TYPE_VALIDATION(
+/*****************************************************************************
+This procedure will do the bussiness rules validations for Run Type
+
+created : 1/28/2019 kxm302 CCN Project . . .
+changed :
+*****************************************************************************/
+    IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);
+
 END SD_BUSINESS_RULES_PKG;

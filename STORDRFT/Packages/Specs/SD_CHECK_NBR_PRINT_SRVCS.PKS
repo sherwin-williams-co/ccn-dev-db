@@ -76,6 +76,16 @@ This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
 Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/ 
-    IN_XML                CLOB);    
+    IN_XML                CLOB);
+
+FUNCTION GET_SD_CHK_TYP_REC(
+/**********************************************************
+This function will noof books ,checks per book , threshold, bank acccount number and routing number for run type passed.
+
+Created : 1/15/2019 kxm302 CCN Project Team.... 
+Changed : 
+**********************************************************/
+    IN_RUN_TYPE      IN    VARCHAR2
+) RETURN SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;    
 
 END SD_CHECK_NBR_PRINT_SRVCS;
