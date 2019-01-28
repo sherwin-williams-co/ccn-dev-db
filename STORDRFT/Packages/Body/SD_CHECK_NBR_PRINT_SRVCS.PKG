@@ -105,7 +105,8 @@ This procedure will print drafts of 2 letters 'A' and 'B' from previous end draf
 After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
 
 Created : 1/11/2019 kxm302 CCN Project Team.... 
-Changed : 
+Changed : 1/27/2019 kxm302 CCN Project Team....
+        : Added conditions to generate different draft numbers for USA and CAN 
 **********************************************************/
     IN_COST_CENTER_CODE           IN      VARCHAR2,
     IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
@@ -114,13 +115,22 @@ IS
     V_TOTAL_CHECKS     NUMBER;
     V_DRAFT_NBR        NUMBER;
     V_TERMINAL_NUMBER  VARCHAR2(5) := SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(IN_COST_CENTER_CODE);
+    V_COUNTRY_CODE     VARCHAR2(4);
 BEGIN
     V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
+    SELECT COUNTRY_CODE
+      INTO V_COUNTRY_CODE
+      FROM COST_CENTER
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    
     FOR draft_iterator IN 1 .. V_TOTAL_CHECKS LOOP
         V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator;
-        --The iteration should go back to 1001 after 9999
-        IF V_DRAFT_NBR > 9999 THEN
-            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 8999;
+        --The iteration should go back to 1000 after 9999 for USA
+        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 9000;
+        --The iteration should go back to 100 after 999 for CAN
+        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
+            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 900;
         END IF;
         INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
             TRUNC(SYSDATE),
@@ -130,13 +140,20 @@ BEGIN
             V_DRAFT_NBR,
             CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
             IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
-            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'8800600275',
+            IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR, --'8800600275',
             'A',
             IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
             CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
             NULL);
             
         V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
+        --The iteration should go back to 1000 after 9999 for USA
+        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 9000;
+        --The iteration should go back to 100 after 999 for CAN
+        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
+            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 900;
+        END IF;
         INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
             TRUNC(SYSDATE),
             draft_iterator,
@@ -145,7 +162,7 @@ BEGIN
             V_DRAFT_NBR,
             CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
             IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
-            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'8800600275',
+            IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR, --'8800600275',
             'B',
             IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
             CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
@@ -153,12 +170,13 @@ BEGIN
     END LOOP;
     INSERT INTO SD_CHECK_NBR_TRCKNG_DTLS VALUES (
         IN_COST_CENTER_CODE,
-        TRUNC(SYSDATE),
+        --TRUNC(SYSDATE),
+        SYSDATE,
         IN_PREV_PRINT_DRAFT_END_NBR + 1,
         V_DRAFT_NBR);
-EXCEPTION
-    WHEN OTHERS THEN
-        NULL;
+--EXCEPTION
+--    WHEN OTHERS THEN
+--        RAISE;
 END LOAD_EXTRACT_TBL;
 
 PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
@@ -213,13 +231,22 @@ IS
     V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    no_run_type_err            EXCEPTION;
 BEGIN
     V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(IN_COST_CENTER_CODE);
     V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(IN_COST_CENTER_CODE);
     V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+    
+    IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
+       RAISE no_run_type_err;
+    END IF;
+    
     LOAD_EXTRACT_TBL(IN_COST_CENTER_CODE,
                      V_PREV_END_DRFT_NBR,
                      V_SD_CHK_TYP_REC);
+EXCEPTION
+    WHEN no_run_type_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');                     
 END SD_CHECK_NBR_PRINT_PROCESS;
 
 PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (

@@ -147,6 +147,18 @@ exc_fss_batch_run_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_fss_batch_run_err , -20032);
 
+/*********************************************************** 
+The "no_run_type_err" passes a numerical error of -20033.
+This error raises order placed in check order details window in placing
+check order without Runtype available in Run Type Window
+
+created : 01/25/2019 kxm302 CCN Project
+revisions: 
+************************************************************/
+en_no_run_type_err CONSTANT NUMBER := -20033;
+exc_no_run_type_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_run_type_err , -20033);
+
 
 END errnums;
-
