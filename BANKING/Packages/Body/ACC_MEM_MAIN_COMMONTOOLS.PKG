@@ -19,8 +19,6 @@ Changed : 08/18/2015 jxc517 CCN Project....
           parent table BANK_MICR_FORMAT
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
-Changed : 05/03/2017 nxk927 CCN Project....
-          Removed the call to delete deposit bag record 
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER  IN  VARCHAR2)
 IS
@@ -50,6 +48,10 @@ IS
         SELECT *
           FROM BANK_DEP_TICK
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    CURSOR bank_dep_bag_tick_cur(IN_COST_CENTER_CODE VARCHAR2) IS
+        SELECT *
+          FROM BANK_DEP_BAG_TICK
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
 BEGIN
     FOR bank_account_rec IN bank_account_cur LOOP
         FOR bank_micr_format_rec IN bank_micr_format_cur LOOP
@@ -63,10 +65,16 @@ BEGIN
                 FOR bank_dep_tick_rec IN bank_dep_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
                     TABLE_IU_PKG.BANK_DEP_TICK_D_SP(bank_dep_tick_rec);
                 END LOOP;
+                FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(mbr_bank_cc_rec.MEMBER_STORE_NBR) LOOP
+                    TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(bank_dep_bag_tick_rec);
+                END LOOP;
                 TABLE_IU_PKG.MEMBER_BANK_CC_D_SP(mbr_bank_cc_rec);
             END LOOP;
             FOR bank_dep_tick_rec IN bank_dep_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
                 TABLE_IU_PKG.BANK_DEP_TICK_D_SP(bank_dep_tick_rec);
+            END LOOP;
+            FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur(lead_bank_cc_rec.LEAD_STORE_NBR) LOOP
+                TABLE_IU_PKG.BANK_DEP_BAG_TICK_D_SP(bank_dep_bag_tick_rec);
             END LOOP;
             TABLE_IU_PKG.LEAD_BANK_CC_D_SP(lead_bank_cc_rec);
         END LOOP;
@@ -97,8 +105,10 @@ Changed : 11/04/2015 jxc517 CCN Project....
           Removed the flag
           removed the future to current  call as this will be called from UI just to delete
           the future records
-        : 05/03/2018 nxk927 CCN Project....
-          Removed the deposit ticket future rec delete call
+        : 01/28/2019 pxa852 CCN Project Team...
+          Modified code to remove cursor which is holding the depoist bag future details
+          also, removed code which is calling delete deposit bag delete process
+          (Removed code which is deleting deposit bag future records)
 *******************************************************************************/
     IN_BANK_ACCOUNT_FTR_REC     IN     BANK_ACCOUNT_FUTURE%ROWTYPE)
 IS
@@ -146,6 +156,7 @@ IS
          WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
            AND FUTURE_ID        = IN_BANK_ACCOUNT_FTR_REC.FUTURE_ID;
 
+
     V_COUNT NUMBER := 0;
 
 BEGIN
@@ -162,7 +173,7 @@ BEGIN
         --now delete the bank micr details from the future
         TABLE_IU_PKG.BANK_MICR_FORMAT_FUTURE_D_SP(bank_micr_format_ftr_rec);
     END LOOP; --bank_micr_format_cur
-    
+
     --get all the lead bank cc details for this future and loop through
     FOR lead_bank_cc_ftr_rec IN lead_bank_cc_ftr_cur LOOP
 
@@ -176,12 +187,14 @@ BEGIN
                 --now delete the bank deposit ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
             END LOOP; --bank_dep_tickord_cur
+
             --for this member store, get the bank deposit ticket details
             --if found, delete those child records first
             FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(mbr_bank_cc_ftr_rec.MEMBER_STORE_NBR) LOOP
                 --now delete the bank deposit ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
             END LOOP; --bank_dep_tick_cur
+
             --now delete the member bank details from the future
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_ftr_rec);
         END LOOP; --mbr_bank_cc_cur
@@ -192,6 +205,7 @@ BEGIN
                 --now delete the bank deposit ticket details from the future
                 TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_ftr_rec);
             END LOOP; --bank_dep_tickord_cur
+
         --for this lead store, get the bank deposit ticket details
         --if found, delete those child records first
         FOR bank_dep_tick_ftr_rec IN bank_dep_tick_ftr_cur(lead_bank_cc_ftr_rec.LEAD_STORE_NBR) LOOP
@@ -199,6 +213,7 @@ BEGIN
             --now delete the bank deposit ticket details from the future
             TABLE_IU_PKG.BANK_DEP_TICK_FUTURE_D_SP(bank_dep_tick_ftr_rec);
         END LOOP; --bank_dep_tick_cur
+
         --now delete the lead bank details from the future
         TABLE_IU_PKG.LEAD_BANK_CC_FUTURE_D_SP(lead_bank_cc_ftr_rec);
     END LOOP; --lead_bank_cc_cur
@@ -255,8 +270,6 @@ Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
         : 12/14/2015 jxc517 CCN Project Team....
           Cleaned up the unused code
-        : 04/18/2018 nxk927 CCN Project Team....
-          Passing effective date for the member store in the EXPIRE_DEPOSIT_BAG_DTLS proc
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
 IN_NEW_EFFECTIVE_DATE  IN     DATE,
@@ -320,8 +333,7 @@ BEGIN
                                                                              NULL, --micr format id
                                                                              mb_rec.EXPIRATION_DATE);
                 DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(mb_rec.MEMBER_STORE_NBR,
-                                                                    mb_rec.EXPIRATION_DATE,
-                                                                    mb_rec.EFFECTIVE_DATE);
+                                                                    mb_rec.EXPIRATION_DATE);
             END IF;
             TABLE_IU_PKG.MEMBER_BANK_CC_I_SP(mb_rec);
         END LOOP;
@@ -333,8 +345,7 @@ BEGIN
                                                                              NULL, --micr format id
                                                                              lb_rec.EXPIRATION_DATE);
                 DEPOSIT_BAG_MAINTENANCE_PKG.EXPIRE_DEPOSIT_BAG_DTLS(lb_rec.LEAD_STORE_NBR,
-                                                                    lb_rec.EXPIRATION_DATE,
-                                                                    lb_rec.EFFECTIVE_DATE);
+                                                                    lb_rec.EXPIRATION_DATE);
             END IF;
             IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lb_rec.LEAD_STORE_NBR,
                                                              lb_rec.LEAD_BANK_ACCOUNT_NBR,
@@ -379,6 +390,9 @@ Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
         : 12/14/2015 jxc517 CCN Project Team....
           Cleaned up the unused code
+        : 01/28/2019 pxa852 CCN Project Team...
+          removed DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR process which is expiring
+          deposit bag previous future records.
 *******************************************************************************/
 IN_BANK_ACCOUNT_NBR    IN     BANK_ACCOUNT.BANK_ACCOUNT_NBR%TYPE,
 IN_NEW_EFFECTIVE_DATE  IN     DATE,
@@ -446,9 +460,6 @@ BEGIN
                                                                            NULL, --micr format id
                                                                            mbf_rec.FUTURE_ID,
                                                                            mbf_rec.EXPIRATION_DATE);
-                DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR(mbf_rec.MEMBER_STORE_NBR,
-                                                                      mbf_rec.FUTURE_ID,
-                                                                      mbf_rec.EXPIRATION_DATE);
             END IF;
             TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_I_SP(mbf_rec);
         END LOOP;
@@ -460,9 +471,6 @@ BEGIN
                                                                            NULL, --micr format id
                                                                            lbf_rec.FUTURE_ID,
                                                                            lbf_rec.EXPIRATION_DATE);
-                DEPOSIT_BAG_MAINTENANCE_PKG.EXPR_DEPOSIT_BAG_DTLS_FTR(lbf_rec.LEAD_STORE_NBR,
-                                                                      lbf_rec.FUTURE_ID,
-                                                                      lbf_rec.EXPIRATION_DATE);
             END IF;
             IF BUSINESS_RULES_PKG.IS_LEAD_EXPIRATION_INVALID(lbf_rec.LEAD_STORE_NBR,
                                                              lbf_rec.LEAD_BANK_ACCOUNT_NBR,
@@ -539,6 +547,10 @@ PROCEDURE ACCNT_MNTNC_EXP_DELETE_SP (
 Created : 10/02/2015 sxh487 CCN Project....
 Changed : 10/20/2015 jxc517 CCN Project....
           Code has been changed to deal with Deposit Bag futures
+        : 01/28/2019 pxa852 CCN Project Team...
+          Modified code to remove cursor which is holding the depoist bag future details
+          also, removed code which is calling delete deposit bag delete process
+          (Removed code which is deleting expired deposit bag future records)
 *******************************************************************************/
     IN_BANK_ACCOUNT_NUMBER      IN  VARCHAR2,
     IN_LEAD_STORE_NBR           IN  VARCHAR2,
@@ -567,16 +579,7 @@ IS
           FROM BANK_DEP_TICKORD_FUTURE
          WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
            AND FUTURE_ID        = IN_FUTURE_ID;
-    CURSOR bank_dep_bag_tick_cur IS
-        SELECT *
-          FROM BANK_DEP_BAG_TICK_FUTURE
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
-           AND FUTURE_ID        = IN_FUTURE_ID;
-    CURSOR bank_dep_bag_tickord_cur IS
-        SELECT *
-          FROM BANK_DEP_BAG_TICKORD_FUTURE
-         WHERE COST_CENTER_CODE = IN_MEMBER_STORE_NBR
-           AND FUTURE_ID        = IN_FUTURE_ID;
+
 BEGIN
      --expire CC related child tables
      FOR str_micr_format_rec IN store_micr_format_dtls_cur LOOP
@@ -587,12 +590,6 @@ BEGIN
      END LOOP;
      FOR bank_dep_tickord_rec IN bank_dep_tickord_cur LOOP
          TABLE_IU_PKG.BANK_DEP_TICKORD_FUTURE_D_SP(bank_dep_tickord_rec);
-     END LOOP;
-     FOR bank_dep_bag_tick_rec IN bank_dep_bag_tick_cur LOOP
-         TABLE_IU_PKG.BANK_DEP_BAG_TICK_FUTURE_D_SP(bank_dep_bag_tick_rec);
-     END LOOP;
-     FOR bank_dep_bag_tickord_rec IN bank_dep_bag_tickord_cur LOOP
-         TABLE_IU_PKG.BANK_DEP_BAG_TICKORD_FTR_D_SP(bank_dep_bag_tickord_rec);
      END LOOP;
      FOR mbr_bank_cc_rec IN mbr_bank_cc_cur LOOP
          TABLE_IU_PKG.MEMBER_BANK_CC_FUTURE_D_SP(mbr_bank_cc_rec);

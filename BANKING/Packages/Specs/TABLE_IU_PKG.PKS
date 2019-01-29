@@ -5,7 +5,9 @@ AS
   tables related to BANKING
 
 Created : 03/13/2015 nxk927 CCN BANKING PROJECT
-Changed :
+Changed : 01/25/2019 pxa852 CCN Project Team...
+          Modified code to remove BNK_DEP_BAG_TCK_FTR_ROWTYPE_SP, BANK_DEP_BAG_TICKORD_FTR_D_SP,
+          BANK_DEP_BAG_TICK_FUTURE_D_SP,BANK_DEP_BAG_TICK_FUTURE_I_SP, BANK_DEP_BAG_TICKORD_FTR_I_SP
 **********************************************************/
 TYPE BANK_MICR_FORMAT_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT%ROWTYPE INDEX BY BINARY_INTEGER;
 TYPE BANK_MICR_FORMAT_FTR_TAB_TYPE IS TABLE OF BANK_MICR_FORMAT_FUTURE%ROWTYPE INDEX BY BINARY_INTEGER;
@@ -34,17 +36,6 @@ Changed :
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT%ROWTYPE);
-
-PROCEDURE ST_MICR_FORMAT_ROWTYPE_SP (
-/*******************************************************************************
-    This procedure is intended to build the STORE_MICR_FORMAT_DTLS record type
-
-Created : 09/22/2016 nxk927 CCN Project....
-Changed :
-*******************************************************************************/
-IN_TABLE_NAME  IN     VARCHAR2
-,IN_ROW_DATA   IN     CLOB
-,OUT_ROW_TYPE     OUT STORE_MICR_FORMAT_DTLS%ROWTYPE);
 
 PROCEDURE LEAD_BANK_CC_ROWTYPE_SP (
 /*******************************************************************************
@@ -168,17 +159,6 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_MICR_FORMAT_FUTURE%ROWTYPE);
 
-PROCEDURE ST_MICR_FORMAT_FTR_ROWTYPE_SP (
-/*******************************************************************************
-    This procedure is intended to build the ST_MICR_FORMAT_FTR record type
-
-Created : 09/22/2016 nxk927 CCN Project....
-Changed :
-*******************************************************************************/
-IN_TABLE_NAME  IN     VARCHAR2
-,IN_ROW_DATA   IN     CLOB
-,OUT_ROW_TYPE     OUT STORE_MICR_FORMAT_DTLS_FUTURE%ROWTYPE);
-
 PROCEDURE LEAD_BANK_CC_FUTURE_ROWTYPE_SP (
 /*******************************************************************************
 	This procedure is intended to build the LEAD_BANK_CC_FUTURE record type
@@ -211,17 +191,6 @@ Changed :
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT BANK_DEP_TICK_FUTURE%ROWTYPE);
-
-PROCEDURE BNK_DEP_BAG_TCK_FTR_ROWTYPE_SP (
-/*******************************************************************************
-	This procedure is intended to build the BANK_DEP_BAG_TICK_FUTURE record type
-
-Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_TABLE_NAME  IN     VARCHAR2
-,IN_ROW_DATA   IN     CLOB
-,OUT_ROW_TYPE     OUT BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
 
 ---------------------------HISTORY INSERT PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_HIST_I_SP (
@@ -452,15 +421,6 @@ Changed :
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICK_FUTURE%ROWTYPE);
 
-PROCEDURE BANK_DEP_BAG_TICK_FUTURE_I_SP (
-/*******************************************************************************
-    This procedure is intended to insert records into BANK_DEP_BAG_TICK_FUTURE table
-
-Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
-
 PROCEDURE BANK_DEP_TICKORD_FUTURE_I_SP (
 /*******************************************************************************
     This procedure is intended to insert records into BANK_DEP_TICKORD_FUTURE table
@@ -469,15 +429,6 @@ Created : 09/01/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICKORD_FTR_I_SP (
-/*******************************************************************************
-    This procedure is intended to insert records into BANK_DEP_BAGTICKORD_FUTURE table
-
-Created : 10/19/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
 
 ---------------------------CURRENT DELETE PROCEDURES----------------------------
 PROCEDURE BANK_ACCOUNT_D_SP (
@@ -624,89 +575,5 @@ Created : 10/20/2015 jxc517 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_ROW     IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICK_FUTURE_D_SP (
-/*******************************************************************************
-	This procedure is intended to delete records from BANK_DEP_BAG_TICK_FUTURE table
-
-Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW     IN     BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICKORD_FTR_D_SP (
-/*******************************************************************************
-	This procedure is intended to delete records from BANK_DEP_BAG_TICKORD_FUTURE table
-
-Created : 10/20/2015 jxc517 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW     IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE); 
-
-PROCEDURE BANK_TICKORD_HIST_U_SP(
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_TICKORD_HIST table
-
-Created : 07/21/2015 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_TICKORD_HIST%ROWTYPE);
-
-PROCEDURE BANK_BAG_TICKORD_HIST_U_SP(
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD_HIST table
-
-Created : 07/21/2015 mxk766 CCN Project....
-Changed : 
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_BAG_TICKORD_HIST%ROWTYPE);
-
-PROCEDURE BANK_DEP_TICKORD_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_TICKORD table
-
-Created : 09/01/2015 jxc517 CCN Project....
-Changed : 11/03/2015 jxc517 CCN Project....
-          Added BANK_DEP_TICK_FTR_ID column to BANK_DEP_TICKORD table
-          07/05/2016 mxk766 CCN Project....
-          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_TICKORD%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICKORD_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD table
-
-Created : 10/19/2015 jxc517 CCN Project....
-Changed : 11/03/2015 jxc517 CCN Project....
-          Added BANK_DEP_BAG_FTR_ID column to BANK_DEP_BAG_TICKORD table
-          07/05/2016 mxk766 CCN Project....
-          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_BAG_TICKORD%ROWTYPE);
-
-PROCEDURE BANK_DEP_TICKORD_FUTURE_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_TICKORD_FUTURE table
-
-Created : 09/01/2015 jxc517 CCN Project....
-Changed : 11/03/2015 jxc517 CCN Project....
-          Added BANK_DEP_TICK_FTR_ID column to BANK_DEP_TICKORD_FUTURE table
-          07/05/2016 mxk766 CCN Project....
-          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_TICKORD_FUTURE%ROWTYPE);
-
-PROCEDURE BANK_DEP_BAG_TICKORD_FTR_U_SP (
-/*******************************************************************************
-    This procedure is intended to updates records in BANK_DEP_BAG_TICKORD_FUTURE table
-
-Created : 10/19/2015 jxc517 CCN Project....
-Changed : 11/03/2015 jxc517 CCN Project....
-          Added BANK_DEP_BAG_FTR_ID column to BANK_DEP_BAG_TICKORD_FUTURE table
-          07/05/2016 mxk766 CCN Project....
-          Added EXTERNAL_ORDER_ID_GUI column in the where condition.
-*******************************************************************************/
-IN_ROW IN     BANK_DEP_BAG_TICKORD_FUTURE%ROWTYPE);
 
 END TABLE_IU_PKG;

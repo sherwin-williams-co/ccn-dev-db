@@ -105,10 +105,11 @@ PROCEDURE DEPOSIT_BAG_TICKET_MNTNC_BR_SP(
 
 Created : 07/15/2015 axk326 CCN Project Team....
 Changed : 10/20/2015 jxc517 CCN Project Team....
+        : 01/28/2019 pxa852 CCN Project Team...
           Code has been changed to deal with Deposit Bag futures
+          Removed deposit bag future record type from input parameter list
 *******************************************************************************/
-    IN_BANK_DEP_BAG_TICK_REC     IN BANK_DEP_BAG_TICK%ROWTYPE,
-    IN_BANK_DEP_BAG_TICK_FTR_REC IN BANK_DEP_BAG_TICK_FUTURE%ROWTYPE);
+    IN_BANK_DEP_BAG_TICK_REC     IN BANK_DEP_BAG_TICK%ROWTYPE);
 
 PROCEDURE PLACE_TCKT_ORDER_BR_SP(
 /******************************************************************************
