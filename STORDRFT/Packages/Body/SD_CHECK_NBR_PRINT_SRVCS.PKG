@@ -35,7 +35,7 @@ Changed :
     IN_COST_CENTER_CODE    IN    VARCHAR2
 ) RETURN NUMBER
 IS
-    V_RETURN_VALUE    NUMBER;
+    V_RETURN_VALUE    NUMBER := 9999;
 BEGIN
     SELECT ORDERED_ENDNG_DRFT
       INTO V_RETURN_VALUE
@@ -105,17 +105,17 @@ This procedure will print drafts of 2 letters 'A' and 'B' from previous end draf
 After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
 
 Created : 1/11/2019 kxm302 CCN Project Team.... 
-Changed : 1/27/2019 kxm302 CCN Project Team....
-        : Added conditions to generate different draft numbers for USA and CAN 
+Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE           IN      VARCHAR2,
     IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
     IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE)
 IS
-    V_TOTAL_CHECKS     NUMBER;
-    V_DRAFT_NBR        NUMBER;
-    V_TERMINAL_NUMBER  VARCHAR2(5) := SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(IN_COST_CENTER_CODE);
-    V_COUNTRY_CODE     VARCHAR2(4);
+    V_TOTAL_CHECKS          NUMBER;
+    V_DRAFT_NBR             NUMBER;
+    V_TERMINAL_NUMBER       VARCHAR2(5) := SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(IN_COST_CENTER_CODE);
+    V_COUNTRY_CODE          VARCHAR2(4);
+    V_STARTING_DRAFT_NUMBER NUMBER;
 BEGIN
     V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
     SELECT COUNTRY_CODE
@@ -131,6 +131,11 @@ BEGIN
         --The iteration should go back to 100 after 999 for CAN
         ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
             V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 900;
+        END IF;
+        --Below condition is to make sure new cost centers are allowed to have place order feature
+        --and ordering starts for those from 1000 and 100 respectively for USA and CAN cost centers
+        IF draft_iterator = 1 THEN
+            V_STARTING_DRAFT_NUMBER := V_DRAFT_NBR;
         END IF;
         INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
             TRUNC(SYSDATE),
@@ -171,7 +176,7 @@ BEGIN
     INSERT INTO SD_CHECK_NBR_TRCKNG_DTLS VALUES (
         IN_COST_CENTER_CODE,
         SYSDATE,
-        IN_PREV_PRINT_DRAFT_END_NBR + 1,
+        V_STARTING_DRAFT_NUMBER,
         V_DRAFT_NBR);
 EXCEPTION
     WHEN OTHERS THEN
@@ -187,17 +192,10 @@ Changed :
 **********************************************************/
 IS
     CURSOR cc_main_cursor IS
---        SELECT COST_CENTER_CODE,
---               MAX(DRAFT_NUMBER) DRFT_NBR
---          FROM STORE_DRAFTS
---         WHERE COST_CENTER_CODE = '701002'
---         GROUP BY COST_CENTER_CODE
---         ORDER BY 1;
         SELECT COST_CENTER_CODE,
                COUNT(*) UNUSED_DRAFTS
           FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
          WHERE USED_IN_POS_ON_DATE IS NULL
-           --AND COST_CENTER_CODE = '701002'
          GROUP BY COST_CENTER_CODE
          ORDER BY 1;
 
@@ -209,7 +207,6 @@ BEGIN
         V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(rec.COST_CENTER_CODE);
         V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(rec.COST_CENTER_CODE);
         V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
---        IF rec.DRFT_NBR >= (V_PREV_END_DRFT_NBR - V_STR_DRFT_THRESHOLD_REC.STORE_DRFT_THRESHOLD) THEN
         IF rec.UNUSED_DRAFTS <= V_SD_CHK_TYP_REC.STORE_DRFT_THRESHOLD THEN
             LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
                              V_PREV_END_DRFT_NBR,
@@ -230,13 +227,22 @@ IS
     V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    no_run_type_err            EXCEPTION;
 BEGIN
     V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(IN_COST_CENTER_CODE);
     V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(IN_COST_CENTER_CODE);
     V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+    
+    IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
+       RAISE no_run_type_err;
+    END IF;
+    
     LOAD_EXTRACT_TBL(IN_COST_CENTER_CODE,
                      V_PREV_END_DRFT_NBR,
                      V_SD_CHK_TYP_REC);
+EXCEPTION
+    WHEN no_run_type_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');                     
 END SD_CHECK_NBR_PRINT_PROCESS;
 
 PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (
@@ -309,15 +315,14 @@ IS
     V_COUNT				                     NUMBER := 1;
     V_STORE_RUN_TYP_THRSHLD_DTLS_ROW         STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
 BEGIN
-        SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP(
-               'STORE_RUN_TYP_THRSHLD_DTLS',
-               V_XML.EXTRACT('/STORE_RUN_TYP_THRSHLD_DTLS_UI/STORE_RUN_TYP_THRSHLD_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
-               V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+    SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP('STORE_RUN_TYP_THRSHLD_DTLS',
+        V_XML.EXTRACT('/STORE_RUN_TYP_THRSHLD_DTLS_UI/STORE_RUN_TYP_THRSHLD_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
+        V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
                
-        --Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
-        SD_BUSINESS_RULES_PKG.SD_RUN_TYPE_VALIDATION(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+    --Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
+    SD_BUSINESS_RULES_PKG.SD_RUN_TYPE_VALIDATION(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
         
-        SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_I_SP(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+    SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_I_SP(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
 END STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP;
 
 END SD_CHECK_NBR_PRINT_SRVCS;
