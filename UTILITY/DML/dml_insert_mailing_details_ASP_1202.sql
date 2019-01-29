@@ -1,4 +1,4 @@
-Below script is created to insert data into MAILING_GROUP and MAILING_DETAILS table.
+/*Below script is created to insert data into MAILING_GROUP and MAILING_DETAILS table.
 
 Created : 01/28/2019 sxg151 CCN Project ASP-1202....
 Modified: 
