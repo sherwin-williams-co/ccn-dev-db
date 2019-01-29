@@ -147,4 +147,13 @@ Filters:
 Created : 08/23/2018 kxm302 CCN project Team....
 *******************************************************************************/
 
+PROCEDURE CCN_MONTHLY_SNAPSHOT_SP
+/**********************************************************
+This process will invoke to load data into tables from the Views
+
+Created : 01/25/2019 sxg151 CCN project Team....
+        : ASP-1205 : Monthly (2nd to last business day) views for hierarchy attribute and cost center
+**********************************************************/
+;
+
 END CCN_BATCH_PROCESS;
