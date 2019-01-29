@@ -10,7 +10,7 @@ CREATE TABLE GLOBAL_HIERARCHY_ATTRBT_MNTH_SNAP
     HRCHY_DTL_EFF_DATE       DATE NOT NULL,
     HRCHY_DTL_EXP_DATE       DATE,
     DOMAIN                   VARCHAR2(4000),
-    GROUP                    VARCHAR2(4000),
+    "GROUP"                  VARCHAR2(4000),
     DIVISION                 VARCHAR2(4000),
     AREA                     VARCHAR2(4000),
     DISTRICT                 VARCHAR2(4000),
