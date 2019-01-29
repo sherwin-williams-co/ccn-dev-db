@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999Â¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `yÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -3299,4 +3299,15 @@ en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
+/*********************************************************** 
+The "en_costcntr_cc_close_date_err" passes a numerical error of -20221.
+This error occurs when close date is entered without removing Allocation type.
+
+created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
+************************************************************/
+en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
+exc_close_date_req_alloc_type_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
+
 END ERRNUMS;
+
