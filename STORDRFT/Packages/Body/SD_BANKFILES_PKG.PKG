@@ -40,6 +40,8 @@ Modified: 02/13/2015 DXV848 Added condition - if amount_change_date is null then
           passing the date as variable
         : 06/05/2018 nxk927
           added condition to check for the data that has been processed on the same day
+        : 01/25/2019 kxm302
+          added condition to check to payee and net amount info to process and if missed send mail to user
 *****************************************************************************/ 
     IN_DATE IN DATE)
 IS
@@ -122,6 +124,7 @@ IS
          ;
 
     V_OUT_CLOB                   CLOB;
+    V_ERRCLOB                    CLOB;
     V_TOTAL_AMOUNT               NUMBER := 0;
     PATH          VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME      VARCHAR2(50) := 'DLY_DRAFT_US_AM';
@@ -274,23 +277,35 @@ BEGIN
                                    ,FILENAME --|| STAMP
                                    , 'W' --BINARY
                                    , 32767);
+    
     FOR SD_REC IN SD_CUR LOOP
-    -- BUILD_HEADER(SD_REC,V_OUT_CLOB);
-  IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
-                                   SD_REC.BANK_ACCOUNT_NUMBER) THEN
-            IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
-                  BUILD_TRAILER(V_PREV_REC,
-                                V_OUT_CLOB);
-          END IF;
-			--Header needs to built when ever there is a change in the bank accouny number
-            BUILD_HEADER(SD_REC,
+    
+       IF SD_REC.NET_AMOUNT <> 0 AND SD_REC.PAYEE_NAME IS NOT NULL THEN
+           -- BUILD_HEADER(SD_REC,V_OUT_CLOB);
+           IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
+                                      SD_REC.BANK_ACCOUNT_NUMBER) THEN
+               IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
+                     BUILD_TRAILER(V_PREV_REC,
+                                   V_OUT_CLOB);
+
+             END IF;
+			 --Header needs to built when ever there is a change in the bank accouny number
+             BUILD_HEADER(SD_REC,
                          V_OUT_CLOB);
-			END IF;
+		   END IF;
             	 BUILD_BODY(SD_REC,
-                   V_OUT_CLOB);
-        V_PREV_REC := SD_REC;
-        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-        V_OUT_CLOB := NULL;
+                        V_OUT_CLOB);
+            V_PREV_REC := SD_REC;
+            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
+       ELSE
+          V_ERRCLOB := V_ERRCLOB ||
+                       SD_REC.COST_CENTER_CODE||
+                       ','||SD_REC.CHECK_SERIAL_NUMBER||
+                       ','||TO_DATE(SD_REC.TRANSACTION_DATE,'YYYY/MM/DD')||
+                       ','||SD_REC.NET_AMOUNT||CHR(10); 
+       END IF;    
+       
     END LOOP;
     
     IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
@@ -304,6 +319,11 @@ BEGIN
 
     UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
     UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+    IF V_ERRCLOB <> EMPTY_CLOB() THEN
+    V_ERRCLOB := 'Cost Center,'||'Check Serial Number,'||'Transaction Date,'||'Net Amount'||CHR(10)||V_ERRCLOB;
+        MAIL_PKG.SEND_MAIL('SD_US_AUTO_BANK_INFO_MISSING', NULL, NULL, V_ERRCLOB);
+    END IF;    
 END CREATE_US_AUTO_BANK_FILE; 
 
 
@@ -323,10 +343,13 @@ Modified: 04/05/2016 jxc517 CCN Project Team....
           passing the date as variable
         : 06/05/2018 nxk927
           added condition to check for the data that has been processed on the same day
+        : 01/25/2019 kxm302
+          added condition to check to payee and net amount info to process and if missed send mail to user          
 *****************************************************************************/ 
     IN_DATE IN DATE)
 IS
     V_DATE        DATE := CCN_BATCH_PKG.GET_LAST_STARTDATE('SD_DAILY_DRFT_LOAD');
+
     CURSOR SD_CUR IS
        SELECT  DISTINCT SD.COST_CENTER_CODE,
                          --SUBSTR(SD.BANK_ACCOUNT_NUMBER,7,10) BANK_ACCOUNT_NUMBER,
@@ -404,6 +427,7 @@ IS
 
 
     V_OUT_CLOB                   CLOB;
+    V_ERRCLOB                    CLOB; 
   --  v_prev_rec                   SD_CUR%ROWTYPE;
     V_TOTAL_AMOUNT               NUMBER := 0;
 
@@ -560,22 +584,32 @@ BEGIN
                                    , 'W' --BINARY
                                    , 32767);
     FOR SD_REC IN SD_CUR LOOP
-    -- BUILD_HEADER(SD_REC,V_OUT_CLOB);
-  IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
-                                   SD_REC.BANK_ACCOUNT_NUMBER) THEN
-            IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
-                  BUILD_TRAILER(V_PREV_REC,
-                                V_OUT_CLOB);
-          END IF;
-			--Header needs to built when ever there is a change in the bank accouny number
-            BUILD_HEADER(SD_REC,
+    
+       IF SD_REC.NET_AMOUNT <> 0 AND SD_REC.PAYEE_NAME IS NOT NULL THEN
+           -- BUILD_HEADER(SD_REC,V_OUT_CLOB);
+           IF IS_BANK_ACCOUNT_CHANGED(V_PREV_REC.BANK_ACCOUNT_NUMBER,
+                                      SD_REC.BANK_ACCOUNT_NUMBER) THEN
+               IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
+                     BUILD_TRAILER(V_PREV_REC,
+                                   V_OUT_CLOB);
+             END IF;
+			 --Header needs to built when ever there is a change in the bank accouny number
+             BUILD_HEADER(SD_REC,
                          V_OUT_CLOB);
-			END IF;
+		   END IF;
             	 BUILD_BODY(SD_REC,
-                   V_OUT_CLOB);
-        V_PREV_REC := SD_REC;
-        UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-        V_OUT_CLOB := NULL;
+                        V_OUT_CLOB);
+            V_PREV_REC := SD_REC;
+            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
+            V_OUT_CLOB := NULL;
+       ELSE
+          V_ERRCLOB := V_ERRCLOB ||
+                       SD_REC.COST_CENTER_CODE||
+                       ','||SD_REC.CHECK_SERIAL_NUMBER||
+                       ','||TO_DATE(SD_REC.TRANSACTION_DATE,'YYYY/MM/DD')||
+                       ','||SD_REC.NET_AMOUNT||CHR(10);       
+       END IF;    
+       
     END LOOP;
     
     IF v_prev_rec.BANK_ACCOUNT_NUMBER IS NOT NULL THEN
@@ -589,6 +623,11 @@ BEGIN
 
     UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
     UTL_FILE.FCLOSE(OUTPUT_FILE);
+
+    IF V_ERRCLOB <> EMPTY_CLOB() THEN
+    V_ERRCLOB := 'Cost Center,'||'Check Serial Number,'||'Transaction Date,'||'Net Amount'||CHR(10)||V_ERRCLOB;
+        MAIL_PKG.SEND_MAIL('SD_US_NONAUTO_BANK_INFO_MISSING', NULL, NULL, V_ERRCLOB);
+    END IF;
 END CREATE_US_NONAUTO_FILE; 
 
 PROCEDURE CREATE_CAN_NONAUTO_FILE(
