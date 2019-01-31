@@ -449,7 +449,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999Â¿.
+An error occurs when Amex ID is = `999999999¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +553,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `yÂ¿.
+An error occurs when inventory_id not = `y¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +809,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `YÂ¿ or `NÂ¿.
+An error occurs when Polling_Ind not = `Y¿ or `N¿.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -3310,4 +3310,3 @@ exc_close_date_req_alloc_type_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
 
 END ERRNUMS;
-
