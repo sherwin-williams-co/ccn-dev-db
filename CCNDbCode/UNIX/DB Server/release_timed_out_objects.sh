@@ -10,6 +10,7 @@
 #                                 2. Added WHENEVER clauses
 #             : 01/26/2017 gxg192 Removed :exitCode variable
 #             : 01/31/2017 gxg192 Removed exit command in error status check
+#             : 02/01/2019 mxs216 Changed this process to unlock every 5 minutes instead of 15 minutes
 ##########################################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -27,7 +28,7 @@ set heading off;
 set verify off;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
-execute CCN_RESTRICTION_PKG.RELEASE_TIMED_OUT_OBJECTS(15);
+execute CCN_RESTRICTION_PKG.RELEASE_TIMED_OUT_OBJECTS(5);
 
 exit
 END
