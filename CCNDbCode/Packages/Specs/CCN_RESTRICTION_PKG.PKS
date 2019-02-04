@@ -7,6 +7,8 @@ create or replace PACKAGE "CCN_RESTRICTION_PKG" AS
  Created By : CCN Project Team - jcv517
  ******************************************************************************/
   
+    P_RELEASE_TIMED_OUT_MINS CONSTANT NUMBER := 5;
+
  FUNCTION IS_OBJECT_RESTRICTED(
  /******************************************************************************
  IS_OBJECT_RESTRICTED
@@ -53,7 +55,6 @@ create or replace PACKAGE "CCN_RESTRICTION_PKG" AS
  
  ******************************************************************************/
  IN_TIME_OUT_MINUTES     IN       NUMBER);
+
  
-  END CCN_RESTRICTION_PKG;
- 
- 
+END CCN_RESTRICTION_PKG;
