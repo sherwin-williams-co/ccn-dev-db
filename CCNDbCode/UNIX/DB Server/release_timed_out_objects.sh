@@ -13,7 +13,6 @@
 #             : 01/31/2019 mxs216 Changed this process to unlock every 5 minutes instead of 15 minutes
 #             : 02/04/2019 mxs216 Removed timestamp from the log file name.
 ##########################################################################################
-cd /app/ccn/dev
 
 # below command will get the path for config respective to the environment from which it is run from
 . /app/ccn/host.sh
