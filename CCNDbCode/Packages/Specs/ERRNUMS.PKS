@@ -3299,7 +3299,7 @@ en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
 
-/*********************************************************** 
+/***********************************************************
 The "en_costcntr_cc_close_date_err" passes a numerical error of -20221.
 This error occurs when close date is entered without removing Allocation type.
 
@@ -3308,5 +3308,45 @@ created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
 en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
 exc_close_date_req_alloc_type_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
+
+/***********************************************************
+The "en_hrchy_bulk_attr_update_err" passes a numerical error of -20213.
+This error occurs during Hierarchy Bulk attribute update using template/process in the batch window
+
+created : 12/03/2018, mxs216, ASP - 1169 CCN Project Team...
+************************************************************/
+en_hrchy_bulk_attr_update_err    CONSTANT NUMBER := -20213;
+exc_hrchy_bulk_attr_update_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_hrchy_bulk_attr_update_err, -20213);
+
+/***********************************************************
+The "en_invalid_hrchy_name_err" passes a numerical error of -20215.
+This error occurs when hierarchy not exists in HIERARCHY_HEADER
+
+created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_invalid_hrchy_name_err    CONSTANT NUMBER := -20215;
+exc_invalid_hrchy_name_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_name_err, -20215);
+
+/***********************************************************
+The "en_invalid_attr_name_err" passes a numerical error of -20216.
+This error occurs when attribute name not exists in hierarchy_description.upper_lvl_ver_value column
+
+created : 12/26/2018 mxs216 CCN Project Team...
+************************************************************/
+en_invalid_attr_name_err     CONSTANT NUMBER := -20216;
+exc_invalid_attr_name_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_attr_name_err, -20216);
+
+/***********************************************************
+The "en_invalid_attr_value_err" passes a numerical error of -20217.
+This error occurs when attribute value not found in code_detail table.
+
+created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_invalid_attr_value_err    CONSTANT NUMBER := -20217;
+exc_invalid_attr_value_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
 
 END ERRNUMS;

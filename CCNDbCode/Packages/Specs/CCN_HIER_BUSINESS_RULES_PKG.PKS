@@ -350,7 +350,7 @@ RETURN VARCHAR2;
 
 FUNCTION IS_VALID_HRCHY_ATTR_DETAILS(
 /***********************************************************
-This function is validating the data reading from flat file
+This function is validating the data reading from flat file 
 and validating HIERARCHY_NAME, ATTRIBUTE_NAME and ATTRIBUTE_VALUE
 Created : 12/18/2018, mxs216, CCN Project ASP-1169
 ************************************************************/
