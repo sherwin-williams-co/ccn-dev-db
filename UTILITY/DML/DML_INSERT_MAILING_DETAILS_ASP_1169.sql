@@ -6,8 +6,11 @@ Created : 12/18/2018 mxs216 CCN Project ASP-1169....
 Modified: 
 **********************************************************************************/
 
--- INSERTING into MAILING_DETAILS
+-- Checking if the mailing group already exists
+SELECT * FROM mailing_group WHERE group_id = '106';
+-- Group found
 
+-- INSERTING into MAILING_DETAILS table
 INSERT INTO MAILING_DETAILS (MAIL_CATEGORY, GROUP_ID, SUBJECT, FROM_P, MESSAGE, SIGNATURE) 
                      VALUES ('HIERARCHY_BULK_ATTR_UPDATE_FAIL', 
                              '106', 
