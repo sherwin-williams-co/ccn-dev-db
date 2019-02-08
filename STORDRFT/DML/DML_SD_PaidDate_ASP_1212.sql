@@ -1,0 +1,34 @@
+/*---------------------------------------
+Below script will manually mark the drafts as paid as per email sent by Marissa Papas
+
+Store	Draft	Paid Date
+8677	1660-7	1/8/2019   - Mark AS Paid.
+8614	1025-6	1/28/2019  - Mark AS Paid.
+
+Created: 2/8/2019 kxm302
+------------------------------------------*/
+
+SELECT * FROM STORE_DRAFTS WHERE CHECK_SERIAL_NUMBER = '0867716607';
+--1 Row(s) SELECTed
+ UPDATE STORE_DRAFTS 
+   SET PAID_DATE = '8-JAN-2019',
+       PAY_INDICATOR = 'Y',
+       VOID_INDICATOR = 'N',
+       OPEN_INDICATOR = 'Y',
+       VOID_DATE = NULL,
+       BANK_PAID_AMOUNT = DECODE(AMOUNT_CHANGE_DATE, NULL, ORIGINAL_NET_AMOUNT, NET_AMOUNT), 
+       GROSS_AMOUNT = NVL(GROSS_AMOUNT, ORIGINAL_NET_AMOUNT), 
+       NET_AMOUNT = NVL(NET_AMOUNT, ORIGINAL_NET_AMOUNT)
+ WHERE CHECK_SERIAL_NUMBER = '0867716607';
+ --1 Row(s) Updated
+
+SELECT * FROM STORE_DRAFTS WHERE CHECK_SERIAL_NUMBER = '0861410256';
+--1 Row(s) SELECTed
+UPDATE STORE_DRAFTS 
+   SET PAID_DATE = '28-JAN-2019', 
+       PAY_INDICATOR = 'Y',
+       NET_AMOUNT = 830.55,
+       BANK_PAID_AMOUNT = 830.55,
+       GROSS_AMOUNT = NVL(GROSS_AMOUNT, ORIGINAL_NET_AMOUNT)
+ WHERE CHECK_SERIAL_NUMBER = '0861410256';
+ --1 Row(s) Updated 
