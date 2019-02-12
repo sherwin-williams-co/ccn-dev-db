@@ -1270,6 +1270,61 @@ EXCEPTION
         ERRPKG.RAISE_ERR(-20004,'VLDT_RLS_FOR_LATIN_AMRIC_DIV ',V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM);
 END VLDT_RLS_FOR_LATIN_AMRIC_DIV;
 
+FUNCTION IS_VALID_HIERARCHY_LEVEL(
+/***********************************************************
+This function will return "Y" if the Hierarchy Level exist in HIERARCHY_DESCRIPTION
+Created : 02/08/2019, mxs216, CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE         VARCHAR2(1) := 'N';
+    V_COUNT                NUMBER := NULL;
+BEGIN
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM HIERARCHY_DESCRIPTION
+     WHERE HRCHY_HDR_NAME = IN_HRCHY_ATTR_DETAILS_REC.HRCHY_HDR_NAME
+       AND HRCHY_HDR_LVL_NBR = IN_HRCHY_ATTR_DETAILS_REC.HRCHY_DTL_LEVEL;
+
+    IF V_COUNT > 0 THEN
+        V_RETURN_VALUE := 'Y';
+    END IF;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_VALID_HIERARCHY_LEVEL;
+
+FUNCTION IS_VALID_HIERARCHY_LEVEL_VALUE(
+/***********************************************************
+This function will return "Y" if the Hierarchy Cur Level Value exist in HIERARCHY_DETAILS
+Created : 02/08/2019, mxs216, CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE         VARCHAR2(1) := 'N';
+    V_COUNT                NUMBER := NULL;
+BEGIN
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM HIERARCHY_DETAIL
+     WHERE HRCHY_HDR_NAME = IN_HRCHY_ATTR_DETAILS_REC.HRCHY_HDR_NAME
+       AND HRCHY_DTL_LEVEL = IN_HRCHY_ATTR_DETAILS_REC.HRCHY_DTL_LEVEL
+       AND HRCHY_DTL_CURR_LVL_VAL = IN_HRCHY_ATTR_DETAILS_REC.HRCHY_DTL_CURR_LVL_VAL;
+
+    IF V_COUNT > 0 THEN
+        V_RETURN_VALUE := 'Y';
+    END IF;
+
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_VALID_HIERARCHY_LEVEL_VALUE;
+
 FUNCTION IS_VALID_HIERARCHY_NAME(
 /***********************************************************
 This function will return "Y" if the Hierarchy name is exist in HIERARCHY_HEADER
@@ -1374,27 +1429,39 @@ Created : 12/18/2018, mxs216, CCN Project ASP-1169
     IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
 RETURN VARCHAR2
 IS
-    INVALID_HIERARCHY_NAME        EXCEPTION;
-    INVALID_ATTRIBUTE_NAME        EXCEPTION;
-    INVALID_ATTRIBUTE_VALUE       EXCEPTION;
-    V_RETURN_VALUE               VARCHAR2(1) := 'N';
+    INVALID_HIERARCHY_NAME         EXCEPTION;
+    INVALID_HIERARCHY_LEVEL        EXCEPTION;
+    INVALID_HIERARCHY_LEVEL_VALUE  EXCEPTION;
+    INVALID_ATTRIBUTE_NAME         EXCEPTION;
+    INVALID_ATTRIBUTE_VALUE        EXCEPTION;
+    V_RETURN_VALUE                 VARCHAR2(1) := 'N';
 BEGIN
     -- Validating Hierarchy name
     IF IS_VALID_HIERARCHY_NAME(IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name) <> 'Y' THEN
         RAISE INVALID_HIERARCHY_NAME;
     ELSE
-        -- Validating Attribute name
-        IF IS_VALID_ATTRIBUTE_NAME(IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name,
-                                   IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level,
-                                   IN_HRCHY_ATTR_DETAILS_REC.attr_name)<>'Y' THEN
-            RAISE INVALID_ATTRIBUTE_NAME;
+        -- Validating Hierarchy Level
+        IF IS_VALID_HIERARCHY_LEVEL(IN_HRCHY_ATTR_DETAILS_REC) <> 'Y' THEN
+            RAISE INVALID_HIERARCHY_LEVEL;
         ELSE
-            -- Validating Attribute Value
-            IF IS_VALID_ATTRIBUTE_VALUE(IN_HRCHY_ATTR_DETAILS_REC.attr_name,
-                                        IN_HRCHY_ATTR_DETAILS_REC.attr_value) <>'Y' THEN
-                RAISE INVALID_ATTRIBUTE_VALUE;
+            -- Validating Hierarchy Cur Level Value
+            IF IS_VALID_HIERARCHY_LEVEL_VALUE(IN_HRCHY_ATTR_DETAILS_REC) <> 'Y' THEN
+                RAISE INVALID_HIERARCHY_LEVEL_VALUE;
             ELSE
-                V_RETURN_VALUE := 'Y';
+                -- Validating Attribute name
+                IF IS_VALID_ATTRIBUTE_NAME(IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name,
+                                           IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level,
+                                           IN_HRCHY_ATTR_DETAILS_REC.attr_name)<>'Y' THEN
+                    RAISE INVALID_ATTRIBUTE_NAME;
+                ELSE
+                    -- Validating Attribute Value
+                    IF IS_VALID_ATTRIBUTE_VALUE(IN_HRCHY_ATTR_DETAILS_REC.attr_name,
+                                                IN_HRCHY_ATTR_DETAILS_REC.attr_value) <>'Y' THEN
+                        RAISE INVALID_ATTRIBUTE_VALUE;
+                    ELSE
+                        V_RETURN_VALUE := 'Y';
+                    END IF;
+                END IF;
             END IF;
         END IF;
     END IF;
@@ -1403,19 +1470,40 @@ EXCEPTION
     WHEN INVALID_HIERARCHY_NAME THEN
         COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name,
                                'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
-                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name || ',' ||'hierarchy name provided is not a valid name',
+                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name || ',' ||'hierarchy name provided is not a valid name'||
+                               CHR(10)||'It is required to correct and rerun the update process for this record of '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name,
                                ERRNUMS.en_invalid_hrchy_name_err);
+        RETURN V_RETURN_VALUE;
+    WHEN INVALID_HIERARCHY_LEVEL THEN
+        COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level,
+                               'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
+                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level || ',' ||'hierarchy level provided is not valid'||
+                               CHR(10)||'It is required to correct and rerun the update process for this record of '||
+                               'Hierarchy: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name ||', Level: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level,
+                               ERRNUMS.en_invalid_hrchy_level_err);
+        RETURN V_RETURN_VALUE;
+    WHEN INVALID_HIERARCHY_LEVEL_VALUE THEN
+        COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val,
+                               'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
+                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val || ',' ||'hierarchy level value provided is not valid'||
+                               CHR(10)||'It is required to correct and rerun the update process for this record of '||
+                               'Hierarchy: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name ||', Level: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level||', Value: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val,
+                               ERRNUMS.en_invalid_hrchy_lvl_value_err);
         RETURN V_RETURN_VALUE;
     WHEN INVALID_ATTRIBUTE_NAME THEN
         COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.attr_name,
                                'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
-                               IN_HRCHY_ATTR_DETAILS_REC.attr_name||' attribute name provided is not a valid attribute name',
+                               IN_HRCHY_ATTR_DETAILS_REC.attr_name||' attribute name provided is not a valid attribute name'||
+                               CHR(10)||'It is required to correct and rerun the update process for the set of '||
+                               'Hierarchy: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name ||', Level: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level||', Value: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val,
                                ERRNUMS.en_invalid_attr_name_err);
         RETURN V_RETURN_VALUE;
     WHEN INVALID_ATTRIBUTE_VALUE THEN
         COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.attr_name||'-'||IN_HRCHY_ATTR_DETAILS_REC.attr_value,
                                'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
-                               'attribute name/value provided : (' || IN_HRCHY_ATTR_DETAILS_REC.attr_name||' - '||IN_HRCHY_ATTR_DETAILS_REC.attr_value||' ) is not valid',
+                               'attribute name/value provided : (' || IN_HRCHY_ATTR_DETAILS_REC.attr_name||' - '||IN_HRCHY_ATTR_DETAILS_REC.attr_value||' ) is not valid'||
+                               CHR(10)||'It is required to correct and rerun the update process for the set of '||
+                               'Hierarchy: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name ||', Level: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level||', Value: '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val,
                                ERRNUMS.en_invalid_attr_value_err);
         RETURN V_RETURN_VALUE;
     WHEN OTHERS THEN

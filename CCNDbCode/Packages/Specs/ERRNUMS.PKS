@@ -3349,4 +3349,24 @@ en_invalid_attr_value_err    CONSTANT NUMBER := -20217;
 exc_invalid_attr_value_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
 
+/***********************************************************
+The "en_invalid_hrchy_level_err" passes a numerical error of -20222.
+This error occurs when open date not populated for Territory cost center.
+
+created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_invalid_hrchy_level_err  CONSTANT NUMBER := -20222;
+exc_invalid_hrchy_level_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_level_err, -20222);
+
+/***********************************************************
+The "en_territory_cc_open_date_err" passes a numerical error of -20223.
+This error occurs when open date not populated for Territory cost center.
+
+created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_invalid_hrchy_lvl_value_err  CONSTANT NUMBER := -20223;
+exc_invalid_hrchy_lvl_value_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_lvl_value_err, -20223);
+
 END ERRNUMS;

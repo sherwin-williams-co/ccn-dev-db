@@ -743,49 +743,63 @@ IS
     V_UPPER_LVL_VER_VALUE        HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
     V_BULK_ATTR_UPDATE_LKUP_ID   NUMBER;
     NOT_VALID_HRCHY_ATTR_DATA    EXCEPTION;
+    V_CLOB_FOR_EMAIL             CLOB;
     V_CLOB_FOR_EMAIL_All         CLOB;
     V_START_TIME                 DATE := SYSDATE;
-
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('HIERARCHY_BULK_ATTR_UPDATE', V_BULK_ATTR_UPDATE_LKUP_ID);
-    SAVEPOINT HIERARCHY_HER_NAME;
+
     -- Getting unique key values
     FOR rec_name IN HRCHY_HDR_NAME_CUR LOOP
-        V_FINAL_XML := NULL;
-        -- Getting all values from flat file
-        FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.hrchy_hdr_name,
-                                           rec_name.hrchy_dtl_level,
-                                           rec_name.hrchy_dtl_curr_lvl_val) LOOP
-            -- Validting the hierarchy data from flat file
-        IF CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS(rec) = 'Y' THEN
-            -- Reading the existing XML
-            V_UPPER_LVL_VER_VALUE := CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE(rec.hrchy_hdr_name,
-                                                                              rec.hrchy_dtl_level,
-                                                                              rec.hrchy_dtl_curr_lvl_val);
-            -- Building new XML using the existing XML
-            CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(V_UPPER_LVL_VER_VALUE,
-                                                        V_FINAL_XML,
-                                                        rec.ATTR_NAME,
-                                                        rec.ATTR_VALUE);
+        BEGIN
+            SAVEPOINT HIERARCHY_HER_NAME;
+            V_FINAL_XML := NULL;
+            -- Getting all values from flat file
+            FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.hrchy_hdr_name,
+                                               rec_name.hrchy_dtl_level,
+                                               rec_name.hrchy_dtl_curr_lvl_val) LOOP
+                -- Validting the hierarchy data from flat file
+                IF CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS(rec) = 'Y' THEN
+                    -- Reading the existing XML
+                    V_UPPER_LVL_VER_VALUE := CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE(rec.hrchy_hdr_name,
+                                                                                      rec.hrchy_dtl_level,
+                                                                                      rec.hrchy_dtl_curr_lvl_val);
+                    -- Building new XML using the existing XML
+                    CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(V_UPPER_LVL_VER_VALUE,
+                                                                V_FINAL_XML,
+                                                                rec.ATTR_NAME,
+                                                                rec.ATTR_VALUE);
+                ELSE
+                    RAISE NOT_VALID_HRCHY_ATTR_DATA;
+                END IF;
+            END LOOP;
+            IF v_final_xml IS NOT NULL THEN
+                -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly build XML
+                CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE(v_final_xml,
+                                                          rec_name.hrchy_hdr_name,
+                                                          rec_name.hrchy_dtl_level,
+                                                          rec_name.hrchy_dtl_curr_lvl_val);
             END IF;
-        END LOOP;
-        IF v_final_xml IS NOT NULL THEN
-            -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly build XML
-            CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE(v_final_xml,
-                                                      rec_name.hrchy_hdr_name,
-                                                      rec_name.hrchy_dtl_level,
-                                                      rec_name.hrchy_dtl_curr_lvl_val);
-        END IF;
+            COMMIT;
+        EXCEPTION
+            WHEN NOT_VALID_HRCHY_ATTR_DATA THEN
+                ROLLBACK TO HIERARCHY_HER_NAME;
+            WHEN OTHERS THEN
+                COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
+                ROLLBACK TO HIERARCHY_HER_NAME;
+        END;
     END LOOP;
+
     ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL_ALL);
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL_ALL := V_CLOB_FOR_EMAIL_ALL || CHR(10) || V_CLOB_FOR_EMAIL;
+    END IF;
     IF V_CLOB_FOR_EMAIL_ALL <> EMPTY_CLOB() THEN
-        ROLLBACK TO HIERARCHY_HER_NAME;
         V_CLOB_FOR_EMAIL_ALL := 'HIERARCHY_BULK_ATTR_UPDATE, ERROR_DETAILS' || CHR(10) || V_CLOB_FOR_EMAIL_ALL;
         MAIL_PKG.SEND_MAIL('HIERARCHY_BULK_ATTR_UPDATE_FAIL', NULL, NULL, V_CLOB_FOR_EMAIL_ALL);
-    ELSE
-        COMMIT;
     END IF;
     POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_ATTR_UPDATE_LKUP_ID);
+
 EXCEPTION
     WHEN OTHERS THEN
         -- The below call to reset the flag should always be the first line of the exception block

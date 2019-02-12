@@ -357,4 +357,20 @@ Created : 12/18/2018, mxs216, CCN Project ASP-1169
     IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
 RETURN VARCHAR2;
 
+FUNCTION IS_VALID_HIERARCHY_LEVEL(
+/***********************************************************
+This function will return "Y" if the Hierarchy Level exist in HIERARCHY_DESCRIPTION
+Created : 02/08/2019, mxs216, CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2;
+
+FUNCTION IS_VALID_HIERARCHY_LEVEL_VALUE(
+/***********************************************************
+This function will return "Y" if the Hierarchy Cur Level Value exist in HIERARCHY_DETAILS
+Created : 02/08/2019, mxs216, CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2;
+
 END CCN_HIER_BUSINESS_RULES_PKG;
