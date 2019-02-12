@@ -2,7 +2,9 @@ create or replace PACKAGE CCN_HISTORY
 /*********************************************************** 
 This package is will return data for HISTORY detail 
 
-created : 
+created :
+Modified: mxs216, ASP-1210, CCN Project....
+          Deleted RELEASE_LOCK_FOR_HRCHY_HST procedure, as it is no where using.
 ************************************************************/
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
@@ -32,17 +34,6 @@ end;
      ,IN_TRAVERSE           IN      VARCHAR2 DEFAULT 'UP'
      ,IN_HIST_DATE          IN      HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
      ,OUT_HIERARCHY_REF_CUR    OUT  REF_CURSOR);
-
- PROCEDURE RELEASE_LOCK_FOR_HRCHY_HST
-  /**********************************************************
-	RELEASE_LOCK_FOR_HRCHY_HST
-
-	This procedure will release the lock on the history table
-
- created : 08/01/2014 CCN Project....
- modified:
-**********************************************************/
-;
 
 PROCEDURE RETURN_STATUS_HIST (
 /**********************************************************
@@ -120,4 +111,3 @@ modified:
     OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR);
 
 END CCN_HISTORY;
-
