@@ -56,7 +56,7 @@ fi
 ############################################################################
 #                           UPDATING LOG FILE
 ############################################################################
-echo "<<New writes>>" >> $LOGDIR/$proc.log
+#echo "<<New writes>>" >> $LOGDIR/$proc.log
 temp_log_file=$proc"_"$TimeStamp.log
 # extracting datetimestamp from the file name
 var1="${temp_log_file//[!0-9]/}"
