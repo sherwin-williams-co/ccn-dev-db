@@ -10,21 +10,21 @@ FUNCTION  GET_LAST_VALUE_NET_BAL(
 /*******************************************************************************
 GET_LAST_VALUE_NET_BAL
 
-This procedure is intended to update customer_deposit_details records
+This procedure is intended to update CUSTOMER_DEPOSIT_TRANSACTION_DTL records
 created : 09/05/2018 sxh487 -- ccn coding project....
-changed :
-
+changed : 02/06/2019 pxa852 CCN Project Team...
+          Modified code to replace old table with new table that is created as part of new data model
 *******************************************************************************/
-    IN_CUSTOMER_ACCOUNT_NUMBER    IN     CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE)
+    IN_CUSTOMER_ACCOUNT_NUMBER    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE)
 RETURN NUMBER
 IS
-    V_PREV_BAL     CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_NET_BALANCE%TYPE:=0;
+    V_PREV_BAL     CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_NET_BALANCE%TYPE:=0;
 BEGIN
       SELECT NVL(CUSTOMER_NET_BALANCE, 0)
         INTO V_PREV_BAL
-        FROM CUSTOMER_DEPOSIT_DETAILS
-       WHERE TRANSACTION_SQ_ID = (SELECT MAX(TRANSACTION_SQ_ID)
-                                    FROM CUSTOMER_DEPOSIT_DETAILS
+        FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
+       WHERE TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
+                                    FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
                                    WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
                                      AND CLOSED_DATE IS NULL);
 
@@ -34,6 +34,44 @@ EXCEPTION
        RETURN V_PREV_BAL;
 END GET_LAST_VALUE_NET_BAL;
 
+PROCEDURE CUST_DEP_REDEMPTION_ORGNLS_UPD(
+/*******************************************************************************
+MANUAL_RED_DEP_REM_BAL_UPD
+
+This procedure is intended to update the originals of redemption for a manual deposit
+created : 01/08/2019 pxa852 CCN Project Team...
+changed :
+*******************************************************************************/
+    IN_MANUAL_DEP_ROW    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE)
+IS
+    V_REDEMPTION_ROW            CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
+BEGIN
+     BEGIN
+          SELECT *
+            INTO V_REDEMPTION_ROW
+            FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
+           WHERE CUSTOMER_ACCOUNT_NUMBER = IN_MANUAL_DEP_ROW.CUSTOMER_ACCOUNT_NUMBER
+             AND COST_CENTER_CODE        = IN_MANUAL_DEP_ROW.COST_CENTER_CODE
+             AND TRANSACTION_DATE        = IN_MANUAL_DEP_ROW.TRANSACTION_DATE
+             AND TERMINAL_NUMBER         = IN_MANUAL_DEP_ROW.TERMINAL_NUMBER
+             AND TRANSACTION_NUMBER      = IN_MANUAL_DEP_ROW.TRANSACTION_NUMBER
+             AND CLOSED_DATE IS NULL;
+     EXCEPTION
+         WHEN OTHERS THEN
+             V_REDEMPTION_ROW := NULL;
+     END;
+     IF V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER IS NOT NULL AND V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR IS NULL THEN
+        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := IN_MANUAL_DEP_ROW.TERMINAL_NUMBER;
+        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := IN_MANUAL_DEP_ROW.TRANSACTION_NUMBER;
+        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := IN_MANUAL_DEP_ROW.TRANSACTION_DATE;
+        TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_REDEMPTION_ROW);
+     END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'CUST_DEP_RED_ORGNL_UPD', SUBSTR(SQLERRM,1,500));
+END CUST_DEP_REDEMPTION_ORGNLS_UPD;
+
 PROCEDURE ORIG_DEP_REM_BAL_UPD(
 /**********************************************************
 This function updates the original references for a Redemption
@@ -41,31 +79,30 @@ and updates the Deposit with remaining balance
  
 Created : 03/26/2018 SXH487
 Changed : 11/26/2018 ASP-1150 : Renamed input variable name( TOTAL_SALES to CSTMR_DPST_SALES_LN_ITM_AMT)
-        : 01/11/2019 pxa852 CCN Project Team...
-          Modified code to use new table CUST_DEP_CRD_RED_DETAILS and update the deposit remaining balance
+        : 02/06/2019 pxa852 CCN Project Team...
+          Modified code to replace old table with new table that is created as part of new data model
 **********************************************************/
-    IN_CSTMR_DPST_SALES_LN_ITM_AMT IN      CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE,
-    IN_CUSTOMER_ACCOUNT_NUMBER     IN      CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE,
-    IN_TRANSACTION_DATE            IN      CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE,
-    OUT_TRANSACTION_NUMBER            OUT  CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_NUMBER%TYPE,
-    OUT_TERMINAL_NUMBER               OUT  CUSTOMER_DEPOSIT_DETAILS.TERMINAL_NUMBER%TYPE,
-    OUT_TRANSACTION_DATE              OUT  CUSTOMER_DEPOSIT_DETAILS.TRANSACTION_DATE%TYPE
+    IN_CSTMR_DPST_SALES_LN_ITM_AMT IN      CUSTOMER_DEPOSIT_TRANSACTION_DTL.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE,
+    IN_CUSTOMER_ACCOUNT_NUMBER     IN      CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE,
+    IN_TRANSACTION_DATE            IN      CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE,
+    OUT_TRANSACTION_NUMBER            OUT  CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_NUMBER%TYPE,
+    OUT_TERMINAL_NUMBER               OUT  CUSTOMER_DEPOSIT_TRANSACTION_DTL.TERMINAL_NUMBER%TYPE,
+    OUT_TRANSACTION_DATE              OUT  CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE
 )
 IS
     CURSOR ALL_DEPS IS
-        SELECT CDD.TRANSACTION_NUMBER,CDD.TERMINAL_NUMBER, CDD.TRANSACTION_DATE,cr.*,
-               count(*) over () TOT_DEP_CNT
-          FROM CUST_DEP_CRD_RED_DETAILS cr, CUSTOMER_DEPOSIT_DETAILS cdd
-         WHERE cdd.CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
-           AND cdd.TRANSACTION_TYPE <> 'REDEMPTION'
-           AND cr.TRANSACTION_SQ_ID = cdd.TRANSACTION_SQ_ID
-           AND cdd.TRANSACTION_DATE <= IN_TRANSACTION_DATE
-           AND cr.DEPOSIT_REMAINING_BAL > 0
-           ORDER BY cdd.TRAN_TIMESTAMP;
+        SELECT a.*, rowid, count(*) over () TOT_DEP_CNT
+          FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL a
+         WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUSTOMER_ACCOUNT_NUMBER
+           AND TRANSACTION_DATE <= IN_TRANSACTION_DATE
+           AND TRANSACTION_TYPE <> 'REDEMPTION'
+           AND DEPOSIT_REMAINING_BAL > 0
+           AND CLOSED_DATE IS NULL
+           ORDER BY TRAN_TIMESTAMP;
 
     V_CNT                           NUMBER :=0;
-    V_DEP_REM_BAL                   CUST_DEP_CRD_RED_DETAILS.DEPOSIT_REMAINING_BAL%TYPE;
-    V_CSTMR_DPST_SALES_LN_ITM_AMT   CUSTOMER_DEPOSIT_DETAILS.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE := -(IN_CSTMR_DPST_SALES_LN_ITM_AMT);
+    V_DEP_REM_BAL                   CUSTOMER_DEPOSIT_TRANSACTION_DTL.DEPOSIT_REMAINING_BAL%TYPE;
+    V_CSTMR_DPST_SALES_LN_ITM_AMT   CUSTOMER_DEPOSIT_TRANSACTION_DTL.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE := -(IN_CSTMR_DPST_SALES_LN_ITM_AMT);
 BEGIN  
     FOR each_dep IN ALL_DEPS LOOP
         V_CNT := V_CNT +1;
@@ -73,6 +110,7 @@ BEGIN
         OUT_TERMINAL_NUMBER    := each_dep.TERMINAL_NUMBER;
         OUT_TRANSACTION_DATE   := each_dep.TRANSACTION_DATE;
         V_DEP_REM_BAL          := NULL;
+
         --if the redemption is greater than the balance on the deposit
         --then update the Deposit with -ve bal
         IF V_CSTMR_DPST_SALES_LN_ITM_AMT > each_dep.DEPOSIT_REMAINING_BAL THEN
@@ -87,9 +125,9 @@ BEGIN
             V_DEP_REM_BAL := each_dep.DEPOSIT_REMAINING_BAL - V_CSTMR_DPST_SALES_LN_ITM_AMT;
             V_CSTMR_DPST_SALES_LN_ITM_AMT := 0;
         END IF;
-        UPDATE CUST_DEP_CRD_RED_DETAILS
-           SET DEPOSIT_REMAINING_BAL   = V_DEP_REM_BAL
-          WHERE TRANSACTION_SQ_ID      = each_dep.TRANSACTION_SQ_ID;
+        UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
+           SET DEPOSIT_REMAINING_BAL = V_DEP_REM_BAL
+          WHERE ROWID      = each_dep.rowid;
 
         IF V_CSTMR_DPST_SALES_LN_ITM_AMT = 0 THEN
             EXIT;
@@ -97,126 +135,43 @@ BEGIN
     END LOOP;
 END ORIG_DEP_REM_BAL_UPD;
 
-PROCEDURE CUSTOMER_DEPOSIT_HDR_UPSERT_SP(
-/*******************************************************************************
-This procedure takes XML for CUSTOMER_DEPOSIT_HEADER information
-and Inserts/Updates the DB with the information from UI
-
-<?xml version="1.0" encoding="UTF-8"?>
-<CUSTOMER_DEPOSIT_UI>
-  <CUSTOMER_DEPOSIT_HEADER>
-    <CUSTOMER_ACCOUNT_NUMBER>100046887</CUSTOMER_ACCOUNT_NUMBER>
-    <CUSTOMER_NAME></CUSTOMER_NAME>
-    <BILLCONTACT></BILLCONTACT>
-    <BILLNM></BILLNM>
-    <BILLADDR1></BILLADDR1>
-    <BILLADDR2></BILLADDR2>
-    <BILLCITY></BILLCITY>
-    <BILLZIP></BILLZIP>
-    <BILLPHONE></BILLPHONE>
-    <RLS_RUN_CYCLE></RLS_RUN_CYCLE>
-    <LOAD_DATE></LOAD_DATE>
-    <REFERENCE_NUMBER>xxx</REFERENCE_NUMBER>
-    <CLEARED_REASON>xxx</CLEARED_REASON>
-    <NOTES>xxx</NOTES>
-    <CLOSED_DATE>05-03-2018</CLOSED_DATE>
-  </CUSTOMER_DEPOSIT_HEADER>
- <CUSTOMER_DEPOSIT_UI>
-
-This proceduere does the following
-1) Inserts the current record from CUSTOMER_DEPOSIT_HEADER into CUST_DEP_HDR_CLOSING_HIST
-2) Updates the CUSTOMER_DEPOSIT_HEADER with the changes from UI for closed date
-created : 05/04/2018 sxh487 -- CCN Project Team
-******************************************************************************/
-    IN_TABLE_NAME          IN      VARCHAR2,
-    IN_CUST_HEADER_XML     IN      CLOB,
-    OUT_HDR_CUST_ACNT_NBR     OUT  VARCHAR2)
-IS
-CURSOR ALL_DEPS (p_acct_nbr IN CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE) IS
-    SELECT *
-      FROM CUSTOMER_DEPOSIT_DETAILS 
-     WHERE CUSTOMER_ACCOUNT_NUMBER = p_acct_nbr
-       AND CLOSED_DATE IS NULL;
-
-     V_XML                       SYS.XMLTYPE := XMLTYPE(IN_CUST_HEADER_XML);
-     V_CUSTOMER_DEPOSIT_HDR_frag CLOB;
-     V_CUST_DEP_HDR_rec          CUSTOMER_DEPOSIT_HEADER%ROWTYPE;
-     v_det_row                   CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
-BEGIN
-    IF V_XML.EXISTSNODE('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME) = 1  THEN
-       V_CUSTOMER_DEPOSIT_HDR_frag := V_XML.EXTRACT('//'||IN_TABLE_NAME ).GETCLOBVAL();
-    END IF;
-    TABLE_IU_PKG.CUST_DEPOSIT_HDR_ROWTYPE_SP(IN_TABLE_NAME,
-                                             V_CUSTOMER_DEPOSIT_HDR_frag,
-                                             V_CUST_DEP_HDR_rec);
-    TABLE_IU_PKG.CUST_DEPOSIT_HEADER_I_SP(V_CUST_DEP_HDR_rec);
-    FOR each_rec IN ALL_DEPS (V_CUST_DEP_HDR_rec.CUSTOMER_ACCOUNT_NUMBER) LOOP
-         --update the CUSTOMER_DEPOSIT_DETAILS with closed date
-         v_det_row := each_rec;
-         v_det_row := each_rec;
-         v_det_row.REFERENCE_NUMBER := V_CUST_DEP_HDR_rec.REFERENCE_NUMBER;
-         v_det_row.CLEARED_REASON    := V_CUST_DEP_HDR_rec.CLEARED_REASON;
-         v_det_row.NOTES             := V_CUST_DEP_HDR_rec.NOTES;
-         v_det_row.CLOSED_DATE       := V_CUST_DEP_HDR_rec.CLOSED_DATE;
-         TABLE_IU_PKG.CUST_DEP_DET_I_SP(v_det_row);
-    END LOOP;
-OUT_HDR_CUST_ACNT_NBR := v_det_row.CUSTOMER_ACCOUNT_NUMBER;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'CUSTOMER_DEPOSIT_HDR_UPSERT_SP', SUBSTR(SQLERRM,1,500));
-END CUSTOMER_DEPOSIT_HDR_UPSERT_SP;
-
 PROCEDURE CUSTOMER_DEPOSIT_DET_UPSERT_SP(
 /*******************************************************************************
-This procedure takes XML for CUSTOMER_DEPOSIT_DETAILS information 
+This procedure takes XML for CUSTOMER_DEPOSIT_TRANSACTION_DTL information
 and Inserts/Updates the DB with the information from UI
 
 <?xml version="1.0" encoding="UTF-8"?>
 <CUSTOMER_DEPOSIT_UI>
-  <CUSTOMER_DEPOSIT_DETAILS>
-    <CUSTOMER_ACCOUNT_NUMBER>100001932</CUSTOMER_ACCOUNT_NUMBER>
-    <CSTMR_DPST_SALES_LN_ITM_AMT>200</CSTMR_DPST_SALES_LN_ITM_AMT>
-    <ADJUSTED_DATE></ADJUSTED_DATE>
-    <REFERENCE_NUMBER></REFERENCE_NUMBER>
-    <CLEARED_REASON></CLEARED_REASON>
-    <NOTES></NOTES>
-    <CLOSED_DATE></CLOSED_DATE>
-    <COST_CENTER_CODE>701975</COST_CENTER_CODE>
-    <TRANSACTION_TYPE>REDEMPTION</TRANSACTION_TYPE>
-    <CUSTOMER_NET_BALANCE>100</CUSTOMER_NET_BALANCE>
-    <TRANSACTION_DATE>03-01-2016</TRANSACTION_DATE>
-    <TERMINAL_NUMBER>18458</TERMINAL_NUMBER>
-    <TRANSACTION_NUMBER>7914</TRANSACTION_NUMBER>
-    <TRAN_TIMESTAMP>03-01-2016 11:09:33</TRAN_TIMESTAMP>
-    <TRANSACTION_GUID>AE645392FD87A6B3E511C7DFBCC8C6FC</TRANSACTION_GUID>
-    <POS_TRANSACTION_CODE>19</POS_TRANSACTION_CODE>
-    <LOAD_DATE>08-28-2018</LOAD_DATE>
-    <RLS_RUN_CYCLE>1234</RLS_RUN_CYCL>
-    <GL_DIVISION>A100</GL_DIVISION>
-  </CUSTOMER_DEPOSIT_DETAILS>
-  <CUSTOMER_DEPOSIT_DETAILS>
-       <CUSTOMER_ACCOUNT_NUMBER>100001932</CUSTOMER_ACCOUNT_NUMBER>
-       <CSTMR_DPST_SALES_LN_ITM_AMT>100</CSTMR_DPST_SALES_LN_ITM_AMT>
+    <CUSTOMER_DEPOSIT_TRANSACTION_DTL>
+        <COST_CENTER_CODE>707149</COST_CENTER_CODE>
+        <TRANSACTION_DATE>02-07-2019</TRANSACTION_DATE>
+        <TERMINAL_NUMBER>14103</TERMINAL_NUMBER>
+        <TRANSACTION_NUMBER>92458</TRANSACTION_NUMBER>
+        <TRANSACTION_GUID>95EE8A9BA5E30F8AE7116E9D40A8EE47</TRANSACTION_GUID>
+        <CUSTOMER_ACCOUNT_NUMBER>320224215</CUSTOMER_ACCOUNT_NUMBER>
+        <POS_TRANSACTION_CODE>31</POS_TRANSACTION_CODE>
+        <TRAN_TIMESTAMP></TRAN_TIMESTAMP>
+        <TRANSACTION_TYPE>MANUAL</TRANSACTION_TYPE>
+        <CSTMR_DPST_SALES_LN_ITM_AMT>100</CSTMR_DPST_SALES_LN_ITM_AMT>
+        <DEPOSIT_REMAINING_BAL></DEPOSIT_REMAINING_BAL>
+        <CLOSED_DATE></CLOSED_DATE>
+        <REFERENCE_NUMBER></REFERENCE_NUMBER>
+        <CLEARED_REASON></CLEARED_REASON>
+        <NOTES></NOTES>
+        <RLS_RUN_CYCLE></RLS_RUN_CYCLE>
+       <LOAD_DATE></LOAD_DATE>
        <ADJUSTED_DATE></ADJUSTED_DATE>
-       <REFERENCE_NUMBER></REFERENCE_NUMBER>
-       <CLEARED_REASON></CLEARED_REASON>
-       <NOTES></NOTES>
-       <CLOSED_DATE></CLOSED_DATE>
-       <COST_CENTER_CODE>701975</COST_CENTER_CODE>
-       <TRANSACTION_TYPE>REDEMPTION</TRANSACTION_TYPE>
-       <CUSTOMER_NET_BALANCE>100</CUSTOMER_NET_BALANCE>
-       <TRANSACTION_DATE>03-05-2016</TRANSACTION_DATE>
-       <TERMINAL_NUMBER>10604</TERMINAL_NUMBER>
-       <TRANSACTION_NUMBER>79621</TRANSACTION_NUMBER>
-       <TRAN_TIMESTAMP>03-05-2016 08:18:03</TRAN_TIMESTAMP>
-       <TRANSACTION_GUID>A8F585E590BF648FE511D4E2285FECB0</TRANSACTION_GUID>
-       <POS_TRANSACTION_CODE>41</POS_TRANSACTION_CODE>
-       <LOAD_DATE>08-28-2018</LOAD_DATE>
-       <RLS_RUN_CYCLE>1234</RLS_RUN_CYCLE>
-       <GL_DIVISION>A100</GL_DIVISION>
-     </CUSTOMER_DEPOSIT_DETAILS>
+       <GL_DIVISION></GL_DIVISION>
+    </CUSTOMER_DEPOSIT_TRANSACTION_DTL>
 </CUSTOMER_DEPOSIT_UI>
 created : 05/04/2018 sxh487 -- CCN Project Team
+Modified: 02/06/2019 pxa852 CCN Project Team...
+          Modified code to replace old table with new table that is created as part of new data model
+          We will continue to track the deposit remaining balance and associate a redemption with an original deposit in our daily load.
+          For any Correction
+              Manual Redemption - we will tie back the original deposit transaction number to this manual redemption
+              Manual Deposit - we will make the deposit remaining balance as 0 and we will tie-back the original redemption to this Manual deposit if the originals are null
+                              (so that this should not be tied back to the next deposit coming in later)
 ******************************************************************************/
     IN_TABLE_NAME           IN     VARCHAR2,
     IN_CUST_DETAIL_XML      IN     CLOB,
@@ -224,25 +179,40 @@ created : 05/04/2018 sxh487 -- CCN Project Team
 IS
     V_XML                       SYS.XMLTYPE := XMLTYPE(IN_CUST_DETAIL_XML);
     V_COUNT                     NUMBER := 1;
-    V_CUSTOMER_ACCOUNT_NUMBER   CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_ACCOUNT_NUMBER%TYPE;
-    V_NET_BAL                   CUSTOMER_DEPOSIT_DETAILS.CUSTOMER_NET_BALANCE%TYPE;
+    V_CUSTOMER_ACCOUNT_NUMBER   CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE;
+    V_NET_BAL                   CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_NET_BALANCE%TYPE;
     V_CUST_DEP_DET_frag         CLOB;
-    V_CUST_DEP_DET_rec          CUSTOMER_DEPOSIT_DETAILS%ROWTYPE;
+    V_CUST_DEP_DET_rec          CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
 BEGIN
+    --it come here only if a transaction is manual deposit/manual redemption
     IF (V_XML.EXISTSNODE('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()') = 1) THEN
         V_CUSTOMER_ACCOUNT_NUMBER := V_XML.EXTRACT('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()').GETSTRINGVAL();
     END IF;
     -- Get the Last Net Balance 
-    V_NET_BAL := GET_LAST_VALUE_NET_BAL(V_CUSTOMER_ACCOUNT_NUMBER);   
+    V_NET_BAL := GET_LAST_VALUE_NET_BAL(V_CUSTOMER_ACCOUNT_NUMBER);
     IF IN_CUST_DETAIL_XML IS NOT NULL THEN
-        WHILE V_XML.EXISTSNODE('//'|| 'CUSTOMER_DEPOSIT_DETAILS'||'[' ||V_COUNT|| ']') = 1 LOOP   
-            V_CUST_DEP_DET_frag := V_XML.EXTRACT('//'||'CUSTOMER_DEPOSIT_DETAILS' ||'[' || V_COUNT || ']').GETCLOBVAL();
+        WHILE V_XML.EXISTSNODE('//'|| 'CUSTOMER_DEPOSIT_TRANSACTION_DTL'||'[' ||V_COUNT|| ']') = 1 LOOP
+            V_CUST_DEP_DET_frag := V_XML.EXTRACT('//'||'CUSTOMER_DEPOSIT_TRANSACTION_DTL' ||'[' || V_COUNT || ']').GETCLOBVAL();
             IF V_CUST_DEP_DET_frag IS NOT NULL THEN 
-               TABLE_IU_PKG.CUST_DEP_DETAILS_ROWTYPE_SP('CUSTOMER_DEPOSIT_DETAILS',
+               TABLE_IU_PKG.CUST_DEP_DETAILS_ROWTYPE_SP('CUSTOMER_DEPOSIT_TRANSACTION_DTL',
                                                          V_CUST_DEP_DET_frag,
                                                          V_CUST_DEP_DET_rec);
                V_NET_BAL := V_NET_BAL + V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT;
                V_CUST_DEP_DET_rec.CUSTOMER_NET_BALANCE := V_NET_BAL;
+               --hard coding transaction type to 'MANUAL' if user enter anything by mistake
+               V_CUST_DEP_DET_rec.TRANSACTION_TYPE     := 'MANUAL';
+               IF V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN
+                  --deposit remaining balace is always zero for a manual deposit
+                  V_CUST_DEP_DET_rec.DEPOSIT_REMAINING_BAL := 0;
+                  --This procedure will tie-back the original redemption to this Manual deposit if the originals are null
+                  CUST_DEP_REDEMPTION_ORGNLS_UPD (V_CUST_DEP_DET_rec);
+               ELSE
+                  --for a manual redemption, passing terminal number, transaction number and transaction date to originals
+                  --Deposit Remaining balance will always be null for a manual redemption
+                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TERMINAL_NBR     :=  V_CUST_DEP_DET_rec.TERMINAL_NUMBER;
+                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TRANSACTION_NBR  :=  V_CUST_DEP_DET_rec.TRANSACTION_NUMBER;
+                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TRANSACTION_DATE :=  V_CUST_DEP_DET_rec.TRANSACTION_DATE;
+               END IF;
                -- Call Business rule to check header and detail account numbers 
                BUSINESS_RULES_PKG.VALIDATE_HDR_DET_ACCT_NBR(IN_HDR_CUST_ACNT_NBR,V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER);
                TABLE_IU_PKG.CUST_DEP_DET_I_SP(V_CUST_DEP_DET_rec);
@@ -259,17 +229,15 @@ PROCEDURE CUSTOMER_DEPOSIT_UPSERT_SP(
 /******************************************************************************
 This is a wrapper for the upsert procedure
 created : 05/04/2018 sxh487 -- CCN Project Team
+Modified: 02/07/2019 pxa852 CCN Project Team...
+          Modified code to remove header upsert process
 ******************************************************************************/
-    IN_CUST_HEADER_XML  IN CLOB,
     IN_CUST_DETAIL_XML  IN CLOB)
 IS
     V_HDR_CUST_ACNT_NBR  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE;
 BEGIN
-    IF IN_CUST_HEADER_XML IS NOT NULL THEN
-        CUSTOMER_DEPOSIT_HDR_UPSERT_SP('CUSTOMER_DEPOSIT_HEADER', IN_CUST_HEADER_XML, V_HDR_CUST_ACNT_NBR);
-    END IF;
     IF IN_CUST_DETAIL_XML IS NOT NULL THEN
-        CUSTOMER_DEPOSIT_DET_UPSERT_SP('CUSTOMER_DEPOSIT_DETAILS', IN_CUST_DETAIL_XML, V_HDR_CUST_ACNT_NBR);
+        CUSTOMER_DEPOSIT_DET_UPSERT_SP('CUSTOMER_DEPOSIT_TRANSACTION_DTL', IN_CUST_DETAIL_XML, V_HDR_CUST_ACNT_NBR);
     END IF;
 END CUSTOMER_DEPOSIT_UPSERT_SP;
 
