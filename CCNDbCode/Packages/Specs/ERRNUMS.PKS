@@ -3351,7 +3351,7 @@ PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
 
 /***********************************************************
 The "en_invalid_hrchy_level_err" passes a numerical error of -20222.
-This error occurs when open date not populated for Territory cost center.
+This error occurs when level not found for the corresponding Hierarchy
 
 created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
 ************************************************************/
@@ -3361,7 +3361,7 @@ PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_level_err, -20222);
 
 /***********************************************************
 The "en_territory_cc_open_date_err" passes a numerical error of -20223.
-This error occurs when open date not populated for Territory cost center.
+This error occurs when level value not found for the corresponding Hierarchy and level
 
 created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
 ************************************************************/
