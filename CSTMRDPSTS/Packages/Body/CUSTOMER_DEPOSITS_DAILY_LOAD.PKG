@@ -319,36 +319,29 @@ created : 01/17/2019 pxa852 ccn project....
 changed : 02/06/2019 pxa852 CCN Project Team...
           Modified code to include new table that was created as part of data model change
 ******************************************************************************/
-IN_CUSTOMER_ACCOUNT_NUMBER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE,
-IN_TRANSACTION_DATE        IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE)
+    IN_CUSTOMER_ACCOUNT_NUMBER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE,
+    IN_TRANSACTION_DATE        IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE)
 IS
    CURSOR TEMP_CUR IS
+      --This query will get all redemptions that are not properly tied back yet
       SELECT *
         FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
-       WHERE CUSTOMER_ACCOUNT_NUMBER      = IN_CUSTOMER_ACCOUNT_NUMBER
-         AND TRANSACTION_DATE             <= IN_TRANSACTION_DATE
-         AND CSTMR_DPST_SALES_LN_ITM_AMT  < 0
+       WHERE CUSTOMER_ACCOUNT_NUMBER  = IN_CUSTOMER_ACCOUNT_NUMBER
+         AND TRANSACTION_DATE         <= IN_TRANSACTION_DATE
+         AND TRANSACTION_TYPE         = 'REDEMPTION'
          AND ORGNL_DEPOSIT_TERMINAL_NBR IS NULL
          AND CLOSED_DATE IS NULL
        ORDER BY TRAN_TIMESTAMP;
-   --variable declaration
-   V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_NUMBER%TYPE;
-   V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_TRANSACTION_DTL.TERMINAL_NUMBER%TYPE;
-   V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE;
 BEGIN
      FOR rec IN TEMP_CUR LOOP
          CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(rec.CSTMR_DPST_SALES_LN_ITM_AMT,
                                                          rec.CUSTOMER_ACCOUNT_NUMBER,
                                                          IN_TRANSACTION_DATE,
-                                                         V_ORIG_DEP_NBR,
-                                                         V_ORIG_TERM_NBR,
-                                                         V_ORIG_TRAN_DATE);
-         rec.ORGNL_DEPOSIT_TRANSACTION_NBR    := V_ORIG_DEP_NBR;
-         rec.ORGNL_DEPOSIT_TERMINAL_NBR       := V_ORIG_TERM_NBR;
-         rec.ORGNL_DEPOSIT_TRANSACTION_DATE   := V_ORIG_TRAN_DATE;
+                                                         rec.ORGNL_DEPOSIT_TRANSACTION_NBR,
+                                                         rec.ORGNL_DEPOSIT_TERMINAL_NBR,
+                                                         rec.ORGNL_DEPOSIT_TRANSACTION_DATE);
          TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(rec);
     END LOOP;
-
 EXCEPTION
    WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
@@ -359,11 +352,15 @@ EXCEPTION
                                     '000000000');
 END CUST_DEP_RED_ORIGINAL_DTLS_UPD;
 
-FUNCTION IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT (
+FUNCTION GET_ORIGINAL_ACCOUNT_CLASSIFICATION (
 /**********************************************************
 This function will return 'Y' if original transaction (Deposit) account number matches with the redmeption account number.
 Return 'N' if does not match the account number.
 Return Null if it didnt find any record in deposit transaction details table for the original tarnsaction.
+
+MATCH => input account number matches original transactions account number
+MISMATCH => input account number does not matche original transactions account number
+INVALID_TRANSACTION => original transaction not found
 
 created : 02/12/2019 pxa852 CCN Project Team...
 modified:
@@ -374,7 +371,7 @@ IN_ORGNL_TERM_NBR          IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.ORGNL_DEPOSIT_TER
 IN_ORGNL_TRAN_DT           IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.ORGNL_DEPOSIT_TRANSACTION_DATE%TYPE)
 RETURN VARCHAR2
 IS
-   V_ACCOUNT_MATCH   VARCHAR2(1) := NULL;
+   V_RETURN_VALUE   VARCHAR2(100) := 'INVALID_TRANSACTION';
    V_ORGNL_ACCNT_NBR CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE;
 BEGIN
    SELECT CUSTOMER_ACCOUNT_NUMBER
@@ -385,18 +382,18 @@ BEGIN
       AND TRANSACTION_DATE   = IN_ORGNL_TRAN_DT
       AND TRANSACTION_TYPE   <> 'MANUAL';
 
-    IF V_ORGNL_ACCNT_NBR <> IN_CUSTOMER_ACCOUNT_NUMBER THEN
-    --retrun 'N' if the original (deposit) and redemption has different account numbers
-        V_ACCOUNT_MATCH := 'N';
+    IF V_ORGNL_ACCNT_NBR = IN_CUSTOMER_ACCOUNT_NUMBER THEN
+    --retrun 'Y' if the original (deposit) and redemption has same account numbers
+        V_RETURN_VALUE := 'MATCH';
     ELSE
-        V_ACCOUNT_MATCH := 'Y';
+        V_RETURN_VALUE := 'MISMATCH';
     END IF;
-   RETURN V_ACCOUNT_MATCH;
+   RETURN V_RETURN_VALUE;
 EXCEPTION
     WHEN OTHERS THEN
         -- return null if did find any record
-        RETURN V_ACCOUNT_MATCH;
-END IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT;
+        RETURN V_RETURN_VALUE;
+END GET_ORIGINAL_ACCOUNT_CLASSIFICATION;
 
 PROCEDURE LOAD_CUSTOMER_DEPOSIT_TRANSACTION_HDR(
 /*****************************************************************************
@@ -511,11 +508,9 @@ IS
    V_TEMP_ROW       CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
    V_COMMIT         NUMBER := 0;
    V_CUM_AMT        NUMBER := 0;
-   V_ORIG_DEP_NBR   CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_NUMBER%TYPE;
-   V_ORIG_TERM_NBR  CUSTOMER_DEPOSIT_TRANSACTION_DTL.TERMINAL_NUMBER%TYPE;
-   V_ORIG_TRAN_DATE CUSTOMER_DEPOSIT_TRANSACTION_DTL.TRANSACTION_DATE%TYPE;
    V_LOAD_DATE      DATE := SYSDATE;
    V_EMAIL_CLOB     CLOB;
+   V_ORIGINAL_ACCOUNT_CLASSIFICATION  VARCHAR2(100);
 BEGIN
    FOR REC IN TEMP_CUR LOOP
       BEGIN
@@ -528,12 +523,13 @@ BEGIN
          V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER     :=   REC.CUSTOMER_ACCOUNT_NUMBER;
          V_TEMP_ROW.POS_TRANSACTION_CODE        :=   REC.POS_TRANSACTION_CODE;
          V_TEMP_ROW.TRAN_TIMESTAMP              :=   REC.TRAN_TIMESTAMP;
-         V_TEMP_ROW.TRANSACTION_TYPE            :=   CASE WHEN V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN 
-                                                            'DEPOSIT'
-                                                       WHEN V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT < 0 THEN 
-                                                            'REDEMPTION'
-                                                       ELSE 'NA'
-                                                  END;
+         IF V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN
+             V_TEMP_ROW.TRANSACTION_TYPE            := 'DEPOSIT';
+         ELSIF V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT < 0 THEN
+             V_TEMP_ROW.TRANSACTION_TYPE            := 'REDEMPTION';
+         ELSE  --'NA' and we do not do anything
+             CONTINUE; --go to the next iteration (This avoid unnecessary time taken to do calculation thats not being used
+         END IF;
          V_CUM_AMT                             :=  (CASE WHEN REC.RNUM = 1 THEN
                                                        COMMON_TOOLS.FNC_GET_LATEST_CUM_AMT(REC.CUSTOMER_ACCOUNT_NUMBER)
                                                     ELSE
@@ -544,11 +540,6 @@ BEGIN
          V_TEMP_ROW.LOAD_DATE                   :=  V_LOAD_DATE;
          V_TEMP_ROW.GL_DIVISION                 :=  COMMON_TOOLS.GET_GL_DIVISION(V_TEMP_ROW.COST_CENTER_CODE);
          V_TEMP_ROW.CUST_DEP_TRANS_DETAIL_SEQ   :=  CUST_DEP_DETAIL_ID.NEXTVAL;
-         --If the transaction is deposit or
-         --If we receive redemption before deposit with some invalid originals then passing null to originals
-         V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
-         V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
-         V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
 
          IF V_TEMP_ROW.TRANSACTION_TYPE = 'DEPOSIT' THEN
             V_TEMP_ROW.DEPOSIT_REMAINING_BAL          := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
@@ -557,31 +548,32 @@ BEGIN
             -- Modified code to look back if there is any redemption for the desposit that came in today and tie back that redemption to the deposit.
             CUST_DEP_RED_ORIGINAL_DTLS_UPD(V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER,V_TEMP_ROW.TRANSACTION_DATE);
           ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
-                IF IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT(REC.CUSTOMER_ACCOUNT_NUMBER, REC.ORIGTRAN, REC.ORIGTERM, REC.ORIGDT) IS NOT NULL THEN
-                   --taking orginals from POS
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := REC.ORIGTERM;
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := REC.ORIGTRAN;
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := REC.ORIGDT;
-                END IF;
-                --updating deposit remaining balance before inserting redmeption record
-                CUSTOMER_DEPOSIT_MAINT_PKG.CUST_DEP_REM_BAL_UPD(V_TEMP_ROW);
-
-                --if redemption originals account not matches with the redemption account then writing the data to clob to generate a report
-                IF IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT(REC.CUSTOMER_ACCOUNT_NUMBER, REC.ORIGTRAN,REC.ORIGTERM, REC.ORIGDT) = 'N' THEN
-                   V_EMAIL_CLOB := V_TEMP_ROW.COST_CENTER_CODE               || ',' ||
-                                   V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER        || ',' ||
-                                   V_TEMP_ROW.TERMINAL_NUMBER                || ',' ||
-                                   V_TEMP_ROW.TRANSACTION_NUMBER             || ',' ||
-                                   V_TEMP_ROW.TRANSACTION_DATE               || ',' ||
-                                   V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     || ',' ||
-                                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  || ',' ||
-                                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE || CHR(10) || V_EMAIL_CLOB;
-
-                 END IF;
-                 --Inserting redemption record
-                 TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_TEMP_ROW);
-         ELSE
-           NULL;
+              --if redemption originals account not matches with the redemption account then writing the data to clob to generate a report
+              V_ORIGINAL_ACCOUNT_CLASSIFICATION := GET_ORIGINAL_ACCOUNT_CLASSIFICATION(REC.CUSTOMER_ACCOUNT_NUMBER,
+                                                                                       REC.ORIGTRAN,
+                                                                                       REC.ORIGTERM,
+                                                                                       REC.ORIGDT);
+              --The original valuesd will be null if V_ORIGINAL_ACCOUNT_CLASSIFICATION = INVALID_TRANSACTION
+              IF V_ORIGINAL_ACCOUNT_CLASSIFICATION IN ('MATCH', 'MISMATCH') THEN
+                  --taking orginals from POS
+                  V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := REC.ORIGTERM;
+                  V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := REC.ORIGTRAN;
+                  V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := REC.ORIGDT;
+                  IF V_ORIGINAL_ACCOUNT_CLASSIFICATION = 'MISMATCH' THEN
+                      V_EMAIL_CLOB := V_TEMP_ROW.COST_CENTER_CODE               || ',' ||
+                                      V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER        || ',' ||
+                                      V_TEMP_ROW.TERMINAL_NUMBER                || ',' ||
+                                      V_TEMP_ROW.TRANSACTION_NUMBER             || ',' ||
+                                      V_TEMP_ROW.TRANSACTION_DATE               || ',' ||
+                                      V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     || ',' ||
+                                      V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  || ',' ||
+                                      V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE || CHR(10) || V_EMAIL_CLOB;
+                  END IF;
+              END IF;
+              --Inserting redemption record
+              TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_TEMP_ROW);
+              --updating deposit remaining balance before inserting redmeption record
+              CUSTOMER_DEPOSIT_MAINT_PKG.CUST_DEP_REM_BAL_UPD(V_TEMP_ROW);
          END IF; 
 
          V_TEMP_ROW := NULL;
