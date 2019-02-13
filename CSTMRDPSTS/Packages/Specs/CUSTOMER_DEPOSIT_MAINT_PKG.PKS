@@ -19,6 +19,18 @@ changed : 02/12/2019 pxa852 CCN Project Team...
     IN_CUSTOMER_ACCOUNT_NUMBER    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE)
 RETURN NUMBER;
 
+PROCEDURE CUST_DEP_REM_BAL_UPD(
+/**********************************************************
+This procedure updates the deposit remianing balance.
+If a redmeption comes with originals, pass those original values to get the deposit record
+and update the deposit remaining balance of that deposit.
+
+Created : 02/13/2019 pxa852 CCN Project Team...
+Changed :
+**********************************************************/
+    IN_ORGNL_TRAN_ROW    IN      CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE
+);
+
 PROCEDURE ORIG_DEP_REM_BAL_UPD(
 /**********************************************************
 This function updates the original references for a Redemption

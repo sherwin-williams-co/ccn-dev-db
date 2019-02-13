@@ -544,30 +544,28 @@ BEGIN
          V_TEMP_ROW.LOAD_DATE                   :=  V_LOAD_DATE;
          V_TEMP_ROW.GL_DIVISION                 :=  COMMON_TOOLS.GET_GL_DIVISION(V_TEMP_ROW.COST_CENTER_CODE);
          V_TEMP_ROW.CUST_DEP_TRANS_DETAIL_SEQ   :=  CUST_DEP_DETAIL_ID.NEXTVAL;
+         --If the transaction is deposit or
+         --If we receive redemption before deposit with some invalid originals then passing null to originals
+         V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
+         V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
+         V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
 
          IF V_TEMP_ROW.TRANSACTION_TYPE = 'DEPOSIT' THEN
             V_TEMP_ROW.DEPOSIT_REMAINING_BAL          := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
             --inserting deposit record
             TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_TEMP_ROW);
             -- Modified code to look back if there is any redemption for the desposit that came in today and tie back that redemption to the deposit.
             CUST_DEP_RED_ORIGINAL_DTLS_UPD(V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER,V_TEMP_ROW.TRANSACTION_DATE);
           ELSIF V_TEMP_ROW.TRANSACTION_TYPE = 'REDEMPTION' THEN
-                --updating deposit remaining balance before inserting redmeption record
-                CUSTOMER_DEPOSIT_MAINT_PKG.ORIG_DEP_REM_BAL_UPD(V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT, REC.CUSTOMER_ACCOUNT_NUMBER, REC.TRANSACTION_DATE,
-                                                                V_ORIG_DEP_NBR,V_ORIG_TERM_NBR,V_ORIG_TRAN_DATE);
-                --taking orginals from POS
-                V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := REC.ORIGTERM;
-                V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := REC.ORIGTRAN;
-                V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := REC.ORIGDT;
-                --If we receive redemption before deposit with some invalid originals then passing null to originals
-                IF IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT(REC.CUSTOMER_ACCOUNT_NUMBER, REC.ORIGTRAN, REC.ORIGTERM, REC.ORIGDT) IS NULL THEN
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
-                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
+                IF IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT(REC.CUSTOMER_ACCOUNT_NUMBER, REC.ORIGTRAN, REC.ORIGTERM, REC.ORIGDT) IS NOT NULL THEN
+                   --taking orginals from POS
+                   V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := REC.ORIGTERM;
+                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := REC.ORIGTRAN;
+                   V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := REC.ORIGDT;
                 END IF;
+                --updating deposit remaining balance before inserting redmeption record
+                CUSTOMER_DEPOSIT_MAINT_PKG.CUST_DEP_REM_BAL_UPD(V_TEMP_ROW);
+
                 --if redemption originals account not matches with the redemption account then writing the data to clob to generate a report
                 IF IS_ORGNL_ACCOUNT_MATCH_WITH_DEP_ACCNT(REC.CUSTOMER_ACCOUNT_NUMBER, REC.ORIGTRAN,REC.ORIGTERM, REC.ORIGDT) = 'N' THEN
                    V_EMAIL_CLOB := V_TEMP_ROW.COST_CENTER_CODE               || ',' ||
