@@ -22,13 +22,14 @@ TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc.log <<END
 
 set heading off;
 set verify off;
 WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 
+prompt $TimeStamp
 execute CCN_RESTRICTION_PKG.RELEASE_TIMED_OUT_OBJECTS(CCN_RESTRICTION_PKG.C_RELEASE_TIMED_OUT_MINS);
 
 exit
@@ -52,18 +53,6 @@ then
      fi
 
 fi
-
-############################################################################
-#                           UPDATING LOG FILE
-############################################################################
-#echo "<<New writes>>" >> $LOGDIR/$proc.log
-temp_log_file=$proc"_"$TimeStamp.log
-# extracting datetimestamp from the file name
-var1="${temp_log_file//[!0-9]/}"
-# removing the blank lines
-var2=$(cat "$temp_log_file" | awk 'NF')
-echo "$var1 : $var2" >> $LOGDIR/$proc.log
-rm $LOGDIR/$temp_log_file
 
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc at ${TIME} on ${DATE}"
