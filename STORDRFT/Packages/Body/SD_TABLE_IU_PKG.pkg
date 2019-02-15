@@ -113,6 +113,38 @@ EXCEPTION
         ERRPKG.RAISE_ERR(V_CODE, 'CUSTOMER_SALES_TAX_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, V_ERRM);
 END CUSTOMER_SALES_TAX_ROWTYPE_SP;
 
+PROCEDURE CHECK_UPD_PAYEE_IND (
+/*******************************************************************************
+	CHECK_UPD_PAYEE_IND
+
+	This procedure checks if payee details updated and set PAYEE_UPD_IND to 'Y'
+
+Created : 02/18/2019 kxm302 CCN Project....
+Changed : 
+*******************************************************************************/
+IN_COST_CENTER_CODE  IN     VARCHAR2
+,IN_CHECK_SERIAL_NUMBER  IN     VARCHAR2)
+IS
+   V_COUNT    NUMBER :=0;
+BEGIN
+
+    SELECT COUNT(*)
+       INTO V_COUNT
+      FROM SD_MISSING_PAYEE_DTLS SDM
+    WHERE SDM.COST_CENTER_CODE      = IN_COST_CENTER_CODE
+       AND SDM.CHECK_SERIAL_NUMBER  = IN_CHECK_SERIAL_NUMBER
+       AND SDM.PAYEE_UPD_IND='N';
+   
+    IF V_COUNT > 0 THEN
+        UPDATE SD_MISSING_PAYEE_DTLS
+           SET PAYEE_UPD_IND='Y'
+        WHERE NVL(COST_CENTER_CODE,'XXX')       = NVL(IN_COST_CENTER_CODE,'XXX')
+           AND NVL(CHECK_SERIAL_NUMBER,'XXX')   = NVL(IN_CHECK_SERIAL_NUMBER,'XXX')
+	       AND PAYEE_UPD_IND='N';
+    END IF;
+
+END CHECK_UPD_PAYEE_IND;
+
 PROCEDURE CUSTOMER_DETAILS_ROWTYPE_SP (
 /*******************************************************************************
 	CUSTOMER_DETAILS_ROWTYPE_SP
@@ -2165,6 +2197,9 @@ Changed : 01/13/2017 vxv336
           added STOP_PAY_MARKED_BY_CCN_IND for update
         : 03/12/2018 bxa919
           added VOID_MARKED_BY_CCN for update
+        : 2/11/2019 kxm302
+          added PAYEE_NAME for update and call CHECK_UPD_PAYEE_IND if PAYEE_NAME 
+          updated to value from NULL
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB)
@@ -2173,11 +2208,19 @@ IS
     V_ERRM VARCHAR2(500);
 
     V_TEMP_ROW               STORE_DRAFTS%ROWTYPE;
+    V_PREV_PAYEE_NAME        VARCHAR2(50);
 BEGIN
 
     STORE_DRAFTS_ROWTYPE_SP(IN_TABLE_NAME,
                             IN_ROW_DATA,
                             V_TEMP_ROW);
+    -- get if payee already exists in store_drafts
+    SELECT  PAYEE_NAME
+       INTO V_PREV_PAYEE_NAME
+    FROM  STORE_DRAFTS
+    WHERE NVL(COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(COST_CENTER_CODE,'XXX'))
+       AND NVL(CHECK_SERIAL_NUMBER,'XXX')             = NVL(V_TEMP_ROW.CHECK_SERIAL_NUMBER,NVL(CHECK_SERIAL_NUMBER,'XXX'))
+       AND NVL(TRANSACTION_DATE,TRUNC(SYSDATE))       = NVL(V_TEMP_ROW.TRANSACTION_DATE,NVL(TRANSACTION_DATE,TRUNC(SYSDATE)));
 
         UPDATE STORE_DRAFTS
            SET STOP_PAY_DATE              = V_TEMP_ROW.STOP_PAY_DATE,
@@ -2191,10 +2234,16 @@ BEGIN
                STOP_INDICATOR             = V_TEMP_ROW.STOP_INDICATOR,
                VOID_INDICATOR             = V_TEMP_ROW.VOID_INDICATOR,
                STOP_PAY_MARKED_BY_CCN_IND = DECODE(V_TEMP_ROW.STOP_PAY_DATE, NULL, NULL, STOP_PAY_MARKED_BY_CCN_IND),
-               VOID_MARKED_BY_CCN         = DECODE(V_TEMP_ROW.VOID_DATE, NULL, NULL, VOID_MARKED_BY_CCN)
+               VOID_MARKED_BY_CCN         = DECODE(V_TEMP_ROW.VOID_DATE, NULL, NULL, VOID_MARKED_BY_CCN),
+               PAYEE_NAME                 = V_TEMP_ROW.PAYEE_NAME
          WHERE NVL(COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(COST_CENTER_CODE,'XXX'))
            AND NVL(CHECK_SERIAL_NUMBER,'XXX')              = NVL(V_TEMP_ROW.CHECK_SERIAL_NUMBER,NVL(CHECK_SERIAL_NUMBER,'XXX'))
            AND NVL(TRANSACTION_DATE,TRUNC(SYSDATE))        = NVL(V_TEMP_ROW.TRANSACTION_DATE,NVL(TRANSACTION_DATE,TRUNC(SYSDATE)));
+    
+    --call  CHECK_UPD_PAYEE_IND only if payee info is updated and it should not be null    
+    IF NVL(V_PREV_PAYEE_NAME,'NA') <> V_TEMP_ROW.PAYEE_NAME AND V_TEMP_ROW.PAYEE_NAME IS NOT NULL THEN
+       CHECK_UPD_PAYEE_IND( V_TEMP_ROW.COST_CENTER_CODE,V_TEMP_ROW.CHECK_SERIAL_NUMBER); 
+    END IF;
 
 EXCEPTION
     WHEN OTHERS THEN
@@ -2766,8 +2815,7 @@ This procedure will get
 2) specific store check order details if run type is passed
 
 Created : 01/01/2019 jxc517 CCN Project Team....
-Changed : 01/28/2019 jxc517 CCN Project Team....
-        : Changed ORDER BY list as requested by user.
+Changed : 
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
     OUT_REF_CUR              OUT REF_CURSOR,
@@ -2887,11 +2935,13 @@ PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_I_SP(
 This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
 
 Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 
 **********************************************************/
     IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE)
 IS
    V_RUN_TYPE                 VARCHAR2(100);
    V_COUNT                    NUMBER :=0;
+
 BEGIN
 
    SELECT COUNT(1)
@@ -2963,6 +3013,6 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP ' || SUBSTR(SQLERRM,1,200) || ' STORE_RUN_TYP_THRSHLD_DTLS Rowtype Error ' );
-END STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP; 
+END STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP;
 
 END SD_TABLE_IU_PKG;
