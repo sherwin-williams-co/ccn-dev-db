@@ -742,10 +742,10 @@ IS
     V_FINAL_XML                  XMLTYPE;
     V_UPPER_LVL_VER_VALUE        HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
     V_BULK_ATTR_UPDATE_LKUP_ID   NUMBER;
-    NOT_VALID_HRCHY_ATTR_DATA    EXCEPTION;
-    V_CLOB_FOR_EMAIL             CLOB;
     V_CLOB_FOR_EMAIL_All         CLOB;
     V_START_TIME                 DATE := SYSDATE;
+    V_ERROR_FOUND                VARCHAR2(1) := 'N';
+
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('HIERARCHY_BULK_ATTR_UPDATE', V_BULK_ATTR_UPDATE_LKUP_ID);
 
@@ -753,6 +753,7 @@ BEGIN
     FOR rec_name IN HRCHY_HDR_NAME_CUR LOOP
         BEGIN
             SAVEPOINT HIERARCHY_HER_NAME;
+            V_ERROR_FOUND := 'N';
             V_FINAL_XML := NULL;
             -- Getting all values from flat file
             FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.hrchy_hdr_name,
@@ -770,32 +771,26 @@ BEGIN
                                                                 rec.ATTR_NAME,
                                                                 rec.ATTR_VALUE);
                 ELSE
-                    RAISE NOT_VALID_HRCHY_ATTR_DATA;
+                    V_ERROR_FOUND := 'Y';
                 END IF;
             END LOOP;
-            IF v_final_xml IS NOT NULL THEN
+            IF v_final_xml IS NOT NULL AND V_ERROR_FOUND = 'N' THEN
                 -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly build XML
                 CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE(v_final_xml,
                                                           rec_name.hrchy_hdr_name,
                                                           rec_name.hrchy_dtl_level,
                                                           rec_name.hrchy_dtl_curr_lvl_val);
+                COMMIT;
             END IF;
-            COMMIT;
         EXCEPTION
-            WHEN NOT_VALID_HRCHY_ATTR_DATA THEN
-                ROLLBACK TO HIERARCHY_HER_NAME;
             WHEN OTHERS THEN
                 COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
                 ROLLBACK TO HIERARCHY_HER_NAME;
         END;
     END LOOP;
-
     ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL_ALL);
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL_ALL := V_CLOB_FOR_EMAIL_ALL || CHR(10) || V_CLOB_FOR_EMAIL;
-    END IF;
     IF V_CLOB_FOR_EMAIL_ALL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL_ALL := 'HIERARCHY_BULK_ATTR_UPDATE, ERROR_DETAILS' || CHR(10) || V_CLOB_FOR_EMAIL_ALL;
+        V_CLOB_FOR_EMAIL_ALL := 'HIERARCHY NAME,VALUE,ERROR_DETAILS,COMMENTS' || CHR(10) || V_CLOB_FOR_EMAIL_ALL;
         MAIL_PKG.SEND_MAIL('HIERARCHY_BULK_ATTR_UPDATE_FAIL', NULL, NULL, V_CLOB_FOR_EMAIL_ALL);
     END IF;
     POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_ATTR_UPDATE_LKUP_ID);
@@ -805,9 +800,9 @@ EXCEPTION
         -- The below call to reset the flag should always be the first line of the exception block
         -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
 	    -- this call in the first line of exception block we make sure no other errors blocks the reset process
+        ROLLBACK TO HIERARCHY_HER_NAME;
         POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_ATTR_UPDATE_LKUP_ID);
         COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
-        ROLLBACK TO HIERARCHY_HER_NAME;
         ERRPKG.RAISE_ERR(errnums.en_hrchy_bulk_attr_update_err, 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM);
 END HIERARCHY_BULK_ATTR_UPDATE;
 
