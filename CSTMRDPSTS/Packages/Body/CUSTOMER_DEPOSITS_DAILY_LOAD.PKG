@@ -20,7 +20,7 @@ BEGIN
    INSERT INTO POS_CSTMR_DEP_LOAD_STATUS
    SELECT CH.*,
           SYSDATE LOAD_DATE
-     FROM PNP.CCN_LOAD_STATUS CH
+     FROM PNP_CCN_LOAD_STATUS CH
     WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
 
    DBMS_OUTPUT.PUT_LINE('Total rows inserted ' || SQL%ROWCOUNT);
@@ -88,7 +88,7 @@ IS
              ORIGDT,
              ORIGTERM,
              ORIGTRAN
-        FROM PNP.CCN_HEADERS
+        FROM PNP_CCN_HEADERS
        WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
    --variable declaration
    V_COMMIT           NUMBER := 0;
@@ -204,7 +204,7 @@ IS
              PURCHASE_CODE,
              PRODUCT_CORE_ID,
              ECOMMERCE_ID
-        FROM PNP.CCN_SALES_LINES
+        FROM PNP_CCN_SALES_LINES
        WHERE RLS_RUN_CYCLE = IN_RLS_RUN_CYCLE;
    --variable declaration
    V_COMMIT               NUMBER := 0;
@@ -380,28 +380,39 @@ IS
    V_COMMIT         NUMBER := 0;
 
 BEGIN
-   FOR REC IN TEMP_CUR LOOP
+    FOR REC IN TEMP_CUR LOOP
+      BEGIN
          V_TEMP_ROW.COST_CENTER_CODE            :=  COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(REC.COST_CENTER_CODE);
          V_TEMP_ROW.TERMINAL_NUMBER             :=  REC.TERMINAL_NUMBER;
          V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER     :=  REC.CUSTOMER_ACCOUNT_NUMBER;
          TABLE_IU_PKG.CUST_DEP_TRANS_HDR_I_SP(V_TEMP_ROW);
+
          V_TEMP_ROW := NULL;
          V_COMMIT := V_COMMIT + 1;
          IF V_COMMIT > 500 THEN
             COMMIT;
             V_COMMIT := 0;
          END IF;
+      EXCEPTION
+         WHEN OTHERS THEN
+              ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
+                                          'LOAD_CUST_DEP_TRANS_HEADER',
+                                          SQLERRM,
+                                          V_TEMP_ROW.COST_CENTER_CODE,
+                                          V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER,
+                                          'LOAD_CUST_DEP_TRANS_HEADER');
+      END;
    END LOOP;
    COMMIT;
 
 EXCEPTION
    WHEN OTHERS THEN
        ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
-                                   'LOAD_CUST_DEP_TRANS_HEADER',
+                                    'LOAD_CUST_DEP_TRANS_HEADER',
                                     SQLERRM,
-                                    V_TEMP_ROW.COST_CENTER_CODE,
-                                    V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER,
-                                    'LOAD_CUST_DEP_TRANS_HEADER');
+                                    '000000',
+                                    '000000000',
+                                    '000000000');
 END LOAD_CUSTOMER_DEPOSIT_TRANSACTION_HDR;
 
 PROCEDURE LOAD_CUSTOMER_DEPOSIT_DETAILS(
@@ -487,9 +498,6 @@ BEGIN
 
          IF V_TEMP_ROW.TRANSACTION_TYPE = 'DEPOSIT' THEN
             V_TEMP_ROW.DEPOSIT_REMAINING_BAL          := V_TEMP_ROW.CSTMR_DPST_SALES_LN_ITM_AMT;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := NULL;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := NULL;
-            V_TEMP_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := NULL;
             TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_TEMP_ROW);
 
             CUST_DEP_RED_ORIGINAL_DTLS_UPD(V_TEMP_ROW.CUSTOMER_ACCOUNT_NUMBER, V_TEMP_ROW.TRANSACTION_DATE);

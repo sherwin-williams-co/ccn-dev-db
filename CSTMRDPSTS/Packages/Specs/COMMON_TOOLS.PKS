@@ -29,8 +29,8 @@ in_tran_guid
 created : 05/29/2018 sxh487 ccn project
 modified:
 **********************************************************/
-IN_TRAN_GUID     IN  POS_CCN_SALES_LINES.TRAN_GUID%TYPE,
-IN_RLS_RUN_CYCLE IN  POS_CCN_SALES_LINES.RLS_RUN_CYCLE%TYPE
+IN_TRAN_GUID     IN  CCN_SALES_LINES_T.TRAN_GUID%TYPE,
+IN_RLS_RUN_CYCLE IN  CCN_SALES_LINES_T.RLS_RUN_CYCLE%TYPE
 )
 RETURN NUMBER;
 
@@ -55,21 +55,12 @@ This function will return the net balance remaining
 as of the day before the current load
 
 Created : 01/25/2018 sxh487
+Modified: 02/06/2019 pxa852 CCN Project Team...
+          Modified code to replace old table with the new table that is created as part of new data model
 **********************************************************/
 IN_CUST_ACCOUNT_NBR IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE
 )
 RETURN NUMBER;
-
-FUNCTION BUILD_DEP_HDR_HST_FROM_CURR(
-/***********************************************************
-	This function will build the history record from
-  current CUSTOMER_DEPOSIT_HEADER record
-
-Created : 05/02/2018 sxh487
-Changed : 
-************************************************************/
-IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE) 
-RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
 
 FUNCTION GET_GL_DIVISION(
 /***********************************************************
@@ -82,5 +73,15 @@ IN_COST_CENTER_CODE     IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE
 )
 RETURN VARCHAR2;
 
-END COMMON_TOOLS;
+FUNCTION BUILD_DEP_HDR_HST_FROM_CURR(
+/***********************************************************
+	This function will build the history record from
+  current CUSTOMER_DEPOSIT_HEADER record
 
+Created : 05/02/2018 sxh487
+Changed :
+************************************************************/
+IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE)
+RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
+
+END COMMON_TOOLS;
