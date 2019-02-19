@@ -15,6 +15,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
              Setting POS_DOWNLOAD_CC_IND := 'Y' for Territories
             : 03/01/2018 nxk927/jxc527 CCN Project Team..
               indentation and the right event trigger for the catory
+            : 02/15/2019 sxg151 CCN Team...
+            : ASP-1216 : Added PRI_LOGO_GROUP_IND /SCD_LOGO_GROUP_IND  fields to be tracked to automatically trigger PARAM download for Stores.
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
@@ -180,6 +182,11 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                     NVL(:OLD.COUNTRY_CODE, 'XXX')      <>  NVL(:NEW.COUNTRY_CODE, 'XXX') OR
                     NVL(:OLD.STATEMENT_TYPE, 'XXX')    <> NVL(:NEW.STATEMENT_TYPE, 'XXX') THEN
                      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'CHANGE', 'POS_STORE_UPDATE' );
+                 END IF;
+                 --Added below code to trigger POS PARAM download if Primary or Secondar logo information changes in CCN
+                 IF NVL(:OLD.PRI_LOGO_GROUP_IND, 'XXX') <> NVL(:NEW.PRI_LOGO_GROUP_IND, 'XXX') OR
+                    NVL(:OLD.SCD_LOGO_GROUP_IND, 'XXX') <> NVL(:NEW.SCD_LOGO_GROUP_IND, 'XXX') THEN
+                     POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'CHANGE', 'POS_PARAM_UPDATE' );
                  END IF;
              END IF;
          END IF;
