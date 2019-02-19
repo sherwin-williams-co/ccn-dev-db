@@ -27,7 +27,7 @@ This procedure will load the customer_deposit_header table from pnp legacy idms 
 created : 03/05/2018 sxh487 ccn project....
 changed : 05/29/2018 sxh487 Added NON_MERCH_CODE ='05' for line item amount
 ******************************************************************************/
-IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
+IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
 
 PROCEDURE LOAD_CUSTOMER_DEPOSIT_TRANSACTION_HDR(
 /*****************************************************************************
@@ -38,7 +38,7 @@ This procedure will load the customer_deposit_transaction_hdr table from pnp leg
 created : 02/06/2019 pxa852 ccn project....
 changed :
 ******************************************************************************/
-IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
+IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
 
 PROCEDURE LOAD_CUSTOMER_DEPOSIT_DETAILS(
 /*****************************************************************************
@@ -52,7 +52,7 @@ changed : 01/26/2018 sxh487 Added logic to get the last cumulative total for cal
         : 03/20/2018 sxh487 Added logic to add records in CUST_DEP_CREDIT_DETAILS and CUST_DEP_REDEMPTION_DETAILS 
         : 05/29/2018 sxh487 Added NON_MERCH_CODE ='05' for line item amount
 ******************************************************************************/
-IN_RLS_RUN_CYCLE POS_CCN_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
+IN_RLS_RUN_CYCLE POS_CSTMR_DEP_LOAD_STATUS.RLS_RUN_CYCLE%TYPE);
 
 PROCEDURE CUST_DEP_RED_ORIGINAL_DTLS_UPD(
 /*****************************************************************************
