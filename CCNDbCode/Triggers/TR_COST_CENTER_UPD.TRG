@@ -184,7 +184,7 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
                      POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_cost_center_row.COST_CENTER_CODE, 'COST_CENTER', 'CHANGE', 'POS_STORE_UPDATE' );
                  END IF;
                  --Added below code to trigger POS PARAM download if Primary or Secondar logo information changes in CCN
-                 --Unlike Store and Territory downloads which are sent to all stores in polling 2.0, Param downloads are sent only to its respective store and do not need to be triggered as part of store creation.
+                 --Unlike Store and Territory downloads which are sent to all stores in polling 2.0, Param downloads are sent only to its respective store and do not need to be triggered as part of store creation
                  --That is the reason why the changes are only during trigger update flow
                  IF NVL(:OLD.PRI_LOGO_GROUP_IND, 'XXX') <> NVL(:NEW.PRI_LOGO_GROUP_IND, 'XXX') OR
                     NVL(:OLD.SCD_LOGO_GROUP_IND, 'XXX') <> NVL(:NEW.SCD_LOGO_GROUP_IND, 'XXX') THEN
