@@ -17,6 +17,8 @@ create or replace TRIGGER COSTCNTR.TR_COST_CENTER_UPD
               indentation and the right event trigger for the catory
             : 02/15/2019 sxg151 CCN Team...
             : ASP-1216 : Added PRI_LOGO_GROUP_IND /SCD_LOGO_GROUP_IND  fields to be tracked to automatically trigger PARAM download for Stores.
+            : Unlike Store and Territory downloads which are sent to all stores in polling 2.0, Param downloads are sent only to its respective store and do not need to be triggered as part of store creation.	11:03 AM
+            : That is the reason why the changes are only during trigger update flow
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.COST_CENTER
