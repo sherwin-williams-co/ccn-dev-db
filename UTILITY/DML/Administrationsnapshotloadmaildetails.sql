@@ -13,7 +13,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('134','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('ADMIN_MONTHLY_SNAPSHOT_LOAD',
+values ('ADMIN_MNTHLY_SNPSHT_LD_FAIL',
         '134',
         'Administration Monthly Snapshot load job failed',
         'ccnoracle.team@sherwin.com',

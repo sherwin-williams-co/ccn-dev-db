@@ -15,9 +15,9 @@ LOGDIR="$HOME/batchJobs"
 DATE=`date +"%m/%d/%Y"`
 TimeStamp=`date '+%Y%m%d%H%M%S'`
 TIME=`date +"%H:%M:%S"`
-echo "Processing Started for $proc at $TIME on $DATE"   >> $LOGDIR/$proc"_"$TimeStamp.log
+echo "Processing Started for $proc at $TIME on $DATE"   >> $LOGDIR/$proc.log
 
-sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc"_"$TimeStamp.log <<END
+sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc.log <<END
 set serveroutput on;
 set heading off;
 set verify off;
@@ -44,12 +44,12 @@ status=$?
 TIME=`date +"%H:%M:%S"`
 if test $status -ne 0
 then
-    echo " $proc_name --> processing FAILED while executing $proc at $DATE:$TIME "     >> $LOGDIR/$proc"_"$TimeStamp.log
+    echo " $proc_name --> processing FAILED while executing $proc at $DATE:$TIME "     >> $LOGDIR/$proc.log
     cd $HOME || exit
     ./send_mail.sh "ADMIN_MONTHLY_SNAPSHOT_LOAD"
    exit 1
 else
-   echo "Processing finished for $proc at ${TIME} on ${DATE}"   >> $LOGDIR/$proc"_"$TimeStamp.log
+   echo "Processing finished for $proc at ${TIME} on ${DATE}"   >> $LOGDIR/$proc.log
 fi
 
 exit 0
