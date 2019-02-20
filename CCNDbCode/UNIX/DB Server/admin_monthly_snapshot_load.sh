@@ -13,7 +13,6 @@
 proc="admin_monthly_snapshot_load"
 LOGDIR="$HOME/batchJobs"
 DATE=`date +"%m/%d/%Y"`
-TimeStamp=`date '+%Y%m%d%H%M%S'`
 TIME=`date +"%H:%M:%S"`
 echo "Processing Started for $proc at $TIME on $DATE"   >> $LOGDIR/$proc.log
 
