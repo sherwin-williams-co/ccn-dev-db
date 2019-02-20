@@ -156,4 +156,13 @@ Created : 01/25/2019 sxg151 CCN project Team....
 **********************************************************/
 ;
 
+PROCEDURE ADMINISTRATION_MONTHLY_SNAPSHOT_SP
+/**********************************************************
+This process will invoke to load data into administration monthly sanpshot table
+
+Created : 02/20/2019 pxa852 CCN project Team....
+Modified:
+**********************************************************/
+;
+
 END CCN_BATCH_PROCESS;
