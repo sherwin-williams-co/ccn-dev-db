@@ -1,8 +1,16 @@
+/*******************************************************************************************
+Script Name : TEMP_ACH_DRFTS_EXT_CTRL.sql
+Purpose     : For creating TEMP_ACH_DRFTS_EXT_CTRL table.
+              This is an external table which is used for storing data from stores_ach.txt file
+             loaded through batch process.
+
+Created : 02/22/2019 pxa852 CCN Project Team....
+********************************************************************************************/
 DROP TABLE TEMP_ACH_DRFTS_EXT_CTRL;
 
 CREATE TABLE TEMP_ACH_DRFTS_EXT_CTRL
-   (COST_CENTER_CODE VARCHAR2(4),
-    BANK_DEP_AMT VARCHAR2(12),
+   (COST_CENTER_CODE VARCHAR2(6),
+    BANK_DEP_AMT     VARCHAR2(12),
     BANK_ACCOUNT_NBR VARCHAR2(25)
    )
    ORGANIZATION EXTERNAL
@@ -15,7 +23,7 @@ CREATE TABLE TEMP_ACH_DRFTS_EXT_CTRL
         discardfile BANKING_LOAD_FILES:'TEMP_UAR_ACH.dsc'
         LOAD WHEN ((1:2) = '62')
          FIELDS missing field values are null
-         (COST_CENTER_CODE POSITION(40:44)   CHAR(4),
+         (COST_CENTER_CODE POSITION(40:46)   CHAR(6),
           BANK_DEP_AMT     POSITION(30:40)   CHAR(10),
           BANK_ACCOUNT_NBR POSITION(13:29)   CHAR(17))
                         )
