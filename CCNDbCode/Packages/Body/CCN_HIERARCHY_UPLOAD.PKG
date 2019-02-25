@@ -728,22 +728,23 @@ IS
        SELECT DISTINCT
               hrchy_hdr_name,
               hrchy_dtl_level,
-              REPLACE(hrchy_dtl_curr_lvl_val, '''', '') hrchy_dtl_curr_lvl_val
+              hrchy_dtl_curr_lvl_val
          FROM temp_hierarchy_bulk_attr_upd;
 
     -- Loading data from template (.csv) using external table
     CURSOR HRCHY_BULK_ATTR_UPD_CUR(p_hrchy_hdr_name         IN VARCHAR2,
                                    p_hrchy_dtl_level        IN VARCHAR2,
                                    P_hrchy_dtl_curr_lvl_val IN VARCHAR2) IS
+--COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS();
     SELECT hrchy_hdr_name,
            hrchy_dtl_level,
-           REPLACE(hrchy_dtl_curr_lvl_val, '''', '') hrchy_dtl_curr_lvl_val,
+           hrchy_dtl_curr_lvl_val,
            attr_name,
-           REPLACE(attr_value, '''', '') attr_value
+           attr_value
       FROM temp_hierarchy_bulk_attr_upd
      WHERE hrchy_hdr_name = p_hrchy_hdr_name
        AND hrchy_dtl_level = p_hrchy_dtl_level
-       AND REPLACE(hrchy_dtl_curr_lvl_val, '''', '') = p_hrchy_dtl_curr_lvl_val;
+       AND hrchy_dtl_curr_lvl_val = p_hrchy_dtl_curr_lvl_val;
 
     V_FINAL_XML                  XMLTYPE;
     V_UPPER_LVL_VER_VALUE        HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
@@ -751,6 +752,9 @@ IS
     V_CLOB_FOR_EMAIL_All         CLOB;
     V_START_TIME                 DATE := SYSDATE;
     V_ERROR_FOUND                VARCHAR2(1) := 'N';
+    V_HRCHY_HDR_NAME             HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE;
+    V_HRCHY_DTL_LEVEL            HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE;
+    V_HRCHY_DTL_CURR_LVL_VAL     HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE;
 
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('HIERARCHY_BULK_ATTR_UPDATE', V_BULK_ATTR_UPDATE_LKUP_ID);
@@ -758,6 +762,10 @@ BEGIN
     -- Getting unique key values
     FOR rec_name IN HRCHY_HDR_NAME_CUR LOOP
         BEGIN
+
+            V_HRCHY_HDR_NAME := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(rec_name.hrchy_hdr_name);
+            V_HRCHY_DTL_LEVEL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(rec_name.hrchy_dtl_level);
+            V_HRCHY_DTL_CURR_LVL_VAL := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(REPLACE(REPLACE(rec_name.hrchy_dtl_curr_lvl_val,' ', ''),'''',''));
             SAVEPOINT HIERARCHY_HER_NAME;
             V_ERROR_FOUND := 'N';
             V_FINAL_XML := NULL;
@@ -765,12 +773,18 @@ BEGIN
             FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.hrchy_hdr_name,
                                                rec_name.hrchy_dtl_level,
                                                rec_name.hrchy_dtl_curr_lvl_val) LOOP
-                -- Validting the hierarchy data from flat file
+
+                rec.HRCHY_HDR_NAME := V_HRCHY_HDR_NAME;
+                rec.HRCHY_DTL_LEVEL := V_HRCHY_DTL_LEVEL;
+                rec.HRCHY_DTL_CURR_LVL_VAL := V_HRCHY_DTL_CURR_LVL_VAL;
+                rec.ATTR_NAME := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(rec.attr_name);
+                rec.ATTR_VALUE := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(REPLACE(rec.attr_value,'''',''));
+
                 IF CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS(rec) = 'Y' THEN
                     -- Reading the existing XML
-                    V_UPPER_LVL_VER_VALUE := CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE(rec.hrchy_hdr_name,
-                                                                                      rec.hrchy_dtl_level,
-                                                                                      rec.hrchy_dtl_curr_lvl_val);
+                    V_UPPER_LVL_VER_VALUE := CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE(V_HRCHY_HDR_NAME,
+                                                                                      V_HRCHY_DTL_LEVEL,
+                                                                                      V_HRCHY_DTL_CURR_LVL_VAL);
                     -- Building new XML using the existing XML
                     CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(V_UPPER_LVL_VER_VALUE,
                                                                 V_FINAL_XML,
@@ -781,11 +795,11 @@ BEGIN
                 END IF;
             END LOOP;
             IF v_final_xml IS NOT NULL AND V_ERROR_FOUND = 'N' THEN
-                -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly build XML
+                -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly built XML
                 CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE(v_final_xml,
-                                                          rec_name.hrchy_hdr_name,
-                                                          rec_name.hrchy_dtl_level,
-                                                          rec_name.hrchy_dtl_curr_lvl_val);
+                                                          V_HRCHY_HDR_NAME,
+                                                          V_HRCHY_DTL_LEVEL,
+                                                          V_HRCHY_DTL_CURR_LVL_VAL);
                 COMMIT;
             END IF;
         EXCEPTION
