@@ -138,12 +138,10 @@ PROCEDURE CLOSE_CCNTR_SP (
 
 created : MDH 5/18/2012
 changed:  MDH 7/25/2012
-changed:  sxg151 02/25/2019 ASP-1219
 ******************************************************************************/	
   inSTATUS_ROWTYPE      IN STATUS%ROWTYPE
  ,inCOST_CENTER_ROWTYPE IN COST_CENTER%ROWTYPE
- ,INTERRITORY_ROWTYPE   IN TERRITORY%ROWTYPE
- ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
+ ,INTERRITORY_ROWTYPE   IN TERRITORY%ROWTYPE)
 ;
 PROCEDURE DEST_PT_CHECK_DGT_ID_SP (
 /*******************************************************************************
