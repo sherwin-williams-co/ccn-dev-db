@@ -41,6 +41,8 @@ Changed : 03/08/2018 mxv711 CCN Project Team..
            MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
            Removed cost center call in BANK_CARD_BR_SP procedure 
            as there is no cost center data passed in the XML.
+        : 02/25/2019 sxg151 CCN Team....
+          ASP--1219 :Before closing Dispatch Terminal Cost Center  Make home store is null
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -360,7 +362,17 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
 /**  Translate DISPATCH_TERMINAL_XMLTYPE Table ***/
     IF (inDISPATCH_TERMINAL_XMLTYPE IS NOT NULL) THEN
       v_break := ('Processing Dispatch Terminal XMLTYPE ');
-      CCN_TABLE_IU_PKG.DISPATCH_TERMINAL_ROWTYPE_SP('DISPATCH_TERMINAL', indispatch_terminal_xmltype, v_dispatch_terminal_rowtype);
+      CCN_TABLE_IU_PKG.DISPATCH_TERMINAL_ROWTYPE_SP('DISPATCH_TERMINAL',
+                                                     indispatch_terminal_xmltype,
+                                                     v_dispatch_terminal_rowtype,
+                                                     'Y');--should be passed only during validation, not during databaase updates for which default is set as 'N'
+    --Before closing Dispatch Terminal Cost Center  Make home store is null
+        IF (v_status_rowtype.STATUS_CODE = '5')  AND (v_cost_center_rowtype.CATEGORY = 'D') THEN
+            IF v_dispatch_terminal_rowtype.cost_center_code = v_cost_center_rowtype.cost_center_code  AND
+               v_dispatch_terminal_rowtype.HOME_STORE IS NOT NULL THEN
+               v_dispatch_terminal_rowtype.HOME_STORE := NULL;
+            END IF ;
+        END IF;
     END IF;
 --
 --
@@ -792,7 +804,8 @@ IF (inCOST_CENTER_ROWTYPE.cost_center_code  IS NOT NULL)  THEN --Added to avoid 
               CCN_BUSINESS_RULES_PKG.close_ccntr_sp
                (instatus_rowtype,
                 incost_center_rowtype,
-                interritory_rowtype );
+                interritory_rowtype,
+                indispatch_terminal_rowtype);
        END IF;
    END IF;
 END IF;
@@ -1188,11 +1201,14 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
           ASP-1197:  
           We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
           we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
-          Error message "Cost center can not be closed if Allocation Type details are present". 		
+          Error message "Cost center can not be closed if Allocation Type details are present".
+        : 02/25/2019 sxg151 CCN Team...
+          ASP-1219 : Stop closing a store if it is a home store for dispatch terminal
 ******************************************************************************/	
   inSTATUS_ROWTYPE       IN STATUS%ROWTYPE
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
- ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE )
+ ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE
+ ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
         IS 
 
  non_numeric_exp 		        EXCEPTION;
@@ -1207,6 +1223,7 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
  cstmr_accnts_close_exp     EXCEPTION;
  exc_close_date_req_alloc_type_err         EXCEPTION; 
  v_count                    NUMBER;
+ close_store_asgn_dispatch_exp EXCEPTION;
 
 -- v_status_rowtype  STATUS%ROWTYPE;   TAL 04/15/2012 CCNQC-018
  v_territory_rowtype TERRITORY%ROWTYPE;
@@ -1312,21 +1329,28 @@ END;
 /*******************************************************************************
 	For Store and Territory Close Cost centers, they cannot be a HOME_STORE
   (TERRITORY Table) to any Territory or Vice Versa.
-  STORE:     Cannot be a Home_Store for any territory
+  STORE:     Cannot be a Home_Store for any territory/dispatch terminal
   Territory: Must be on TERRITORY table
              Must not have a Home_Store Assignment
 *******************************************************************************/	      
  BEGIN
 
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
-     (inCOST_CENTER_ROWTYPE.CATEGORY = 'S')    THEN
+     (inCOST_CENTER_ROWTYPE.CATEGORY = 'S')      THEN
      SELECT count(*)  INTO v_count
 	   	 FROM TERRITORY 
 	   	 WHERE TERRITORY.HOME_STORE =  inCOST_CENTER_ROWTYPE.COST_CENTER_CODE ;       
      IF v_count > 0 THEN
         RAISE close_store_asgn_terr_exp;
+     ELSE
+        SELECT count(*)  INTO v_count
+          FROM DISPATCH_TERMINAL
+         WHERE HOME_STORE =  inCOST_CENTER_ROWTYPE.COST_CENTER_CODE ;
+        IF v_count > 0 THEN
+           RAISE close_store_asgn_dispatch_exp;
+        END IF;
      END IF;
-END IF;
+  END IF;
 
  EXCEPTION
        WHEN NO_DATA_FOUND THEN
@@ -1441,7 +1465,13 @@ as these cost center got active customer account.
            ERRPKG.raise_err(v_code,
                     'COST_CENTER_BR_SP.exc_close_date_req_alloc_type_err ',
                      'Cost Center can not be closed if Allocation Type details are present'
-                    );			 
+                    );
+    WHEN close_store_asgn_dispatch_exp THEN --asp-1219
+         v_code := errnums.en_close_store_asgn_dispatch_err;
+                   errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.store_asgn_dispatch_exp '
+                   ,'Cost Center is home store for: ' ||
+                   indispatch_terminal_rowtype.COST_CENTER_CODE ||
+                   ' cannot close! ');
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
