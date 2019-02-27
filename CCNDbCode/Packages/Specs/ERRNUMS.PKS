@@ -3369,4 +3369,18 @@ en_invalid_hrchy_lvl_value_err  CONSTANT NUMBER := -20223;
 exc_invalid_hrchy_lvl_value_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_lvl_value_err, -20223);
 
+/***********************************************************
+The "close_store_asgn_dispatch_err" passes a numerical error of -20225.
+This error states that there this "STORE" cost center is
+a home store for a Dispatch Terminal
+
+created : 02/22/2019 sxg151 CCN Project
+revisions:
+
+************************************************************/
+en_close_store_asgn_dispatch_err CONSTANT NUMBER := -20225;
+exc_close_store_asgn_dispatch_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_close_store_asgn_dispatch_err , -20225);
+
 END ERRNUMS;

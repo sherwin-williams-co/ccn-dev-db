@@ -1908,12 +1908,14 @@ PROCEDURE DISPATCH_TERMINAL_ROWTYPE_SP(
     --DISPATCH_TERMINAL_ROWTYPE_SP
     --This procedure is convert xml and return rowtype data for DISPATCH_TERMINAL table.
     --created : 04/13/2017 tal CCN Project.... rxa457-asp-763
-    /******************************************************************************/
-    /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype 
-*************************************************************************************************/
-    in_table_name IN VARCHAR2,
-    in_row_data   IN VARCHAR2, --sys.xmltype
-    OUT_DISPATCH_TERMINAL_ROWTYPE OUT DISPATCH_TERMINAL%ROWTYPE);
+  --changed : 02/26/2019 sxg151 CCN Team... ASP-1219
+	/******************************************************************************/
+	/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype, in_validation_flag ***/
+      in_table_name                 IN        VARCHAR2,
+      in_row_data                   IN        VARCHAR2, --sys.xmltype
+      out_dispatch_terminal_rowtype      OUT  dispatch_terminal%ROWTYPE,
+      in_validation_flag            IN        VARCHAR2 DEFAULT 'N'
+      );
 
 PROCEDURE TAXWARE_ROWTYPE_SP (
 /******************************************************************************
