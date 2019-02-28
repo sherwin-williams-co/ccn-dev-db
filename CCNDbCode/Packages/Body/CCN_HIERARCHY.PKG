@@ -2930,19 +2930,26 @@ Modified: 08/08/2017 rxv940 CCN Project Team....
         : Moved the call to POS_DATA_GENERATION for the FUTURES
 Modified: 11/07/2017 bxa919 CCN Project Team...
           Removed call for POS_MASTER_SP
+        : 02/26/2019 mxs216, ASP-1158, CCN Project Team...
+          Added business rule to stop users from adding *L* archived cost center
 **********************************************************/
     IN_XML                IN     CLOB,
     IN_OVERWRITE_FLAG     IN     VARCHAR2 DEFAULT 'N')
 IS
-    V_HIERARCHY_DETAIL_ROW     HIERARCHY_DETAIL%ROWTYPE;
-    V_CONTEXT                  VARCHAR2(3000);
-    FTR_EXISTS_EXCEPTION       EXCEPTION;
-    HRCHY_FTR_NOT_ALLOWED_EXC  EXCEPTION; 
-    PAST_DATES_NOT_ALLOWED_EXC EXCEPTION;
+    V_HIERARCHY_DETAIL_ROW        HIERARCHY_DETAIL%ROWTYPE;
+    V_CONTEXT                     VARCHAR2(3000);
+    FTR_EXISTS_EXCEPTION          EXCEPTION;
+    HRCHY_FTR_NOT_ALLOWED_EXC     EXCEPTION;
+    PAST_DATES_NOT_ALLOWED_EXC    EXCEPTION;
+    ARCHIVED_COST_CENTER_ERR_EXC  EXCEPTION;
 BEGIN
     V_CONTEXT := 'Calling BUILD_INSERT_COMPOSITE_KEYS';
     BUILD_INSERT_COMPOSITE_KEYS(IN_XML,
                                 V_HIERARCHY_DETAIL_ROW);
+    -- Checking if passed cost center is eligible to be added, i.e. if *L* archived cost center.
+    IF COMMON_TOOLS.IS_COST_CENTER_ARCHIVED(V_HIERARCHY_DETAIL_ROW.HRCHY_DTL_CURR_ROW_VAL) = 'Y' THEN
+        RAISE ARCHIVED_COST_CENTER_ERR_EXC;
+    END IF;
     V_CONTEXT := 'Validate Effective and Expiration Dates';
     --Check if the Dates are valid for PRICE_DISTRICT hierarchy
     --For PRICE_DISTRICT hierarchy, If the effective/expiration Date is in the Past we need to throw an error 
@@ -2993,6 +3000,10 @@ EXCEPTION
     WHEN PAST_DATES_NOT_ALLOWED_EXC THEN
         ERRPKG.RAISE_ERR(ERRNUMS.en_past_dates_not_allowed_err
                         ,'HIERARCHY_DETAIL_INSERT ','Past/Current Dates are not allowed for this hierarchy');
+    WHEN ARCHIVED_COST_CENTER_ERR_EXC THEN
+        ERRPKG.RAISE_ERR(ERRNUMS.EN_CHN_NOT_ALD_IN_ARCH_CC_ERR
+                       ,'VALIDATE_TRNSFR_BUSINESS_RULES'
+                       ,': Archieved cost center can''t be added: ');
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(-20004,'HIERARCHY_DETAIL_INSERT ',V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM);
 END HIERARCHY_DETAIL_INSERT;
@@ -3093,7 +3104,8 @@ Created : 02/03/2017 gxg192 CCN Project
 Changed : 04/21/2017 sxh487 CCN Project...
           Added business rule to stop allowing effective/expiration dates in the past 
           (less than SYSDATE) for PRICE_DISTRICT hierarchy
-        : 02/26/2019 mxs216, ASP-1158, Added business rule to stop users from transfering *L* archived cost centers
+        : 02/26/2019 mxs216, ASP-1158 CCN Project...
+          Added business rule to stop users from transfering *L* archived cost center
 ************************************************************/
     IN_XML            IN CLOB,
     IN_OVERWRITE_FLAG IN VARCHAR2)
@@ -3134,7 +3146,7 @@ BEGIN
                                     V_COUNT,
                                     V_HIERARCHY_DETAIL_ROW_TO);
         END IF;
-        -- Checking if passed cost center is eligible for updates,i.e. if *L* archived cost center. -- mxs216
+        -- Checking if passed cost center is eligible for transfer,i.e. if *L* archived cost center.
         IF COMMON_TOOLS.IS_COST_CENTER_ARCHIVED(V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL) = 'Y' THEN
             RAISE ARCHIVED_COST_CENTER_ERR_EXC;
         END IF;
@@ -3189,7 +3201,7 @@ EXCEPTION
     WHEN ARCHIVED_COST_CENTER_ERR_EXC THEN
         ERRPKG.RAISE_ERR(ERRNUMS.EN_CHN_NOT_ALD_IN_ARCH_CC_ERR
                        ,'VALIDATE_TRNSFR_BUSINESS_RULES'
-                       ,': Transfer not allowed for archieved cost center: ' || V_HIERARCHY_DETAIL_ROW_TO.HRCHY_DTL_CURR_ROW_VAL );
+                       ,': Transfer not allowed for archieved cost center');
     WHEN OTHERS THEN
         V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM;
         ERRPKG.RAISE_ERR(-20004,'VALIDATE_TRNSFR_BUSINESS_RULES',V_CONTEXT);
