@@ -286,58 +286,54 @@ This process takes care of generating EMAILS FOR HIER_TRNSFR_TERRITORY
 AND HIER_TRNSFR_DAD_CHNG_TERRITORY...
 
 Created : 04/13/2017 pxb712 CCN project Team....
-Changed : 02/06/2019 mxs216 ASP-1207 CCN Project....
-          Replaced SELECTION of BATCH_JOB_LAST_RUN_DATE from BATCH_JOB table with CCN_COMMON_TOOLS.MAX_BATCH_JOB_LAST_RUN_DATE.
 **********************************************************/
 
 IS
     V_CLOB                        CLOB;
     V_DAD_CHANGE_CLOB             CLOB;
-    V_BATCH_NUMBER                NUMBER;
-    V_TRANS_STATUS                VARCHAR2(200) := 'SUCCESSFUL';
-    V_MAX_BATCH_JOB_LAST_RUN_DATE DATE;
-
+    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
 
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_DAD_MISMATCH', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    V_MAX_BATCH_JOB_LAST_RUN_DATE := CCN_COMMON_TOOLS.MAX_BATCH_JOB_LAST_RUN_DATE('HRCHY_DAD_MISMATCH');
+   CCN_BATCH_PKG.INSERT_BATCH_JOB('HRCHY_DAD_MISMATCH', V_BATCH_NUMBER);
+   CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 
-    BEGIN
-        FOR REC IN (SELECT *
-                      FROM hierarchy_transfer_mail
-                     WHERE ENTRY_DATE  >=V_MAX_BATCH_JOB_LAST_RUN_DATE) LOOP
+   BEGIN
+      FOR REC IN (SELECT *
+                    FROM hierarchy_transfer_mail
+                   WHERE ENTRY_DATE  >= (SELECT MAX(BATCH_JOB_LAST_RUN_DATE)
+                                           FROM BATCH_JOB
+                                          WHERE BATCH_JOB_NAME = 'HRCHY_DAD_MISMATCH')) LOOP
+         IF (REC.PROCESS_NAME = 'HIER_TRNSFR_TERRITORY') THEN          
+            V_CLOB := REC.HRCHY_DTL_PREV_LVL_FROM
+                      || ',' || REC.HRCHY_DTL_PREV_LVL_TO
+                      || ',' || REC.HRCHY_DTL_CURR_ROW_VAL
+                      || CHR(10)
+                      || V_CLOB;
+         ELSE
+            V_DAD_CHANGE_CLOB := REC.HRCHY_DTL_PREV_LVL_FROM
+                                 || ',' || REC.HRCHY_DTL_PREV_LVL_TO
+                                 || ',' || REC.HRCHY_DTL_CURR_ROW_VAL
+                                 || CHR(10)
+                                 || V_DAD_CHANGE_CLOB;
+         END IF;
+      END LOOP;
 
-            IF (REC.PROCESS_NAME = 'HIER_TRNSFR_TERRITORY') THEN
-                V_CLOB := REC.HRCHY_DTL_PREV_LVL_FROM
-                          || ',' || REC.HRCHY_DTL_PREV_LVL_TO
-                          || ',' || REC.HRCHY_DTL_CURR_ROW_VAL
-                          || CHR(10)
-                          || V_CLOB;
-            ELSE
-                V_DAD_CHANGE_CLOB := REC.HRCHY_DTL_PREV_LVL_FROM
-                                     || ',' || REC.HRCHY_DTL_PREV_LVL_TO
-                                     || ',' || REC.HRCHY_DTL_CURR_ROW_VAL
-                                     || CHR(10)
-                                    || V_DAD_CHANGE_CLOB;
-            END IF;
-        END LOOP;
-
-        --Sending mail for the category 'HIER_TRNSFR_TERRITORY'
-        IF V_CLOB <> EMPTY_CLOB() THEN
-            MAIL_PKG.SEND_MAIL('HIER_TRNSFR_TERRITORY', NULL, NULL, V_CLOB);
-        END IF;
-        --Sending mail for the change of DAD on territory cost centers
-        IF V_DAD_CHANGE_CLOB <> EMPTY_CLOB() THEN
-            MAIL_PKG.SEND_MAIL('HIER_TRNSFR_DAD_CHNG_TERRITORY', NULL, NULL, V_DAD_CHANGE_CLOB);
-        END IF;
+       --Sending mail for the category 'HIER_TRNSFR_TERRITORY'
+       IF V_CLOB <> EMPTY_CLOB() THEN
+           MAIL_PKG.SEND_MAIL('HIER_TRNSFR_TERRITORY', NULL, NULL, V_CLOB);
+       END IF;
+       --Sending mail for the change of DAD on territory cost centers
+       IF V_DAD_CHANGE_CLOB <> EMPTY_CLOB() THEN
+           MAIL_PKG.SEND_MAIL('HIER_TRNSFR_DAD_CHNG_TERRITORY', NULL, NULL, V_DAD_CHANGE_CLOB);
+       END IF;
     EXCEPTION
       WHEN OTHERS THEN
          V_TRANS_STATUS := 'ERROR';
     END;
 
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('HRCHY_DAD_MISMATCH', V_BATCH_NUMBER, V_TRANS_STATUS);
-    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
+   CCN_BATCH_PKG.UPDATE_BATCH_JOB('HRCHY_DAD_MISMATCH', V_BATCH_NUMBER, V_TRANS_STATUS);
+   CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 END GENERATE_HRCHY_MISMATCH_FILE;
 
 PROCEDURE GENERATE_STORE_PD_HRCHY_FILE
@@ -365,8 +361,6 @@ Changed : 10/17/2017 nxk927 CCN project Team....
           to display those values in single column
         : 08/21/2018 pxa852 CCN Project Team...
           Modified the code to include POS start date and POS end date fields in the Price hierarchy report.
-        : 06/12/2018 pxa852 CCN Project Team....
-          EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
 **********************************************************/
 IS
   CURSOR main_cursor IS
@@ -381,7 +375,7 @@ IS
        AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
                                   FROM POLLING
                                  WHERE POLLING_STATUS_CODE = 'P'
-                                   AND POLL_STATUS_EXP_DT IS NULL)
+                                   AND EXPIRATION_DATE IS NULL)
        AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE
                                   FROM TYPE
                                  WHERE TYPE_CODE = '42'
@@ -805,8 +799,6 @@ modified: 03/15/2018 rxv940 CCN Project Team....
           Added logic to send an email along with FTP ASP - 1082.
         : 06/19/2018 sxg151 CCN Project Team...
           Removed CHR(13) in APPEND_CLOB  procedure "Text file line breaks wrong, after the file is transferred to UAR(Windows)server".
-        : 06/12/2018 pxa852 CCN Project Team....
-          EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
 *******************************************************************************************/
 IN_TMSTMP  IN VARCHAR2)
 AS
@@ -819,7 +811,7 @@ AS
           AND EXISTS (SELECT 1
                         FROM POLLING
                        WHERE POLLING.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
-                         AND POLLING.POLL_STATUS_EXP_DT IS NULL
+                         AND POLLING.EXPIRATION_DATE IS NULL
                          AND POLLING.CURRENT_FLAG = 'Y'
                          AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'))
         ORDER BY 1;
@@ -910,8 +902,6 @@ modified: 03/16/2018 nxk927
           null AMEX_SE_ID
         : 06/22/2018 sxg151 CCN Project Team...
           Added logic to send an email along with FTP ASP - 1082.
-        : 06/12/2018 pxa852 CCN Project Team....
-          EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
 *******************************************************************************************/
 IN_TMSTMP  IN VARCHAR2)
 AS
@@ -924,7 +914,7 @@ AS
          AND EXISTS (SELECT 1
                         FROM POLLING
                        WHERE POLLING.COST_CENTER_CODE = COST_CENTER.COST_CENTER_CODE
-                         AND POLLING.POLL_STATUS_EXP_DT IS NULL
+                         AND POLLING.EXPIRATION_DATE IS NULL
                          AND POLLING.CURRENT_FLAG = 'Y'
                          AND UPPER(POLLING.POLLING_STATUS_CODE) IN ('P','Q'))
        ORDER BY 1;
@@ -1854,8 +1844,7 @@ PROCEDURE COST_CENTER_VIEW_MONTHLY_SNAP_SP
 /******************************************************************************************************
 This procedure will load the data in COST_CENTER_VIEW_MONTHLY_SNAP  table from COST_CENTER_VW table.
 Created : sxg151 01/22/2019
-Changed : kxm302 2/14/2019
-        : Changed column names from Leasing to Marketing for LEASING_SALES_SQ_FT and LEASING_TOTAL_SQ_FT
+Changed :
 ********************************************************************************************************/
 IS
     CURSOR main_cur IS
@@ -1916,8 +1905,8 @@ IS
         SALES_VOL_CLASS_CODE_DESC,
         LONGITUDE,
         LATITUDE,
-        MKT_SALES_SQ_FT,
-        MKT_TOTAL_SQ_FT,
+        LEASING_SALES_SQ_FT,
+        LEASING_TOTAL_SQ_FT,
         LEASE_OR_OWNED,
         CC_MGR_NAME,
         TRUNC(SYSDATE) AS LOAD_DATE
