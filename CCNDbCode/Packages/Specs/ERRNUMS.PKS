@@ -3383,4 +3383,18 @@ exc_close_store_asgn_dispatch_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_close_store_asgn_dispatch_err , -20225);
 
+/*********************************************************** 
+The "en_no_dispatch_errr" passes a numerical error of -20226.
+This error states that there is no  "DISPATCH_TERMINAL" table entry
+for the requested Dispatch cost center. 
+
+created : 02/28/2019 sxg151 CCN Project
+revisions: 
+
+************************************************************/
+en_no_dispatch_err CONSTANT NUMBER := -20226;
+exc_no_dispatch_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_close_terr_asgn_store_err , -20226);
+
 END ERRNUMS;

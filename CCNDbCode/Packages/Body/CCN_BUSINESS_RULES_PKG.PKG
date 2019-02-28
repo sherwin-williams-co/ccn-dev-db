@@ -804,7 +804,8 @@ IF (inCOST_CENTER_ROWTYPE.cost_center_code  IS NOT NULL)  THEN --Added to avoid 
               CCN_BUSINESS_RULES_PKG.close_ccntr_sp
                (instatus_rowtype,
                 incost_center_rowtype,
-                interritory_rowtype);
+                interritory_rowtype,
+                indispatch_terminal_rowtype );
        END IF;
    END IF;
 END IF;
@@ -1206,7 +1207,8 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
 ******************************************************************************/	
   inSTATUS_ROWTYPE       IN STATUS%ROWTYPE
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
- ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE)
+ ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE
+ ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
 IS 
 
  non_numeric_exp 		        EXCEPTION;
@@ -1222,6 +1224,7 @@ IS
  exc_close_date_req_alloc_type_err         EXCEPTION; 
  v_count                    NUMBER;
  close_store_asgn_dispatch_exp EXCEPTION;
+ no_dispatch_exp               EXCEPTION;
 
 -- v_status_rowtype  STATUS%ROWTYPE;   TAL 04/15/2012 CCNQC-018
  v_territory_rowtype TERRITORY%ROWTYPE;
@@ -1354,13 +1357,10 @@ END;
        WHEN NO_DATA_FOUND THEN
           NULL;
 END;
-  -- Territory
+  -- Territory/Dispatch Terminal
 BEGIN
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
      (inCOST_CENTER_ROWTYPE.CATEGORY = 'T')    THEN
---     select *  into v_territory_rowtype
---	   	 from TERRITORY 
---	   	 where v_territory_rowtype.COST_CENTER_CODE =  inCOST_CENTER_CODE ;
        IF inTERRITORY_ROWTYPE.COST_CENTER_CODE IS NULL  OR 
          (inTERRITORY_ROWTYPE.COST_CENTER_CODE IS NOT NULL  AND
           inTERRITORY_ROWTYPE.COST_CENTER_CODE  <> inCOST_CENTER_ROWTYPE.cost_center_code) THEN
@@ -1371,6 +1371,13 @@ BEGIN
           inTERRITORY_ROWTYPE.HOME_STORE  IS NOT NULL THEN
             RAISE close_terr_asgn_store_exp;
        END IF ;
+  END IF;
+  IF (inSTATUS_ROWTYPE.STATUS_CODE = '5')  AND (inCOST_CENTER_ROWTYPE.CATEGORY = 'D') THEN
+      IF indispatch_terminal_rowtype.COST_CENTER_CODE IS NULL  OR
+        (indispatch_terminal_rowtype.COST_CENTER_CODE IS NOT NULL  AND
+         indispatch_terminal_rowtype.COST_CENTER_CODE  <> inCOST_CENTER_ROWTYPE.cost_center_code) THEN
+          RAISE no_dispatch_exp;
+       END IF;
   END IF;
 --EXCEPTION  
 --    when NO_DATA_FOUND then
@@ -1469,6 +1476,12 @@ as these cost center got active customer account.
                    errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.store_asgn_dispatch_exp '
                    ,'Cost Center is home store for Dispatch Terminal: ' ||
                    ' Cannot Close! ');
+    WHEN no_dispatch_exp THEN
+         v_code := errnums.en_no_dispatch_err;
+                   errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.no_dispatch_exp '
+                   ,'Dispatch Terminal is not found for cost center : ' ||
+                   inCOST_CENTER_ROWTYPE.cost_center_code ||
+                   ' cannot check for home store assignment! ');
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
