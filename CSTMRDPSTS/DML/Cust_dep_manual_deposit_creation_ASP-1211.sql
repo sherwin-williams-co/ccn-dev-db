@@ -8,8 +8,11 @@ The below accounts are deleted from the file (Deposit Transactions that Need Clo
 997922190
 591091202
 
-created : 02/27/2019  pxa852 CCN Project Team...
-Cahnged :
+Creating only Manual deposits and remaining balance is set to zero for these manual entries.
+As there are no manual redemptions, no updates on originals.
+
+Created : 02/27/2019  pxa852 CCN Project Team...
+Changed :
 *********************************************************************************/
 DECLARE
 --variable declaration
