@@ -3397,4 +3397,18 @@ exc_no_dispatch_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_close_terr_asgn_store_err , -20226);
 
+/*********************************************************** 
+The "close_dispatch_asgn_store_exp" passes a numerical error of -20227.
+This error states that there this "DISPATCH TERMINAL" cost center
+is still assigned to a a home store. 
+
+created : 03/01/2019 sxg151 CCN Team... ASP-1219
+revisions: 
+
+************************************************************/
+en_close_dispatch_asgn_store_exp CONSTANT NUMBER := -20227;
+exc_close_dispatch_asgn_store_exp EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_close_dispatch_asgn_store_exp , -20227);
+
 END ERRNUMS;
