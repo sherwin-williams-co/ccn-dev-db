@@ -21,7 +21,8 @@ echo "Merging log files process started for $proc at ${TIME} on ${DATE}"
 
 ##############################################
 echo "<<Old Files Data>>" >> $LOGDIR/$proc.log
-find /$LOGDIR -maxdepth 1 -name "release_timed_out_objects_20*.log" > filelist
+#Creating file filelist.txt to save all log filename
+find /$LOGDIR -maxdepth 1 -name "release_timed_out_objects_20*.log" > filelist.txt
 
 while read -r filename
 do
@@ -31,9 +32,9 @@ do
     var2=$(cat "$filename" | awk 'NF')
     echo "$var1 : $var2" >> $LOGDIR/$proc.log
     rm $filename
-done < filelist
+done < filelist.txt
 
-rm $LOGDIR/filelist
+rm $LOGDIR/filelist.txt
 echo "<<New writes>>" >> $LOGDIR/$proc.log
 ##############################################
 
