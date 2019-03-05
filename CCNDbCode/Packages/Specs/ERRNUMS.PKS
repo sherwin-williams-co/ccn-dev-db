@@ -3395,7 +3395,7 @@ revisions:
 en_no_dispatch_err CONSTANT NUMBER := -20226;
 exc_no_dispatch_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
-(exc_close_terr_asgn_store_err , -20226);
+(exc_no_dispatch_err , -20226);
 
 /*********************************************************** 
 The "close_dispatch_asgn_store_exp" passes a numerical error of -20227.
