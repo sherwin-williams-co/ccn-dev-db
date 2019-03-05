@@ -17,21 +17,25 @@ LOGDIR="$HOME/batchJobs"
 TIME=`date +"%H:%M:%S"`
 DATE=`date +"%m/%d/%Y"`
 
-echo "<<Old Files Data>>" >> $LOGDIR/$proc.log
+echo "Merging log files process started for $proc at ${TIME} on ${DATE}"
 
-for i in `ls -t $LOGDIR/release_timed_out_objects_20*.log`
+##############################################
+echo "<<Old Files Data>>" >> $LOGDIR/$proc.log
+find /$LOGDIR -maxdepth 1 -name "release_timed_out_objects_20*.log" > filelist
+
+while read -r filename
 do
     # extracting datetimestamp from the file name
-    var1="${i//[!0-9]/}"
+    var1="${filename//[!0-9]/}"
     # removing the blank lines
-    var2=$(cat "$i" | awk 'NF')
+    var2=$(cat "$filename" | awk 'NF')
     echo "$var1 : $var2" >> $LOGDIR/$proc.log
-done
-echo "<<New writes>>" >> $LOGDIR/$proc.log
+    rm $filename
+done < filelist
 
-rm $LOGDIR/release_timed_out_objects_20*.log
+rm $LOGDIR/filelist
+echo "<<New writes>>" >> $LOGDIR/$proc.log
+##############################################
 
 TIME=`date +"%H:%M:%S"`
 echo "Merging log files process finished for $proc at ${TIME} on ${DATE}"
-
-############################################################################
