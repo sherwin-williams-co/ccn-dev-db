@@ -21,11 +21,8 @@ DECLARE
     v_transaction_id VARCHAR2(500);
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
-    v_address_USA_row ADDRESS_USA%ROWTYPE;
+    v_address_USA_row ADDRESS_USA%ROWTYPE; 
     last_active_cc_err   EXCEPTION;
-    V_COUNT              NUMBER := 0;
-    v_code               NUMBER;
-    
 begin
 
     v_address_usa_row.COST_CENTER_CODE  := :NEW.COST_CENTER_CODE;
@@ -33,7 +30,7 @@ begin
     v_address_usa_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
     v_address_usa_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
     v_address_usa_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
-    v_address_usa_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;	
+    v_address_usa_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;
     v_address_usa_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
     v_address_usa_row.CITY              := :NEW.CITY;
     v_address_usa_row.STATE_CODE        := :NEW.STATE_CODE;
@@ -46,6 +43,13 @@ begin
     v_address_usa_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
     v_address_usa_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
     
+    IF :NEW.EXPIRATION_DATE IS NOT NULL THEN
+        IF UPDATING THEN
+           IF COMMON_TOOLS.CHECK_LAST_ACTIVE_COST_CENTER('ADDRESS_USA',:NEW.COST_CENTER_CODE,:NEW.ADDRESS_TYPE)=1 THEN
+              RAISE last_active_cc_err;
+           END IF;
+        END IF;
+    END IF;
 	
 	SELECT XMLELEMENT ( "ADDRESS_USA",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -108,8 +112,7 @@ begin
                 ,v_primaryKey
                 ,v_rowdata
                 ,'TR_ADDRESS_USA_UPD');
-     --END IF;
-
+     --END IF;      
 BEGIN
 IF NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' AND POS_DATA_GENERATION.CHECK_COST_CENTER_CATEGORY(v_address_usa_Row.COST_CENTER_CODE)='S' THEN
 IF INSERTING THEN   
@@ -150,19 +153,8 @@ IF :NEW.EXPIRATION_DATE IS NULL AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' THEN
        CCN_DESCARTES_PROCESS.INSERT_DESCARTES_ADRS_FEED_CC(:NEW.COST_CENTER_CODE);
     END IF;
 END IF;
-
-IF :NEW.EXPIRATION_DATE IS NOT NULL THEN
-    IF UPDATING THEN
-       IF CHECK_LAST_ACTIVE_COST_CENTER('ADDRESS_USA',:NEW.COST_CENTER_CODE,:NEW.ADDRESS_TYPE)=1 THEN
-          RAISE last_active_cc_err;
-        END IF;  
-    END IF;
-END IF;    
 ---END-- CODE TO HANDLE DESCARTES ADDRESS FEED
 EXCEPTION
-    WHEN last_active_cc_err THEN
-       v_code := errnums.en_last_active_cc_err; 
-	   errpkg.raise_err(v_code, 'last_active_cc_err','No update on Address cost center if its last active record');
 WHEN OTHERS THEN
 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            'TR_ADDRESS_USA_UPD',
@@ -170,4 +162,7 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            v_address_usa_Row.COST_CENTER_CODE
                            );
 END;
+EXCEPTION
+    WHEN last_active_cc_err THEN
+	   errpkg.raise_err(errnums.en_last_active_cc_err, 'CHECK_LAST_ACTIVE_COST_CENTER.last_active_cc_err:','Cannot expire last effective record');
 end  TR_ADDRESS_USA_UPD;

@@ -11,18 +11,18 @@ created : 08/24/2010 kdp Payroll reporting project.....
         : 09/13/2018 kxm302 CCN Project Team...
 		: Removed GET_CC_MANAGER_NAME function ASP-1128
 ************************************************************/
-   
+
 PROCEDURE ALTER_ALL_TRIGGERS   
 /*******************************************************************************
 	ALTER_ALL_TRIGGERS   --    Alter all table(s) triggers
 
 	This procedure will enable and/or disable all table(s) triggers based on an
   input "status" parameter.  
-	  
+
 created : 11/14/2012 MDH CCN Project....
 *******************************************************************************/
  ( IN_STATUS  IN VARCHAR2 );
-       
+
 FUNCTION CODE_DETAIL_VALID
 /**********************************************************
 	CODE_DETAIL_VALID(in_field_name, in_value_code)
@@ -35,15 +35,15 @@ created : 08/15/2012 tal Cost Center Nucleus project.....
     ( in_field_name  IN  varchar2
     , in_value_code  IN  varchar2 ) 
     RETURN BOOLEAN;
-    
+
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
 	COMPUTE_EXPIRATOIN_DATE (in_date)
-  
+
 		This function will be used to read in a date and subtract one day
     from that date (effective) and return a new date (expiration) which
     is one day prior.
-    
+
     The an input date must be passed.  
     This function will return a new (expiration) date. 
 
@@ -79,7 +79,7 @@ created : 08/24/2010 kdp Payroll reporting project.....
 **********************************************************/
     (in_date IN varchar2)
     RETURN varchar2;
-    
+
 PROCEDURE EMPLOYEE_DATA_S_SP   
 /*******************************************************************************
 	EMPLOYEE_DATA_S_SP
@@ -95,22 +95,22 @@ changed :
 *******************************************************************************/
  ( IN_GEMS_EMPLOYEE_ID   IN  EMP_DATA.EMPLOYEE_NUMBER%TYPE
                           , OUT_EMP_DATA_ROWTYPE OUT EMP_DATA%ROWTYPE);
-                                                    
+
 PROCEDURE EXPIRE_DATA_SP (
 /******************************************************************************
 	EXPIRE_DATA_SP   --    Expire selected Table Rows Procedure
 
 	This procedure is intended to expire specific row row(s) of data based on 
        table_name, Cost_Center, and Effective_Date. 
-       
+
   This procedure is intended to be used for the follownig tables: 
-  
+
             ADDRESS_CAN, ADDRESS_USA, ADDRESS_MEX, ADDRESS_OTHER
           , BANK_CARD
           , MARKETING
           , STATUS
           , TYPE
-  
+
 created : 12/04/2012 MDH CCN Project....
 revised : 05/30/2013 MDH add ADDRESS_TYPE to procedure
 *******************************************************************************/
@@ -251,7 +251,7 @@ created : 01/29/2013 jxc517 CCN Project....
 		      adding back delete procedure for cost center prefix fix
 **********************************************************/
           IN_COST_CENTER IN VARCHAR2);
-		  
+
  FUNCTION BUILD_TAG(
 /******************************************************************************
 BUILD_TAG
@@ -276,7 +276,7 @@ with the execution of rest of the cost centers
                     IN_MODULE  IN VARCHAR2,
                     IN_SQLERRM IN VARCHAR2,
                     IN_SQLCODE IN NUMBER);
-                    
+
 FUNCTION CONVERT_SPECIAL_CHRCTRS(
 /**********************************************************
 This function will build special characters from input text
@@ -462,5 +462,15 @@ Created : 11/14/2018, mxs216, CCN Project ASP-1158
     IN_COST_CENTER_CODE IN VARCHAR2
 ) RETURN VARCHAR2;
 
+FUNCTION CHECK_LAST_ACTIVE_COST_CENTER (
+/**********************************************************
+Address trigger to find last active address record for cc and throw error
+
+Created : 03/5/2019 kxm302 CCN Project Team.....
+**********************************************************/
+    IN_TABLE_NAME          VARCHAR2,
+    IN_COST_CENTER_CODE    VARCHAR2,
+    IN_ADDRESS_TYPE        VARCHAR2
+) RETURN NUMBER;
 
 END COMMON_TOOLS;

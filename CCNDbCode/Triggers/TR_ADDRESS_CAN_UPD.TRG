@@ -8,6 +8,8 @@ create or replace TRIGGER COSTCNTR.TR_ADDRESS_CAN_UPD
               Fixed the code to handle inserts/updates properly
    Modified : 07/11/2018 pxa852 CCn Project Team...
               Added condition to trigger polling dowloads only for mailing address type
+   Modified : 3/5/2019 kxm302 CCN Project Team...
+              Added condition to find last active address record for CC and throw error
 ****************************************************************************/
 BEFORE INSERT or UPDATE ON COSTCNTR.ADDRESS_CAN
 REFERENCING NEW AS NEW OLD AS OLD
@@ -18,21 +20,29 @@ DECLARE
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_address_can_row ADDRESS_CAN%ROWTYPE; 
-    
+    last_active_cc_err   EXCEPTION;
 begin
 
-		v_address_can_row.cost_center_code  := :NEW.cost_center_code;
-		v_address_can_row.ADDRESS_TYPE      := :NEW.ADDRESS_TYPE;
-        v_address_can_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
-        v_address_can_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
-		v_address_can_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
-		v_address_can_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;	
-		v_address_can_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
-		v_address_can_row.CITY              := :NEW.CITY;
-		v_address_can_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
-		v_address_can_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
-		v_address_can_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
-        v_address_can_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
+    v_address_can_row.cost_center_code  := :NEW.cost_center_code;
+    v_address_can_row.ADDRESS_TYPE      := :NEW.ADDRESS_TYPE;
+    v_address_can_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
+    v_address_can_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
+    v_address_can_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
+    v_address_can_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;
+    v_address_can_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
+    v_address_can_row.CITY              := :NEW.CITY;
+    v_address_can_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
+    v_address_can_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
+    v_address_can_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
+    v_address_can_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
+	
+    IF :NEW.EXPIRATION_DATE IS NOT NULL THEN
+        IF UPDATING THEN
+           IF COMMON_TOOLS.CHECK_LAST_ACTIVE_COST_CENTER('ADDRESS_CAN',:NEW.COST_CENTER_CODE,:NEW.ADDRESS_TYPE)=1 THEN
+              RAISE last_active_cc_err;
+           END IF;
+        END IF;
+    END IF;
 	
 	SELECT XMLELEMENT ( "ADDRESS_CAN",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -137,4 +147,7 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            v_address_can_row.COST_CENTER_CODE
                            );
 END;
+EXCEPTION
+    WHEN last_active_cc_err THEN
+	   errpkg.raise_err(errnums.en_last_active_cc_err, 'CHECK_LAST_ACTIVE_COST_CENTER.last_active_cc_err:','Cannot expire last effective record');
 END TR_ADDRESS_CAN_UPD;

@@ -1,4 +1,11 @@
 CREATE OR REPLACE TRIGGER "COSTCNTR".TR_ADDRESS_MEX_UPD 
+/***************************************************************************
+   TR_ADDRESS_MEX_UPD.TRG
+   This trigger will insert records into audit_log table for logging changes
+   Created:
+   Modified : 3/5/2019 kxm302 CCN Project Team...
+              Added condition to find last active address record for CC and throw error
+****************************************************************************/
 before insert or update on ADDRESS_MEX 
 referencing old as old new as new 
 for each row 
@@ -9,22 +16,29 @@ DECLARE
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_address_mex_row ADDRESS_MEX%ROWTYPE; 
-    
+    last_active_cc_err   EXCEPTION;
 begin
 
-
     v_address_mex_row.COST_CENTER_CODE  := :NEW.COST_CENTER_CODE;
-		v_address_mex_row.ADDRESS_TYPE      := :NEW.ADDRESS_TYPE;
-		v_address_mex_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
-		v_address_mex_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
-		v_address_mex_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
-		v_address_mex_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;	
-		v_address_mex_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
-		v_address_mex_row.CITY              := :NEW.CITY;
-		v_address_mex_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
-		v_address_mex_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
-		v_address_mex_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
+    v_address_mex_row.ADDRESS_TYPE      := :NEW.ADDRESS_TYPE;
+    v_address_mex_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
+    v_address_mex_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
+    v_address_mex_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
+    v_address_mex_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;
+    v_address_mex_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
+    v_address_mex_row.CITY              := :NEW.CITY;
+    v_address_mex_row.PROVINCE_CODE     := :NEW.PROVINCE_CODE;
+    v_address_mex_row.POSTAL_CODE       := :NEW.POSTAL_CODE;
+    v_address_mex_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
     v_address_mex_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
+
+	IF :NEW.EXPIRATION_DATE IS NOT NULL THEN
+       IF UPDATING THEN
+          IF COMMON_TOOLS.CHECK_LAST_ACTIVE_COST_CENTER('ADDRESS_MEX',:NEW.COST_CENTER_CODE,:NEW.ADDRESS_TYPE)=1 THEN
+             RAISE last_active_cc_err;
+          END IF;
+       END IF;
+    END IF;
 	
 	SELECT XMLELEMENT ( "ADDRESS_MEX",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -81,7 +95,10 @@ begin
                 ,v_rowdata
                 ,'TR_ADDRESS_MEX_UPD');
      --END IF;      
-     
+
+EXCEPTION
+    WHEN last_active_cc_err THEN
+	   errpkg.raise_err(errnums.en_last_active_cc_err, 'CHECK_LAST_ACTIVE_COST_CENTER.last_active_cc_err:','Cannot expire last effective record');
 
 end  TR_ADDRESS_MEX_UPD;
 
