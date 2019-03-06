@@ -1828,6 +1828,138 @@ BEGIN
 EXCEPTION 
     WHEN OTHERS THEN 
         ROLLBACK;
-END RESET_FLAG_POLLING_BULK_LOADS; 
+END RESET_FLAG_POLLING_BULK_LOADS;
+
+FUNCTION INS_ON_DEMAND_POS_DOWNLOADS_FN(
+/*******************************************************************************
+This function is used to insert into POS_DOWNLOADS table and return POS_ID for POS_ON_DEMAND_DOWNLOADS
+
+Created : 03/05/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2) RETURN NUMBER
+IS
+    V_POS_ID POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN
+    INSERT
+    INTO POS_DOWNLOADS(POS_ID
+                       ,COST_CENTER_CODE
+                       ,DATA_SOURCE
+                       ,DATA_OPERATION
+                       ,FILE_TYPE
+                       ,FILE_PROCESSED
+                       ,CREATE_DT)
+    VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
+            ,IN_COST_CENTER_CODE
+            ,IN_DATA_SOURCE
+            ,IN_DATA_OPERATION
+            ,IN_FILE_TYPE
+            ,'N'
+            ,SYSDATE)
+    RETURNING POS_ID
+         INTO V_POS_ID;
+    RETURN V_POS_ID;
+END INS_ON_DEMAND_POS_DOWNLOADS_FN;
+
+PROCEDURE POS_ON_DEMAND_DWNLD_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to Convert the POS_ON_DEMAND_DOWNLOAD xml into rowtype.
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :
+*******************************************************************************/
+    IN_TABLE_NAME            IN     VARCHAR2,
+    IN_ROW_DATA              IN     VARCHAR2,
+    OUT_POS_ON_DEMAND_ROW       OUT POS_ON_DEMAND_DOWNLOADS%ROWTYPE
+    )
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME, DATA_LENGTH COLUMN_SIZE, DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TBL_ROW         POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ROW_VALUE       VARCHAR(500);
+    V_ROW_DATA        XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL();
+            V_ROW_VALUE := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+           CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'COST_CENTER_CODE'    THEN  V_TBL_ROW.COST_CENTER_CODE   := UPPER(V_ROW_VALUE);
+                WHEN 'DOWNLOAD_TYPE'       THEN  V_TBL_ROW.DOWNLOAD_TYPE      := V_ROW_VALUE;
+                WHEN 'REQUESTED_USER'      THEN  V_TBL_ROW.REQUESTED_USER     := V_ROW_VALUE;
+                WHEN 'REQUESTED_DATE'      THEN  V_TBL_ROW.REQUESTED_DATE     := SYSDATE;
+                WHEN 'REASON_FOR_DOWNLOAD' THEN V_TBL_ROW.REASON_FOR_DOWNLOAD := V_ROW_VALUE;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_POS_ON_DEMAND_ROW := V_TBL_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'POS_ON_DEMAND_DWNLD_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SUBSTR(SQLERRM, 1, 500));
+END POS_ON_DEMAND_DWNLD_ROWTYPE_SP;
+
+PROCEDURE PROCESS_POLLING_ON_DEMAND (
+/*******************************************************************************
+This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
+
+Sample XML input (assumed) from UI
+
+<POS_ON_DEMAND_DOWNLOADS>
+    <COST_CENTER_CODE>701058</COST_CENTER_CODE>
+    <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
+    <REQUESTED_USER>rxv940</REQUESTED_USER>
+    <REQUESTED_DATE>26-DEC-2017</REQUESTED_DATE>
+    <REASON_FOR_DOWNLOAD>Test</REASON_FOR_DOWNLOAD>
+</POS_ON_DEMAND_DOWNLOADS>
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :
+*******************************************************************************/
+    IN_ROW_DATA    IN VARCHAR2
+    )
+IS
+    V_TBL_ROW         POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR           VARCHAR2(1000);
+    V_FILE_TYPE       VARCHAR2(30);
+BEGIN
+    --Convert the on demand download xml into rowtype
+    POS_ON_DEMAND_DWNLD_ROWTYPE_SP('POS_ON_DEMAND_DOWNLOADS',
+                                   IN_ROW_DATA,
+                                   V_TBL_ROW);
+    --Assigning file type based on the download type
+    V_FILE_TYPE := CASE WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewDemographic' THEN
+                             'POS_STORE_UPDATE'
+                        WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewBank' THEN
+                             'POS_PARAM_UPDATE'
+                    END;
+    --Check if there is a record with the processed flag 'N' for the cost center passed in.
+    --If exists then do not insert. Else Insert.
+    IF RETURN_POS_DOWNLOADS_INSERT_YN(V_TBL_ROW.COST_CENTER_CODE,
+                                      V_FILE_TYPE) = 'Y'  THEN
+       --Insert one entry into the POS_DOWNLOADS table.
+       V_TBL_ROW.POS_ID := INS_ON_DEMAND_POS_DOWNLOADS_FN(V_TBL_ROW.COST_CENTER_CODE, 'ON_DEMAND_LOAD', 'UI_REQUEST', V_FILE_TYPE);
+       --insert into on demand table with the pos id from pos_downloads table.
+       INSERT INTO POS_ON_DEMAND_DOWNLOADS VALUES V_TBL_ROW;
+    END IF;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) ||
+                    'SQLERRM->' || SQLERRM;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_ON_DEMAND_DWNLD_ROWTYPE_SP',
+                                       V_ERROR,
+                                       '000000');
+        RAISE;
+END PROCESS_POLLING_ON_DEMAND;
 
 END POS_DATA_GENERATION;

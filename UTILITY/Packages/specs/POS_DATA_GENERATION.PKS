@@ -141,6 +141,15 @@ This procedure is intended to Reset flag into POS_DOWNLOADS_BULK_LOADS_LKUP tabl
 created : 12/26/2017 rxv940 CCN Project....
 revised :     
 *******************************************************************************/
-    IN_BULK_LOADS_LKUP_ID IN NUMBER);  	
+    IN_BULK_LOADS_LKUP_ID IN NUMBER);
+
+PROCEDURE PROCESS_POLLING_ON_DEMAND(
+/*******************************************************************************
+This procedure is to load ON DEMAND polling requests into the POS_DOWNLOADS table
+
+Created : 03/06/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_ROW_DATA              IN     VARCHAR2);
     
 END POS_DATA_GENERATION;
