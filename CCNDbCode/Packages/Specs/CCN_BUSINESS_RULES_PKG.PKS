@@ -519,7 +519,8 @@ PROCEDURE DISPATCH_TERMINAL_BR_SP(
     created : rxa457 04/17/17 asp:400-asp-763
 *******************************************************************************/
     inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
-    inCC_rowtype                IN COST_CENTER%ROWTYPE);
+    inCC_rowtype                IN COST_CENTER%ROWTYPE,
+    inSTATUS_ROWTYPE            IN STATUS%ROWTYPE);
 
 PROCEDURE TERMINAL_BR_SP (
 /*******************************************************************************
