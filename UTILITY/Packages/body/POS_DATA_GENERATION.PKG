@@ -1830,19 +1830,19 @@ EXCEPTION
         ROLLBACK;
 END RESET_FLAG_POLLING_BULK_LOADS;
 
-FUNCTION INS_ON_DEMAND_POS_DOWNLOADS_FN(
+PROCEDURE INS_ON_DEMAND_POS_DOWNLOADS_SP(
 /*******************************************************************************
 This function is used to insert into POS_DOWNLOADS table and return POS_ID for POS_ON_DEMAND_DOWNLOADS
 
 Created : 03/05/2019 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
-    IN_COST_CENTER_CODE IN VARCHAR2,
-    IN_DATA_SOURCE      IN VARCHAR2,
-    IN_DATA_OPERATION   IN VARCHAR2,
-    IN_FILE_TYPE        IN VARCHAR2) RETURN NUMBER
+    IN_TBL_TOW          IN POS_ON_DEMAND_DOWNLOADS%ROWTYPE,
+    IN_FILE_TYPE        IN VARCHAR2)
 IS
-    V_POS_ID POS_DOWNLOADS.POS_ID%TYPE;
+    V_POS_ID      POS_DOWNLOADS.POS_ID%TYPE;
+    POS_TBL_TOW   POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR       VARCHAR2(1000);
 BEGIN
     INSERT
     INTO POS_DOWNLOADS(POS_ID
@@ -1853,16 +1853,49 @@ BEGIN
                        ,FILE_PROCESSED
                        ,CREATE_DT)
     VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
-            ,IN_COST_CENTER_CODE
-            ,IN_DATA_SOURCE
-            ,IN_DATA_OPERATION
+            ,IN_TBL_TOW.COST_CENTER_CODE
+            ,'ON_DEMAND_LOAD'
+            ,'UI_REQUEST'
             ,IN_FILE_TYPE
             ,'N'
             ,SYSDATE)
     RETURNING POS_ID
          INTO V_POS_ID;
-    RETURN V_POS_ID;
-END INS_ON_DEMAND_POS_DOWNLOADS_FN;
+
+    POS_TBL_TOW        := IN_TBL_TOW;
+    POS_TBL_TOW.POS_ID := V_POS_ID;
+
+    INSERT INTO POS_ON_DEMAND_DOWNLOADS VALUES POS_TBL_TOW;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INS_ON_DEMAND_POS_DOWNLOADS_SP', V_ERROR, '000000');
+        RAISE;
+END INS_ON_DEMAND_POS_DOWNLOADS_SP;
+
+FUNCTION IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(
+/*******************************************************************************
+This function is used to return POS_DOWNLOAD_CC_IND for the cost center passed in
+
+Created : 03/08/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_POS_DOWNLOAD_CC_IND    VARCHAR2(1) := 'N';
+BEGIN
+    BEGIN
+        SELECT POS_DOWNLOAD_CC_IND
+          INTO V_POS_DOWNLOAD_CC_IND
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_POS_DOWNLOAD_CC_IND := 'N';
+    END;
+    RETURN V_POS_DOWNLOAD_CC_IND;
+END IS_POS_DOWNLOAD_CC_IND_SET_TO_YES;
 
 PROCEDURE POS_ON_DEMAND_DWNLD_ROWTYPE_SP (
 /*******************************************************************************
@@ -1895,7 +1928,7 @@ BEGIN
                 WHEN 'COST_CENTER_CODE'    THEN  V_TBL_ROW.COST_CENTER_CODE   := UPPER(V_ROW_VALUE);
                 WHEN 'DOWNLOAD_TYPE'       THEN  V_TBL_ROW.DOWNLOAD_TYPE      := V_ROW_VALUE;
                 WHEN 'REQUESTED_USER'      THEN  V_TBL_ROW.REQUESTED_USER     := V_ROW_VALUE;
-                WHEN 'REQUESTED_DATE'      THEN  V_TBL_ROW.REQUESTED_DATE     := SYSDATE;
+                WHEN 'REQUESTED_DATE'      THEN  V_TBL_ROW.REQUESTED_DATE     := V_ROW_VALUE;
                 WHEN 'REASON_FOR_DOWNLOAD' THEN V_TBL_ROW.REASON_FOR_DOWNLOAD := V_ROW_VALUE;
             END CASE;
         END IF;
@@ -1915,8 +1948,8 @@ Sample XML input (assumed) from UI
 <POS_ON_DEMAND_DOWNLOADS>
     <COST_CENTER_CODE>701058</COST_CENTER_CODE>
     <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
-    <REQUESTED_USER>rxv940</REQUESTED_USER>
-    <REQUESTED_DATE>26-DEC-2017</REQUESTED_DATE>
+    <REQUESTED_USER>pxa852</REQUESTED_USER>
+    <REQUESTED_DATE>05-MAR-2019</REQUESTED_DATE>
     <REASON_FOR_DOWNLOAD>Test</REASON_FOR_DOWNLOAD>
 </POS_ON_DEMAND_DOWNLOADS>
 
@@ -1934,20 +1967,24 @@ BEGIN
     POS_ON_DEMAND_DWNLD_ROWTYPE_SP('POS_ON_DEMAND_DOWNLOADS',
                                    IN_ROW_DATA,
                                    V_TBL_ROW);
-    --Assigning file type based on the download type
-    V_FILE_TYPE := CASE WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewDemographic' THEN
-                             'POS_STORE_UPDATE'
-                        WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewBank' THEN
-                             'POS_PARAM_UPDATE'
-                    END;
-    --Check if there is a record with the processed flag 'N' for the cost center passed in.
-    --If exists then do not insert. Else Insert.
-    IF RETURN_POS_DOWNLOADS_INSERT_YN(V_TBL_ROW.COST_CENTER_CODE,
-                                      V_FILE_TYPE) = 'Y'  THEN
-       --Insert one entry into the POS_DOWNLOADS table.
-       V_TBL_ROW.POS_ID := INS_ON_DEMAND_POS_DOWNLOADS_FN(V_TBL_ROW.COST_CENTER_CODE, 'ON_DEMAND_LOAD', 'UI_REQUEST', V_FILE_TYPE);
-       --insert into on demand table with the pos id from pos_downloads table.
-       INSERT INTO POS_ON_DEMAND_DOWNLOADS VALUES V_TBL_ROW;
+    IF IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(V_TBL_ROW.COST_CENTER_CODE) = 'N' THEN
+       CCN_ERRPKG.raise_err(CCN_ERRNUMS.en_cc_not_approved_for_polling,
+                             'Cost Center is not approved for Polling,Hence Downloads can not be triggered for this cost center');
+    ELSE
+        --Assigning file type based on the download type
+        V_FILE_TYPE := CASE WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewDemographic' THEN
+                                 'POS_STORE_UPDATE'
+                            WHEN V_TBL_ROW.DOWNLOAD_TYPE = 'NewBank' THEN
+                                 'POS_PARAM_UPDATE'
+                        END;
+        --Check if there is a record with the processed flag 'N' for the cost center passed in.
+        --If exists then do not insert. Else Insert.
+        IF RETURN_POS_DOWNLOADS_INSERT_YN(V_TBL_ROW.COST_CENTER_CODE,
+                                          V_FILE_TYPE) = 'Y'  THEN
+           --Insert one entry into the POS_DOWNLOADS table.
+           --insert into on demand table with the pos id from pos_downloads table.
+           INS_ON_DEMAND_POS_DOWNLOADS_SP(V_TBL_ROW,V_FILE_TYPE);
+        END IF;
     END IF;
     COMMIT;
 EXCEPTION
@@ -1956,10 +1993,76 @@ EXCEPTION
                     'SQLERRM->' || SQLERRM;
         ROLLBACK;
         CCN_ERRPKG.insert_error_log_sp(SQLCODE,
-                                       'POS_ON_DEMAND_DWNLD_ROWTYPE_SP',
+                                       'PROCESS_POLLING_ON_DEMAND',
                                        V_ERROR,
                                        '000000');
         RAISE;
 END PROCESS_POLLING_ON_DEMAND;
+
+PROCEDURE POLLING_ON_DEMAND_UPLOAD_SP
+/*******************************************************************************
+This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
+
+created : 03/08/2019 pxa852 CCN Project Team....
+revised :
+*******************************************************************************/
+IS
+    V_TBL_ROW             POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR               VARCHAR2(1000);
+    V_FILE_TYPE           VARCHAR2(30);
+    V_BULK_LOAD_LKUP_ID   NUMBER;
+    V_CLOB_FOR_EMAIL      CLOB;
+    V_START_TIME          DATE := SYSDATE;
+BEGIN
+    FOR rec IN (SELECT * FROM TEMP_POLLING_ON_DEMAND_DOWNLOADS) LOOP
+        SAVEPOINT POS_ON_DEMAND_DOWNLOADS;
+        BEGIN
+            IF IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(rec.COST_CENTER_CODE) = 'N' THEN
+               CCN_ERRPKG.INSERT_ERROR_LOG_SP(CCN_ERRNUMS.en_cc_not_approved_for_polling,
+                                              'cc_not_approved_for_polling',
+                                              'Cost Center is not approved for Polling to trigger POS Download',
+                                              rec.COST_CENTER_CODE);
+            ELSE
+                --Assigning file type based on the download type
+                V_FILE_TYPE := CASE WHEN rec.DOWNLOAD_TYPE = 'NewDemographic' THEN
+                                     'POS_STORE_UPDATE'
+                                    WHEN rec.DOWNLOAD_TYPE = 'NewBank' THEN
+                                     'POS_PARAM_UPDATE'
+                               END;
+                --Check if there is a record with the processed flag 'N' for the cost center passed in.
+                --If exists then do not insert. Else Insert.
+                IF RETURN_POS_DOWNLOADS_INSERT_YN(rec.COST_CENTER_CODE,
+                                                  V_FILE_TYPE) = 'Y'  THEN
+                   V_TBL_ROW.COST_CENTER_CODE    := rec.COST_CENTER_CODE;
+                   V_TBL_ROW.DOWNLOAD_TYPE       := rec.DOWNLOAD_TYPE;
+                   V_TBL_ROW.REQUESTED_USER      := rec.REQUESTED_USER;
+                   V_TBL_ROW.REQUESTED_DATE      := SYSDATE;
+                   V_TBL_ROW.REASON_FOR_DOWNLOAD := rec.REASON_FOR_DOWNLOAD;
+                   --Insert one entry into the POS_DOWNLOADS table.
+                   --insert into on demand table with the pos id from pos_downloads table.
+                   INS_ON_DEMAND_POS_DOWNLOADS_SP(V_TBL_ROW,V_FILE_TYPE);
+                END IF;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO POS_ON_DEMAND_DOWNLOADS;
+                --write to error log
+                CCN_ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'POLLING_ON_DEMAND_UPLOAD_SP', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
+        END;
+        COMMIT;
+    END LOOP;
+    --this process will email an error report to CCN team if there are any errors in error_log table.
+    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
+    CCN_ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+    --sending mail only if there are error records.
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
+        MAIL_PKG.SEND_MAIL('POLLING_ON_DEMAND_UPLOAD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Logging of error
+        CCN_ERRPKG.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  POLLING_ON_DEMAND_UPLOAD_SP '  || ' errors found');
+END POLLING_ON_DEMAND_UPLOAD_SP;
 
 END POS_DATA_GENERATION;

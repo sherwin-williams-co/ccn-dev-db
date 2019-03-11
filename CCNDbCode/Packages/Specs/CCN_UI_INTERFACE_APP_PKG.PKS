@@ -846,4 +846,16 @@ revised :
 *******************************************************************************/
     in_row_data  IN  varchar2);
 
+PROCEDURE ON_DEMAND_POLLING_UPLOAD_PROCESS(
+/******************************************************************************
+This procedure is the core process for creating pos downloads when user upload the excel.
+This process will be invoked by UI for bulk upload of POS downloads.
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created : 03/06/2019 pxa852 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_BLOB            IN       BLOB);
+
 END CCN_UI_INTERFACE_APP_PKG;

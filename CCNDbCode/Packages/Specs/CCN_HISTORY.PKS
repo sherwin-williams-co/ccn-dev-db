@@ -9,11 +9,11 @@ Modified: mxs216, ASP-1210, CCN Project....
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
-		
+
 PROCEDURE RETURN_HIERARCHY_HIST(
  /**********************************************************
  	RETURN_HIERARCHY_HIST
- 
+
  	This procedure will return a ref cursor with data from 
  	from the hierarchy_detail_hst table based on header name, current value , traverse ( UP or DOWN DEFAULT is UP), level
  	and structure as of history date 
@@ -24,7 +24,7 @@ out_var ccn_history.REF_CURSOR;
 begin
 CCN_HISTORY.RETURN_HIERARCHY_HIST('GLOBAL_HIERARCHY','779010','9','UP','01-JAN-2006',out_var);
 end;
- 
+
  created : 08/01/2014 CCN Project....
  modified:
  **********************************************************/
@@ -60,7 +60,7 @@ created : 04/17/2014 nxk
 IN_COST_CENTER_CODE IN TYPE.COST_CENTER_CODE%TYPE,
 IN_HIST_DATE IN TYPE.EFFECTIVE_DATE%TYPE,
 OUT_TYPE_REF_CUR OUT REF_CURSOR );
-         
+
 PROCEDURE RETURN_POLLING_HIST (
 /**********************************************************
 	RETURN_POLLING_HIST
@@ -98,7 +98,7 @@ created : 02/28/2018 bxa919 CCN Project Team...
     OUT_ADDRESS_MEX_REF_CUR      OUT  REF_CURSOR,
     OUT_ADDRESS_BRB_REF_CUR      OUT  REF_CURSOR,
     OUT_ADDRESS_OTHER_REF_CUR    OUT  REF_CURSOR);
-    
+
 PROCEDURE HIERARCHY_HDR_PICKLIST(
 /**********************************************************
 This procedure will provide the hierarchies a user can see in 
@@ -109,5 +109,17 @@ modified:
 **********************************************************/
     IN_USER_ID            IN     VARCHAR2,
     OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR);
+
+PROCEDURE RETURN_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOAD table based on COST_CENTER_CODE
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+IN_COST_CENTER_CODE IN VARCHAR2,
+OUT_POS_DOWNLOAD_REF_CUR OUT REF_CURSOR);
 
 END CCN_HISTORY;

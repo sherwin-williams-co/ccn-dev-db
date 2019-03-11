@@ -40,13 +40,13 @@ exc_invalid_cost_center_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_cost_center_err , -20001);
 
-/*********************************************************** 
+/***********************************************************
 The "inactive_cost_center_err" passes a numerical error of -20002.
 An error occurs when Cost_Center effective date >
 current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
-revisions: 
+revisions:
 
 ************************************************************/
 en_inactive_cost_center_err CONSTANT NUMBER := -20002;
@@ -3410,5 +3410,18 @@ en_close_dispatch_asgn_store_exp CONSTANT NUMBER := -20227;
 exc_close_dispatch_asgn_store_exp EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_close_dispatch_asgn_store_exp , -20227);
+
+/***********************************************************
+The "en_cc_not_approved_for_polling_exp" passes a numerical error of -20228.
+If user try to trigger pos downloads for a cost center which
+is not approved for polling then this error will raise.
+
+created : 03/08/2019 pxa852 CCN Project Team...
+revisions:
+************************************************************/
+en_cc_not_approved_for_polling CONSTANT NUMBER := -20228;
+exc_cc_not_approved_for_polling EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_cc_not_approved_for_polling , -20228);
 
 END ERRNUMS;
