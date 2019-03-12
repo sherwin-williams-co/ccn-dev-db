@@ -35,43 +35,34 @@ EXCEPTION
        RETURN V_PREV_BAL;
 END GET_LAST_VALUE_NET_BAL;
 
-PROCEDURE CUST_DEP_REDEMPTION_ORGNLS_UPD(
+FUNCTION CHECK_IF_HEADER_RECORD_EXISTS(
 /*******************************************************************************
-MANUAL_RED_DEP_REM_BAL_UPD
-
-This procedure is intended to update the originals of redemption for a manual deposit
-created : 01/08/2019 pxa852 CCN Project Team...
+This procedure is intended to check if the record present in header table before inserting into
+detail table.
+created : 03/12/2019 pxa852 CCN Project Team...
 changed :
 *******************************************************************************/
-    IN_MANUAL_DEP_ROW    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE)
+    IN_CUST_DEP_DET_ROW    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE)
+RETURN VARCHAR2
 IS
-    V_REDEMPTION_ROW            CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
+    V_COUNT  NUMBER       := 0;
+    V_RETURN VARCHAR2(1)  := 'N';
 BEGIN
-     BEGIN
-          SELECT *
-            INTO V_REDEMPTION_ROW
-            FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
-           WHERE CUSTOMER_ACCOUNT_NUMBER = IN_MANUAL_DEP_ROW.CUSTOMER_ACCOUNT_NUMBER
-             AND COST_CENTER_CODE        = IN_MANUAL_DEP_ROW.COST_CENTER_CODE
-             AND TRANSACTION_DATE        = IN_MANUAL_DEP_ROW.TRANSACTION_DATE
-             AND TERMINAL_NUMBER         = IN_MANUAL_DEP_ROW.TERMINAL_NUMBER
-             AND TRANSACTION_NUMBER      = IN_MANUAL_DEP_ROW.TRANSACTION_NUMBER
-             AND CLOSED_DATE IS NULL;
-     EXCEPTION
-         WHEN OTHERS THEN
-             V_REDEMPTION_ROW := NULL;
-     END;
-     IF V_REDEMPTION_ROW.CUSTOMER_ACCOUNT_NUMBER IS NOT NULL AND V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR IS NULL THEN
-        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TERMINAL_NBR     := IN_MANUAL_DEP_ROW.TERMINAL_NUMBER;
-        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_NBR  := IN_MANUAL_DEP_ROW.TRANSACTION_NUMBER;
-        V_REDEMPTION_ROW.ORGNL_DEPOSIT_TRANSACTION_DATE := IN_MANUAL_DEP_ROW.TRANSACTION_DATE;
-        TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_REDEMPTION_ROW);
-     END IF;
+      SELECT COUNT(1)
+        INTO V_COUNT
+        FROM CUSTOMER_DEPOSIT_TRANSACTION_HDR
+       WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUST_DEP_DET_ROW.CUSTOMER_ACCOUNT_NUMBER
+         AND COST_CENTER_CODE        = IN_CUST_DEP_DET_ROW.COST_CENTER_CODE
+         AND TERMINAL_NUMBER         = IN_CUST_DEP_DET_ROW.TERMINAL_NUMBER;
 
+    IF V_COUNT > 0 THEN
+        V_RETURN := 'Y';
+    END IF;
+    RETURN V_RETURN;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'CUST_DEP_RED_ORGNL_UPD', SUBSTR(SQLERRM,1,500));
-END CUST_DEP_REDEMPTION_ORGNLS_UPD;
+       RETURN V_RETURN;
+END CHECK_IF_HEADER_RECORD_EXISTS;
 
 PROCEDURE ORIG_DEP_REM_BAL_UPD(
 /**********************************************************
@@ -167,12 +158,18 @@ created : 05/04/2018 sxh487 -- CCN Project Team
 Modified: 02/06/2019 pxa852 CCN Project Team...
           Modified code to replace old table with new table that is created as part of new data model
           We will continue to track the deposit remaining balance and associate a redemption with an original deposit in our daily load.
-          For any Correction 
+          For any Correction
               Manual Redemption - we will tie back the original deposit transaction number to this manual redemption
               Manual Deposit - we will make the deposit remaining balance as 0 and we will tie-back the original redemption to this Manual deposit if the originals are null
                               (so that this should not be tied back to the next deposit coming in later)
           02/26/2019 CCN Project Team...
           Modified xml to remove Tran_timestamp, reference_number, rls_run_cycle and load_date tags as user is not entering data from UI.
+          03/12/2019 pxa852 CCN Project Team...
+          User will enter 99999 for terminal and transaction when creating manual entries from UI.
+          Modified code to create transaction header record if there is no entry in header table.
+          For any Correction
+              Manual Redemption - originals will be null for manual redemption as these transactions are not used anywhere.
+              Manual Deposit - we will make the deposit remaining balance as 0.
 ******************************************************************************/
     IN_TABLE_NAME           IN     VARCHAR2,
     IN_CUST_DETAIL_XML      IN     CLOB,
@@ -184,6 +181,7 @@ IS
     V_NET_BAL                   CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_NET_BALANCE%TYPE;
     V_CUST_DEP_DET_frag         CLOB;
     V_CUST_DEP_DET_rec          CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
+    V_CUST_DEP_HDR_REC          CUSTOMER_DEPOSIT_TRANSACTION_HDR%ROWTYPE;
 BEGIN
     IF (V_XML.EXISTSNODE('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()') = 1) THEN
         V_CUSTOMER_ACCOUNT_NUMBER := V_XML.EXTRACT('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()').GETSTRINGVAL();
@@ -197,19 +195,19 @@ BEGIN
                TABLE_IU_PKG.CUST_DEP_DETAILS_ROWTYPE_SP('CUSTOMER_DEPOSIT_TRANSACTION_DTL',
                                                          V_CUST_DEP_DET_frag,
                                                          V_CUST_DEP_DET_rec);
+               --If transaction hdr record not found then create one and then create details.
+               IF CHECK_IF_HEADER_RECORD_EXISTS(V_CUST_DEP_DET_rec) = 'N' THEN
+                  V_CUST_DEP_HDR_REC.CUSTOMER_ACCOUNT_NUMBER := V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER;
+                  V_CUST_DEP_HDR_REC.COST_CENTER_CODE        := V_CUST_DEP_DET_rec.COST_CENTER_CODE;
+                  V_CUST_DEP_HDR_REC.TERMINAL_NUMBER         := V_CUST_DEP_DET_rec.TERMINAL_NUMBER;
+                  TABLE_IU_PKG.CUST_DEP_TRANS_HDR_I_SP(V_CUST_DEP_HDR_REC);
+               END IF;
                V_NET_BAL := V_NET_BAL + V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT;
                V_CUST_DEP_DET_rec.CUSTOMER_NET_BALANCE  := V_NET_BAL;
                V_CUST_DEP_DET_rec.TRANSACTION_TYPE      := 'MANUAL';
                IF V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN
                   -- making deposit remaining balance as zero
                   V_CUST_DEP_DET_rec.DEPOSIT_REMAINING_BAL := 0;
-                  --tieing redemption to this manual deposit
-                  CUST_DEP_REDEMPTION_ORGNLS_UPD (V_CUST_DEP_DET_rec);
-               ELSE
-                  --for a manual redemption, passing terminal number, transaction number and transaction date to originals
-                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TERMINAL_NBR     :=  V_CUST_DEP_DET_rec.TERMINAL_NUMBER;
-                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TRANSACTION_NBR  :=  V_CUST_DEP_DET_rec.TRANSACTION_NUMBER;
-                  V_CUST_DEP_DET_rec.ORGNL_DEPOSIT_TRANSACTION_DATE :=  V_CUST_DEP_DET_rec.TRANSACTION_DATE;
                END IF;
                -- Call Business rule to check header and detail account numbers 
                BUSINESS_RULES_PKG.VALIDATE_HDR_DET_ACCT_NBR(IN_HDR_CUST_ACNT_NBR,V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER);
