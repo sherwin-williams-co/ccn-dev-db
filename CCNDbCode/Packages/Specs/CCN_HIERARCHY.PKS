@@ -872,4 +872,16 @@ created : 12/10/2018 mxs216 ASP-1169 CCN project team....
 **********************************************************/
     IN_BLOB            IN       BLOB);
 
+PROCEDURE BUILD_XML_GEMS_ID_MGR_NAME(
+/**********************************************************
+This procedure will be updating the XML
+If passed GEMS_ID is NOT NULL then then will be updating the XML with the correcsponding MANAGERNAME.
+If passed MANAGERNAME is valid then will be updating the XML with the correcsponding GEMS_ID.
+
+created : 03/08/2019 mxs216 ASP-1169 CCN project team....
+**********************************************************/
+    IN_FINAL_XML       IN OUT XMLTYPE,
+    IN_GEMS_ID         IN VARCHAR2 DEFAULT NULL,
+    IN_EMPLOYEE_NAME   IN VARCHAR2 DEFAULT NULL);
+
 END CCN_HIERARCHY;

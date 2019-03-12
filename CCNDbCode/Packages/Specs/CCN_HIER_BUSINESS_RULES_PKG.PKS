@@ -373,4 +373,12 @@ Created : 02/08/2019, mxs216, CCN Project ASP-1169
     IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
 RETURN VARCHAR2;
 
+FUNCTION IS_VALID_GEMS_ID(
+/***********************************************************
+This function will return "Y" if GEMS_ID is valid
+Created : 03/12/2019 mxs216 CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2;
+
 END CCN_HIER_BUSINESS_RULES_PKG;

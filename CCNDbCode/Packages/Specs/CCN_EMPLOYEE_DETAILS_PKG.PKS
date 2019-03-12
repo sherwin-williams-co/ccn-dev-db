@@ -134,7 +134,14 @@ Modified:
 IN_EMP_NBR    IN   VARCHAR2,
 OUT_EMP_EMAIL OUT  VARCHAR2,
 OUT_USER_ID   OUT  VARCHAR2
-)
-;
+);
+
+FUNCTION GET_EMPLOYEE_NUMBER(
+/***********************************************************
+This function will return GEMS_ID/EMPLOYEE_NUMBER for the given EMPLOYEE_NAME
+Created : 03/08/2019 mxs216 CCN Project ASP-1169
+************************************************************/
+    IN_EMPLOYEE_NAME IN VARCHAR2)
+RETURN VARCHAR2;
 
 END CCN_EMPLOYEE_DETAILS_PKG;

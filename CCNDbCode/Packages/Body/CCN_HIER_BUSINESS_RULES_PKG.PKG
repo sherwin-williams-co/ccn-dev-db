@@ -1420,6 +1420,25 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_VALID_ATTRIBUTE_VALUE;
 
+FUNCTION IS_VALID_GEMS_ID(
+/***********************************************************
+This function will return "Y" if GEMS_ID is valid
+Created : 03/12/2019 mxs216 CCN Project ASP-1169
+************************************************************/
+    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_RETURN_VALUE         VARCHAR2(1) := 'N';
+BEGIN
+    IF CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_NAME(IN_HRCHY_ATTR_DETAILS_REC.ATTR_VALUE) IS NOT NULL THEN
+        V_RETURN_VALUE := 'Y';
+    END IF;
+    RETURN V_RETURN_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_VALID_GEMS_ID;
+
 FUNCTION IS_VALID_HRCHY_ATTR_DETAILS(
 /***********************************************************
 This function is validating the data reading from flat file
@@ -1435,6 +1454,10 @@ IS
     INVALID_ATTRIBUTE_NAME         EXCEPTION;
     INVALID_ATTRIBUTE_VALUE        EXCEPTION;
     V_RETURN_VALUE                 VARCHAR2(1) := 'N';
+    V_ATTR_VALUE                   TEMP_HIERARCHY_BULK_ATTR_UPD.ATTR_VALUE%TYPE;
+    V_DUP_GEMS_ID                  VARCHAR2(200);
+    V_INVALID_ATTRIBUTE_VALUE      VARCHAR2(200);
+    V_GEMS_ID                      EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
 BEGIN
 
     -- Validating Hierarchy name
@@ -1455,7 +1478,33 @@ BEGIN
                                            IN_HRCHY_ATTR_DETAILS_REC.attr_name)<>'Y' THEN
                     RAISE INVALID_ATTRIBUTE_NAME;
                 ELSE
-                    -- Validating Attribute Value
+                   -- Validating ATTRIBUTE VALUE
+                   V_ATTR_VALUE := IN_HRCHY_ATTR_DETAILS_REC.attr_value;
+                   V_INVALID_ATTRIBUTE_VALUE := 'Attribute value provided is not valid';
+                   ------------------------------------------------------------------------
+                   -- Validating GEMS_ID
+                   IF UPPER(REPLACE(IN_HRCHY_ATTR_DETAILS_REC.ATTR_NAME,' ','_')) = 'GEMS_ID' THEN
+                       IF IS_VALID_GEMS_ID(IN_HRCHY_ATTR_DETAILS_REC) <> 'Y' THEN
+                           RAISE INVALID_ATTRIBUTE_VALUE;
+                       END IF;
+                   END IF;
+                   ------------------------------------------------------------------------
+                   -- Validating MANAGERNAME
+                   IF UPPER(IN_HRCHY_ATTR_DETAILS_REC.attr_name) = 'MANAGERNAME' THEN
+                       -- Value is eclosing by double quote, if there are any comma in the value it doesn't split in to separate column (error file)
+                       -- Example: "Brown,Eugene R"
+                       V_ATTR_VALUE := '"'||IN_HRCHY_ATTR_DETAILS_REC.attr_value||'"';
+                       V_GEMS_ID := CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_NUMBER(IN_HRCHY_ATTR_DETAILS_REC.attr_value);
+                       IF V_GEMS_ID IS NULL OR V_GEMS_ID = 'MUL_GEMS_ID' THEN
+                           -- Customizing the error msg when passed MANAGERNAME return more than one GEMS_ID
+                           IF V_GEMS_ID = 'MUL_GEMS_ID' THEN
+                               V_INVALID_ATTRIBUTE_VALUE := 'Manager Name matches with multiple name - please enter unique name';
+                           END IF;
+                           RAISE INVALID_ATTRIBUTE_VALUE;
+                       END IF;
+                   END IF;
+                   ------------------------------------------------------------------------
+                    -- Validating all Attribute Values other than GEMS_ID and MANAGERNAME
                     IF IS_VALID_ATTRIBUTE_VALUE(IN_HRCHY_ATTR_DETAILS_REC.attr_name,
                                                 IN_HRCHY_ATTR_DETAILS_REC.attr_value) <>'Y' THEN
                         RAISE INVALID_ATTRIBUTE_VALUE;
@@ -1505,8 +1554,8 @@ EXCEPTION
     WHEN INVALID_ATTRIBUTE_VALUE THEN
         COMMON_TOOLS.LOG_ERROR(IN_HRCHY_ATTR_DETAILS_REC.attr_name||'-'||IN_HRCHY_ATTR_DETAILS_REC.attr_value,
                                'CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS',
-                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name || ','|| IN_HRCHY_ATTR_DETAILS_REC.attr_value|| ','
-                               ||'Attribute value provided is not valid'||
+                               IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name || ','|| V_ATTR_VALUE|| ','
+                               ||V_INVALID_ATTRIBUTE_VALUE||
                                ',It is required to correct the above attribute value and rerun the update process for the record set of '||
                                'Hierarchy= '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_hdr_name ||' Level= '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_level||
                                ' and Current Level Value= '||IN_HRCHY_ATTR_DETAILS_REC.hrchy_dtl_curr_lvl_val,
