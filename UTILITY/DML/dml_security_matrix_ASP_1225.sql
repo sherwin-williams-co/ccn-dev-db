@@ -4,10 +4,23 @@ Created : 03/12/2019 sxg151 CCN Project Team..
 
 --#############################################################################################################*/
 
+-- Run the below in lower environments (test/qa)
+
 select * from security_matrix where user_id in ('rxs675');
 
 insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS1');
 insert into SECURITY_MATRIX values ('rxs675','rxs675','HWCU');
+
+COMMIT;
+
+select * from security_matrix where user_id in ('rxs675');
+
+-- Run the below in Production environment "HWCUS" View access only
+
+select * from security_matrix where user_id in ('rxs675');
+
+insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS1');
+insert into SECURITY_MATRIX values ('rxs675','rxs675','HWCUS');
 
 COMMIT;
 
