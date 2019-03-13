@@ -17,7 +17,7 @@ Created : 10/30/2018 sxg151  CCN Project....
 *******************************************************************************/
     IN_CUSTOMER_ACCOUNT_NUMBER   IN     CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE);
 
-PROCEDURE VALIDATE_CUST_DEP_ACCT_TERM_TRAN_NBR(
+PROCEDURE VALIDATE_CUSTOMER_DEPOSIT_DETAILS(
 /******************************************************************************
 This procedure is intended to check if any record's sales amount changed from UI
 
