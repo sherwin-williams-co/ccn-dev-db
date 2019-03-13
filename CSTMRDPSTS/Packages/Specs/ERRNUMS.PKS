@@ -46,4 +46,17 @@ exc_hdr_det_acct_nbr_mismatch_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_hdr_det_acct_nbr_mismatch_err , -20003);
 
+/***********************************************************
+The "en_tran_hdr_dtls_not_exists_err" passes a numerical error of -20004.
+User has to enter the transaction_number and Terminal_number as '99999'.
+If not, then raise this warning message to user that The terminal number and
+transaction must be '99999'.
+created : 03/12/2019 pxa852 CCN Project Team...
+Revised :
+************************************************************/
+en_invalid_term_and_tran_nbr CONSTANT NUMBER := -20004;
+exc_invalid_term_and_tran_nbr EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_term_and_tran_nbr , -20004);
+
 END ERRNUMS;

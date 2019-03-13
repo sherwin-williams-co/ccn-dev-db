@@ -97,7 +97,7 @@ IS
     V_CNT                           NUMBER :=0;
     V_DEP_REM_BAL                   CUSTOMER_DEPOSIT_TRANSACTION_DTL.DEPOSIT_REMAINING_BAL%TYPE;
     V_CSTMR_DPST_SALES_LN_ITM_AMT   CUSTOMER_DEPOSIT_TRANSACTION_DTL.CSTMR_DPST_SALES_LN_ITM_AMT%TYPE := -(IN_CSTMR_DPST_SALES_LN_ITM_AMT);
-BEGIN  
+BEGIN
     FOR each_dep IN ALL_DEPS LOOP
         V_CNT := V_CNT +1;
         OUT_TRANSACTION_NUMBER := each_dep.TRANSACTION_NUMBER;
@@ -108,7 +108,7 @@ BEGIN
         --if the redemption is greater than the balance on the deposit
         --then update the Deposit with -ve bal
         IF V_CSTMR_DPST_SALES_LN_ITM_AMT > each_dep.DEPOSIT_REMAINING_BAL THEN
-           --update only the last DEPOSIT with remaining balance       
+           --update only the last DEPOSIT with remaining balance
            IF V_CNT = each_dep.TOT_DEP_CNT THEN
               V_DEP_REM_BAL := each_dep.DEPOSIT_REMAINING_BAL - V_CSTMR_DPST_SALES_LN_ITM_AMT;
            ELSE
@@ -186,32 +186,29 @@ BEGIN
     IF (V_XML.EXISTSNODE('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()') = 1) THEN
         V_CUSTOMER_ACCOUNT_NUMBER := V_XML.EXTRACT('/CUSTOMER_DEPOSIT_UI/'|| IN_TABLE_NAME ||'[' || V_COUNT ||']'||'/CUSTOMER_ACCOUNT_NUMBER/text()').GETSTRINGVAL();
     END IF;
-    -- Get the Last Net Balance 
+    -- Get the Last Net Balance
     V_NET_BAL := GET_LAST_VALUE_NET_BAL(V_CUSTOMER_ACCOUNT_NUMBER);   
     IF IN_CUST_DETAIL_XML IS NOT NULL THEN
-        WHILE V_XML.EXISTSNODE('//'|| 'CUSTOMER_DEPOSIT_TRANSACTION_DTL'||'[' ||V_COUNT|| ']') = 1 LOOP   
+        WHILE V_XML.EXISTSNODE('//'|| 'CUSTOMER_DEPOSIT_TRANSACTION_DTL'||'[' ||V_COUNT|| ']') = 1 LOOP
             V_CUST_DEP_DET_frag := V_XML.EXTRACT('//'||'CUSTOMER_DEPOSIT_TRANSACTION_DTL' ||'[' || V_COUNT || ']').GETCLOBVAL();
             IF V_CUST_DEP_DET_frag IS NOT NULL THEN 
                TABLE_IU_PKG.CUST_DEP_DETAILS_ROWTYPE_SP('CUSTOMER_DEPOSIT_TRANSACTION_DTL',
                                                          V_CUST_DEP_DET_frag,
                                                          V_CUST_DEP_DET_rec);
-               --If transaction hdr record not found then create one and then create details.
-               IF CHECK_IF_HEADER_RECORD_EXISTS(V_CUST_DEP_DET_rec) = 'N' THEN
+
+               V_NET_BAL := V_NET_BAL + V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT;
+               V_CUST_DEP_DET_rec.CUSTOMER_NET_BALANCE  := V_NET_BAL;
+               V_CUST_DEP_DET_rec.TRANSACTION_TYPE      := 'MANUAL';
+               -- Call Business rule to check header and detail account numbers
+               BUSINESS_RULES_PKG.VALIDATE_HDR_DET_ACCT_NBR(IN_HDR_CUST_ACNT_NBR,V_CUST_DEP_DET_rec);
+               IF V_CUST_DEP_DET_rec.TERMINAL_NUMBER = '99999' AND V_CUST_DEP_DET_rec.TRANSACTION_NUMBER = '99999' THEN
                   V_CUST_DEP_HDR_REC.CUSTOMER_ACCOUNT_NUMBER := V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER;
                   V_CUST_DEP_HDR_REC.COST_CENTER_CODE        := V_CUST_DEP_DET_rec.COST_CENTER_CODE;
                   V_CUST_DEP_HDR_REC.TERMINAL_NUMBER         := V_CUST_DEP_DET_rec.TERMINAL_NUMBER;
                   TABLE_IU_PKG.CUST_DEP_TRANS_HDR_I_SP(V_CUST_DEP_HDR_REC);
                END IF;
-               V_NET_BAL := V_NET_BAL + V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT;
-               V_CUST_DEP_DET_rec.CUSTOMER_NET_BALANCE  := V_NET_BAL;
-               V_CUST_DEP_DET_rec.TRANSACTION_TYPE      := 'MANUAL';
-               IF V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT > 0 THEN
-                  -- making deposit remaining balance as zero
-                  V_CUST_DEP_DET_rec.DEPOSIT_REMAINING_BAL := 0;
-               END IF;
-               -- Call Business rule to check header and detail account numbers 
-               BUSINESS_RULES_PKG.VALIDATE_HDR_DET_ACCT_NBR(IN_HDR_CUST_ACNT_NBR,V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER);
                TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_CUST_DEP_DET_rec);
+
             END IF;
             V_COUNT := V_COUNT + 1;
         END LOOP; 

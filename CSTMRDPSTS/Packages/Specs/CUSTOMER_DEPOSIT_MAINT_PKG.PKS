@@ -19,6 +19,16 @@ changed : 02/12/2019 pxa852 CCN Project Team...
     IN_CUSTOMER_ACCOUNT_NUMBER    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE)
 RETURN NUMBER;
 
+FUNCTION CHECK_IF_HEADER_RECORD_EXISTS(
+/*******************************************************************************
+This procedure is intended to check if the record present in header table before inserting into
+detail table.
+created : 03/12/2019 pxa852 CCN Project Team...
+changed :
+*******************************************************************************/
+    IN_CUST_DEP_DET_ROW    IN     CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE)
+RETURN VARCHAR2;
+
 PROCEDURE ORIG_DEP_REM_BAL_UPD(
 /**********************************************************
 This function updates the original references for a Redemption
