@@ -136,12 +136,24 @@ OUT_EMP_EMAIL OUT  VARCHAR2,
 OUT_USER_ID   OUT  VARCHAR2
 );
 
-FUNCTION GET_EMPLOYEE_NUMBER(
+FUNCTION GET_EMPLOYEE_DETAILS(
+/*******************************************************************************
+    This function will return the employee name for given employee number as input
+
+Created : 12/15/2015 AXK326 CCN Project Team...
+Modified: 03/13/2019 mxs216 ASP-1169 CCN Project Team...
+          Updated return datatype to return whole record
+*******************************************************************************/
+    IN_EMP_NBR    IN VARCHAR2 DEFAULT NULL,
+    IN_EMP_NAME   IN VARCHAR2 DEFAULT NULL)
+RETURN EMPLOYEE_DETAILS%ROWTYPE;
+
+FUNCTION IS_VALID_GEMS_ID(
 /***********************************************************
-This function will return GEMS_ID/EMPLOYEE_NUMBER for the given EMPLOYEE_NAME
-Created : 03/08/2019 mxs216 CCN Project ASP-1169
+This function will return "Y" if GEMS_ID is valid
+Created : 03/12/2019 mxs216 CCN Project ASP-1169
 ************************************************************/
-    IN_EMPLOYEE_NAME IN VARCHAR2)
+    IN_GEMS_ID      IN VARCHAR2)
 RETURN VARCHAR2;
 
 END CCN_EMPLOYEE_DETAILS_PKG;

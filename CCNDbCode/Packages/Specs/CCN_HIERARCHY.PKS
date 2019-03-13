@@ -880,8 +880,9 @@ If passed MANAGERNAME is valid then will be updating the XML with the correcspon
 
 created : 03/08/2019 mxs216 ASP-1169 CCN project team....
 **********************************************************/
-    IN_FINAL_XML       IN OUT XMLTYPE,
-    IN_GEMS_ID         IN VARCHAR2 DEFAULT NULL,
-    IN_EMPLOYEE_NAME   IN VARCHAR2 DEFAULT NULL);
+    IN_UPPER_LVL_VER_VALUE IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE DEFAULT NULL,
+    IO_FINAL_XML             IN OUT XMLTYPE,
+    IN_REC_ATTR_NAME         VARCHAR2,
+    IN_REC_ATTR_VALUE        VARCHAR2);
 
 END CCN_HIERARCHY;
