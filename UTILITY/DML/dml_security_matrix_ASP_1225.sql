@@ -8,7 +8,7 @@ Created : 03/12/2019 sxg151 CCN Project Team..
 
 select * from security_matrix where user_id in ('rxs675');
 
-insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS1');
+insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS3');
 insert into SECURITY_MATRIX values ('rxs675','rxs675','HWCU');
 
 COMMIT;
@@ -19,7 +19,7 @@ select * from security_matrix where user_id in ('rxs675');
 
 select * from security_matrix where user_id in ('rxs675');
 
-insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS1');
+insert into SECURITY_MATRIX values ('rxs675','rxs675','CCNUS3');
 insert into SECURITY_MATRIX values ('rxs675','rxs675','HWCUS');
 
 COMMIT;
