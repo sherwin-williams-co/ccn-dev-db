@@ -144,16 +144,21 @@ Created : 12/15/2015 AXK326 CCN Project Team...
 Modified: 03/13/2019 mxs216 ASP-1169 CCN Project Team...
           Updated return datatype to return whole record
 *******************************************************************************/
-    IN_EMP_NBR    IN VARCHAR2 DEFAULT NULL,
-    IN_EMP_NAME   IN VARCHAR2 DEFAULT NULL)
+    IN_EMP_NBR    IN VARCHAR2)
 RETURN EMPLOYEE_DETAILS%ROWTYPE;
 
-FUNCTION IS_VALID_GEMS_ID(
+PROCEDURE GET_EMPLOYEE_NUMBER(
 /***********************************************************
-This function will return "Y" if GEMS_ID is valid
-Created : 03/12/2019 mxs216 CCN Project ASP-1169
+If the given EMPLOYEE_NAME matches/returns a single EMPLOYEE_NUMBER only then we will consider
+this passed value as valid/acceptable, will return this signle EMPLOYEE_NUMBER saying this is not duplicate.
+If mathches with multiple names and returns multiple EMPLOYEE_NUMBER then will consider not valid
+and pass NULL EMPLOYEE_NUMBER saying IO_IS_MUL_GEMS_ID = 'Y'
+
+Created  : 03/08/2019 mxs216 ASP-1169 CCN Project..
+Modified :
 ************************************************************/
-    IN_GEMS_ID      IN VARCHAR2)
-RETURN VARCHAR2;
+    IN_EMPLOYEE_NAME      IN VARCHAR2,
+    IO_EMMPLOYEE_REC      IN OUT EMPLOYEE_DETAILS%ROWTYPE,
+    IO_IS_DUP_GEMS_ID     IN OUT VARCHAR2);
 
 END CCN_EMPLOYEE_DETAILS_PKG;
