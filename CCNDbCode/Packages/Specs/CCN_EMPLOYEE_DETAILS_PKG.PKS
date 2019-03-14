@@ -136,13 +136,11 @@ OUT_EMP_EMAIL OUT  VARCHAR2,
 OUT_USER_ID   OUT  VARCHAR2
 );
 
-FUNCTION GET_EMPLOYEE_DETAILS(
+FUNCTION GET_EMPLOYEE_RECORD(
 /*******************************************************************************
     This function will return the employee name for given employee number as input
 
-Created : 12/15/2015 AXK326 CCN Project Team...
-Modified: 03/13/2019 mxs216 ASP-1169 CCN Project Team...
-          Updated return datatype to return whole record
+Modified: 03/08/2019 mxs216 ASP-1169 CCN Project..
 *******************************************************************************/
     IN_EMP_NBR    IN VARCHAR2)
 RETURN EMPLOYEE_DETAILS%ROWTYPE;
@@ -154,11 +152,11 @@ this passed value as valid/acceptable, will return this signle EMPLOYEE_NUMBER s
 If mathches with multiple names and returns multiple EMPLOYEE_NUMBER then will consider not valid
 and pass NULL EMPLOYEE_NUMBER saying IO_IS_MUL_GEMS_ID = 'Y'
 
-Created  : 03/08/2019 mxs216 ASP-1169 CCN Project..
+Created  : 03/14/2019 mxs216 ASP-1169 CCN Project..
 Modified :
 ************************************************************/
     IN_EMPLOYEE_NAME      IN VARCHAR2,
-    IO_EMMPLOYEE_REC      IN OUT EMPLOYEE_DETAILS%ROWTYPE,
-    IO_IS_DUP_GEMS_ID     IN OUT VARCHAR2);
+    OUT_EMMPLOYEE_REC     OUT EMPLOYEE_DETAILS%ROWTYPE,
+    OUT_IS_DUP_GEMS_ID    OUT VARCHAR2);
 
 END CCN_EMPLOYEE_DETAILS_PKG;
