@@ -124,19 +124,6 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
 
-PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     IN  batch_job.batch_job_name%type
-                        , in_batch_job_number   IN  batch_job.batch_job_number%type
-			, out_BATCH_JOB_REF_CUR OUT REF_CURSOR)
-/******************************************************************************
-	BATCH_JOB_S_SP
-
-	This procedure is intended to return a ref cursor with data from 
-	from the BATCH_JOB table.  
-
-created : 07/18/2012 tal CCN Project....
-*******************************************************************************/
-;
-
   PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE

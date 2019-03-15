@@ -303,10 +303,10 @@ Modified:
 FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE(
 /*******************************************************************************************
 This function will return the last BATCH_JOB_LAST_RUN_DATE for a specific job.
-Created  : mxs216 02/05/2019 ASP-1207
+Created  : 02/05/2019 mxs216 ASP-1207
 Modified :
 *******************************************************************************************/
-    IN_BATCH_JOB_NAME    IN     BATCH_JOB.BATCH_JOB_NAME%TYPE
-) RETURN DATE;
+    IN_BATCH_JOB_NAME    IN     BATCH_JOB.BATCH_JOB_NAME%TYPE)
+RETURN DATE;
 
 END CCN_COMMON_TOOLS;
