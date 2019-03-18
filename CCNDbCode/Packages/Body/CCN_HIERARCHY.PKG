@@ -3832,4 +3832,188 @@ EXCEPTION
       ERRPKG.raise_err(-20999, 'ccn_hierarchy.PRICE_DIST_FUT_HIER_DET_S_SP','generate price district future hierarchy reporting failed at '||SQLCODE||' : '||SQLERRM);
 END PRICE_DIST_FUT_HIER_DET_S_SP;
 
+PROCEDURE BUILD_XML_HRCHY_BULK_ATTR_UPD(
+/*******************************************************************************
+This procedure is Building a new XML using the existing XML
+
+created : 12/17/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+    IN_V_UPPER_LVL_VER_VALUE IN     HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IO_FINAL_XML             IN OUT XMLTYPE,
+    IN_REC_ATTR_NAME         IN     VARCHAR2,
+    IN_REC_ATTR_VALUE        IN     VARCHAR2)
+IS
+    V_ATTRIBUTE_NAME   VARCHAR2(150);
+    V_ATTR_VAL         VARCHAR2(150) := IN_REC_ATTR_VALUE;
+    V_COUNT            NUMBER := 1;
+    V_ATTR_POS         NUMBER := NULL;
+BEGIN
+
+    WHILE IN_V_UPPER_LVL_VER_VALUE.EXISTSNODE('//attributes/upper_lvl_ver_desc[' || V_COUNT || ']') = 1 LOOP
+        IF IN_V_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']' || '/Name/text()') = 1 THEN
+            -- Extracting name from existing XML
+            V_ATTRIBUTE_NAME := UPPER(REPLACE(IN_V_UPPER_LVL_VER_VALUE.EXTRACT('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Name/text()').GETSTRINGVAL(),' ','_'));
+            -- Comparing attribute name
+            IF V_ATTRIBUTE_NAME = UPPER(REPLACE(IN_REC_ATTR_NAME,' ','_')) THEN
+                IF IN_V_UPPER_LVL_VER_VALUE.EXISTSNODE('/attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']' || '/Value/text()') <> 1 THEN
+                    -- Creating new node with values while found NULL NODE in the exisitng XML
+                    SELECT APPENDCHILDXML(NVL(IO_FINAL_XML, IN_V_UPPER_LVL_VER_VALUE),
+                                          'attributes/upper_lvl_ver_desc' || '[' || V_COUNT || ']/Value'
+                                          -- generates the text() node to append :
+                                          , EXTRACT(XMLELEMENT("Value", V_ATTR_VAL),'/Value/text()'))
+                      INTO IO_FINAL_XML
+                      FROM dual;
+                END IF;
+                V_ATTR_POS := V_COUNT;
+                EXIT;
+           END IF;
+        END IF;
+          V_COUNT := V_COUNT + 1;
+    END LOOP;
+
+    -- Building new XML
+    IF V_ATTR_POS IS NOT NULL THEN
+        SELECT UPDATEXML(NVL(IO_FINAL_XML, IN_V_UPPER_LVL_VER_VALUE),
+                         '/attributes/upper_lvl_ver_desc['||V_ATTR_POS||']/Value/text()',
+                         V_ATTR_VAL)
+          INTO IO_FINAL_XML
+          FROM DUAL;
+        V_ATTR_POS := NULL;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(errnums.en_build_xml_err, 'CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD', SQLERRM);
+END BUILD_XML_HRCHY_BULK_ATTR_UPD;
+
+PROCEDURE UPDATE_HD_UPR_LVL_VER_VALUE(
+/*******************************************************************************
+This procedure is using for Updating UPPER_LVL_VER_VALUE column in HIERARCHY_DETAIL TABLE
+
+created : 12/17/2018, mxs216, CCN Project.... ASP-1169
+*******************************************************************************/
+    IN_FINAL_XML                 IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE,
+    IN_HRCHY_HDR_NAME            IN hierarchy_detail.hrchy_hdr_name%TYPE,
+    IN_HRCHY_DTL_LEVEL           IN hierarchy_detail.hrchy_dtl_level%TYPE,
+    IN_HRCHY_DTL_CURR_LVL_VAL    IN hierarchy_detail.hrchy_dtl_curr_lvl_val%TYPE)
+IS
+--   TEST1 EXCEPTION;
+BEGIN
+    IF IN_FINAL_XML IS NOT NULL THEN
+        FOR DETAIL_REC IN (SELECT *
+                             FROM hierarchy_detail
+                            WHERE hrchy_hdr_name         = in_hrchy_hdr_name
+                              AND hrchy_dtl_level        = in_hrchy_dtl_level
+                              AND hrchy_dtl_curr_lvl_val = in_hrchy_dtl_curr_lvl_val) LOOP
+            CCN_HIERARCHY.HIERARCHY_INSERT_WRAPPER('H', DETAIL_REC);
+        END LOOP;
+        UPDATE hierarchy_detail
+           SET upper_lvl_ver_value = in_final_xml
+         WHERE hrchy_hdr_name             = in_hrchy_hdr_name
+               AND hrchy_dtl_level        = in_hrchy_dtl_level
+               AND hrchy_dtl_curr_lvl_val = in_hrchy_dtl_curr_lvl_val;
+    END IF;
+--    RAISE TEST1;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(errnums.en_update_upr_lvl_ver_v_err, 'CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE', SQLERRM);
+END UPDATE_HD_UPR_LVL_VER_VALUE;
+
+FUNCTION GET_HD_UPPER_LVL_VER_VALUE(
+/*******************************************************************************
+This function will return Attributes (UPPER_LVL_VER_VALUE) for the given Hierarchy Information
+
+Created : 12/19/2018 mxs216 CCN Project...
+Modified:
+*******************************************************************************/
+    IN_HRCHY_HDR_NAME          IN HIERARCHY_DETAIL.HRCHY_HDR_NAME%TYPE,
+    IN_HRCHY_DTL_LEVEL         IN HIERARCHY_DETAIL.HRCHY_DTL_LEVEL%TYPE,
+    IN_HRCHY_DTL_CURR_LVL_VAL  IN HIERARCHY_DETAIL.HRCHY_DTL_CURR_LVL_VAL%TYPE)
+RETURN XMLTYPE
+IS
+    V_UPPER_LVL_VER_VALUE HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
+BEGIN
+    SELECT UPPER_LVL_VER_VALUE
+      INTO V_UPPER_LVL_VER_VALUE
+      FROM hierarchy_detail
+     WHERE hrchy_hdr_name         = in_hrchy_hdr_name
+       AND hrchy_dtl_level        = in_hrchy_dtl_level
+       AND hrchy_dtl_curr_lvl_val = in_hrchy_dtl_curr_lvl_val
+       AND ROWNUM < 2;
+    RETURN V_UPPER_LVL_VER_VALUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(errnums.en_get_upr_lvl_ver_v_err, 'CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE', SQLERRM);
+        RETURN V_UPPER_LVL_VER_VALUE;
+END GET_HD_UPPER_LVL_VER_VALUE;
+
+PROCEDURE HIERARCHY_BULK_ATTR_UPDATE_SP(
+/**********************************************************
+This procedure will be called from UI for hierarchy bulk attribute update process
+It is intended to read the attribute from HIERARCHY_BULK_ATTR_UPDATE.csv and update hierarchy_detail file accordingly.
+
+created : 12/10/2018 mxs216 ASP-1169 CCN project team....
+**********************************************************/
+    IN_BLOB            IN       BLOB)
+IS
+    V_FILE_NM VARCHAR2(100)     := 'HIERARCHY_BULK_ATTR_UPDATE.csv';
+    V_ARC_FILE_NM VARCHAR2(100) := 'HIERARCHY_BULK_ATTR_UPDATE_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';
+BEGIN
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
+    CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE();
+    -- Rename file on server for history
+    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Rename file on server for history
+        CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+        ERRPKG.RAISE_ERR(errnums.en_hrchy_bulk_attr_update_err, 'CCN_HIERARCHY.HIERARCHY_BULK_ATTR_UPDATE_SP', SQLERRM);
+END HIERARCHY_BULK_ATTR_UPDATE_SP;
+
+PROCEDURE BUILD_XML_GEMS_ID_MGR_NAME(
+/**********************************************************
+This procedure will be updating the XML
+If passed GEMS_ID is NOT NULL then then will be updating the XML with the correcsponding MANAGERNAME.
+If passed MANAGERNAME is valid then will be updating the XML with the correcsponding GEMS_ID.
+
+created : 03/08/2019 mxs216 ASP-1169 CCN project team....
+**********************************************************/
+    IN_UPPER_LVL_VER_VALUE   IN HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE DEFAULT NULL,
+    IO_FINAL_XML             IN OUT XMLTYPE,
+    IN_REC_ATTR_NAME         IN VARCHAR2,
+    IN_REC_ATTR_VALUE        IN VARCHAR2)
+IS
+    V_GEMS_ID                 EMPLOYEE_DETAILS.EMPLOYEE_NUMBER%TYPE;
+    V_EMPLOYEE_NAME           EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;
+    V_EMPLOYEE_REC            EMPLOYEE_DETAILS%ROWTYPE;
+    V_IS_DUP_GEMS_ID          VARCHAR2(100);
+BEGIN
+    IF IN_REC_ATTR_NAME = 'GEMS_ID' THEN
+        V_GEMS_ID       := IN_REC_ATTR_VALUE;
+        CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_RECORD(V_GEMS_ID,
+                                                     NULL,
+                                                     V_EMPLOYEE_REC,
+                                                     V_IS_DUP_GEMS_ID);
+        V_EMPLOYEE_NAME := V_EMPLOYEE_REC.EMPLOYEE_NAME;
+    ELSIF IN_REC_ATTR_NAME = 'MANAGERNAME' THEN
+        V_EMPLOYEE_NAME := IN_REC_ATTR_VALUE;
+        CCN_EMPLOYEE_DETAILS_PKG.GET_EMPLOYEE_RECORD(NULL,
+                                                     V_EMPLOYEE_NAME,
+                                                     V_EMPLOYEE_REC,
+                                                     V_IS_DUP_GEMS_ID);
+        V_GEMS_ID       := V_EMPLOYEE_REC.EMPLOYEE_NUMBER;
+    END IF;
+    CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(IN_UPPER_LVL_VER_VALUE,
+                                                IO_FINAL_XML,
+                                                'GEMS_ID',
+                                                V_GEMS_ID);
+    CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(IN_UPPER_LVL_VER_VALUE,
+                                                IO_FINAL_XML,
+                                                'MANAGERNAME',
+                                                V_EMPLOYEE_NAME);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(errnums.en_build_gems_id_mgr_name_err, 'CCN_HIERARCHY.BUILD_XML_GEMS_ID_MGR_NAME', SQLERRM);
+END BUILD_XML_GEMS_ID_MGR_NAME;
+
 END CCN_HIERARCHY;

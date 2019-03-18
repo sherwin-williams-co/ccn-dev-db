@@ -136,27 +136,16 @@ OUT_EMP_EMAIL OUT  VARCHAR2,
 OUT_USER_ID   OUT  VARCHAR2
 );
 
-FUNCTION GET_EMPLOYEE_RECORD(
+PROCEDURE GET_EMPLOYEE_RECORD(
 /*******************************************************************************
-    This function will return the employee name for given employee number as input
+This function will return Employee record for the given employee number or name Information
 
-Modified: 03/08/2019 mxs216 ASP-1169 CCN Project..
+Created : 03/08/2019 mxs216 ASP-1169 CCN Project..
+Modified:
 *******************************************************************************/
-    IN_EMP_NBR    IN VARCHAR2)
-RETURN EMPLOYEE_DETAILS%ROWTYPE;
-
-PROCEDURE GET_EMPLOYEE_NUMBER(
-/***********************************************************
-If the given EMPLOYEE_NAME matches/returns a single EMPLOYEE_NUMBER only then we will consider
-this passed value as valid/acceptable, will return this signle EMPLOYEE_NUMBER saying this is not duplicate.
-If mathches with multiple names and returns multiple EMPLOYEE_NUMBER then will consider not valid
-and pass NULL EMPLOYEE_NUMBER saying IO_IS_MUL_GEMS_ID = 'Y'
-
-Created  : 03/14/2019 mxs216 ASP-1169 CCN Project..
-Modified :
-************************************************************/
+    IN_EMP_NBR            IN VARCHAR2,
     IN_EMPLOYEE_NAME      IN VARCHAR2,
-    OUT_EMMPLOYEE_REC     OUT EMPLOYEE_DETAILS%ROWTYPE,
+    OUT_EMPLOYEE_DETAILS  OUT EMPLOYEE_DETAILS%ROWTYPE,
     OUT_IS_DUP_GEMS_ID    OUT VARCHAR2);
 
 END CCN_EMPLOYEE_DETAILS_PKG;
