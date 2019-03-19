@@ -3412,16 +3412,53 @@ PRAGMA EXCEPTION_INIT
 (exc_close_dispatch_asgn_store_exp , -20227);
 
 /***********************************************************
-The "en_cc_not_approved_for_polling_exp" passes a numerical error of -20228.
-If user try to trigger pos downloads for a cost center which
-is not approved for polling then this error will raise.
+The "en_build_xml_err" passes a numerical error of -20228.
+This error occurs when error occurs during building XML.
 
-created : 03/08/2019 pxa852 CCN Project Team...
-revisions:
+created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
 ************************************************************/
-en_cc_not_approved_for_polling CONSTANT NUMBER := -20228;
-exc_cc_not_approved_for_polling EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_cc_not_approved_for_polling , -20228);
+en_build_xml_err    CONSTANT NUMBER := -20228;
+exc_build_xml_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_build_xml_err, -20228);
+
+/***********************************************************
+The "en_update_upr_lv_ver_v_err" passes a numerical error of -20229.
+This error occurs when fails HIERARCHY_DETAIL.upper_lvl_ver_value update process.
+
+created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_update_upr_lvl_ver_v_err  CONSTANT NUMBER := -20229;
+exc_update_upr_lvl_ver_v_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_update_upr_lvl_ver_v_err, -20229);
+
+/***********************************************************
+The "en_get_upr_lv_ver_v_err" passes a numerical error of -20230.
+This error occurs when retrieving value of HIERARCHY_DETAIL.upper_lvl_ver_value fails
+
+created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_get_upr_lvl_ver_v_err    CONSTANT NUMBER := -20230;
+exc_get_upr_lvl_ver_v_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_get_upr_lvl_ver_v_err, -20230);
+
+/***********************************************************
+The "en_build_gems_id_mgr_name_err" passes a numerical error of -20231.
+This error occurs when building XML for GEM_ID/MANAGERNAME fails
+
+created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_build_gems_id_mgr_name_err    CONSTANT NUMBER := -20231;
+exc_build_gems_id_mgr_name_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_build_gems_id_mgr_name_err, -20231);
+
+/***********************************************************
+The "en_get_employee_rec_err" passes a numerical error of -20232.
+This error occurs when building XML for GEM_ID/MANAGERNAME fails
+
+created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
+************************************************************/
+en_get_employee_rec_err    CONSTANT NUMBER := -20232;
+exc_get_employee_rec_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_get_employee_rec_err, -20232);
 
 END ERRNUMS;
