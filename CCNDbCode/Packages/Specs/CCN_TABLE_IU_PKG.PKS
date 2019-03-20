@@ -8,8 +8,11 @@ created : 09/18/2012 TAL -- CCN coding project
 changed : 12/16/2014 AXK326 CCN Project Team....
           Code changes made after deleting the sales manager link from the Territory Table
 		: 04/13/2017 rxa457 CCN Project team.. 
-                     Code changes related to Dispatch Terminal
-                     Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
+          Code changes related to Dispatch Terminal
+          Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
+        : 03/20/2019 mxs216 ASP-1207 CCN Project Team.....
+          Deleted BATCH_JOB_S_SP, BATCH_JOB_I_SP and BATCH_JOB_U_SP as nowhere using
+
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
@@ -123,6 +126,7 @@ created : 02/20/2018 mxv711 CCN Project....
 created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
+
 
   PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
@@ -595,29 +599,6 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_row_data   IN varchar2--sys.xmltype
 );
 
-PROCEDURE BATCH_JOB_I_SP (
-/***************************************************************
-	BATCH_JOB_I_SP
-
-	This procedure is intended to insert new BATCH_JOB records
-
-	BATCH_JOB_NAME    - Batch Job Name   that changed
-  BATCH_JOB_NUMBER  - Batch Job Number that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/16/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_batch_job_name    IN  batch_job.batch_job_name%type,
-in_batch_job_number  IN  batch_job.batch_job_number%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
 
 PROCEDURE CODE_DETAIL_I_SP (
 /***************************************************************
@@ -1116,30 +1097,6 @@ in_EFFECTIVE_DATE       IN  BANK_CARD.EFFECTIVE_DATE%TYPE,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
 in_ROW_DATA             IN  varchar2 
-);
-
-PROCEDURE BATCH_JOB_U_SP (
-/***************************************************************
-	BATCH_JOB_U_SP
-
-	This procedure is intended to update existing BATCH_JOB records
-
-	BATCH_JOB_NAME    - Batch Job Name   that changed
-  BATCH_JOB_NUMBER  - Batch Job Number that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/16/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_batch_job_name    IN  batch_job.batch_job_name%type,
-in_batch_job_number  IN  batch_job.batch_job_number%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
 );
 
 PROCEDURE CODE_DETAIL_U_SP (
