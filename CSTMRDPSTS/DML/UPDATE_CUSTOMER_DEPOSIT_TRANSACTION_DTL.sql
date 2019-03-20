@@ -45,9 +45,9 @@ BEGIN
                  WHERE CUST_DEP_TRANS_DETAIL_SEQ = REC.CUST_DEP_TRANS_DETAIL_SEQ;
             ELSIF REC.CSTMR_DPST_SALES_LN_ITM_AMT < 0 THEN
                BEGIN
-                   SELECT R.ORGNL_DEPOSIT_TERMINAL_NBR,
-                          R.ORGNL_DEPOSIT_TRANSACTION_NBR,
-                          R.ORGNL_DEPOSIT_TRANSACTION_DATE
+                   SELECT R.ORIGINAL_DEP_TERM_NBR,
+                          R.ORIGINAL_DEP_TRANS_NBR,
+                          R.ORIGINAL_DEP_TRAN_DATE
                           INTO V_ORIG_TERM_NBR,
                                V_ORIG_DEP_NBR,
                                V_ORIG_TRAN_DATE
