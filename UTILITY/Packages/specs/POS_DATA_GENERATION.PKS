@@ -8,7 +8,7 @@ This package is used to capture the changes done on tables and generate an XML f
 Created : 10/17/2016 MXK766 CCN Project....
 Changed : 
 *******************************************************************************/
-
+TYPE REF_CURSOR IS REF CURSOR;
 G_MUT_POS_DOWNLOAD_CC_IND VARCHAR2(1) := NULL;
 -- Global variable to handle mutating trigger error caused by TR_COST_CENTER_UPD
 
@@ -143,6 +143,18 @@ revised :
 *******************************************************************************/
     IN_BULK_LOADS_LKUP_ID IN NUMBER);
 
+PROCEDURE POS_ON_DEMAND_DWNLD_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to Convert the POS_ON_DEMAND_DOWNLOAD xml into rowtype.
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :
+*******************************************************************************/
+    IN_TABLE_NAME            IN     VARCHAR2,
+    IN_ROW_DATA              IN     VARCHAR2,
+    OUT_POS_ON_DEMAND_ROW       OUT POS_ON_DEMAND_DOWNLOADS%ROWTYPE
+    );
+
 PROCEDURE PROCESS_POLLING_ON_DEMAND(
 /*******************************************************************************
 This procedure is to load ON DEMAND polling requests into the POS_DOWNLOADS table
@@ -150,14 +162,74 @@ This procedure is to load ON DEMAND polling requests into the POS_DOWNLOADS tabl
 Created : 03/06/2019 pxa852 CCN Project Team....
 Changed :
 *******************************************************************************/
-    IN_ROW_DATA              IN     VARCHAR2);
+    IN_ON_DEMAND_ROW  IN  POS_ON_DEMAND_DOWNLOADS%ROWTYPE,
+    IN_FILE_TYPE      IN  VARCHAR2);
     
-PROCEDURE POLLING_ON_DEMAND_UPLOAD_SP;
+PROCEDURE POLLING_ON_DEMAND_BULK_LOADS_SP;
 /*******************************************************************************
 This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
 
 created : 03/08/2019 pxa852 CCN Project Team....
 revised :
 *******************************************************************************/
+
+PROCEDURE RETURN_STORE_POS_DOWNLOAD_HIST (
+/**********************************************************
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for STORE Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_STORE_POS_DWNLD_REF_CUR   OUT REF_CURSOR);
+
+PROCEDURE RETURN_PARAM_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for PARAM Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_PARAM_POS_DWNLD_REF_CUR   OUT REF_CURSOR);
+
+PROCEDURE RETURN_TERR_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for TERR Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_TERR_POS_DWNLD_REF_CUR    OUT REF_CURSOR);
+
+PROCEDURE RETURN_TAXCURR_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for TAXCURR Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE           IN VARCHAR2,
+    OUT_TAXCURR_POS_DWNLD_REF_CUR   OUT REF_CURSOR);
+
+PROCEDURE RETURN_PRIMESUB_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from
+from the POS_DOWNLOADS_GL_PS table based on COST_CENTER_CODE for Primesub Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_ACCOUNT_NUMBER              IN VARCHAR2,
+    OUT_PRIMESUB_POS_DWNLD_REF_CUR   OUT REF_CURSOR);
 
 END POS_DATA_GENERATION;

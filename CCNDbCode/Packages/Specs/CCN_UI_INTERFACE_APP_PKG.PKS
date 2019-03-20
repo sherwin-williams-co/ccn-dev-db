@@ -825,27 +825,6 @@ Created : 08/16/2018 kxm302 CCN project Team....
 ******************************************************************************/
 ;
 
-PROCEDURE ON_DEMAND_POLLING_UI_UPSERT_SP (
-/******************************************************************************
-ON_DEMAND_POLLING_UI_UPSERT_SP
-
-This procedure is intended to update the database for POS_ON_DEMAND_DOWNLOADS table
-
-Sample XML input (assumed) from UI
-
-<POS_ON_DEMAND_DOWNLOADS>
-    <COST_CENTER_CODE>701058</COST_CENTER_CODE>
-    <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
-    <REQUESTED_USER>pxa852</REQUESTED_USER>
-    <REQUESTED_DATE>06-MAR-2019</REQUESTED_DATE>
-    <REASON_FOR_DOWNLOAD>Test</REASON_FOR_DOWNLOAD>
-</POS_ON_DEMAND_DOWNLOADS>
-
-created : 03/06/2019 pxa852 CCN Project Team....
-revised :
-*******************************************************************************/
-    in_row_data  IN  varchar2);
-
 PROCEDURE ON_DEMAND_POLLING_UPLOAD_PROCESS(
 /******************************************************************************
 This procedure is the core process for creating pos downloads when user upload the excel.

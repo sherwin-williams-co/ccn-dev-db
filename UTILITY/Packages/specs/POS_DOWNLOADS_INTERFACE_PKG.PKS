@@ -95,5 +95,27 @@ Changed :
 *********************************************************************************/
 IN_STR_LIST   IN     VARCHAR2);
 
+PROCEDURE ON_DEMAND_LOAD_BY_DWNLD_NAME(
+/*******************************************************************************
+This procedure is to re-direct the pkg call based on the APP name
+
+Created : 03/13/2019 pxa852 CCN Project Team....
+Changed :
+*********************************************************************************/
+      IN_ROW_DATA    IN VARCHAR2
+);
+
+PROCEDURE RETURN_POS_DOWNLOAD_HIST_BY_DWNLD_NAME(
+/*******************************************************************************
+This procedure is to re-direct the pkg call based on the APP name
+
+Created : 03/13/2018 pxa852 CCN Project....
+Changed :
+*********************************************************************************/
+      IN_COST_CENTER_CODE          IN VARCHAR2,
+      IN_ACCT_NBR                  IN VARCHAR2,
+      IN_DOWNLOAD_TYPE             IN VARCHAR2,
+      OUT_POS_DOWNLOAD_REF_CUR       OUT REF_CURSOR
+);
 
 END POS_DOWNLOADS_INTERFACE_PKG;

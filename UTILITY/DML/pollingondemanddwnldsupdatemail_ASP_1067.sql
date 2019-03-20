@@ -12,7 +12,7 @@ Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('135','ccnoracle.team@sherwin
 -- INSERTING into MAILING_DETAILS
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
-values ('POLLING_ON_DEMAND_UPLOAD_PROC_FAIL',
+values ('POLLING_ON_DEMAND_BULK_LOAD_PROC_FAIL',
         '135',
         'CCN On Demand Polling Download failure records',
         'ccnoracle.team@sherwin.com',
