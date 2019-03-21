@@ -107,17 +107,14 @@ changed :
 ******************************************************************/
 IN_BATCH_NAME       IN   VARCHAR2) RETURN DATE;
 
-PROCEDURE READ_CATEGORY_FROM_BLOB(
-/******************************************************************************
-READ_CATEGORY_FROM_BLOB
+FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE(
+/*******************************************************************************************
+This function will return the last BATCH_JOB_LAST_RUN_DATE for a specific job.
 
-This procedure will get the category info for the uploaded file from UI
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-created : 03/09/2018 mxv711 added to read category from blob ASP-824
-
-******************************************************************************/
-IN_BLOB        IN       BLOB,
-OUT_CATEGORY   OUT      COST_CENTER.CATEGORY%TYPE);
+Created  : 03/21/2019 ASP-1207 mxs216 CCN Project....
+Modified :
+*******************************************************************************************/
+    IN_BATCH_JOB_NAME    IN     BATCH_JOB.BATCH_JOB_NAME%TYPE
+)RETURN DATE;
 
 END CCN_BATCH_PKG;

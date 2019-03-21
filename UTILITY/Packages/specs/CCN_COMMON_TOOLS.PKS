@@ -300,14 +300,14 @@ Modified:
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
 
-FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE(
-/*******************************************************************************************
-This function will return the last BATCH_JOB_LAST_RUN_DATE for a specific job.
+FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE_SP(
+/******************************************************************************
+This procedure is a wrapper to call CCN_BATCH_PKG.MAX_BATCH_JOB_LAST_RUN_DATE
 
-Created  : 02/05/2019 ASP-1207 mxs216 CCN Project....
-Modified :
-*******************************************************************************************/
-    IN_BATCH_JOB_NAME    IN     BATCH_JOB.BATCH_JOB_NAME%TYPE)
-RETURN DATE;
+Created : 03/21/2019 mxs216 ASP-1207 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_BATCH_JOB_NAME    IN  VARCHAR2
+)RETURN DATE;
 
 END CCN_COMMON_TOOLS;
