@@ -4,8 +4,11 @@ This package "SPEC" has procedures and functions related to the batch
 job table
 
 created : 04/10/2013 SH CCN project
-revisions: 
+revisions: 03/26/2019 mxs216 ASP-1207 CCN Project...
+           Added new PUBLIC TYPE BATCH_JOB_TYPE.
 ************************************************************/
+
+BATCH_JOB_TYPE 	BATCH_JOB%ROWTYPE;
   
 PROCEDURE INSERT_BATCH_JOB (
 /**********************************************************
@@ -106,15 +109,5 @@ created : 09/28/2017 nxk927 CCN Project....
 changed :
 ******************************************************************/
 IN_BATCH_NAME       IN   VARCHAR2) RETURN DATE;
-
-FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE(
-/*******************************************************************************************
-This function will return the last BATCH_JOB_LAST_RUN_DATE for a specific job.
-
-Created  : 03/21/2019 ASP-1207 mxs216 CCN Project....
-Modified :
-*******************************************************************************************/
-    IN_BATCH_JOB_NAME    IN     BATCH_JOB.BATCH_JOB_NAME%TYPE
-)RETURN DATE;
 
 END CCN_BATCH_PKG;

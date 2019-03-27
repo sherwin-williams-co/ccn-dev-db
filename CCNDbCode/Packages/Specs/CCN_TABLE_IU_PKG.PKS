@@ -8,11 +8,8 @@ created : 09/18/2012 TAL -- CCN coding project
 changed : 12/16/2014 AXK326 CCN Project Team....
           Code changes made after deleting the sales manager link from the Territory Table
 		: 04/13/2017 rxa457 CCN Project team.. 
-          Code changes related to Dispatch Terminal
-          Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
-        : 03/20/2019 mxs216 ASP-1207 CCN Project Team.....
-          Deleted BATCH_JOB_S_SP, BATCH_JOB_I_SP and BATCH_JOB_U_SP as nowhere using
-
+                     Code changes related to Dispatch Terminal
+                     Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
@@ -127,8 +124,7 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
 
-
-  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
+PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 			  , out_CODE_DETAIL_REF_CUR  OUT REF_CURSOR )
@@ -598,7 +594,6 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_ROW_DATE   IN DATE
 ,in_row_data   IN varchar2--sys.xmltype
 );
-
 
 PROCEDURE CODE_DETAIL_I_SP (
 /***************************************************************
