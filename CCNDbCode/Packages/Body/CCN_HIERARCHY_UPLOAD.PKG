@@ -481,11 +481,11 @@ AS
     V_BATCH_NUMBER          CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS          CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_COUNT                 NUMBER := 0;
-   CURR_LVL_VAL_NOT_EXISTS EXCEPTION;
-   V_EFFECTIVE_DATE        DATE;
-   V_CLOB_FOR_EMAIL        CLOB;
-   V_CLOB_FOR_EMAIL_All    CLOB;
-   V_BULK_LOAD_LKUP_ID     NUMBER;
+    CURR_LVL_VAL_NOT_EXISTS EXCEPTION;
+    V_EFFECTIVE_DATE        DATE;
+    V_CLOB_FOR_EMAIL        CLOB;
+    V_CLOB_FOR_EMAIL_All    CLOB;
+    V_BULK_LOAD_LKUP_ID     NUMBER;
 BEGIN
    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_HIER_TRNSFR_LOAD', V_BULK_LOAD_LKUP_ID);
    CCN_BATCH_PKG.INSERT_BATCH_JOB('BULK_HIER_TRNSFR', V_BATCH_NUMBER);
@@ -715,115 +715,5 @@ EXCEPTION
       ROLLBACK TO HIERARCHY_LOAD;
       RAISE;
 END HIERARCHY_BULK_LOAD_PROCESS;
-
-PROCEDURE HIERARCHY_BULK_ATTR_UPDATE
-/*******************************************************************************
-This procedure is using for Hierarchy Bulk attribute update process
-
-created : 12/05/2018, mxs216, CCN Project.... ASP-1169
-*******************************************************************************/
-IS
-    -- Cursor to hold the key values to reduce the no of UPDATE
-    CURSOR HRCHY_HDR_NAME_CUR IS
-       SELECT DISTINCT
-              hrchy_hdr_name,
-              hrchy_dtl_level,
-              hrchy_dtl_curr_lvl_val
-         FROM temp_hierarchy_bulk_attr_upd;
-
-    -- Loading data from template (.csv) using external table
-    CURSOR HRCHY_BULK_ATTR_UPD_CUR(p_hrchy_hdr_name         IN VARCHAR2,
-                                   p_hrchy_dtl_level        IN VARCHAR2,
-                                   P_hrchy_dtl_curr_lvl_val IN VARCHAR2) IS
-    SELECT *
-      FROM temp_hierarchy_bulk_attr_upd
-     WHERE hrchy_hdr_name = p_hrchy_hdr_name
-       AND hrchy_dtl_level = p_hrchy_dtl_level
-       AND hrchy_dtl_curr_lvl_val = p_hrchy_dtl_curr_lvl_val;
-
-    V_FINAL_XML                  XMLTYPE;
-    V_UPPER_LVL_VER_VALUE        HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE%TYPE;
-    V_BULK_ATTR_UPDATE_LKUP_ID   NUMBER;
-    V_CLOB_FOR_EMAIL_All         CLOB;
-    V_START_TIME                 DATE := SYSDATE;
-    V_ERROR_FOUND                VARCHAR2(1) := 'N';
-BEGIN
-    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('HIERARCHY_BULK_ATTR_UPDATE', V_BULK_ATTR_UPDATE_LKUP_ID);
-
-    -- Getting unique key values
-    FOR rec_name IN HRCHY_HDR_NAME_CUR LOOP
-        BEGIN
-            SAVEPOINT HIERARCHY_HER_NAME;
-            V_ERROR_FOUND := 'N';
-            V_FINAL_XML := NULL;
-
-            -- Getting all values from flat file
-            FOR rec IN HRCHY_BULK_ATTR_UPD_CUR(rec_name.hrchy_hdr_name,
-                                               rec_name.hrchy_dtl_level,
-                                               rec_name.hrchy_dtl_curr_lvl_val) LOOP
-                -- We can't put the below one statement outside the inner FOR loop, because to generate the cusror (rec) we have to pass unclean data
-                -- This cursor (rec) cursor is reading and comparing with the uncleaned data in the CSV file.
-                rec_name.hrchy_dtl_curr_lvl_val := LTRIM(REPLACE(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(TRIM(rec_name.hrchy_dtl_curr_lvl_val)), ' ', ''), '''');
-                rec.hrchy_dtl_curr_lvl_val := rec_name.hrchy_dtl_curr_lvl_val;
-                rec.attr_value := LTRIM(COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(TRIM(rec.attr_value)), '''');
-                IF SUBSTR(rec.ATTR_NAME, 1, 7) = 'MANAGER' THEN
-                   rec.ATTR_NAME := UPPER(REPLACE(TRIM(rec.ATTR_NAME),' ',''));
-                ELSE
-                   rec.ATTR_NAME := UPPER(REPLACE(TRIM(rec.ATTR_NAME),' ','_'));
-                END IF;
-                -- Validting the hierarchy data from flat file
-                IF CCN_HIER_BUSINESS_RULES_PKG.IS_VALID_HRCHY_ATTR_DETAILS(rec) = 'Y' THEN
-                    -- Reading the existing XML
-                    V_UPPER_LVL_VER_VALUE := CCN_HIERARCHY.GET_HD_UPPER_LVL_VER_VALUE(rec.hrchy_hdr_name,
-                                                                                      rec.hrchy_dtl_level,
-                                                                                      rec.hrchy_dtl_curr_lvl_val);
-
-                    -- Building new XML using the existing XML
-                    IF rec.ATTR_NAME NOT IN ('GEMS_ID', 'MANAGERNAME') THEN
-                        CCN_HIERARCHY.BUILD_XML_HRCHY_BULK_ATTR_UPD(V_UPPER_LVL_VER_VALUE,
-                                                                    V_FINAL_XML,
-                                                                    rec.ATTR_NAME,
-                                                                    rec.ATTR_VALUE);
-                    ELSE
-                        CCN_HIERARCHY.BUILD_XML_GEMS_ID_MGR_NAME(V_UPPER_LVL_VER_VALUE,
-                                                                 V_FINAL_XML,
-                                                                 rec.ATTR_NAME,
-                                                                 rec.ATTR_VALUE);
-                    END IF;
-                ELSE
-                    V_ERROR_FOUND := 'Y';
-                END IF;
-            END LOOP;
-            IF v_final_xml IS NOT NULL AND V_ERROR_FOUND = 'N' THEN
-                -- Updating HIERARCHY_DETAIL.UPPER_LVL_VER_VALUE using newly build XML
-                CCN_HIERARCHY.UPDATE_HD_UPR_LVL_VER_VALUE(v_final_xml,
-                                                          rec_name.hrchy_hdr_name,
-                                                          rec_name.hrchy_dtl_level,
-                                                          rec_name.hrchy_dtl_curr_lvl_val);
-                COMMIT;
-            END IF;
-        EXCEPTION
-            WHEN OTHERS THEN
-                COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
-                ROLLBACK TO HIERARCHY_HER_NAME;
-        END;
-    END LOOP;
-    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL_ALL);
-    IF V_CLOB_FOR_EMAIL_ALL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL_ALL := 'HIERARCHY NAME,VALUE,ERROR_DETAILS,COMMENTS' || CHR(10) || V_CLOB_FOR_EMAIL_ALL;
-        MAIL_PKG.SEND_MAIL('HIERARCHY_BULK_ATTR_UPDATE_FAIL', NULL, NULL, V_CLOB_FOR_EMAIL_ALL);
-    END IF;
-    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_ATTR_UPDATE_LKUP_ID);
-
-EXCEPTION
-    WHEN OTHERS THEN
-        -- The below call to reset the flag should always be the first line of the exception block
-        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
-	    -- this call in the first line of exception block we make sure no other errors blocks the reset process
-        ROLLBACK;
-        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_ATTR_UPDATE_LKUP_ID);
-        COMMON_TOOLS.LOG_ERROR('000000', 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM, SQLCODE);
-        ERRPKG.RAISE_ERR(errnums.en_hrchy_bulk_attr_update_err, 'CCN_HIERARCHY_UPLOAD.HIERARCHY_BULK_ATTR_UPDATE', SQLERRM);
-END HIERARCHY_BULK_ATTR_UPDATE;
 
 END CCN_HIERARCHY_UPLOAD;
