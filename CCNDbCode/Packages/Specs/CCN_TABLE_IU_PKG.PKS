@@ -2352,4 +2352,15 @@ Changed :
     IN_COST_CENTER_CODE      IN     VARCHAR2,
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
+PROCEDURE SYNC_ALLOCATION_TYPE(
+/******************************************************************************
+This procedure syncs column PCC_PCL_STORE based on data in column COLOR_CONSULTANT_TYPE
+
+Created : 03/25/2019 mxs216 ASP-1200 CCN Project Team....
+Changed :
+******************************************************************************/
+    IN_COLOR_CONSULTANT_TYPE IN XMLTYPE,
+    IN_PCC_PCL_STORE         IN XMLTYPE,
+    OUT_PCC_PCL_STORE        OUT VARCHAR2);
+
 END CCN_TABLE_IU_PKG;
