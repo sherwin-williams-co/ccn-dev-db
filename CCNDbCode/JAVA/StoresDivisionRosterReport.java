@@ -1,5 +1,6 @@
 package com.StoresDivRosterReport;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,13 +19,28 @@ import com.crystaldecisions.sdk.occa.report.lib.PropertyBag;
 import com.crystaldecisions.sdk.occa.report.lib.ReportSDKException;
 import java.util.Properties;
 
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+
 @SuppressWarnings("unused")
 public class StoresDivisionRosterReport {
 
 	//	@SuppressWarnings("static-access")
 	public static Properties prop = new Properties();
-	public static void main(String[]args)  
-	{ 
+	public static void main(String[]args){
+		if (args[0].equals("MERGE_PDFS")) {
+				try {
+					mergePdfs(args[1], args[2]);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+		}else{
+			generatePDFFile(args[1], args[2]);
+		}
+	} 
+	public static void generatePDFFile(String rptName, String outputPDFName){
+		 
 		FileOutputStream fos = null;
 		ReportClientDocument reportClientDocument = new ReportClientDocument();
 		String reportName;
@@ -36,9 +52,9 @@ public class StoresDivisionRosterReport {
 		{
 			//setting up parameters from the config.properties files
 			InputStream input = new FileInputStream("config.properties");
-			prop.load(input);
-			reportName = args[0];
-			outputReportName = args[1];
+			prop.load(input); 
+			reportName = rptName; 
+			outputReportName = outputPDFName;
 			//getting parameters from the config.properties
 			login = prop.getProperty("dbuser");
 			password = prop.getProperty("dbpwd");
@@ -123,6 +139,15 @@ public class StoresDivisionRosterReport {
 				e.printStackTrace(); 
 			}
 		}
-
-	} 
+	}
+	
+	public static void mergePdfs(String mergedPdfNameWithPath, String IndividualPdfsPath) throws InvalidPasswordException, IOException{
+		PDFMergerUtility pdfMerger = new PDFMergerUtility();       
+		pdfMerger.setDestinationFileName(mergedPdfNameWithPath);
+		File [] files = new File(IndividualPdfsPath).listFiles();
+		for (int i = 0; i < files.length; i++)
+			if (files[i].isFile())
+				pdfMerger.addSource(files[i]);
+		pdfMerger.mergeDocuments();
+	}
 }

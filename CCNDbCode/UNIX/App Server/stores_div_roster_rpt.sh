@@ -24,7 +24,7 @@ filename=`basename $file .rpt`
 
 #PATH=/usr/jdk/jdk1.7.0_17/bin:$PATH
 cd "$CLASSHOME" || exit
-java com.StoresDivRosterReport.StoresDivisionRosterReport $HOME/crReports/rpt/$file $HOME/crReports/reports/$filename.pdf
+java com.StoresDivRosterReport.StoresDivisionRosterReport "GENERATE_PDFS" $HOME/crReports/rpt/$file $HOME/crReports/reports/$filename.pdf
 
 #Check for Existance of generated report file before Starting the conversion process
 if [ ! -f /app/ccn/crReports/reports/$filename.pdf ]
@@ -41,5 +41,24 @@ done
 dt1=`date`
 
 echo "END PROCESSING STORES DIVISION ROSTER REPORT  : $dt1\n"
+
+TIME=`date +"%H:%M:%S"`
+echo "\nStarted concatenating the reports to one output at $TIME on $DATE "
+
+cd "$CLASSHOME" || exit
+java com.StoresDivRosterReport.StoresDivisionRosterReport "MERGE_PDFS" $HOME/crReports/reports/CCN05000.pdf $HOME/crReports/reports
+
+#Check for Existance of generated report file before Starting the conversion process
+if [ ! -f /app/ccn/crReports/reports/CCN05000.pdf ]
+    then
+        echo "Exception occured while creating merged file CCN05000.pdf"
+        ./send_mail.sh "STORES_DIV_ROSTER_RPT"
+		exit 1
+fi
+
+TIME=`date +"%H:%M:%S"`
+echo "\nCompleted Concatenating the reports to one output at $TIME on $DATE "
+
+
 
 exit 0
