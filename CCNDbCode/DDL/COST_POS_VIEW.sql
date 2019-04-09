@@ -11,9 +11,8 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
          : 03/01/2016 MXR916 Added STATE_CODE_DESCRIPTION,POLLING_STATUS_COD_DESCRIPTION,STATEMENT_TYPE_DESCRIPTION,TYPE_CODE_DESCRIPTION Columns.
          : 11/30/2016 vxv336 Added CURRENCY_CODE and CURRENCY_CODE_DESCRIPTION fields
          : 03/13/2018 nxk927 Added Polling start date and polling stop date fields
-         : 06/12/2018 pxa852 CCN Project Team....
-           EFFECTIVE_DATE column name changed to POLL_STATUS_EFF_DT and
-           EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
+	 : 04/09/2019 jxc517 CCN Project Team....
+                             Added condition to exclude archived cost centers from this view
 *******************************************************************************/ 
        CC.COST_CENTER_CODE,
        CC.CATEGORY,
@@ -28,7 +27,7 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
        ZIP_CODE,
        PO.POLLING_STATUS_CODE,
        NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('POLLING_STATUS_CODE','COD',PO.POLLING_STATUS_CODE),'N/A') POLLING_STATUS_COD_DESCRIPTION,
-       PO.POLL_STATUS_EFF_DT,
+       PO.EFFECTIVE_DATE,
        (SELECT HRCHY_DTL_CURR_LVL_VAL
           FROM HIERARCHY_DETAIL
          WHERE HRCHY_DTL_CURR_ROW_VAL = CC.COST_CENTER_CODE
@@ -65,4 +64,5 @@ Modified : 01/22/2015 SXT410 Added Columns OPEN_DATE and CLOSE_DATE.
             POLLING PO                     
        WHERE CC.COST_CENTER_CODE = ADDRESS.COST_CENTER_CODE(+)
        AND CC.COST_CENTER_CODE = PO.COST_CENTER_CODE(+)
-       and PO.POLL_STATUS_EXP_DT IS NULL;
+       AND PO.EXPIRATION_DATE IS NULL
+       AND COMMON_TOOLS.IS_ARCHIVE_CC_FNC(CC.COST_CENTER_CODE) = 'N';
