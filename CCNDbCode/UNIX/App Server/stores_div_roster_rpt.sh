@@ -25,7 +25,6 @@ do
 TIME=`date +"%H:%M:%S"`
 echo "Running $file at $TIME"
 cfilename="CCN05000.pdf"
-echo "$cfilename"
 
 filename=`basename $file .rpt` 
 #PATH=/usr/jdk/jdk1.7.0_17/bin:$PATH
