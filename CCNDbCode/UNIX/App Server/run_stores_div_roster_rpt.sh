@@ -7,6 +7,9 @@
 # modified: nxk927 04/27/2018 nxk927 - CCN Project Team...
 #           added unset display variable to let it run by user/bmc
 #           as got display issue while running as user
+# modified: 04/17/2019 sxg151 CCN Project Team...
+#           Removed gs command which is creating specical characters after
+#           Linux upgrade and moved the pdf concatination code to Java
 ##########################################################
 . /app/ccn/ccn_app_server.config
 DATE=`date +"%m/%d/%Y"`
