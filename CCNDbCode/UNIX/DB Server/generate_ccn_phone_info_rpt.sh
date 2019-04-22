@@ -12,6 +12,7 @@
 #
 # Date Created: 08/23/2018 kxm302
 # Date Updated: 09/14/2018 updated FTP details with braces
+# Date Updated: 04/17/2019 sxg151 ASP-1246 : File getting corrupted after FTP'ing.Added "biary" in the FTP part
 #
 ##########################################################################################
 # Change directory to home path
@@ -71,6 +72,7 @@ des_file_name=`ls -lrt $HOME/datafiles/CCN_PHONE_INFO*.xlsx | rev | cut -d'/' -f
 ftpResult=`ftp -n "${ccn_phone_host}" <<FTP_MF
 quote USER "${ccn_phone_user}"
 quote PASS "${ccn_phone_pw}"
+binary
 put "${src_file_path}" "${des_file_path}"/"${des_file_name}"
 bye
 FTP_MF`
