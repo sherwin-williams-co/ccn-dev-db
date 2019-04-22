@@ -1868,9 +1868,6 @@ Changed : 06/23/2017 nxk927 CCN Project....
           CCN bank account number
         : 01/26/2018 nxk927 CCN Project....
           changed the OC to have +ve figure as per Marcy lee
-        : 12/17/2018 CCN Project Team...
-          Changed code to pass 6 digit cost center code to cash flow adj file.
-          Generating error report with list of cost centers which are not present in CCN.
 *******************************************************************************/
 IN_DATE            IN         DATE)
 IS
@@ -1883,13 +1880,13 @@ IS
                       '+'
                END) AMOUNT_SIGN ,
                LPAD(ABS(SUM(AMOUNT)),9,0)  AMOUNT
-          FROM (SELECT COST_CENTER_CODE,
+          FROM (SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
                        AMOUNT * 100 * DECODE(DB_CR_CODE, 'OC', 1, -1) AS AMOUNT--changed OC as +ve as per MARCY LEE 01/26/2018
                   FROM MISCTRAN
                  WHERE LOAD_DATE = IN_DATE
                    AND TCODE NOT IN ('0495')
                  UNION
-                SELECT COST_CENTER_CODE,
+                SELECT SUBSTR(COST_CENTER_CODE,-4) COST_CENTER_CODE,
                        AMOUNT * 100 * DECODE(SUBSTR(TRAN_CODE, 1, 2), 'RC', -1, 1) AS AMOUNT
                   FROM OVERSHRT
                  WHERE LOAD_DATE = IN_DATE)
@@ -1903,26 +1900,14 @@ IS
                                          TO_CHAR(SYSDATE,'HH24MISS') || '.txt';
     UAR_BNK_DRFT_CRRCTN_FL       UTL_FILE.FILE_TYPE;
     V_OUT_CLOB                   CLOB;
-    V_CLOB_FOR_EMAIL             CLOB;
-    V_START_TIME                 DATE := SYSDATE;
 BEGIN
     UAR_BNK_DRFT_CRRCTN_FL := UTL_FILE.FOPEN (PATH
                                            ,UAR_BNK_DRFT_CRRCTN_FL_NM
                                            ,'W' --BINARY
                                            ,32767);
     FOR rec IN main_cur LOOP
-        -- This condition will check if the cost center is present in CCN or not.
-        -- If the cost center is not present in CCN then the 4 digit code (from Treasury file)
-        -- will be inserted into MISCTRAN and OVERSHRT tables.
-        IF LENGTH(rec.COST_CENTER_CODE) = 4 THEN
-           ERRPKG.INSERT_ERROR_LOG_SP(00000,
-                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS',
-                                   'Cost Center that we recieve from Corporate Treasurers Department is not present in CCN',
-                                   '2222222222',
-                                   rec.COST_CENTER_CODE,
-                                   'OTHER');
-        ELSE
-            V_OUT_CLOB := rec.COST_CENTER_CODE ||                   --STORE-NO (4)
+        V_OUT_CLOB := V_OUT_CLOB ||
+                          rec.COST_CENTER_CODE ||                   --STORE-NO (4)
                           'C' ||                                    --ACTN-CD (1)
                           FORMAT_INPUT_FOR_FILE(' ', ' ', 18) ||    --FILLER (18 spaces)
                           rec.AMOUNT_SIGN ||                        --AMT-SIGN (1)
@@ -1930,32 +1915,13 @@ BEGIN
                           FORMAT_INPUT_FOR_FILE(' ', ' ', 38) ||    --FILLER (38 spaces)
                           'YGC000001' ||                            --PGM-ID (9)
                           CHR(13);
-
+        IF V_OUT_CLOB <> EMPTY_CLOB() THEN
             UTL_FILE.PUT_LINE(UAR_BNK_DRFT_CRRCTN_FL, V_OUT_CLOB, TRUE);
-
+            V_OUT_CLOB := NULL;
         END IF;
     END LOOP;
 
     UTL_FILE.FCLOSE(UAR_BNK_DRFT_CRRCTN_FL);
-    --this process will email an error report to CCN team if there are any errors in error_log table.
-    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
-    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
-    --sending mail only if there are error records.
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
-        MAIL_PKG.SEND_MAIL('GENERATE_CORRECTS_FILE_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
-    END IF;
-EXCEPTION
-    WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                   'STR_BNK_DPST_DLY_RCNCL_PROCESS.EXECUTE_CORRECTS_PROCESS',
-                                   SQLERRM,
-                                   '2222222222',
-                                   '222222',
-                                   'OTHER');
-        IF UTL_FILE.IS_OPEN(UAR_BNK_DRFT_CRRCTN_FL) THEN
-           UTL_FILE.FCLOSE(UAR_BNK_DRFT_CRRCTN_FL);
-        END IF;
 END GENERATE_BNK_DRFT_CRRCTN_FILE;
 
 PROCEDURE GENERATE_CORRECTS_FILE(
