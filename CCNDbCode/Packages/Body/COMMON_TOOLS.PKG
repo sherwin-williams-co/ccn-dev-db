@@ -6,6 +6,8 @@ available to be used by the entire schema
 -	DATE_BLANK(in_date)
 created : 08/24/2010 kdp 
 revised : 05/30/2013 mdh EXPIRE_DATA_SP changes.
+        : 09/13/2018 kxm302 CCN Project Team...
+		: Removed GET_CC_MANAGER_NAME function ASP-1128
 ************************************************************/
 
 PROCEDURE ALTER_ALL_TRIGGERS ( 
@@ -1651,7 +1653,7 @@ BEGIN
     SELECT  COUNT(*)
       INTO  V_COUNT
       FROM  CUSTOMER_TAXID_VW_COSTCNTR
-     WHERE  ORA_COSTCTR   =  IN_COST_CENTER_CODE 
+     WHERE  ORA_COSTCTR   =  IN_COST_CENTER_CODE
        AND  NVL(BAD_DEBT_FLAG, 'N') <> 'Y';
 
     IF  V_COUNT > 0  THEN  --  entry was found in the CUSTOMER_TAXID_VW table
@@ -1692,62 +1694,33 @@ EXCEPTION
 
 END GET_COST_CENTER_GEO_LATD_LNGTD;
 
-FUNCTION GET_CC_MANAGER_NAME(
+FUNCTION  IS_COST_CENTER_ARCHIVED(
 /***********************************************************
-This function will return Manager Name for given Cost Center Code
-
-Created : 03/28/2018 sxg151 CCN Project ASP-1048
-modified: 
+This function will return "Y" if the Cost Center provided is Archived
+Created : 11/27/2018, mxs216, CCN Project ASP-1158
 ************************************************************/
-    IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
-RETURN VARCHAR2
-IS 
-    V_MGR_NAME EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;    
-    V_CATEGORY COST_CENTER.CATEGORY%TYPE;
-BEGIN
-    BEGIN
-        SELECT CATEGORY
-          INTO V_CATEGORY
-          FROM COST_CENTER
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    EXCEPTION
-        WHEN OTHERS THEN 
-            NULL;
-    END;
+    IN_COST_CENTER_CODE IN VARCHAR2
+) RETURN VARCHAR2
+IS
+    V_RETURN_VALUE   VARCHAR2(1) := 'N';
+    V_COUNT          NUMBER := 0;
 
-    IF V_CATEGORY = 'T' THEN
-        SELECT EMPLOYEE_NAME
-          INTO V_MGR_NAME
-          FROM EMPLOYEE_DETAILS EMP
-         WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
-           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-           AND HIRE_DATE = (SELECT MAX(HIRE_DATE)
-                              FROM EMPLOYEE_DETAILS
-                             WHERE UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
-                               AND UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE');
-    ELSE
-        SELECT EMPLOYEE_NAME
-          INTO V_MGR_NAME
-          FROM (SELECT EMP.*
-                  FROM EMPLOYEE_DETAILS EMP
-                 WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
-                   AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-                   AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
-                                             WHERE NONMGR_IND = 'Y'
-                                               AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
-                                               AND UPPER(JOB_TITLE) <> 'MTP'
-                                               )
-                 ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
-                 -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
-                 -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
-             )
-       WHERE ROWNUM < 2;
+BEGIN
+    SELECT COUNT(*)
+      INTO V_COUNT
+      FROM CC_DELETION_GUIDS S
+     WHERE S.COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    IF V_COUNT>0 THEN
+       V_RETURN_VALUE := 'Y';
     END IF;
-    RETURN V_MGR_NAME;
+
+    RETURN V_RETURN_VALUE;
+
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN V_MGR_NAME;
-END GET_CC_MANAGER_NAME;
+        RETURN V_RETURN_VALUE;
+END IS_COST_CENTER_ARCHIVED;
 
 FUNCTION IS_ARCHIVE_CC_FNC(
 /***********************************************************
