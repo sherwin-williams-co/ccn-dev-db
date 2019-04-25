@@ -10,6 +10,8 @@
              SYSTEM_STATUS_DATE for LATEST_HIRE_DATE and TERMINATION_DATE
            : 06/08/2018 sxh487 Changed logic to populate TERMINATION_DATE only
              if the employee is terminated
+           : 03/21/2019 ASP-1207 mxs216 CCN Project....
+             Updated varibale declaration referencing CCN_BATCH_PKG.BATCH_JOB_TYPE
 *********************************************************************************/
 declare
 
@@ -19,8 +21,8 @@ cursor EMP_GEMS_SYNC_TB_cur is
 SELECT * FROM SWC_HR_TAG_CCN_V
  WHERE EMPLOYEE_NUMBER IS NOT NULL;
 
-V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
-V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+V_BATCH_NUMBER      CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
+V_TRANS_STATUS      CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 v_Row_Data          EMP_GEMS_SYNC_TB%ROWTYPE;
 
 BEGIN
