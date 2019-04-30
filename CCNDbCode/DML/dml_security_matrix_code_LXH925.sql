@@ -1,6 +1,6 @@
 /*
      dml_security_matrix_code_LXH925.sql
-     Created : 04/30/2019 CCN Project Team....
+     Created : 04/30/2019 CCN Project Team sxs484....
      This Script assigns role code CCNUS1 for lxh925
 */
 
