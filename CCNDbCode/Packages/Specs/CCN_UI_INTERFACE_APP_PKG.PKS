@@ -837,9 +837,9 @@ Output : COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,C
 Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
 Changed :
 *******************************************************************************/
-    IN_BULK_LOAD_PROCESS_ID   IN        NUMBER,
-    OUT_CLOB                     OUT    CLOB,
-    OUT_FILE_NAME                OUT    VARCHAR2)
+    IN_BULK_LOAD_PROCESS_ID IN     NUMBER,
+    OUT_CLOB                   OUT CLOB,
+    OUT_FILE_NAME              OUT VARCHAR2)
 ;
 PROCEDURE BULK_LOAD_PROCESS_DETAILS (
 /*******************************************************************************
@@ -848,8 +848,8 @@ This procedure provides details about all bulk load processes currently existing
 Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
 Changed :
 *******************************************************************************/
-    IN_XML                IN      VARCHAR2,
-    OUT_BULK_PRC_DETAILS         OUT    SYS_REFCURSOR)
+    IN_XML                IN     VARCHAR2,
+    OUT_BULK_PRC_DETAILS     OUT SYS_REFCURSOR)
 ;
 
 END CCN_UI_INTERFACE_APP_PKG;
