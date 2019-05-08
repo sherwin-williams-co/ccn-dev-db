@@ -825,16 +825,31 @@ Created : 08/16/2018 kxm302 CCN project Team....
 ******************************************************************************/
 ;
 
-PROCEDURE ON_DEMAND_POLLING_UPLOAD_PROCESS(
-/******************************************************************************
-This procedure is the core process for creating pos downloads when user upload the excel.
-This process will be invoked by UI for bulk upload of POS downloads.
+PROCEDURE BULK_LOAD_FILE_DETAILS (
+/*******************************************************************************
+This procedure is to returns the clob built based on table and file name
 
-IN_BLOB          - blob value delimited by , and termianted by new line character
+Example input/output for process ID "x"
 
-Created : 03/06/2019 pxa852 CCN Project Team....
-Modified:
-******************************************************************************/
-    IN_BLOB            IN       BLOB);
+Input  : 3
+Output : COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND,STD_COST_IDENTIFIER,PRIM_COST_IDENTIFIER,STATUS_CODE,STATUS_EFFECTIVE_DATE,STATUS_EXPIRATION_DATE,TYPE_CODE,TYPE_EFFECTIVE_DATE,TYPE_EXPIRATION_DATE,MEX_ADDRESS_TYPE,MEX_EFFECTIVE_DATE,MEX_EXPIRATION_DATE,MEX_ADDRESS_LINE_1,MEX_ADDRESS_LINE_2,MEX_ADDRESS_LINE_3,MEX_CITY,MEX_PROVINCE_CODE,MEX_POSTAL_CODE,MEX_VALID_ADDRESS,MEX_COUNTRY_CODE,PRI_PHONE_NUMBER_TYPE,PRI_PHONE_AREA_CODE,PRI_PHONE_NUMBER,PRI_PHONE_EXTENSION,SCD_PHONE_NUMBER_TYPE,SCD_PHONE_AREA_CODE,SCD_PHONE_NUMBER,SCD_PHONE_EXTENSION,FAX_PHONE_NUMBER_TYPE,FAX_PHONE_AREA_CODE,FAX_PHONE_NUMBER,FAX_PHONE_EXTENSION,ADMIN_TO_SALES_AREA,ADMIN_TO_SALES_DISTRICT,ADMIN_TO_SALES_DIVISION,ALTERNATE_DAD,FACTS_DIVISION,LEGACY_GL_DIVISION,GLOBAL_HIERARCHY,PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY,MANAGER_ID,ALLOCATION_CC,LAD_CUSTOMER_TYPE,POS_NON_STORE_IND
+
+Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
+Changed :
+*******************************************************************************/
+    IN_BULK_LOAD_PROCESS_ID   IN        NUMBER,
+    OUT_CLOB                     OUT    CLOB,
+    OUT_FILE_NAME                OUT    VARCHAR2)
+;
+PROCEDURE BULK_LOAD_PROCESS_DETAILS (
+/*******************************************************************************
+This procedure provides details about all bulk load processes currently existing in CCN Cost Center Schema
+
+Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
+Changed :
+*******************************************************************************/
+    IN_XML                IN      VARCHAR2,
+    OUT_BULK_PRC_DETAILS         OUT    SYS_REFCURSOR)
+;
 
 END CCN_UI_INTERFACE_APP_PKG;
