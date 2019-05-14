@@ -38,10 +38,10 @@ created : 03/15/2016 jxc517 CCN Project....
 modified: 
 **********************************************************/
           IN_COST_CENTER IN VARCHAR2) IS
-  
+
    TYPE TAB_TYPE                IS TABLE OF USER_TAB_COLUMNS%ROWTYPE INDEX BY PLS_INTEGER;
    TYPE SQL_STATEMENTS_TAB_TYPE IS TABLE OF VARCHAR2(10000)          INDEX BY BINARY_INTEGER;
-   
+
    COL_TABLE          TAB_TYPE;
    SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
 BEGIN
@@ -56,7 +56,7 @@ BEGIN
                 ORDER BY TABLE_ORDER DESC) LOOP
       SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := REC.VALUE;
    END LOOP;
-   
+
    --SQL Statement to archive the cost center records from Hierarchy_Detail Table
    SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ARC_HIERARCHY_DETAIL'||
                                                            '    SELECT A.*,' ||
@@ -92,10 +92,10 @@ modified:
 **********************************************************/
           IN_ARCHIVE_CC IN      VARCHAR2,
           IN_NEW_CC     IN      VARCHAR2) IS
-  
+
    TYPE TAB_TYPE                IS TABLE OF USER_TAB_COLUMNS%ROWTYPE INDEX BY PLS_INTEGER;
    TYPE SQL_STATEMENTS_TAB_TYPE IS TABLE OF VARCHAR2(10000)          INDEX BY BINARY_INTEGER;
-   
+
    COL_TABLE          TAB_TYPE;
    VAR                VARCHAR2(30000);
    V_CC_NAME          VARCHAR2(100);
@@ -117,11 +117,11 @@ BEGIN
         FROM USER_TAB_COLUMNS
        WHERE TABLE_NAME = REC.TABLE_NAME
        ORDER BY COLUMN_ID;
-      
+
       FOR i IN 1..COL_TABLE.LAST LOOP
          VAR := VAR || ',' || COL_TABLE(i).COLUMN_NAME;
       END LOOP;
-      
+
       --Data in VAR for COST_CENTER table will be ,COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND
       --Take the column names excluding COST_CENTER_CODE which will be from 19th character till the end
       SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO ' || REC.TABLE_NAME || 
@@ -129,7 +129,7 @@ BEGIN
                                                               '   FROM ARC_' || REC.TABLE_NAME || 
                                                               '  WHERE UPPER(COST_CENTER_CODE) = '''|| UPPER(FROM_CC) ||'''';
    END LOOP;
-   
+
    --SQL Statement to insert NEW cost center records from OLD cost center Hierarchy_Detail records
    --Pre-final level record
    SQL_STATEMENTS_TAB(NVL(SQL_STATEMENTS_TAB.LAST,0)+1) := 'INSERT INTO HIERARCHY_DETAIL' ||
@@ -169,7 +169,8 @@ xxLXXX
 These are the following exceptions. Do not use as the final 4 digits: L471, L473, L474
 
 created : 05/06/2016 jxc517 CCN Project....
-modified: 
+modified: 05/14/2019 jxc517 CCN Project....
+          Last 3 digits of newly created cost centers can not be duplicates until we move to 6 digit cost center
 **********************************************************/
     IN_COST_CENTER_CODE     IN      VARCHAR2)
 RETURN VARCHAR2
@@ -178,7 +179,7 @@ IS
     V_RANDOM_NUMBER            VARCHAR2(16);
     V_COUNT                    NUMBER := 0;
 BEGIN
-    SELECT TRUNC(DBMS_RANDOM.VALUE(100,999))
+    SELECT TO_CHAR(TRUNC(DBMS_RANDOM.VALUE(1,999)), '000')
       INTO V_RANDOM_NUMBER
       FROM DUAL;
 
@@ -191,7 +192,7 @@ BEGIN
     SELECT COUNT(*)
       INTO V_COUNT
       FROM COST_CENTER
-     WHERE COST_CENTER_CODE = V_ARCHIVE_COST_CENTER_CODE;
+     WHERE SUBSTR(COST_CENTER_CODE, 3) = SUBSTR(V_ARCHIVE_COST_CENTER_CODE, 3);
 
     IF V_COUNT > 0 THEN --cost center all ready exists, so generate another
         V_ARCHIVE_COST_CENTER_CODE := GET_ARCHIVE_COST_CENTER(IN_COST_CENTER_CODE);
@@ -208,7 +209,7 @@ PROCEDURE PROCESS
 /**********************************************************
 	This procedure is the core procedure that gets invoked
 	for bulk cost center deletions from CCN application
-  
+
   We need to archive the existing cost center details
   Delete the exisitng cost center details
   Reinsert the cost center details with new cost center mapped by business
@@ -226,15 +227,15 @@ BEGIN
        SAVEPOINT CC_DELETE;
        BEGIN
            ARCHIVE_COST_CENTER_DTLS(rec.COST_CENTER_CODE);
-           
+
            COMMON_TOOLS.DELETE_COST_CENTER(rec.COST_CENTER_CODE);
-           
+
            V_ARCHIVE_COST_CENTER_CODE := GET_ARCHIVE_COST_CENTER(rec.COST_CENTER_CODE);
-           
+
            INSRT_CC_DTLS_FRM_ARCHV(rec.COST_CENTER_CODE, V_ARCHIVE_COST_CENTER_CODE);
 
            STORE_CC_DELETE_GUID(rec.COST_CENTER_CODE, V_ARCHIVE_COST_CENTER_CODE);
-           
+
            COMMIT;
        EXCEPTION
            WHEN OTHERS THEN
@@ -242,7 +243,7 @@ BEGIN
                ROLLBACK TO CC_DELETE;
        END;
    END LOOP;
-   
+
    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
 EXCEPTION
    WHEN OTHERS THEN
@@ -424,7 +425,7 @@ Changed :
 )
 AS
 BEGIN
-    FOR rec in  (SELECT DISTINCT IN_ARCIVE_TABLE_NAME TABLE_NAME
+    FOR rec in  (SELECT DISTINCT 'ARC_' || ACTL_TBL.TABLE_NAME TABLE_NAME
                    FROM USER_TAB_COLUMNS ACTL_TBL,
                         USER_TAB_COLUMNS ARCHV_TBL
                  WHERE ACTL_TBL.TABLE_NAME  = SUBSTR(ARCHV_TBL.TABLE_NAME(+), 5)
@@ -471,9 +472,9 @@ Changed :
 AS
 BEGIN
     FOR rec in (SELECT 'ARC_' || TABLE_NAME ARC_TABLE_NAME
-                  FROM INSERTORDER
-                WHERE TABLE_NAME NOT IN ('SALES_REP','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
-                ORDER BY TABLE_ORDER DESC) LOOP
+                   FROM INSERTORDER INS_ORD
+                 WHERE TABLE_NAME NOT IN ('SALES_REP','CODE_HEADER','CODE_DETAIL','HIERARCHY_HEADER','HIERARCHY_DESCRIPTION','HIERARCHY_DETAIL')
+                 ORDER BY TABLE_ORDER DESC) LOOP
 
        IF IS_ARCHIVE_TABLE_EXISTS_FNC(rec.ARC_TABLE_NAME) = 'Y' THEN
           --If there are any structural changes then this procedure will create backup table, recreate and load archive table, and drop backup table.
