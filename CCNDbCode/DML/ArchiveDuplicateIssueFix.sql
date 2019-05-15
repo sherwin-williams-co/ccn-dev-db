@@ -1,10 +1,13 @@
-/*
-Name        : ArchiveDuplicateIssueFix.sql
-Modified On : 14-May-2019
-Purpose     : Archive cost centers cleanup process - duplicates issue fix.
-              Generate  new cost center number using archived/original cost center number and then copy data
-              from old issue cost center and delete the old issue cost center data from current tables
-*/
+/***********************************************************************************
+Name    :ArchiveDuplicateIssueFix.sql
+
+         Archive cost centers cleanup process - duplicates issue fix.
+         Generate  new cost center number using archived/original cost center number and then copy data
+         from old issue cost center and delete the old issue cost center data from current tables
+		 
+Created :05/14/2019 jxc517/akj899 CCN Project....
+Changed :
+************************************************************************************/
 SET SERVER OUTPUT ON;
 DECLARE
     V_ARCHIVE_COST_CENTER_CODE VARCHAR2(6);
@@ -38,13 +41,13 @@ BEGIN
                     COMMIT;
                 EXCEPTION
                     WHEN OTHERS THEN
-                        COMMON_TOOLS.LOG_ERROR(rec1.ARCHIVE_COST_CENTER_CODE, 'Manual Correction - ASP-****', SQLERRM, SQLCODE);
+                        COMMON_TOOLS.LOG_ERROR(rec1.ARCHIVE_COST_CENTER_CODE, 'Manual Correction - ASP-1264', SQLERRM, SQLCODE);
                         ROLLBACK TO ARCHIVE_DUP_ISSUE_FIX;
                 END;
             END LOOP;
         EXCEPTION
             WHEN OTHERS THEN
-                COMMON_TOOLS.LOG_ERROR(rec.CC_CODE, 'Manual Correction - ASP-****', SQLERRM, SQLCODE);
+                COMMON_TOOLS.LOG_ERROR(rec.CC_CODE, 'Manual Correction - ASP-1264', SQLERRM, SQLCODE);
                 ROLLBACK TO ARCHIVE_DUP_ISSUE_FIX;
         END;
     END LOOP;
