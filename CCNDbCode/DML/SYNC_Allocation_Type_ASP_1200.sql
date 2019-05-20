@@ -66,7 +66,7 @@ BEGIN
         EXCEPTION
             WHEN OTHERS THEN
                 COMMON_TOOLS.LOG_ERROR(C1.cost_center_code, 'SYNC_Allocation_Type_ASP_1200.sql', SQLERRM, SQLCODE);
-                ROLLBACK TO HIERARCHY_HER_NAME;
+                ROLLBACK TO PCC_PCL_STORE;
         END;
     END LOOP;
 EXCEPTION
