@@ -32,4 +32,5 @@ COMMIT;
 SELECT * 
   FROM security_matrix
  WHERE user_id IN ('twb393','jpz381','bxk368')
-   AND role_code IN ('CCNUS1','CSDU');
+   AND role_code IN ('CCNUS1','CSDU')
+ order by 1;
