@@ -20,7 +20,7 @@ PROCEDURE CUSTOMER_DEPOSIT_HDR_UI_SP (
         <CUSTOMER_ACCOUNT_NUMBER>280184482</CUSTOMER_ACCOUNT_NUMBER>
     </CUSTOMER_DEPOSIT_HEADER>
 </CUSTOMER_DEPOSIT_UI>
-    
+
 Created : 03/06/2018 sxh487 CCN Project....
 *******************************************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
@@ -38,7 +38,7 @@ PROCEDURE CUSTOMER_DEPOSIT_DET_UI_SP (
   <TRANSACTION_DATE_END>05-AUG-2017</TRANSACTION_DATE_END>
   <CUSTOMER_ACCOUNT_NUMBER>280184482</CUSTOMER_ACCOUNT_NUMBER>
 </CUSTOMER_DEPOSIT_DETAILS>
-    
+
 Created : 01/16/2018 sxh487 CCN Project....
 *******************************************************************************/
     IN_TABLE_NAME IN     VARCHAR2,
@@ -80,5 +80,14 @@ Modified: 02/07/2019 pxa852 CCN Project Team...
           Modified code to remove header xml as CCN is not updtaing the header data
 ******************************************************************************/
     IN_CUST_DETAIL_XML  IN   CLOB);
+FUNCTION GET_GL_DIVISION(
+/******************************************************************************
+GET_GL_DIVISION 
+     Wrapper. This Function will get the GL_DIVISION
+
+Created : 05/17/2019 SXH487/SXS484 CCN Project Team...
+******************************************************************************/
+IN_COST_CENTER_CODE IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE
+) RETURN VARCHAR2;    
 
 END CUST_DEP_UI_INTERFACE_APP_PKG;
