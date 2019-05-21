@@ -453,10 +453,11 @@ Modified:
     IN_GEO_TYPE       IN     VARCHAR2
     ) RETURN VARCHAR2;
 
+
 FUNCTION IS_COST_CENTER_ARCHIVED (
 /***********************************************************
 This function will return "Y" if the Cost Center provided is Archived
-Created : 11/27/2018, mxs216, CCN Project ASP-1158
+Created : 11/14/2018, mxs216, CCN Project ASP-1158
 ************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2
 ) RETURN VARCHAR2;
