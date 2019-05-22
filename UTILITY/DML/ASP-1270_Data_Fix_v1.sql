@@ -18,13 +18,7 @@ INSERT INTO security_matrix(USER_ID, PASSWORD, ROLE_CODE)
 VALUES('lxb8vr','lxb8vr','CSDU');
 
 INSERT INTO security_matrix(USER_ID, PASSWORD, ROLE_CODE)
-VALUES('axh707','axh707','CCNUS1');
-
-INSERT INTO security_matrix(USER_ID, PASSWORD, ROLE_CODE)
 VALUES('axh707','axh707','CSDU');
-
-INSERT INTO security_matrix(USER_ID, PASSWORD, ROLE_CODE)
-VALUES('san760','san760','CCNUS1');
 
 INSERT INTO security_matrix(USER_ID, PASSWORD, ROLE_CODE)
 VALUES('san760','san760','CSDU');
