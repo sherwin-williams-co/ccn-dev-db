@@ -1,5 +1,3 @@
-
-
 /********************************************************************************** 
 This script is created to insert records into MAILING_GROUP and MAILING_DETAILS tables for generating stores cash flow adjustment file failure records.
 
