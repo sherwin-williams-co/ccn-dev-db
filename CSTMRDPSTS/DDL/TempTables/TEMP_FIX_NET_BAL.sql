@@ -1,15 +1,8 @@
+/*
+ASP 1263 create temp table TEMP_FIX_NET_BAL.
+05242019 SXS484 CCN Project Team...
+*/  
+
   CREATE TABLE TEMP_FIX_NET_BAL
-   (	customer_account_number VARCHAR2(9)
-   ) 
-   ORGANIZATION EXTERNAL 
-    ( TYPE ORACLE_LOADER
-      DEFAULT DIRECTORY "CSTMR_DPSTS_DATA_FILES"
-      ACCESS PARAMETERS
-      ( RECORDS DELIMITED BY NEWLINE
-     fields terminated BY ','
-            optionally enclosed BY '"'
-            missing field VALUES are NULL)
-      LOCATION
-       ( 'Incorrect_Redemption.csv'
-       )
-    );
+   (	customer_account_number VARCHAR2(9))
+;
