@@ -1,0 +1,11 @@
+  
+  /*
+    ASP-1271 This script will create CUST_DEP_MASS_UPLOAD.
+    Created  : 05/28/2019 sxh487/sxs484 
+
+ */
+CREATE TABLE CUST_DEP_MASS_UPLOAD
+   (	CUSTOMER_ACCOUNT_NUMBER VARCHAR2(9), 
+	CSTMR_DPST_SALES_LN_ITM_AMT NUMBER(9,2)
+   )
+   ;
