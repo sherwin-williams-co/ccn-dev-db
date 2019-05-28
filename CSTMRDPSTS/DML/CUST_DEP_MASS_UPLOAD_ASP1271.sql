@@ -1,175 +1,77 @@
 /*
-
 This script will Manually insert into the CUSTOMER_DEPOSIT_TRANSACTION_HDR and
-
- CUSTOMER_DEPOSIT_TRANSACTION_DTL for the requested accounts.
-
- 
-
+CUSTOMER_DEPOSIT_TRANSACTION_DTL for the requested accounts.
 Created  : 05/28/2019 sxh487/sxs484 
-
- */
-
+*/
 DECLARE
-
-
- 
-
-
 CURSOR ALL_TRANS IS
-
       SELECT *
-
         FROM CUST_DEP_MASS_UPLOAD
-
-       --WHERE CUSTOMER_ACCOUNT_NUMBER ='238905780'
-
-       ORDER BY CUSTOMER_ACCOUNT_NUMBER;
-
-       
-
+       ORDER BY CUSTOMER_ACCOUNT_NUMBER;       
     V_NET_BAL             CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_NET_BALANCE%TYPE;
-
     V_COST_CENTER_CODE    CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE;
-
     V_CUST_DEP_DET_rec    CUSTOMER_DEPOSIT_TRANSACTION_DTL%ROWTYPE;
-
     V_CUST_DEP_HDR_REC    CUSTOMER_DEPOSIT_TRANSACTION_HDR%ROWTYPE;
-
     V_COMMIT              NUMBER :=0;
-
-
- 
-
-
 FUNCTION GET_LATEST_COST_CENTER_CODE(
-
 /**********************************************************
-
 This function will return the last cost center for the Account
-
-
- 
-
-
 Created : 05/28/2019 sxh487/sxs484
-
 **********************************************************/
-
 IN_CUST_ACCOUNT_NBR IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.CUSTOMER_ACCOUNT_NUMBER%TYPE)
-
     RETURN NUMBER
-
 IS
-
   V_COST_CENTER_CODE     CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE;
-
 BEGIN
-
     SELECT COST_CENTER_CODE
-
       INTO V_COST_CENTER_CODE
-
       FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
-
      WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUST_ACCOUNT_NBR
-
        AND TRAN_TIMESTAMP = (SELECT MAX(TRAN_TIMESTAMP)
-
                                FROM CUSTOMER_DEPOSIT_TRANSACTION_DTL
-
                               WHERE CUSTOMER_ACCOUNT_NUMBER = IN_CUST_ACCOUNT_NBR
-
                                 );
-
-
- 
-
-
      RETURN V_COST_CENTER_CODE;
-
 EXCEPTION
-
     WHEN OTHERS THEN
-
           RETURN V_COST_CENTER_CODE;
-
 END GET_LATEST_COST_CENTER_CODE;
-
-   
-
 BEGIN
-
      FOR each_tran IN ALL_TRANS LOOP
-
          -- Get the Last cost center code 
-
          V_COST_CENTER_CODE  := GET_LATEST_COST_CENTER_CODE(each_tran.CUSTOMER_ACCOUNT_NUMBER);
-
          -- Get the Last Net Balance 
-
          V_NET_BAL := CUSTOMER_DEPOSIT_MAINT_PKG.GET_LAST_VALUE_NET_BAL(each_tran.CUSTOMER_ACCOUNT_NUMBER);
-
          V_NET_BAL := V_NET_BAL + each_tran.CSTMR_DPST_SALES_LN_ITM_AMT;
-
          V_CUST_DEP_DET_rec.CUSTOMER_NET_BALANCE        := V_NET_BAL;
-
          V_CUST_DEP_DET_rec.CSTMR_DPST_SALES_LN_ITM_AMT := each_tran.CSTMR_DPST_SALES_LN_ITM_AMT;
-
          V_CUST_DEP_DET_rec.LOAD_DATE                   := SYSDATE;
-
          V_CUST_DEP_DET_rec.TRAN_TIMESTAMP              := SYSTIMESTAMP;
-
          V_CUST_DEP_DET_rec.CUST_DEP_TRANS_DETAIL_SEQ   := CUST_DEP_DETAIL_ID.NEXTVAL;
-
          V_CUST_DEP_DET_rec.TRANSACTION_TYPE            := 'MANUAL';
-
          V_CUST_DEP_DET_rec.CUSTOMER_ACCOUNT_NUMBER     := each_tran.CUSTOMER_ACCOUNT_NUMBER;
-
          V_CUST_DEP_DET_rec.COST_CENTER_CODE            := V_COST_CENTER_CODE;
-
          V_CUST_DEP_DET_rec.TERMINAL_NUMBER             := '99999';
-
          V_CUST_DEP_DET_rec.TRANSACTION_NUMBER          := '99999';
-
          V_CUST_DEP_DET_rec.TRANSACTION_DATE            := SYSDATE;
-
          V_CUST_DEP_DET_rec.USER_ID                     := 'map497';
-
          V_CUST_DEP_DET_rec.GL_DIVISION                 := 'A100';
-
          V_CUST_DEP_HDR_REC.CUSTOMER_ACCOUNT_NUMBER     := each_tran.CUSTOMER_ACCOUNT_NUMBER;
-
          V_CUST_DEP_HDR_REC.COST_CENTER_CODE            := V_COST_CENTER_CODE;
-
          V_CUST_DEP_HDR_REC.TERMINAL_NUMBER             := '99999';
-
-               
-
+             
          -- Insert into CUSTOMER_DEPOSIT_TRANSACTION_HDR Table
-
          TABLE_IU_PKG.CUST_DEP_TRANS_HDR_I_SP(V_CUST_DEP_HDR_REC);
-
          -- Insert into CUSTOMER_DEPOSIT_TRANSACTION_DTL Table
-
          TABLE_IU_PKG.CUST_DEPOSIT_TRAN_DTLS_I_SP(V_CUST_DEP_DET_rec);
-
-         
-
+      
          V_COMMIT := V_COMMIT + 1;
-
          IF V_COMMIT > 500 THEN
-
             COMMIT;
-
             V_COMMIT := 0;
-
          END IF;
-
      END LOOP;
-
     COMMIT;
-
 END;
 
 /
