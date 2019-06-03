@@ -15,11 +15,11 @@ created : 08/24/2010 kdp Payroll reporting project.....
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
     COMPUTE_EXPIRATOIN_DATE (in_date)
-  
+
         This function will be used to read in a date and subtract one day
     from that date (effective) and return a new date (expiration) which
     is one day prior.
-    
+
     The an input date must be passed.  
     This function will return a new (expiration) date. 
 
@@ -40,7 +40,7 @@ created : 08/24/2010 kdp Payroll reporting project.....
 **********************************************************/
     (in_date IN varchar2)
     RETURN varchar2;
-    
+
 FUNCTION ELIMINATE_SPECIAL_CHRCTRS(
 /**********************************************************
 This function will replace special characters from input text
@@ -288,7 +288,7 @@ Modified:
     IN_APPLICATION_PRCS   IN      VARCHAR2,
     OUT_USER_NAME            OUT  VARCHAR2,
     OUT_PASSWORD             OUT  VARCHAR2);
-    
+
 FUNCTION GET_COST_CENTER_DSC_CODES(
 /**********************************************************
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
@@ -299,15 +299,19 @@ Modified:
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
+    
+FUNCTION CHK_POS_NEW_STORES_BYPASS(
+/**********************************************************
+	This function is intended to check whether the cost center 
+	that needs to be bypassed exists in the table POS_NEW_STORES_VALIDATION_BYPASS
+    This function will return -
+    TRUE if cost center was found in the POS_NEW_STORES_VALIDATION_BYPASS table
+    FALSE if cost center was not found in the POS_NEW_STORES_VALIDATION_BYPASS table 
 
-FUNCTION MAX_BATCH_JOB_LAST_RUN_DATE_SP(
-/******************************************************************************
-This procedure is a wrapper to call CCN_BATCH_PKG.MAX_BATCH_JOB_LAST_RUN_DATE
-
-Created : 03/21/2019 mxs216 ASP-1207 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_BATCH_JOB_NAME    IN  VARCHAR2
-)RETURN DATE;
+Created : 04/01/2019 dxp896 CCN Project....
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN  COST_CENTER.COST_CENTER_CODE%TYPE)
+RETURN BOOLEAN;
 
 END CCN_COMMON_TOOLS;
