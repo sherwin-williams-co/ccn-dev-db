@@ -87,7 +87,9 @@ public class PollingRequestProcess {
 					// Read and get the store number from XML file name to pass for polling
 					String storeNumber = filename.substring(filename.length()-32,filename.length()-26);
 					List<String> storeList = new ArrayList<String>();
-					storeList.add(storeNumber.substring(2, 6));
+					//storeList.add(storeNumber.substring(2, 6));
+					//Commented above line as we are moving from 4 digit to 6 digit cost center while invoking Polling 2.0 API : jxc517 on 4/23/2019
+					storeList.add(storeNumber);
 					if (pilotPhaseIndicator.equalsIgnoreCase("Y")){
 						//For pilot phase, we need to check the PARAM cost center that came in is part of web service or not
 						//We process it only if it is part of the web service
@@ -109,7 +111,7 @@ public class PollingRequestProcess {
 					pollingMetadata = PollingDestMetadata.createDestinationList(PltStoreList);
 				} else {
 					System.out.println("Non Pilot phase");
-					// createDestinationFullChain        - Original Destination 
+					// createDestinationFullChain        - Original Destination
 					// createDestinationFullChainWithCis - New destination (probably interim)
 					pollingMetadata = PollingDestMetadata.createDestinationFullChainWithCis();
 				}

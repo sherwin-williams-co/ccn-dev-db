@@ -406,9 +406,8 @@ Changed : 11/21/2017 rxv940 CCN Project....
 Changed : 11/22/2017 rxv940 CCN Project....
         : Removed unnecessary check to see if the message has '[]'. Message will not have it
         : Sample input : "1234, 7896, 1001"
-Changed : Discontinued usage of OPS_DOWNLOADS_CC_IND .. instead using POLLING.POLLING_STATUS_CODE
-        : 06/12/2018 pxa852 CCN Project Team....
-          EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
+Changed : Discontinued usage of OPS_DOWNLOADS_CC_IND .. instead using POLLING.POLLING_STATUS_CODE    
+Changed : 04/23/2019 jxc517 Moving from 4 digit to 6 digit cost center for Polling 2.0
 *********************************************************************************/
       IN_STR_LIST   IN     VARCHAR2,
       OUT_LIST         OUT VARCHAR2)
@@ -428,7 +427,9 @@ BEGIN
     DBMS_UTILITY.COMMA_TO_TABLE('J'||REPLACE(V_STR_LST, ', ', ',J'), V_LIST_CUNT, V_CC_LIST);
     --DBMS_UTILITY.COMMA_TO_TABLE expects J at the beginning of all list items
     FOR i IN 1..V_LIST_CUNT LOOP
-        V_COST_CENTER_CODE := TRIM(SUBSTR(V_CC_LIST(i),2, 4));
+        --V_COST_CENTER_CODE := TRIM(SUBSTR(V_CC_LIST(i),2, 4));
+        --jxc517 on 4/23/2019 as we are moving from 4 digit to 6 digit cost center for Polling 2.0
+        V_COST_CENTER_CODE := TRIM(SUBSTR(V_CC_LIST(i),2, 6)); 
         BEGIN
             V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(V_COST_CENTER_CODE);
         EXCEPTION
@@ -445,7 +446,7 @@ BEGIN
                   INTO V_POLLING_STATUS_CODE
                   FROM POLLING
                  WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
-                   AND POLL_STATUS_EXP_DT IS NULL;
+                   AND EXPIRATION_DATE IS NULL;
             EXCEPTION 
                 WHEN OTHERS THEN 
                     V_POLLING_STATUS_CODE := NULL;
@@ -453,7 +454,10 @@ BEGIN
 
             --Below IF condition is to check if cost center is already part of the polling downloads
             --but came as new store in the queue, we should not process such cost centers
-            IF NVL(V_POLLING_STATUS_CODE, 'P') <> 'P' THEN
+            --jxc517 4/1/2019 : added hard coded cost center 707562 to make sure we send download to this again even if status is P
+            --                : Request came from Polling 2.0 due to some emergency gas leak because of which store has been closed
+            --                : since 3/2/2019 and will be closed for couple of more months
+            IF NVL(V_POLLING_STATUS_CODE, 'P') <> 'P' OR V_COST_CENTER_CODE = '707562' THEN
                 --Clean up the data for any maintenance we already sent for this store
                 CLEANUP_POS_DATA_FOR_NEW_STR(V_COST_CENTER_CODE);
 
@@ -464,7 +468,9 @@ BEGIN
                 --   d. triggered to insert a record into the POS tables for all app names
                 PRCSS_NEW_STR_APP_NM(V_COST_CENTER_CODE);
                 --This is the list of cost centers to which we will be sending the new store initial load file to
-                V_FNL_STR_LST := V_FNL_STR_LST || SUBSTR(V_COST_CENTER_CODE, 3, 4) || ',';
+                --V_FNL_STR_LST := V_FNL_STR_LST || SUBSTR(V_COST_CENTER_CODE, 3, 4) || ',';
+                --jxc517 on 4/23/2019 as we are moving from 4 digit to 6 digit cost center for Polling 2.0
+                V_FNL_STR_LST := V_FNL_STR_LST || V_COST_CENTER_CODE || ',';
                 OUT_LIST := V_FNL_STR_LST;
             ELSE
                 V_MAIL_TXT := 'Store ' || V_COST_CENTER_CODE ||
@@ -495,9 +501,7 @@ PROCEDURE PROCESS_STORE_POS_STRT_DT_LOAD(
 This procedure is used to to validate the messages and update POLLING.POLLING_START_DATE field in CCN.
 
 Created : 04/10/2018 nxk927 CCN Project....
-Changed : 06/12/2018 pxa852 CCN Project Team....
-          EXPIRATION_DATE column name changed to POLL_STATUS_EXP_DT
-          EFFECTIVE_DATE column name changed to POLL_STATUS_EFF_DT
+Changed : 04/23/2019 jxc517 Moving from 4 digit to 6 digit cost center for Polling 2.0
 *********************************************************************************/
       IN_STR_LIST   IN     VARCHAR2)
 IS
@@ -515,7 +519,9 @@ BEGIN
                      FROM DATA
                    CONNECT BY regexp_substr(str, '[^,]+', 1, level) IS NOT NULL) LOOP
         BEGIN
-            V_COST_CENTER_CODE := TRIM(SUBSTR(rec.str,1, 4));
+            --V_COST_CENTER_CODE := TRIM(SUBSTR(rec.str,1, 4));
+            --jxc517 on 4/23/2019 as we are moving from 4 digit to 6 digit cost center for Polling 2.0
+            V_COST_CENTER_CODE := TRIM(SUBSTR(rec.str,1, 6));
             V_COST_CENTER_CODE := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(V_COST_CENTER_CODE);
         EXCEPTION
             WHEN OTHERS THEN
@@ -532,7 +538,7 @@ BEGIN
                   INTO V_POLLING_PREV_REC
                   FROM POLLING
                  WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
-                   AND POLL_STATUS_EXP_DT IS NULL;
+                   AND EXPIRATION_DATE IS NULL;
             EXCEPTION 
                 WHEN OTHERS THEN 
                     V_POLLING_PREV_REC := NULL;
@@ -551,14 +557,14 @@ BEGIN
                         V_POLLING_PREV_REC.POLLING_IND,
                         V_POLLING_PREV_REC.NEXT_DOWNLOAD_BLOCK_COUNT,
                         'N',              --CURRENT_FLAG,
-                        V_POLLING_PREV_REC.POLL_STATUS_EFF_DT,
-                        V_POLLING_PREV_REC.POLL_STATUS_EXP_DT,
+                        V_POLLING_PREV_REC.EFFECTIVE_DATE,
+                        V_POLLING_PREV_REC.EXPIRATION_DATE,
                         V_POLLING_PREV_REC.POLLING_START_DATE,
                         V_POLLING_PREV_REC.POLLING_STOP_DATE);
                 UPDATE POLLING
                    SET POLLING_START_DATE = TRUNC(SYSDATE)
                  WHERE COST_CENTER_CODE = V_COST_CENTER_CODE
-                   AND POLL_STATUS_EXP_DT IS NULL;
+                   AND EXPIRATION_DATE IS NULL;
             ELSE
                 V_POS_ST_DT_EXT_LST := V_POS_ST_DT_EXT_LST || V_COST_CENTER_CODE   || ','
                                                            || V_POLLING_PREV_REC.POLLING_START_DATE || ','
