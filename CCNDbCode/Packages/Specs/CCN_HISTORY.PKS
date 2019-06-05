@@ -2,9 +2,7 @@ create or replace PACKAGE CCN_HISTORY
 /*********************************************************** 
 This package is will return data for HISTORY detail 
 
-created :
-Modified: mxs216, ASP-1210, CCN Project....
-          Deleted RELEASE_LOCK_FOR_HRCHY_HST procedure, as it is no where using.
+created : 
 ************************************************************/
     AS
 	 	TYPE REF_CURSOR IS REF CURSOR;
@@ -34,6 +32,17 @@ end;
      ,IN_TRAVERSE           IN      VARCHAR2 DEFAULT 'UP'
      ,IN_HIST_DATE          IN      HIERARCHY_DETAIL.HRCHY_DTL_EFF_DATE%TYPE DEFAULT NULL
      ,OUT_HIERARCHY_REF_CUR    OUT  REF_CURSOR);
+
+ PROCEDURE RELEASE_LOCK_FOR_HRCHY_HST
+  /**********************************************************
+	RELEASE_LOCK_FOR_HRCHY_HST
+
+	This procedure will release the lock on the history table
+
+ created : 08/01/2014 CCN Project....
+ modified:
+**********************************************************/
+;
 
 PROCEDURE RETURN_STATUS_HIST (
 /**********************************************************
@@ -109,17 +118,5 @@ modified:
 **********************************************************/
     IN_USER_ID            IN     VARCHAR2,
     OUT_HIERARCHY_REF_CUR    OUT REF_CURSOR);
-
-PROCEDURE RETURN_POS_DOWNLOAD_HIST (
-/**********************************************************
-RETURN_POS_DOWNLOAD_HIST
-This procedure will return a ref cursor with data from
-from the POS_DOWNLOAD table based on COST_CENTER_CODE
-
-created : 03/11/2019 pxa852 CCN Project Team...
-Modified:
-**********************************************************/
-IN_COST_CENTER_CODE IN VARCHAR2,
-OUT_POS_DOWNLOAD_REF_CUR OUT REF_CURSOR);
 
 END CCN_HISTORY;
