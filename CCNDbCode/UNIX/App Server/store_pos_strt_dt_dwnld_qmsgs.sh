@@ -27,6 +27,7 @@ QueueMessage=$(java \
 -Djavax.net.ssl.trustStore="$MQ_CCN_KEY_UN" \
 -Djavax.net.ssl.keyStorePassword="$MQ_CCN_KEY_PWD" \
 -Djavax.net.ssl.trustStorePassword="$MQ_CCN_KEY_PWD" \
+-Dcom.ibm.mq.cfg.useIBMCipherMappings=false \
 com.polling.downloads.MessageQueueProcess "downloadQueueMessages" "/app/ccn/CcnJavaCode/CCN-v8.ccdt" "$QUEUE_MGR" "$POS_STRT_DT_CNSMR_NM")
 
 #If the response has errors, then log the error and move it to the error folder.
