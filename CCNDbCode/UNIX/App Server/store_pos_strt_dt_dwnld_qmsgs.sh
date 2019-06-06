@@ -5,7 +5,8 @@
 #
 #
 # Created  : 04/9/2018 xxxxxx CCN Project Team.....
-# Modified : 
+# Modified : 06/06/2019 sxh487 ASP -1247 Polling downloads Cipher issue with version upgrade
+#            Added "-Dcom.ibm.mq.cfg.useIBMCipherMappings=false" before java calls
 ###############################################################################################################################
 
 . /app/ccn/ccn_app_server.config
