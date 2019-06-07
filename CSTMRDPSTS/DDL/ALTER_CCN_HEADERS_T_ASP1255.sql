@@ -1,12 +1,15 @@
 /*
-ASP-1255 This script will add STORECCN column in CCN_HEADERS_T table.
-         AND drop obsolete 4 chars column store_no .       
+ASP-1255 This script will rename STORE_NO to STORECCN column in CCN_HEADERS_T table.
 Created  : 05/31/2019 sxs484 
 */
-    ALTER TABLE CCN_HEADERS_T
-    ADD (STORECCN VARCHAR2(6));
+ALTER TABLE CCN_HEADERS_T MODIFY STORE_NO VARCHAR2(6);
 
-    ALTER TABLE CCN_HEADERS_T
-    DROP COLUMN STORE_NO
-    ;
+ALTER TABLE CCN_HEADERS_T RENAME COLUMN STORE_NO TO STORECCN;
+
+
+-- Data Conversion of existing 4 digit store_no to 6 .
+UPDATE CCN_HEADERS_T SET STORECCN = COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(STORECCN);
+COMMIT;
+
+
 /
