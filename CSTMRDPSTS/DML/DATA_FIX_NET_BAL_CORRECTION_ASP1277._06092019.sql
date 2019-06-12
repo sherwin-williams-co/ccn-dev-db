@@ -1,9 +1,11 @@
 /*
 ASP-1277 
 Below script will update net balance amount for CUSTOMER_DEPOSIT_TRANSACTION_DTL
-as they were not calculated correctly due to incorrect 
+as they were not calculated correctly.
+Created : 06/09/2019 sxs484 CCN Project Team.
+		  06122019 - Identified and Included All accts from prod which have this issue.
+          Accts approved by User in Issue_Accounts_userApproval_ASP1255.xlsx
 
-Created : 06/09/2019 sxs484 CCN Project Team....
 */
 
 DECLARE
