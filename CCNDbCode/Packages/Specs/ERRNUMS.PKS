@@ -3226,8 +3226,8 @@ Hierarchy report.
 created : 01/08/2019 pxa852 CCN Project Team...
 ************************************************************/
 en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
-exc_costcntr_exists_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_costcntr_exists_err , -20219);
+exc_costcntr_not_exist_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_costcntr_not_exist_err , -20219);
 
 /*********************************************************** 
 The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
