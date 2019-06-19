@@ -124,7 +124,7 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
 
-PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
+  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 			  , out_CODE_DETAIL_REF_CUR  OUT REF_CURSOR )
@@ -2201,7 +2201,6 @@ Created : 03/15/2017 axt754 -- CCN Project Team
     in_gl_accnt_frag IN     CLOB,
     in_table_name    IN     VARCHAR2,
     out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
-
 
 PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
 /*******************************************************************************
