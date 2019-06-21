@@ -3191,44 +3191,6 @@ en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
 exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_chn_not_ald_in_arch_cc_err , -20210);
 
-/***********************************************************
-The "en_cost_center_not_passed_err" passes a numerical error of -20211.
-This error occurs when cost center is not passed for generating a hierarchy report.
-If user clicks on hierarchy report link with out passing the cost center code,
-then this exception will be raised with the below message
-"Please enter a costcenter either 4 or 6 digits to generate report"
-
-created : 11/20/2018 pxa852 CCN Project Team...
-************************************************************/
-en_cost_center_not_passed_err      CONSTANT NUMBER := -20211;
-exc_cost_center_not_passed_err     EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_cost_center_not_passed_err , -20211);
-
-/***********************************************************
-The "en_hrchy_dtls_not_exist_err" passes a numerical error of -20212.
-This error occurs when hierarchy details are not exist for a passed cost center.
-When user clicks on hierachy report link for a cost center and if they are
-not exists then this eexception will be raised with the below message
-"Hierarchy details are not exist for a selected cost center"
-
-created : 11/20/2018 pxa852 CCN Project Team...
-************************************************************/
-en_hrchy_dtls_not_exist_err      CONSTANT NUMBER := -20212;
-exc_hrchy_dtls_not_exists_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_hrchy_dtls_not_exists_err , -20212);
-
-/***********************************************************
-The "en_costcntr_not_exist_err" passes a numerical error of -20219.
-This error occurs when cost center does not exist that is entered to generate
-Hierarchy report.
-"Sorry, This cost center does not exists"
-
-created : 01/08/2019 pxa852 CCN Project Team...
-************************************************************/
-en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
-exc_costcntr_not_exist_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_costcntr_not_exist_err , -20219);
-
 /*********************************************************** 
 The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
 Number Range BETWEEN 99750 AND 99999 Allowed only for QA COST CENTER with Prefix 'LB'.
@@ -3249,6 +3211,16 @@ created : 01/16/2019 mxs216 ASP - 1169 CCN Project Team...
 en_territory_cc_open_date_err  CONSTANT NUMBER := -20220;
 exc_open_date_req_terri_cc_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_open_date_req_terri_cc_err, -20220);
+
+/*********************************************************** 
+The "en_costcntr_cc_close_date_err" passes a numerical error of -20221
+This error occurs when close date is entered without removing Allocation type
+
+created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
+************************************************************/
+en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
+exc_close_date_req_alloc_type_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
 
 END ERRNUMS;
 

@@ -41,8 +41,6 @@ Changed : 03/08/2018 mxv711 CCN Project Team..
            MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
            Removed cost center call in BANK_CARD_BR_SP procedure 
            as there is no cost center data passed in the XML.
-        : 02/25/2019 sxc403 CCN Team....
-          ASP--1219 :Before closing Dispatch Terminal Cost Center  Make home store is null
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -360,19 +358,9 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
 --
 --
 /**  Translate DISPATCH_TERMINAL_XMLTYPE Table ***/
-       IF (inDISPATCH_TERMINAL_XMLTYPE IS NOT NULL) THEN
+    IF (inDISPATCH_TERMINAL_XMLTYPE IS NOT NULL) THEN
       v_break := ('Processing Dispatch Terminal XMLTYPE ');
-      CCN_TABLE_IU_PKG.DISPATCH_TERMINAL_ROWTYPE_SP('DISPATCH_TERMINAL',
-                                                     indispatch_terminal_xmltype,
-                                                     v_dispatch_terminal_rowtype,
-                                                     'Y');--should be passed only during validation, not during databaase updates for which default is set as 'N'
-    --Before closing Dispatch Terminal Cost Center  Make home store is null
-        IF (v_status_rowtype.STATUS_CODE = '5')  AND (v_cost_center_rowtype.CATEGORY = 'D') THEN
-            IF v_dispatch_terminal_rowtype.cost_center_code = v_cost_center_rowtype.cost_center_code  AND
-               v_dispatch_terminal_rowtype.HOME_STORE IS NOT NULL THEN
-               v_dispatch_terminal_rowtype.HOME_STORE := NULL;
-            END IF ;
-        END IF;
+      CCN_TABLE_IU_PKG.DISPATCH_TERMINAL_ROWTYPE_SP('DISPATCH_TERMINAL', indispatch_terminal_xmltype, v_dispatch_terminal_rowtype);
     END IF;
 --
 --
@@ -766,7 +754,7 @@ v_break  := ('Entering Table Specific Business Rules'
 /**  Call DISPATCH_TERMINAL Table Business Rule ***/
     IF (inDISPATCH_TERMINAL_ROWTYPE.cost_center_code IS NOT NULL) THEN
       v_break := ('Processing DISPATCH_TERMINAL Business Rules ');
-      CCN_BUSINESS_RULES_PKG.DISPATCH_TERMINAL_BR_SP(indispatch_terminal_rowtype, incost_center_rowtype, inSTATUS_ROWTYPE);
+      CCN_BUSINESS_RULES_PKG.DISPATCH_TERMINAL_BR_SP(indispatch_terminal_rowtype, incost_center_rowtype);
     END IF;
 --
 /**  Call TERMINAL Table Business Rule ***/
@@ -804,8 +792,7 @@ IF (inCOST_CENTER_ROWTYPE.cost_center_code  IS NOT NULL)  THEN --Added to avoid 
               CCN_BUSINESS_RULES_PKG.close_ccntr_sp
                (instatus_rowtype,
                 incost_center_rowtype,
-                interritory_rowtype,
-                indispatch_terminal_rowtype );
+                interritory_rowtype );
        END IF;
    END IF;
 END IF;
@@ -1202,13 +1189,11 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
           We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
           we need to throw an error to user stating that those fields need to be removed before closing the cost center. 
           Error message "Cost center can not be closed if Allocation Type details are present".
-        : 02/25/2019 sxg151 CCN Team...
-          ASP-1219 : Stop closing a store if it is a home store for dispatch terminal
+ 
 ******************************************************************************/	
   inSTATUS_ROWTYPE       IN STATUS%ROWTYPE
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
- ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE
- ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
+ ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE )
         IS 
 
  non_numeric_exp 		        EXCEPTION;
@@ -1331,7 +1316,7 @@ END;
 /*******************************************************************************
 	For Store and Territory Close Cost centers, they cannot be a HOME_STORE
   (TERRITORY Table) to any Territory or Vice Versa.
-  STORE:     Cannot be a Home_Store for any territory/dispatch terminal
+  STORE:     Cannot be a Home_Store for any territory
   Territory: Must be on TERRITORY table
              Must not have a Home_Store Assignment
 *******************************************************************************/	      
@@ -1344,13 +1329,6 @@ END;
 	   	 WHERE TERRITORY.HOME_STORE =  inCOST_CENTER_ROWTYPE.COST_CENTER_CODE ;       
      IF v_count > 0 THEN
         RAISE close_store_asgn_terr_exp;
-     ELSE
-        SELECT count(*)  INTO v_count -- Check if the Cost Center is Home sote for Dispatch Terminal
-          FROM DISPATCH_TERMINAL
-         WHERE HOME_STORE =  inCOST_CENTER_ROWTYPE.COST_CENTER_CODE ;
-        IF v_count > 0 THEN
-           RAISE close_store_asgn_dispatch_exp;
-        END IF;
      END IF;
 END IF;
 
@@ -1358,7 +1336,7 @@ END IF;
        WHEN NO_DATA_FOUND THEN
           NULL;
 END;
-  -- Territory/Dispatch Terminal
+  -- Territory
 BEGIN
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
      (inCOST_CENTER_ROWTYPE.CATEGORY = 'T')    THEN
@@ -1373,18 +1351,6 @@ BEGIN
           inTERRITORY_ROWTYPE.HOME_STORE  IS NOT NULL THEN
             RAISE close_terr_asgn_store_exp;
        END IF ;
-  END IF;
-    -- If Closed Dispatch  not in find in cost center table, cannot check for home store assignment  
-  IF (inSTATUS_ROWTYPE.STATUS_CODE = '5')  AND (inCOST_CENTER_ROWTYPE.CATEGORY = 'D') THEN
-      IF indispatch_terminal_rowtype.COST_CENTER_CODE IS NULL  OR
-        (indispatch_terminal_rowtype.COST_CENTER_CODE IS NOT NULL  AND
-         indispatch_terminal_rowtype.COST_CENTER_CODE  <> inCOST_CENTER_ROWTYPE.cost_center_code) THEN
-          RAISE no_dispatch_exp;
-       END IF;
-      IF indispatch_terminal_rowtype.COST_CENTER_CODE = inCOST_CENTER_ROWTYPE.cost_center_code  AND
-         indispatch_terminal_rowtype.HOME_STORE  IS NOT NULL THEN
-            RAISE close_dispatch_asgn_store_exp;
-      END IF ;
   END IF;
 --EXCEPTION  
 --    when NO_DATA_FOUND then
@@ -1403,7 +1369,7 @@ as these cost center got active customer account.
      to be added from CPR
 ******************************************************************************/  
   -- raise ar_accts_assigned_exp;
-
+  
   /*******************************************************************************
  ASP:1197 Business Rule around Allocation Type details
  We need to build a rule in CCN while closing a cost center if allocations (PCC/PCL fields) are set up for those cost centers 
@@ -1413,6 +1379,7 @@ as these cost center got active customer account.
     IF incost_center_rowtype.CLOSE_DATE IS NOT NULL AND CHECK_ALLOCATION_TYPE(incost_center_rowtype.COLOR_CONSULTANT_TYPE) = 'Y' THEN
             RAISE exc_close_date_req_alloc_type_err;    
     END IF;
+
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
@@ -6347,8 +6314,6 @@ BEGIN
          raise cc_std_primry_price_err;    
     END IF;
 
-END;
-
     /******************************************************************************
         12). OPEN_DATE must be populated for Territory Cost Centers.
         Added  : mxs216 ASP-1198 01/17/2019 CCN Project Team....
@@ -6356,6 +6321,8 @@ END;
     IF incost_center_rowtype.CATEGORY = 'T' and incost_center_rowtype.OPEN_DATE IS NULL THEN
         RAISE exc_territory_cc_open_date_err;
     END IF;
+
+END;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
@@ -7599,11 +7566,9 @@ PROCEDURE DISPATCH_TERMINAL_BR_SP(
     created : rxa457 4/17/17 CCN PROJECT TEAM..
     modified: nxk927 02/22/18 CCN PROJECT TEAM..
               removed the raise error for closed date issue
-    modified: 02/26/2019 sxg151 CCN Team...ASP-1219 : Updated Home store validations.
 *******************************************************************************/
     inDispatch_Terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE,
-    inCC_rowtype                IN COST_CENTER%ROWTYPE,
-    inSTATUS_ROWTYPE            IN STATUS%ROWTYPE)
+    inCC_rowtype                IN COST_CENTER%ROWTYPE)
 IS
     inactive_cost_center_err      EXCEPTION;
     invalid_category_err          EXCEPTION;
@@ -7611,7 +7576,6 @@ IS
     no_cost_center_exp            EXCEPTION;
     invalid_home_store_desig1_exp EXCEPTION;
     invalid_home_store_desig2_exp EXCEPTION;
-    invalid_home_store_desig3_exp EXCEPTION;
     v_code                        NUMBER;
     v_errm                        VARCHAR(500);
     v_home_store DISPATCH_TERMINAL.HOME_STORE%TYPE;
@@ -7645,37 +7609,23 @@ IS
     The Dispatch terminal can only be added if the Cost_Center is not closed!
     *******************************************************************************/
     /*******************************************************************************
-   Home store validations
-       Since this is a Dispatch Terminal, the Home_Store must have a value refering to
-       a "Store" Cost Center.  This field can only be null if the Dispatch Terminal is
-       "closed" (i.e. Close_Date is not null).
+    Home store validations
     *******************************************************************************/
     BEGIN
-       --If store is open, home store can not be blank	
-       IF (inDispatch_Terminal_rowtype.home_store  IS NULL   AND
-            inCC_rowtype.close_date IS NULL)  THEN
-            RAISE invalid_home_store_desig1_exp;
-        END IF;
-        --If store is closed, home store can not be present		
-        IF (inDispatch_Terminal_rowtype.home_store IS NOT NULL  AND
-            inCC_rowtype.close_date IS NOT NULL)  THEN 
-             RAISE invalid_home_store_desig3_exp; 
-        END IF;
+      IF (inDispatch_Terminal_rowtype.home_store IS NULL) THEN
+        RAISE invalid_home_store_desig1_exp;
+      END IF;
       --Home Store not Found as Cost center with category "S" in Cost Center table
-      --If store is getting closed, home store validation is no longer needed as it will be made blank
-      --If store is not getting closed, home store validation needs to happen	  
       BEGIN
-         IF inSTATUS_ROWTYPE.STATUS_CODE <> '5' THEN
-            v_home_store := common_tools.cost_center_look_up_fnc(inDispatch_Terminal_rowtype.home_store);
-            SELECT *
-              INTO V_COSTCTR_ROWTYPE
-              FROM COST_CENTER
-             WHERE COST_CENTER_CODE = v_home_store
-              AND CATEGORY           = 'S';
-         END IF;
+        v_home_store := common_tools.cost_center_look_up_fnc(inDispatch_Terminal_rowtype.home_store);
+        SELECT *
+        INTO V_COSTCTR_ROWTYPE
+        FROM COST_CENTER
+        WHERE COST_CENTER_CODE = v_home_store
+        AND CATEGORY           = 'S';
       EXCEPTION
-         WHEN NO_DATA_FOUND THEN
-            RAISE invalid_home_store_desig2_exp;
+      WHEN NO_DATA_FOUND THEN
+        RAISE invalid_home_store_desig2_exp;
       END;
     END;
   EXCEPTION
@@ -7697,11 +7647,6 @@ IS
   WHEN invalid_home_store_desig2_exp THEN
     v_code := errnums.en_inv_home_store_desig1_err;
     errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.invalid_home_store_desig2_exp ', 'Cost Center "' || inCC_rowtype.cost_center_code || '" Attached Home Store is not a valid cost center of type Store - S "' || '"');
-  WHEN invalid_home_store_desig3_exp THEN
-    v_code := errnums.en_inv_home_store_desig1_err;
-    errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.en_inv_home_store_desig3_err '  ,
-                   'Cost Center "' || inCC_rowtype.cost_center_code || 
-                   '" Home Store not Required for closed Dispatch"' || '"');  
   WHEN OTHERS THEN
     v_code := SQLCODE;
     v_errm := SUBSTR(SQLERRM, 1, 500);
@@ -7749,7 +7694,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal ¿rows¿ must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal ?ows?must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
