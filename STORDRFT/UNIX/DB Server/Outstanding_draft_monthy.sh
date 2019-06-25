@@ -8,6 +8,8 @@
 # Created  : 06/18/2015 nxk927 CCN Project Team.....
 # Modified : 09/23/2015 axk326 CCN Project Team.....
 #            Substituted hard coded date value with the date value from date_param.config file
+# Modified : 06/24/2019 axm868 CCN Project Team.....
+#            Added SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC call for new division code C522
 ##############################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -30,6 +32,7 @@ BEGIN
 :exitCode := 0;
 SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C101');
 SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C400');
+SD_FILE_BUILD_PKG.OUTSTANDING_DRAFT_EXC(to_date('$DATE','MM/DD/YYYY'), 'C522');
 EXCEPTION
  when others then
  :exitCode := 2;
