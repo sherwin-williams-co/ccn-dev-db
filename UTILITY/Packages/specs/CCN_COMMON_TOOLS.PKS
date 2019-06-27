@@ -299,7 +299,7 @@ Modified:
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
-    
+
 FUNCTION CHK_POS_NEW_STORES_BYPASS(
 /**********************************************************
 	This function is intended to check whether the cost center 
@@ -313,5 +313,15 @@ Changed :
 **********************************************************/
     IN_COST_CENTER_CODE    IN  COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN BOOLEAN;
+
+FUNCTION GET_FIRST_ASSIGNED_TERMINAL_NUMBER(
+/******************************************************************************
+This function will return the first assigned terminal number for a given store     
+
+Created : 06/21/2019 axm868 --  CCN Project....
+Changed :
+******************************************************************************/
+         IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE)
+RETURN TERMINAL.TERMINAL_NUMBER%TYPE;
 
 END CCN_COMMON_TOOLS;
