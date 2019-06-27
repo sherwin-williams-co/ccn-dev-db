@@ -1,4 +1,4 @@
-CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
+create or replace TRIGGER COSTCNTR.TR_BANK_CARD_UPD
    /***************************************************************************
    ***
    TR_BANK_CARD_UPD.TRG
@@ -7,6 +7,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
    Modified : 02/17/2017 gxg192 Added 2 new fields, PCI_MERCHANT_ID and PCI_DISCOVER_ID
             : 02/21/2017 gxg192 Added , to rectify compilation error
             : 02/09/2018 bxa919 Added 2 fields MERCHANT_ID_CAN and PCI_MERCHANT_ID_CAN
+			: 06/27/2019 sxc403 Removed the If condition for CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON COSTCNTR.BANK_CARD
@@ -28,7 +29,7 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
       -- changes
       --If the data got manipulated by osme other table changes we should not
       -- consider that for audit_log
-      IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
+-- Removed for CCNCC-7            IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
          v_bank_card_row.COST_CENTER_CODE              := :NEW.COST_CENTER_CODE
          ;
          v_bank_card_row.POLLING_STATUS_CODE  := :NEW.POLLING_STATUS_CODE;
@@ -143,5 +144,5 @@ CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
                                        SQLERRM,
                                        V_BANK_CARD_ROW.COST_CENTER_CODE );
          END;
-      END IF;
+ -- Removed for CCNCC-7           END IF;
    END TR_BANK_CARD_UPD;
