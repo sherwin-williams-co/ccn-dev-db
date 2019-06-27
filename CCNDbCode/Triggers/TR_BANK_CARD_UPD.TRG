@@ -29,7 +29,6 @@ create or replace TRIGGER COSTCNTR.TR_BANK_CARD_UPD
       -- changes
       --If the data got manipulated by osme other table changes we should not
       -- consider that for audit_log
--- Removed for CCNCC-7            IF NVL(CCN_TABLE_IU_PKG.TRIGGER_DISABLE_FLAG,'N') = 'N' THEN
          v_bank_card_row.COST_CENTER_CODE              := :NEW.COST_CENTER_CODE
          ;
          v_bank_card_row.POLLING_STATUS_CODE  := :NEW.POLLING_STATUS_CODE;
@@ -144,5 +143,4 @@ create or replace TRIGGER COSTCNTR.TR_BANK_CARD_UPD
                                        SQLERRM,
                                        V_BANK_CARD_ROW.COST_CENTER_CODE );
          END;
- -- Removed for CCNCC-7           END IF;
    END TR_BANK_CARD_UPD;

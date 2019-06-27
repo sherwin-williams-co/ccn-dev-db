@@ -16,7 +16,6 @@ changed : 12/16/2014 AXK326 CCN Project Team....
 
 --MEMORY VARIABLES
 --BElow memory variable is used to by-pass trigger code when needed
-    -- Removed for CCNCC-7 --   TRIGGER_DISABLE_FLAG VARCHAR2(1); );
 
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
