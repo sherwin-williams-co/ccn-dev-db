@@ -10,12 +10,13 @@ changed : 12/16/2014 AXK326 CCN Project Team....
 		: 04/13/2017 rxa457 CCN Project team.. 
                      Code changes related to Dispatch Terminal
                      Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
+		: 06/27/2019 sxc403 Commented out the declaration of global variable TRIGGER_DISABLE_FLAG for change CCNCC-07
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
 --MEMORY VARIABLES
 --BElow memory variable is used to by-pass trigger code when needed
-    TRIGGER_DISABLE_FLAG VARCHAR2(1);
+    -- Removed for CCNCC-7 --   TRIGGER_DISABLE_FLAG VARCHAR2(1); );
 
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
@@ -124,7 +125,7 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
 
-  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
+PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 			  , out_CODE_DETAIL_REF_CUR  OUT REF_CURSOR )
@@ -2202,6 +2203,7 @@ Created : 03/15/2017 axt754 -- CCN Project Team
     in_table_name    IN     VARCHAR2,
     out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
 
+
 PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
 /*******************************************************************************
 This procedure is intended to build the currency_conversion record type
@@ -2352,3 +2354,4 @@ Changed :
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
 END CCN_TABLE_IU_PKG;
+
