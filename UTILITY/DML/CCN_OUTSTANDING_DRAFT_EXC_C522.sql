@@ -6,7 +6,7 @@ Modified:
 **********************************************************************************/
 SET DEFINE OFF;
 
-Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('136','ccnoracle.team@sherwin.com');
+Insert into MAILING_GROUP(GROUP_ID,MAIL_ID) VALUES('136','ccnoracle.team@sherwin.com;joseph.p.zbiegien@sherwin.com');
 
 Insert into MAILING_DETAILS (MAIL_CATEGORY,GROUP_ID,SUBJECT,FROM_P,MESSAGE,SIGNATURE) 
 values ('OUTSTANDING_DRAFT_EXC_C522',
