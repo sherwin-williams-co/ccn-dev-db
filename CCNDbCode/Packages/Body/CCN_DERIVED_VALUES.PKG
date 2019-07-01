@@ -1,9 +1,15 @@
-create or replace PACKAGE   BODY       CCN_DERIVED_VALUES AS 
+create or replace PACKAGE   BODY       "CCN_DERIVED_VALUES" AS 
 /*********************************************************** 
 This package BODY is intended to derive values for CCN user   
 
 created : 09/13/2018 kxm302 CCN Proeject Team.....
         : Derives Cost Center Manager Name ASP - 1128
+changed : 06/21/2019 jxc517 CCN Project Team.....
+          Incorporated logic provided by Pat for Canadian Auto and PCG cost centers
+          Division 08 and Area 05 (or) Division 09 and Area 00 (no cost centers for this division in prod as of 7/1/2019)
+          Job Family is Sales and Job Family is blank or Site -> take that person
+          If above condition fails Job Family is Ops and Job Family is Ops -> take that person
+          If above two conditions fail -> return blank
 ************************************************************/
 
 FUNCTION GET_CC_MANAGER_NAME(
@@ -11,13 +17,14 @@ FUNCTION GET_CC_MANAGER_NAME(
 This function will return Manager Name for given Cost Center Code
 
 Created : 03/28/2018 sxg151 CCN Project ASP-1048
-modified: 
+modified: 06/21/2019 jxc517 CCN Project Team ASP-1229
 ************************************************************/
     IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
 RETURN VARCHAR2
 IS 
-    V_MGR_NAME EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;    
-    V_CATEGORY COST_CENTER.CATEGORY%TYPE;
+    V_MGR_NAME    EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;    
+    V_CATEGORY    COST_CENTER.CATEGORY%TYPE;
+    V_COUNT       NUMBER := 0;
 BEGIN
     BEGIN
         SELECT CATEGORY
@@ -30,6 +37,7 @@ BEGIN
     END;
 
     IF V_CATEGORY = 'T' THEN
+        --If below query does not return anything, we return null through exception block
         SELECT EMPLOYEE_NAME
           INTO V_MGR_NAME
           FROM EMPLOYEE_DETAILS EMP
@@ -40,22 +48,92 @@ BEGIN
                              WHERE UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
                                AND UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE');
     ELSE
-        SELECT EMPLOYEE_NAME
-          INTO V_MGR_NAME
-          FROM (SELECT EMP.*
-                  FROM EMPLOYEE_DETAILS EMP
-                 WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
-                   AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
-                   AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
-                                             WHERE NONMGR_IND = 'Y'
-                                               AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
-                                               AND UPPER(JOB_TITLE) <> 'MTP'
-                                               )
-                 ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
-                 -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
-                 -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
-             )
-       WHERE ROWNUM < 2;
+        BEGIN
+            /*
+            Accessing the data through GLOBAL_HIERARCHY_DETAIL_VIEW is very resource intensive, so going by
+            source table HIERARCHY_DETAIL and querying just the GLOBAL_HIERARCHY last level
+            */
+--            SELECT COUNT(*)
+--              INTO V_COUNT
+--              FROM GLOBAL_HIERARCHY_DETAIL_VIEW
+--             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+--               AND (DIVISION = '08' AND AREA = '05') OR (DIVISION = '09' AND AREA = '00');
+            SELECT COUNT(*)
+              INTO V_COUNT
+              FROM HIERARCHY_DETAIL
+             WHERE HRCHY_HDR_NAME  = 'GLOBAL_HIERARCHY'
+               AND HRCHY_DTL_LEVEL = '9'
+               AND HRCHY_DTL_CURR_ROW_VAL = IN_COST_CENTER_CODE
+               --Below condition is to check division and area (level 3 + level 4) of hierarchy
+               AND SUBSTR(HRCHY_DTL_CURR_LVL_VAL, 5, 4) IN ('0805','0900');
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+        IF V_COUNT <> 0 THEN -- Canadian Auto and PCG stores needs special handling
+            --need exception handling here to make sure it goes to next select execution before going to outer exception block
+            BEGIN
+                SELECT EMPLOYEE_NAME
+                  INTO V_MGR_NAME
+                  FROM (SELECT EMP.*
+                          FROM EMPLOYEE_DETAILS EMP
+                         WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                           AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
+                                                     WHERE NONMGR_IND = 'Y'
+                                                       AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
+                                                       AND UPPER(JOB_TITLE) <> 'MTP')
+                           AND JOB_FAMILY = 'Sales'
+                           AND (JOB_FUNCTION IS NULL OR JOB_FUNCTION = 'Site')
+                         ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                         -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
+                         -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
+                     )
+                WHERE ROWNUM < 2;
+           EXCEPTION
+               WHEN OTHERS THEN
+                   NULL;
+           END;
+           IF V_MGR_NAME IS NULL THEN
+               --If below query also does not return anything, we return null through exception block
+               SELECT EMPLOYEE_NAME
+                 INTO V_MGR_NAME
+                 FROM (SELECT EMP.*
+                         FROM EMPLOYEE_DETAILS EMP
+                        WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                          AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                          AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
+                                                    WHERE NONMGR_IND = 'Y'
+                                                      AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
+                                                      AND UPPER(JOB_TITLE) <> 'MTP'
+                                                      )
+                          AND JOB_FAMILY = 'Ops'
+                          AND JOB_FUNCTION = 'Ops'
+                        ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                        -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
+                        -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
+                    )
+               WHERE ROWNUM < 2;
+           END IF;
+        ELSE
+            --If below query does not return anything, we return null through exception block
+            SELECT EMPLOYEE_NAME
+              INTO V_MGR_NAME
+              FROM (SELECT EMP.*
+                      FROM EMPLOYEE_DETAILS EMP
+                     WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                       AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                       AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
+                                                 WHERE NONMGR_IND = 'Y'
+                                                   AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
+                                                   AND UPPER(JOB_TITLE) <> 'MTP'
+                                                   )
+                     ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                     -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
+                     -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
+                 )
+           WHERE ROWNUM < 2;
+       END IF;
     END IF;
     RETURN V_MGR_NAME;
 EXCEPTION
