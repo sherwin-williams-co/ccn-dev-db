@@ -1,4 +1,4 @@
-create or replace TRIGGER COSTCNTR.TR_BANK_CARD_UPD
+CREATE OR REPLACE TRIGGER COSTCNTR.TR_BANK_CARD_UPD
    /***************************************************************************
    ***
    TR_BANK_CARD_UPD.TRG
