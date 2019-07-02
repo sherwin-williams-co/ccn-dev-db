@@ -144,3 +144,4 @@ create or replace TRIGGER COSTCNTR.TR_BANK_CARD_UPD
                                        V_BANK_CARD_ROW.COST_CENTER_CODE );
          END;
    END TR_BANK_CARD_UPD;
+
