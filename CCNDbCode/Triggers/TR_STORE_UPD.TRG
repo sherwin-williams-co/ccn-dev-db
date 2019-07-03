@@ -10,6 +10,8 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
    Modified : 09/10/2018 pxa852 CCN Project Team...
               Modified code to insert records into pos_downloads table
               if there are any changed on store table.
+   Modified : 06/14/2019 akj899 CCNCC-13 CCN Project Team...
+              Modified code for new field dispatch_services_type_code.
    ****************************************************************************
    **/
    BEFORE INSERT OR UPDATE ON "COSTCNTR"."STORE"
@@ -37,7 +39,8 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
       v_store_row.sales_vol_class_code    := :NEW.sales_vol_class_code;
       v_store_row.potential_open_date     := :NEW.potential_open_date;
       v_store_row.descartes_delivery_code := :NEW.descartes_delivery_code;
-      
+	  v_store_row.dispatch_services_type_code  := :NEW.dispatch_services_type_code;
+
       SELECT XMLELEMENT ("STORE",
                          XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
                                         'http://www.oracle.com/Employee.xsd' AS
@@ -51,7 +54,8 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
                                    v_store_row.selling_store_flag selling_store_flag ,
                                    v_store_row.sales_vol_class_code sales_vol_class_code,
                                    TO_CHAR(v_store_row.potential_open_date, 'yyyymmdd') potential_open_date,
-                                   v_store_row.descartes_delivery_code descartes_delivery_code )
+                                   v_store_row.descartes_delivery_code descartes_delivery_code,
+								   v_store_row.dispatch_services_type_code dispatch_services_type_code)
                          ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
@@ -102,9 +106,13 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
              IF NVL(:OLD.DESCARTES_DELIVERY_CODE, 'XXX') <> NVL(:NEW.DESCARTES_DELIVERY_CODE, 'XXX') THEN
                  POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_store_row.COST_CENTER_CODE, 'STORE', 'CHANGE', 'POS_STORE_UPDATE');
              END IF;
+             IF NVL(:OLD.DISPATCH_SERVICES_TYPE_CODE, 'XXX') <> NVL(:NEW.DISPATCH_SERVICES_TYPE_CODE, 'XXX') THEN
+                 CCN_DESCARTES_PROCESS.INSERT_DESCARTES_ADRS_FEED_CC(:NEW.COST_CENTER_CODE);
+             END IF;
          END IF;
       EXCEPTION
           WHEN OTHERS THEN
               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'TR_STORE_UPD', SQLERRM, v_store_row.COST_CENTER_CODE );
       END;
    END TR_STORE_UPD;
+

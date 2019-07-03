@@ -164,5 +164,13 @@ Created : 02/20/2019 pxa852 CCN project Team....
 Modified:
 **********************************************************/
 ;
+PROCEDURE UPD_STORE_DISPATCH_SERVICES_TYPE_CODE
+/******************************************************************************
+  This Procedure Will update the store dispatch service type code.
+
+Created : 06/14/2019 akj899 CCNCC-13 CCN Project Team....
+Changed :
+*******************************************************************************/
+;
 
 END CCN_BATCH_PROCESS;
