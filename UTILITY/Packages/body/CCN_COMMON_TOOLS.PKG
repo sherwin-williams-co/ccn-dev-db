@@ -11,7 +11,7 @@ revised : 05/30/2013 mdh EXPIRE_DATA_SP changes.
   g_key     RAW(32767)  := UTL_RAW.cast_to_raw('12345678');
   g_pad_chr VARCHAR2(1) := '~';
 
-FUNCTION COMPUTE_EXPIRATION_DATE
+FUNCTION COMPUTE_EXPIRATION_DATE  
 /******************************************************************************
     COMPUTE_EXPIRATOIN_DATE (in_date)
 
@@ -540,15 +540,17 @@ Created : 12/03/2015 jxc517 CCN Project....
 Modified: 
 **********************************************************/
 IN_CODE_HEADER_NAME      IN     VARCHAR2,
-IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2
+IN_CODE_DETAIL_VALUE     IN     VARCHAR2,
+IN_CODE_TRANSLATION_NAME IN     VARCHAR2 ) RETURN VARCHAR2
 IS
     V_RETURN_VAL VARCHAR2(100);
 BEGIN
-    SELECT DETAIL_TRANSLATION
+    SELECT TRANSLATION_VALUE
       INTO V_RETURN_VAL
       FROM TRANSLATION_DETAIL
      WHERE HEADER_NAME  = IN_CODE_HEADER_NAME
-       AND DETAIL_VALUE = IN_CODE_DETAIL_VALUE;
+       AND DETAIL_VALUE = IN_CODE_DETAIL_VALUE
+       AND TRANSLATION_NAME = IN_CODE_TRANSLATION_NAME;
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -617,7 +619,7 @@ BEGIN
     V_TEMP_LENGTH := V_LENGTH;
     V_FILE := utl_file.fopen ( IN_DIRECTORY, IN_FILENAME, 'W', 32767); 
     IF V_LENGTH < 32760 THEN
-        UTL_FILE.PUT(V_FILE, IN_CLOB);
+        UTL_FILE.PUT(V_FILE, IN_CLOB); 
         UTL_FILE.FFLUSH(V_FILE);
     ELSE -- write in pieces
         V_START := 1;
@@ -941,9 +943,8 @@ END GET_APPLICATION_CREDENTIALS;
 FUNCTION GET_COST_CENTER_DSC_CODES(
 /**********************************************************
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
-from COST_CENTER_DSC_CODES
+from CCN_DSC_CODE_DESC 
 Created : 02/22/2018 SXG151 CCN Project....
-Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
@@ -961,12 +962,69 @@ BEGIN
         V_RETURN_VAL := V_RECORD.PRIMARY_DSC;
     ELSIF IN_DSC_TYPE = 'SECONDARY_DSC' THEN
         V_RETURN_VAL := V_RECORD.SECONDARY_DSC;
-    END IF;
+    END IF;    
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VAL;
 END GET_COST_CENTER_DSC_CODES;
+
+FUNCTION GET_COLOR_CONSULTANT_TYPE(
+/*******************************************************************************************
+This function will return the COLOR_CONSULTANT_TYPE From Cost Center table
+Created  : sxg151 03/21/2018 ASP-869
+Modified : 
+*******************************************************************************************/
+    IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE
+
+)RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(20) := NULL;
+BEGIN   
+    SELECT 
+           RTRIM( REGEXP_REPLACE (C.COLOR_CONSULTANT_TYPE.extract('/PROGRAM_TYPE/COLOR_CONSULTANT_TYPE/text()').getStringVal(),'(.{3})','\1,'),',' ) AS COLOR_CONSULTANT_TYPE    
+      INTO V_RETURN_VAL
+      FROM COST_CENTER C
+     WHERE C.COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END GET_COLOR_CONSULTANT_TYPE;
+
+FUNCTION GET_FIELD_VALUE_FROM_XML(
+/******************************************************************************
+    This functions extracts value from XML based on table/field names passed in 
+
+Created : 03/15/2019 dxp896 --  CCN Project....
+Changed :
+******************************************************************************/
+    IN_ROW_DATA          IN      SYS.XMLTYPE,
+    IN_TABLE_TYPE_REC    IN      ALL_TAB_COLUMNS%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_ROW_VALUE     VARCHAR2(500);
+BEGIN
+    IF (IN_ROW_DATA.existsNode('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()') = 1) THEN
+        IF IN_TABLE_TYPE_REC.DATA_TYPE = 'XMLTYPE'  and IN_TABLE_TYPE_REC.TABLE_NAME = 'COST_CENTER' THEN
+          BEGIN
+            V_ROW_VALUE := IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME).GETCLOBVAL();
+            V_ROW_VALUE := REPLACE(REPLACE(V_ROW_VALUE,'<'||IN_TABLE_TYPE_REC.COLUMN_NAME ||'>'),'</'||IN_TABLE_TYPE_REC.COLUMN_NAME||'>');
+            EXCEPTION
+                WHEN OTHERS THEN v_row_value := NULL;
+          END;
+        ELSIF (IN_TABLE_TYPE_REC.DATA_TYPE <> 'DATE') THEN
+            V_ROW_VALUE := IN_ROW_DATA.extract('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()').getStringVal(); 
+        ELSE
+            V_ROW_VALUE := IN_ROW_DATA.extract('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()').getStringVal(); 
+        END IF;
+    END IF;
+    RETURN COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN V_ROW_VALUE;
+END GET_FIELD_VALUE_FROM_XML;
 
 FUNCTION CHK_POS_NEW_STORES_BYPASS(
 /**********************************************************
@@ -1008,22 +1066,16 @@ Changed :
          IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN TERMINAL.TERMINAL_NUMBER%TYPE
 IS
-    V_TERMINAL_NUMBER     NUMBER;
+    V_TERMINAL_NUMBER     TERMINAL.TERMINAL_NUMBER%TYPE;
 BEGIN
-    SELECT MIN(TO_NUMBER(T.TERMINAL_NUMBER))
+    SELECT S.DESIGNATED_TERMINAL_NUMBER
       INTO V_TERMINAL_NUMBER
-      FROM TERMINAL T
-    WHERE T.EXPIRATION_DATE IS NULL
-      AND T.COST_CENTER_CODE = IN_COST_CENTER_CODE
-      AND EXISTS (SELECT 1
-                    FROM POLLING P
-                  WHERE P.COST_CENTER_CODE = T.COST_CENTER_CODE
-                    AND P.POLL_STATUS_EXP_DT IS NULL
-                    AND P.POLLING_STATUS_CODE = T.POLLING_STATUS_CODE);
-    RETURN LPAD(TO_CHAR(V_TERMINAL_NUMBER), 5, '0');
+      FROM STORE S
+    WHERE S.COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    RETURN V_TERMINAL_NUMBER;
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN LPAD(TO_CHAR(V_TERMINAL_NUMBER), 5, '0');
+        RETURN V_TERMINAL_NUMBER;
 END GET_FIRST_ASSIGNED_TERMINAL_NUMBER;
 
 END CCN_COMMON_TOOLS;

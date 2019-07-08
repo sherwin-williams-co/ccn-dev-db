@@ -6,7 +6,7 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
    happened on terminal table.
    Modified : 02/15/2017 gxg192 Added missing fields
             : 01/22/2018 nxk927 Added POS_VERSION_NBR field
-            : 01/24/2018 sxg151 Removed pci_terminal_id,pci_val_link_alt_mid & pci_value_link_mid
+            : 01/24/2018 sxg151 Removed pci_terminal_id,pci_val_link_alt_mid 
             : 06/25/2019 axm868 Added GET_FIRST_ASSIGNED_TERMINAL_NUMBER logic for CCNCC-2
    ****************************************************************************/
    BEFORE INSERT OR UPDATE ON terminal
@@ -31,7 +31,6 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
       v_terminal_row.EXPIRATION_DATE      := :NEW.EXPIRATION_DATE;
       v_terminal_row.POS_LAST_TRAN_DATE   := :NEW.POS_LAST_TRAN_DATE;
       v_terminal_row.POS_LAST_TRAN_NUMBER := :NEW.POS_LAST_TRAN_NUMBER;
-      v_terminal_row.POS_VERSION_NBR      := :NEW.POS_VERSION_NBR;
       
       SELECT XMLELEMENT ( "TERMINAL",
                 XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -43,8 +42,7 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
                           v_terminal_row.EFFECTIVE_DATE, 'yyyymmdd') EFFECTIVE_DATE ,TO_CHAR(
                           v_terminal_row.EXPIRATION_DATE, 'yyyymmdd') EXPIRATION_DATE ,TO_CHAR(
                           v_terminal_row.POS_LAST_TRAN_DATE, 'yyyymmdd') POS_LAST_TRAN_DATE ,
-                          v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER ,
-                          v_terminal_row.POS_VERSION_NBR POS_VERSION_NBR)
+                          v_terminal_row.POS_LAST_TRAN_NUMBER POS_LAST_TRAN_NUMBER)
                         ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                 XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -102,6 +100,9 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
                                                       'ADD',
                                                       'POS_PARAM_UPDATE'
                                                       );
+              UPDATE STORE S
+                 SET S.DESIGNATED_TERMINAL_NUMBER = v_terminal_row.TERMINAL_NUMBER
+              WHERE S.COST_CENTER_CODE = v_terminal_row.COST_CENTER_CODE;
              END IF;
          END IF;
      EXCEPTION

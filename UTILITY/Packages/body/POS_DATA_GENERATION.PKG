@@ -8,6 +8,17 @@ Created : 10/17/2016 rxv940 CCN Project....
 Changed :
 *******************************************************************************/
 IS
+CURSOR table_fields_cur(IN_TABLE_NAME    IN   VARCHAR2) IS
+/****************************************************************************** 
+This cursor is intended to reuse in all the procedures of CCN_TABLE_IU_PKG.
+
+Created : 03/15/2019 DXP896 -- CCN coding project
+Modified:
+*******************************************************************************/
+    SELECT *
+    FROM ALL_TAB_COLUMNS
+    WHERE TABLE_NAME = IN_TABLE_NAME
+    ORDER BY COLUMN_ID ASC;
 
 FUNCTION GET_CANADA_FIPS_CODE (
 /*******************************************************************************
@@ -40,7 +51,6 @@ Cost center code
 COST_CENTER_DSC_CODES is a view on a DB Link
 
 Created : 05/15/2017 rxv940 CCN Project....
-Changed :
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
 IS
@@ -59,17 +69,17 @@ END GET_PRI_DSC_CODE;
 
 FUNCTION RETURN_STORE_INFO (
 /*******************************************************************************
-This function is used to return the store descartes delivery code field value by passing in
-Cost center code
+This function is used to return the store descartes delivery code field value by passing in 
+Cost center code 
 
 Created : 09/04/2018 pxa852 CCN Project....
 *******************************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2) RETURN STORE%ROWTYPE
 IS
     V_RETURN_VAL     STORE%ROWTYPE;
-BEGIN
+BEGIN 
     SELECT *
-      INTO V_RETURN_VAL
+      INTO V_RETURN_VAL 
       FROM STORE
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
 
@@ -107,7 +117,7 @@ BEGIN
         SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
         -- A. We look for the record that has the latest UPDATE_DT. 
         -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
-        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference        
           INTO V_PREV_RQST_ID  
           FROM POS_DOWNLOADS
          WHERE POLLING_REQUEST_ID IS NOT NULL
@@ -121,7 +131,7 @@ BEGIN
         SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
         -- A. We look for the record that has the latest UPDATE_DT. 
         -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
-        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference         
           INTO V_PREV_RQST_ID   
           FROM POS_DOWNLOADS
          WHERE POLLING_REQUEST_ID IS NOT NULL
@@ -620,7 +630,7 @@ EXCEPTION
     WHEN OTHERS THEN
         OUT_BANK_NAME      := NULL;
         OUT_BANK_ACCNT_NBR := NULL;
-END GET_POS_BANK_DETAILS;
+END GET_POS_BANK_DETAILS;	
 
 FUNCTION RETURN_BANK_CARD_INFO (
 /*******************************************************************************
@@ -800,6 +810,29 @@ EXCEPTION
         RAISE;
 END POS_DOWNLOADS_UPD_SP;
 
+FUNCTION IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(
+/*******************************************************************************
+This function is used to return POS_DOWNLOAD_CC_IND for the cost center passed in 
+
+Created : 03/08/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS 
+    V_POS_DOWNLOAD_CC_IND    VARCHAR2(1) := 'N';
+BEGIN
+    BEGIN
+        SELECT POS_DOWNLOAD_CC_IND
+          INTO V_POS_DOWNLOAD_CC_IND
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_POS_DOWNLOAD_CC_IND := 'N';
+    END;   
+    RETURN V_POS_DOWNLOAD_CC_IND;
+END IS_POS_DOWNLOAD_CC_IND_SET_TO_YES;
+
 FUNCTION RETURN_POS_DOWNLOADS_INSERT_YN(
 /*******************************************************************************
 This procedure is used do update on the table POS_DOWNLOADS 
@@ -823,18 +856,8 @@ IS
     V_POS_DOWNLOAD_CC_IND    VARCHAR2(1) := NULL;
     V_BULK_LOADS_LKUP_COUNT  NUMBER := 0;
 BEGIN
-    BEGIN
-        SELECT POS_DOWNLOAD_CC_IND
-          INTO V_POS_DOWNLOAD_CC_IND
-          FROM COST_CENTER
-         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    EXCEPTION
-        WHEN OTHERS THEN
-            V_POS_DOWNLOAD_CC_IND := POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND;
-            -- TR_COST_CENTER_UPD mutates whenever fired because the "RETURN_POS_DOWNLOADS_INSERT_YN"
-            -- also queries the cost center which fired the TR_COST_CENTER_UPD trigger. 
-            -- TR_COST_CENTER_UPD calls -> POS_TRG_EVNT_LOG -> RETURN_POS_DOWNLOADS_INSERT_YN
-    END;
+    V_POS_DOWNLOAD_CC_IND := IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(IN_COST_CENTER_CODE);
+
     IF IN_FILE_TYPE IN ('POS_STORE_UPDATE', 'POS_TERRITORY_UPDATE') THEN
         SELECT COUNT(1)
           INTO V_BULK_LOADS_LKUP_COUNT
@@ -842,8 +865,8 @@ BEGIN
          WHERE TRUNC(MAINTENANCE_DATE_START) = TRUNC(SYSDATE)
            AND FLAG = 'Y';
     END IF;
-
-    IF ((NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'Y') AND (V_BULK_LOADS_LKUP_COUNT = 0)) THEN
+    
+    IF ((V_POS_DOWNLOAD_CC_IND = 'Y') AND (V_BULK_LOADS_LKUP_COUNT = 0)) THEN
         -- The cost center is available with a flag 'Y' and no manual updates happening, hence check the count
         SELECT COUNT(1) 
           INTO V_COUNT 
@@ -1091,10 +1114,8 @@ Changed : 09/20/2017 rxv940 CCN Project....
         : changed code to have hard-coded zip for cost center 778803 when it is USA
 Changed : 09/22/2017 rxv940 CCN Project....        
         : Code change to have co-abbreviation populated from translation_detail table
-Changed : 09/04/2018 pxa852 CCN Project Team....
+Changed : 09/04/2018 pxa852 CCN Project Team....        
         : Added descartes-delivery-code tag.
-Changed : 10/04/2018 pxa852 CCN Project Team....
-        : Modified code to pass code description value instead of code value to descartes-delivery-code tag.
 *******************************************************************************/
     IN_COST_CENTER_CODE   IN      VARCHAR2,
     OUT_CLOB                 OUT  CLOB)
@@ -1129,7 +1150,7 @@ BEGIN
     V_COSTCENTER_REC := RETURN_COST_CENTER_INFO (IN_COST_CENTER_CODE); 
 
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(IN_COST_CENTER_CODE), 'cost-center') || CHR(10);
-    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STMNT_TYP_TO_CMP_NAME', V_COSTCENTER_REC.STATEMENT_TYPE), 'S-W SHERWIN-WILLIAMS')), 'co-nm') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_TYPE', V_COSTCENTER_REC.STATEMENT_TYPE,'STMNT_TYP_TO_CMP_NAME'), 'S-W SHERWIN-WILLIAMS')), 'co-nm') || CHR(10);
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COST_CENTER_NAME), 'nm') || CHR(10);
 
     --build address 
@@ -1249,8 +1270,8 @@ BEGIN
     END IF;
     --build co-abbreviation web-address
     -- Changed the code to derieve the abbreviation values from TRANSLATION_HEADER and TRANSLATION_DETAIL tables. Change done per Ellen request with Pat accord. Refer to email "Fw: Re: Store Init file from PROD"
-    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STMNT_TYP_TO_CMP_ABBRV', V_COSTCENTER_REC.STATEMENT_TYPE), 'S-W SHERWIN-WILLIAMS')), 'co-abbreviation') || CHR(10);
-    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_WEB_ADDR', V_COSTCENTER_REC.STATEMENT_TYPE), CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_WEB_ADDR', 'SW'))), 'web-address') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_TYPE', V_COSTCENTER_REC.STATEMENT_TYPE,'STMNT_TYP_TO_CMP_ABBRV'), 'S-W SHERWIN-WILLIAMS')), 'co-abbreviation') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_TYPE', V_COSTCENTER_REC.STATEMENT_TYPE,'STATEMENT_WEB_ADDR'), CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_TYPE', 'SW','STATEMENT_WEB_ADDR'))), 'web-address') || CHR(10);
     --build taxware
     V_TAXWARE := RETURN_TAXWARE_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_STATE), 'taxware-state') || CHR(10);
@@ -1260,13 +1281,16 @@ BEGIN
     V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_COMPANY), 'taxware-nexus') || CHR(10);
     --build descartes-delivery-code tag
     V_STORE   := RETURN_STORE_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
-    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('DESCARTES_DELIVERY_CODE','COD',V_STORE.DESCARTES_DELIVERY_CODE), 'descartes-delivery-code') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('DESCARTES_DELIVERY_CODE',
+                                                                 'COD',
+                                                                 V_STORE.DESCARTES_DELIVERY_CODE), 'descartes-delivery-code') || CHR(10);
 
     V_XMLDATA       := '<storeUpdtRcd dtl_trans_type="R">' || CHR(10) ||
                        V_XMLDATA ||
                        '</storeUpdtRcd>' ||
                        CHR(10);
     OUT_CLOB := V_XMLDATA;
+    DBMS_OUTput.put_line(OUT_CLOB);
 END BUILD_STORE_XML;
 
 PROCEDURE GENERATE_POS_STORE_UPD_SP(
@@ -1328,6 +1352,9 @@ Changed : 11/16/2017 rxv CCN Project....
 Changed : 04/18/2018 jxc517/nxk927 CCN Project Team....
           Removed condition to consider only polling ready cost centers to include for New Store and Nightly Sync downloads
           This has been requested by Ralph/Ellen/Dan and tested/approved by Michael Beaty on 4/19
+        : 03/13/2018 nxk927 CCN Project....
+        : Addded condition to process records with POLLING_START_DATE and POLLING_STOP_DATE not null or in future
+          Removed the close date condition
           This change is to provide pricing information to CIS for all active cost centers having status of 'P' or 'Q'
           even though they are not ready for pos downloads
 *********************************************************************************/
@@ -1358,6 +1385,8 @@ BEGIN
                          AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE 
                                                     FROM POLLING 
                                                    WHERE POLLING_STATUS_CODE IN ('P', 'Q'))) LOOP
+                                                     --AND NVL(POLLING_START_DATE,TRUNC(SYSDATE)+1) <= TRUNC(SYSDATE)
+                                                     --AND NVL(POLLING_STOP_DATE,TRUNC(SYSDATE)+1) > TRUNC(SYSDATE))) LOOP
         BUILD_STORE_XML(STORE_REC.COST_CENTER_CODE, V_XMLDATA);
         V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
         V_REC_COUNT     := V_REC_COUNT + 1;
@@ -1540,6 +1569,10 @@ This procedure is used to create a territory Init load file.
 Created : 10/12/2017 rxv940 CCN Project....
 Changed : 11/16/2017 rxv CCN Project....
         : Addded condition to process records with flag = 'Y' for POS_DOWNLOAD_CC_IND
+        : 02/23/2018 nxk97 CCN Project....
+          changed close date to inactive date
+        : 03/05/2018 nxk97 CCN Project....
+          reverted inactive date to close date
 *******************************************************************************/
     IN_LOAD_TYPE   IN       VARCHAR2,
     OUT_XML_VALUE      OUT  CLOB,
@@ -1632,7 +1665,7 @@ the order of the XML elements.
               <xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
               <xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
               <xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
-              <xsd:element name="draft-terminal-nbr" type="xsd:string" nillable="true"/>
+              <xsd:element name="draft-terminal-nbr" type="xsd:int" nillable="true"/>
             </xsd:sequence>
             <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
           </xsd:complexType>
@@ -1803,7 +1836,7 @@ revised :
 IS
     PRAGMA AUTONOMOUS_TRANSACTION;
     -- Making sure the set and reset flags are commited/ rolledback irespective of the 
-	-- original data involved
+	  -- original data involved	
 BEGIN 
     INSERT INTO POS_DOWNLOADS_BULK_LOADS_LKUP (BULK_LOADS_LKUP_ID, MAINTENANCE_TYPE)
     VALUES (BULK_LOADS_LKUP_SEQ.NEXTVAL, IN_MAINTENANCE_TYPE)
@@ -1824,8 +1857,8 @@ revised :
     IN_BULK_LOADS_LKUP_ID IN NUMBER)
 IS
     PRAGMA AUTONOMOUS_TRANSACTION;
-    -- Making sure the set and reset flags are commited/ rolledback irespective of the
-    -- original data involved
+	  -- Making sure the set and reset flags are commited/ rolledback irespective of the 
+	  -- original data involved	    
 BEGIN 
     UPDATE POS_DOWNLOADS_BULK_LOADS_LKUP
        SET FLAG = 'N',
@@ -1837,6 +1870,395 @@ BEGIN
 EXCEPTION 
     WHEN OTHERS THEN 
         ROLLBACK;
-END RESET_FLAG_POLLING_BULK_LOADS; 
+END RESET_FLAG_POLLING_BULK_LOADS;
+
+--FUNCTION INS_ON_DEMAND_POS_DOWNLOADS_FN(
+/*******************************************************************************
+This function is used to insert into POS_DOWNLOADS table and return POS_ID for POS_ON_DEMAND_DOWNLOADS
+
+Created : 03/05/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+/*    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2) RETURN NUMBER
+IS
+    V_POS_ID POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN
+    INSERT
+    INTO POS_DOWNLOADS(POS_ID
+                       ,COST_CENTER_CODE
+                       ,DATA_SOURCE
+                       ,DATA_OPERATION
+                       ,FILE_TYPE
+                       ,FILE_PROCESSED
+                       ,CREATE_DT)
+    VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
+            ,IN_COST_CENTER_CODE
+            ,IN_DATA_SOURCE
+            ,IN_DATA_OPERATION
+            ,IN_FILE_TYPE
+            ,'N'
+            ,SYSDATE)
+    RETURNING POS_ID 
+         INTO V_POS_ID;   
+    RETURN V_POS_ID;
+END INS_ON_DEMAND_POS_DOWNLOADS_FN;*/
+
+PROCEDURE INS_ON_DEMAND_POS_DOWNLOADS_SP(
+/*******************************************************************************
+This function is used to insert into POS_DOWNLOADS table and return POS_ID for POS_ON_DEMAND_DOWNLOADS
+
+Created : 03/05/2019 pxa852 CCN Project Team....
+Changed :
+*******************************************************************************/
+    IN_TBL_TOW          IN POS_ON_DEMAND_DOWNLOADS%ROWTYPE,
+    IN_FILE_TYPE        IN VARCHAR2)
+IS
+    V_POS_ID      POS_DOWNLOADS.POS_ID%TYPE;
+    POS_TBL_TOW   POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR       VARCHAR2(1000);
+BEGIN
+    INSERT
+    INTO POS_DOWNLOADS(POS_ID
+                       ,COST_CENTER_CODE
+                       ,DATA_SOURCE
+                       ,DATA_OPERATION
+                       ,FILE_TYPE
+                       ,FILE_PROCESSED
+                       ,CREATE_DT)
+    VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
+            ,IN_TBL_TOW.COST_CENTER_CODE
+            ,'ON_DEMAND_LOAD'
+            ,'UI_REQUEST'
+            ,IN_FILE_TYPE
+            ,'N'
+            ,SYSDATE)
+    RETURNING POS_ID 
+         INTO V_POS_ID; 
+
+    POS_TBL_TOW        := IN_TBL_TOW;
+    POS_TBL_TOW.POS_ID := V_POS_ID;
+
+    INSERT INTO POS_ON_DEMAND_DOWNLOADS VALUES POS_TBL_TOW;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INS_ON_DEMAND_POS_DOWNLOADS_SP', V_ERROR, '000000');
+        RAISE;
+END INS_ON_DEMAND_POS_DOWNLOADS_SP;
+
+PROCEDURE POS_ON_DEMAND_DWNLD_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to Convert the POS_ON_DEMAND_DOWNLOAD xml into rowtype.
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :
+*******************************************************************************/
+    IN_TABLE_NAME            IN     VARCHAR2,
+    IN_ROW_DATA              IN     VARCHAR2,
+    OUT_POS_ON_DEMAND_ROW       OUT POS_ON_DEMAND_DOWNLOADS%ROWTYPE
+    )
+IS
+    CURSOR TABLE_FIELDS_CUR IS
+        SELECT COLUMN_NAME, DATA_LENGTH COLUMN_SIZE, DATA_TYPE
+          FROM ALL_TAB_COLUMNS
+         WHERE TABLE_NAME = IN_TABLE_NAME
+         ORDER BY COLUMN_ID ASC;
+
+    V_TBL_ROW         POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ROW_VALUE       VARCHAR(500);
+    V_ROW_DATA        XMLTYPE := XMLTYPE(IN_ROW_DATA);
+BEGIN
+
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
+        IF (V_ROW_DATA.EXISTSNODE('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
+            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/POS_ON_DEMAND_DOWNLOADS/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL();
+            V_ROW_VALUE := COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+           CASE TABLE_FIELDS_REC.COLUMN_NAME
+                WHEN 'COST_CENTER_CODE'    THEN  V_TBL_ROW.COST_CENTER_CODE   := V_ROW_VALUE;
+                WHEN 'DOWNLOAD_TYPE'       THEN  V_TBL_ROW.DOWNLOAD_TYPE      := V_ROW_VALUE;
+                WHEN 'REQUESTED_USER'      THEN  V_TBL_ROW.REQUESTED_USER     := V_ROW_VALUE;
+                WHEN 'REQUESTED_DATE'      THEN  V_TBL_ROW.REQUESTED_DATE     := V_ROW_VALUE;
+                WHEN 'REASON_FOR_DOWNLOAD' THEN V_TBL_ROW.REASON_FOR_DOWNLOAD := V_ROW_VALUE;
+            END CASE;
+        END IF;
+    END LOOP;
+    OUT_POS_ON_DEMAND_ROW := V_TBL_ROW;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'POS_ON_DEMAND_DWNLD_ROWTYPE_SP, ' || ' ' || 'IN_TABLE_NAME IS ' || IN_TABLE_NAME, SUBSTR(SQLERRM, 1, 500));
+END POS_ON_DEMAND_DWNLD_ROWTYPE_SP;
+
+PROCEDURE POS_ON_DEMAND_DWNLD_I_SP (
+/*******************************************************************************
+This procedure is intended to Convert the POS_ON_DEMAND_DOWNLOAD xml into rowtype.
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :     
+*******************************************************************************/
+    IN_ON_DEMAND_ROW  IN  POS_ON_DEMAND_DOWNLOADS%ROWTYPE,
+    IN_FILE_TYPE      IN  VARCHAR2,
+    IN_DOWNLOAD       IN VARCHAR2)
+IS 
+BEGIN
+    IF IS_POS_DOWNLOAD_CC_IND_SET_TO_YES(IN_ON_DEMAND_ROW.COST_CENTER_CODE) = 'N' THEN
+       IF IN_DOWNLOAD = 'MANUAL_ENTRY' THEN
+          CCN_ERRPKG.raise_err(ERRNUMS.en_cc_not_approved_for_polling,
+                             'Cost Center is not approved for Polling, Hence Downloads can not be triggered for this cost center');
+       ELSIF IN_DOWNLOAD = 'UPLOAD_EXCEL' THEN
+          CCN_ERRPKG.INSERT_ERROR_LOG_SP(ERRNUMS.en_cc_not_approved_for_polling,
+                                        'cc_not_approved_for_polling',
+                                        'Cost Center is not approved for Polling to trigger POS Download',
+                                         IN_ON_DEMAND_ROW.COST_CENTER_CODE);
+          
+       END IF;
+
+    ELSE
+        --Check if there is a record with the processed flag 'N' for the cost center passed in.
+        --If exists then do not insert. Else Insert.
+        IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_ON_DEMAND_ROW.COST_CENTER_CODE, 
+                                          IN_FILE_TYPE) = 'Y'  THEN
+           --Insert one entry into the POS_DOWNLOADS table.
+           --insert into on demand table with the pos id from pos_downloads table.
+           INS_ON_DEMAND_POS_DOWNLOADS_SP(IN_ON_DEMAND_ROW,IN_FILE_TYPE);
+        ELSE
+           IF IN_DOWNLOAD = 'MANUAL_ENTRY' THEN
+              CCN_ERRPKG.raise_err(ERRNUMS.en_pos_download_exists_err,
+                             'POS Download already exists for this cost center');
+           ELSIF IN_DOWNLOAD = 'UPLOAD_EXCEL' THEN
+                CCN_ERRPKG.INSERT_ERROR_LOG_SP(ERRNUMS.en_pos_download_exists_err,
+                                               'cc_pos_download_exists',
+                                               'POS Download already exists for this cost center',
+                                               IN_ON_DEMAND_ROW.COST_CENTER_CODE);
+           END IF;
+        END IF;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_ON_DEMAND_DWNLD_I_SP',
+                                       SQLERRM,
+                                       IN_ON_DEMAND_ROW.COST_CENTER_CODE);
+END POS_ON_DEMAND_DWNLD_I_SP;
+
+PROCEDURE PROCESS_POLLING_ON_DEMAND (
+/*******************************************************************************
+This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
+
+Sample XML input (assumed) from UI
+
+<POS_ON_DEMAND_DOWNLOADS>
+    <COST_CENTER_CODE>701058</COST_CENTER_CODE>
+    <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
+    <REQUESTED_USER>pxa852</REQUESTED_USER>
+    <REQUESTED_DATE>05-MAR-2019</REQUESTED_DATE>
+    <REASON_FOR_DOWNLOAD>Test</REASON_FOR_DOWNLOAD>
+</POS_ON_DEMAND_DOWNLOADS>
+
+created : 03/05/2019 pxa852 CCN Project Team....
+revised :     
+*******************************************************************************/
+    IN_ON_DEMAND_ROW  IN  POS_ON_DEMAND_DOWNLOADS%ROWTYPE,
+    IN_FILE_TYPE      IN  VARCHAR2)
+IS   
+    V_TBL_ROW         POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR           VARCHAR2(1000);
+    V_FILE_TYPE       VARCHAR2(30);
+BEGIN
+    POS_ON_DEMAND_DWNLD_I_SP(IN_ON_DEMAND_ROW,IN_FILE_TYPE,'MANUAL_ENTRY');
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'PROCESS_POLLING_ON_DEMAND',
+                                       V_ERROR,
+                                       '000000');
+        RAISE;
+END PROCESS_POLLING_ON_DEMAND;
+
+PROCEDURE POLLING_ON_DEMAND_BULK_LOADS_SP
+/*******************************************************************************
+This procedure is intended to insert new POS_ON_DEMAND_DOWNLOADS records
+
+created : 03/08/2019 pxa852 CCN Project Team....
+revised :     
+*******************************************************************************/
+IS   
+    V_TBL_ROW             POS_ON_DEMAND_DOWNLOADS%ROWTYPE;
+    V_ERROR               VARCHAR2(1000);
+    V_FILE_TYPE           VARCHAR2(30);
+    V_BULK_LOAD_LKUP_ID   NUMBER;
+    V_CLOB_FOR_EMAIL      CLOB;
+    V_START_TIME          DATE := SYSDATE;
+    V_TEST_VAL            VARCHAR2(30);
+BEGIN
+    FOR rec IN (SELECT * FROM TEMP_POLLING_ON_DEMAND_DOWNLOADS) LOOP
+        SAVEPOINT POS_ON_DEMAND_DOWNLOADS;
+        V_TBL_ROW.COST_CENTER_CODE    := rec.COST_CENTER_CODE;
+        V_TBL_ROW.DOWNLOAD_TYPE       := rec.DOWNLOAD_TYPE;
+        V_TBL_ROW.REQUESTED_USER      := rec.REQUESTED_USER;
+        V_TBL_ROW.REQUESTED_DATE      := SYSDATE;
+        V_TBL_ROW.REASON_FOR_DOWNLOAD := rec.REASON_FOR_DOWNLOAD;
+        BEGIN
+            IF V_TBL_ROW.DOWNLOAD_TYPE = 'NewDemographic' THEN 
+               POS_ON_DEMAND_DWNLD_I_SP(V_TBL_ROW,'POS_STORE_UPDATE','UPLOAD_EXCEL');
+            ELSIF V_TBL_ROW.DOWNLOAD_TYPE = 'NewBank' THEN 
+               POS_ON_DEMAND_DWNLD_I_SP(V_TBL_ROW,'POS_PARAM_UPDATE','UPLOAD_EXCEL');
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN 
+                ROLLBACK TO POS_ON_DEMAND_DOWNLOADS;
+                --write to error log
+                CCN_ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'POLLING_ON_DEMAND_UPLOAD_SP', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
+        END;
+        COMMIT;
+    END LOOP;
+    --this process will email an error report to CCN team if there are any errors in error_log table.
+    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
+    CCN_ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
+    --sending mail only if there are error records.
+    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
+        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
+        MAIL_PKG.SEND_MAIL('POLLING_ON_DEMAND_UPLOAD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Logging of error
+        CCN_ERRPKG.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  POLLING_ON_DEMAND_UPLOAD_SP '  || ' errors found');
+END POLLING_ON_DEMAND_BULK_LOADS_SP;
+
+PROCEDURE RETURN_STORE_POS_DOWNLOAD_HIST (
+/**********************************************************
+This procedure will return a ref cursor with data from 
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for STORE Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_STORE_POS_DWNLD_REF_CUR   OUT REF_CURSOR)
+IS
+BEGIN
+    OPEN OUT_STORE_POS_DWNLD_REF_CUR FOR
+       SELECT *            
+          FROM POS_DOWNLOADS
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FILE_PROCESSED   = 'Y'
+           AND FILE_TYPE        = 'POS_STORE_UPDATE'
+       ORDER BY 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'RETURN_STORE_POS_DOWNLOAD_HIST',SQLERRM);
+END RETURN_STORE_POS_DOWNLOAD_HIST;
+
+PROCEDURE RETURN_PARAM_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from 
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for PARAM Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_PARAM_POS_DWNLD_REF_CUR   OUT REF_CURSOR)
+IS
+BEGIN
+    OPEN OUT_PARAM_POS_DWNLD_REF_CUR FOR
+       SELECT *            
+          FROM POS_DOWNLOADS
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FILE_PROCESSED   = 'Y'
+           AND FILE_TYPE        = 'POS_PARAM_UPDATE'
+       ORDER BY 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'RETURN_PARAM_POS_DOWNLOAD_HIST',SQLERRM);
+END RETURN_PARAM_POS_DOWNLOAD_HIST;
+
+PROCEDURE RETURN_TERR_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from 
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for TERR Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE         IN VARCHAR2,
+    OUT_TERR_POS_DWNLD_REF_CUR    OUT REF_CURSOR)
+IS
+BEGIN
+    OPEN OUT_TERR_POS_DWNLD_REF_CUR FOR
+       SELECT *            
+          FROM POS_DOWNLOADS
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FILE_PROCESSED   = 'Y'
+           AND FILE_TYPE        = 'POS_TERRITORY_UPDATE'
+       ORDER BY 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'RETURN_TERR_POS_DOWNLOAD_HIST',SQLERRM);
+END RETURN_TERR_POS_DOWNLOAD_HIST;
+
+PROCEDURE RETURN_TAXCURR_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from 
+from the POS_DOWNLOAD table based on COST_CENTER_CODE for TAXCURR Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_COST_CENTER_CODE           IN VARCHAR2,
+    OUT_TAXCURR_POS_DWNLD_REF_CUR   OUT REF_CURSOR)
+IS
+BEGIN
+    OPEN OUT_TAXCURR_POS_DWNLD_REF_CUR FOR
+       SELECT *
+          FROM POS_DOWNLOADS_NON_TAXWARE
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+           AND FILE_PROCESSED   = 'Y'
+       ORDER BY 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'RETURN_TAXCURR_POS_DOWNLOAD_HIST',SQLERRM);
+END RETURN_TAXCURR_POS_DOWNLOAD_HIST;
+
+PROCEDURE RETURN_PRIMESUB_POS_DOWNLOAD_HIST (
+/**********************************************************
+RETURN_POS_DOWNLOAD_HIST
+This procedure will return a ref cursor with data from 
+from the POS_DOWNLOADS_GL_PS table based on COST_CENTER_CODE for Primesub Download
+
+created : 03/11/2019 pxa852 CCN Project Team...
+Modified:
+**********************************************************/
+    IN_ACCOUNT_NUMBER              IN VARCHAR2,
+    OUT_PRIMESUB_POS_DWNLD_REF_CUR   OUT REF_CURSOR)
+IS
+BEGIN
+    OPEN OUT_PRIMESUB_POS_DWNLD_REF_CUR FOR
+       SELECT *
+          FROM POS_DOWNLOADS_GL_PS
+         WHERE ACCNT_NBR      = IN_ACCOUNT_NUMBER
+           AND FILE_PROCESSED = 'Y'
+           AND ACCNT_NBR IS NOT NULL
+        ORDER BY 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'RETURN_PRIMESUB_POS_DOWNLOAD_HIST',SQLERRM);
+END RETURN_PRIMESUB_POS_DOWNLOAD_HIST;
 
 END POS_DATA_GENERATION;
