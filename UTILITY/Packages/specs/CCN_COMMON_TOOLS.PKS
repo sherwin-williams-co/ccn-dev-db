@@ -314,7 +314,7 @@ Changed :
     IN_COST_CENTER_CODE    IN  COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN BOOLEAN;
 
-FUNCTION GET_FIRST_ASSIGNED_TERMINAL_NUMBER(
+FUNCTION GET_DESIGNATED_TERMINAL_NUMBER(
 /******************************************************************************
 This function will return the first assigned terminal number for a given store     
 
@@ -322,6 +322,6 @@ Created : 06/21/2019 axm868 --  CCN Project....
 Changed :
 ******************************************************************************/
          IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE)
-RETURN TERMINAL.TERMINAL_NUMBER%TYPE;
+RETURN STORE.DESIGNATED_TERMINAL_NUMBER%TYPE;
 
 END CCN_COMMON_TOOLS;

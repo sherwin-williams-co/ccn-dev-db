@@ -7,7 +7,7 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
    Modified : 02/15/2017 gxg192 Added missing fields
             : 01/22/2018 nxk927 Added POS_VERSION_NBR field
             : 01/24/2018 sxg151 Removed pci_terminal_id,pci_val_link_alt_mid & pci_value_link_mid
-            : 06/25/2019 axm868 Added GET_FIRST_ASSIGNED_TERMINAL_NUMBER logic,
+            : 06/25/2019 axm868 Added GET_DESIGNATED_TERMINAL_NUMBER logic,
                                 for CCNCC-2
             : 07/08/2019 axm868 Updated STORE.DESIGNATED_TERMINAL_NUMBER
                                 to the first terminal number, for CCNCC-2
@@ -99,7 +99,7 @@ create or replace TRIGGER "COSTCNTR".tr_terminal_upd
       --END IF;
      BEGIN
          IF INSERTING THEN
-             IF CCN_COMMON_TOOLS.GET_FIRST_ASSIGNED_TERMINAL_NUMBER(v_terminal_row.COST_CENTER_CODE) IS NULL THEN
+             IF CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(v_terminal_row.COST_CENTER_CODE) IS NULL THEN
                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_terminal_row.COST_CENTER_CODE,
                                                       'TERMINAL',
                                                       'ADD',
