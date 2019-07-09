@@ -10,8 +10,6 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
    Modified : 09/10/2018 pxa852 CCN Project Team...
               Modified code to insert records into pos_downloads table
               if there are any changed on store table.
-   Modified : 06/14/2019 akj899 CCNCC-13 CCN Project Team...
-              Modified code for new field dispatch_services_type_code.
    Modified : 07/08/2019 axm868 CCNCC-2 CCN Project Team...
               Modified code for new field designated_terminal_number.
    ****************************************************************************
@@ -31,17 +29,16 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
       INTO v_transaction_id
       FROM AUDIT_LOG;
       */
-      v_store_row.cost_center_code             := :new.cost_center_code;
-      v_store_row.category                     := :new.category;
-      v_store_row.perp_inv_start_date          := :new.perp_inv_start_date;
-      v_store_row.classification_code          := :new.classification_code;
-      v_store_row.inventory_indicator          := :new.inventory_indicator;
-      v_store_row.rural_metro_zone_code        := :new.rural_metro_zone_code;
-      v_store_row.selling_store_flag           := :new.selling_store_flag;
-      v_store_row.sales_vol_class_code         := :NEW.sales_vol_class_code;
-      v_store_row.potential_open_date          := :NEW.potential_open_date;
-      v_store_row.descartes_delivery_code      := :NEW.descartes_delivery_code;
-	  v_store_row.dispatch_services_type_code  := :NEW.dispatch_services_type_code;
+      v_store_row.cost_center_code        := :new.cost_center_code;
+      v_store_row.category                := :new.category;
+      v_store_row.perp_inv_start_date     := :new.perp_inv_start_date;
+      v_store_row.classification_code     := :new.classification_code;
+      v_store_row.inventory_indicator     := :new.inventory_indicator;
+      v_store_row.rural_metro_zone_code   := :new.rural_metro_zone_code;
+      v_store_row.selling_store_flag      := :new.selling_store_flag;
+      v_store_row.sales_vol_class_code    := :NEW.sales_vol_class_code;
+      v_store_row.potential_open_date     := :NEW.potential_open_date;
+      v_store_row.descartes_delivery_code := :NEW.descartes_delivery_code;
       v_store_row.designated_terminal_number   := :NEW.designated_terminal_number;
 
       SELECT XMLELEMENT ("STORE",
@@ -58,7 +55,6 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
                                    v_store_row.sales_vol_class_code sales_vol_class_code,
                                    TO_CHAR(v_store_row.potential_open_date, 'yyyymmdd') potential_open_date,
                                    v_store_row.descartes_delivery_code descartes_delivery_code,
-                                   v_store_row.dispatch_services_type_code dispatch_services_type_code,
                                    v_store_row.designated_terminal_number designated_terminal_number)
                          ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
@@ -109,9 +105,6 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
          ELSIF UPDATING THEN
              IF NVL(:OLD.DESCARTES_DELIVERY_CODE, 'XXX') <> NVL(:NEW.DESCARTES_DELIVERY_CODE, 'XXX') THEN
                  POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_store_row.COST_CENTER_CODE, 'STORE', 'CHANGE', 'POS_STORE_UPDATE');
-             END IF;
-             IF NVL(:OLD.DISPATCH_SERVICES_TYPE_CODE, 'XXX') <> NVL(:NEW.DISPATCH_SERVICES_TYPE_CODE, 'XXX') THEN
-                 CCN_DESCARTES_PROCESS.INSERT_DESCARTES_ADRS_FEED_CC(:NEW.COST_CENTER_CODE);
              END IF;
          END IF;
       EXCEPTION
