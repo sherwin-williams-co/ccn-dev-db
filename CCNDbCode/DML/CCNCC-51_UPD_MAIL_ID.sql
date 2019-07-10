@@ -10,8 +10,16 @@ COLUMN Mail_ID FORMAT A200 HEADING 'Mail|Identity';
                         FROM MAILING_DETAILS
                         WHERE MAIL_CATEGORY = 'HIER_TRNSFR_TERRITORY');
                         
+    --Development/Test/QA
     UPDATE MAILING_GROUP
-       SET MAIL_ID = 'virginia.knight@sherwin.com;Abbey.L.Dorn@sherwin.com'
+       SET MAIL_ID = 'ccnoracle.team@sherwin.com'
+    WHERE GROUP_ID IN (SELECT GROUP_ID
+                        FROM MAILING_DETAILS
+                        WHERE MAIL_CATEGORY = 'HIER_TRNSFR_TERRITORY');
+                        
+     --Prodcution
+    UPDATE MAILING_GROUP
+       SET MAIL_ID = 'ccnsupport.team@sherwin.com;pmmalloy@sherwin.com;virginia.knight@sherwin.com;Abbey.L.Dorn@sherwin.com'
     WHERE GROUP_ID IN (SELECT GROUP_ID
                         FROM MAILING_DETAILS
                         WHERE MAIL_CATEGORY = 'HIER_TRNSFR_TERRITORY');
