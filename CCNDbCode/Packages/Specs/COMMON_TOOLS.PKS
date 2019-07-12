@@ -483,4 +483,15 @@ Changed :
     IN_PCC_PCL_STORE         IN XMLTYPE,
     OUT_PCC_PCL_STORE        OUT VARCHAR2);
 
+PROCEDURE GENERATE_CLOSE_CC_ISSUE_DTLS_FILE(
+/**********************************************************
+This procedure will create Excel spreadsheet and trigger an email with the respective data attached.
+1) List of territories that are having the store being closed as its home store
+2) List of dispatch terminals that are having the store being closed as its home store
+3) List of open accounts in CPR still tied to the store being closed
+
+created : 07/10/2019 axm868 CCN Project Team...CCNCC-27
+**********************************************************/
+    IN_COST_CENTER_CODE   IN   VARCHAR2);
+
 END COMMON_TOOLS;

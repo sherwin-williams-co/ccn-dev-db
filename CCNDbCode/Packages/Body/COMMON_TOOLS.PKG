@@ -1829,4 +1829,59 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE,'CCN_TABLE_IU_PKG.SYNC_ALLOCATION_TYPE',SQLERRM);
 END SYNC_ALLOCATION_TYPE;
 
+PROCEDURE GENERATE_CLOSE_CC_ISSUE_DTLS_FILE(
+/**********************************************************
+This procedure will create Excel spreadsheet and trigger an email with the respective data attached.
+1) List of territories that are having the store being closed as its home store
+2) List of dispatch terminals that are having the store being closed as its home store
+3) List of open accounts in CPR still tied to the store being closed
+
+created : 07/10/2019 axm868 CCN Project Team...CCNCC-27
+**********************************************************/
+    IN_COST_CENTER_CODE   IN   VARCHAR2)
+AS
+    PATH                        VARCHAR2(50) := 'CCN_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME                    VARCHAR2(70) := 'CCN_CLOSE_CC_ISSUE_DTLS_MAIL' ||'_'||IN_COST_CENTER_CODE||'_'|| TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx';
+    V_REC_COUNT                 NUMBER := 0;
+    V_COUNT                     NUMBER := 0;
+BEGIN
+    V_COUNT := 0;
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM TERRITORY
+         WHERE HOME_STORE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF V_COUNT > 0 THEN
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT COST_CENTER_CODE FROM TERRITORY WHERE HOME_STORE = '''||in_COST_CENTER_CODE||'''',
+                                              TRUE,NULL,NULL,NULL,'TERRITORIES');
+    END IF;
+    V_COUNT := 0;
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_COUNT
+          FROM DISPATCH_TERMINAL
+         WHERE HOME_STORE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            NULL;
+    END;
+    IF V_COUNT > 0 THEN
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT COST_CENTER_CODE FROM DISPATCH_TERMINAL WHERE HOME_STORE = '''||in_COST_CENTER_CODE||'''',
+                                              TRUE,NULL,NULL,NULL,'DISPATCH_TERMINALS');
+    END IF;
+    IF IS_CC_HAVING_CSTMR_ACCNTS_FNC(in_COST_CENTER_CODE) = 'Y' THEN
+        CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT CUSTNUM, CUSTNAME FROM CUSTOMER_TAXID_VW_COSTCNTR WHERE ORA_COSTCTR = '''||in_COST_CENTER_CODE||''' AND NVL(BAD_DEBT_FLAG, ''N'') <> ''Y''',
+                                              TRUE,NULL,NULL,NULL,'OPEN_CUSTOMER_ACCOUNTS');
+    END IF;
+    --Creating the final excel based on the path and file name provided
+    --NOTE: The clob is built in the package "CCN_SPREADSHEET_PKG" which will be used by the below call
+    CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
+    --Below procedure will send the excel file as attachment through email based on the mail category
+    MAIL_PKG.SEND_MAIL('CCN_CLOSE_CC_ISSUE_DTLS_FILE_MAIL',NULL, IN_COST_CENTER_CODE, NULL);
+END GENERATE_CLOSE_CC_ISSUE_DTLS_FILE;
+
 END COMMON_TOOLS;
