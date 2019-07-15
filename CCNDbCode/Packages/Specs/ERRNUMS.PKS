@@ -3473,4 +3473,15 @@ exc_invalid_dsptch_srvc_typ_cd_err  EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_dsptch_srvc_typ_cd_err , -20234);
 
+/***********************************************************
+The "en_polling_stop_date_not_present_err" passes a numerical error of -20235
+This error will pop-up when ever user tries to close a store cost center without updating POLLING.POLLING_START_DATE field
+
+created : 07/09/2019 jxc517 CCNCC-49 CCN Project Team...
+************************************************************/
+en_polling_stop_date_not_present_err   CONSTANT NUMBER := -20235;
+exc_polling_stop_date_not_present_err  EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_polling_stop_date_not_present_err , -20235);
+
 END ERRNUMS;
