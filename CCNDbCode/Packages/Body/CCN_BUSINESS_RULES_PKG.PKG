@@ -1204,6 +1204,9 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
           Error message "Cost center can not be closed if Allocation Type details are present".
         : 02/25/2019 sxg151 CCN Team...
           ASP-1219 : Stop closing a store if it is a home store for dispatch terminal
+        : 07/09/2019 jxc517 CCN Team...
+          CCNCC-49 : Throw a hard error stopping user to close a store when polling stop date field is not populated
+          Error Name : exc_polling_stop_date_not_present_err
         : 07/10/2019 axm868 CCN Team...
           CCNCC-27 : Added the logic to call COMMON_TOOLS.GENERATE_CLOSE_CC_ISSUE_DTLS_FILE when a user tries to close a cost center        
 ******************************************************************************/	
@@ -1236,6 +1239,8 @@ IS
  v_curr_date date := sysdate;
  v_code number;
  v_errm varchar(500);
+ exc_polling_stop_date_not_present_err   EXCEPTION;
+ V_POLLING_REC                           POLLING%ROWTYPE;
 
 BEGIN
 /******************************************************************************
@@ -1421,6 +1426,20 @@ as these cost center got active customer account.
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
+    BEGIN
+       SELECT *
+         INTO V_POLLING_REC
+         FROM POLLING
+        WHERE COST_CENTER_CODE = incost_center_rowtype.COST_CENTER_CODE
+          AND POLLING_START_DATE IS NOT NULL
+          AND CURRENT_FLAG ='Y';
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            NULL;
+    END;
+    IF V_POLLING_REC.COST_CENTER_CODE IS NOT NULL AND V_POLLING_REC.POLLING_STOP_DATE IS NULL THEN
+        RAISE exc_polling_stop_date_not_present_err;
+    END IF;
 	EXCEPTION
 
 		WHEN invalid_ccntr_close_exp THEN  
@@ -1499,6 +1518,10 @@ as these cost center got active customer account.
                 ,'Dispatch Terminal has a home store assignment to cost center : '  ||
                 indispatch_terminal_rowtype.HOME_STORE ||
                 ' cannot close! ');
+    WHEN exc_polling_stop_date_not_present_err THEN
+         errpkg.raise_err(errnums.en_polling_stop_date_not_present_err,
+                         'CLOSE_CCNTR_SP.exc_polling_stop_date_not_present_err '
+                         ,'Polling Stop Date needs to be updated in polling window to close a store');
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
@@ -7768,7 +7791,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal ¿rows¿ must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal Â¿rowsÂ¿ must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
