@@ -6,6 +6,8 @@ Modified: rxv940 CCN Project Team....
         : and TERR. 
         : 03/01/2018 nxk927/jxc527 CCN Project Team..
           indentation and the right event trigger for the catory
+        : 06/27/2019 akj899 CCNCC-4 CCN project team..
+          Added field territory_typ_of_busn_sgmnt_code
 **********************************************************/
 BEFORE INSERT OR UPDATE ON COSTCNTR.TERRITORY
 REFERENCING NEW AS NEW OLD AS OLD
@@ -36,11 +38,12 @@ BEGIN
 		  XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
                   'http://www.oracle.com/Employee.xsd' AS
                          "xsi:nonamespaceSchemaLocation" ),
-	       XMLForest(v_territory_row.COST_CENTER_CODE COST_CENTER_CODE			
+	       XMLForest(v_territory_row.COST_CENTER_CODE COST_CENTER_CODE
 			,v_territory_row.CATEGORY CATEGORY
 			,v_territory_row.HOME_STORE HOME_STORE
 			,v_territory_row.LEASE_CAR_INDICATOR LEASE_CAR_INDICATOR
-			,v_territory_row.TERRITORY_TYPE_BUSN_CODE TERRITORY_TYPE_BUSN_CODE			
+			,v_territory_row.TERRITORY_TYPE_BUSN_CODE TERRITORY_TYPE_BUSN_CODE
+            ,v_territory_row.TERRITORY_TYP_OF_BUSN_SGMNT_CD TERRITORY_TYP_OF_BUSN_SGMNT_CD
 			)) AS "result" 
 			,XMLELEMENT ( "PrimaryKey",               
 	  			XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
@@ -80,8 +83,9 @@ BEGIN
         IF INSERTING THEN
             POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'ADD', 'POS_TERRITORY_UPDATE');
         ELSIF UPDATING THEN
-            IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE, 'XX') <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE, 'XX') OR
-               NVL(:OLD.HOME_STORE, 'XXX')              <> NVL(:NEW.HOME_STORE, 'XXX') THEN
+            IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE, 'XX')         <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE, 'XX') OR
+               NVL(:OLD.HOME_STORE, 'XXX')                      <> NVL(:NEW.HOME_STORE, 'XXX') OR 
+               NVL(:OLD.TERRITORY_TYP_OF_BUSN_SGMNT_CD, 'XX') <> NVL(:NEW.TERRITORY_TYP_OF_BUSN_SGMNT_CD, 'XX') THEN
                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'CHANGE', 'POS_TERRITORY_UPDATE');
             END IF;
         END IF;
