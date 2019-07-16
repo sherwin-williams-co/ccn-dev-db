@@ -31,6 +31,7 @@ BEGIN
             v_territory_row.category := :NEW.category;
             v_territory_row.lease_car_indicator := :NEW.lease_car_indicator;
             v_territory_row.territory_type_busn_code := :NEW.territory_type_busn_code;
+            v_territory_row.territory_typ_of_busn_sgmnt_cd := :NEW.territory_typ_of_busn_sgmnt_cd;
      
 		
 	
@@ -84,8 +85,7 @@ BEGIN
             POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'ADD', 'POS_TERRITORY_UPDATE');
         ELSIF UPDATING THEN
             IF NVL(:OLD.TERRITORY_TYPE_BUSN_CODE, 'XX')         <> NVL(:NEW.TERRITORY_TYPE_BUSN_CODE, 'XX') OR
-               NVL(:OLD.HOME_STORE, 'XXX')                      <> NVL(:NEW.HOME_STORE, 'XXX') OR 
-               NVL(:OLD.TERRITORY_TYP_OF_BUSN_SGMNT_CD, 'XX') <> NVL(:NEW.TERRITORY_TYP_OF_BUSN_SGMNT_CD, 'XX') THEN
+               NVL(:OLD.HOME_STORE, 'XXX')                      <> NVL(:NEW.HOME_STORE, 'XXX') THEN
                 POS_DATA_GENERATION.POS_TRG_EVENT_LOG(V_TERRITORY_ROW.COST_CENTER_CODE, 'TERRITORY', 'CHANGE', 'POS_TERRITORY_UPDATE');
             END IF;
         END IF;
