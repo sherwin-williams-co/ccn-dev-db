@@ -374,7 +374,6 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
             END IF ;
         END IF;
     END IF;
-    END IF;
 --
 --
 /**  Translate TERMINAL_XMLTYPE Table ***/
@@ -1205,6 +1204,9 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
           Error message "Cost center can not be closed if Allocation Type details are present".
         : 02/25/2019 sxg151 CCN Team...
           ASP-1219 : Stop closing a store if it is a home store for dispatch terminal
+        : 07/09/2019 jxc517 CCN Team...
+          CCNCC-49 : Throw a hard error stopping user to close a store when polling stop date field is not populated
+          Error Name : exc_polling_stop_date_not_present_err
         : 07/10/2019 axm868 CCN Team...
           CCNCC-27 : Added the logic to call COMMON_TOOLS.GENERATE_CLOSE_CC_ISSUE_DTLS_FILE when a user tries to close a cost center        
 ******************************************************************************/	
@@ -1212,7 +1214,7 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
  ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE
  ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
-        IS 
+IS 
 
  non_numeric_exp 		        EXCEPTION;
  invalid_ccntr_close_exp    EXCEPTION;
@@ -1237,6 +1239,8 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
  v_curr_date date := sysdate;
  v_code number;
  v_errm varchar(500);
+ exc_polling_stop_date_not_present_err   EXCEPTION;
+ V_POLLING_REC                           POLLING%ROWTYPE;
 
 BEGIN
 /******************************************************************************
@@ -1341,7 +1345,7 @@ END;
  BEGIN
 
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
-     (inCOST_CENTER_ROWTYPE.CATEGORY = 'S')    THEN
+     (inCOST_CENTER_ROWTYPE.CATEGORY = 'S')      THEN
      SELECT count(*)  INTO v_count -- Check if Cost Center is Home store for Territory
 	   	 FROM TERRITORY 
 	   	 WHERE TERRITORY.HOME_STORE =  inCOST_CENTER_ROWTYPE.COST_CENTER_CODE ;       
@@ -1367,7 +1371,6 @@ END;
 BEGIN
   IF (inSTATUS_ROWTYPE.STATUS_CODE  IN ('X','5'))  AND 
      (inCOST_CENTER_ROWTYPE.CATEGORY = 'T')    THEN
-
        IF inTERRITORY_ROWTYPE.COST_CENTER_CODE IS NULL  OR 
          (inTERRITORY_ROWTYPE.COST_CENTER_CODE IS NOT NULL  AND
           inTERRITORY_ROWTYPE.COST_CENTER_CODE  <> inCOST_CENTER_ROWTYPE.cost_center_code) THEN
@@ -1423,6 +1426,20 @@ as these cost center got active customer account.
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
+    BEGIN
+       SELECT *
+         INTO V_POLLING_REC
+         FROM POLLING
+        WHERE COST_CENTER_CODE = incost_center_rowtype.COST_CENTER_CODE
+          AND POLLING_START_DATE IS NOT NULL
+          AND CURRENT_FLAG ='Y';
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            NULL;
+    END;
+    IF V_POLLING_REC.COST_CENTER_CODE IS NOT NULL AND V_POLLING_REC.POLLING_STOP_DATE IS NULL THEN
+        RAISE exc_polling_stop_date_not_present_err;
+    END IF;
 	EXCEPTION
 
 		WHEN invalid_ccntr_close_exp THEN  
@@ -1478,7 +1495,7 @@ as these cost center got active customer account.
  -- 				v_code := errnums.en_ar_accts_assigned_err;
  --			      errpkg.raise_err(v_code, 'CLOSE_CCNTR_SP.ar_accts_assigned_exp ' ||
  --            		'Cost Center is assigned to account/job ');  
-    WHEN exc_close_date_req_alloc_type_err THEN
+       WHEN exc_close_date_req_alloc_type_err THEN
            v_code := errnums.en_costcntr_cc_close_date_err;
            ERRPKG.raise_err(v_code,
                     'COST_CENTER_BR_SP.exc_close_date_req_alloc_type_err ',
@@ -1501,6 +1518,10 @@ as these cost center got active customer account.
                 ,'Dispatch Terminal has a home store assignment to cost center : '  ||
                 indispatch_terminal_rowtype.HOME_STORE ||
                 ' cannot close! ');
+    WHEN exc_polling_stop_date_not_present_err THEN
+         errpkg.raise_err(errnums.en_polling_stop_date_not_present_err,
+                         'CLOSE_CCNTR_SP.exc_polling_stop_date_not_present_err '
+                         ,'Polling Stop Date needs to be updated in polling window to close a store');
 		WHEN OTHERS THEN
 					v_code := SQLCODE;
 					v_errm := substr(SQLERRM,1, 500);
@@ -6330,9 +6351,9 @@ END;
 Changed: nxk927 03/27/2018 CCN Project Team....
          Change to convert the warning to error per ASP-926
          Added Business rule to Change warning to error for "S" category cost centers 
-         with polling status as "P"/"Q"
-       : pxa852 CCN Project Team...
-         01/11/2019 EXPIRATION_DATE COLUMN Changed to POLL_STATUS_EXP_DT
+         with polling status as "P"/"Q" 
+        : pxa852 CCN Project Team...
+          01/11/2019 EXPIRATION_DATE COLUMN Changed to POLL_STATUS_EXP_DT
 *******************************************************************************/
 BEGIN
     BEGIN 
@@ -6354,6 +6375,8 @@ BEGIN
          raise cc_std_primry_price_err;    
     END IF;
 
+END;
+
     /******************************************************************************
         12). OPEN_DATE must be populated for Territory Cost Centers.
         Added  : mxs216 ASP-1198 01/17/2019 CCN Project Team....
@@ -6361,8 +6384,6 @@ BEGIN
     IF incost_center_rowtype.CATEGORY = 'T' and incost_center_rowtype.OPEN_DATE IS NULL THEN
         RAISE exc_territory_cc_open_date_err;
     END IF;
-
-END;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
@@ -6487,7 +6508,6 @@ END;
                             'COST_CENTER_BR_SP.cc_std_primry_price_err'|| ' The cost center has a category S ' ||
                              'POLLING_STATUS_CODE is P or Q while the PRIMARY/ STANDARD cost identifiers are null. Please fix. '
                             );
-
     -- Error #12
     WHEN exc_territory_cc_open_date_err THEN
         errpkg.raise_err(errnums.en_territory_cc_open_date_err
@@ -7382,25 +7402,29 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
           If this field receives any value other than picklist value or null then it should raise an error in UI.
         : sxg151 09/25/2018 CCN Project Team...
           ASP-1135 : Do not validate potential open date rule if open date is added/updated.
+        : akj899 06/11/2019 CCNCC-13 CCN Project Team...
+          Validating the dispatch service type code field.
+          If this field receives any value other than picklist value or null then it should raise an error in UI.
 *******************************************************************************/
 
   inStore_rowtype                  IN  STORE%ROWTYPE
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE)
 
                 IS
- inactive_cost_center_err      EXCEPTION;
- invalid_store_category_err    EXCEPTION;
- invalid_category_err          EXCEPTION;
- set_perp_inv_dt_err           EXCEPTION;
- invalid_inventory_id_err      EXCEPTION;
- invalid_code_detail_err       EXCEPTION;
- invalid_class_cd_err          EXCEPTION;
- invalid_rurl_met_zone_err     EXCEPTION;
- invalid_sell_store_flag_err   EXCEPTION;
- cn_ac_prmry_stndrd_cc_ind     EXCEPTION;
- non_cn_ac_prmry_std_cc_ind    EXCEPTION;
- invalid_pot_open_dt_err       EXCEPTION;
- invalid_dscrts_dlry_code_err  EXCEPTION;
+ inactive_cost_center_err          EXCEPTION;
+ invalid_store_category_err        EXCEPTION;
+ invalid_category_err              EXCEPTION;
+ set_perp_inv_dt_err               EXCEPTION;
+ invalid_inventory_id_err          EXCEPTION;
+ invalid_code_detail_err           EXCEPTION;
+ invalid_class_cd_err              EXCEPTION;
+ invalid_rurl_met_zone_err         EXCEPTION;
+ invalid_sell_store_flag_err       EXCEPTION;
+ cn_ac_prmry_stndrd_cc_ind         EXCEPTION;
+ non_cn_ac_prmry_std_cc_ind        EXCEPTION;
+ invalid_pot_open_dt_err           EXCEPTION;
+ invalid_dscrts_dlry_code_err      EXCEPTION;
+ invalid_dsptch_srvc_typ_code_err  EXCEPTION;
 
  v_curr_date           date := sysdate;
  v_code number;
@@ -7508,6 +7532,13 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
                 RAISE  invalid_dscrts_dlry_code_err;
        END IF;
     END IF;
+	
+    --validating the store dispatch sevices type code field values and raising an error if it did not receive the correct value.
+    IF inStore_rowtype.dispatch_services_type_code IS NOT NULL THEN
+       IF  NOT  common_tools.code_detail_valid('DISPATCH_SERVICES_TYPE_CODE',  inStore_rowtype.dispatch_services_type_code) THEN
+                RAISE  invalid_dsptch_srvc_typ_code_err;
+       END IF;
+    END IF;
 
     EXCEPTION
 
@@ -7589,6 +7620,10 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
           errpkg.raise_err(errnums.en_invalid_dcrts_dlry_cd_err,
                            'store_br_sp.invalid_dscrts_dlry_code_err ' ,
                            'Descartes Delivery Code must be a valid value as per picklist item "DESCARTES_DELIVERY_CODE".');
+     WHEN invalid_dsptch_srvc_typ_code_err THEN
+          errpkg.raise_err(errnums.en_invalid_dsptch_srvc_typ_cd_err,
+                           'store_br_sp.invalid_dsptch_srvc_typ_code_err ' ,
+                           'Dispatch Services Type Code must be a valid value as per picklist item "DISPATCH_SERVICES_TYPE_CODE".');
 
      WHEN OTHERS THEN
       v_code := SQLCODE;
@@ -7708,7 +7743,7 @@ IS
     v_code := errnums.en_inv_home_store_desig1_err;
     errpkg.raise_err(v_code, 'DISPATCH_TERMINAL_BR_SP.en_inv_home_store_desig3_err '  ,
                    'Cost Center "' || inCC_rowtype.cost_center_code || 
-                   '" Home Store not Required for closed Dispatch"' || '"'); 
+                   '" Home Store not Required for closed Dispatch"' || '"');  
   WHEN OTHERS THEN
     v_code := SQLCODE;
     v_errm := SUBSTR(SQLERRM, 1, 500);
@@ -7756,7 +7791,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal ?ows?must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal ¿rows¿ must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
@@ -8653,6 +8688,7 @@ EXCEPTION
         ' IS InValid Category');  
         RAISE;
 END VALIDATE_CATEGORY;
+
 
 PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
