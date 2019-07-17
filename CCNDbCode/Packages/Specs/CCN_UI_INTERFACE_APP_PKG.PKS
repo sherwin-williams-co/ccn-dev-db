@@ -8,6 +8,7 @@ created : 09/18/2012 TAL -- CCN coding project
 changed : 09/21/2012 TAL -- Split into Table_UI and Interface_UI
         : 07/24/2018 kxm302 CCN Project Team...
 		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
+        : 07/17/2019 sxc403 Added procedure DSPTCH_SRVCS_TYP_CD_LOAD_PROCESS
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
@@ -753,4 +754,18 @@ Changed :
     OUT_BULK_PRC_DETAILS     OUT SYS_REFCURSOR)
 ;
 
+PROCEDURE DSPTCH_SRVCS_TYP_CD_LOAD_PROCESS(
+/******************************************************************************
+This procedure is the core process for updating the dispatch services type code field.
+This process is involked by UI for bulk update of dispatch services type code.
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created : 06/14/2019 akj899 CCNCC-13 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_BLOB            IN       BLOB)
+;
+
 END CCN_UI_INTERFACE_APP_PKG;
+
