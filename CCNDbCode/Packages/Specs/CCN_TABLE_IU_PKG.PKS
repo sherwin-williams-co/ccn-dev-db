@@ -124,7 +124,7 @@ created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
 
-PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
+  PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
 			   , in_CODE_DETAIL_VALUE     IN CODE_DETAIL.CODE_DETAIL_VALUE%TYPE
 			  , out_CODE_DETAIL_REF_CUR  OUT REF_CURSOR )
@@ -2202,135 +2202,6 @@ Created : 03/15/2017 axt754 -- CCN Project Team
     in_table_name    IN     VARCHAR2,
     out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
 
-
-PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
-/*******************************************************************************
-This procedure is intended to build the currency_conversion record type
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-   IN_TABLE_NAME                  IN     VARCHAR2,
-   IN_ROW_DATA                    IN     VARCHAR2, --SYS.XMLTYPE
-   OUT_NON_TW_CURR_CONV_ROWTYPE      OUT CURRENCY_CONVERSION%ROWTYPE );
-
-PROCEDURE NON_TAXWARE_RATES_ROWTYPE_SP (
-/*******************************************************************************
-This procedure is intended to build the NON_TAXWARE_RATES record type
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-   IN_TABLE_NAME              IN     VARCHAR2,
-   IN_ROW_DATA                IN     VARCHAR2, --SYS.XMLTYPE
-   OUT_NON_TW_RATES_ROWTYPE      OUT NON_TAXWARE_RATES%ROWTYPE);
-
-PROCEDURE NON_TAX_RATES_USA_ROWTYPE_SP (
-/*******************************************************************************
-This procedure is intended to build the NON_TAXWARE_RATES_USA record type
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-   IN_TABLE_NAME                  IN     VARCHAR2,
-   IN_ROW_DATA                    IN     VARCHAR2, --SYS.XMLTYPE
-   OUT_NON_TW_RATES_USA_ROWTYPE      OUT NON_TAXWARE_RATES_USA%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_CURR_CONV_S_SP (
-/*******************************************************************************
-This procedure is intended to select records from CURRENCY_CONVERSION table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_COUNTRY_CODE                IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
-    OUT_CURR_CONV_REF_CUR             OUT REF_CURSOR);
-
-PROCEDURE NON_TAXWARE_RATES_S_SP (
-/*******************************************************************************
-This procedure is intended to select records from NON_TAXWARE_RATES table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_COUNTRY_CODE           IN     NON_TAXWARE_RATES.COUNTRY_CODE%TYPE,
-    IN_STATEMENT_TYPE         IN     NON_TAXWARE_RATES.STATEMENT_TYPE%TYPE,
-    OUT_NON_TW_RATES_REF_CUR     OUT REF_CURSOR
-    );
-
-
-PROCEDURE NON_TAXWARE_RATES_USA_S_SP (
-/*******************************************************************************
-This procedure is intended to select records from NON_TAXWARE_RATES_USA table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-   IN_COUNTRY_CODE               IN     NON_TAXWARE_RATES_USA.COUNTRY_CODE%TYPE,
-   IN_STATEMENT_TYPE             IN     NON_TAXWARE_RATES_USA.STATEMENT_TYPE%TYPE,
-   IN_STATE_CODE                 IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,
-   OUT_NON_TW_RATES_USA_REF_CUR     OUT REF_CURSOR);
-
-PROCEDURE NON_TAXWARE_CURR_CONV_U_SP (
-/*******************************************************************************
-This procedure is intended to updates records in CURRENCY_CONVERSION table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_CURR_CONV_ROW         IN CURRENCY_CONVERSION%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_RATES_U_SP (
-/*******************************************************************************
-This procedure is intended to updates records in NON_TAXWARE_RATES table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_RATES_ROW         IN NON_TAXWARE_RATES%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_RATES_USA_U_SP (
-/*******************************************************************************
-This procedure is intended to updates records in NON_TAXWARE_RATES_USA table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_RATES_USA_ROW         IN NON_TAXWARE_RATES_USA%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_CURR_CONV_I_SP (
-/*******************************************************************************
-This procedure is intended to insert records into CURRENCY_CONVERSION table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_CURR_CONV_ROW         IN CURRENCY_CONVERSION%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_RATES_I_SP (
-/*******************************************************************************
-This procedure is intended to insert records into NON_TAXWARE_RATES table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_RATES_ROW     IN NON_TAXWARE_RATES%ROWTYPE);
-
-
-PROCEDURE NON_TAXWARE_RATES_USA_I_SP (
-/*******************************************************************************
-This procedure is intended to insert records into NON_TAXWARE_RATES_USA table
-
-Created : 09/05/2017 axt754 CCN Project....
-Changed :
-*******************************************************************************/
-    IN_NON_TW_RATES_USA_ROW      IN NON_TAXWARE_RATES_USA%ROWTYPE);
-
 PROCEDURE STORE_HST_I_SP(
 /*******************************************************************************
 This procedure is intended to insert previous STORE record into store_hst
@@ -2353,5 +2224,3 @@ Changed :
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
 END CCN_TABLE_IU_PKG;
-
-
