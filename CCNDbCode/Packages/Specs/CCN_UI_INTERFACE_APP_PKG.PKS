@@ -461,6 +461,11 @@ This procedures takes care of following things as part of batch load process fro
   # Get the data from UI
   # Upload the file on DB SERVER
   # call the batch process
+  
+Created : 12/04/2018 pxa852 CCN Project Team...
+Modified:
+******************************************************************************/
+IN_BLOB            IN       BLOB);
 
 PROCEDURE HIERARCHY_FILE_GEN_UI_SP (
 /******************************************************************************
@@ -471,11 +476,6 @@ Created  : 07/23/2018 pxa852 CCN Project Team....
 Modified :
 *******************************************************************************/
     IN_COST_CENTER_CODE    IN   COST_CENTER.COST_CENTER_CODE%TYPE);
-
-Created : 12/04/2018 pxa852 CCN Project Team...
-Modified:
-******************************************************************************/
-IN_BLOB            IN       BLOB);
 
 PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
 /******************************************************************************
