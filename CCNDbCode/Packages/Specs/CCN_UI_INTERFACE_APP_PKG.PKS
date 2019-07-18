@@ -7,17 +7,17 @@ This package is intended will return data for the cost_center table
 created : 09/18/2012 TAL -- CCN coding project
 changed : 09/21/2012 TAL -- Split into Table_UI and Interface_UI
         : 07/24/2018 kxm302 CCN Project Team...
-		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
+          Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
 ******************************************************************************/
-	 	TYPE REF_CURSOR IS REF CURSOR;
+        TYPE REF_CURSOR IS REF CURSOR;
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
 
 PROCEDURE TEST_COST_CENTER_S_SP(
 /******************************************************************************
-	TEST_COST_CENTER_S_SP
+    TEST_COST_CENTER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the cost center table.  
+    This procedure is intended to return a ref cursor with data from 
+    from the cost center table.  
 
 created : 
 *******************************************************************************/
@@ -32,10 +32,10 @@ created :
                            ,inAddressType	IN ADDRESS_USA.address_type%type DEFAULT NULL                                                 
                            ,out_ADDRESS_REF_CUR OUT sys_refcursor)
 /*******************************************************************************
-	ADDRESS_UI_SP
+    ADDRESS_UI_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADDRESS_USA,or ADDRESS_MEX or ADDRESS_CAN or ADDRESS_OTHER table.  
+    This procedure is intended to return a ref cursor with data from 
+    from the ADDRESS_USA,or ADDRESS_MEX or ADDRESS_CAN or ADDRESS_OTHER table.  
 
 created :  09/05/2012 BLR CCN UI Project....
 *******************************************************************************/
@@ -44,7 +44,7 @@ created :  09/05/2012 BLR CCN UI Project....
 
   PROCEDURE COST_CENTER_UI_SP ( IN_Cost_center IN COST_CENTER.cost_center_code%type
                  , OUT_COST_CENTER_REF_CUR  OUT sys_refcursor
- 	             , OUT_CC_CATEGORY_REF_CUR  OUT sys_refcursor
+                 , OUT_CC_CATEGORY_REF_CUR  OUT sys_refcursor
                  , OUT_STATUS_REF_CUR       OUT sys_refcursor
                  , OUT_TYPE_REF_CUR         OUT sys_refcursor
                  , OUT_MARKETING_REF_CUR    OUT sys_refcursor
@@ -52,10 +52,10 @@ created :  09/05/2012 BLR CCN UI Project....
                  , OUT_PHONE_REF_CUR        OUT sys_refcursor
                  , OUT_ADDRESS_REF_CUR      OUT sys_refcursor)
  /******************************************************************************
-	COST_CENTER_UI_SP   --    Cost Center User Interface Procedure
+    COST_CENTER_UI_SP   --    Cost Center User Interface Procedure
 
-	This procedure is intended to return a ref cursor with data from 
-	from the COST_CENTER, ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
+    This procedure is intended to return a ref cursor with data from 
+    from the COST_CENTER, ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
   STATUS, TYPE, MARKETING, PHONE, TAXWARE, and ADDRESS tables.  
 
 created : 09/06/2012 MDH CCN Project....
@@ -64,31 +64,31 @@ created : 09/06/2012 MDH CCN Project....
 
 PROCEDURE POLLING_UI_SP (
 /*******************************************************************************
-	POLLING_UI_SP   --    Polling User Interface Stored Procedure
+    POLLING_UI_SP   --    Polling User Interface Stored Procedure
 
-	This procedure is intended to return a ref cursor with data from 
-	from the POLLING, BANK_CARD, and TERMINAL tables.  
+    This procedure is intended to return a ref cursor with data from 
+    from the POLLING, BANK_CARD, and TERMINAL tables.  
 
 created : 09/05/2012 TAL CCN Project....
 *******************************************************************************/
             in_cost_center            IN  polling.cost_center_code%type
- 					, in_polling_status_code    IN  polling.polling_status_code%type
+                    , in_polling_status_code    IN  polling.polling_status_code%type
           , in_merchant_id_code       IN  bank_card.merchant_id%type
           , in_terminal_number        IN  terminal.terminal_number%type
-					, out_polling_refcur        OUT sys_refcursor
- 					, out_bank_card_refcur      OUT sys_refcursor
-			    , OUT_TERMINAL_REFCUR       OUT SYS_REFCURSOR
+                    , out_polling_refcur        OUT sys_refcursor
+                    , out_bank_card_refcur      OUT sys_refcursor
+                , OUT_TERMINAL_REFCUR       OUT SYS_REFCURSOR
           );   
 
 
 PROCEDURE ADDRESS_UI_UPSERT_SP (
 /*******************************************************************************
-	ADDRESS_UI_UPSERT_SP   --    ADDRESS User Interface Update/Insert Procedure
+    ADDRESS_UI_UPSERT_SP   --    ADDRESS User Interface Update/Insert Procedure
 
-	This procedure is intended to update the database for the following tables 
+    This procedure is intended to update the database for the following tables 
        used in the Address UI.
 
-	Tables: 
+    Tables: 
             ADDRESS_CAN, 
             ADDRESS_USA, 
             ADDRESS_MEX, 
@@ -97,18 +97,18 @@ PROCEDURE ADDRESS_UI_UPSERT_SP (
 created : 12/12/2012 TAL CCN Project....
 revised :
 *******************************************************************************/
- 					in_row_data                IN  varchar2 
+                    in_row_data                IN  varchar2 
           );  
 
 
 PROCEDURE POLLING_UI_UPSERT_SP (
 /*******************************************************************************
-	POLLING_UI_UPSERT_SP   --    POLLING User Interface Update/Insert Procedure
+    POLLING_UI_UPSERT_SP   --    POLLING User Interface Update/Insert Procedure
 
-	This procedure is intended to update the database for the following tables 
+    This procedure is intended to update the database for the following tables 
        used in the Polling UI.
 
-	Tables: 
+    Tables: 
             POLLING
           , BANK_CARD
           , TERMINAL
@@ -116,17 +116,17 @@ PROCEDURE POLLING_UI_UPSERT_SP (
 created : 11/09/2012 MDH CCN Project....
 revised :
 *******************************************************************************/
- 					in_row_data                IN  varchar2 
+                    in_row_data                IN  varchar2 
           );  
 
 PROCEDURE COST_CENTER_UI_UPSERT_SP ( 
  /******************************************************************************
-	COST_CENTER_UI_UPSERT_SP   --    Cost Center User Interface Update delete
+    COST_CENTER_UI_UPSERT_SP   --    Cost Center User Interface Update delete
         Procedure
 
-	This procedure is intended to update the database for the following tables used in
+    This procedure is intended to update the database for the following tables used in
         Cost Center UI.
-	Tables: 
+    Tables: 
               COST_CENTER
            ,  ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
             , STATUS
@@ -144,9 +144,9 @@ revised:   12/03/2012 BLR  CCN Project....
 
  PROCEDURE VALIDATE_BUSINESS_RULES(
  /******************************************************************************
-	VALIDATE_BUSINESS_RULES   --    User Interface Update delete business rules validator
+    VALIDATE_BUSINESS_RULES   --    User Interface Update delete business rules validator
 
-	This procedure is intended to validate the business rules based on the flag sent using
+    This procedure is intended to validate the business rules based on the flag sent using
   the input XML fragment.
 
 created : 08/26/2013 CCN Project....
@@ -165,9 +165,9 @@ RETURN NUMBER;
 
 PROCEDURE COPY_COST_CENTER(
 /**********************************************************
-	COPY_COST_CENTER
+    COPY_COST_CENTER
 
-	This procedure will copy the OLD cost center into NEW cost center
+    This procedure will copy the OLD cost center into NEW cost center
 
 IN_OLD_CC - Input Cost Center to be removed
 IN_NEW_CC - Input Cost Center to be created
@@ -179,9 +179,9 @@ created : 09/11/2013 kdp CCN Project....
 
 PROCEDURE DELETE_COST_CENTER(
 /**********************************************************
-	DELETE_COST_CENTER
+    DELETE_COST_CENTER
 
-	This procedure will delete the passed cost center
+    This procedure will delete the passed cost center
 
 IN_COST_CENTER - Input Cost Center to be removed
 
@@ -203,9 +203,9 @@ created : 01/29/2013 jxc517 CCN Project....
 
 PROCEDURE EMPLOYEE_DETAILS_S_SP (
 /*******************************************************************************
-	EMPLOYEE_DETAILS_S_SP
+    EMPLOYEE_DETAILS_S_SP
 
-	This procedure is intended to select records from EMPLOYEE_DETAILS table
+    This procedure is intended to select records from EMPLOYEE_DETAILS table
 
 <?xml version="1.0" encoding="UTF-8" ?>
 <EMPLOYEE_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
@@ -251,9 +251,9 @@ IN_TABLE_NAME IN     VARCHAR2
 
 PROCEDURE EMPLOYEE_ADMIN_DETAILS_S_SP (
 /*******************************************************************************
-	EMPLOYEE_ADMIN_DETAILS_S_SP
+    EMPLOYEE_ADMIN_DETAILS_S_SP
 
-	This procedure is intended to select records from EMPLOYEE_ADMIN_DETAILS table
+    This procedure is intended to select records from EMPLOYEE_ADMIN_DETAILS table
 
 <?xml version="1.0" encoding="UTF-8" ?>
 <EMPLOYEE_ADMIN_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
@@ -274,9 +274,9 @@ IN_TABLE_NAME IN     VARCHAR2
 
 PROCEDURE EMPLOYEE_ADMIN_DETAILS_UPSERT (
 /*******************************************************************************
-	EMPLOYEE_ADMIN_DETAILS_UPSERT
+    EMPLOYEE_ADMIN_DETAILS_UPSERT
 
-	This procedure is intended to insert/update records into EMPLOYEE_ADMIN_DETAILS table
+    This procedure is intended to insert/update records into EMPLOYEE_ADMIN_DETAILS table
 
 <?xml version="1.0" encoding="UTF-8" ?>
 <EMPLOYEE_ADMIN_DETAILS_UI xmlns:xsi="http://www.w3.org/2001/XMLSchema" xsi:nonamespaceSchemaLocation="http://www.oracle.com/Employee.xsd">
@@ -433,6 +433,234 @@ Changed :
 ********************************************************************************/
     IN_XML         IN            CLOB);
 
+PROCEDURE GL_ACCOUNTS_PROG_UI_UPSERT_SP(
+/******************************************************************************
+This procedure takes XML which has GL_ACCOUNT_NUMBER and Inserts/Updates
+the given PROGRAMS in the XML to the the GL_ACCOUNT_NUMBER Or Updates given GL
+ACCOUNT information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <USER_ID>axt754</USER_ID>
+   <GENERAL_LEDGER_ACCOUNTS_TBL>
+      <GENERAL_LEDGER_ACCOUNTS>
+            <GL_ACCOUNT_NUMBER>33388809</GL_ACCOUNT_NUMBER>
+            </DESCRIPTION>
+            <PROFIT_OR_LOSS>65</PROFIT_OR_LOSS>
+            <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+            <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </GENERAL_LEDGER_ACCOUNTS>
+    </GENERAL_LEDGER_ACCOUNTS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example11</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
+        : 08/25/2017 axt754 -- No Insert of New Accounts
+******************************************************************************/
+    in_xml          IN          CLOB);
+
+PROCEDURE GL_ACCOUNTS_PROG_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML which has GL ACCOUNT NUMBER and DELETES
+Programs information given in the XML, that were attached to GL ACCOUNT NUMBER
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+    <GENERAL_LEDGER_ACCOUNTS_TBL>
+      <GENERAL_LEDGER_ACCOUNTS>
+            <GL_ACCOUNT_NUMBER>33388809</GL_ACCOUNT_NUMBER>
+            </DESCRIPTION>
+            <PROFIT_OR_LOSS>65</PROFIT_OR_LOSS>
+            <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+            <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </GENERAL_LEDGER_ACCOUNTS>
+    </GENERAL_LEDGER_ACCOUNTS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+        : 08/25/2017 axt754 -- No Delete of Existing Accounts
+******************************************************************************/
+    in_xml          IN          CLOB);
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_UPSERT_SP(
+/******************************************************************************
+This procedure takes XML which has PROGRAM_NAME and Inserts/Updates
+the given ACCOUNT_NUMBERS in the XML to the the PROGRAM Or Inserts/Updates
+given PROGRAM related information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <USER_ID>axt754</USER_ID>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388809</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388810</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate UPSERT for ACCOUNTS, PROGRAMS and RELATION
+******************************************************************************/
+    in_xml          IN          CLOB) ;
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML as input Which has PROGRAM information
+and Deletes the account information given in XML, attached to program
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL>
+    <PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388809</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+      <PRGM_GL_ACCNT_RLTN_DTLS>
+           <GL_PS_ACCOUNT_NUMBER>33388810</GL_PS_ACCOUNT_NUMBER>
+           <SORTED_SEQUENCE/>
+           <SHARED>TRUE</SHARED>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PRGM_GL_ACCNT_RLTN_DTLS>
+    </PRGM_GL_ACCNT_RLTN_DTLS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+        : 08/24/2017 axt754 -- If a Program has the accounts in relation donot delete program
+******************************************************************************/
+    in_xml          IN          CLOB);
+
+PROCEDURE PROGRAM_UI_DELETE_SP(
+/******************************************************************************
+This procedure takes XML as input Which has PROGRAM information
+and Deletes the PROGRAM related information
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ACCOUNTS_UI>
+   <PROGRAMS_TBL>
+      <PROGRAMS>
+           <PROGRAM_NAME>Test Example10</PROGRAM_NAME>
+           <EFFECTIVE_DATE>MM-DD-YYYY</EFFECTIVE_DATE>
+           <EXPIRATION_DATE>MM-DD-YYYY</EXPIRATION_DATE>
+      </PROGRAMS>
+    </PROGRAMS_TBL>
+</ACCOUNTS_UI>
+
+Created : 03/15/2017 axt754 -- CCN Project Team
+Modified: 08/17/2017 axt754 -- Separate DELETE for ACCOUNTS, PROGRAMS and RELATION
+        : 08/24/2017 axt754 -- If a Program has the accounts in relation donot delete program
+******************************************************************************/
+    in_xml          IN          CLOB);
+
+PROCEDURE GL_ACCOUNTS_PROG_UI_S_SP(
+/******************************************************************************
+This procedures account number as input and retrives programs that were associated
+with the given account and the account information as well.
+Created : 08/15/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_accnt_nbr             IN      VARCHAR2
+    ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR) ;
+
+PROCEDURE PROG_GL_ACCOUNTS_UI_S_SP(
+/******************************************************************************
+This procedure program name as input and gives the accounts related to Program
+related information
+
+Created : 08/15/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_prog_name             IN           VARCHAR2
+    ,out_prg_refcursor          OUT       SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT       SYS_REFCURSOR);
+
+PROCEDURE PROGRAMS_UI_S_SP(
+/******************************************************************************
+This procedures takes program name as input and retrives the data from
+PROGRAMS Table, if the program name is not passed then retrives all the program
+names from PROGRAMS Table
+
+Created : 08/16/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_prog_name             IN           VARCHAR2
+    ,out_prg_refcursor          OUT       SYS_REFCURSOR);
+
+PROCEDURE GL_ACCOUNTS_UI_S_SP(
+/******************************************************************************
+This procedures takes GL_ACCOUNT_NUMBER as input and retrives the data from
+GENERAL_LEDGER_ACCOUNTS Table, if the GL_ACCOUNT_NUMBER is not passed then retrives all the accounts
+from GENERAL_LEDGER_ACCOUNTS Table
+
+Created : 08/16/2017 axt754 -- CCN Project Team
+
+******************************************************************************/
+    in_accnt_nbr             IN           VARCHAR2
+    ,out_gl_accnt_refcursor     OUT          SYS_REFCURSOR);
+
 PROCEDURE COST_CENTER_DSC_CODES_SP(
 /******************************************************************************
 This procedure is intended to return a ref cursor with data from COST_CENTER_DSC_CODES 
@@ -461,9 +689,9 @@ This procedures takes care of following things as part of batch load process fro
   # Get the data from UI
   # Upload the file on DB SERVER
   # call the batch process
-  
-Created : 12/04/2018 pxa852 CCN Project Team...
-Modified:
+
+Created : 12/05/2017 axt754 -- CCN Project Team
+Changes :
 ******************************************************************************/
 IN_BLOB            IN       BLOB);
 
@@ -496,6 +724,33 @@ This procedure is intended to generate an PrimeSub details and email it to Pat t
 Filters:
 Created : 08/16/2018 kxm302 CCN project Team....
 ******************************************************************************/
+;
+
+PROCEDURE BULK_LOAD_FILE_DETAILS (
+/*******************************************************************************
+This procedure is to returns the clob built based on table and file name
+
+Example input/output for process ID "x"
+
+Input  : 3
+Output : COST_CENTER_CODE,COST_CENTER_NAME,CATEGORY,ENTITY_TYPE,STATEMENT_TYPE,COUNTRY_CODE,TRANSPORT_TYPE,BEGIN_DATE,OPEN_DATE,MOVE_DATE,CLOSE_DATE,FINANCIAL_CLOSE_DATE,POS_PROG_VER_EFF_DATE,UPS_ZONE_CODE,RPS_ZONE_CODE,CURRENCY_CODE,POS_PROG_VER_NBR,LEASE_OWN_CODE,MISSION_TYPE_CODE,DUNS_NUMBER,PRI_LOGO_GROUP_IND,SCD_LOGO_GROUP_IND,BANKING_TYPE,DEPOSIT_BAG_REORDER,DEPOSIT_TICKET_REORDER,POP_KIT_CODE,GLOBAL_HIERARCHY_IND,STD_COST_IDENTIFIER,PRIM_COST_IDENTIFIER,STATUS_CODE,STATUS_EFFECTIVE_DATE,STATUS_EXPIRATION_DATE,TYPE_CODE,TYPE_EFFECTIVE_DATE,TYPE_EXPIRATION_DATE,MEX_ADDRESS_TYPE,MEX_EFFECTIVE_DATE,MEX_EXPIRATION_DATE,MEX_ADDRESS_LINE_1,MEX_ADDRESS_LINE_2,MEX_ADDRESS_LINE_3,MEX_CITY,MEX_PROVINCE_CODE,MEX_POSTAL_CODE,MEX_VALID_ADDRESS,MEX_COUNTRY_CODE,PRI_PHONE_NUMBER_TYPE,PRI_PHONE_AREA_CODE,PRI_PHONE_NUMBER,PRI_PHONE_EXTENSION,SCD_PHONE_NUMBER_TYPE,SCD_PHONE_AREA_CODE,SCD_PHONE_NUMBER,SCD_PHONE_EXTENSION,FAX_PHONE_NUMBER_TYPE,FAX_PHONE_AREA_CODE,FAX_PHONE_NUMBER,FAX_PHONE_EXTENSION,ADMIN_TO_SALES_AREA,ADMIN_TO_SALES_DISTRICT,ADMIN_TO_SALES_DIVISION,ALTERNATE_DAD,FACTS_DIVISION,LEGACY_GL_DIVISION,GLOBAL_HIERARCHY,PRICE_DISTRICT,PRICE_DIST_EFFECTIVE_DT,CREDIT_HIERARCHY,MANAGER_ID,ALLOCATION_CC,LAD_CUSTOMER_TYPE,POS_NON_STORE_IND
+
+Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
+Changed :
+*******************************************************************************/
+    IN_BULK_LOAD_PROCESS_ID IN     NUMBER,
+    OUT_CLOB                   OUT CLOB,
+    OUT_FILE_NAME              OUT VARCHAR2)
+;
+PROCEDURE BULK_LOAD_PROCESS_DETAILS (
+/*******************************************************************************
+This procedure provides details about all bulk load processes currently existing in CCN Cost Center Schema
+
+Created : 11/30/2018, sxg151, CCN Project.... ASP-1156
+Changed :
+*******************************************************************************/
+    IN_XML                IN     VARCHAR2,
+    OUT_BULK_PRC_DETAILS     OUT SYS_REFCURSOR)
 ;
 
 END CCN_UI_INTERFACE_APP_PKG;
