@@ -24,3 +24,5 @@ UPDATE ROLE_DETAILS
                             </COST_CENTER_WINDOW>
                           </USER_RULES_DESCRIPTION>'
 WHERE role_code ='CCNUPB';
+
+commit;
