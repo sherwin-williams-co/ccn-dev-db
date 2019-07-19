@@ -29,8 +29,6 @@ PROCEDURE Business_Rules_sp (
 created : MDH 10/04//2012
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
-Changed:  03/08/2018 mxv711 CCN Project Team..
-          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_MEX_XMLTYPE       VARCHAR2--sys.xmltype
@@ -38,7 +36,6 @@ Changed:  03/08/2018 mxv711 CCN Project Team..
    ,inADDRESS_USA_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADDRESS_BRB_XMLTYPE       VARCHAR2--sys.xmltype
    ,inADMIN_XMLTYPE             VARCHAR2--sys.xmltype
-   ,inLAD_CUSTOMER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE          VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inMARKETING_XMLTYPE         VARCHAR2--sys.xmltype
@@ -75,8 +72,6 @@ PROCEDURE Business_Rules_sp (
   specific columns of specific tables.
 
 created : MDH 9/25//2012
-Changed:  03/08/2018 mxv711 CCN Project Team..
-          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 ******************************************************************************/	
     inADDRESS_CAN_ROWTYPE       IN ADDRESS_CAN%ROWTYPE
    ,inADDRESS_MEX_ROWTYPE       IN ADDRESS_MEX%ROWTYPE
@@ -84,7 +79,6 @@ Changed:  03/08/2018 mxv711 CCN Project Team..
    ,inADDRESS_USA_ROWTYPE       IN ADDRESS_USA%ROWTYPE
    ,inADDRESS_BRB_ROWTYPE       IN ADDRESS_BRB%ROWTYPE
    ,inADMIN_ROWTYPE             IN ADMINISTRATION%ROWTYPE
-   ,inLAD_CUSTOMER_ROWTYPE      IN LAD_CUSTOMER%ROWTYPE
    ,inBANKCARD_ROWTYPE          IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE       IN COST_CENTER%ROWTYPE
    ,inMARKETING_ROWTYPE         IN MARKETING%ROWTYPE
@@ -144,8 +138,7 @@ changed : 02/28/2019 sxg151 ASP-1219
  ,inCOST_CENTER_ROWTYPE IN COST_CENTER%ROWTYPE
  ,INTERRITORY_ROWTYPE   IN TERRITORY%ROWTYPE
  ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
-;	
-
+;
 PROCEDURE DEST_PT_CHECK_DGT_ID_SP (
 /*******************************************************************************
 	DEST_PT_CHECK_DGT_ID_SP
@@ -359,21 +352,6 @@ created : BLR 8/3/2012
 *******************************************************************************/	
 
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
- ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
-
-PROCEDURE LAD_CUSTOMER_BR_SP (
-/*******************************************************************************
-	 LAD_CUSTOMER_BR_SP
-
-	This procedure is intended enforce the Business Rules
-	for verifying the CATEGORY on the LAD_CUSTOMER Table
-	TRD  Section: 3.3.20 
-
-created : 03/08/2018 mxv711 CCN Project Team..
-          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
-*******************************************************************************/	
-
-  inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE);
 
 PROCEDURE BANK_CARD_BR_SP (
@@ -620,15 +598,6 @@ REVISED :
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,intype_rowtype                   IN  TYPE%ROWTYPE);  
- PROCEDURE VALIDATE_CATEGORY(
-/*******************************************************************************
-  This Procedure is designed to Validate Category of cost center
-
-  Created: 03/02/2018 mxv711 ASP-824:bulk upload changes
-
-*******************************************************************************/
-    IN_CATEGORY         IN   VARCHAR2
-);
 
 PROCEDURE MERCHANT_ID_SP_CAN_MC (
 /******************************************************************************
@@ -643,6 +612,7 @@ created  : 01/16/2018 BXA919
  ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
 
+
 PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
 
@@ -653,6 +623,5 @@ to stop users from updating **L* archived cost centers:
 created : mxs216 on 11/14/2018, ASP-1158
 ******************************************************************************/
  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
-
 
 END CCN_BUSINESS_RULES_PKG;
