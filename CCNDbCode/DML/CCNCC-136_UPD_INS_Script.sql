@@ -1,38 +1,26 @@
- 
- SELECT 'BEFORE IMAGE : ' FROM DUAL;
- select * from role_details
- where role_code in ('CCNUS4','CCNUPB');
- 
- UPDATE ROLE_DETAILS
- SET USER_RULES =  
-q'! <USER_RULES>
-  <COST_CENTER_WINDOW>
-    <VALUE>BATCH_PROCESS_WINDOW</VALUE>
-  </COST_CENTER_WINDOW>
-</USER_RULES>!',
- USER_RULES_DESCRIPTION = 
- q'!<USER_RULES_DESCRIPTION>
-  <COST_CENTER_WINDOW>
-    <BATCH_PROCESS_WINDOW>
-      <VALUE>BULK_HIERARCHY_INSERT_SECTION</VALUE>
-      <VALUE>PRICE_DISTRICT_FUTURE_REPORT_SECTION</VALUE>
-    </BATCH_PROCESS_WINDOW>
-  </COST_CENTER_WINDOW>
-</USER_RULES_DESCRIPTION>!'
-WHERE ROLE_CODE = 'CCNUPB';
+UPDATE ROLE_DETAILS
+   SET USER_RULES ='<USER_RULES>
+                      <POLLING_WINDOW/>
+                    </USER_RULES>',
+ USER_RULES_DESCRIPTION ='<USER_RULES_DESCRIPTION>
+                            <POLLING_WINDOW>
+                              <VALUE>ALL_FIELDS</VALUE>
+                            </POLLING_WINDOW>
+                          </USER_RULES_DESCRIPTION>'
+WHERE role_code ='CCNUS4';
 
-INSERT INTO ROLE_DETAILS(ROLE_CODE,ROLE_DESCRIPTION, ADMIN_FLAG, INSERT_FLAG, UPDATE_FLAG, SELECT_FLAG, USER_RULES, USER_RULES_DESCRIPTION)
- VALUES ('CCNUS4',
-         'CCN Polling Window User Select',
-         'N',
-         'N',
-         'N',
-         'Y',
-        null,
-        null);
-
-COMMIT;
-
- SELECT 'AFTER IMAGE : ' FROM DUAL;
- select * from role_details
- where role_code in ('CCNUS4','CCNUPB');
+UPDATE ROLE_DETAILS
+   SET USER_RULES ='<USER_RULES>
+                      <COST_CENTER_WINDOW>
+                        <VALUE>BATCH_PROCESS_WINDOW</VALUE>
+                      </COST_CENTER_WINDOW>
+                    </USER_RULES>',
+ USER_RULES_DESCRIPTION ='<USER_RULES_DESCRIPTION>
+                            <COST_CENTER_WINDOW>
+                               <BATCH_PROCESS_WINDOW>
+                                  <VALUE>BULK_HIERARCHY_INSERT_SECTION</VALUE>
+                                  <VALUE>PRICE_DISTRICT_FUTURE_REPORT_SECTION</VALUE>
+                               </BATCH_PROCESS_WINDOW>
+                            </COST_CENTER_WINDOW>
+                          </USER_RULES_DESCRIPTION>'
+WHERE role_code ='CCNUPB';
