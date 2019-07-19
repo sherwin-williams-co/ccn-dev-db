@@ -1,3 +1,13 @@
+/*******************************************************************************
+CCNCC-136: Script to update role_details table column USER_RULES and USER_RULE_DESCRIPTION
+columns for role_codes 'CCNUS4' and  'CCNUPB'.  
+Created : 07/19/2019 sxc403
+*******************************************************************************/
+
+select * from 
+  role_details
+ where  role_code IN ('CCNUS4','CCNUPB');
+
 UPDATE ROLE_DETAILS
    SET USER_RULES ='<USER_RULES>
                       <POLLING_WINDOW/>
@@ -26,3 +36,7 @@ UPDATE ROLE_DETAILS
 WHERE role_code ='CCNUPB';
 
 commit;
+
+select * from 
+  role_details
+ where  role_code IN ('CCNUS4','CCNUPB');
