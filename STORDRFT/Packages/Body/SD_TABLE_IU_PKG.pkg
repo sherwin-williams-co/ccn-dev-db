@@ -2173,19 +2173,11 @@ IS
     V_ERRM VARCHAR2(500);
 
     V_TEMP_ROW               STORE_DRAFTS%ROWTYPE;
-    V_PREV_PAYEE_NAME        VARCHAR2(50);
 BEGIN
 
     STORE_DRAFTS_ROWTYPE_SP(IN_TABLE_NAME,
                             IN_ROW_DATA,
                             V_TEMP_ROW);
-    -- get if payee already exists in store_drafts
-    SELECT  PAYEE_NAME
-       INTO V_PREV_PAYEE_NAME
-    FROM  STORE_DRAFTS
-    WHERE NVL(COST_CENTER_CODE,'XXX')                 = NVL(V_TEMP_ROW.COST_CENTER_CODE,NVL(COST_CENTER_CODE,'XXX'))
-       AND NVL(CHECK_SERIAL_NUMBER,'XXX')             = NVL(V_TEMP_ROW.CHECK_SERIAL_NUMBER,NVL(CHECK_SERIAL_NUMBER,'XXX'))
-       AND NVL(TRANSACTION_DATE,TRUNC(SYSDATE))       = NVL(V_TEMP_ROW.TRANSACTION_DATE,NVL(TRANSACTION_DATE,TRUNC(SYSDATE)));
 
         UPDATE STORE_DRAFTS
            SET STOP_PAY_DATE              = V_TEMP_ROW.STOP_PAY_DATE,
@@ -2679,11 +2671,11 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_SP, ' || SUBSTR(SQLERRM,1,200));
 END SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_SP;
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_SP (
+PROCEDURE STORE_RUN_TYPE_DETAILS_SP (
 /******************************************************************************
 This procedure will get 
-1) all store threshold details if no input is passed
-2) specific store threshold details if run type is passed
+1) all store run type details if no input is passed
+2) specific store details if run type is passed
 
 Created : 01/01/2019 jxc517 CCN Project Team....
 Changed : 
@@ -2696,7 +2688,7 @@ IS
 BEGIN
     OPEN OUT_REF_CUR FOR
         SELECT COST_CENTER_CODE,
-               SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(A.COST_CENTER_CODE) TERMINAL_NUMBER,
+               CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(A.COST_CENTER_CODE) TERMINAL_NUMBER,
                STORE_DRAFT_CHECK_RUN_TYPE,
                (SELECT COUNT(*)
                   FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
@@ -2704,14 +2696,14 @@ BEGIN
                    AND USED_IN_POS_ON_DATE IS NULL) UNUSED_DRAFTS_COUNT,
                CREATED_BY_USER_ID,
                CREATED_ON_DATE
-          FROM STORE_RUN_TYP_THRSHLD_DTLS A
+          FROM STORE_RUN_TYPE_DETAILS A
          WHERE COST_CENTER_CODE = NVL(IN_COST_CENTER_CODE, COST_CENTER_CODE)
            AND EXPIRATION_DATE IS NULL
          ORDER BY COST_CENTER_CODE;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYP_THRSHLD_DTLS_SP, ' || SUBSTR(SQLERRM,1,200));
-END STORE_RUN_TYP_THRSHLD_DTLS_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYPE_DETAILS_SP, ' || SUBSTR(SQLERRM,1,200));
+END STORE_RUN_TYPE_DETAILS_SP;
 
 PROCEDURE SD_CHECK_NBR_TRCKNG_DTLS_ROWTYPE_SP (
 /******************************************************************************
@@ -2728,7 +2720,7 @@ IS
     V_ROW_VALUE     VARCHAR2(500);
 BEGIN
     FOR table_fields_rec IN table_fields_cur(IN_TABLE_NAME) LOOP
-        V_ROW_VALUE := GET_FIELD_VALUE_FROM_XML(XMLTYPE(IN_ROW_DATA), IN_TABLE_NAME, table_fields_rec.column_name, table_fields_rec.data_type);
+        V_ROW_VALUE := CCN_COMMON_TOOLS.GET_FIELD_VALUE_FROM_XML(XMLTYPE(IN_ROW_DATA),table_fields_rec);
         CASE table_fields_rec.column_name
             WHEN 'COST_CENTER_CODE'       THEN  OUT_TYPE_ROWTYPE.COST_CENTER_CODE     := UPPER(V_ROW_VALUE);
             WHEN 'CHKS_ORDERED_DATE'      THEN  OUT_TYPE_ROWTYPE.CHKS_ORDERED_DATE    := TO_DATE(V_ROW_VALUE, 'MM-DD-YYYY');
@@ -2774,7 +2766,8 @@ This procedure will get
 2) specific store check order details if run type is passed
 
 Created : 01/01/2019 jxc517 CCN Project Team....
-Changed : 
+Changed : 01/28/2019 jxc517 CCN Project Team....
+        : Changed ORDER BY list as requested by user.
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
     OUT_REF_CUR              OUT REF_CURSOR,
@@ -2889,14 +2882,14 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE, 'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROWTYPE_SP ' || SUBSTR(SQLERRM,1,200) || ' SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS Rowtype Error ' );
 END SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROWTYPE_SP;
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_I_SP(
+PROCEDURE STORE_RUN_TYPE_DETAILS_I_SP(
 /**********************************************************
-This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
 
 Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/
-    IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE)
+    IN_STORE_RUN_TYPE_DETAILS_ROW     IN           STORE_RUN_TYPE_DETAILS%ROWTYPE)
 IS
    V_RUN_TYPE                 VARCHAR2(100);
    V_COUNT                    NUMBER :=0;
@@ -2905,39 +2898,41 @@ BEGIN
 
    SELECT COUNT(1)
      INTO V_COUNT
-   FROM STORE_RUN_TYP_THRSHLD_DTLS
-   WHERE COST_CENTER_CODE           = IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW.COST_CENTER_CODE
-     AND STORE_DRAFT_CHECK_RUN_TYPE = IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW.STORE_DRAFT_CHECK_RUN_TYPE
+   FROM STORE_RUN_TYPE_DETAILS
+   WHERE COST_CENTER_CODE           = IN_STORE_RUN_TYPE_DETAILS_ROW.COST_CENTER_CODE
+     AND STORE_DRAFT_CHECK_RUN_TYPE = IN_STORE_RUN_TYPE_DETAILS_ROW.STORE_DRAFT_CHECK_RUN_TYPE
      AND EXPIRATION_DATE   IS NULL;
 
    IF V_COUNT = 0 THEN
     --Expire the current record with previous record - 1 second to make sure the constraints are handled
-    UPDATE STORE_RUN_TYP_THRSHLD_DTLS   
-       SET EXPIRATION_DATE   = IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW.EFFECTIVE_DATE - INTERVAL '1' SECOND
-     WHERE COST_CENTER_CODE  = IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW.COST_CENTER_CODE
+    UPDATE STORE_RUN_TYPE_DETAILS   
+       SET EXPIRATION_DATE   = IN_STORE_RUN_TYPE_DETAILS_ROW.EFFECTIVE_DATE - INTERVAL '1' SECOND
+     WHERE COST_CENTER_CODE  = IN_STORE_RUN_TYPE_DETAILS_ROW.COST_CENTER_CODE
        AND EXPIRATION_DATE   IS NULL;
 
-    INSERT INTO STORE_RUN_TYP_THRSHLD_DTLS VALUES IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW;
+    INSERT INTO STORE_RUN_TYPE_DETAILS VALUES IN_STORE_RUN_TYPE_DETAILS_ROW;
 
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYP_THRSHLD_DTLS_I_SP ' || SUBSTR(SQLERRM,1,200) || ' STORE_RUN_TYP_THRSHLD_DTLS Insert Error ' );
-END STORE_RUN_TYP_THRSHLD_DTLS_I_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYPE_DETAILS_I_SP ' || SUBSTR(SQLERRM,1,200) || ' STORE_RUN_TYPE_DETAILS Insert Error ' );
+END STORE_RUN_TYPE_DETAILS_I_SP;
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP (
+PROCEDURE STORE_RUN_TYPE_DETAILS_ROWTYPE_SP (
 /*******************************************************************************
-This procedure is intended to build the STORE_RUN_TYP_THRSHLD_DTLS record type
+This procedure is intended to build the STORE_RUN_TYPE_DETAILS record type
 
 Created : 1/11/2019 kxm302 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
-,OUT_ROW_TYPE     OUT STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE)
+,OUT_ROW_TYPE     OUT STORE_RUN_TYPE_DETAILS%ROWTYPE)
 IS
     V_CODE NUMBER;
     V_ERRM VARCHAR2(500);
+    V_TEMP_ROW         STORE_RUN_TYPE_DETAILS%ROWTYPE;
+    V_ROW_VALUE        VARCHAR2(500);
 
 CURSOR TABLE_FIELDS_CUR IS
     SELECT COLUMN_NAME
@@ -2947,31 +2942,87 @@ CURSOR TABLE_FIELDS_CUR IS
      WHERE TABLE_NAME = IN_TABLE_NAME
      ORDER BY COLUMN_ID ASC;
 
-    V_TEMP_ROW         STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
-    V_ROW_VALUE        VARCHAR2(500);
-    V_ROW_DATA         SYS.XMLTYPE := XMLTYPE(IN_ROW_DATA);
 BEGIN
-    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR LOOP
-        IF (V_ROW_DATA.EXISTSNODE('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()') = 1) THEN
-            V_ROW_VALUE := V_ROW_DATA.EXTRACT('/'|| IN_TABLE_NAME|| '/' || TABLE_FIELDS_REC.COLUMN_NAME ||'/text()').GETSTRINGVAL(); 
-            V_ROW_VALUE := CCN_COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+    FOR TABLE_FIELDS_REC IN TABLE_FIELDS_CUR(IN_TABLE_NAME) LOOP
+        V_ROW_VALUE := CCN_COMMON_TOOLS.GET_FIELD_VALUE_FROM_XML(XMLTYPE(IN_ROW_DATA),table_fields_rec);
             CASE TABLE_FIELDS_REC.COLUMN_NAME
                 WHEN 'COST_CENTER_CODE' THEN
-                    V_TEMP_ROW.COST_CENTER_CODE                        :=  V_ROW_VALUE;
+                    V_TEMP_ROW.COST_CENTER_CODE              :=  V_ROW_VALUE;
                 WHEN 'STORE_DRAFT_CHECK_RUN_TYPE' THEN
-                    V_TEMP_ROW.STORE_DRAFT_CHECK_RUN_TYPE               :=  V_ROW_VALUE;
+                    V_TEMP_ROW.STORE_DRAFT_CHECK_RUN_TYPE    :=  V_ROW_VALUE;
                 WHEN 'CREATED_BY_USER_ID' THEN
-                    V_TEMP_ROW.CREATED_BY_USER_ID                       :=  V_ROW_VALUE;
+                    V_TEMP_ROW.CREATED_BY_USER_ID            :=  V_ROW_VALUE;
                 ELSE NULL;
             END CASE;
-        END IF;
     END LOOP;
     V_TEMP_ROW.CREATED_ON_DATE := SYSDATE;
     V_TEMP_ROW.EFFECTIVE_DATE := SYSDATE;
     OUT_ROW_TYPE  := V_TEMP_ROW;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP ' || SUBSTR(SQLERRM,1,200) || ' STORE_RUN_TYP_THRSHLD_DTLS Rowtype Error ' );
-END STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP;
+        ERRPKG.RAISE_ERR(SQLCODE, 'STORE_RUN_TYPE_DETAILS_ROWTYPE_SP ' || SUBSTR(SQLERRM,1,200) || ' STORE_RUN_TYPE_DETAILS Rowtype Error ' );
+END STORE_RUN_TYPE_DETAILS_ROWTYPE_SP; 
+
+PROCEDURE CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(
+/**********************************************************
+This procedure will insert drafts of 2 letters 'A' and 'B' into SD_CHECK_NBR_PRNT_EXTRCT_DTLS 
+from previous end draft number for the cost center passed.
+
+Created : 07/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_ROW_DATA IN  SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE
+) 
+IS
+
+BEGIN
+    INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES IN_ROW_DATA ;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP',  SQLERRM);
+END CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP;
+
+PROCEDURE CHECK_NBR_TRCKNG_DTLS_I_SP(
+/**********************************************************
+This procedure will insert an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
+
+Created : 07/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_ROW_DATA IN  SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE
+) 
+IS
+
+BEGIN
+    INSERT INTO SD_CHECK_NBR_TRCKNG_DTLS VALUES IN_ROW_DATA ;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'CHECK_NBR_TRCKNG_DTLS_I_SP',  SQLERRM);
+END CHECK_NBR_TRCKNG_DTLS_I_SP;
+
+PROCEDURE CHECK_NBR_TRCKNG_DTLS_U_SP(
+/**********************************************************
+This procedure will update into the SD_CHECK_NBR_PRNT_EXTRCT_DTLS table.
+
+Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_CHECK_SERIAL_NUMBER  IN    VARCHAR2,
+IN_TRANSACTION_DATE     IN    DATE,
+IN_COST_CENTER_CODE     IN    VARCHAR2 DEFAULT NULL)
+IS
+BEGIN
+
+    UPDATE SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+       SET USED_IN_POS_ON_DATE  = IN_TRANSACTION_DATE
+     WHERE (
+            (TERMINAL_NUMBER||ORDERED_DRFT_NUMBER||CHECK_DIGIT) = IN_CHECK_SERIAL_NUMBER --New logic check serial number
+            OR
+            ('0' || SUBSTR(IN_COST_CENTER_CODE, -4) ||ORDERED_DRFT_NUMBER||CHECK_DIGIT) = IN_CHECK_SERIAL_NUMBER --old logic check serial number
+            );
+EXCEPTION
+    WHEN OTHERS THEN
+         NULL;
+END CHECK_NBR_TRCKNG_DTLS_U_SP;
 
 END SD_TABLE_IU_PKG;

@@ -1,7 +1,7 @@
 create or replace PACKAGE SD_BUSINESS_RULES_PKG
 /****************************************************************************** 
 This package BODY will do the business rules validations:
-  
+
 created : 06/30/2014 
 changed : 04/16/2015 jxc517 CCN Project
           Added global variables to store statement types based on their category
@@ -49,10 +49,11 @@ FUNCTION GET_CHECK_SERIAL_NUMBER(
   and the 4 digit check serial number
 
 created : 09/10/2014 jxc517 CCN Project . . .
-changed :
+changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
     IN_COST_CENTER_CODE IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
-    IN_CHECK_NUMBER     IN    VARCHAR2) RETURN VARCHAR2;
+    IN_CHECK_NUMBER     IN    VARCHAR2,
+    IN_TRML_NBR_LGC     IN    VARCHAR2 DEFAULT 'N') RETURN VARCHAR2;
 
 PROCEDURE UNATTACHED_MNL_DRFT_DTL_SP(
 /*****************************************************************************
@@ -113,8 +114,8 @@ PROCEDURE SD_RUN_TYPE_VALIDATION(
 This procedure will do the bussiness rules validations for Run Type
 
 created : 1/28/2019 kxm302 CCN Project . . .
-changed :
+changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
-    IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);
+    IN_STORE_RUN_TYPE_DETAILS_ROW     IN           STORE_RUN_TYPE_DETAILS%ROWTYPE);
 
 END SD_BUSINESS_RULES_PKG;

@@ -593,11 +593,11 @@ Changed :
     OUT_REF_CUR      OUT REF_CURSOR,
     IN_RUN_TYPE   IN     VARCHAR2 DEFAULT NULL);
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_SP (
+PROCEDURE STORE_RUN_TYPE_DETAILS_SP (
 /******************************************************************************
 This procedure will get 
-1) all store threshold details if no input is passed
-2) specific store threshold details if run type is passed
+1) all store run type details if no input is passed
+2) specific store details if run type is passed
 
 Created : 01/01/2019 jxc517 CCN Project Team....
 Changed : 
@@ -618,7 +618,7 @@ Changed :
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
     OUT_REF_CUR              OUT REF_CURSOR,
     IN_COST_CENTER_CODE   IN     VARCHAR2 DEFAULT NULL);
-    
+
 PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(
 /**********************************************************
 This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table. 
@@ -639,25 +639,25 @@ IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
 ,OUT_ROW_TYPE     OUT SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE);
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_I_SP(
+PROCEDURE STORE_RUN_TYPE_DETAILS_I_SP(
 /**********************************************************
-This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
 
 Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/
-    IN_STORE_RUN_TYP_THRSHLD_DTLS_ROW     IN           STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);    
+    IN_STORE_RUN_TYPE_DETAILS_ROW     IN           STORE_RUN_TYPE_DETAILS%ROWTYPE);    
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP (
+PROCEDURE STORE_RUN_TYPE_DETAILS_ROWTYPE_SP (
 /*******************************************************************************
-This procedure is intended to build the STORE_RUN_TYP_THRSHLD_DTLS record type
+This procedure is intended to build the STORE_RUN_TYPE_DETAILS record type
 
 Created : 1/11/2019 kxm302 CCN Project....
 Changed : 
 *******************************************************************************/
 IN_TABLE_NAME  IN     VARCHAR2
 ,IN_ROW_DATA   IN     CLOB
-,OUT_ROW_TYPE     OUT STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE);
+,OUT_ROW_TYPE     OUT STORE_RUN_TYPE_DETAILS%ROWTYPE);
 
 PROCEDURE SD_CHECK_NBR_PRNT_EXTRCT_DTLS_SP (
 /******************************************************************************
@@ -671,5 +671,39 @@ Changed :
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
     OUT_REF_CUR              OUT REF_CURSOR,
     IN_COST_CENTER_CODE   IN     VARCHAR2 DEFAULT NULL);
+
+PROCEDURE CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(
+/**********************************************************
+This procedure will insert drafts of 2 letters 'A' and 'B' into SD_CHECK_NBR_PRNT_EXTRCT_DTLS 
+from previous end draft number for the cost center passed.
+
+Created : 07/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_ROW_DATA  IN   SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE
+);
+
+PROCEDURE CHECK_NBR_TRCKNG_DTLS_I_SP(
+/**********************************************************
+This procedure will insert an entry in SD_CHECK_NBR_TRCKNG_DTLS 
+for the next available draft number to use.
+
+Created : 07/15/2019 akj899 ASP-1193 CCNSD-8  CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_ROW_DATA  IN    SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE
+);
+
+PROCEDURE CHECK_NBR_TRCKNG_DTLS_U_SP(
+/**********************************************************
+This procedure will update into the SD_CHECK_NBR_PRNT_EXTRCT_DTLS table.
+
+Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IN_CHECK_SERIAL_NUMBER  IN    VARCHAR2,
+IN_TRANSACTION_DATE     IN    DATE,
+IN_COST_CENTER_CODE     IN    VARCHAR2 DEFAULT NULL)
+;
 
 END SD_TABLE_IU_PKG;

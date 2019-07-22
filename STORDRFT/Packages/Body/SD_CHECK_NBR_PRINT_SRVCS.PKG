@@ -1,35 +1,11 @@
 create or replace PACKAGE BODY SD_CHECK_NBR_PRINT_SRVCS
 AS
 
-FUNCTION GET_OLDEST_ACTIVE_TERMINAL_NBR(
-/**********************************************************
-This function will get oldest active TERMINAL_NUMBER for COST_CENTER passed.
-
-Created : 1/15/2019 kxm302 CCN Project Team.... 
-Changed : 
-**********************************************************/
-    IN_COST_CENTER_CODE    IN   VARCHAR2)
-RETURN VARCHAR2
-IS
-    V_RETURN_VALUE VARCHAR2(5);
-BEGIN
-    SELECT MIN(TERMINAL_NUMBER)
-      INTO V_RETURN_VALUE
-      FROM TERMINAL
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND EXPIRATION_DATE IS NULL;
-
-    RETURN V_RETURN_VALUE;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_VALUE;
-END GET_OLDEST_ACTIVE_TERMINAL_NBR;
-
 FUNCTION GET_PREV_PRINT_DRAFT_END_NBR(
 /**********************************************************
 This function will get last ending draft number for COST_CENTER passed.
 
-Created : 1/15/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....  
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE    IN    VARCHAR2
@@ -51,21 +27,21 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END GET_PREV_PRINT_DRAFT_END_NBR;
 
-FUNCTION GET_STORE_DRAFT_THRESHOLD_REC(
+FUNCTION GET_STORE_DRAFT_RUN_TYPE_REC(
 /**********************************************************
 This function will get run type detail for COST_CENTER passed.
 
-Created : 1/15/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE    IN    VARCHAR2
-) RETURN STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE
+) RETURN STORE_RUN_TYPE_DETAILS%ROWTYPE
 IS
-    V_RETURN_VALUE    STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_RETURN_VALUE    STORE_RUN_TYPE_DETAILS%ROWTYPE;
 BEGIN
     SELECT *
       INTO V_RETURN_VALUE
-      FROM STORE_RUN_TYP_THRSHLD_DTLS
+      FROM STORE_RUN_TYPE_DETAILS
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
        AND EXPIRATION_DATE IS NULL;
 
@@ -73,13 +49,13 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VALUE;
-END GET_STORE_DRAFT_THRESHOLD_REC;
+END GET_STORE_DRAFT_RUN_TYPE_REC;
 
 FUNCTION GET_SD_CHK_TYP_REC(
 /**********************************************************
 This function will noof books ,checks per book , threshold, bank acccount number and routing number for run type passed.
 
-Created : 1/15/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
     IN_RUN_TYPE      IN    VARCHAR2
@@ -104,20 +80,23 @@ PROCEDURE LOAD_EXTRACT_TBL(
 This procedure will print drafts of 2 letters 'A' and 'B' from previous end draft number for the cost center passed.
 After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE           IN      VARCHAR2,
     IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
-    IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE)
+    IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE,
+    IN_ORDER_DATE                 IN      DATE DEFAULT NULL)
 IS
-    V_TOTAL_CHECKS          NUMBER;
-    V_DRAFT_NBR             NUMBER;
-    V_TERMINAL_NUMBER       VARCHAR2(5) := SD_CHECK_NBR_PRINT_SRVCS.GET_OLDEST_ACTIVE_TERMINAL_NBR(IN_COST_CENTER_CODE);
-    V_COUNTRY_CODE          VARCHAR2(4);
-    V_STARTING_DRAFT_NUMBER NUMBER;
+    V_TOTAL_CHECKS                   NUMBER;
+    V_DRAFT_NBR                      NUMBER;
+    V_TERMINAL_NUMBER                VARCHAR2(5) := CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(IN_COST_CENTER_CODE);
+    V_COUNTRY_CODE                   VARCHAR2(4);
+    V_STARTING_DRAFT_NUMBER          NUMBER;
+    V_CHK_NBR_PRNT_EXTRCT_DTL_REC    SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
+    V_CHK_NBR_TRCKNG_DTLS_REC        SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
 BEGIN
-    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
+    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.NO_OF_BOOKS * IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
     SELECT COUNTRY_CODE
       INTO V_COUNTRY_CODE
       FROM COST_CENTER
@@ -137,20 +116,23 @@ BEGIN
         IF draft_iterator = 1 THEN
             V_STARTING_DRAFT_NUMBER := V_DRAFT_NBR;
         END IF;
-        INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
-            TRUNC(SYSDATE),
-            draft_iterator,
-            IN_COST_CENTER_CODE,
-            V_TERMINAL_NUMBER,
-            V_DRAFT_NBR,
-            CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
-            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
-            IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR, --'8800600275',
-            'A',
-            IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
-            CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
-            NULL);
-            
+
+        --Building record for SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHKS_ORDERED_DATE   := TRUNC(SYSDATE);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.SRT_CHKDLY_SEQ_NBR  := draft_iterator;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.TERMINAL_NUMBER     := V_TERMINAL_NUMBER;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := V_DRAFT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ROUTING_NBR         := IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ACCOUNT_NUMBER      := IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'A';
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUN_TYPE            := IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUNTYPE_DESCRIPTION := CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.USED_IN_POS_ON_DATE := NULL;
+
+        SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+
         V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
         --The iteration should go back to 1000 after 9999 for USA
         IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
@@ -159,35 +141,33 @@ BEGIN
         ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
             V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 900;
         END IF;
-        INSERT INTO SD_CHECK_NBR_PRNT_EXTRCT_DTLS VALUES (
-            TRUNC(SYSDATE),
-            draft_iterator,
-            IN_COST_CENTER_CODE,
-            V_TERMINAL_NUMBER,
-            V_DRAFT_NBR,
-            CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR),
-            IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR, --'061100790',
-            IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR, --'8800600275',
-            'B',
-            IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE,
-            CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE),
-            NULL);
+        -- Resetting few field values for Letter 'B'
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := V_DRAFT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'B';
+
+        SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+
     END LOOP;
-    INSERT INTO SD_CHECK_NBR_TRCKNG_DTLS VALUES (
-        IN_COST_CENTER_CODE,
-        SYSDATE,
-        V_STARTING_DRAFT_NUMBER,
-        V_DRAFT_NBR);
+
+    --Building record for SD_CHECK_NBR_TRCKNG_DTLS
+    V_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
+    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE, SYSDATE);
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT := V_STARTING_DRAFT_NUMBER;
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_ENDNG_DRFT  := V_DRAFT_NBR;
+
+    SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_I_SP(V_CHK_NBR_TRCKNG_DTLS_REC);
+
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE;
+        ERRPKG.RAISE_ERR(SQLCODE,'LOAD_EXTRACT_TBL',  SQLERRM);
 END LOAD_EXTRACT_TBL;
 
 PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
 /**********************************************************
 This procedure will go ahead and place draft print order if unused drafts less then threshold.
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
 IS
@@ -199,14 +179,14 @@ IS
          GROUP BY COST_CENTER_CODE
          ORDER BY 1;
 
-    V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_STR_DRFT_RUN_TYPE_REC   STORE_RUN_TYPE_DETAILS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
 BEGIN
     FOR rec IN cc_main_cursor LOOP
-        V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(rec.COST_CENTER_CODE);
+        V_STR_DRFT_RUN_TYPE_REC  := GET_STORE_DRAFT_RUN_TYPE_REC(rec.COST_CENTER_CODE);
         V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(rec.COST_CENTER_CODE);
-        V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+        V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_RUN_TYPE_REC.STORE_DRAFT_CHECK_RUN_TYPE);
         IF rec.UNUSED_DRAFTS <= V_SD_CHK_TYP_REC.STORE_DRFT_THRESHOLD THEN
             LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
                              V_PREV_END_DRFT_NBR,
@@ -219,24 +199,24 @@ PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
 /**********************************************************
 This procedure will go ahead and place draft print order on demand for the cost center passed.
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE   IN    VARCHAR2)
 IS
-    V_STR_DRFT_THRESHOLD_REC   STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_STR_DRFT_REC             STORE_RUN_TYPE_DETAILS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
     no_run_type_err            EXCEPTION;
 BEGIN
-    V_STR_DRFT_THRESHOLD_REC := GET_STORE_DRAFT_THRESHOLD_REC(IN_COST_CENTER_CODE);
+    V_STR_DRFT_REC           := GET_STORE_DRAFT_RUN_TYPE_REC(IN_COST_CENTER_CODE);
+    V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_REC.STORE_DRAFT_CHECK_RUN_TYPE);
     V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(IN_COST_CENTER_CODE);
-    V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_THRESHOLD_REC.STORE_DRAFT_CHECK_RUN_TYPE);
-    
+
     IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
        RAISE no_run_type_err;
     END IF;
-    
+
     LOAD_EXTRACT_TBL(IN_COST_CENTER_CODE,
                      V_PREV_END_DRFT_NBR,
                      V_SD_CHK_TYP_REC);
@@ -272,7 +252,7 @@ This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table
  </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
 </SD_CHECK_NBR_PRNT_UI>
 
-created : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
 **********************************************************/
     IN_XML                CLOB)
@@ -292,37 +272,122 @@ BEGIN
     END LOOP;
 END SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP;
 
-PROCEDURE STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP (
+PROCEDURE STORE_RUN_TYPE_DETAILS_UPSERT_SP (
 /**********************************************************
-This procedure will insert/update into the STORE_RUN_TYP_THRSHLD_DTLS table.
+This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
 
-<STORE_RUN_TYP_THRSHLD_DTLS_UI>
- <STORE_RUN_TYP_THRSHLD_DTLS>
+<STORE_RUN_TYPE_DETAILS_UI>
+ <STORE_RUN_TYPE_DETAILS>
    <COST_CENTER_CODE>701004</COST_CENTER_CODE>
    <STORE_DRAFT_CHECK_RUN_TYPE>S</STORE_DRAFT_CHECK_RUN_TYPE>
    <CREATED_BY_USER_ID>kxm302</CREATED_BY_USER_ID>
    <CREATED_ON_DATE>01-11-2019</CREATED_ON_DATE>
- </STORE_RUN_TYP_THRSHLD_DTLS>
-</STORE_RUN_TYP_THRSHLD_DTLS_UI> 
+ </STORE_RUN_TYPE_DETAILS>
+</STORE_RUN_TYPE_DETAILS_UI> 
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
-Changed : 1/28/2019 kxm302 CCN Project Team....
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
         : Added Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
+Changed :
 **********************************************************/
     IN_XML                CLOB)
 IS
-    V_XML                                    XMLTYPE := SYS.XMLTYPE(IN_XML);
-    V_COUNT				                     NUMBER := 1;
-    V_STORE_RUN_TYP_THRSHLD_DTLS_ROW         STORE_RUN_TYP_THRSHLD_DTLS%ROWTYPE;
+    V_XML                                XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_COUNT                              NUMBER := 1;
+    V_STORE_RUN_TYPE_DETAILS_ROW         STORE_RUN_TYPE_DETAILS%ROWTYPE;
 BEGIN
-    SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_ROWTYPE_SP('STORE_RUN_TYP_THRSHLD_DTLS',
-        V_XML.EXTRACT('/STORE_RUN_TYP_THRSHLD_DTLS_UI/STORE_RUN_TYP_THRSHLD_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
-        V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+    SD_TABLE_IU_PKG.STORE_RUN_TYPE_DETAILS_ROWTYPE_SP('STORE_RUN_TYPE_DETAILS',
+        V_XML.EXTRACT('/STORE_RUN_TYPE_DETAILS_UI/STORE_RUN_TYPE_DETAILS' || '[' || V_COUNT || ']').GETCLOBVAL(),
+        V_STORE_RUN_TYPE_DETAILS_ROW);
                
     --Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
-    SD_BUSINESS_RULES_PKG.SD_RUN_TYPE_VALIDATION(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
+    SD_BUSINESS_RULES_PKG.SD_RUN_TYPE_VALIDATION(V_STORE_RUN_TYPE_DETAILS_ROW);
         
-    SD_TABLE_IU_PKG.STORE_RUN_TYP_THRSHLD_DTLS_I_SP(V_STORE_RUN_TYP_THRSHLD_DTLS_ROW);
-END STORE_RUN_TYP_THRSHLD_DTLS_UPSERT_SP;
+    SD_TABLE_IU_PKG.STORE_RUN_TYPE_DETAILS_I_SP(V_STORE_RUN_TYPE_DETAILS_ROW);
+END STORE_RUN_TYPE_DETAILS_UPSERT_SP;
+
+PROCEDURE INITIAL_DRAFT_DTLS_LOAD_PROCESS
+/**********************************************************
+This procedure will be a one-time run that loads the initial data as provided from
+1) Julio's team => Run type details
+2) Pat's team => Run type tie back with stores
+3) Jason's team => previous order date/check draft numbers
+
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+**********************************************************/
+IS
+    V_STR_DRFT_RUN_TYPE_REC    STORE_RUN_TYPE_DETAILS%ROWTYPE;
+    V_PREV_END_DRFT_NBR        NUMBER;
+    V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    no_run_type_err            EXCEPTION;
+BEGIN
+    DELETE FROM STORE_RUN_TYPE_DETAILS;
+    DELETE FROM SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
+    DELETE FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS;
+    DELETE FROM SD_CHECK_NBR_TRCKNG_DTLS;
+
+    --Load run type data received from Julio's team
+    --Load threshold data received from Jason's team
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('L',5,25,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('S',1,25,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('A',1,25,10,'8800600853','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('C',1,25,10,'101 283 0','04222 003',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    COMMIT;
+
+    --Load run type tie back to store using data received from Pat's team
+    BEGIN
+        FOR rec IN (SELECT * FROM TEMP_STORE_RUN_TYPE_DETAILS ORDER BY 1) LOOP
+            BEGIN
+                INSERT INTO STORE_RUN_TYPE_DETAILS VALUES (rec.COST_CENTER_CODE, rec.RUN_TYPE, TRUNC(SYSDATE), NULL, 'INITLD', TRUNC(SYSDATE));
+                COMMIT;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    DBMS_OUTPUT.PUT_LINE('Error : ' || rec.COST_CENTER_CODE || ' - ' || SQLCODE || ' >>> ' || SQLERRM);
+            END;
+        END LOOP;
+    END;
+
+    --Load ordered drafts details using data received from Jason's team
+    FOR rec IN (SELECT * FROM TEMP_SD_ORDER_DETAILS --WHERE COST_CENTER_CODE = '701001'
+                ) LOOP
+        BEGIN
+            V_STR_DRFT_RUN_TYPE_REC  := GET_STORE_DRAFT_RUN_TYPE_REC(rec.COST_CENTER_CODE);
+            V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_RUN_TYPE_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+            V_PREV_END_DRFT_NBR      := rec.END_DRFT_NBR - (V_SD_CHK_TYP_REC.NO_OF_BOOKS * V_SD_CHK_TYP_REC.CHECKS_PER_BOOK * 2 + 1);
+
+            IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
+                RAISE no_run_type_err;
+            END IF;
+            LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
+                             V_PREV_END_DRFT_NBR,
+                             V_SD_CHK_TYP_REC,
+                             TO_DATE(rec.LAST_ORDER_DATE,'MM/DD/YYYY'));
+
+            FOR cur IN (SELECT A.COST_CENTER_CODE, A.ORDERED_DRFT_NUMBER, A.CHECK_DIGIT
+                          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS A
+                         WHERE A.COST_CENTER_CODE = rec.COST_CENTER_CODE
+                           AND A.USED_IN_POS_ON_DATE IS NULL) LOOP
+                FOR rec1 IN (SELECT CHECK_SERIAL_NUMBER, TRANSACTION_DATE
+                               FROM STORE_DRAFTS
+                              WHERE COST_CENTER_CODE = cur.COST_CENTER_CODE
+                                AND CHECK_SERIAL_NUMBER = '0'||SUBSTR(cur.COST_CENTER_CODE,-4) || cur.ORDERED_DRFT_NUMBER ||cur.CHECK_DIGIT) LOOP 
+                    SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_U_SP(rec1.CHECK_SERIAL_NUMBER,
+                                                               rec1.TRANSACTION_DATE,
+                                                               rec.COST_CENTER_CODE);
+                END LOOP;
+            END LOOP;
+
+            COMMIT;
+        EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('Error : ' || rec.COST_CENTER_CODE || ' - ' || SQLCODE || ' >>> ' || SQLERRM);
+        END;
+    END LOOP;
+EXCEPTION 
+    WHEN no_run_type_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');                     
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'INITIAL_DRAFT_DTLS_LOAD_PROCESS',  SQLERRM);
+END INITIAL_DRAFT_DTLS_LOAD_PROCESS;
 
 END SD_CHECK_NBR_PRINT_SRVCS;
