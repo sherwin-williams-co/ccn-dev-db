@@ -1,0 +1,1842 @@
+create or replace PACKAGE BODY POS_DATA_GENERATION
+/*******************************************************************************
+POS_DATA_GENERATION
+
+This package is used to generate XML files and set to the POS system.
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+IS
+
+FUNCTION GET_CANADA_FIPS_CODE (
+/*******************************************************************************
+This function is used to return the FIPS code information for CANADA by passing
+in the province_code
+
+Created : 06/07/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_PROVIDENCE_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(10); 
+BEGIN
+    SELECT FIPS_CODE
+      INTO V_RETURN_VAL
+    FROM CANADA_FIPS_CODE
+    WHERE PROVINCE_CODE = IN_PROVIDENCE_CODE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END GET_CANADA_FIPS_CODE;
+
+
+FUNCTION GET_PRI_DSC_CODE (
+/*******************************************************************************
+This function is used to return the Discount code information by passing in 
+Cost center code 
+COST_CENTER_DSC_CODES is a view on a DB Link
+
+Created : 05/15/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(3);
+BEGIN 
+    SELECT PRIMARY_DSC 
+      INTO V_RETURN_VAL 
+      FROM COST_CENTER_DSC_CODES
+     WHERE COST_CENTER_CODE = SUBSTR(IN_COST_CENTER_CODE, 3, 4);
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END GET_PRI_DSC_CODE;
+
+FUNCTION RETURN_STORE_INFO (
+/*******************************************************************************
+This function is used to return the store descartes delivery code field value by passing in
+Cost center code
+
+Created : 09/04/2018 pxa852 CCN Project....
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN STORE%ROWTYPE
+IS
+    V_RETURN_VAL     STORE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_RETURN_VAL
+      FROM STORE
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END RETURN_STORE_INFO;
+
+FUNCTION RETURN_PREVIOUS_REQUEST_ID(
+/*******************************************************************************
+This function is used to return the Previous Request id information based upon
+filetype info. This computation doesn't include the INIT loads
+
+Created : 08/03/2016 rxv940 CCN Project....
+Changed : 10/20/2017 jxc517 CCN Project Team....
+          Modified code to separate initial load files based on process
+Changed : 10/30/2017 rxv940 CCN Project Team....
+          Modified code to include cost center code while finding prev req id for PARAM
+Changed : 11/22/2017 rxv940 CCN Project Team....
+          Removed logic to ignore records that have a request id of CHR(13)
+Changed : 02/23/2018 rxv940 CCN Project Team....
+          Added logic to compute pre_req id using update_dt and POS_ID instead of POS_ID
+Changed : 02/28/2018 rxv940 CCN Project Team....
+          Adding NVL condition to handle nulls for V_PREV_RQST_ID
+*******************************************************************************/ 
+    IN_FILE_TYPE        IN VARCHAR2,
+    IN_COST_CENTER_CODE IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2
+IS
+    V_PREV_RQST_ID VARCHAR2(36) := 'NULL_RQST_ID';
+BEGIN
+
+    IF IN_FILE_TYPE = 'POS_PARAM_UPDATE' THEN 
+
+        SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
+        -- A. We look for the record that has the latest UPDATE_DT. 
+        -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
+          INTO V_PREV_RQST_ID  
+          FROM POS_DOWNLOADS
+         WHERE POLLING_REQUEST_ID IS NOT NULL
+           AND COST_CENTER_CODE = IN_COST_CENTER_CODE      
+           AND FILE_TYPE = IN_FILE_TYPE
+           AND UPDATE_DT IS NOT NULL							 
+           AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD');
+
+    ELSE 
+
+        SELECT MIN(POLLING_REQUEST_ID) KEEP (DENSE_RANK FIRST ORDER BY UPDATE_DT DESC, POS_ID DESC)
+        -- A. We look for the record that has the latest UPDATE_DT. 
+        -- B. In case there is more than 1 record with the same update_dt, we look for the one with the greatest POS_ID
+        -- C. Since we filter it down to 1 record, MIN(POLLING_REQUEST_ID)/ MAX(POLLING_REQUEST_ID) doesn't make any difference
+          INTO V_PREV_RQST_ID   
+          FROM POS_DOWNLOADS
+         WHERE POLLING_REQUEST_ID IS NOT NULL
+           AND FILE_TYPE = IN_FILE_TYPE
+           AND UPDATE_DT IS NOT NULL 
+           AND DATA_SOURCE NOT IN ('NEW_STR_LD', 'NEW_GRP_LD');
+
+    END IF; 
+
+    RETURN NVL(V_PREV_RQST_ID, 'NULL_RQST_ID');
+
+EXCEPTION
+WHEN OTHERS THEN
+    RETURN NVL(V_PREV_RQST_ID, 'NULL_RQST_ID');
+END RETURN_PREVIOUS_REQUEST_ID;
+
+FUNCTION RETURN_COST_CENTER_INFO (
+/*******************************************************************************
+This function is used to return the COST_CENTER information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN COST_CENTER%ROWTYPE
+IS
+    V_COSTCENTER_REC              COST_CENTER%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_COSTCENTER_REC 
+      FROM COST_CENTER
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_COSTCENTER_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_COSTCENTER_REC;
+END RETURN_COST_CENTER_INFO; 
+
+FUNCTION RETURN_USA_ADDRESS_INFO (
+/*******************************************************************************
+This function is used to return the ADDRESS_USA information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN ADDRESS_USA%ROWTYPE
+IS
+    V_ADDRESS_USA_REC    ADDRESS_USA%ROWTYPE;
+BEGIN
+     SELECT *
+       INTO V_ADDRESS_USA_REC
+       FROM ADDRESS_USA
+      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+        AND ADDRESS_TYPE     = 'M'
+        AND EXPIRATION_DATE IS NULL
+        AND ROWNUM = 1;
+
+     RETURN V_ADDRESS_USA_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_ADDRESS_USA_REC;
+END RETURN_USA_ADDRESS_INFO;
+
+FUNCTION INS_POS_DOWNLOADS_FN(
+/*******************************************************************************
+This function is used to insert into POS_DOWNLOADS table.
+
+Created : 02/15/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2) RETURN NUMBER
+IS
+    V_POS_ID POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN
+    INSERT
+    INTO POS_DOWNLOADS(POS_ID
+                       ,COST_CENTER_CODE
+                       ,DATA_SOURCE
+                       ,DATA_OPERATION
+                       ,FILE_TYPE
+                       ,FILE_PROCESSED
+                       ,CREATE_DT)
+    VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
+            ,IN_COST_CENTER_CODE
+            ,IN_DATA_SOURCE
+            ,IN_DATA_OPERATION
+            ,IN_FILE_TYPE
+            ,'N'
+            ,SYSDATE)
+    RETURNING POS_ID 
+         INTO V_POS_ID;
+
+    IF IN_DATA_SOURCE = 'NEW_STR_LD' THEN 
+
+        -- The below table hold a list of cost centers that got added through the Polling Queue
+        -- This is only for new stores
+        UPDATE POS_NEW_STORES_LOAD_LIST
+           SET PROCESSED_IND = 'Y',
+               POS_ID        = V_POS_ID
+         WHERE APPLICATION_NAME    = DECODE(IN_DATA_OPERATION, 'STOR_INIT_LOAD', 'STORE',
+                                                               'TERR_INIT_LOAD', 'TERR',
+                                                                NULL)
+           AND TRUNC(PROCESS_DATE) = TRUNC(SYSDATE)
+           AND PROCESSED_IND       = 'N';
+
+    END IF;
+
+    RETURN V_POS_ID;
+END INS_POS_DOWNLOADS_FN;            
+
+FUNCTION RETURN_CAN_ADDRESS_INFO (
+/*******************************************************************************
+This function is used to return the ADDRESS_CAN information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER_CODE IN VARCHAR2) RETURN ADDRESS_CAN%ROWTYPE
+IS
+   V_ADDRESS_CAN_REC    ADDRESS_CAN%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_ADDRESS_CAN_REC
+      FROM ADDRESS_CAN
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ADDRESS_TYPE = 'M'
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM = 1;
+
+    RETURN V_ADDRESS_CAN_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_ADDRESS_CAN_REC;
+END RETURN_CAN_ADDRESS_INFO;
+
+FUNCTION RETURN_MEX_ADDRESS_INFO (
+/*******************************************************************************
+This function is used to return the ADDRESS_MEX information
+
+Created : 06/08/2017 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER_CODE IN VARCHAR2) RETURN ADDRESS_MEX%ROWTYPE
+IS
+   V_ADDRESS_MEX_REC    ADDRESS_MEX%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_ADDRESS_MEX_REC
+      FROM ADDRESS_MEX
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ADDRESS_TYPE = 'M'
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM = 1;
+
+    RETURN V_ADDRESS_MEX_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_ADDRESS_MEX_REC;
+END RETURN_MEX_ADDRESS_INFO;
+
+FUNCTION RETURN_BRB_ADDRESS_INFO (
+/*******************************************************************************
+This function is used to return the ADDRESS_BRB information
+
+Created : 06/08/2017 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER_CODE IN VARCHAR2) RETURN ADDRESS_BRB%ROWTYPE
+IS
+   V_ADDRESS_BRB_REC    ADDRESS_BRB%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_ADDRESS_BRB_REC
+      FROM ADDRESS_BRB
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ADDRESS_TYPE = 'M'
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM = 1;
+
+    RETURN V_ADDRESS_BRB_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_ADDRESS_BRB_REC;
+END RETURN_BRB_ADDRESS_INFO;
+
+FUNCTION IS_FUTURE_DETAILS_PRESENT(
+/*******************************************************************************
+This function is used to compute if future details are present for a given
+cost center, data source combination
+
+Created : 01/18/2018 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE     POS_DOWNLOADS.COST_CENTER_CODE%TYPE) RETURN VARCHAR2
+IS
+    V_FLAG             VARCHAR2(1) := 'N';
+    V_LEAD_BANK_CNT    NUMBER;
+    V_MEMBER_BANK_CNT  NUMBER;
+BEGIN
+
+    SELECT COUNT(1)
+      INTO V_LEAD_BANK_CNT
+      FROM LEAD_BANK_CC_FUTURE
+     WHERE LEAD_STORE_NBR   = IN_COST_CENTER_CODE
+       AND TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1);
+    SELECT COUNT(1)
+      INTO V_MEMBER_BANK_CNT
+      FROM MEMBER_BANK_CC_FUTURE
+     WHERE MEMBER_STORE_NBR = IN_COST_CENTER_CODE
+       AND TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE+1);
+
+    IF ((V_LEAD_BANK_CNT > 0) OR (V_MEMBER_BANK_CNT > 0)) THEN 
+        V_FLAG := 'Y';
+    END IF;
+
+    RETURN V_FLAG;
+
+EXCEPTION
+    WHEN OTHERS THEN 
+        RETURN V_FLAG;
+END IS_FUTURE_DETAILS_PRESENT;
+
+FUNCTION RETURN_OTH_ADDRESS_INFO (
+/*******************************************************************************
+This function is used to return the ADDRESS_OTHER information
+
+Created : 06/08/2017 jxc517 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_COST_CENTER_CODE IN VARCHAR2) RETURN ADDRESS_OTHER%ROWTYPE
+IS
+   V_ADDRESS_OTH_REC    ADDRESS_OTHER%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_ADDRESS_OTH_REC
+      FROM ADDRESS_OTHER
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ADDRESS_TYPE = 'M'
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM = 1;
+
+    RETURN V_ADDRESS_OTH_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_ADDRESS_OTH_REC;
+END RETURN_OTH_ADDRESS_INFO;
+
+FUNCTION RETURN_POS_DOWNLOADS(
+/*******************************************************************************
+This Function is used to return the POS_DOWNLOADS information
+
+Created : 11/09/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_POS_ID    IN NUMBER,
+    IN_FILE_NAME IN VARCHAR2) RETURN POS_DOWNLOADS%ROWTYPE
+IS
+    V_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE;
+BEGIN
+    IF IN_POS_ID IS NOT NULL THEN
+        SELECT *
+          INTO V_POS_DOWNLOADS
+          FROM POS_DOWNLOADS
+         WHERE POS_ID = IN_POS_ID;
+    ELSIF IN_FILE_NAME IS NOT NULL THEN
+        SELECT *
+          INTO V_POS_DOWNLOADS
+          FROM POS_DOWNLOADS
+         WHERE FILE_NAME = IN_FILE_NAME
+           AND ROWNUM = 1;
+    END IF;
+
+    RETURN V_POS_DOWNLOADS;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+       RETURN V_POS_DOWNLOADS;
+END RETURN_POS_DOWNLOADS;
+
+FUNCTION RETURN_HEADER_RECORD(
+/*******************************************************************************
+This Function is used to return the header information
+
+Created : 11/09/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_APLFILE_NAME  IN VARCHAR2,
+    IN_MIC_FILE_NAME IN VARCHAR2,
+    IN_REC_COUNT     IN NUMBER,
+    IN_UPD_DEL       IN VARCHAR2) RETURN VARCHAR2
+IS
+BEGIN
+    RETURN
+'<dlHeaderRcd>
+   <aplfile_name>'||IN_APLFILE_NAME||'</aplfile_name>
+   <micfile_name>'||IN_MIC_FILE_NAME||'</micfile_name>
+   <rec_cnt>'||IN_REC_COUNT||'</rec_cnt>
+   <cre_date>'||TO_CHAR(SYSDATE,'YYYY-MM-DD')||'</cre_date>
+   <cre_time>'||TO_CHAR(SYSDATE,'HH:MI:SS')||'</cre_time>
+   <r_u_flag>'||IN_UPD_DEL||'</r_u_flag>
+   <wfd/>
+</dlHeaderRcd>';
+END RETURN_HEADER_RECORD;
+
+FUNCTION RETURN_TAXWARE_INFO (
+/*******************************************************************************
+This function is used to return the taxware information for a cost center code
+
+Created : 01/11/2017 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN TAXWARE%ROWTYPE
+IS
+    V_TAXWARE TAXWARE%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_TAXWARE
+      FROM TAXWARE
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_TAXWARE;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_TAXWARE;
+END RETURN_TAXWARE_INFO;
+
+FUNCTION RETURN_EMPLOYEE_DETAILS(
+/*******************************************************************************
+This procedure is used to return employee details for a given cost center
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 02/16/2017 rxv940 CCN Project....
+          Added REP Jobtitle to handle sales representatives whose jobtitle is REP.
+Changed : 02/21/2017 jxc517 CCN Project Team....
+          Code different from higher environments
+          including the missing "REP" code for "SALES-REP" in the query IN clause
+Changed : 04/20/2017 rxv940 CCN Project Team....
+          Removed the JOB_TITLE input param and replaced with IN_PROCESS_NAME 
+          Removed JOB_TITLE FILTER for IN_PROCESS_NAME='TERRITORY'
+Changed : 06/08/2017 jxc517 CCN Project Team....
+          Removing the ASST MGR condition
+          As per Keith we should not have logic of recent hire, instead
+          we will be going with rownum for STORE file
+Changed : 06/08/2017 jxc517 CCN Project Team....
+        : We look for JOB_TITLE "MGR" in store and if thats a null we look for 
+        : "ASST MGR"
+Changed : 06/12/2017 rxv940 CCN Project Team....
+        : We look for all possible JOB_TITLE from JOB_TITLE_GROUP and get the 
+		    : one hired the earliest in case of more than one matches
+Changed : 10/19/2017 nxk927 CCN Project Team....
+        : Returning back the newly added field WORK_MOBILE
+Changed : 11/17/2017 rxv940 CCN Project Team....
+        : Changes to supress "TRAINEE MGR" while other mgrs available 
+        : this change is only for STORE per kdp
+Changed : 11/27/2017 removed JOB_GRP_EXCLD column -  instead filter out
+        : 'OPS MANAGER' and 'ASSISTANT MANGER' only for STORE 
+Changed : 11/30/2017 removed JOB_TITLE "MTP" from job_title computation  
+        : Request received per mail on 11/39/2017 at 3:41 PM
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_PROCESS_NAME     IN VARCHAR2) RETURN EMPLOYEE_DETAILS%ROWTYPE
+IS
+    V_EMPLOYEE_DETAILS            EMPLOYEE_DETAILS %ROWTYPE;
+BEGIN
+    CASE
+    WHEN IN_PROCESS_NAME = 'TERRITORY' THEN
+        SELECT EMP.*
+          INTO V_EMPLOYEE_DETAILS
+          FROM EMPLOYEE_DETAILS EMP
+         WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+           AND HIRE_DATE = (SELECT MAX(HIRE_DATE)
+                              FROM EMPLOYEE_DETAILS
+                             WHERE UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
+                               AND UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE'
+                           );
+    WHEN IN_PROCESS_NAME = 'STORE' THEN
+        BEGIN
+            SELECT *
+              INTO V_EMPLOYEE_DETAILS 
+              FROM (SELECT EMP.*
+                      FROM EMPLOYEE_DETAILS EMP
+                     WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
+                       AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
+                       AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP 
+                                                 WHERE NONMGR_IND = 'Y'
+                                                   AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
+                                                   AND UPPER(JOB_TITLE) <> 'MTP'
+                                                   )
+                     ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
+                     -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
+                     -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
+                 )
+           WHERE ROWNUM < 2;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END; 
+    END CASE;
+
+    RETURN V_EMPLOYEE_DETAILS;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_EMPLOYEE_DETAILS; 
+END RETURN_EMPLOYEE_DETAILS; 
+
+PROCEDURE GET_POS_BANK_DETAILS(
+/*******************************************************************************
+This procedure is used to return bank details for a given cost center
+
+Created : 07/18/2017 rxv940 CCN Project....
+Modified: 01/22/2018 rxv940 CCN Project....
+        : Changes to include computation of bank accnt nbr and bank name for 
+        : futures as well
+Modified: 02/02/2018 rxv940 CCN Project....        
+        : Adding EXPIRATION_DATE IS NULL condition for current Member and lead tables
+Modified: 05/02/2018 nxk927 CCN Project....
+        : We might have virtual record in the future table. Added condition to consider the record with effective date
+          as tomorrow
+*******************************************************************************/
+    IN_COST_CENTER      IN        VARCHAR2,
+    OUT_BANK_ACCNT_NBR        OUT VARCHAR2,
+    OUT_BANK_NAME             OUT VARCHAR2)
+IS
+    V_POS_BNK_ACCNT_NBR  MEMBER_BANK_CC.MEMBER_BANK_ACCOUNT_NBR%TYPE;
+    V_BNK_ACCNT_NBR      LEAD_BANK_CC.LEAD_BANK_ACCOUNT_NBR%TYPE;
+BEGIN
+    IF IS_FUTURE_DETAILS_PRESENT(IN_COST_CENTER) = 'N' THEN 
+    -- This means processing current data to retrieve bank account nbr and name
+        BEGIN
+            SELECT NVL(MEMBER_BANK_ACCOUNT_NBR, LEAD_BANK_ACCOUNT_NBR), LEAD_BANK_ACCOUNT_NBR
+              INTO V_POS_BNK_ACCNT_NBR, V_BNK_ACCNT_NBR
+              FROM MEMBER_BANK_CC
+             WHERE MEMBER_STORE_NBR = IN_COST_CENTER
+               AND EXPIRATION_DATE IS NULL;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+
+        BEGIN
+            IF V_BNK_ACCNT_NBR IS NULL THEN
+                SELECT LEAD_BANK_ACCOUNT_NBR
+                  INTO V_BNK_ACCNT_NBR
+                  FROM LEAD_BANK_CC
+                 WHERE LEAD_STORE_NBR = IN_COST_CENTER
+                   AND EXPIRATION_DATE IS NULL;
+            END IF;
+
+            SELECT BANK_NAME
+              INTO OUT_BANK_NAME
+              FROM BANK_ACCOUNT
+             WHERE BANK_ACCOUNT_NBR = V_BNK_ACCNT_NBR;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+
+        OUT_BANK_ACCNT_NBR := NVL(V_POS_BNK_ACCNT_NBR, V_BNK_ACCNT_NBR);
+
+    ELSE  
+    -- This means processing future data to retrieve bank account nbr and name
+        BEGIN
+            SELECT NVL(MEMBER_BANK_ACCOUNT_NBR, LEAD_BANK_ACCOUNT_NBR), LEAD_BANK_ACCOUNT_NBR
+              INTO V_POS_BNK_ACCNT_NBR, V_BNK_ACCNT_NBR
+              FROM MEMBER_BANK_CC_FUTURE
+             WHERE MEMBER_STORE_NBR = IN_COST_CENTER
+               AND TRUNC(EFFECTIVE_DATE) = TRUNC(SYSDATE) +1;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+
+        BEGIN
+            IF V_BNK_ACCNT_NBR IS NULL THEN
+                SELECT LEAD_BANK_ACCOUNT_NBR
+                  INTO V_BNK_ACCNT_NBR
+                  FROM LEAD_BANK_CC_FUTURE
+                 WHERE LEAD_STORE_NBR = IN_COST_CENTER;
+            END IF;
+
+            SELECT BANK_NAME
+              INTO OUT_BANK_NAME
+              FROM BANK_ACCOUNT_FUTURE
+             WHERE BANK_ACCOUNT_NBR = V_BNK_ACCNT_NBR;
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+
+        OUT_BANK_ACCNT_NBR := NVL(V_POS_BNK_ACCNT_NBR, V_BNK_ACCNT_NBR);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        OUT_BANK_NAME      := NULL;
+        OUT_BANK_ACCNT_NBR := NULL;
+END GET_POS_BANK_DETAILS;
+
+FUNCTION RETURN_BANK_CARD_INFO (
+/*******************************************************************************
+This function is used to return the bank card information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN BANK_CARD%ROWTYPE
+IS
+    V_BANK_CARD_REC  BANK_CARD%ROWTYPE;
+BEGIN
+    SELECT *
+      INTO V_BANK_CARD_REC
+      FROM BANK_CARD
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND EXPIRATION_DATE IS NULL
+       AND ROWNUM = 1;
+
+    RETURN V_BANK_CARD_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_BANK_CARD_REC;
+END RETURN_BANK_CARD_INFO;
+
+FUNCTION RETURN_PROCESSORS_INFO(
+/*******************************************************************************
+This function is used to return the processor information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 08/15/2017 rxv940 CCN Project....
+        : Code change to include PRI as a part of USA and assigning NON
+        : (USA and CAD) to "INTERNATIONAL GROUP"
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN PROCESSORS%ROWTYPE
+IS
+    V_PROCESSORS_REC  PROCESSORS%ROWTYPE;
+    V_COSTCENTER_REC  COST_CENTER%ROWTYPE;
+    V_USA_ADDRESS_REC ADDRESS_USA%ROWTYPE;
+BEGIN 
+    --get the statecode information for the cost center table.
+    V_COSTCENTER_REC := RETURN_COST_CENTER_INFO(IN_COST_CENTER_CODE);
+
+    IF V_COSTCENTER_REC.COUNTRY_CODE IN ('USA', 'PRI') THEN
+        V_USA_ADDRESS_REC := RETURN_USA_ADDRESS_INFO(IN_COST_CENTER_CODE);
+
+        SELECT P2.*
+          INTO V_PROCESSORS_REC
+          FROM PRCSR_STR_GRP_DTLS P1,
+               PROCESSORS P2
+         WHERE P1.PROCESSOR_ID = P2.PROCESSOR_ID
+           AND P1.STATE_CODE = V_USA_ADDRESS_REC.STATE_CODE
+           AND ROWNUM = 1;
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE='CAN' THEN
+        SELECT P2.*
+          INTO V_PROCESSORS_REC
+          FROM PRCSR_CANADA_GRP_DTLS P1,
+               PROCESSORS P2
+         WHERE P1.PROCESSOR_ID = P2.PROCESSOR_ID
+           AND ROWNUM = 1;
+    ELSE
+        SELECT P2.*
+          INTO V_PROCESSORS_REC
+          FROM PRCSR_INTRNTL_GRP_DTLS P1,
+               PROCESSORS P2
+         WHERE P1.PROCESSOR_ID = P2.PROCESSOR_ID
+           AND ROWNUM = 1;
+    END IF;
+
+    RETURN V_PROCESSORS_REC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_PROCESSORS_REC;
+END RETURN_PROCESSORS_INFO;
+
+FUNCTION RETURN_TERRITORY_INFO (
+/*******************************************************************************
+This function is used to return the territory information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN TERRITORY%ROWTYPE
+IS
+    V_TERRITORY     TERRITORY%ROWTYPE; 
+BEGIN 
+    SELECT * 
+      INTO V_TERRITORY 
+      FROM TERRITORY
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_TERRITORY;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_TERRITORY;
+END RETURN_TERRITORY_INFO;
+
+FUNCTION RETURN_PHONE_INFO (
+/*******************************************************************************
+This function is used to return the PHONE information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE  IN VARCHAR2, 
+    IN_PHONE_NUMBER_TYPE IN VARCHAR2) RETURN PHONE%ROWTYPE
+IS
+    V_PHONE_REC                   PHONE%ROWTYPE;
+BEGIN 
+    SELECT *
+      INTO V_PHONE_REC
+      FROM PHONE PH
+     WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+       AND PH.PHONE_NUMBER_TYPE=IN_PHONE_NUMBER_TYPE;
+
+    RETURN V_PHONE_REC;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN V_PHONE_REC;
+END RETURN_PHONE_INFO; 
+
+FUNCTION CHECK_COST_CENTER_CATEGORY(
+/*******************************************************************************
+This function is used to return the category from the cost center table.
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2
+IS
+    V_CATEGORY COST_CENTER.CATEGORY%TYPE;
+BEGIN
+    SELECT CATEGORY 
+      INTO V_CATEGORY 
+      FROM COST_CENTER 
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_CATEGORY;
+END CHECK_COST_CENTER_CATEGORY;    
+
+PROCEDURE POS_DOWNLOADS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 06/02/2017 rxv940 CCN Project....
+        : Selecting only the first 36 characters of Request_id.
+Changed : 11/07/2017 rxv940 CCN Project....
+        : Reverting of the first 36 characters of Request_id logic
+*******************************************************************************/
+    IN_POS_DOWNLOADS POS_DOWNLOADS%ROWTYPE)
+IS
+   V_ERROR          VARCHAR2(1000);
+BEGIN
+    UPDATE POS_DOWNLOADS 
+       SET COST_CENTER_CODE     = IN_POS_DOWNLOADS.COST_CENTER_CODE,
+           DATA_SOURCE          = IN_POS_DOWNLOADS.DATA_SOURCE,
+           DATA_OPERATION       = IN_POS_DOWNLOADS.DATA_OPERATION, 
+           FILE_PROCESSED       = IN_POS_DOWNLOADS.FILE_PROCESSED,
+           FILE_TYPE            = IN_POS_DOWNLOADS.FILE_TYPE,
+           FILE_NAME            = IN_POS_DOWNLOADS.FILE_NAME,
+           POLLING_REQUEST_ID   = IN_POS_DOWNLOADS.POLLING_REQUEST_ID,
+           UPDATE_DT            = IN_POS_DOWNLOADS.UPDATE_DT,
+           PREREQ_EQUIV_RQST_ID = IN_POS_DOWNLOADS.PREREQ_EQUIV_RQST_ID
+     WHERE FILE_NAME = IN_POS_DOWNLOADS.FILE_NAME
+        OR POS_ID    = IN_POS_DOWNLOADS.POS_ID;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_DOWNLOADS_UPD_SP',
+                                       V_ERROR,
+                                       '000000');
+        RAISE;
+END POS_DOWNLOADS_UPD_SP;
+
+FUNCTION RETURN_POS_DOWNLOADS_INSERT_YN(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 11/16/2017 rxv940 CCN Project....
+        : Chnages to include checks for POS_DOWNLOAD_CC_IND flag
+        : We will process ones with flag 'Y'
+Changed : 12/05/2017 rxv940 CCN Project....
+        : Chnages to handle the mutating trigger issue by adding glbl variable
+        : G_MUT_POS_DOWNLOAD_CC_IND
+Changed : 02/06/2018 rxv940 CCN Project....
+        : Changes to see if there are manual updates happening based on 
+        : POS_DOWNLOADS_MAINTENANCE_LKUP table
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2, 
+    IN_FILE_TYPE IN VARCHAR2) RETURN VARCHAR2
+IS 
+    V_COUNT  NUMBER          := 0;
+    V_RETURN VARCHAR2(1)     := 'N';
+    V_POS_DOWNLOAD_CC_IND    VARCHAR2(1) := NULL;
+    V_BULK_LOADS_LKUP_COUNT  NUMBER := 0;
+BEGIN
+    BEGIN
+        SELECT POS_DOWNLOAD_CC_IND
+          INTO V_POS_DOWNLOAD_CC_IND
+          FROM COST_CENTER
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_POS_DOWNLOAD_CC_IND := POS_DATA_GENERATION.G_MUT_POS_DOWNLOAD_CC_IND;
+            -- TR_COST_CENTER_UPD mutates whenever fired because the "RETURN_POS_DOWNLOADS_INSERT_YN"
+            -- also queries the cost center which fired the TR_COST_CENTER_UPD trigger. 
+            -- TR_COST_CENTER_UPD calls -> POS_TRG_EVNT_LOG -> RETURN_POS_DOWNLOADS_INSERT_YN
+    END;
+    IF IN_FILE_TYPE IN ('POS_STORE_UPDATE', 'POS_TERRITORY_UPDATE') THEN
+        SELECT COUNT(1)
+          INTO V_BULK_LOADS_LKUP_COUNT
+          FROM POS_DOWNLOADS_BULK_LOADS_LKUP
+         WHERE TRUNC(MAINTENANCE_DATE_START) = TRUNC(SYSDATE)
+           AND FLAG = 'Y';
+    END IF;
+
+    IF ((NVL(V_POS_DOWNLOAD_CC_IND, 'N') = 'Y') AND (V_BULK_LOADS_LKUP_COUNT = 0)) THEN
+        -- The cost center is available with a flag 'Y' and no manual updates happening, hence check the count
+        SELECT COUNT(1) 
+          INTO V_COUNT 
+          FROM POS_DOWNLOADS 
+         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE 
+           AND FILE_TYPE        = IN_FILE_TYPE
+           AND FILE_PROCESSED   = 'N'; 
+
+        IF V_COUNT = 0 THEN
+            V_RETURN := 'Y';
+        END IF;
+    END IF;
+    RETURN V_RETURN;
+END RETURN_POS_DOWNLOADS_INSERT_YN;
+
+PROCEDURE POS_TRG_EVENT_LOG(
+/*******************************************************************************
+This procedure is used to capture the changes done on tables into pos_downloads 
+table
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2,
+    IN_DATA_SOURCE      IN VARCHAR2,
+    IN_DATA_OPERATION   IN VARCHAR2,
+    IN_FILE_TYPE        IN VARCHAR2)
+IS
+    V_ERROR VARCHAR2(500);
+BEGIN
+    --Check for cost center and file type operation exists and not yet processed. 
+    --If exists then do not insert. Else Insert.
+    IF RETURN_POS_DOWNLOADS_INSERT_YN(IN_COST_CENTER_CODE, 
+                                      IN_FILE_TYPE) = 'Y' THEN
+        INSERT
+          INTO POS_DOWNLOADS(POS_ID
+                             ,COST_CENTER_CODE
+                             ,DATA_SOURCE
+                             ,DATA_OPERATION
+                             ,FILE_TYPE
+                             ,FILE_PROCESSED
+                             ,CREATE_DT)
+        VALUES (SEQ_POS_DOWNLOADS.NEXTVAL
+                ,IN_COST_CENTER_CODE
+                ,IN_DATA_SOURCE
+                ,IN_DATA_OPERATION
+                ,IN_FILE_TYPE
+                ,'N'
+                ,SYSDATE);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 
+                    'SQLERRM->' || SQLERRM || CHR(10) ||
+                    DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE,
+                                       'POS_TRG_EVENT_LOG',
+                                       V_ERROR,
+                                       '000000');
+END POS_TRG_EVENT_LOG;
+
+PROCEDURE RETURN_PRICE_DISTRICT_SP(
+/*******************************************************************************
+This procedure is used to check for the availability of price district for a cost center
+and return the district information
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 04/24/2017 rxv940 CCN Project....
+        : Changes to move DAD computation in a seperate block
+*******************************************************************************/
+    IN_HIERARCHY_NAME   IN            VARCHAR2,
+    IN_COST_CENTER_CODE IN            VARCHAR2,
+    IN_HIERARCHY_FUTURE IN            VARCHAR2,
+    OUT_PRICE_DISTRICT     OUT NOCOPY VARCHAR2,
+    OUT_DIST_EFF_DT        OUT NOCOPY VARCHAR2,
+    OUT_DISTRICT           OUT NOCOPY VARCHAR2,
+    OUT_AREA               OUT NOCOPY VARCHAR2,
+    OUT_DIVISION           OUT NOCOPY VARCHAR2)
+IS
+BEGIN
+-- Computing Price district and eff date
+      BEGIN
+          IF IN_HIERARCHY_FUTURE = 'N' THEN
+              SELECT DISTRICT AS PRICING_DIST,
+                     TO_CHAR(HRCHY_DTL_EFF_DATE,'YYYY-MM-DD') AS DIST_EFF_DT
+                INTO OUT_PRICE_DISTRICT,
+                     OUT_DIST_EFF_DT
+                FROM HIERARCHY_DETAIL_VIEW HD
+               WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+                 AND HRCHY_HDR_NAME   = IN_HIERARCHY_NAME;
+          ELSE
+              SELECT HRCHY_DTL_PREV_LVL_VAL,
+                     TO_CHAR(HRCHY_DTL_EFF_DATE,'YYYY-MM-DD') AS DIST_EFF_DT
+                INTO OUT_PRICE_DISTRICT,
+                     OUT_DIST_EFF_DT
+                FROM HIERARCHY_DETAIL_FUTURE
+               WHERE HRCHY_HDR_NAME         = IN_HIERARCHY_NAME
+                 AND HRCHY_DTL_CURR_ROW_VAL = IN_COST_CENTER_CODE
+                 AND HRCHY_DTL_LEVEL        = 2;
+          END IF;
+      EXCEPTION
+          WHEN OTHERS THEN
+              OUT_PRICE_DISTRICT := NULL;
+              OUT_DIST_EFF_DT    := NULL;
+      END;
+
+-- Computing DAD values
+    BEGIN
+        IF IN_HIERARCHY_FUTURE = 'N' THEN
+            SELECT DISTRICT,
+                   AREA,
+                   DIVISION
+              INTO OUT_DISTRICT,
+                   OUT_AREA,
+                   OUT_DIVISION
+              FROM HIERARCHY_DETAIL_VIEW HD
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND HRCHY_HDR_NAME   = 'GLOBAL_HIERARCHY';
+         END IF;
+    EXCEPTION   
+        WHEN OTHERS THEN
+            OUT_DISTRICT := NULL;
+            OUT_AREA     := NULL;
+            OUT_DIVISION := NULL;
+    END;
+END RETURN_PRICE_DISTRICT_SP;
+
+PROCEDURE BUILD_STORE_XML(
+/*******************************************************************************
+This procedure is used to build the xml for the passed cost center code
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for 
+the order of the XML elements.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="" xmlns:prodata="urn:schemas-progress-com:xml-prodata:0001">
+  <xsd:element name="storeUpdtMsg" prodata:proDataSet="true">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="dlHeaderRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="aplfile_name" type="xsd:string" nillable="true"/>
+              <xsd:element name="micfile_name" type="xsd:string" nillable="true"/>
+              <xsd:element name="rec_cnt" type="xsd:int" nillable="true"/>
+              <xsd:element name="cre_date" type="xsd:date" nillable="true"/>
+              <xsd:element name="cre_time" type="xsd:string" nillable="true"/>
+              <xsd:element name="r_u_flag" type="xsd:string" nillable="true"/>
+              <xsd:element name="wfd" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="storeUpdtRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="cost-center" type="xsd:string"/>
+              <xsd:element name="co-nm" type="xsd:string"/>
+              <xsd:element name="nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="addr" type="xsd:string" nillable="true"/>
+              <xsd:element name="city" type="xsd:string" nillable="true"/>
+              <xsd:element name="st" type="xsd:string" nillable="true"/>
+              <xsd:element name="zip" type="xsd:string" nillable="true"/>
+              <xsd:element name="zipfour" type="xsd:string" nillable="true"/>
+              <xsd:element name="phone" type="xsd:string" nillable="true"/>
+              <xsd:element name="first-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="mid-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="last-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="fax" type="xsd:string" nillable="true"/>
+              <xsd:element name="division" type="xsd:string" nillable="true"/>
+              <xsd:element name="area" type="xsd:string" nillable="true"/>
+              <xsd:element name="ccn-district" type="xsd:string" nillable="true"/>
+              <xsd:element name="pricing-district" type="xsd:int" nillable="true"/>
+              <xsd:element name="pricing-district-eff-dt" type="xsd:date" nillable="true"/>
+              <xsd:element name="FuturePricing-dist" type="xsd:int" nillable="true"/>
+              <xsd:element name="futurepricing-eff-dt" type="xsd:date" nillable="true"/>
+              <xsd:element name="currency" type="xsd:string"/>
+              <xsd:element name="dsc-code" type="xsd:string" nillable="true"/>
+              <xsd:element name="acct-cntry" type="xsd:string"/>
+              <xsd:element name="statement-type" type="xsd:string" nillable="true"/>
+              <xsd:element name="terminals" type="xsd:string" nillable="true" minOccurs="0" maxOccurs="15"/>
+              <xsd:element name="FIPS-st" type="xsd:string" nillable="true"/>
+              <xsd:element name="FIPS-county" type="xsd:string" nillable="true"/>
+              <xsd:element name="FIPS-city" type="xsd:string" nillable="true"/>
+              <xsd:element name="co-abbreviation" type="xsd:string"/>
+              <xsd:element name="web-address" type="xsd:string" nillable="true"/>
+              <xsd:element name="taxware-state" type="xsd:string" nillable="true"/>
+              <xsd:element name="taxware-zip" type="xsd:string" nillable="true"/>
+              <xsd:element name="taxware-geocode" type="xsd:string" nillable="true"/>
+              <xsd:element name="taxware-country" type="xsd:string" nillable="true"/>
+              <xsd:element name="taxware-nexus" type="xsd:string" nillable="true"/>
+              <xsd:element name="descartes-delivery-code" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+            <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//dlHeaderRcd"/>
+      <xsd:field xpath="aplfile_name"/>
+    </xsd:unique>
+    <xsd:unique name="storeUpdtRcd_main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//storeUpdtRcd"/>
+      <xsd:field xpath="store-number"/>
+    </xsd:unique>
+  </xsd:element>
+</xsd:schema>
+
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 02/22/2017 rxv940 CCN Project Team....
+          Added zipfour, first_nm, mid_nm and Last_nm tags, removed contact tag
+Changed : 03/02/2017 rxv940 CCN Project Team....
+          Handling XML special characters
+Changed : 03/06/2017 rxv940 CCN Project Team....
+          Changes to derive co-nm from CCN_PICK_LIST_PKG. This now stores
+          primary logo code desc          
+Changed : 03/08/2017 rxv940 CCN Project Team....
+          Changes to derive web address from TRANSLATION_DETAIL table
+Changed : 04/11/2017 rxv940 CCN Project....
+        : Altered code to have </addr> tag in the same line as address     
+Changed : 05/16/2017 rxv940 CCN Project....
+        : Altered code to compute DSC_CODE value from the view thru' DB Link         
+Changed : 06/06/2017 rxv940 CCN Project....
+        : Added logic for default web_address    
+Changed : 06/08/2017 rxv940/jxc517 CCN Project....
+        : Added logic to accomodate the Canadian FIPS code
+        : Added addr2 and addr3 tags that holds address line 2 and address line 3
+Changed : 06/20/2017 rxv940 CCN Project....
+        : removed real_cntry from XSD and XML generation as requested by the user
+Changed : 06/26/2017 rxv940 CCN Project....
+        : Changed the XML tag store-number to cost-center
+Changed : 08/03/2017 rxv940 CCN Project....
+        : Changes to have the prev request id passed on to done file
+Changed : 09/01/2017 rxv940 CCN Project....
+        : changed "gnrc" to "statement-type" in the .XML and .XSD
+Changed : 09/05/2017 rxv940 CCN Project....
+        : changed code to compute FIPS code for PRI with USA 
+Changed : 09/14/2017 rxv940 CCN Project....
+        : changed code to compute BRB address 1 as "premise+avenue", add #2 is null
+Changed : 09/20/2017 rxv940 CCN Project....
+        : changed code to have company name populated from translation tables
+Changed : 09/20/2017 rxv940 CCN Project....
+        : changed code to have hard-coded zip for cost center 778803 when it is USA
+Changed : 09/22/2017 rxv940 CCN Project....        
+        : Code change to have co-abbreviation populated from translation_detail table
+Changed : 09/04/2018 pxa852 CCN Project Team....
+        : Added descartes-delivery-code tag.
+Changed : 10/04/2018 pxa852 CCN Project Team....
+        : Modified code to pass code description value instead of code value to descartes-delivery-code tag.
+*******************************************************************************/
+    IN_COST_CENTER_CODE   IN      VARCHAR2,
+    OUT_CLOB                 OUT  CLOB)
+IS
+    V_XMLDATA              CLOB;
+    V_PRICE_DISTRCT        VARCHAR2(100);
+    V_DIST_EFF_DT          VARCHAR2(25);
+    V_G_DISTRICT           VARCHAR2(100);
+    V_G_AREA               VARCHAR2(100);
+    V_G_DIVISION           VARCHAR2(100);
+    V_COSTCENTER_REC       COST_CENTER%ROWTYPE;
+    V_ADDRESS_USA_REC      ADDRESS_USA%ROWTYPE;
+    V_ADDRESS_CAN_REC      ADDRESS_CAN%ROWTYPE;
+    V_ADDRESS_MEX_REC      ADDRESS_MEX%ROWTYPE;
+    V_ADDRESS_BRB_REC      ADDRESS_BRB%ROWTYPE;
+    V_ADDRESS_OTH_REC      ADDRESS_OTHER%ROWTYPE;
+    V_PHONE_REC            PHONE%ROWTYPE;
+    V_TAXWARE              TAXWARE%ROWTYPE;
+    V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE;
+    V_STORE                STORE%ROWTYPE;
+BEGIN
+    --validate whether the cost center has the PRICE_DISTRICT hierarchy. If it is there then process else log into our table.
+    RETURN_PRICE_DISTRICT_SP('PRICE_DISTRICT',
+                             IN_COST_CENTER_CODE,
+                             'N',
+                             V_PRICE_DISTRCT,
+                             V_DIST_EFF_DT,
+                             V_G_DISTRICT,
+                             V_G_AREA,
+                             V_G_DIVISION);
+
+    V_COSTCENTER_REC := RETURN_COST_CENTER_INFO (IN_COST_CENTER_CODE); 
+
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(IN_COST_CENTER_CODE), 'cost-center') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STMNT_TYP_TO_CMP_NAME', V_COSTCENTER_REC.STATEMENT_TYPE), 'S-W SHERWIN-WILLIAMS')), 'co-nm') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COST_CENTER_NAME), 'nm') || CHR(10);
+
+    --build address 
+    IF V_COSTCENTER_REC.COUNTRY_CODE IN ('USA', 'PRI') THEN
+        V_ADDRESS_USA_REC := RETURN_USA_ADDRESS_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.ADDRESS_LINE_1), 'addr') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.ADDRESS_LINE_2), 'addr2') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.ADDRESS_LINE_3), 'addr3') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.CITY), 'city') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.STATE_CODE), 'st') || CHR(10);
+        -- The below change is temporaray and is approved by Pat. The cost center belongs to USA country but has a Canadian address. This causes the 
+        -- canadian postal code (6 digits) to be trimmed to 5 digits (USA zip length). Hence quick fix is necessary until a long term solution is
+        -- found. No Jira associated. See mail from Jay 09/21/2017 11:02 AM tiled "Zip Code - manual code fix for now"
+        IF V_COSTCENTER_REC.COST_CENTER_CODE = '778803' THEN
+            V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG('L7A1B1', 'zip') || CHR(10);
+        ELSE
+            V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.ZIP_CODE), 'zip') || CHR(10);
+        END IF;
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_USA_REC.ZIP_CODE_4), 'zipfour') || CHR(10);
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE = 'CAN' THEN
+        V_ADDRESS_CAN_REC := RETURN_CAN_ADDRESS_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.ADDRESS_LINE_1), 'addr') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.ADDRESS_LINE_2), 'addr2') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.ADDRESS_LINE_3), 'addr3') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.CITY), 'city') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.PROVINCE_CODE), 'st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_CAN_REC.POSTAL_CODE), 'zip') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NULL), 'zipfour') || CHR(10);
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE = 'MEX' THEN
+        V_ADDRESS_MEX_REC := RETURN_MEX_ADDRESS_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.ADDRESS_LINE_1), 'addr') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.ADDRESS_LINE_2), 'addr2') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.ADDRESS_LINE_3), 'addr3') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.CITY), 'city') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.PROVINCE_CODE), 'st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_MEX_REC.POSTAL_CODE), 'zip') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NULL), 'zipfour') || CHR(10);
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE = 'BRB' THEN
+        V_ADDRESS_BRB_REC := RETURN_BRB_ADDRESS_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(LTRIM(V_ADDRESS_BRB_REC.PREMISES || ' ' || V_ADDRESS_BRB_REC.AVENUE_LANE)), 'addr') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(NULL, 'addr2') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_BRB_REC.DISTRICT), 'addr3') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_BRB_REC.PARISH), 'city') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(V_ADDRESS_BRB_REC.POSTAL_CODE, 1, 2)), 'st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(V_ADDRESS_BRB_REC.POSTAL_CODE, 3)), 'zip') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NULL), 'zipfour') || CHR(10);
+    ELSE
+        V_ADDRESS_OTH_REC := RETURN_OTH_ADDRESS_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.ADDRESS_LINE_1), 'addr') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.ADDRESS_LINE_2), 'addr2') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.ADDRESS_LINE_3), 'addr3') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.CITY), 'city') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.STATE_CODE), 'st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_OTH_REC.POSTAL_CODE), 'zip') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NULL), 'zipfour') || CHR(10);
+    END IF;
+
+    --build phone
+    V_PHONE_REC := RETURN_PHONE_INFO (V_COSTCENTER_REC.COST_CENTER_CODE, 'PRI');          
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PHONE_REC.PHONE_AREA_CODE ||
+                                                         V_PHONE_REC.PHONE_NUMBER), 'phone') || CHR(10);
+    --Contact
+    V_EMPLOYEE_DETAILS := RETURN_EMPLOYEE_DETAILS(IN_COST_CENTER_CODE, 'STORE');
+
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.FIRST_NAME), 'first-nm') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.MIDDLE_INITIAL), 'mid-nm') || CHR(10);    
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.LAST_NAME), 'last-nm') || CHR(10);    
+
+    --build fax 
+    V_PHONE_REC := RETURN_PHONE_INFO (V_COSTCENTER_REC.COST_CENTER_CODE, 'FAX');          
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PHONE_REC.PHONE_AREA_CODE ||
+                                                         V_PHONE_REC.PHONE_NUMBER), 'fax') || CHR(10);  
+    --build division area and ccn-district         
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DIVISION), 'division') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_AREA), 'area') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_G_DISTRICT), 'ccn-district') || CHR(10);
+    --build price district
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PRICE_DISTRCT), 'pricing-district') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_DIST_EFF_DT), 'pricing-district-eff-dt') || CHR(10);
+    --build future price district
+    RETURN_PRICE_DISTRICT_SP('PRICE_DISTRICT',
+                             IN_COST_CENTER_CODE,
+                             'Y',
+                             V_PRICE_DISTRCT,
+                             V_DIST_EFF_DT,
+                             V_G_DISTRICT,
+                             V_G_AREA,
+                             V_G_DIVISION
+                             );
+
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PRICE_DISTRCT), 'FuturePricing-dist') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_DIST_EFF_DT), 'futurepricing-eff-dt') || CHR(10);
+
+    --build currency
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.CURRENCY_CODE), 'currency') || CHR(10);
+    --build dsc-code 
+    V_XMLDATA   := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(GET_PRI_DSC_CODE(V_COSTCENTER_REC.COST_CENTER_CODE), 'dsc-code') || CHR(10);
+    --build acct-cntry,statement-type
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COUNTRY_CODE), 'acct-cntry') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.STATEMENT_TYPE), 'statement-type') || CHR(10);
+    --build terminals
+    FOR REC IN (SELECT *
+                  FROM COST_TERMINAL_VIEW
+                 WHERE COST_CENTER_CODE = V_COSTCENTER_REC.COST_CENTER_CODE) LOOP         
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(REC.TERMINAL_NUMBER), 'terminals') || CHR(10);         
+    END LOOP;
+    --<xsd:element name="terminals" type="xsd:string" nillable="true" minOccurs="15" maxOccurs="15"/>
+    --build FIPS-st, FIPS-county, FIPS-city
+    IF V_COSTCENTER_REC.COUNTRY_CODE IN ('USA', 'PRI') THEN
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(V_ADDRESS_USA_REC.FIPS_CODE,1,2)), 'FIPS-st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(V_ADDRESS_USA_REC.FIPS_CODE,3,3)), 'FIPS-county') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(V_ADDRESS_USA_REC.FIPS_CODE,6,5)), 'FIPS-city') || CHR(10);
+    ELSIF V_COSTCENTER_REC.COUNTRY_CODE = 'CAN' THEN
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(GET_CANADA_FIPS_CODE(V_ADDRESS_CAN_REC.PROVINCE_CODE),1,2)), 'FIPS-st') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(GET_CANADA_FIPS_CODE(V_ADDRESS_CAN_REC.PROVINCE_CODE),3,3)), 'FIPS-county') || CHR(10);
+        V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(SUBSTR(GET_CANADA_FIPS_CODE(V_ADDRESS_CAN_REC.PROVINCE_CODE),6,5)), 'FIPS-city') || CHR(10);
+    END IF;
+    --build co-abbreviation web-address
+    -- Changed the code to derieve the abbreviation values from TRANSLATION_HEADER and TRANSLATION_DETAIL tables. Change done per Ellen request with Pat accord. Refer to email "Fw: Re: Store Init file from PROD"
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STMNT_TYP_TO_CMP_ABBRV', V_COSTCENTER_REC.STATEMENT_TYPE), 'S-W SHERWIN-WILLIAMS')), 'co-abbreviation') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_WEB_ADDR', V_COSTCENTER_REC.STATEMENT_TYPE), CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('STATEMENT_WEB_ADDR', 'SW'))), 'web-address') || CHR(10);
+    --build taxware
+    V_TAXWARE := RETURN_TAXWARE_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_STATE), 'taxware-state') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_ZIP), 'taxware-zip') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_GEO), 'taxware-geocode') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_COUNTRY), 'taxware-country') || CHR(10);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TAXWARE.TWJ_COMPANY), 'taxware-nexus') || CHR(10);
+    --build descartes-delivery-code tag
+    V_STORE   := RETURN_STORE_INFO(V_COSTCENTER_REC.COST_CENTER_CODE);
+    V_XMLDATA := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('DESCARTES_DELIVERY_CODE','COD',V_STORE.DESCARTES_DELIVERY_CODE), 'descartes-delivery-code') || CHR(10);
+
+    V_XMLDATA       := '<storeUpdtRcd dtl_trans_type="R">' || CHR(10) ||
+                       V_XMLDATA ||
+                       '</storeUpdtRcd>' ||
+                       CHR(10);
+    OUT_CLOB := V_XMLDATA;
+END BUILD_STORE_XML;
+
+PROCEDURE GENERATE_POS_STORE_UPD_SP(
+/*******************************************************************************
+This procedure is used to read the changes that happen for any UI updates
+and generate an XML document with those changes.
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters
+*******************************************************************************/
+    IN_POS_ID      IN       POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="store.xsd"';
+    V_FILE_NAME            VARCHAR2(100);
+    V_ERROR                VARCHAR2(1000);
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+BEGIN  
+    V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
+    V_FILE_NAME := 'StoreUpdate_' || V_REC_POSDATA.COST_CENTER_CODE || '_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
+    BUILD_STORE_XML(V_REC_POSDATA.COST_CENTER_CODE, V_XMLOUTPUT);
+    V_REC_COUNT     := V_REC_COUNT + 1;
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) || '<storeUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
+                   RETURN_HEADER_RECORD('STORE1', 'STORE', V_REC_COUNT, 'U') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</storeUpdtMsg>';
+
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'N';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE');
+    POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
+    OUT_XML_VALUE := V_XMLOUTPUT;
+    OUT_REQ_VALUE := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME := V_FILE_NAME;
+
+
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'GENERATE_POS_STORE_UPD_SP', V_ERROR, '000000');
+END GENERATE_POS_STORE_UPD_SP;
+
+PROCEDURE INIT_LOAD_STORE_SP(
+/*******************************************************************************
+This procedure is used to create a Store Init load file 
+
+Created : 10/12/2017 rxv CCN Project....
+Changed : 11/16/2017 rxv CCN Project....
+        : Addded condition to process records with flag = 'Y' for POS_DOWNLOAD_CC_IND
+Changed : 04/18/2018 jxc517/nxk927 CCN Project Team....
+          Removed condition to consider only polling ready cost centers to include for New Store and Nightly Sync downloads
+          This has been requested by Ralph/Ellen/Dan and tested/approved by Michael Beaty on 4/19
+          This change is to provide pricing information to CIS for all active cost centers having status of 'P' or 'Q'
+          even though they are not ready for pos downloads
+*********************************************************************************/
+    IN_LOAD_TYPE   IN       VARCHAR2,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLDATA              CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="store.xsd"';
+    V_FILE_NAME            VARCHAR2(100) := 'StoreUpdate_INITLD_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
+    V_ERROR                VARCHAR2(1000);
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+    V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN  
+    --Insert one entry into the POS_DOWNLOADS table.
+    V_POS_ID := INS_POS_DOWNLOADS_FN('STORIL', IN_LOAD_TYPE, 'STOR_INIT_LOAD', 'POS_STORE_UPDATE');
+    V_REC_POSDATA := POS_DATA_GENERATION.RETURN_POS_DOWNLOADS(V_POS_ID, NULL);
+    FOR STORE_REC IN (SELECT *
+                        FROM COST_CENTER
+                       WHERE CATEGORY = 'S'
+                         AND CLOSE_DATE IS NULL
+                         -- Get only stores that are ready to be picked up
+                         AND COST_CENTER_CODE IN (SELECT COST_CENTER_CODE 
+                                                    FROM POLLING 
+                                                   WHERE POLLING_STATUS_CODE IN ('P', 'Q'))) LOOP
+        BUILD_STORE_XML(STORE_REC.COST_CENTER_CODE, V_XMLDATA);
+        V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
+        V_REC_COUNT     := V_REC_COUNT + 1;
+    END LOOP;
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) || '<storeUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
+                   RETURN_HEADER_RECORD('STORE1', 'STORE', V_REC_COUNT, 'R') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</storeUpdtMsg>';
+    OUT_XML_VALUE   := V_XMLOUTPUT;      
+    OUT_REQ_VALUE   := RETURN_PREVIOUS_REQUEST_ID('POS_STORE_UPDATE') ;
+    OUT_FILE_NAME   := V_FILE_NAME;
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := OUT_REQ_VALUE;
+    POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_STORE_SP1', V_ERROR, '000000');
+        RAISE;                                       
+END INIT_LOAD_STORE_SP;
+
+PROCEDURE BUILD_TERR_XML(
+/*******************************************************************************
+This procedure is used to build TERR xml for the cost center passed
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for 
+the order of the XML elements.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="" xmlns:prodata="urn:schemas-progress-com:xml-prodata:0001">
+  <xsd:element name="ccnterrUpdtMsg" prodata:proDataSet="true">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="dlHeaderRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="aplfile_name" type="xsd:string"/>
+              <xsd:element name="micfile_name" type="xsd:string"/>
+              <xsd:element name="rec_cnt" type="xsd:int"/>
+              <xsd:element name="cre_date" type="xsd:date"/>
+              <xsd:element name="cre_time" type="xsd:string"/>
+              <xsd:element name="r_u_flag" type="xsd:string"/>
+              <xsd:element name="wfd" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="ccnterrUpdtRcd" minOccurs="1" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="cost_center_code" type="xsd:string"/>
+              <xsd:element name="category" type="xsd:string"/>
+              <xsd:element name="lease_car_indicator" type="xsd:string"/>
+              <xsd:element name="territory_type_busn_code" type="xsd:string"/>
+              <xsd:element name="busn_code_description" type="xsd:string"/>
+              <xsd:element name="home_store" type="xsd:string"/>
+              <xsd:element name="first-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="mid-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="last-nm" type="xsd:string" nillable="true"/>
+              <xsd:element name="geo-country" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+            <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//dlHeaderRcd"/>
+      <xsd:field xpath="aplfile_name"/>
+    </xsd:unique>
+    <xsd:unique name="ccnterrUpdtRcd_main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//ccnterrUpdtRcd"/>
+      <xsd:field xpath="cost_center_code"/>
+    </xsd:unique>
+  </xsd:element>
+</xsd:schema>
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 02/23/2017 rxv940 CCN Project Team....
+          added cost_center_code, category, lease_car_indicator, territory_type_busn_code tags
+          removed terr-nbr tag
+          Header has been changed from TERR and TER1 to CCNTERR
+          terrUpdtMsg has been changed to ccnterrUpdtMsg
+          terrUpdtRcd has been changed to ccnterrUpdtRcd    
+          terr-updt.xsd has been changed to ccnterr-updt.xsd
+          Added "territory_type_busn_code" to the XML file generation process
+          Updated the Terr XSD in the comments (above)
+Changed : 03/02/2017 rxv940 CCN Project Team....
+          Handling XML special characters
+Changed : 08/03/2017 rxv940 CCN Project....
+        : Changes to have the prev request id passed on to done file
+*******************************************************************************/
+     IN_COST_CENTER_CODE   IN     VARCHAR2,
+     OUT_CLOB                 OUT CLOB)
+IS
+    V_XMLDATA              CLOB;
+    V_COSTCENTER_REC       COST_CENTER%ROWTYPE;
+    V_TERRITORY            TERRITORY%ROWTYPE;  
+    V_EMPLOYEE_DETAILS     EMPLOYEE_DETAILS%ROWTYPE;
+BEGIN
+    V_TERRITORY        := RETURN_TERRITORY_INFO  (IN_COST_CENTER_CODE);
+    V_COSTCENTER_REC   := RETURN_COST_CENTER_INFO(IN_COST_CENTER_CODE);      
+    V_EMPLOYEE_DETAILS := RETURN_EMPLOYEE_DETAILS(IN_COST_CENTER_CODE, 'TERRITORY');
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COST_CENTER_CODE), 'cost_center_code') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TERRITORY.CATEGORY), 'category') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TERRITORY.LEASE_CAR_INDICATOR), 'lease_car_indicator') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TERRITORY.TERRITORY_TYPE_BUSN_CODE), 'territory_type_busn_code') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(
+             NVL(CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('TERRITORY_TYPE_BUSN_CODE',
+                                                                 'COD',
+                                                                 V_TERRITORY.TERRITORY_TYPE_BUSN_CODE),
+                 'N/A')), 'busn_code_description') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TERRITORY.HOME_STORE), 'home-store') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.FIRST_NAME), 'first-nm') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.MIDDLE_INITIAL), 'mid-nm') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_DETAILS.LAST_NAME), 'last-nm') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COSTCENTER_REC.COUNTRY_CODE), 'geo-country') || CHR(10);
+
+    V_XMLDATA       := '<ccnterrUpdtRcd dtl_trans_type="R">' || CHR(10) ||                                                                                     
+                       V_XMLDATA || 
+                       '</ccnterrUpdtRcd>' ||
+                       CHR(10);
+    OUT_CLOB     := V_XMLDATA;
+END BUILD_TERR_XML;
+
+PROCEDURE GEN_POS_TERRITORY_UPD_SP(
+/*******************************************************************************
+This procedure is used to read the updates that happen for any Territory in the UI
+and generate an XML document with those changes.
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters
+*******************************************************************************/
+    IN_POS_ID       IN  POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="ccnterr-updt.xsd"';
+    V_FILE_NAME            VARCHAR2(100);
+    V_ERROR                VARCHAR2(1000);
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+BEGIN
+    V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
+    V_FILE_NAME := 'TerritoryUpdate_' || V_REC_POSDATA.COST_CENTER_CODE || '_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
+    BUILD_TERR_XML(V_REC_POSDATA.COST_CENTER_CODE, V_XMLOUTPUT);
+    V_REC_COUNT     := V_REC_COUNT + 1; 
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) || '<ccnterrUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
+                   RETURN_HEADER_RECORD('CCNTERR', 'CCNTERR', V_REC_COUNT, 'U') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</ccnterrUpdtMsg>';                                                                                                                       
+
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'N';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE');
+    POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
+    OUT_XML_VALUE      := V_XMLOUTPUT;
+    OUT_REQ_VALUE      := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME      := V_FILE_NAME;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'GEN_POS_TERRITORY_UPD_SP', V_ERROR, '000000');
+END GEN_POS_TERRITORY_UPD_SP;
+
+PROCEDURE INIT_LOAD_TERR_SP(
+/*******************************************************************************
+This procedure is used to create a territory Init load file.
+
+Created : 10/12/2017 rxv940 CCN Project....
+Changed : 11/16/2017 rxv CCN Project....
+        : Addded condition to process records with flag = 'Y' for POS_DOWNLOAD_CC_IND
+*******************************************************************************/
+    IN_LOAD_TYPE   IN       VARCHAR2,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLDATA              CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="ccnterr-updt.xsd"';
+    V_FILE_NAME            VARCHAR2(100) := 'TerritoryUpdate_INITLD_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
+    V_ERROR                VARCHAR2(1000);
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+    V_POS_ID               POS_DOWNLOADS.POS_ID%TYPE;
+BEGIN
+    --Insert one entry into the POS_DOWNLOADS table.
+    V_POS_ID := INS_POS_DOWNLOADS_FN('TERRIL', IN_LOAD_TYPE, 'TERR_INIT_LOAD', 'POS_TERRITORY_UPDATE');
+    V_REC_POSDATA := POS_DATA_GENERATION.RETURN_POS_DOWNLOADS(V_POS_ID, NULL);
+    FOR TERR_REC IN (SELECT COST_CENTER_CODE
+                       FROM COST_CENTER
+                      WHERE CATEGORY = 'T'
+                        AND POS_DOWNLOAD_CC_IND = 'Y'
+                        AND CLOSE_DATE IS NULL) LOOP
+        BUILD_TERR_XML(TERR_REC.COST_CENTER_CODE, V_XMLDATA);
+        V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
+        V_REC_COUNT     := V_REC_COUNT + 1;
+    END LOOP;
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) || '<ccnterrUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10) ||
+                   RETURN_HEADER_RECORD('CCNTERR', 'CCNTERR', V_REC_COUNT, 'R') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</ccnterrUpdtMsg>';
+    OUT_XML_VALUE   := V_XMLOUTPUT;      
+    OUT_REQ_VALUE   := RETURN_PREVIOUS_REQUEST_ID('POS_TERRITORY_UPDATE') ;
+    OUT_FILE_NAME   := V_FILE_NAME;
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := OUT_REQ_VALUE;
+    POS_DATA_GENERATION.POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM ;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'INIT_LOAD_TERR_SP1', V_ERROR, '000000');
+        RAISE;                                       
+END INIT_LOAD_TERR_SP;
+
+PROCEDURE GEN_PARAM_UPD_SP(
+/*******************************************************************************
+This procedure is used to read the updates that happen for any Param
+and generate an XML document with those changes.
+
+The expected XML should be as given below.
+NOTE: The order of the XML elements should be maintained as the xsd is looking for 
+the order of the XML elements.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="" xmlns:prodata="urn:schemas-progress-com:xml-prodata:0001">
+  <xsd:element name="parmUpdtMsg" prodata:proDataSet="true">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="dlHeaderRcd" minOccurs="1" maxOccurs="1">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="aplfile_name" type="xsd:string"/>
+              <xsd:element name="micfile_name" type="xsd:string"/>
+              <xsd:element name="rec_cnt" type="xsd:int"/>
+              <xsd:element name="cre_date" type="xsd:date"/>
+              <xsd:element name="cre_time" type="xsd:string"/>
+              <xsd:element name="r_u_flag" type="xsd:string"/>
+              <xsd:element name="wfd" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="parmUpdtRcd" minOccurs="1" maxOccurs="1">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
+              <xsd:element name="cost-center" type="xsd:string"/>
+              <xsd:element name="logo1" type="xsd:string" nillable="true"/>
+              <xsd:element name="logo2" type="xsd:string" nillable="true"/>
+              <xsd:element name="visamid" type="xsd:string" nillable="true"/>
+              <xsd:element name="discovermid" type="xsd:string" nillable="true"/>
+              <xsd:element name="amexmid" type="xsd:string" nillable="true"/>
+              <xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
+              <xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
+              <xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
+              <xsd:element name="draft-prefix" type="xsd:string" nillable="true"/>
+            </xsd:sequence>
+            <xsd:attribute name="dtl_trans_type" type="xsd:string"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="main" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//dlHeaderRcd"/>
+      <xsd:field xpath="aplfile_name"/>
+    </xsd:unique>
+    <xsd:unique name="main-inx" prodata:primaryIndex="true">
+      <xsd:selector xpath=".//parmUpdtRcd"/>
+      <xsd:field xpath="cost-center"/>
+    </xsd:unique>
+  </xsd:element>
+</xsd:schema>
+
+Created : 01/17/2016 rxv940 CCN Project....
+Changed : 03/02/2017 rxv940 CCN Project Team....
+          Handling XML special characters
+Changed : 06/26/2017 rxv940 CCN Project....
+        : Changed the XML tag store-number to cost-center and removed the 
+        : nabanco state and country codes from .xsd and .xml creation
+Changed : 06/30/2017 rxv940 CCN Project....
+        : Updated the new .XSD and removed the check for non-nullable
+        : bank account number and name
+Changed : 07/17/2017 rxv940 CCN Project....
+        : Changes to retrirve bank details using GET_POS_BANK_DETAILS
+Changed : 08/03/2017 rxv940 CCN Project....
+        : Changes to have the prev request id passed on to done file
+Changed : 10/31/2017 rxv940 CCN Project....
+        : Removed file generation and added OUT parameters
+Changed : 06/24/2019 axm868 CCN Project....
+        : CCNCC-2 Replaced the above xsd structure with the latest xsd version
+        : Added GET_DESIGNATED_TERMINAL_NUMBER to get the
+        : first assigned terminal number to be added to the XML
+*******************************************************************************/
+    IN_POS_ID      IN  POS_DOWNLOADS.POS_ID%TYPE,
+    OUT_XML_VALUE      OUT  CLOB,
+    OUT_REQ_VALUE      OUT  VARCHAR2,
+    OUT_FILE_NAME      OUT  VARCHAR2)
+IS
+    V_XMLOUTPUT            CLOB;
+    V_XMLDATA              CLOB;
+    V_XMLVERSION           CONSTANT VARCHAR2(100):= '<?xml version="1.0" encoding="UTF-8"?>';
+    V_XMLNAMESPACE         CONSTANT VARCHAR2(100):= 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+    V_XMLXSDPATH           CONSTANT VARCHAR2(100):='xsi:noNamespaceSchemaLocation="param.xsd"';
+    V_FILE_NAME            VARCHAR2(100);
+    V_ERROR                VARCHAR2(1000);
+    V_POS_BANK_ACCNT_NBR   VARCHAR2(20);
+    V_BANK_ACCOUNT_NM     BANK_ACCOUNT.BANK_NAME%TYPE;
+    V_REC_COUNT            PLS_INTEGER :=0;
+    V_REC_POSDATA          POS_DOWNLOADS%ROWTYPE;
+    V_COST_CENTER_REC      COST_CENTER%ROWTYPE;
+    V_BANK_CARD_REC        BANK_CARD%ROWTYPE;
+    V_PROCESSORS_REC       PROCESSORS%ROWTYPE;
+    V_TERMINAL_NUMBER      TERMINAL.TERMINAL_NUMBER%TYPE;
+BEGIN
+    V_REC_POSDATA := RETURN_POS_DOWNLOADS(IN_POS_ID, NULL);
+    V_FILE_NAME := 'ParamUpdate_' || V_REC_POSDATA.COST_CENTER_CODE || '_' || TO_CHAR(SYSTIMESTAMP,'YYYYMMDDMMSSFF') || '.XML';
+
+    GET_POS_BANK_DETAILS(V_REC_POSDATA.COST_CENTER_CODE, V_POS_BANK_ACCNT_NBR, V_BANK_ACCOUNT_NM);
+
+    V_TERMINAL_NUMBER := CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(V_REC_POSDATA.COST_CENTER_CODE);
+
+    --step 1
+    --<xsd:element name="P-cval" type="xsd:string" minOccurs="0" maxOccurs="2"/>
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_POS_BANK_ACCNT_NBR), 'P-cval') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_ACCOUNT_NM), 'P-cval') || CHR(10);
+
+    --Step 2
+    --<xsd:element name="store-number" type="xsd:string"/>
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_REC_POSDATA.COST_CENTER_CODE), 'cost-center') || CHR(10);
+
+    --Step 3
+    --<xsd:element name="logo1" type="xsd:string" nillable="true"/>
+    --<xsd:element name="logo2" type="xsd:string" nillable="true"/>
+    V_COST_CENTER_REC := RETURN_COST_CENTER_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.PRI_LOGO_GROUP_IND), 'logo1') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_COST_CENTER_REC.SCD_LOGO_GROUP_IND), 'logo2') || CHR(10);
+
+    --Step 4
+    --<xsd:element name="visamid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="discovermid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="amexmid" type="xsd:string" nillable="true"/>
+    --<xsd:element name="auth-qual-code" type="xsd:int" nillable="true"/>
+    V_BANK_CARD_REC := RETURN_BANK_CARD_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.MERCHANT_ID), 'visamid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.DISCOVER_ID), 'discovermid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.AMEX_SE_ID), 'amexmid') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.QUALITY_CODE), 'auth-qual-code') || CHR(10);
+
+    --Step 5
+    --<xsd:element name="paxsouthmid" type="xsd:string" nillable="true"/>
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_BANK_CARD_REC.PCI_MERCHANT_ID), 'paxsouthmid') || CHR(10);
+
+    --Step 6
+    --<xsd:element name="payroll-processor" type="xsd:string" nillable="true"/>
+    --<xsd:element name="payroll-processor-name" type="xsd:string" nillable="true"/>
+    --<xsd:element name="payroll-processor-phone" type="xsd:string" nillable="true"/>
+
+    V_PROCESSORS_REC  := RETURN_PROCESSORS_INFO(V_REC_POSDATA.COST_CENTER_CODE);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_ID), 'payroll-processor') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PROCESSOR_NAME), 'payroll-processor-name') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_PROCESSORS_REC.PHONE_NUMBER), 'payroll-processor-phone') || CHR(10);
+    V_XMLDATA       := V_XMLDATA || CCN_COMMON_TOOLS.BUILD_TAG(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_TERMINAL_NUMBER), 'draft-prefix') || CHR(10);
+
+    V_XMLDATA       := '<parmUpdtRcd dtl_trans_type="R">' || CHR(10) || V_XMLDATA || '</parmUpdtRcd>' || CHR(10);
+    V_XMLOUTPUT     := V_XMLOUTPUT || V_XMLDATA;
+    V_XMLDATA       := NULL; 
+    V_REC_COUNT     := V_REC_COUNT+1; 
+    V_XMLOUTPUT := V_XMLVERSION || CHR(10) || '<parmUpdtMsg ' || CHR(10) || V_XMLNAMESPACE || CHR(10) || V_XMLXSDPATH || ' >' || CHR(10)||
+                   RETURN_HEADER_RECORD('POS1', 'PARAM', V_REC_COUNT, 'U') || CHR(10) ||
+                   V_XMLOUTPUT ||
+                   '</parmUpdtMsg>';
+
+    --Update the POS-Downloads
+    V_REC_POSDATA.FILE_NAME      := V_FILE_NAME;
+    V_REC_POSDATA.FILE_PROCESSED := 'Y';
+    V_REC_POSDATA.PREREQ_EQUIV_RQST_ID := RETURN_PREVIOUS_REQUEST_ID('POS_PARAM_UPDATE', V_REC_POSDATA.COST_CENTER_CODE);
+    POS_DOWNLOADS_UPD_SP(V_REC_POSDATA);
+
+    OUT_XML_VALUE      := V_XMLOUTPUT;
+    OUT_REQ_VALUE      := V_REC_POSDATA.PREREQ_EQUIV_RQST_ID;
+    OUT_FILE_NAME      := V_FILE_NAME;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'GEN_PARAM_UPD_SP', V_ERROR, '000000');
+END GEN_PARAM_UPD_SP;
+
+PROCEDURE POS_DOWNLOADS_UPD_SP(
+/*******************************************************************************
+This procedure is used do update on the table POS_DOWNLOADS 
+
+Created : 10/17/2016 rxv940 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_FILE_NAME POS_DOWNLOADS.FILE_NAME%TYPE,
+    IN_RQST_ID   POS_DOWNLOADS.POLLING_REQUEST_ID%TYPE)
+IS
+   V_ERROR          VARCHAR2(1000);
+BEGIN
+    UPDATE POS_DOWNLOADS 
+       SET POLLING_REQUEST_ID = IN_RQST_ID,
+           UPDATE_DT          = SYSDATE,
+           FILE_PROCESSED     = 'Y'
+     WHERE FILE_NAME          = IN_FILE_NAME;
+EXCEPTION
+    WHEN OTHERS THEN
+        V_ERROR  := 'SQLCODE->' || SQLCODE || CHR(10) || 'SQLERRM->' || SQLERRM || CHR(10) || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+        ROLLBACK;
+        CCN_ERRPKG.insert_error_log_sp(SQLCODE, 'POS_DOWNLOADS_UPD_SP_OL', V_ERROR, '000000');
+        RAISE;
+END POS_DOWNLOADS_UPD_SP;
+
+PROCEDURE SET_FLAG_POLLING_BULK_LOADS (
+/*******************************************************************************
+This procedure is intended to set flag into POS_DOWNLOADS_BULK_LOADS_LKUP table
+
+created : 02/08/2018 rxv940 CCN Project....
+revised :     
+*******************************************************************************/
+    IN_MAINTENANCE_TYPE    IN     VARCHAR2,
+    OUT_BULK_LOADS_LKUP_ID    OUT NUMBER)
+IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    -- Making sure the set and reset flags are commited/ rolledback irespective of the 
+	-- original data involved
+BEGIN 
+    INSERT INTO POS_DOWNLOADS_BULK_LOADS_LKUP (BULK_LOADS_LKUP_ID, MAINTENANCE_TYPE)
+    VALUES (BULK_LOADS_LKUP_SEQ.NEXTVAL, IN_MAINTENANCE_TYPE)
+ RETURNING BULK_LOADS_LKUP_ID INTO OUT_BULK_LOADS_LKUP_ID;
+    COMMIT;
+EXCEPTION 
+    WHEN OTHERS THEN 
+        ROLLBACK;
+END SET_FLAG_POLLING_BULK_LOADS;
+
+PROCEDURE RESET_FLAG_POLLING_BULK_LOADS (
+/*******************************************************************************
+This procedure is intended to Reset flag into POS_DOWNLOADS_BULK_LOADS_LKUP table
+
+created : 12/26/2017 rxv940 CCN Project....
+revised :     
+*******************************************************************************/
+    IN_BULK_LOADS_LKUP_ID IN NUMBER)
+IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    -- Making sure the set and reset flags are commited/ rolledback irespective of the
+    -- original data involved
+BEGIN 
+    UPDATE POS_DOWNLOADS_BULK_LOADS_LKUP
+       SET FLAG = 'N',
+           MAINTENANCE_DATE_END = SYSDATE
+     WHERE BULK_LOADS_LKUP_ID = IN_BULK_LOADS_LKUP_ID;
+
+    COMMIT;
+
+EXCEPTION 
+    WHEN OTHERS THEN 
+        ROLLBACK;
+END RESET_FLAG_POLLING_BULK_LOADS; 
+
+END POS_DATA_GENERATION;
