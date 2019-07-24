@@ -28,7 +28,7 @@ DECLARE
                        FROM POLLING p
                       WHERE p.cost_center_code = bt.cost_center_code
                         AND p.polling_status_code = 'P'
-                        AND p.expiration_date IS NULL)
+                        AND p.polling_expiration_date IS NULL)
        ORDER BY bt.cost_center_code;
 
    --variable declaration
