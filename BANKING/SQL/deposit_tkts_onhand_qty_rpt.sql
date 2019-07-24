@@ -10,6 +10,7 @@
 created : sxp130 06/22/2017 ASP_805
 modified: axt754 10/18/2017 Filter Cost Centers Which are Active and polling status as 'P'
 modified: mxv711 11/03/2017 added 2 new columns Store Name and Last Maintenance Date
+modified: axm868 07/24/2019 For CCNCC-37, replaced expiration_date with polling_expiration_date
 **********************************************************/
 DECLARE
    CURSOR dep_bag_cur IS

@@ -12,6 +12,7 @@ modified: axt754 10/18/2017 Filter Cost Centers Which are Active and polling sta
 modified: mxv711 11/03/2017 added 2 new columns Store Name and Last Maintenance Date( added last maintenance date as 
           depbag_last_order_date as the last maintenance date from child table matched 
           exactly with depbag_last_order_date in prod for all records)
+modified: axm868 07/24/2019 For CCNCC-37, replaced expiration_date with polling_expiration_date
 **********************************************************/
 DECLARE
    CURSOR dep_bag_cur IS
