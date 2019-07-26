@@ -1,0 +1,218 @@
+create or replace PACKAGE BODY BANKING_REPORTING_PKG AS
+/**********************************************************
+	This Package is intended to run the Banking Reports.
+
+created : 07/25/2019 jxc517 CCN Project....CCNBN-12
+changed :
+**********************************************************/
+
+/*
+Tables referenced:
+
+BANKING:
+	BANK_DEP_TICKORD
+	BANK_DEP_BAG_TICKORD
+	BANKING_ERROR_LOG
+	BANK_DEP_TICK
+	BANK_DEP_BAG_TICK
+  BANK_DEP_TICK_BAG_EXCLD_CCS
+
+COSTCNTR :
+	COST_CENTER
+  STATUS
+  TYPE
+  POLLING
+*/
+
+PROCEDURE GENERATE_DEP_TICK_BAG_DLY_RPRTS
+IS
+/**********************************************************
+	This Procedure will create an Excel file containing the
+  Banking Reports for Bags and Tickets (mentioned below)
+  and email that Excel file.
+
+created : 07/25/2019 jxc517 CCN Project....CCNBN-12
+          1. Cost centers which are active but not having deposit ticket details
+          2. Cost centers which are active but not having deposit bag details
+          3. Deposit Bag OnHand Qty File generation
+          4. Deposit Ticket OnHand Qty File generation
+          5. Deposit Tickets Ordered Report
+          6. Deposit Tickets Error Report
+          7. Deposit Bags Error Report
+          8. Deposit Bags Ordered Report
+
+changed :
+**********************************************************/
+
+    PATH                        VARCHAR2(50) := 'BANKING_DATA_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
+    FILENAME                    VARCHAR2(70) := 'BAGS_AND_TKTS_BANKING_REPORTS' ||'_' || TO_CHAR(TRUNC(SYSDATE),'DD_MON_RRRR') ||'.xlsx';
+    V_REC_COUNT                 NUMBER := 0;
+    V_COUNT                     NUMBER := 0;
+BEGIN
+    V_COUNT := 0;
+
+    --tkt_ordrs_placed
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT *
+          FROM BANK_DEP_TICKORD BDTO, STATUS S
+         WHERE BDTO.ORDER_DATE = TRUNC(SYSDATE)
+           AND NOT EXISTS (SELECT 1
+                             FROM BANKING_ERROR_LOG EL
+                            WHERE MODULE            = ''DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS''
+                              AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
+                              AND COST_CENTER_CODE  = BDTO.COST_CENTER_CODE)
+           AND S.COST_CENTER_CODE = BDTO.COST_CENTER_CODE
+           AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+           AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))',
+                                     TRUE,NULL,NULL,NULL,'tkt_ordrs_placed');
+
+    --bag_ordrs_placed
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT *
+          FROM BANK_DEP_BAG_TICKORD BDBTO, STATUS S
+         WHERE ORDER_DATE = TRUNC(SYSDATE)
+           AND NOT EXISTS (SELECT 1
+                             FROM BANKING_ERROR_LOG EL
+                            WHERE MODULE            = ''DPST_BAGS_UPDATE_BATCH_PKG.PROCESS''
+                              AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
+                              AND COST_CENTER_CODE  = BDBTO.COST_CENTER_CODE)
+           AND S.COST_CENTER_CODE = BDBTO.COST_CENTER_CODE
+           AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+           AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))',
+                                     TRUE,NULL,NULL,NULL,'bag_ordrs_placed');
+                                     
+    --tkt_ordrs_errored
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT ''Ticket Orders'' PROCESS, EL.COST_CENTER_CODE, CC.COST_CENTER_NAME, T.TYPE_CODE, S.STATUS_CODE,
+           CASE WHEN ERROR_TEXT LIKE ''%cost center%closed%dummy%''
+                           THEN ''The cost center is either closed or a dummy cost center.''
+                     WHEN ERROR_TEXT like ''%Deposit ticket can not be ordered on reorder switch of L%''
+                           THEN ''Deposit ticket can not be ordered on reorder switch of L''
+                     WHEN ERROR_TEXT like ''%cost center%do not have%Store Micr Format Details%''
+                           THEN ''The cost center retrieved do not have any Store Micr Format Details Attached.''
+                     ELSE ''Researching the failure'' end as ERROR_TEXT
+       FROM BANKING_ERROR_LOG EL, STATUS S, COST_CENTER CC, TYPE T
+      WHERE MODULE = ''DPST_TCKTS_UPDATE_BATCH_PKG.PROCESS''
+        AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
+        AND S.COST_CENTER_CODE = EL.COST_CENTER_CODE
+        AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+        AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))
+        AND S.COST_CENTER_CODE = T.COST_CENTER_CODE
+        AND S.COST_CENTER_CODE = CC.COST_CENTER_CODE
+        AND NVL(CC.OPEN_DATE,SYSDATE) <> ''01-JAN-2099''
+        AND CC.CLOSE_DATE IS NULL
+        AND T.EXPIRATION_DATE IS NULL
+      ORDER BY EL.COST_CENTER_CODE',
+                                     TRUE,NULL,NULL,NULL,'tkt_ordrs_errored');
+                                                                          
+    --bag_ordrs_errored
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT ''Bag Orders'' PROCESS, EL.COST_CENTER_CODE, CC.COST_CENTER_NAME, T.TYPE_CODE, S.STATUS_CODE,
+              CASE WHEN ERROR_TEXT LIKE ''%cost center%closed%dummy%''
+                      THEN ''The cost center is either closed or a dummy cost center.''
+                   WHEN ERROR_TEXT like ''%Deposit bag can not be ordered on reorder switch of L%''
+                      THEN ''Deposit bag can not be ordered on reorder switch of L''
+                   ELSE ''Researching the failure'' END as ERROR_TEXT
+       FROM BANKING_ERROR_LOG EL, STATUS S, COST_CENTER CC, TYPE T
+      WHERE MODULE = ''DPST_BAGS_UPDATE_BATCH_PKG.PROCESS''
+        AND TRUNC(ERROR_DATE) = TRUNC(SYSDATE)
+        AND S.COST_CENTER_CODE = EL.COST_CENTER_CODE
+        AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+        AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))
+        AND S.COST_CENTER_CODE = T.COST_CENTER_CODE
+        AND S.COST_CENTER_CODE = CC.COST_CENTER_CODE
+        AND NVL(CC.OPEN_DATE,SYSDATE) <> ''01-JAN-2099''
+        AND CC.CLOSE_DATE IS NULL
+        AND T.EXPIRATION_DATE IS NULL
+      ORDER BY EL.COST_CENTER_CODE',
+                                     TRUE,NULL,NULL,NULL,'bag_ordrs_errored');
+                                                                          
+    --tkts_onhand
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT bt.cost_center_code cost_center_code,
+               cc.cost_center_name cost_center_name,
+               bt.dep_tkts_onhand_qty dep_tkts_onhand_qty,
+               bt.last_vw_order_date last_vw_order_date,
+               bt.last_maintenance_date last_maintenance_date
+          FROM bank_dep_tick bt, cost_center cc, status s
+         WHERE bt.cost_center_code = cc.cost_center_code
+           AND NVL(cc.OPEN_DATE,SYSDATE) <> ''01-JAN-2099''
+           AND cc.close_date IS NULL
+           AND EXISTS (SELECT 1
+                         FROM POLLING p
+                        WHERE p.cost_center_code = bt.cost_center_code
+                          AND p.polling_status_code = ''P''
+                          AND p.POLL_STATUS_EFF_DT IS NULL)
+           AND s.cost_center_code = cc.cost_center_code
+           AND s.status_code not in (''5'', ''X'', ''8'')
+           AND (s.expiration_date is null or trunc(s.expiration_date) >= trunc(sysdate))
+         ORDER BY bt.cost_center_code',
+                                     TRUE,NULL,NULL,NULL,'tkts_onhand');
+                                     
+    --bags_onhand
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT bt.cost_center_code cost_center_code,
+             cc.cost_center_name cost_center_name,
+             bt.depbag_onhand_qty depbag_onhand_qty,
+             bt.depbag_last_order_date depbag_last_order_date,
+             bt.depbag_last_order_date last_maintenance_date
+        FROM bank_dep_bag_tick bt, cost_center cc, status s
+       WHERE bt.cost_center_code = cc.cost_center_code
+         AND NVL(cc.OPEN_DATE,SYSDATE) <> ''01-JAN-2099''
+         AND cc.close_date IS NULL
+         AND EXISTS (SELECT 1
+                       FROM POLLING p
+                      WHERE p.cost_center_code = bt.cost_center_code
+                        AND p.polling_status_code = ''P''
+                        AND p.POLL_STATUS_EFF_DT IS NULL)
+         AND s.cost_center_code = cc.cost_center_code
+         AND s.status_code not in (''5'', ''X'', ''8'')
+         AND (s.expiration_date is null or trunc(s.expiration_date) >= trunc(sysdate))
+       ORDER BY bt.cost_center_code',
+                                     TRUE,NULL,NULL,NULL,'bags_onhand');
+                                     
+    --cc_without_actv_tkts
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT CC.COST_CENTER_CODE, CC.COST_CENTER_NAME, P.POLLING_STATUS_CODE, CC.CATEGORY, CC.COUNTRY_CODE, CC.OPEN_DATE, T.TYPE_CODE, S.STATUS_CODE
+          FROM COST_CENTER CC,
+               POLLING P,
+               STATUS S,
+               TYPE T
+         WHERE CC.COST_CENTER_CODE = P.COST_CENTER_CODE
+           AND CC.CLOSE_DATE IS NULL
+           AND P.POLLING_STATUS_CODE IN (''P'',''Q'')
+           AND P.CURRENT_FLAG = ''Y''
+           AND CC.COST_CENTER_CODE IN (SELECT LEAD_STORE_NBR FROM LEAD_BANK_CC
+                                        UNION
+                                       SELECT MEMBER_STORE_NBR FROM MEMBER_BANK_CC)
+           AND NOT EXISTS (SELECT 1 FROM BANK_DEP_TICK B WHERE B.COST_CENTER_CODE = CC.COST_CENTER_CODE)
+           AND NOT EXISTS (SELECT 1 FROM BANK_DEP_TICK_BAG_EXCLD_CCS T WHERE T.COST_CENTER_CODE = CC.COST_CENTER_CODE AND TICKET_BAG_TYPE = ''TICK'')
+           AND S.COST_CENTER_CODE = CC.COST_CENTER_CODE
+           AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+           AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))
+           AND S.COST_CENTER_CODE = T.COST_CENTER_CODE
+           AND T.EXPIRATION_DATE IS NULL',
+                                     TRUE,NULL,NULL,NULL,'cc_without_actv_tkts');
+                                     
+    --cc_without_actv_bags
+    CCN_SPREADSHEET_PKG.QUERY2SHEET('SELECT CC.COST_CENTER_CODE, CC.COST_CENTER_NAME, P.POLLING_STATUS_CODE, CC.CATEGORY, CC.COUNTRY_CODE, CC.OPEN_DATE, T.TYPE_CODE, S.STATUS_CODE
+          FROM COST_CENTER CC,
+               POLLING P,
+               STATUS S,
+               TYPE T
+         WHERE CC.COST_CENTER_CODE = P.COST_CENTER_CODE
+           AND CC.CLOSE_DATE IS NULL
+           AND P.POLLING_STATUS_CODE IN (''P'',''Q'')
+           AND P.CURRENT_FLAG = ''Y''
+           AND CC.COST_CENTER_CODE IN (SELECT LEAD_STORE_NBR FROM LEAD_BANK_CC
+                                        UNION
+                                       SELECT MEMBER_STORE_NBR FROM MEMBER_BANK_CC)
+           AND NOT EXISTS (SELECT 1 FROM BANK_DEP_BAG_TICK B WHERE B.COST_CENTER_CODE = CC.COST_CENTER_CODE)
+           AND NOT EXISTS (SELECT 1 FROM BANK_DEP_TICK_BAG_EXCLD_CCS T WHERE T.COST_CENTER_CODE = CC.COST_CENTER_CODE AND TICKET_BAG_TYPE = ''BAG'')
+           AND S.COST_CENTER_CODE = CC.COST_CENTER_CODE
+           AND S.STATUS_CODE NOT IN (''5'', ''X'', ''8'')
+           AND (S.EXPIRATION_DATE IS NULL OR TRUNC(S.EXPIRATION_DATE) >= TRUNC(SYSDATE))
+           AND S.COST_CENTER_CODE = T.COST_CENTER_CODE
+           AND T.EXPIRATION_DATE IS NULL',
+                                     TRUE,NULL,NULL,NULL,'cc_without_actv_bags');
+
+    CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
+
+    MAIL_PKG.SEND_MAIL('BAGS_AND_TKTS_BANKING_REPORTS', NULL, NULL, NULL);
+
+END GENERATE_DEP_TICK_BAG_DLY_RPRTS;
+
+END BANKING_REPORTING_PKG;
