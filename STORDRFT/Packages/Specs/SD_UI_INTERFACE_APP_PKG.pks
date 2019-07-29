@@ -663,7 +663,7 @@ PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
 /**********************************************************
 This procedure will go ahead and place draft print order if unused drafts less then threshold.
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....  
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE            IN     VARCHAR2);

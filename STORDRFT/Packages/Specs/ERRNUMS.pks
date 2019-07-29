@@ -160,5 +160,69 @@ exc_no_run_type_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_run_type_err , -20033);
 
+/*********************************************************** 
+The "en_inv_check_num_err" passes a numerical error of -20034.
+This error raises order placed in check order details window in placing
+check order without Runtype available in Run Type Window
+
+created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
+revisions: 
+************************************************************/
+en_inv_check_num_err CONSTANT NUMBER := -20034;
+exc_inv_check_num_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_inv_check_num_err , -20034);
+
+/*********************************************************** 
+The "en_no_check_run_type_err" passes a numerical error of -20035.
+This error raises in run type maintenance window if run type passed
+doesn't exist in code detail table.
+
+created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
+revisions: 
+************************************************************/
+en_no_check_run_type_err CONSTANT NUMBER := -20035;
+exc_no_check_run_type_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_check_run_type_err , -20035);
+
+/*********************************************************** 
+The "en_no_check_run_type_err" passes a numerical error of -20036.
+This error raises warning message in run type maintenance window
+if bank account number or routing number is changed.
+
+created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
+revisions: 
+************************************************************/
+en_sd_run_typ_bnk_info_err CONSTANT NUMBER := -20036;
+exc_sd_run_typ_bnk_info_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_check_run_type_err , -20036);
+
+/*********************************************************** 
+The "en_no_terminal_number_err" passes a numerical error of -20037.
+This error raises error message in check order details window
+if terminal number is not present.
+
+created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
+revisions: 
+************************************************************/
+en_no_terminal_number_err CONSTANT NUMBER := -20037;
+exc_no_terminal_number_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_check_run_type_err , -20037);
+
+/*********************************************************** 
+The "en_inv_terminal_cost_center_err" passes a numerical error of -20038.
+This error raises error message in check order details window
+if terminal number and store combination is invalid.
+
+created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
+revisions: 
+************************************************************/
+en_inv_terminal_cost_center_err CONSTANT NUMBER := -20038;
+exc_inv_terminal_cost_center_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_check_run_type_err , -20038);
 
 END errnums;

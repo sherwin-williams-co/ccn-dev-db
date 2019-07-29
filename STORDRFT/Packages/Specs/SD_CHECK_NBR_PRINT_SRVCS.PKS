@@ -1,6 +1,16 @@
 create or replace PACKAGE SD_CHECK_NBR_PRINT_SRVCS
 AS
 
+FUNCTION GET_STORE_DRAFT_RUN_TYPE_REC(
+/**********************************************************
+This function will get run type detail for COST_CENTER passed.
+
+Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
+Changed : 
+**********************************************************/
+    IN_COST_CENTER_CODE    IN    VARCHAR2
+) RETURN STORE_RUN_TYPE_DETAILS%ROWTYPE;
+
 PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
 /**********************************************************
 This procedure will go ahead and place draft print order if unused drafts less then threshold.
@@ -85,8 +95,43 @@ This procedure will be a one-time run that loads the initial data as provided fr
 2) Pat's team => Run type tie back with stores
 3) Jason's team => previous order date/check draft numbers
 
-Created : 7/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
 **********************************************************/
+
+FUNCTION GET_CHECK_SERIAL_NUMBER(
+/****************************************************************************************
+This function will return 10 digit check serial number for the check serial number passed.
+
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+*****************************************************************************************/
+IN_CHECK_SERIAL_NUMBER   IN   STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
+IN_TRANSACTION_DATE      IN   STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+RETURN VARCHAR2;
+
+FUNCTION GET_CHECK_SERIAL_NUMBER(
+/*********************************************************************************
+This is an overloading function and will return  10 digit check serial number for
+the cost centger and draft number passed.
+
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+***********************************************************************************/
+IN_COST_CENTER_CODE  IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE,
+IN_DRAFT_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE,
+IN_TRANSACTION_DATE  IN      STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+RETURN VARCHAR2;
+
+FUNCTION GET_DRAFT_NUMBER(
+/***********************************************************************
+This function will return 5 digit draft number for the 10 digit
+check serial number passed.
+
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+************************************************************************/
+IN_CHECK_SERIAL_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE)
+RETURN NUMBER;
 
 END SD_CHECK_NBR_PRINT_SRVCS;

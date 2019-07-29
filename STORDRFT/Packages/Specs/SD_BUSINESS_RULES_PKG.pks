@@ -118,4 +118,23 @@ changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
     IN_STORE_RUN_TYPE_DETAILS_ROW     IN           STORE_RUN_TYPE_DETAILS%ROWTYPE);
 
+PROCEDURE SD_VALIDATE_RUN_TYPE_DETAILS(
+/*****************************************************************************
+This procedure will validate the check run type in code detail table.
+
+created : 7/25/2019 akj899 ASP-1193 CCNSD-8  CCN Project Team....
+changed :
+*****************************************************************************/
+    IN_ROW_DATA     IN           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE);
+
+PROCEDURE SD_VALIDATE_TERMINAL(
+/*****************************************************************************
+This procedure will validate terminal number and its combination with store.
+
+created : 7/25/2019 akj899 ASP-1193 CCNSD-8  CCN Project Team....
+changed :
+*****************************************************************************/
+    IN_COST_CENTER_CODE    IN           STORE_DRAFTS.COST_CENTER_CODE%TYPE,
+    IN_TERMINAL_NUMBER     IN           STORE_DRAFTS.TERMINAL_NUMBER%TYPE DEFAULT NULL); 
+
 END SD_BUSINESS_RULES_PKG;

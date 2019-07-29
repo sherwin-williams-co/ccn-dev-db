@@ -71,46 +71,36 @@ END IS_UNATTACHED_STORE_DRAFT;
 
 FUNCTION GET_CHECK_SERIAL_NUMBER(
 /*****************************************************************************
-	GET_CHECK_SERIAL_NUMBER
-
-	This function will calculate the 10 digit check serial number based on passed cost center id
-  and the 4 digit check serial number
+This function will return the 10 digit check serial number based on passed 
+check serial number or (cost center id and draft number).
 
 created : 09/10/2014 jxc517 CCN Project . . .
-changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+changed : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
-    IN_COST_CENTER_CODE IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
-    IN_CHECK_NUMBER     IN    VARCHAR2,
-    IN_TRML_NBR_LGC     IN    VARCHAR2 DEFAULT 'N') RETURN VARCHAR2
+    IN_COST_CENTER_CODE    IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
+    IN_CHECK_NUMBER        IN    VARCHAR2) RETURN VARCHAR2
 IS
-    V_CHECK_NUMBER VARCHAR2(4);
-    V_COST_CENTER  VARCHAR2(4);
-    V_CHECK_SERIAL_NUMBER  VARCHAR2(10);
+    V_CHECK_NUMBER                 VARCHAR2(4);
+    V_COST_CENTER                  VARCHAR2(4);
+    V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
 BEGIN
-    IF IN_TRML_NBR_LGC = 'N' THEN
-        --Get the last 4 characters of the input check number and the cost center code
-        IF LENGTH(IN_CHECK_NUMBER) = 10 THEN
-            V_CHECK_SERIAL_NUMBER := IN_CHECK_NUMBER;
-        ELSIF LENGTH(IN_CHECK_NUMBER) = 4 THEN
-            V_COST_CENTER  := SUBSTR(IN_COST_CENTER_CODE,-4,4);
-            V_CHECK_NUMBER := IN_CHECK_NUMBER;
-            V_CHECK_SERIAL_NUMBER := '0'||V_COST_CENTER||V_CHECK_NUMBER||CCN_COMMON_TOOLS.MODULUS_10('0'||V_COST_CENTER||V_CHECK_NUMBER);
-        ELSIF LENGTH(IN_CHECK_NUMBER) > 4 THEN
-            V_COST_CENTER  := SUBSTR(IN_COST_CENTER_CODE,-4,4);
-            V_CHECK_NUMBER := SUBSTR(IN_CHECK_NUMBER,-5,4);
-            V_CHECK_SERIAL_NUMBER := '0'||V_COST_CENTER||V_CHECK_NUMBER||CCN_COMMON_TOOLS.MODULUS_10('0'||V_COST_CENTER||V_CHECK_NUMBER);
-        END IF;
+    IF LENGTH(IN_CHECK_NUMBER) = 10 THEN
+        V_CHECK_SERIAL_NUMBER := IN_CHECK_NUMBER;
+    ELSIF LENGTH(IN_CHECK_NUMBER) = 4 THEN
+        V_CHECK_NUMBER := IN_CHECK_NUMBER;
+    ELSIF LENGTH(IN_CHECK_NUMBER) > 4 THEN
+        V_CHECK_NUMBER := SUBSTR(IN_CHECK_NUMBER,-5,4);
+    END IF;
+    IF V_CHECK_SERIAL_NUMBER IS NOT NULL THEN
+        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_CHECK_SERIAL_NUMBER(V_CHECK_SERIAL_NUMBER);
     ELSE
-        V_CHECK_SERIAL_NUMBER := CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(IN_COST_CENTER_CODE) ||
-                                 IN_CHECK_NUMBER ||
-                                 CCN_COMMON_TOOLS.MODULUS_10('0'||SUBSTR(IN_COST_CENTER_CODE,-4,4)||IN_CHECK_NUMBER);
+        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_CHECK_SERIAL_NUMBER(IN_COST_CENTER_CODE,V_CHECK_NUMBER);
     END IF;
 
     RETURN V_CHECK_SERIAL_NUMBER;
-
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN NULL;
+          ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
 END GET_CHECK_SERIAL_NUMBER;
 
 PROCEDURE UNATTACHED_MNL_DRFT_DTL_SP(
@@ -326,5 +316,76 @@ EXCEPTION
        ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');    
 
 END SD_RUN_TYPE_VALIDATION;
+
+PROCEDURE SD_VALIDATE_RUN_TYPE_DETAILS(
+/*****************************************************************************
+This procedure will validate the check run type in code detail table.
+
+created : 7/25/2019 akj899 ASP-1193 CCNSD-8  CCN Project Team....
+changed :
+*****************************************************************************/
+    IN_ROW_DATA     IN           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE)
+IS
+    V_OUT_REF_CURSOR                           SYS_REFCURSOR;
+    V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_REC      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    no_check_run_type_err                      EXCEPTION;
+BEGIN
+    --validating the check run type field values and raising an error if it did not receive the correct value.
+    IF IN_ROW_DATA.STORE_DRAFT_CHECK_RUN_TYPE IS NOT NULL THEN
+       IF  NOT  common_tools.code_detail_valid('STORE_DRAFT_CHECK_RUN_TYPE',IN_ROW_DATA.STORE_DRAFT_CHECK_RUN_TYPE) THEN
+                RAISE  no_check_run_type_err;
+       END IF;
+    END IF;
+    --raise warning message if bank account number or routing number is changed.
+    SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_SP(V_OUT_REF_CURSOR, IN_ROW_DATA.STORE_DRAFT_CHECK_RUN_TYPE);
+    FETCH V_OUT_REF_CURSOR INTO V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_REC;
+    IF (V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_REC.BANK_ACCOUNT_NBR <> IN_ROW_DATA.BANK_ACCOUNT_NBR) OR
+       (V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_REC.BANK_ROUTING_NBR <> IN_ROW_DATA.BANK_ROUTING_NBR) 
+    THEN
+        ERRPKG.STORE_WARNINGS(errnums.en_sd_run_typ_bnk_info_err,'Bank Account number or Routing number is changed for the run type '||IN_ROW_DATA.STORE_DRAFT_CHECK_RUN_TYPE);
+    END IF;
+    CLOSE V_OUT_REF_CURSOR;
+EXCEPTION
+    WHEN no_check_run_type_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_no_check_run_type_err,'Check Run Type should be a valid run type value as per pick list item "STORE_DRAFT_CHECK_RUN_TYPE".'); 
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'SD_VALIDATE_RUN_TYPE_DETAILS', SQLERRM);   
+END SD_VALIDATE_RUN_TYPE_DETAILS;
+
+PROCEDURE SD_VALIDATE_TERMINAL(
+/*****************************************************************************
+This procedure will validate terminal number and its combination with store.
+
+created : 7/25/2019 akj899 ASP-1193 CCNSD-8  CCN Project Team....
+changed :
+*****************************************************************************/
+    IN_COST_CENTER_CODE    IN           STORE_DRAFTS.COST_CENTER_CODE%TYPE,
+    IN_TERMINAL_NUMBER     IN           STORE_DRAFTS.TERMINAL_NUMBER%TYPE DEFAULT NULL)
+IS
+    V_COUNT                       NUMBER:=0;
+    no_terminal_number_err        EXCEPTION;
+    inv_terminal_cost_center_err  EXCEPTION;
+BEGIN
+    IF IN_TERMINAL_NUMBER IS NULL THEN
+        RAISE no_terminal_number_err;
+    ELSE
+        SELECT NVL(COUNT(*),0)
+          INTO V_COUNT
+          FROM TERMINAL
+         WHERE TERMINAL_NUMBER = IN_TERMINAL_NUMBER
+           AND COST_CENTER_CODE = IN_COST_CENTER_CODE;
+        IF V_COUNT = 0 THEN
+            RAISE inv_terminal_cost_center_err;
+        END IF;
+    END IF;
+
+EXCEPTION
+    WHEN no_terminal_number_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_no_terminal_number_err,'Terminal number is missing. Please add terminal number to the store '||IN_COST_CENTER_CODE); 
+    WHEN inv_terminal_cost_center_err THEN
+       ERRPKG.RAISE_ERR(errnums.en_inv_terminal_cost_center_err, 'Invalid terminal number associated with store '||IN_COST_CENTER_CODE);
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'SD_VALIDATE_TERMINAL', SQLERRM);   
+END SD_VALIDATE_TERMINAL;
 
 END SD_BUSINESS_RULES_PKG;

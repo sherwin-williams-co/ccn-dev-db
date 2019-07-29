@@ -702,8 +702,7 @@ Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 
 **********************************************************/
 IN_CHECK_SERIAL_NUMBER  IN    VARCHAR2,
-IN_TRANSACTION_DATE     IN    DATE,
-IN_COST_CENTER_CODE     IN    VARCHAR2 DEFAULT NULL)
+IN_TRANSACTION_DATE     IN    DATE)
 ;
 
 END SD_TABLE_IU_PKG;

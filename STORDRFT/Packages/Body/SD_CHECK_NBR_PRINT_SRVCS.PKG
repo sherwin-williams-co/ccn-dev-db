@@ -53,7 +53,7 @@ END GET_STORE_DRAFT_RUN_TYPE_REC;
 
 FUNCTION GET_SD_CHK_TYP_REC(
 /**********************************************************
-This function will noof books ,checks per book , threshold, bank acccount number and routing number for run type passed.
+This function will no of books ,checks per book , threshold, bank acccount number and routing number for run type passed.
 
 Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
 Changed : 
@@ -80,7 +80,109 @@ PROCEDURE LOAD_EXTRACT_TBL(
 This procedure will print drafts of 2 letters 'A' and 'B' from previous end draft number for the cost center passed.
 After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+          Moved Insert code to SD_TABLE_IU_PKG
+**********************************************************/
+    IN_COST_CENTER_CODE           IN      VARCHAR2,
+    IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
+    IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE,
+    IN_ORDER_DATE                 IN      DATE DEFAULT NULL)
+IS
+    V_TOTAL_CHECKS                   NUMBER;
+    V_DRAFT_NBR                      NUMBER;
+    V_TERMINAL_NUMBER                VARCHAR2(5) := CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(IN_COST_CENTER_CODE);
+    V_COUNTRY_CODE                   VARCHAR2(4);
+    V_STARTING_DRAFT_NUMBER          NUMBER;
+    V_CHK_NBR_PRNT_EXTRCT_DTL_REC    SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
+    V_CHK_NBR_TRCKNG_DTLS_REC        SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
+    V_PREV_PRINT_DRAFT_END_NBR       NUMBER;
+BEGIN
+   --business rule to validate terminal number
+    SD_BUSINESS_RULES_PKG.SD_VALIDATE_TERMINAL(IN_COST_CENTER_CODE,V_TERMINAL_NUMBER);
+    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.NO_OF_BOOKS * (IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK/2);
+    SELECT COUNTRY_CODE
+      INTO V_COUNTRY_CODE
+      FROM COST_CENTER
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    
+    IF V_COUNTRY_CODE = 'USA' THEN
+        V_PREV_PRINT_DRAFT_END_NBR := LEAST(IN_PREV_PRINT_DRAFT_END_NBR, 9999);
+    ELSIF V_COUNTRY_CODE = 'CAN' THEN
+        V_PREV_PRINT_DRAFT_END_NBR := LEAST(IN_PREV_PRINT_DRAFT_END_NBR, 999);
+    END IF;
+    FOR draft_iterator IN 1 .. V_TOTAL_CHECKS LOOP
+        V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator;
+        --The iteration should go back to 1000 after 9999 for USA
+        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 9000;
+        --The iteration should go back to 100 after 999 for CAN
+        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 900;
+        END IF;
+        --Below condition is to make sure new cost centers are allowed to have place order feature
+        --and ordering starts for those from 1000 and 100 respectively for USA and CAN cost centers
+        IF draft_iterator = 1 THEN
+            V_STARTING_DRAFT_NUMBER := V_DRAFT_NBR;
+        END IF;
+
+        --Building record for SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE, TRUNC(SYSDATE));
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.SRT_CHKDLY_SEQ_NBR  := draft_iterator;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.TERMINAL_NUMBER     := V_TERMINAL_NUMBER;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := V_DRAFT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := CCN_COMMON_TOOLS.MODULUS_10(V_TERMINAL_NUMBER || V_DRAFT_NBR);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ROUTING_NBR         := IN_SD_CHK_TYP_REC.BANK_ROUTING_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ACCOUNT_NUMBER      := IN_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'A';
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUN_TYPE            := IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUNTYPE_DESCRIPTION := CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+        --New logic 5 digit terminal number + 4 digit draft + 1 digit check digit number for USA
+        --New logic 5 digit terminal number + 3 digit draft + 1 digit check digit number for CAN
+        --Left padding with 0's to make sure this field is always 10 characters even for Canadian Stores
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := LPAD(V_TERMINAL_NUMBER || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT, 10, '0');
+
+        SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+
+        V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
+        --The iteration should go back to 1000 after 9999 for USA
+        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 9000;
+        --The iteration should go back to 100 after 999 for CAN
+        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 900;
+        END IF;
+        -- Resetting few field values for Letter 'B'
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := V_DRAFT_NBR;
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := CCN_COMMON_TOOLS.MODULUS_10(V_TERMINAL_NUMBER || V_DRAFT_NBR);
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'B';
+        --New logic 5 digit terminal number + 4 digit draft + 1 digit check digit number for USA
+        --New logic 5 digit terminal number + 3 digit draft + 1 digit check digit number for CAN
+        --Left padding with 0's to make sure this field is always 10 characters even for Canadian Stores
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := LPAD(V_TERMINAL_NUMBER || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT, 10, '0');
+
+        SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+    END LOOP;
+
+    --Building record for SD_CHECK_NBR_TRCKNG_DTLS
+    V_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
+    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE, SYSDATE);
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT := V_STARTING_DRAFT_NUMBER;
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_ENDNG_DRFT  := V_DRAFT_NBR;
+
+    SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_I_SP(V_CHK_NBR_TRCKNG_DTLS_REC);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'LOAD_EXTRACT_TBL',  SQLERRM);
+END LOAD_EXTRACT_TBL;
+
+PROCEDURE INITLD_LOAD_EXTRACT_TBL(
+/**********************************************************
+Init load should not differentiate USA and CAN stores as currently
+for both the countries the draft numbers start from 1000 to 9999
+
+Created : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE           IN      VARCHAR2,
@@ -95,21 +197,14 @@ IS
     V_STARTING_DRAFT_NUMBER          NUMBER;
     V_CHK_NBR_PRNT_EXTRCT_DTL_REC    SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
     V_CHK_NBR_TRCKNG_DTLS_REC        SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
+    V_PREV_PRINT_DRAFT_END_NBR       NUMBER := LEAST(IN_PREV_PRINT_DRAFT_END_NBR, 9999);
 BEGIN
-    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.NO_OF_BOOKS * IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK;
-    SELECT COUNTRY_CODE
-      INTO V_COUNTRY_CODE
-      FROM COST_CENTER
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
+    V_TOTAL_CHECKS   := IN_SD_CHK_TYP_REC.NO_OF_BOOKS * (IN_SD_CHK_TYP_REC.CHECKS_PER_BOOK/2);
 
     FOR draft_iterator IN 1 .. V_TOTAL_CHECKS LOOP
-        V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator;
-        --The iteration should go back to 1000 after 9999 for USA
-        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
-            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 9000;
-        --The iteration should go back to 100 after 999 for CAN
-        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
-            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 900;
+        V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator;
+        IF V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator - 9000;
         END IF;
         --Below condition is to make sure new cost centers are allowed to have place order feature
         --and ordering starts for those from 1000 and 100 respectively for USA and CAN cost centers
@@ -129,39 +224,36 @@ BEGIN
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'A';
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUN_TYPE            := IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE;
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUNTYPE_DESCRIPTION := CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', IN_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE);
-        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.USED_IN_POS_ON_DATE := NULL;
+        --Initload uses old logic 0 + 4 digit store + 4 digit draft + 1 check digit
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := '0' || SUBSTR(IN_COST_CENTER_CODE,-4) || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT; 
 
         SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
 
-        V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
-        --The iteration should go back to 1000 after 9999 for USA
-        IF V_COUNTRY_CODE = 'USA' AND V_DRAFT_NBR > 9999 THEN
-            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 9000;
-        --The iteration should go back to 100 after 999 for CAN
-        ELSIF V_COUNTRY_CODE = 'CAN' AND V_DRAFT_NBR > 999 THEN
-            V_DRAFT_NBR := IN_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 900;
+        V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
+        IF V_DRAFT_NBR > 9999 THEN
+            V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS - 9000;
         END IF;
         -- Resetting few field values for Letter 'B'
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := V_DRAFT_NBR;
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := CCN_COMMON_TOOLS.MODULUS_10(SUBSTR(IN_COST_CENTER_CODE, 3) || V_DRAFT_NBR);
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'B';
+        --Initload uses old logic 0 + 4 digit store + 4 digit draft + 1 check digit
+        V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := '0' || SUBSTR(IN_COST_CENTER_CODE,-4) || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT;
 
         SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
-
     END LOOP;
 
     --Building record for SD_CHECK_NBR_TRCKNG_DTLS
     V_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
-    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE,SYSDATE);
+    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE, SYSDATE);
     V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT := V_STARTING_DRAFT_NUMBER;
     V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_ENDNG_DRFT  := V_DRAFT_NBR;
 
     SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_I_SP(V_CHK_NBR_TRCKNG_DTLS_REC);
-
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE,'LOAD_EXTRACT_TBL',  SQLERRM);
-END LOAD_EXTRACT_TBL;
+        ERRPKG.RAISE_ERR(SQLCODE,'INITLD_LOAD_EXTRACT_TBL',  SQLERRM);
+END INITLD_LOAD_EXTRACT_TBL;
 
 PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
 /**********************************************************
@@ -253,7 +345,9 @@ This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table
 </SD_CHECK_NBR_PRNT_UI>
 
 Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
-Changed : 
+Changed : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+          Added business rule to validate the existence of check run type 
+          in code_detail table. 
 **********************************************************/
     IN_XML                CLOB)
 IS
@@ -267,6 +361,8 @@ BEGIN
                V_XML.EXTRACT('/SD_CHECK_NBR_PRNT_UI/SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS' || '[' || V_COUNT || ']').GETCLOBVAL(),
                V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
 
+         --business rule validation to check the existence of check run type in code_detail table.
+        SD_BUSINESS_RULES_PKG.SD_VALIDATE_RUN_TYPE_DETAILS(V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
         SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
         V_COUNT := V_COUNT + 1;
     END LOOP;
@@ -312,14 +408,16 @@ This procedure will be a one-time run that loads the initial data as provided fr
 2) Pat's team => Run type tie back with stores
 3) Jason's team => previous order date/check draft numbers
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
 **********************************************************/
 IS
-    V_STR_DRFT_RUN_TYPE_REC    STORE_RUN_TYPE_DETAILS%ROWTYPE;
+    V_STR_DRFT_RUN_TYPE_REC   STORE_RUN_TYPE_DETAILS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
     no_run_type_err            EXCEPTION;
+
+    V_CHK_NBR_PRNT_EXTRCT_DTL_REC    SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
 BEGIN
     DELETE FROM STORE_RUN_TYPE_DETAILS;
     DELETE FROM SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
@@ -328,10 +426,10 @@ BEGIN
 
     --Load run type data received from Julio's team
     --Load threshold data received from Jason's team
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('L',5,25,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('S',1,25,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('A',1,25,10,'8800600853','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('C',1,25,10,'101 283 0','04222 003',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('L',5,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('S',1,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('A',1,50,10,'8800600853','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('C',1,50,10,'101 283 0','04222 003',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
     COMMIT;
 
     --Load run type tie back to store using data received from Pat's team
@@ -348,35 +446,30 @@ BEGIN
     END;
 
     --Load ordered drafts details using data received from Jason's team
-    FOR rec IN (SELECT * FROM TEMP_SD_ORDER_DETAILS --WHERE COST_CENTER_CODE = '701001'
-                ) LOOP
+    FOR rec IN (SELECT * FROM TEMP_SD_ORDER_DETAILS) LOOP
         BEGIN
             V_STR_DRFT_RUN_TYPE_REC  := GET_STORE_DRAFT_RUN_TYPE_REC(rec.COST_CENTER_CODE);
             V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_RUN_TYPE_REC.STORE_DRAFT_CHECK_RUN_TYPE);
-            V_PREV_END_DRFT_NBR      := rec.END_DRFT_NBR - (V_SD_CHK_TYP_REC.NO_OF_BOOKS * V_SD_CHK_TYP_REC.CHECKS_PER_BOOK * 2 + 1);
+            V_PREV_END_DRFT_NBR      := rec.END_DRFT_NBR - (V_SD_CHK_TYP_REC.NO_OF_BOOKS * V_SD_CHK_TYP_REC.CHECKS_PER_BOOK + 1);
 
             IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
                 RAISE no_run_type_err;
             END IF;
-            LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
-                             V_PREV_END_DRFT_NBR,
-                             V_SD_CHK_TYP_REC,
-                             TO_DATE(rec.LAST_ORDER_DATE,'MM/DD/YYYY'));
+            INITLD_LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
+                                    V_PREV_END_DRFT_NBR,
+                                    V_SD_CHK_TYP_REC,
+                                    TO_DATE(rec.LAST_ORDER_DATE,'MM/DD/YYYY'));
 
-            FOR cur IN (SELECT A.COST_CENTER_CODE, A.ORDERED_DRFT_NUMBER, A.CHECK_DIGIT
-                          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS A
-                         WHERE A.COST_CENTER_CODE = rec.COST_CENTER_CODE
-                           AND A.USED_IN_POS_ON_DATE IS NULL) LOOP
-                FOR rec1 IN (SELECT CHECK_SERIAL_NUMBER, TRANSACTION_DATE
-                               FROM STORE_DRAFTS
-                              WHERE COST_CENTER_CODE = cur.COST_CENTER_CODE
-                                AND CHECK_SERIAL_NUMBER = '0'||SUBSTR(cur.COST_CENTER_CODE,-4) || cur.ORDERED_DRFT_NUMBER ||cur.CHECK_DIGIT) LOOP 
-                    SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_U_SP(rec1.CHECK_SERIAL_NUMBER,
-                                                               rec1.TRANSACTION_DATE,
-                                                               rec.COST_CENTER_CODE);
-                END LOOP;
+            FOR rec1 IN (SELECT CHECK_SERIAL_NUMBER,
+                                TRANSACTION_DATE
+                           FROM STORE_DRAFTS
+                          WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
+                            AND CHECK_SERIAL_NUMBER IN (SELECT CCN_CHECK_SERIAL_NUMBER
+                                                          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+                                                         WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
+                                                           AND USED_IN_POS_ON_DATE IS NULL)) LOOP 
+                SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_U_SP(rec1.CHECK_SERIAL_NUMBER, rec1.TRANSACTION_DATE);
             END LOOP;
-
             COMMIT;
         EXCEPTION
             WHEN OTHERS THEN
@@ -390,5 +483,113 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE,'INITIAL_DRAFT_DTLS_LOAD_PROCESS',  SQLERRM);
 END INITIAL_DRAFT_DTLS_LOAD_PROCESS;
 
-END SD_CHECK_NBR_PRINT_SRVCS;
+FUNCTION GET_CHECK_SERIAL_NUMBER(
+/****************************************************************************************
+This function will return 10 digit check serial number for the check serial number passed.
 
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+*****************************************************************************************/
+IN_CHECK_SERIAL_NUMBER   IN   STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
+IN_TRANSACTION_DATE      IN   STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+RETURN VARCHAR2
+IS
+    V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
+    invalid_check_number_err       EXCEPTION;
+BEGIN
+    BEGIN
+        IF IN_TRANSACTION_DATE IS NOT NULL THEN
+            SELECT CCN_CHECK_SERIAL_NUMBER
+              INTO V_CHECK_SERIAL_NUMBER
+              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+             WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+               AND USED_IN_POS_ON_DATE = IN_TRANSACTION_DATE;
+        ELSE 
+            SELECT CCN_CHECK_SERIAL_NUMBER
+              INTO V_CHECK_SERIAL_NUMBER
+              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+             WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+               AND USED_IN_POS_ON_DATE IS NULL;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+          RAISE invalid_check_number_err;
+    END;
+    RETURN V_CHECK_SERIAL_NUMBER;
+EXCEPTION
+     WHEN invalid_check_number_err THEN
+          errpkg.raise_err(errnums.en_inv_check_num_err,'Please enter a valid 4 digit unused check number.');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
+END GET_CHECK_SERIAL_NUMBER;
+
+FUNCTION GET_CHECK_SERIAL_NUMBER(
+/*********************************************************************************
+This is an overloading function and will return  10 digit check serial number for
+the cost centger and draft number passed.
+
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+***********************************************************************************/
+IN_COST_CENTER_CODE  IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE,
+IN_DRAFT_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE,
+IN_TRANSACTION_DATE  IN      STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+RETURN VARCHAR2
+IS
+    V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
+    invalid_check_number_err       EXCEPTION;
+BEGIN
+    BEGIN
+        IF IN_TRANSACTION_DATE IS NOT NULL THEN
+            SELECT CCN_CHECK_SERIAL_NUMBER
+              INTO V_CHECK_SERIAL_NUMBER
+              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+             WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+               AND ORDERED_DRFT_NUMBER = IN_DRAFT_NUMBER
+               AND USED_IN_POS_ON_DATE  = IN_TRANSACTION_DATE;
+        ELSE
+            SELECT CCN_CHECK_SERIAL_NUMBER
+              INTO V_CHECK_SERIAL_NUMBER
+              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+             WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+               AND ORDERED_DRFT_NUMBER = IN_DRAFT_NUMBER
+               AND USED_IN_POS_ON_DATE IS NULL;
+        END IF;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+          RAISE invalid_check_number_err;
+    END;
+    RETURN V_CHECK_SERIAL_NUMBER;
+EXCEPTION
+     WHEN invalid_check_number_err THEN
+          errpkg.raise_err(errnums.en_inv_check_num_err,'Please enter a valid 4 digit unused check number.');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
+END GET_CHECK_SERIAL_NUMBER;
+
+FUNCTION GET_DRAFT_NUMBER(
+/***********************************************************************
+This function will return 5 digit draft number for the cost center and
+check serial number passed.
+
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Changed : 
+************************************************************************/
+IN_CHECK_SERIAL_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE)
+RETURN NUMBER
+IS
+    V_DRAFT_NUMBER NUMBER;
+BEGIN
+    SELECT ORDERED_DRFT_NUMBER
+      INTO V_DRAFT_NUMBER
+      FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+     WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+       AND USED_IN_POS_ON_DATE IS NULL;
+
+    RETURN V_DRAFT_NUMBER;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'GET_DRAFT_NUMBER',  SQLERRM);
+END GET_DRAFT_NUMBER;
+
+END SD_CHECK_NBR_PRINT_SRVCS;
