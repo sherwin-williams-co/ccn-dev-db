@@ -16,6 +16,8 @@
 #            added the error message
 #          : 11/17/2017 bxa919 CCN Project Team..... 
 #	     Added ORA_COSTCTR column in CUSTOMER_TAXID_VW table as part of CPR change
+#          : 07/29/2019 axm868 CCN Project Team.....
+#            For CCNCC-27, granted SELECT privileges on COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR to CCN_UTILITY
 ################################################################################################################################
 # below command will get the path for stordrft.config respective to the environment from which it is run from
 . /app/stordrft/host.sh
@@ -49,6 +51,7 @@ BEGIN
     EXECUTE IMMEDIATE 'CREATE TABLE CUSTOMER_TAXID_VW_COSTCNTR AS SELECT * FROM CUSTOMER_TAXID_VW';
     COMMIT;
     EXECUTE IMMEDIATE 'GRANT SELECT ON COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR TO STORDRFT';
+    EXECUTE IMMEDIATE 'GRANT SELECT ON COSTCNTR.CUSTOMER_TAXID_VW_COSTCNTR TO CCN_UTILITY';
 EXCEPTION
  when others then
  :exitcode := 2;
