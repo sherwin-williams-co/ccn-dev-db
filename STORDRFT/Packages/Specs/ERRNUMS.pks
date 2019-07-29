@@ -212,17 +212,4 @@ exc_no_terminal_number_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_check_run_type_err , -20037);
 
-/*********************************************************** 
-The "en_inv_terminal_cost_center_err" passes a numerical error of -20038.
-This error raises error message in check order details window
-if terminal number and store combination is invalid.
-
-created : 07/25/2019 ASP-1193 CCNSD-8 akj899 CCN Project Team....
-revisions: 
-************************************************************/
-en_inv_terminal_cost_center_err CONSTANT NUMBER := -20038;
-exc_inv_terminal_cost_center_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_no_check_run_type_err , -20038);
-
 END errnums;

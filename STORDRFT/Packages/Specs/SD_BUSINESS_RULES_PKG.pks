@@ -52,8 +52,7 @@ created : 09/10/2014 jxc517 CCN Project . . .
 changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
     IN_COST_CENTER_CODE IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
-    IN_CHECK_NUMBER     IN    VARCHAR2,
-    IN_TRML_NBR_LGC     IN    VARCHAR2 DEFAULT 'N') RETURN VARCHAR2;
+    IN_CHECK_NUMBER     IN    VARCHAR2) RETURN VARCHAR2;
 
 PROCEDURE UNATTACHED_MNL_DRFT_DTL_SP(
 /*****************************************************************************
