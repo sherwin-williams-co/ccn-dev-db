@@ -694,7 +694,7 @@ Changed :
 IN_ROW_DATA  IN    SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE
 );
 
-PROCEDURE CHECK_NBR_TRCKNG_DTLS_U_SP(
+PROCEDURE MARK_CHK_NBR_AS_USED_IN_POS(
 /**********************************************************
 This procedure will update into the SD_CHECK_NBR_PRNT_EXTRCT_DTLS table.
 
