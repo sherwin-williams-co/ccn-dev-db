@@ -6,7 +6,7 @@ Store drafts tracking/printing services tables
 Created  : 01/18/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
 Modified : 07/25/2019 Added CCN_CHECK_SERIAL_NUMBER column
 ---------------------------------------------------------------------------*/
-  DROP TABLE SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+  DROP TABLE SD_CHECK_NBR_PRNT_EXTRCT_DTLS;
 
   CREATE TABLE SD_CHECK_NBR_PRNT_EXTRCT_DTLS 
    (CHKS_ORDERED_DATE     DATE, 
