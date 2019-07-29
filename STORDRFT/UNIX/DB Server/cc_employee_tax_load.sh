@@ -70,6 +70,7 @@ if [ $status -ne 0 ]; then
      exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 sqlplus -s -l $sqlplus_user/$sqlplus_pw >> $LOGDIR/$proc_name"_"$TimeStamp.log <<END
@@ -109,6 +110,7 @@ if [ $status -ne 0 ]; then
     exit 1;
 fi
 
+TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"
 
 exit 0
