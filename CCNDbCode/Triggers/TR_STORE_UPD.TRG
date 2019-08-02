@@ -1,4 +1,4 @@
-create or replace TRIGGER TR_STORE_UPD
+create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
    /***************************************************************************
    ***
    TR_STORE_UPD.TRG
@@ -10,13 +10,13 @@ create or replace TRIGGER TR_STORE_UPD
    Modified : 09/10/2018 pxa852 CCN Project Team...
               Modified code to insert records into pos_downloads table
               if there are any changed on store table.
-   Modified : 07/08/2019 axm868 CCNCC-2 CCN Project Team...
-              Modified code for new field designated_terminal_number.
    Modified : 06/14/2019 akj899 CCNCC-13 CCN Project Team...
               Modified code for new field dispatch_services_type_code.
+   Modified : 07/08/2019 axm868 CCNCC-2 CCN Project Team...
+              Modified code for new field designated_terminal_number.
    ****************************************************************************
    **/
-   BEFORE INSERT OR UPDATE ON STORE
+   BEFORE INSERT OR UPDATE ON "COSTCNTR"."STORE"
    REFERENCING OLD AS OLD NEW AS NEW
    FOR EACH ROW
 
@@ -107,7 +107,7 @@ create or replace TRIGGER TR_STORE_UPD
          IF INSERTING THEN
              POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_store_row.COST_CENTER_CODE, 'STORE', 'ADD', 'POS_STORE_UPDATE' );
          ELSIF UPDATING THEN
-              IF NVL(:OLD.DESCARTES_DELIVERY_CODE, 'XXX') <> NVL(:NEW.DESCARTES_DELIVERY_CODE, 'XXX') THEN
+             IF NVL(:OLD.DESCARTES_DELIVERY_CODE, 'XXX') <> NVL(:NEW.DESCARTES_DELIVERY_CODE, 'XXX') THEN
                  POS_DATA_GENERATION.POS_TRG_EVENT_LOG(v_store_row.COST_CENTER_CODE, 'STORE', 'CHANGE', 'POS_STORE_UPDATE');
              END IF;
              IF NVL(:OLD.DISPATCH_SERVICES_TYPE_CODE, 'XXX') <> NVL(:NEW.DISPATCH_SERVICES_TYPE_CODE, 'XXX') THEN
