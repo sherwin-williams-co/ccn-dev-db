@@ -3,10 +3,11 @@ create or replace PACKAGE BANKING_REPORTING_PKG AS
 	This Package is intended to run the Banking Reports.
 
 created : 07/25/2019 jxc517 CCN Project....CCNBN-12
-changed :
+changed : 08/05/2019 axm868 CCN Project....CCNBN-12
+          added semi-colon after the comments
 **********************************************************/
 
-PROCEDURE GENERATE_DEP_TICK_BAG_DLY_RPRTS;
+PROCEDURE GENERATE_DEP_TICK_BAG_DLY_RPRTS
 /**********************************************************
 	This Procedure will create an Excel file containing the
   Banking Reports for Bags and Tickets (mentioned below)
@@ -24,5 +25,5 @@ created : 07/25/2019 jxc517 CCN Project....CCNBN-12
 
 changed :
 **********************************************************/
-
+;
 END BANKING_REPORTING_PKG;

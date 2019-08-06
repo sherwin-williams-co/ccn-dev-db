@@ -1,12 +1,15 @@
 #!/bin/sh
-#################################################################
+#######################################################################
 # Script name   : daily_banking_deposit_bag_tickets_reports.sh
 #
 # Description   : Calls the Banking Daily Reports
 #
 # Created  : 07/30/2019 axm868 CCN Project Team.....CCNBN-12
-# Modified :
-#################################################################
+# Modified : 08/05/2019 axm868 CCN Project Team.....CCNBN-12
+                        added "cd /app/banking/<<environment>>" path
+#######################################################################
+cd /app/banking/dev
+
 # below command will get the path for banking.config respective to the environment from which it is run from
 . /app/banking/dev/banking.config
 
