@@ -6,7 +6,7 @@
 #
 # Created  : 07/30/2019 axm868 CCN Project Team.....CCNBN-12
 # Modified : 08/05/2019 axm868 CCN Project Team.....CCNBN-12
-                        added "cd /app/banking/<<environment>>" path
+#                        added "cd /app/banking/<<environment>>" path
 #######################################################################
 cd /app/banking/dev
 
