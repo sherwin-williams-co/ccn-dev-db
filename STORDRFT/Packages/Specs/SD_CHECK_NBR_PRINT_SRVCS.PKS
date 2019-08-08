@@ -134,4 +134,14 @@ Changed :
 IN_CHECK_SERIAL_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE)
 RETURN NUMBER;
 
+PROCEDURE SD_CHECK_NBR_PRINT_BATCH_PROCESS
+/**************************************************************************************
+This procedure will be called by shell script sd_print_check_number.sh and will go ahead 
+and place draft print order if unused drafts less then threshold.
+
+Created : 08/06/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+Changed : 
+***************************************************************************************/
+;
+
 END SD_CHECK_NBR_PRINT_SRVCS;

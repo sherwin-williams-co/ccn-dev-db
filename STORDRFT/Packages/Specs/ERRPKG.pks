@@ -77,4 +77,17 @@ changed :
 *******************************************************************************/
 ;
 
+PROCEDURE ERROR_DETAILS(
+/******************************************************************************
+This Procedure will fetch the records from Error_log table.
+Created : 08/07/2019 akj899 CCN Project....
+modified: 
+ 
+*******************************************************************************/
+   IN_START_TIME         IN     DATE,
+   IN_END_TIME           IN     DATE,
+   OUT_CLOB_FOR_EMAIL    OUT    CLOB,
+   IN_MODULE             IN     VARCHAR2 DEFAULT NULL)
+;
+
 END errpkg;
