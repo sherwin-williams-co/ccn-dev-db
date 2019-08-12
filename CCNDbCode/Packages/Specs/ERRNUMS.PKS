@@ -2875,6 +2875,39 @@ exc_invalid_terminal_count_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_terminal_count_err , -20178);
 
 /***********************************************************
+The "invalid_accnt_nbr_err" passes a numerical error of -20179.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/02/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_accnt_nbr_err CONSTANT NUMBER := -20179;
+exc_invalid_accnt_nbr_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_accnt_nbr_err , -20179);
+
+/***********************************************************
+The "invalid_prog_name_err" passes a numerical error of -20180.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_invalid_prog_name_err CONSTANT NUMBER := -20180;
+exc_invalid_prog_name_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_prog_name_err , -20180);
+
+/***********************************************************
+The "prog_name_del_err" passes a numerical error of -20181.
+An error occurs when general Ledger account number cannot be found.
+
+created : 08/15/2017 axt754 CCN Project Team....
+revisions:
+************************************************************/
+en_prog_name_del_err CONSTANT NUMBER := -20181;
+exc_prog_name_del_err EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_prog_name_del_err , -20181);
+
+/***********************************************************
 The "no_address_element_err" passes a numerical error of -20182.
 An error occurs when cost center insert or update do not have address element.
 
@@ -2923,6 +2956,32 @@ en_no_alloc_cc_div_offset      CONSTANT NUMBER := -20187;
 exc_no_alloc_cc_div_offset EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_alloc_cc_div_offset , -20187);
+
+/*********************************************************** 
+The "invalid_lad_customer_catg_err" passes a numerical error of -20195.
+An error occurs when category for lad_customer not equal to  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invalid_lad_cust_catg_err CONSTANT NUMBER := -20195;
+invalid_lad_customer_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_customer_catg_err , -20195);
+
+/*********************************************************** 
+The "invalid_lad_cust_cc_catg_err" passes a numerical error of -20196.
+An error occurs when CODE detail table does not contain category_code  C. 
+
+created : 02/21/2018 mxv711 CCN Project
+revisions: 
+
+************************************************************/
+en_invld_lad_cust_cc_catg_err CONSTANT NUMBER := -20196;
+invalid_lad_cust_cc_catg_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(invalid_lad_cust_cc_catg_err , -20196);
 
 /*********************************************************** 
 The "invalid_allocation_cc" passes a numerical error of -20197.
@@ -3092,6 +3151,17 @@ PRAGMA EXCEPTION_INIT
 (exc_invalid_dcrts_dlry_cd_err , -20206);
 
 /***********************************************************
+The "en_invalid_lad_cust_type_err" passes a numerical error of -20207.
+This error occurs when Lad_customer_type in LAD_CUSTOMER not in CODE_DETAIL table.
+
+created :  10/01/2018 kxm302/sxg151 CCN Project Team...
+************************************************************/
+en_invalid_lad_cust_type_err      CONSTANT NUMBER := -20207;
+exc_invalid_lad_cust_type_err     EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_lad_cust_type_err , -20207);
+
+/***********************************************************
 The "en_invalid_allocation_cc_err" passes a numerical error of -20208.
 This error occurs when Allocation costmer Code is not in CCN(Cost_Center) Table.
 
@@ -3161,6 +3231,17 @@ en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
 exc_costcntr_not_exist_err    EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_costcntr_not_exist_err , -20219);
 
+/*********************************************************** 
+The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
+Number Range BETWEEN 99750 AND 99999 Allowed only for QA COST CENTER with Prefix 'LB'.
+This error is thrown when Number Range Not BETWEEN 99750 AND 99999.
+
+created : 01/10/2019 jc/pxm158 ASP - 1192 CCN Project Team...
+************************************************************/
+en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
+exc_invalid_qa_terr_nbr_err   EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
+
 /***********************************************************
 The "en_territory_cc_open_date_err" passes a numerical error of -20220.
 This error occurs when open date not populated for Territory cost center.
@@ -3223,6 +3304,19 @@ en_close_dispatch_asgn_store_exp CONSTANT NUMBER := -20227;
 exc_close_dispatch_asgn_store_exp EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_close_dispatch_asgn_store_exp , -20227);
+
+/***********************************************************
+The "en_invalid_dsptch_srvc_typ_cd_err" passes a numerical error of -20234.
+This error occurs when dispatch services type code field receives a value
+other than picklist item "DISPATCH_SERVICES_TYPE_CODE" value.
+
+created : 06/11/2019 akj899 CCNCC-13 CCN Project Team...
+************************************************************/
+en_invalid_dsptch_srvc_typ_cd_err   CONSTANT NUMBER := -20234;
+exc_invalid_dsptch_srvc_typ_cd_err  EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_dsptch_srvc_typ_cd_err , -20234);
+
 /***********************************************************
 The "en_polling_stop_date_not_present_err" passes a numerical error of -20235
 This error will pop-up when ever user tries to close a store cost center without updating POLLING.POLLING_START_DATE field

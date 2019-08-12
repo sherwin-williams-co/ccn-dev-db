@@ -34,6 +34,8 @@ changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
 changed : 04/17/2017 rxa457 CCN Project Team....
           Added new table DISPATCH_TERMINAL
+Changed : 03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 		: 02/09/2018 bxa919 CCN Project Team...
            Added new procedure MERCHANT_ID_SP_CAN_MC to validate the numeric condition for 
            MERCH_ID_CAN_MC and PCI_MER_ID_CAN  column in BANK_CARD table.
@@ -48,6 +50,7 @@ changed : 04/17/2017 rxa457 CCN Project Team....
    ,inADDRESS_USA_XMLTYPE       VARCHAR2--sys.xmltype   
    ,inADDRESS_BRB_XMLTYPE       VARCHAR2--sys.xmltype   
    ,inADMIN_XMLTYPE             VARCHAR2--sys.xmltype
+   ,inLAD_CUSTOMER_XMLTYPE      VARCHAR2--sys.xmltype
    ,inBANKCARD_XMLTYPE          VARCHAR2--sys.xmltype
    ,inCOST_CENTER_XMLTYPE       VARCHAR2--sys.xmltype
    ,inMARKETING_XMLTYPE         VARCHAR2--sys.xmltype
@@ -79,6 +82,7 @@ V_ADDRESS_OTH_ROWTYPE    ADDRESS_OTHER%ROWTYPE;
 V_ADDRESS_USA_ROWTYPE    ADDRESS_USA%ROWTYPE;   
 V_ADDRESS_BRB_ROWTYPE    ADDRESS_BRB%ROWTYPE;   
 V_ADMIN_ROWTYPE          ADMINISTRATION%ROWTYPE;
+V_LAD_CUSTOMER_ROWTYPE   LAD_CUSTOMER%ROWTYPE;
 V_BANKCARD_ROWTYPE       BANK_CARD%ROWTYPE;
 V_COST_CENTER_ROWTYPE    COST_CENTER%ROWTYPE;
 V_MARKETING_ROWTYPE      MARKETING%ROWTYPE;
@@ -195,6 +199,17 @@ v_break  :=  ('Entered the Business_Rules_SP (XML) ' );
    END IF ;   
 --
 --
+/**  Translate LAD_CUSTOMER_XMLTYPE Table ***/
+   IF (inLAD_CUSTOMER_XMLTYPE  IS NOT NULL)  THEN
+      v_break  := ('Processing LAD_CUSTOMER XMLTYPE '); 
+      CCN_TABLE_IU_PKG.LAD_CUSTOMER_ROWTYPE_SP(
+      'LAD_CUSTOMER'  
+      ,v_ROW_DATE    
+      ,inLAD_CUSTOMER_xmltype    
+      ,v_LAD_CUSTOMER_rowtype  
+        );
+   END IF ; 
+
 /**  Translate BANK_CARD_XMLTYPE Table ***/
    IF (inBANKCARD_XMLTYPE  IS NOT NULL)  THEN
       v_break  := ('Processing Bank Card XMLTYPE '); 
@@ -417,6 +432,7 @@ v_break  := ('Entering Business Rules (rowtype)' );
    ,V_ADDRESS_USA_ROWTYPE    
    ,V_ADDRESS_BRB_ROWTYPE    
    ,V_ADMIN_ROWTYPE         
+   ,V_LAD_CUSTOMER_ROWTYPE
    ,V_BANKCARD_ROWTYPE       
    ,V_COST_CENTER_ROWTYPE    
    ,V_MARKETING_ROWTYPE      
@@ -483,6 +499,8 @@ revised : MDH 10/11/2012
 changed : 05/24/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
 Changed : 04/17/17 rxa457 added new paremeter for table DISPATCH_TERMINAL
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
         : 04/10/2018 nxk927 CCN Project Team....
           Added new error to check if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
           passed as null for polling status code of P and Q for store type cost center
@@ -499,6 +517,7 @@ Changed : 06/11/2018 nxk927 CCN Project Team....
    ,inADDRESS_USA_ROWTYPE    IN ADDRESS_USA%ROWTYPE   
    ,inADDRESS_BRB_ROWTYPE    IN ADDRESS_BRB%ROWTYPE   
    ,inADMIN_ROWTYPE          IN ADMINISTRATION%ROWTYPE
+   ,inLAD_CUSTOMER_ROWTYPE   IN LAD_CUSTOMER%ROWTYPE
    ,inBANKCARD_ROWTYPE       IN BANK_CARD%ROWTYPE
    ,inCOST_CENTER_ROWTYPE    IN COST_CENTER%ROWTYPE
    ,inMARKETING_ROWTYPE      IN MARKETING%ROWTYPE
@@ -613,6 +632,14 @@ v_break  := ('Entering Table Specific Business Rules'
                                                          ,intype_rowtype);
    END IF ;
 
+--
+--
+/**  Call LAD_CUSTOMER Table Business Rule ***/
+   IF (inLAD_CUSTOMER_ROWTYPE.cost_center_code  IS NOT NULL)  THEN
+      CCN_BUSINESS_RULES_PKG.LAD_CUSTOMER_BR_SP(
+            inLAD_CUSTOMER_ROWTYPE          
+ 		    ,incost_center_rowtype);
+  END IF;
 --
 --
        BEGIN
@@ -1187,9 +1214,9 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
  ,inCOST_CENTER_ROWTYPE  IN COST_CENTER%ROWTYPE
  ,inTERRITORY_ROWTYPE    IN TERRITORY%ROWTYPE
  ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
-        IS 
+IS 
 
- non_numeric_exp 		        EXCEPTION;
+ non_numeric_exp            EXCEPTION;
  invalid_ccntr_close_exp    EXCEPTION;
  invalid_status_code_exp    EXCEPTION;
 -- no_act_status_rec_exp      EXCEPTION;   TAL 04/15/2012 CCNQC-018
@@ -1212,6 +1239,7 @@ Changed: 01/18/2019 pxm158 CCN Project Team....
  v_curr_date date := sysdate;
  v_code number;
  v_errm varchar(500);
+
  exc_polling_stop_date_not_present_err   EXCEPTION;
  V_POLLING_REC                           POLLING%ROWTYPE;
 
@@ -1414,7 +1442,7 @@ as these cost center got active customer account.
     IF V_POLLING_REC.COST_CENTER_CODE IS NOT NULL AND V_POLLING_REC.POLLING_STOP_DATE IS NULL THEN
         RAISE exc_polling_stop_date_not_present_err;
     END IF;
-	EXCEPTION
+    EXCEPTION
 
 		WHEN invalid_ccntr_close_exp THEN  
 					v_code := errnums.en_ccntr_close_err;
@@ -5391,6 +5419,140 @@ blr 5/2/2013 -- CCNA-360 - This logic is being commented out temporary; until
 
  END  ADMINISTRATION_BR_SP;
 
+PROCEDURE LAD_CUSTOMER_BR_SP (
+/*******************************************************************************
+	 LAD_CUSTOMER_BR_SP
+
+	This procedure is intended enforce the Business Rules
+	for verifying the CATEGORY on the LAD_CUSTOMER Table
+
+created : 02/13/2018 mxv711
+        : 10/01/2018 sxg151 Added rules for LAD_CUSTOMER_TYPE and ALLOCATION_CC fields
+*******************************************************************************/	
+
+  inLad_customer_rowtype           IN  LAD_CUSTOMER%ROWTYPE
+ ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE)
+                IS         
+
+ inactive_cost_center_err           EXCEPTION;
+ invalid_lad_cust_cc_catg_err       EXCEPTION; 
+ invalid_lad_customer_catg_err      EXCEPTION;
+ invalid_lad_cust_type_err          EXCEPTION;
+ invalid_allocation_cc_err          EXCEPTION;
+ allocation_cc_null_err             EXCEPTION;
+
+
+ v_curr_date           date := sysdate;
+ v_code number;
+ v_count number;
+ v_errm varchar(500);
+ v_cc_rec COST_CENTER%ROWTYPE;
+
+/*
+   3.3.20   The list below are the business rules by column for the LAD_CUSTOMER table:
+	 **note:This table is only stored if the category of the cost_center_table is an "C".
+*/
+
+ BEGIN
+/*
+   3.3.20.1a  A Cost Center row is selected to validate category code is an "C"; otherwise LAD_CUSTOMER table cannot be added
+*/	
+
+
+     IF inCostctr_rowtype.cost_center_code <>  inLad_customer_rowtype.cost_center_code THEN
+	      RAISE inactive_cost_center_err;
+     END IF;   
+
+/*
+   3.3.20.1b  For this lad_customer table, the category must be "C"     
+*/		
+      IF  NOT  common_tools.code_detail_valid('CATEGORY', inCostctr_rowtype.CATEGORY) THEN  -- value not found in table 
+            RAISE invalid_lad_cust_cc_catg_err; 
+      END IF; 
+
+     IF inLad_customer_rowtype.CATEGORY <> 'C'   THEN
+         RAISE invalid_lad_customer_catg_err;
+     END IF;
+
+/*
+   3.3.20.1c  For this lad_customer_type must exist in CODE_DETAIL table
+*/
+      IF  NOT  common_tools.code_detail_valid('LAD_CUSTOMER_TYPE',
+                                              inLad_customer_rowtype.lad_customer_type) THEN  -- value not found in table
+            RAISE invalid_lad_cust_type_err;
+      END IF;
+
+/*
+   3.3.20.1d  The allocation_cc selected  must exist in cost_center table
+*/
+     IF inLad_customer_rowtype.ALLOCATION_CC IS NOT NULL THEN
+         BEGIN
+             SELECT *
+               INTO v_cc_rec
+               FROM COST_CENTER
+              WHERE UPPER(COST_CENTER_CODE) = UPPER(inLad_customer_rowtype.ALLOCATION_CC);
+         EXCEPTION
+             WHEN NO_DATA_FOUND THEN
+                RAISE invalid_allocation_cc_err;
+         END;
+     ELSE
+         NULL;
+         --Allocation cost center is needed for LAD Customer cost center
+             RAISE allocation_cc_null_err;
+     END IF;
+
+    EXCEPTION
+
+      WHEN inactive_cost_center_err THEN  
+	    v_code := errnums.en_inactive_cost_center_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.inactive_cost_center ' ,
+        'CCN_BUSINESS_RULES_PKG ' || 
+        'For Cost Center "' || inCostctr_rowtype.cost_center_code || '", ' ||
+        'LAD_CUSTOMER cost center is "' || inLad_customer_rowtype.cost_center_code || '". ' ||        
+        'Cost Center codes for LAD CUSTOMER and Cost Center do not match. ');         
+
+      WHEN invalid_lad_cust_cc_catg_err THEN
+       v_code := errnums.en_invld_lad_cust_cc_catg_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_lad_cust_cc_catg_err ' ,
+        'CCN_BUSINESS_RULES_PKG ' 
+        || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
+        'LAD_CUSTOMER Category_Code is "' || inLad_customer_rowtype.CATEGORY || '". ' ||        
+        'Category code is not valid on Code table. '); 
+
+      WHEN invalid_lad_customer_catg_err THEN  
+	    v_code := errnums.en_invalid_lad_cust_catg_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_lad_customer_catg_err ' ,
+        'CCN_BUSINESS_RULES_PKG ' 
+        || 'For Cost Center "' || inCostctr_rowtype.CATEGORY || '", ' ||
+        'Category_Code is "' || inLad_customer_rowtype.CATEGORY || '". ' ||
+        'For an LAD_CUSTOMER table the Category must be "C". ');
+
+      WHEN invalid_lad_cust_type_err THEN
+	    v_code := errnums.en_invalid_lad_cust_type_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_lad_cust_type_err ' ,
+        'CCN_BUSINESS_RULES_PKG '
+        || ' "LAD Customer Type selected is not a valid customer type in CCN". ');
+
+      WHEN invalid_allocation_cc_err THEN
+            v_code := errnums.en_invalid_allocation_cc_err;
+            errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.invalid_allocation_cc_err ' ,
+        'CCN_BUSINESS_RULES_PKG '
+        || ' "Allocatoin Cost Center entered is not a valid Cost Center in CCN". ');
+
+      WHEN allocation_cc_null_err THEN
+	    v_code := errnums.en_allocation_cc_null_err;
+	    errpkg.raise_err(v_code, 'LAD_CUSTOMER_BR_SP.allocation_cc_null_err ' ,
+        'CCN_BUSINESS_RULES_PKG '
+        || ' "Allocatoin Cost Center is missing for LAD Customer cost center". ');
+
+      WHEN OTHERS THEN
+      v_code := SQLCODE;
+	    v_errm := substr(SQLERRM,1, 500);
+      errpkg.raise_err(v_code, v_errm ||
+        'CCN_BUSINESS_RULES_PKG ' || 'No errors found');     
+
+END  LAD_CUSTOMER_BR_SP;
+
 PROCEDURE BANK_CARD_BR_SP (
 /*******************************************************************************
 	 BANK_CARD_BR_SP
@@ -5736,6 +5898,8 @@ changed : 09/19/2016 jxc517 CCN Project Team....
           Added statement type "VL" under USA country
 Changed : 06/27/2017 rxa457 CCN Projct Team..
             Cost Centers with category 'D" (Dispatch Terminals) need not have address codes defined. Such cost centers derive their address from their corresponding Home Store
+Changed:  03/08/2018 mxv711 CCN Project Team..
+          asp400:asp-763 changes to handle LAD_CUSTOMER in CCN
 Changed: 04/10/2018 nxk927 CCN Project Team....
           Added new error to checks if the PRIM_COST_IDENTIFIER or STD_COST_IDENTIFIER is
           passed as null for polling status code of P and Q for store type cost center
@@ -5913,12 +6077,13 @@ TAL 05/23/2013 CCNA-384 When a cost center is being added there must be an addre
 /*******************************************************************************
   2).	Category (1-VR/BR): 
       a.  The Category determines whether a the Cost_Center is a:
-          STORE, ADMINISTRATION, REAL_ESTATE, TERRITORY, or OTHER.  
+          STORE, ADMINISTRATION, REAL_ESTATE, TERRITORY,LAD_CUSTOMER or OTHER.  
           'A' = Admisistration
           'R' = Real Estate
           'S' = Store
           'T' = Territory
           'O' = Other
+          'C' = LAD Customer
 *******************************************************************************/
 
       IF  NOT  common_tools.code_detail_valid('CATEGORY', incost_center_rowtype.CATEGORY) 
@@ -6189,6 +6354,8 @@ Changed: nxk927 03/27/2018 CCN Project Team....
          Change to convert the warning to error per ASP-926
          Added Business rule to Change warning to error for "S" category cost centers 
          with polling status as "P"/"Q"
+       : pxa852 CCN Project Team...
+         01/11/2019 EXPIRATION_DATE COLUMN Changed to POLL_STATUS_EXP_DT
 *******************************************************************************/
 BEGIN
     BEGIN 
@@ -6196,7 +6363,7 @@ BEGIN
           INTO V_POLLING_STATUS_CODE
           FROM POLLING 
          WHERE COST_CENTER_CODE = incost_center_rowtype.COST_CENTER_CODE
-           AND EXPIRATION_DATE IS NULL;
+           AND POLL_STATUS_EXP_DT IS NULL;
 
     EXCEPTION
         WHEN OTHERS THEN 
@@ -6210,6 +6377,8 @@ BEGIN
          raise cc_std_primry_price_err;    
     END IF;
 
+END;
+
     /******************************************************************************
         12). OPEN_DATE must be populated for Territory Cost Centers.
         Added  : mxs216 ASP-1198 01/17/2019 CCN Project Team....
@@ -6217,8 +6386,6 @@ BEGIN
     IF incost_center_rowtype.CATEGORY = 'T' and incost_center_rowtype.OPEN_DATE IS NULL THEN
         RAISE exc_territory_cc_open_date_err;
     END IF;
-
-END;
 
 /*******************************************************************************
 	  EXCEPTION ERRORS AREA
@@ -7238,25 +7405,29 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
           If this field receives any value other than picklist value or null then it should raise an error in UI.
         : sxg151 09/25/2018 CCN Project Team...
           ASP-1135 : Do not validate potential open date rule if open date is added/updated.
+        : akj899 06/11/2019 CCN Project Team...
+          ASP-1274 validating the dispatch service type code field.
+          If this field receives any value other than picklist value or null then it should raise an error in UI.
 *******************************************************************************/
 
   inStore_rowtype                  IN  STORE%ROWTYPE
  ,inCC_rowtype                     IN  COST_CENTER%ROWTYPE)
 
                 IS
- inactive_cost_center_err      EXCEPTION;
- invalid_store_category_err    EXCEPTION;
- invalid_category_err          EXCEPTION;
- set_perp_inv_dt_err           EXCEPTION;
- invalid_inventory_id_err      EXCEPTION;
- invalid_code_detail_err       EXCEPTION;
- invalid_class_cd_err          EXCEPTION;
- invalid_rurl_met_zone_err     EXCEPTION;
- invalid_sell_store_flag_err   EXCEPTION;
- cn_ac_prmry_stndrd_cc_ind     EXCEPTION;
- non_cn_ac_prmry_std_cc_ind    EXCEPTION;
- invalid_pot_open_dt_err       EXCEPTION;
- invalid_dscrts_dlry_code_err  EXCEPTION;
+ inactive_cost_center_err           EXCEPTION;
+ invalid_store_category_err         EXCEPTION;
+ invalid_category_err               EXCEPTION;
+ set_perp_inv_dt_err                EXCEPTION;
+ invalid_inventory_id_err           EXCEPTION;
+ invalid_code_detail_err            EXCEPTION;
+ invalid_class_cd_err               EXCEPTION;
+ invalid_rurl_met_zone_err          EXCEPTION;
+ invalid_sell_store_flag_err        EXCEPTION;
+ cn_ac_prmry_stndrd_cc_ind          EXCEPTION;
+ non_cn_ac_prmry_std_cc_ind         EXCEPTION;
+ invalid_pot_open_dt_err            EXCEPTION;
+ invalid_dscrts_dlry_code_err       EXCEPTION;
+ invalid_dsptch_srvc_typ_code_err  EXCEPTION;
 
  v_curr_date           date := sysdate;
  v_code number;
@@ -7365,6 +7536,13 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
        END IF;
     END IF;
 
+    --validating the store dispatch sevices type code field values and raising an error if it did not receive the correct value.
+    IF inStore_rowtype.dispatch_services_type_code IS NOT NULL THEN
+       IF  NOT  common_tools.code_detail_valid('DISPATCH_SERVICES_TYPE_CODE',  inStore_rowtype.dispatch_services_type_code) THEN
+                RAISE  invalid_dsptch_srvc_typ_code_err;
+       END IF;
+    END IF;
+
     EXCEPTION
 
       WHEN inactive_cost_center_err THEN  
@@ -7445,6 +7623,10 @@ revised : BLR  4/17/2013  CCNA-349 Inventory_indicator is an "N", ignore the
           errpkg.raise_err(errnums.en_invalid_dcrts_dlry_cd_err,
                            'store_br_sp.invalid_dscrts_dlry_code_err ' ,
                            'Descartes Delivery Code must be a valid value as per picklist item "DESCARTES_DELIVERY_CODE".');
+     WHEN invalid_dsptch_srvc_typ_code_err THEN
+          errpkg.raise_err(errnums.en_invalid_dsptch_srvc_typ_cd_err,
+                           'store_br_sp.invalid_dsptch_srvc_typ_code_err ' ,
+                           'Dispatch Services Type Code must be a valid value as per picklist item "DISPATCH_SERVICES_TYPE_CODE".');
 
      WHEN OTHERS THEN
       v_code := SQLCODE;
@@ -7612,7 +7794,7 @@ IS
        The Expiration Date cannot be less than the Effective_Date.
        The Expiration Date, when entered is the Effective_Date of the new row minus one Day!  (COMMON_PKG)
        A Terminal can be "Un-Expired" !  
-       In This Case, again, all Terminal ?ows?must be checked for duplicate Terminal Numbers. 
+       In This Case, again, all Terminal must be checked for duplicate Terminal Numbers. 
        This is based on effective dates and expiration dates . 
 
 created : TAL 07/27/2012
@@ -7954,6 +8136,8 @@ PROCEDURE TERRITORY_BR_SP (
        Please refer to Business Rule 3.3.1 
 
 created : MDH 07/31/2012
+changed : 06/25/2019 akj899 CCNCC-4 CCN project
+         Adding validation for the newly added field TERRITORY_TYP_OF_BUSN_SGMNT_CD in Territory table
 ********************************************************************************************************/    
 
    inCOST_CENTER_ROWTYPE  IN  COST_CENTER%ROWTYPE
@@ -7974,6 +8158,7 @@ created : MDH 07/31/2012
  invalid_home_store_desig1_exp     EXCEPTION;
  INVALID_HOME_STORE_DESIG2_EXP     EXCEPTION;
  invalid_terr_sls_mgr_code_EXP     EXCEPTION;
+ invalid_terr_typ_of_busn_sgmn_exp EXCEPTION;
 
  v_curr_date date := sysdate;
  v_code   number;
@@ -8098,6 +8283,20 @@ BEGIN
 END ;
 
 /*******************************************************************************
+     6.) Territory_Typ_Of_Busn_Sgmnt_Cd: 
+       This field (TERRITORY_TYP_OF_BUSN_SGMNT_CD) must be on the CODE_DETAIL table.     
+*******************************************************************************/
+BEGIN
+       IF inTERRITORY_ROWTYPE.territory_typ_of_busn_sgmnt_cd IS NOT NULL THEN
+          IF NOT COMMON_TOOLS.code_detail_valid('TERRITORY_TYP_OF_BUSN_SGMNT_CD',
+                 inTERRITORY_ROWTYPE.territory_typ_of_busn_sgmnt_cd)  THEN
+                   RAISE invalid_terr_typ_of_busn_sgmn_exp; 
+           END IF;
+       END IF;    
+
+END ;
+
+/*******************************************************************************
 	  EXCEPTION ERRORS AREA
 *******************************************************************************/	  
 --	
@@ -8159,6 +8358,12 @@ END ;
                     errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_home_store_desig2_exp '  ,
                    'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
                    '" Home Store not Required for closed territory"' || '"');
+
+               WHEN invalid_terr_typ_of_busn_sgmn_exp THEN
+                    v_code := errnums.en_invalid_code_detail_err;    
+                    errpkg.raise_err(v_code, 'TERRITORY_BR_SP.invalid_terr_typ_of_busn_sgmn_exp '  ,
+                   'Cost Center "' || inCOST_CENTER_ROWTYPE.cost_center_code || 
+                   '" Territory Type Of Business Segmentation Code "' || inTERRITORY_ROWTYPE.territory_typ_of_busn_sgmnt_cd || '" is not found in Code table');
 
 -- Others
                WHEN OTHERS THEN
@@ -8482,6 +8687,33 @@ EXCEPTION
 
 
  END  ALLOCATION_DIV_OFFSET_BR_SP;
+
+ PROCEDURE VALIDATE_CATEGORY(
+/*******************************************************************************
+  This Procedure is designed to Validate Category of cost center
+
+  Created: 03/02/2018 mxv711 ASP-824:bulk upload changes
+
+*******************************************************************************/
+    IN_CATEGORY         IN   VARCHAR2
+) 
+IS
+v_code                  NUMBER;
+
+exc_invalid_category_err EXCEPTION; 
+BEGIN
+    IF  NOT  common_tools.code_detail_valid('CATEGORY', IN_CATEGORY ) THEN  -- value not found in table 
+        RAISE exc_invalid_category_err; 
+    END IF;
+
+EXCEPTION    
+    WHEN exc_invalid_category_err THEN  
+	    v_code := errnums.en_invalid_category_err;
+	    errpkg.raise_err(v_code, 'VALIDATE_CATEGORY.exc_invalid_category_err ' ,
+        'CCN_BUSINESS_RULES_PKG.VALIDATE_CATEGORY ' || 'Category_Code: ' || IN_CATEGORY || 
+        ' IS InValid Category');  
+        RAISE;
+END VALIDATE_CATEGORY;
 
 PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
