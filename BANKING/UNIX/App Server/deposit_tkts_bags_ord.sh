@@ -5,18 +5,16 @@
 #                 for Deposit tickets/bags Ordered on a daily basis
 # 
 # Created  : 11/21/2016 sxh487
-# Modified : 
+# Modified : 08/12/2019 axm868
+#            Removed deposit_tkts_ord.sql call for CCNBN-12
 #################################################################
-
+cd /app/banking
 # below command will get the path for banking.config respective to the environment from which it is run from
-. /app/banking/dev/banking.config
-
+. /app/banking/banking.config
 proc_name="deposit_tkts_bags_ord"
 DATE=`date +"%m/%d/%Y"`
 TIME=`date +"%H:%M:%S"`
-
 echo "Processing Started for $proc_name at $TIME on $DATE"
-
 #################################################################
 #   deposit_bags_ord.sql
 #################################################################
@@ -29,12 +27,10 @@ WHENEVER OSERROR EXIT 1
 WHENEVER SQLERROR EXIT 1
 var exitCode number;
 exec :exitCode := 0;
-@$HOME/sql/deposit_tkts_ord.sql
 @$HOME/sql/deposit_bags_ord.sql
 print :exitcode;
 exit :exitCode;
 END
-
 ############################################################################
 #                           ERROR STATUS CHECK 
 ############################################################################
@@ -45,9 +41,7 @@ then
      echo "processing FAILED for $proc_name at ${TIME} on ${DATE}"
      exit 1;
 fi
-
 TIME=`date +"%H:%M:%S"`
 echo "Processing finished for $proc_name at ${TIME} on ${DATE}"  
-
 exit 0
 ############################################################################
