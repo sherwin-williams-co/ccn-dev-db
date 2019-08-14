@@ -56,7 +56,9 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
          : 10/17/2018 pxa852 Removed CCN_SWC_PN_SQFT_INT and added square footage details from Marketing ASP -886.
          : 12/07/2018 kxm302 Changed column names from Leasing to Marketing for LEASING_SALES_SQ_FT and LEASING_TOTAL_SQ_FT ASP-1178.
          : 07/23/2019 akj899 CCNCC-4 CCN project Team.. 
-                      Added column TERRITORY_TYP_OF_BUSN_SGMNT_CD and TERR_TYP_OF_BUSN_SGMNT_CD_DESC
+                      Added column TERRITORY_TYP_OF_BUSN_SGMNT_CD and TERRITORY_TYP_OF_BUSN_SGMNT_CD_DESC
+         : 08/14/2019 akj899 CCNCC-4 CCN Project Team...
+                      Renamed TERRITORY_TYP_OF_BUSN_SGMNT_CD_DESC to TERR_TYP_OF_BUSN_SGMNT_CD_DESC to reduce the name to length 30
 ****************************************************************************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
