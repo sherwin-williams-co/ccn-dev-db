@@ -3286,8 +3286,8 @@ Hierarchy report.
 created : 01/08/2019 pxa852 CCN Project Team...
 ************************************************************/
 en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
-exc_costcntr_not_exist_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_costcntr_not_exist_err , -20219);
+exc_costcntr_not_exists_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_costcntr_not_exists_err , -20219);
 
 /***********************************************************
 The "en_territory_cc_open_date_err" passes a numerical error of -20220.
@@ -3462,20 +3462,11 @@ exc_get_employee_rec_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_get_employee_rec_err, -20232);
 
 /***********************************************************
-The "en_sync_allocation_type_err" passes a numerical error of -20233.
-This error occurs when CCN_TABLE_IU_PKG.SYNC_ALLOCATION_TYPE fails
-
-created : 03/25/2018 mxs216 ASP-1200 CCN Project Team...
-************************************************************/
-en_sync_allocation_type_err    CONSTANT NUMBER := -20233;
-exc_sync_allocation_type_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_sync_allocation_type_err, -20233);
-
-/***********************************************************
 The "en_invalid_dsptch_srvc_typ_cd_err" passes a numerical error of -20234.
-This error occurs when dispatch services type code field receives a value other than picklist item "DISPATCH_SERVICES_TYPE_CODE" value.
+This error occurs when dispatch services type code field receives a value
+other than picklist item "DISPATCH_SERVICES_TYPE_CODE" value.
 
-created : 06/11/2019 akj899 ASP-1274 CCN Project Team...
+created : 06/11/2019 akj899 CCNCC-13 CCN Project Team...
 ************************************************************/
 en_invalid_dsptch_srvc_typ_cd_err   CONSTANT NUMBER := -20234;
 exc_invalid_dsptch_srvc_typ_cd_err  EXCEPTION;
