@@ -41,8 +41,8 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
       v_store_row.sales_vol_class_code         := :NEW.sales_vol_class_code;
       v_store_row.potential_open_date          := :NEW.potential_open_date;
       v_store_row.descartes_delivery_code      := :NEW.descartes_delivery_code;
-      v_store_row.designated_terminal_number   := :NEW.designated_terminal_number;
       v_store_row.dispatch_services_type_code  := :NEW.dispatch_services_type_code;
+      v_store_row.designated_terminal_number   := :NEW.designated_terminal_number;
 
       SELECT XMLELEMENT ("STORE",
                          XMLATTRIBUTES ('http://www.w3.org/2001/XMLSchema'   AS "xmlns:xsi",
@@ -58,8 +58,8 @@ create or replace TRIGGER "COSTCNTR"."TR_STORE_UPD"
                                    v_store_row.sales_vol_class_code sales_vol_class_code,
                                    TO_CHAR(v_store_row.potential_open_date, 'yyyymmdd') potential_open_date,
                                    v_store_row.descartes_delivery_code descartes_delivery_code,
-                                   v_store_row.designated_terminal_number designated_terminal_number,
-                                   v_store_row.dispatch_services_type_code dispatch_services_type_code)
+                                   v_store_row.dispatch_services_type_code dispatch_services_type_code,
+                                   v_store_row.designated_terminal_number designated_terminal_number)
                          ) AS "result" ,
              XMLELEMENT ( "PrimaryKey",
                           XMLATTRIBUTES (
