@@ -3,7 +3,9 @@ Below script will create drop and create tabel SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS f
 Store drafts tracking/printing services tables
 
 
-Created: 01/18/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
+Created  : 01/18/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
+Modified : 08/14/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
+           Added two new columns MICR and PART_NUMBER
 ---------------------------------------------------------------------------*/
 
   DROP TABLE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
@@ -14,7 +16,9 @@ Created: 01/18/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
     CHECKS_PER_BOOK              NUMBER, 
     STORE_DRFT_THRESHOLD         NUMBER, 
     BANK_ACCOUNT_NBR             VARCHAR2(100), 
-    BANK_ROUTING_NBR             VARCHAR2(100), 
+    BANK_ROUTING_NBR             VARCHAR2(100),
+    MICR                         VARCHAR2(100),
+    PART_NUMBER                  VARCHAR2(100),
     EFFECTIVE_DATE               DATE, 
     EXPIRATION_DATE              DATE, 
     CREATED_BY_USER_ID           VARCHAR2(100), 

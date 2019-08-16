@@ -5,6 +5,8 @@ Store drafts tracking/printing services tables
 
 Created  : 01/18/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
 Modified : 07/25/2019 Added CCN_CHECK_SERIAL_NUMBER column
+           05/14/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
+                      Added two new columns MICR and PART_NUMBER
 ---------------------------------------------------------------------------*/
   DROP TABLE SD_CHECK_NBR_PRNT_EXTRCT_DTLS;
 
@@ -16,7 +18,9 @@ Modified : 07/25/2019 Added CCN_CHECK_SERIAL_NUMBER column
     ORDERED_DRFT_NUMBER   NUMBER, 
     CHECK_DIGIT           NUMBER, 
     ROUTING_NBR           VARCHAR2(100), 
-    ACCOUNT_NUMBER        VARCHAR2(100), 
+    ACCOUNT_NUMBER        VARCHAR2(100),
+    MICR                  VARCHAR2(100),
+    PART_NUMBER           VARCHAR2(100),
     LETTER                VARCHAR2(1), 
     RUN_TYPE              VARCHAR2(1 ), 
     RUNTYPE_DESCRIPTION   VARCHAR2(1000), 
