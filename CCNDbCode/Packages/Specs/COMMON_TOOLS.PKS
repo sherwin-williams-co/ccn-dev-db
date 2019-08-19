@@ -1,4 +1,4 @@
-create or replace PACKAGE          "COMMON_TOOLS" AS 
+create or replace PACKAGE          COMMON_TOOLS AS 
 /*********************************************************** 
 This package SPEC is intended to hold reuseable objects that are 
 available to be used by the entire schema
@@ -8,8 +8,8 @@ available to be used by the entire schema
 		this is created since oracle cannot handle blank strings being converted to 
 		date fields
 created : 08/24/2010 kdp Payroll reporting project.....
-        : 09/13/2018 kxm302 CCN Project Team...
-		: Removed GET_CC_MANAGER_NAME function ASP-1128
+modified: 08/16/2019 axm868 CCN Project CCNCC-9
+          removed EXECUTE_UNIX_COMMAND Function as part of cleanup
 ************************************************************/
 
 PROCEDURE ALTER_ALL_TRIGGERS   
@@ -146,14 +146,27 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 )
 RETURN varchar2;
 
+FUNCTION DIVERSIFIED_ADDR_ALLWED( 
+/**********************************************************
+This function will return the DIVERSIFIED_ADDR_ALLWED in indicator
+based on the cost center code passed
+
+created : 01/25/2018 nxk927 CCN Project...
+modified: 
+**********************************************************/
+IN_COST_CENTER  IN VARCHAR2)
+RETURN VARCHAR2;
+
 FUNCTION ADDRESS_LOOK_UP_FNC( 
 /**********************************************************
 This function will return ADDRESS TABLE NAME WHERE THE COST CENTER RESIDES
 
 created : 08/18/2015 nxk927 CCN Project...
-modified: 
+modified: 01/25/2018 nxk927 CCN Project Team....
+          signature changed to pass address type
 **********************************************************/
-IN_COST_CENTER IN VARCHAR2
+IN_COST_CENTER IN VARCHAR2,
+IN_ADDRESS_TYPE IN VARCHAR2
 )
 RETURN VARCHAR2;
 
@@ -289,18 +302,6 @@ created : 03/04/2014 CCN Project
 **********************************************************/
 IO_TEXT_STRING    IN    VARCHAR2) RETURN VARCHAR2;
 
-FUNCTION EXECUTE_UNIX_COMMAND(
-/**********************************************************
-This function will build special characters from input text
-
-parameters:
-
-IN_UNIX_COMMAND  IN - Command to be executed
-
-created : 03/13/2014 CCN Project
-**********************************************************/
-IN_UNIX_COMMAND VARCHAR2) RETURN BOOLEAN;
-
 FUNCTION convert_to_clob(
 /**********************************************************
 This function will convert blob to clob
@@ -390,6 +391,20 @@ Modified:
     IN_ZIP_CODE        IN    VARCHAR2)
 RETURN VARCHAR2;
 
+FUNCTION IS_CC_SELLING_STORE(
+/**********************************************************
+This function will return true if passed cost center is a 
+selling store
+
+parameters:
+IN  IN_COST_CENTER
+
+created : 10/31/2016 sxh487 CCN Project
+modified: 
+**********************************************************/
+IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
+RETURN VARCHAR2;
+
 FUNCTION GET_FORMATTED_PHONE_NUMBER(
 /***********************************************
 Fucntion to get formatted (###)###-#### Pri, Scd, Fax phone_number using 
@@ -433,14 +448,14 @@ RETURN STATUS%ROWTYPE;
 
 FUNCTION IS_CC_HAVING_CSTMR_ACCNTS_FNC(
 /**********************************************************
-This function will check the cost center present in CUSTOMER_TAXID_VW_COSTCNTR Table
-If the cost center is having active customer accoutns in CPR this function should
+This function will check the cost center present in CPR_CUSTOMER_TAXID_VW_COSTCNTR table.
+If the cost centers is having active customer accoutns in CPR this function should
 return "Y" else "N"
 
-created : 11/17/2017 bxa919 CCN Project Team...
+created : 11/13/2017 bxa919 CCN Project Team...
 **********************************************************/
 IN_COST_CENTER_CODE  IN  COST_CENTER.COST_CENTER_CODE%TYPE)
-RETURN VARCHAR2; 
+RETURN VARCHAR2;
 
 FUNCTION GET_COST_CENTER_GEO_LATD_LNGTD(
 /**********************************************************
@@ -453,13 +468,31 @@ Modified:
     IN_GEO_TYPE       IN     VARCHAR2
     ) RETURN VARCHAR2;
 
-FUNCTION IS_COST_CENTER_ARCHIVED (
+FUNCTION GET_PCC_COLOR_DSC(
 /***********************************************************
-This function will return "Y" if the Cost Center provided is Archived
-Created : 11/27/2018, mxs216, CCN Project ASP-1158
+This function will return COLOR_CONSULTANT_TYPE Description
+
+Created : 04/02/2018 sxg151 CCN Project ASP-869
+Modified: 
 ************************************************************/
-    IN_COST_CENTER_CODE IN VARCHAR2
-) RETURN VARCHAR2;
+    IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
+    IN_TYPE             IN     VARCHAR2
+    ) RETURN VARCHAR2;
+
+PROCEDURE REPLACE_COST_CENTER(
+/**********************************************************
+	REPLACE_COST_CENTER
+
+	This procedure will repalce the OLD cost center with NEW cost center
+
+IN_OLD_CC - Input Cost Center to be removed
+IN_NEW_CC - Input Cost Center to be created
+
+created : 03/24/2015 jxc517 CCN Project....
+modified:
+**********************************************************/
+          IN_OLD_CC IN VARCHAR2,
+          IN_NEW_CC IN VARCHAR2);
 
 FUNCTION IS_ARCHIVE_CC_FNC(
 /***********************************************************
@@ -470,6 +503,25 @@ Changed :
 ************************************************************/
     IN_COST_CENTER_CODE     IN       VARCHAR2)
 RETURN VARCHAR2;
+
+FUNCTION IS_COST_CENTER_ARCHIVED (
+/***********************************************************
+This function will return "Y" if the Cost Center provided is Archived
+Created : 11/14/2018, mxs216, CCN Project ASP-1158
+************************************************************/
+    IN_COST_CENTER_CODE IN VARCHAR2
+) RETURN VARCHAR2;
+
+FUNCTION CHECK_LAST_ACTIVE_COST_CENTER (
+/**********************************************************
+Address trigger to find last active address record for cc and throw error 
+
+Created : 03/5/2019 kxm302 CCN Project Team.....
+**********************************************************/
+    IN_TABLE_NAME          VARCHAR2,
+    IN_COST_CENTER_CODE    VARCHAR2,
+    IN_ADDRESS_TYPE        VARCHAR2
+) RETURN NUMBER;
 
 PROCEDURE SYNC_ALLOCATION_TYPE(
 /******************************************************************************

@@ -6,12 +6,14 @@ available to be used by the entire schema
 -    DATE_BLANK(in_date)
 created : 08/24/2010 kdp 
 revised : 05/30/2013 mdh EXPIRE_DATA_SP changes.
+          08/16/2019 axm868 CCN Project CCNCC-9
+          removed EXECUTE_UNIX_COMMAND Function as part of cleanup
 ************************************************************/
 
   g_key     RAW(32767)  := UTL_RAW.cast_to_raw('12345678');
   g_pad_chr VARCHAR2(1) := '~';
 
-FUNCTION COMPUTE_EXPIRATION_DATE
+FUNCTION COMPUTE_EXPIRATION_DATE  
 /******************************************************************************
     COMPUTE_EXPIRATOIN_DATE (in_date)
 
@@ -213,42 +215,6 @@ BEGIN
    V_TEXT_STRING := REPLACE(V_TEXT_STRING,'''','&apos;');
    RETURN V_TEXT_STRING;
 END CONVERT_SPECIAL_CHRCTRS;
-
-FUNCTION EXECUTE_UNIX_COMMAND(
-/**********************************************************
-This function will build special characters from input text
-
-parameters:
-
-IN_UNIX_COMMAND  IN - Command to be executed
-
-created : 03/13/2014 CCN Project
-modified: 04/15/2016 CCN Project Team....
-          Fixed the issue file already present scenario where this 
-          function returns NULL instead of FALSE and impacts calling method
-**********************************************************/
-IN_UNIX_COMMAND VARCHAR2,
-IN_DIRECTORY    VARCHAR2 DEFAULT 'CCN_DATAFILES') RETURN BOOLEAN
-IS
-   output_file          UTL_FILE.FILE_TYPE;
-   filename             VARCHAR2(50) := 'cmd_start.sh';
-   v_out_clob           CLOB;
-   v_return_value       BOOLEAN := FALSE;
-BEGIN
-    IF DBMS_LOB.FILEEXISTS(BFILENAME(IN_DIRECTORY, filename)) = 1 THEN
-        DBMS_OUTPUT.PUT_LINE('PREVIOUS COMMAND STILL EXECUTING. PLEASE TRY AGAIN AFTER SOME TIME');
-    ELSE
-        v_out_clob := NVL(IN_UNIX_COMMAND,'ls -ltr');
-        output_file := UTL_FILE.FOPEN (IN_DIRECTORY, filename, 'w', 32767);
-        UTL_FILE.PUT_LINE(output_file, v_out_clob, TRUE);
-        UTL_FILE.FCLOSE(output_file);
-        v_return_value := TRUE;
-    END IF;
-    RETURN v_return_value;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN v_return_value;
-END EXECUTE_UNIX_COMMAND;
 
 FUNCTION convert_to_clob(
 /**********************************************************
@@ -540,15 +506,17 @@ Created : 12/03/2015 jxc517 CCN Project....
 Modified: 
 **********************************************************/
 IN_CODE_HEADER_NAME      IN     VARCHAR2,
-IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2
+IN_CODE_DETAIL_VALUE     IN     VARCHAR2,
+IN_CODE_TRANSLATION_NAME IN     VARCHAR2 ) RETURN VARCHAR2
 IS
     V_RETURN_VAL VARCHAR2(100);
 BEGIN
-    SELECT DETAIL_TRANSLATION
+    SELECT TRANSLATION_VALUE
       INTO V_RETURN_VAL
       FROM TRANSLATION_DETAIL
      WHERE HEADER_NAME  = IN_CODE_HEADER_NAME
-       AND DETAIL_VALUE = IN_CODE_DETAIL_VALUE;
+       AND DETAIL_VALUE = IN_CODE_DETAIL_VALUE
+       AND TRANSLATION_NAME = IN_CODE_TRANSLATION_NAME;
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
@@ -617,7 +585,7 @@ BEGIN
     V_TEMP_LENGTH := V_LENGTH;
     V_FILE := utl_file.fopen ( IN_DIRECTORY, IN_FILENAME, 'W', 32767); 
     IF V_LENGTH < 32760 THEN
-        UTL_FILE.PUT(V_FILE, IN_CLOB);
+        UTL_FILE.PUT(V_FILE, IN_CLOB); 
         UTL_FILE.FFLUSH(V_FILE);
     ELSE -- write in pieces
         V_START := 1;
@@ -941,9 +909,8 @@ END GET_APPLICATION_CREDENTIALS;
 FUNCTION GET_COST_CENTER_DSC_CODES(
 /**********************************************************
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
-from COST_CENTER_DSC_CODES
+from CCN_DSC_CODE_DESC 
 Created : 02/22/2018 SXG151 CCN Project....
-Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
@@ -961,12 +928,69 @@ BEGIN
         V_RETURN_VAL := V_RECORD.PRIMARY_DSC;
     ELSIF IN_DSC_TYPE = 'SECONDARY_DSC' THEN
         V_RETURN_VAL := V_RECORD.SECONDARY_DSC;
-    END IF;
+    END IF;    
     RETURN V_RETURN_VAL;
 EXCEPTION
     WHEN OTHERS THEN
         RETURN V_RETURN_VAL;
 END GET_COST_CENTER_DSC_CODES;
+
+FUNCTION GET_COLOR_CONSULTANT_TYPE(
+/*******************************************************************************************
+This function will return the COLOR_CONSULTANT_TYPE From Cost Center table
+Created  : sxg151 03/21/2018 ASP-869
+Modified : 
+*******************************************************************************************/
+    IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE
+
+)RETURN VARCHAR2
+IS
+    V_RETURN_VAL VARCHAR2(20) := NULL;
+BEGIN   
+    SELECT 
+           RTRIM( REGEXP_REPLACE (C.COLOR_CONSULTANT_TYPE.extract('/PROGRAM_TYPE/COLOR_CONSULTANT_TYPE/text()').getStringVal(),'(.{3})','\1,'),',' ) AS COLOR_CONSULTANT_TYPE    
+      INTO V_RETURN_VAL
+      FROM COST_CENTER C
+     WHERE C.COST_CENTER_CODE = IN_COST_CENTER_CODE;
+
+    RETURN V_RETURN_VAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VAL;
+END GET_COLOR_CONSULTANT_TYPE;
+
+FUNCTION GET_FIELD_VALUE_FROM_XML(
+/******************************************************************************
+    This functions extracts value from XML based on table/field names passed in 
+
+Created : 03/15/2019 dxp896 --  CCN Project....
+Changed :
+******************************************************************************/
+    IN_ROW_DATA          IN      SYS.XMLTYPE,
+    IN_TABLE_TYPE_REC    IN      ALL_TAB_COLUMNS%ROWTYPE)
+RETURN VARCHAR2
+IS
+    V_ROW_VALUE     VARCHAR2(500);
+BEGIN
+    IF (IN_ROW_DATA.existsNode('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()') = 1) THEN
+        IF IN_TABLE_TYPE_REC.DATA_TYPE = 'XMLTYPE'  and IN_TABLE_TYPE_REC.TABLE_NAME = 'COST_CENTER' THEN
+          BEGIN
+            V_ROW_VALUE := IN_ROW_DATA.EXTRACT('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME).GETCLOBVAL();
+            V_ROW_VALUE := REPLACE(REPLACE(V_ROW_VALUE,'<'||IN_TABLE_TYPE_REC.COLUMN_NAME ||'>'),'</'||IN_TABLE_TYPE_REC.COLUMN_NAME||'>');
+            EXCEPTION
+                WHEN OTHERS THEN v_row_value := NULL;
+          END;
+        ELSIF (IN_TABLE_TYPE_REC.DATA_TYPE <> 'DATE') THEN
+            V_ROW_VALUE := IN_ROW_DATA.extract('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()').getStringVal(); 
+        ELSE
+            V_ROW_VALUE := IN_ROW_DATA.extract('/'|| IN_TABLE_TYPE_REC.TABLE_NAME|| '/' || IN_TABLE_TYPE_REC.COLUMN_NAME ||'/text()').getStringVal(); 
+        END IF;
+    END IF;
+    RETURN COMMON_TOOLS.ELIMINATE_SPECIAL_CHRCTRS(V_ROW_VALUE);
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN V_ROW_VALUE;
+END GET_FIELD_VALUE_FROM_XML;
 
 FUNCTION CHK_POS_NEW_STORES_BYPASS(
 /**********************************************************
