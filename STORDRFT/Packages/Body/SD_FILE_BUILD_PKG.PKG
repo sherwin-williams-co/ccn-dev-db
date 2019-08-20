@@ -318,13 +318,10 @@ changed : 11/24/2014 jxc517 CCN Project....
           Changed FNCL_SRVCS_SENT_DATE to PICKED_BY_1099_ON_DATE
         : 03/27/2019 ASP-1207 mxs216 CCN Project....
           Updated varibale declaration with referencing CCN_BATCH_PKG.BATCH_JOB_TYPE
-*****************************************************************************/
-IN_DATE           IN DATE,
-IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
-IS
-
-    CURSOR cur IS
-        SELECT NULL AS FILE_NUMBER
+        : 08/16/2019 CCNSD-23 axm868 CCN Project....
+          As part of cleaning this Procedure, the below code has been removed :
+          Removed the below Columns from the cursor cur
+                NULL AS FILE_NUMBER
                ,SUBSTR(COST_CENTER_CODE,3,4) AS STORE_NUMBER
                ,DRAFT_NUMBER AS CHECK_NUMBER
                ,sd_common_tools.GET_HEX_VALUE_FOR_TRNSCTN_TYP('10',NVL(DECODE(AMOUNT_CHANGE_DATE, NULL,ORIGINAL_NET_AMOUNT,NET_AMOUNT), 0) *100) AS CHECK_AMOUNT
@@ -333,7 +330,17 @@ IS
                ,NULL AS FILLER
                ,'00' AS TRANSACTION_CODE
                ,ccn_common_tools.DecryptSQL((SELECT TAXID FROM CUSTOMER_TAXID_VW WHERE CUSTNUM = CUSTOMER_ACCOUNT_NUMBER)) AS TAX_ID
-               ,CHECK_SERIAL_NUMBER
+               ,PICKED_BY_1099_ON_DATE
+          Changed cur's ORDER BY to COST_CENTER_CODE
+          Removed V_OUT_CLOB and the file generation code
+          Removed "BUILD_1099_DIFF_FILE(IN_DATE);" procedure call
+*****************************************************************************/
+IN_DATE           IN DATE,
+IN_MID_MNTHLY_IND IN VARCHAR2 DEFAULT 'N')
+IS
+
+    CURSOR cur IS
+        SELECT CHECK_SERIAL_NUMBER
                ,PICKED_BY_1099_ON_DATE
           FROM STORE_DRAFTS
          WHERE (POS_TRANSACTION_CODE = '13' OR (POS_TRANSACTION_CODE = '91' AND REASON_CODE = '04'))
@@ -343,7 +350,7 @@ IS
           AND LOAD_DATE <= DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15)
           AND (VOID_DATE IS NULL OR VOID_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15))
           AND (STOP_PAY_DATE IS NULL OR STOP_PAY_DATE > DECODE(IN_MID_MNTHLY_IND, 'N', LAST_DAY(IN_DATE) + 1, LAST_DAY(IN_DATE) + 15))
-        ORDER BY SUBSTR(COST_CENTER_CODE,3,4), CHECK_NUMBER;
+          ORDER BY COST_CENTER_CODE;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_LOAD_FILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50);
@@ -373,17 +380,6 @@ BEGIN
                                        ,32767); 
         FOR rec IN cur LOOP
             V_COUNT := V_COUNT + 1;
-            V_OUT_CLOB := V_OUT_CLOB 
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.FILE_NUMBER,' ',7)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.STORE_NUMBER,'0',4)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_NUMBER,'0',4)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_AMOUNT,'0',10)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.CHECK_DATE,'0',6)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.JV_NUMBER,' ',6)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.FILLER,' ',1)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TRANSACTION_CODE,'0',2)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.TAX_ID,'0',9)
-                           ||CHR(13);
         /*
         Update the newly added column PICKED_BY_1099_ON_DATE with
             first day of the month for which the monthly file is getting generated
@@ -394,20 +390,7 @@ BEGIN
             IF rec.PICKED_BY_1099_ON_DATE IS NULL THEN --No need to perform update if that value is already updated
                 UPDATE_PICKED_BY_1099_ON_DATE(rec.CHECK_SERIAL_NUMBER, V_DATE);
             END IF;
-            IF V_COUNT = 100 THEN
-                UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-                V_OUT_CLOB := NULL;
-                V_COUNT := 0;
-                COMMIT;
-            END IF;
         END LOOP;
-	      IF V_OUT_CLOB IS NOT NULL THEN
-            UTL_FILE.PUT_LINE(OUTPUT_FILE, V_OUT_CLOB, TRUE);
-            V_OUT_CLOB := NULL;
-            V_COUNT := 0;
-            COMMIT;
-        END IF;
-        UTL_FILE.FCLOSE(OUTPUT_FILE);
         --Below call will load the data needed for 1099 FSS and 1099 information feed to AP
         LOAD_VENDOR_INFORMATION();
     EXCEPTION
@@ -415,7 +398,6 @@ BEGIN
             V_TRANS_STATUS := 'ERROR';
     END;
     IF IN_MID_MNTHLY_IND = 'Y' THEN
-        BUILD_1099_DIFF_FILE(IN_DATE);
         CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MID_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
     ELSE
         CCN_BATCH_PKG.UPDATE_BATCH_JOB('1099_MONTHLY', V_BATCH_NUMBER, V_TRANS_STATUS);
@@ -496,6 +478,9 @@ changed : 05/02/2016 jxc517 CCN Project....
 		  reverting back the sequence criteria to move SD_90_DAY_STOP_PAY_RPT ahead of this change
 		: 05/25/2016 nxk927 CCN Project....
 		  adding back the sequence criteria after moving SD_90_DAY_STOP_PAY_RPT
+		: 08/15/2019 axm868 CCN Project....CCNSD-23
+		  changed "SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(IN_COST_CENTER_CODE, 3),'0',4)"
+      with "IN_COST_CENTER_CODE"
 *****************************************************************************/
 IN_COST_CENTER_CODE        IN     VARCHAR2,
 IN_DATE                    IN     DATE) RETURN VARCHAR2
@@ -510,7 +495,7 @@ BEGIN
     --based on the previous run max for that store/customer/month combination
 
     --Build the 12 chaacters search string to come up with the new invoice number
-    V_RETURN_VALUE := SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(IN_COST_CENTER_CODE, 3),'0',4)
+    V_RETURN_VALUE := SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(IN_COST_CENTER_CODE,'0',6)
                            || TO_CHAR(IN_DATE,'MMRR')
                            || '00'
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(TO_CHAR(IN_DATE,'MM'),'0',2);
@@ -556,6 +541,10 @@ changed : 05/04/2016 jxc517 CCN Project....
           adding back the sequence criteria after moving SD_90_DAY_STOP_PAY_RPT
         : 03/27/2019 ASP-1207 mxs216 CCN Project....
           Updated varibale declaration with referencing CCN_BATCH_PKG.BATCH_JOB_TYPE
+        : 08/16/2019 CCNSD-23 axm868 CCN Project....
+          replaced "SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE,3,4),'0',4)" with
+          "CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(rec.COST_CENTER_CODE)" for "STORE DRAFT" and
+          "INSTALLER DRAFT CHECK FOR"
 *****************************************************************************/
 IN_DATE           IN DATE)
 IS
@@ -567,14 +556,15 @@ IS
                        ISSUE_DATE,
                        DRAFT_NUMBER,
                        CUSTOMER_ACCOUNT_NUMBER,
-                       SD_FILE_BUILD_PKG.GET_CUSTOMER_VENDOR_NO(CUSTOMER_ACCOUNT_NUMBER) VENDOR_NO
+                       SD_FILE_BUILD_PKG.GET_CUSTOMER_VENDOR_NO(CUSTOMER_ACCOUNT_NUMBER) VENDOR_NO,
+                       CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(COST_CENTER_CODE) DRAFT_TERMINAL_NUMBER
                   FROM STORE_DRAFTS
                  WHERE FNCL_SRVCS_SENT_DATE IS NULL
                    AND PICKED_BY_1099_ON_DATE IS NOT NULL
                    --AND (COST_CENTER_CODE LIKE '%1015%' OR COST_CENTER_CODE LIKE '%1021%' OR COST_CENTER_CODE LIKE '%1030%') --Testing
                 )
           WHERE VENDOR_NO IS NOT NULL
-          ORDER BY SUBSTR(COST_CENTER_CODE, 3), VENDOR_NO, DRAFT_NUMBER;
+          ORDER BY COST_CENTER_CODE, VENDOR_NO, DRAFT_NUMBER;
 
     PATH        	  VARCHAR2(50) := 'STORDRFT_DATAFILES'; -- DIRECTORY CREATED IN ORACLE DATABASE
     FILENAME  			VARCHAR2(50) := 'ST'       --ORIGIN = Stores
@@ -652,7 +642,7 @@ BEGIN
                            || '|'
                            --INVOICE-ID (50) -> 16 spaces, 4 store#, 4 store#, mmyy, 00, mm, seq from 0001, rrrrmmddhrmiss
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',16)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.COST_CENTER_CODE,'0',6)
                            || V_INVOICE_NUMBER
                            || STAMP
                            || '|'
@@ -721,7 +711,7 @@ BEGIN
                            || '|' 
                            --INVOICE-REMIT-DESC (240) -> STORE DRAFT - , 4 store#, 4 draft#, 217 spaces
                            || 'STORE DRAFT - '
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE,3,4),'0',4)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.DRAFT_TERMINAL_NUMBER,'0',5)
                            || '-'
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.DRAFT_NUMBER,'0',4)
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',217)
@@ -854,7 +844,7 @@ BEGIN
                            || '|'
                            --INV-DTL-ID (50) -> 16 spaces, 4 store#, 4 store#, mmyy, 00, mm, seq from 0001, rrrrmmddhrmiss
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',16)
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE, 3),'0',4)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.COST_CENTER_CODE,'0',6)
                            || V_INVOICE_NUMBER
                            || STAMP
                            || '|'
@@ -878,7 +868,7 @@ BEGIN
                            || '|'
                            --INV-DTL-DESC (240) -> INSTALLER DRAFT CHECK FOR , 4 store#, 4 draft#, 205 spaces
                            || 'INSTALLER DRAFT CHECK FOR '
-                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(SUBSTR(rec.COST_CENTER_CODE,3,4),'0',4)
+                           || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.DRAFT_TERMINAL_NUMBER,'0',5)
                            || '-'
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(rec.DRAFT_NUMBER,'0',4)
                            || SD_FILE_BUILD_PKG.FORMAT_INPUT_FOR_FILE(' ',' ',205)
@@ -2139,4 +2129,3 @@ EXCEPTION
 END VOID_90_DAY_MARK_BY_CCN;
 
 END SD_FILE_BUILD_PKG;
-
