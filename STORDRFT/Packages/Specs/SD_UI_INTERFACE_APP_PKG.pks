@@ -7,7 +7,9 @@ AS
   related packages that are invoked from UI
 
 created : 05/02/2013 jxc517 CCN Project....
-changed :
+changed : 08/20/2019 axm868 CCN Project....
+          CCNCC-9 Removed FSS_ON_DEMAND_BATCH_RUN procedure
+          as part of code cleanup
 **********************************************************/
 
 TYPE REF_CURSOR IS REF CURSOR;
@@ -563,15 +565,6 @@ Changed : 06/16/2016 jxc517 CCN Project Team....
 *******************************************************************************/
 IN_START_DATE      IN     DATE,
 IN_END_DATE        IN     DATE);
-
-PROCEDURE FSS_ON_DEMAND_BATCH_RUN
-/**********************************************************
-This process will kick off the FSS shell scripts on demand
-
-created : 04/12/2016 jxc517 CCN Project Team....
-modified :
-**********************************************************/
-;
 
 PROCEDURE GET_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS(
 /******************************************************************************

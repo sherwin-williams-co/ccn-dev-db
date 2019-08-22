@@ -13,7 +13,7 @@ modified: 08/16/2019 axm868 CCN Project CCNCC-9
 ************************************************************/
 
          TYPE REF_CURSOR IS REF CURSOR;
-         ALL_TAB_COLUMNS_TYPE 	ALL_TAB_COLUMNS%ROWTYPE;
+
 FUNCTION COMPUTE_EXPIRATION_DATE
 /******************************************************************************
     COMPUTE_EXPIRATOIN_DATE (in_date)
@@ -207,8 +207,7 @@ Created : 12/03/2015 jxc517 CCN Project....
 Modified: 
 **********************************************************/
 IN_CODE_HEADER_NAME      IN     VARCHAR2,
-IN_CODE_DETAIL_VALUE     IN     VARCHAR2,
-IN_CODE_TRANSLATION_NAME IN     VARCHAR2) RETURN VARCHAR2;
+IN_CODE_DETAIL_VALUE     IN     VARCHAR2) RETURN VARCHAR2;
 
 FUNCTION GET_DATAFILE_PATH_FNC(
 /**************************************************************** 
@@ -279,38 +278,16 @@ Modified:
     OUT_USER_NAME            OUT  VARCHAR2,
     OUT_PASSWORD             OUT  VARCHAR2);
 
-
-
 FUNCTION GET_COST_CENTER_DSC_CODES(
 /**********************************************************
 This Function is intended to return PRIMARY_DSC, SECONDARY_DSC Codes from
 from COST_CENTER_DSC_CODES 
 Created : 02/22/2018 SXG151 CCN Project....
+Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_DSC_TYPE       IN     VARCHAR2
     ) RETURN NUMBER;
-
-FUNCTION GET_COLOR_CONSULTANT_TYPE(
-/*******************************************************************************************
-This function will return the COLOR_CONSULTANT_TYPE From Cost Center table
-Created  : sxg151 03/21/2018 ASP-869
-Modified : 
-*******************************************************************************************/
-    IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE
-
-)RETURN VARCHAR2;
-
-FUNCTION GET_FIELD_VALUE_FROM_XML(
-/******************************************************************************
-    This functions extracts value from XML based on table/field names passed in 
-
-Created : 03/15/2019 dxp896 --  CCN Project....
-Changed :
-******************************************************************************/
-         IN_ROW_DATA          IN      SYS.XMLTYPE,
-         IN_TABLE_TYPE_REC    IN      ALL_TAB_COLUMNS%ROWTYPE)
-RETURN VARCHAR2;
 
 FUNCTION CHK_POS_NEW_STORES_BYPASS(
 /**********************************************************
@@ -328,7 +305,7 @@ RETURN BOOLEAN;
 
 FUNCTION GET_DESIGNATED_TERMINAL_NUMBER(
 /******************************************************************************
-This function will return the first designated terminal number for a given store     
+This function will return the first assigned terminal number for a given store     
 
 Created : 06/21/2019 axm868 --  CCN Project....
 Changed :

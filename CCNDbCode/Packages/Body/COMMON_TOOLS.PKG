@@ -2,13 +2,16 @@ create or replace PACKAGE BODY          COMMON_TOOLS AS
 /*********************************************************** 
 This package BODY is intended to hold reuseable objects that are 
 available to be used by the entire schema
-s
+
 -	DATE_BLANK(in_date)
 created : 08/24/2010 kdp 
-revised : 05/30/2013 mdh EXPIRE_DATA_SP changes. 
-modified: 08/16/2019 axm868 CCN Project CCNCC-9
+revised : 05/30/2013 mdh EXPIRE_DATA_SP changes.
+modified: 09/13/2018 kxm302 CCN Project Team...
+		: Removed GET_CC_MANAGER_NAME function ASP-1128
+		: 08/16/2019 axm868 CCN Project CCNCC-9
           removed EXECUTE_UNIX_COMMAND Function as part of cleanup
 ************************************************************/
+
 PROCEDURE ALTER_ALL_TRIGGERS ( 
 /******************************************************************************
 	ALTER_ALL_TRIGGERS   --    Alter all table(s) triggers
@@ -22,7 +25,6 @@ IN_STATUS  IN VARCHAR2 )
 IS
 CURSOR c_tr IS (SELECT 'ALTER TRIGGER ' || 
                         trigger_name AS stmnt FROM USER_TRIGGERS);
-
 --
 --
 v_code number;
@@ -80,6 +82,7 @@ BEGIN
     ELSE                   --  entry not found in the CODE_DETAIL table
         RETURN FALSE;
     END IF;
+
 END code_detail_valid;
 
 FUNCTION COMPUTE_EXPIRATION_DATE
@@ -241,7 +244,7 @@ PROCEDURE EXPIRE_DATA_SP (
 	This procedure is intended to expire specific row row(s) of data based on 
        table_name, Cost_Center, Address_Type(Addresses only), and Effective_Date. 
 
-    This procedure is intended to be used for the follownig tables: 
+  This procedure is intended to be used for the follownig tables: 
 
             ADDRESS_CAN, ADDRESS_USA, ADDRESS_MEX, ADDRESS_OTHER,ADDRESS_BRB
           , BANK_CARD
@@ -364,18 +367,14 @@ IF v_count  >  0  THEN
     --If past dated effective date => expiration date = effective date - 1
     --If current dated effective date => expiration date = system date - 1
     v_date := COMPUTE_EXPIRATION_DATE (in_EFFECTIVE_DATE);
-           proc_iex('common1'||v_date);
-
 --
 --    
 --*****************************************************************************
 --  update the table/row for IN_ROW_TABLE
 --*****************************************************************************
   BEGIN
-       v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Update expire date)' );
+       v_break  :=  ('Entered the COMMON_TOOLS.Expire_Data_SP (Update expire date)' ); 
        v_expiration_date := v_date;
-   proc_iex('common2'||v_expiration_date||'-'||v_row_id);
-
        sql_stmt := ('UPDATE ' || in_ROW_TABLE ||
                        ' SET EXPIRATION_DATE =  :v_expiration_date ' ||
                        ' WHERE  rowid = :v_row_id ');
@@ -386,7 +385,6 @@ IF v_count  >  0  THEN
 --   
             EXCEPTION 
              WHEN OTHERS THEN 
-              proc_iex('11111111111111111111' || SQLCODE || SQLERRM);
                  RAISE record_update_exp;
 --
   END;
@@ -534,32 +532,6 @@ BEGIN
 
 END country_look_up_fnc;
 
-FUNCTION DIVERSIFIED_ADDR_ALLWED( 
-/**********************************************************
-This function will return the DIVERSIFIED_ADDRESS_ALLOWED in indicator
-based on the cost center code passed
-
-created : 01/25/2018 nxk927 CCN Project...
-modified: 
-**********************************************************/
-IN_COST_CENTER  IN VARCHAR2
-)
-RETURN VARCHAR2
-IS
-  V_DIVERSIFIED_ADDR_ALLWED   VARCHAR2(1) := 'N';
-BEGIN
-    SELECT DIVERSIFIED_ADDRESS_ALLOWED
-      INTO V_DIVERSIFIED_ADDR_ALLWED
-      FROM COST_CENTER
-     WHERE UPPER(COST_CENTER_CODE)         = UPPER(IN_COST_CENTER)
-       AND NVL(CLOSE_DATE,TRUNC(SYSDATE)) >= TRUNC(SYSDATE);
-     RETURN V_DIVERSIFIED_ADDR_ALLWED;
-
-EXCEPTION
-  WHEN OTHERS THEN
-      RETURN V_DIVERSIFIED_ADDR_ALLWED;
-END DIVERSIFIED_ADDR_ALLWED;
-
 FUNCTION ADDRESS_LOOK_UP_FNC( 
 /**********************************************************
 This function will return ADDRESS TABLE name where the cost center is located
@@ -569,23 +541,13 @@ modified: 08/26/2015 jxc517 CCN Project....
           Added PRI under ADDRESS_USA as it should not go into ADDRESS_OTHER
 changed : 05/16/2016 jxc517 CCN Project Team....
           Added new table ADDRESS_BRB
-changed : 01/25/2018 NXK927 CCN Project Team....
-          signature changed to pass address type
-          checking cost center if the DIVERSIFIED ADDRESS is ALLOWED
-          for the cost center
 **********************************************************/
-IN_COST_CENTER  IN VARCHAR2,
-IN_ADDRESS_TYPE IN VARCHAR2
+IN_COST_CENTER  IN VARCHAR2
 )
 RETURN VARCHAR2
 IS
-  V_TABLE_NAME              VARCHAR2(20);
-  V_DIVERSIFIED_ADDR_ALLWED VARCHAR2(1) := DIVERSIFIED_ADDR_ALLWED(IN_COST_CENTER);
-  V_ADDRESS_TYPE            VARCHAR2(1) := IN_ADDRESS_TYPE;
+  V_TABLE_NAME   VARCHAR2(20);
 BEGIN
-    IF V_DIVERSIFIED_ADDR_ALLWED = 'N' THEN
-       V_ADDRESS_TYPE := NULL;
-    END IF;
     SELECT DECODE(COUNTRY_CODE, 'USA', 'ADDRESS_USA',
                                 'PRI', 'ADDRESS_USA',
                                 'CAN', 'ADDRESS_CAN',
@@ -595,7 +557,6 @@ BEGIN
       INTO V_TABLE_NAME
       FROM ADDRESS_VW
      WHERE UPPER(COST_CENTER_CODE) = UPPER(IN_COST_CENTER)
-       AND ADDRESS_TYPE            = NVL(V_ADDRESS_TYPE,ADDRESS_TYPE)
        AND EXPIRATION_DATE IS NULL
        AND ROWNUM = 1;
      RETURN V_TABLE_NAME;
@@ -635,7 +596,6 @@ OUT OUT_REF_CURSOR
 created : 09/04/2013 CCN Project
 modified: 08/27/2014 jxc517 CCN Project
 **********************************************************/
-
 IN_USER_ID      IN     VARCHAR2,
 OUT_REF_CURSOR     OUT CCN_COMMON_TOOLS.REF_CURSOR) RETURN VARCHAR2
 IS
@@ -738,8 +698,7 @@ modified: 03/26/2019 ASP-1207 mxs216 CCN Project....
    FROM_CC            VARCHAR2(6) := IN_OLD_CC;
    TO_CC              VARCHAR2(6) := IN_NEW_CC;
    SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
---   V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
---   V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
+
     V_BATCH_NUMBER    CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS    CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
@@ -905,7 +864,9 @@ modified: 03/24/2015 jxc517 CCN Project Team...
           Removed code for deleting the existing cost center from copy process
           Removed code for deleting audit for new cost center   the same from old cost center
 modified: 10/10/2017 rxv940 CCN Project Team...
-          Added code to call Polling process 		  
+          Added code to call Polling process 
+modified: 11/07/2017 bxa919 CCN Project Team...
+          Removed call for POS_MASTER_SP		  
         : 03/26/2019 ASP-1207 mxs216 CCN Project....
           Updated varibale declaration referencing CCN_BATCH_PKG.BATCH_JOB_TYPE
 **********************************************************/
@@ -922,8 +883,6 @@ modified: 10/10/2017 rxv940 CCN Project Team...
    TO_CC              VARCHAR2(6) := IN_NEW_CC;
    SQL_STATEMENTS_TAB SQL_STATEMENTS_TAB_TYPE;
 
---   V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
---   V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BATCH_NUMBER    CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS    CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
@@ -987,8 +946,8 @@ BEGIN
       --DBMS_OUTPUT.PUT_LINE(SQL_STATEMENTS_TAB(i)||';');
       EXECUTE IMMEDIATE(SQL_STATEMENTS_TAB(i));
    END LOOP;
-
-   --REMOVED POS_MASTER_SP CALL AS A PART OF POLLING CHANGES
+   -- Call to polling process
+  /* Removed POS_MASTER_SP() call as a part of polling Changes*/ 
    --Commit all the changes in the database
    COMMIT;
 
@@ -1299,7 +1258,7 @@ EXCEPTION
 END GET_CURR_LEV_VAL;
 
 PROCEDURE BULK_TERR_TYP_BUSN_CD_UPD_PRCS(
-/******************************************************************************************************
+/******************************************************************************
 This procedure is the core process for updating the TERRITORY_TYPE_BUSN_CODE
 column of TERRITORY table
 
@@ -1308,13 +1267,15 @@ IN_BLOB          - blob value delimited by , and termianted by new line characte
 Created by jxc517 02/19/2015
 Modified : 09/29/2017 axt754 Rename file on server for history
 Modified : 10/10/2017 rxv940 Added a call to Polling on successful update
-Modified: 02/12/2018 rxv940 CCN Project Team....          
+Modified: 11/07/2017 bxa919 CCN Project Team...
+          Removed call for POS_MASTER_SP
+Modified: 02/12/2018 rxv940 CCN Project Team....
           Added Set and re-set calls to stop DMLs producing polling records
         :  02/23/2018 sxg151 Calling MAIL_PKG.SEND_MAIL to send an email if Bulk Load process Fails.
-        :  02/23/2018 sxg151 Calling ERRPKG.ERROR_DETAILS to fetch the error records from Error_log table 
+        :  02/23/2018 sxg151 Calling ERRPKG.ERROR_DETAILS to fetch the error records from Error_log table
         : 06/28/2019 akj899 CCNCC-4 Added condition for updating TERRITORY_TYP_OF_BUSN_SGMNT_CD column of
           TERRITORY Table
-*********************************************************************************************************/
+**********************************************************************************************************/
 IN_BLOB            IN       BLOB)
 IS
     V_CONTEXT   VARCHAR2(3000);
@@ -1329,7 +1290,7 @@ IS
     V_CLOB_FOR_EMAIL    CLOB;
 BEGIN
     POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_TERR_TYP_BUSN_CD_UPD', V_BULK_LOAD_LKUP_ID);
-    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM); 
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
     FOR rec IN (SELECT * FROM TERRITORY_TYPE_BUSN_CODE_UPD) LOOP
         BEGIN
             SAVEPOINT TERR_TYP_BUSN_CD_UPD_SP;
@@ -1345,7 +1306,7 @@ BEGIN
             END;
             IF V_COUNT <> 1 THEN
                 SQ := errnums.en_territory_typ_business_rule;
-                SE := 'Territory Type Of Business and/or Territory Type Of Business Segment Code are applicable only for territory cost center';
+                SE := 'Territory Type Of Business is applicable only for territory cost center';
                 RAISE V_EXCEPTION;
             END IF;
             IF rec.TERRITORY_TYPE_BUSN_CODE IS NOT NULL AND
@@ -1388,23 +1349,24 @@ BEGIN
     END LOOP;
 
     --Call the errpkg.error_details package to fetch the data from error_log table to send an email.--ASP-975
-    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL); 
+    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
     IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        MAIL_PKG.SEND_MAIL('UI_BULK_TERR_TYP_LOAD_PRCS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL); 
+        MAIL_PKG.SEND_MAIL('UI_BULK_TERR_TYP_LOAD_PRCS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
     END IF;
+
     --Rename File on server for History
    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
 EXCEPTION
     WHEN OTHERS THEN
         --Call the errpkg.error_details package to fetch the data from error_log table to send an email.
-        ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);       
+        ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
         IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
             MAIL_PKG.SEND_MAIL('UI_BULK_TERR_TYP_LOAD_PRCS_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
-        END IF;      
-      -- The below call to reset the flag should always be the first line of the exception block
-      -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
-	    -- this call in the first line of exception block we make sure no other errors blocks the reset process	     
+        END IF;
+       -- The below call to reset the flag should always be the first line of the exception block
+       -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
+       -- this call in the first line of exception block we make sure no other errors blocks the reset process
        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
        V_CONTEXT := V_CONTEXT || ' ' || SQLCODE || ' ' || SQLERRM; 
        --Rename File on server for History
@@ -1534,38 +1496,14 @@ EXCEPTION
         RETURN V_FIPS_CODE;
 END GET_FIPS_CODE;
 
-FUNCTION IS_CC_SELLING_STORE(
-/**********************************************************
-This function will return true if passed cost center is a 
-selling store
-
-parameters:
-IN  IN_COST_CENTER
-
-created : 10/31/2016 sxh487 CCN Project
-modified: 
-**********************************************************/
-IN_COST_CENTER_CODE   IN  COST_CENTER.COST_CENTER_CODE%TYPE) 
-RETURN VARCHAR2
-IS
-  V_SELLING_STORE_FLAG      STORE.SELLING_STORE_FLAG%TYPE;
-BEGIN
-    SELECT SELLING_STORE_FLAG
-      INTO V_SELLING_STORE_FLAG
-      FROM STORE
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-    RETURN V_SELLING_STORE_FLAG;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN NULL;
-END IS_CC_SELLING_STORE;
-
 FUNCTION GET_FORMATTED_PHONE_NUMBER(
 /***********************************************
 Function to get formatted (###)###-#### Pri, Scd, Fax phone_number using 
 COST_CENTER_CODE and PHONE_NUMBER as Parameters
 
 created : 05/31/2017  rxa457 CCN Project..
+Modified: 02/02/2018  bxa919 changed the substr position to '4' 
+          as 'number' in phone and fax numbers is repeated twice.
 ***********************************************/
 IN_COST_CNTR_CD IN COST_CENTER.COST_CENTER_CODE%TYPE,
 IN_PHONE_NO_TYP IN PHONE.PHONE_NUMBER_TYPE%TYPE)
@@ -1716,7 +1654,7 @@ BEGIN
     IF  V_COUNT > 0  THEN  --  entry was found in the CUSTOMER_TAXID_VW table
         V_RETURN_VALUE := 'Y';
     END IF;
-    RETURN V_RETURN_VALUE;
+    RETURN V_RETURN_VALUE;    
 END IS_CC_HAVING_CSTMR_ACCNTS_FNC;
 
 FUNCTION GET_COST_CENTER_GEO_LATD_LNGTD(
@@ -1724,7 +1662,7 @@ FUNCTION GET_COST_CENTER_GEO_LATD_LNGTD(
 This Function is intended to return Latitude,longitude from CCN_ADDRESS_GEO_DETAILS
 
 Created : 03/14/2018 rxv940 CCN Project.... ASP-976
-Modified: 
+Modified:
 **********************************************************/
     IN_COST_CENTER    IN     COST_CENTER_DSC_CODES.COST_CENTER_CODE%TYPE,
     IN_GEO_TYPE       IN     VARCHAR2
@@ -1751,124 +1689,10 @@ EXCEPTION
 
 END GET_COST_CENTER_GEO_LATD_LNGTD;
 
-FUNCTION GET_PCC_COLOR_DSC(
-/***********************************************************
-This function will return COLOR_CONSULTANT_TYPE Description
-
-Created : 04/02/2018 sxg151 CCN Project ASP-869
-Modified: 
-************************************************************/
-    IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
-    IN_TYPE             IN     VARCHAR2
-    ) RETURN VARCHAR2
-IS
-    V_XML        XMLTYPE;
-    V_RETURN_VAL VARCHAR2(100);
-
-BEGIN
-    SELECT COLOR_CONSULTANT_TYPE
-      INTO V_XML
-      FROM COST_CENTER
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-
-    IF V_XML.GETSTRINGVAL() LIKE '%>' || IN_TYPE || '<%' THEN
-        V_RETURN_VAL := CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('COLOR_CONSULTANT_TYPE','COD',IN_TYPE);
-    ELSE
-        V_RETURN_VAL := 'N/A';
-    END IF;
-
-        RETURN V_RETURN_VAL;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_VAL;
-
-END GET_PCC_COLOR_DSC;
-
-FUNCTION IS_ARCHIVE_CC_FNC(
-/***********************************************************
-This function will return "Y" if the Cost Center provided is Archived
-
-Created : 10/31/2018 jxc517 CCN Project ASP-971
-Changed :
-************************************************************/
-    IN_COST_CENTER_CODE     IN       VARCHAR2)
-RETURN VARCHAR2
-IS
-    V_RETURN_VALUE   VARCHAR2(1) := 'N';
-BEGIN
-    SELECT 'Y'
-      INTO V_RETURN_VALUE
-      FROM CC_DELETION_GUIDS
-     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
-       AND ROWNUM = 1;
-    RETURN V_RETURN_VALUE;
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN V_RETURN_VALUE;
-END IS_ARCHIVE_CC_FNC;
-
---FUNCTION GET_CC_MANAGER_NAME(
---/***********************************************************
---This function will return Manager Name for given Cost Center Code
---
---Created : 03/28/2018 sxg151 CCN Project ASP-1048
---modified: 
---************************************************************/
---    IN_COST_CENTER_CODE     IN EMPLOYEE_DETAILS.COST_CENTER_CODE%TYPE)
---RETURN VARCHAR2
---IS 
---    V_MGR_NAME EMPLOYEE_DETAILS.EMPLOYEE_NAME%TYPE;    
---    V_CATEGORY COST_CENTER.CATEGORY%TYPE;
---BEGIN
---    BEGIN
---        SELECT CATEGORY
---          INTO V_CATEGORY
---          FROM COST_CENTER
---         WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
---    EXCEPTION
---        WHEN OTHERS THEN 
---            NULL;
---    END;
---
---    IF V_CATEGORY = 'T' THEN
---        SELECT EMPLOYEE_NAME
---          INTO V_MGR_NAME
---          FROM EMPLOYEE_DETAILS EMP
---         WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
---           AND UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
---           AND HIRE_DATE = (SELECT MAX(HIRE_DATE)
---                              FROM EMPLOYEE_DETAILS
---                             WHERE UPPER(COST_CENTER_CODE)  = IN_COST_CENTER_CODE
---                               AND UPPER(EMP_PAYROLL_STATUS)= 'ACTIVE');
---    ELSE
---        SELECT EMPLOYEE_NAME
---          INTO V_MGR_NAME
---          FROM (SELECT EMP.*
---                  FROM EMPLOYEE_DETAILS EMP
---                 WHERE UPPER(COST_CENTER_CODE)   = IN_COST_CENTER_CODE
---                   AND  UPPER(EMP_PAYROLL_STATUS) = 'ACTIVE'
---                   AND UPPER(JOB_TITLE) IN (SELECT DISTINCT UPPER(JOB_TITLE) FROM JOB_TITLE_GROUP
---                                             WHERE NONMGR_IND = 'Y'
---                                               AND UPPER(JOB_GROUP) NOT IN ('OPS MANAGER', 'ASSISTANT MANGER')
---                                               AND UPPER(JOB_TITLE) <> 'MTP'
---                                               )
---                 ORDER BY DECODE(UPPER(JOB_TITLE),'TRAINEE MGR',2,1), HIRE_DATE
---                 -- This is to make sure TRAINEE MGR is not at the top of the list when other managers are available
---                 -- "MTP" is a valid management trainee program from field payroll but not applicable for polling process per kdp
---             )
---       WHERE ROWNUM < 2;
---    END IF;
---    RETURN V_MGR_NAME;
---EXCEPTION
---    WHEN OTHERS THEN
---        RETURN V_MGR_NAME;
---END GET_CC_MANAGER_NAME;
-
 FUNCTION  IS_COST_CENTER_ARCHIVED(
 /***********************************************************
 This function will return "Y" if the Cost Center provided is Archived
-Created : 11/14/2018, mxs216, CCN Project ASP-1158
+Created : 11/27/2018, mxs216, CCN Project ASP-1158
 ************************************************************/
     IN_COST_CENTER_CODE IN VARCHAR2
 ) RETURN VARCHAR2
@@ -1893,56 +1717,28 @@ EXCEPTION
         RETURN V_RETURN_VALUE;
 END IS_COST_CENTER_ARCHIVED;
 
-FUNCTION CHECK_LAST_ACTIVE_COST_CENTER (
-/**********************************************************
-Address trigger to find last active address record for cc and throw error 
+FUNCTION IS_ARCHIVE_CC_FNC(
+/***********************************************************
+This function will return "Y" if the Cost Center provided is Archived
 
-Created : 03/5/2019 kxm302 CCN Project Team.....
-**********************************************************/
-    IN_TABLE_NAME          VARCHAR2,
-    IN_COST_CENTER_CODE    VARCHAR2,
-    IN_ADDRESS_TYPE        VARCHAR2
-) RETURN NUMBER
+Created : 10/31/2018 jxc517 CCN Project ASP-971
+Changed :
+************************************************************/
+    IN_COST_CENTER_CODE     IN       VARCHAR2)
+RETURN VARCHAR2
 IS
-   PRAGMA               AUTONOMOUS_TRANSACTION;   
-   V_COUNT              NUMBER := 0;
-   V_ROWCOUNT           NUMBER := 0;
-   v_sql_stmt           VARCHAR2(1000);
-   C1                   SYS_REFCURSOR;
-
+    V_RETURN_VALUE   VARCHAR2(1) := 'N';
 BEGIN
-    v_sql_stmt :=  'SELECT COUNT(*)  FROM  '||IN_TABLE_NAME
-                       ||' WHERE COST_CENTER_CODE = '||''''|| IN_COST_CENTER_CODE  ||''''
-                       || ' AND ADDRESS_TYPE      = '||''''|| IN_ADDRESS_TYPE      ||''''
-                       ||' AND EXPIRATION_DATE IS NULL';
-
-/*v_sql_stmt :=  ' SELECT count(*) over (partition by '||IN_COST_CENTER_CODE||','||IN_ADDRESS_TYPE||',EXPIRATION_DATE'||') as cnt '|| 
-                ' FROM  '||IN_TABLE_NAME
-                       ||' WHERE COST_CENTER_CODE = '||''''|| IN_COST_CENTER_CODE  ||''''
-                       || ' AND ADDRESS_TYPE      = '||''''|| IN_ADDRESS_TYPE      ||''''
-                       ||' AND EXPIRATION_DATE IS NULL';  */                     
-
-    OPEN C1 FOR v_sql_stmt; 
-    LOOP
-       FETCH C1 INTO V_COUNT;
-       EXIT WHEN C1%NOTFOUND;
-       V_ROWCOUNT := V_ROWCOUNT +1;
-       proc_iex('CHECK_LAST_ACTIVE_COST_CENTER-'||V_ROWCOUNT);       
-    END LOOP;
-    CLOSE C1;
-
-    IF V_ROWCOUNT=1 THEN
-        proc_iex('CHECK_LAST_ACTIVE_COST_CENTER1-'||V_COUNT);
-       RETURN V_COUNT;
-    ELSE
-       proc_iex('CHECK_LAST_ACTIVE_COST_CENTER2-'||V_COUNT);
-       RETURN 0;
-    END IF;   
-    COMMIT;   
+    SELECT 'Y'
+      INTO V_RETURN_VALUE
+      FROM CC_DELETION_GUIDS
+     WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+       AND ROWNUM = 1;
+    RETURN V_RETURN_VALUE;
 EXCEPTION
-   WHEN OTHERS THEN
-      RETURN V_COUNT;
-END;
+    WHEN OTHERS THEN
+        RETURN V_RETURN_VALUE;
+END IS_ARCHIVE_CC_FNC;
 
 PROCEDURE SYNC_ALLOCATION_TYPE(
 /******************************************************************************
@@ -1965,7 +1761,8 @@ BEGIN
         V_PCC_PCL_STORE         := REPLACE(REPLACE(IN_PCC_PCL_STORE.GETCLOBVAL(),chr(10)),chr(32));
     END IF;
     -- Checking if PCC tag is not in COLOR_CONSULTANT_TYPE (ALLOCATION_TYPE) but in PCC_PCL_STORE column
-    -- If so then deleting from PCC_PCL_STORE
+    -- If so then deleting from PCC_PCL_STORE  by finding the position of start and end node position for PCC i.e., <PCC> and </PCC>
+	-- and replace the entire content with null
     /*
     Before:<PCC_PCL_STR>
       <PCC>
@@ -1990,7 +1787,9 @@ BEGIN
                                 (INSTR(V_PCC_PCL_STORE,'</PCC>')+LENGTH('</PCC>')) - INSTR(V_PCC_PCL_STORE,'<PCC>')));
 	END IF;
     -- Checking if PCL tag is not in COLOR_CONSULTANT_TYPE (ALLOCATION_TYPE) but in PCC_PCL_STORE column
-    -- If so then deleting from PCC_PCL_STORE
+    -- If so then deleting from PCC_PCL_STORE by finding the position of start and end node position for PCL i.e., <PCL> and </PCL>
+	-- and replace the entire content with null
+
     /*
     Before:<PCC_PCL_STR>
       <PCC>
@@ -2077,7 +1876,7 @@ BEGIN
     --NOTE: The clob is built in the package "CCN_SPREADSHEET_PKG" which will be used by the below call
     CCN_SPREADSHEET_PKG.SAVE(PATH,FILENAME);
     --Below procedure will send the excel file as attachment through email based on the mail category
-    MAIL_PKG.SEND_MAIL('CCN_CLOSE_CC_ISSUE_DTLS_FILE_MAIL',NULL, NULL, NULL);
+    MAIL_PKG.SEND_MAIL('CCN_CLOSE_CC_ISSUE_DTLS_FILE_MAIL',NULL, IN_COST_CENTER_CODE, NULL);
 END GENERATE_CLOSE_CC_ISSUE_DTLS_FILE;
 
 END COMMON_TOOLS;
