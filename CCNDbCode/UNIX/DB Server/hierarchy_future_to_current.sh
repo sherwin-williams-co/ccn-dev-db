@@ -15,7 +15,7 @@
 #               :  mxv711 01/31/2018 ASP-993:added logic to send the trigger file to CPR
 #                  even when we have an error.
 # Modified      :  CCNCC-167 akj899 CCN project Team..
-#               :  Removed call to execute tp_cpr_trigger.sh since no longer needed
+#               :  Removed call to execute tp_cpr_trigger.sh since no longer needed.
 ############################################################################
 # below command will get the path for ccn.config respective to the environment from which it is run from
 . /app/ccn/host.sh
@@ -58,5 +58,9 @@ then
      fi
 fi
 
-exit 0
 ############################################################################
+
+TIME=`date +"%H:%M:%S"`
+echo "Processing finished for $proc at ${TIME} on ${DATE}"  
+
+exit 0
