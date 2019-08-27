@@ -9,7 +9,9 @@ THIS PACKAGE CONTAINS ERROR NUMBERS FROM
 
 created : 12/02/2011 blr CCN Project
 revisions: 09/22/2017 sxh487 Removed en_invalid_fips_code_err
-
+         : 07/17/2019 sxc403 added exceptiona "en_no_dispatch_errr" ,
+		   "en_no_dispatch_err","close_dispatch_asgn_store_exp",
+		   "en_close_dispatch_asgn_store_exp" orignially done by sxg151.
 ************************************************************/
 
 /*********************************************************** 
@@ -40,13 +42,13 @@ exc_invalid_cost_center_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_cost_center_err , -20001);
 
-/***********************************************************
+/*********************************************************** 
 The "inactive_cost_center_err" passes a numerical error of -20002.
 An error occurs when Cost_Center effective date >
 current date & expiration date not null.
 
 created : 06/07/2012 cbd CCN Project
-revisions:
+revisions: 
 
 ************************************************************/
 en_inactive_cost_center_err CONSTANT NUMBER := -20002;
@@ -449,7 +451,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_amexid_err" passes a numerical error of -20031.
-An error occurs when Amex ID is = `999999999¿.
+An error occurs when Amex ID is = `999999999?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -553,7 +555,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "invalid_inventory_id_err" passes a numerical error of -20039.
-An error occurs when inventory_id not = `y¿.
+An error occurs when inventory_id not = `y?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -809,7 +811,7 @@ PRAGMA EXCEPTION_INIT
 
 /*********************************************************** 
 The "en_invalid_poll_ind_err" passes a numerical error of -20058.
-An error occurs when Polling_Ind not = `Y¿ or `N¿.
+An error occurs when Polling_Ind not = `Y? or `N?.
 
 created : 06/07/2012 cbd CCN Project
 revisions: 
@@ -836,7 +838,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "inactive_polling_err" passes a numerical error of -20060.
 An error occurs when Polling effective date >
-current date & expiratin date not null.
+current date & expiration date not null.
 
 created : 06/08/2012 cbd CCN Project
 revisions: 
@@ -2103,7 +2105,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "invalid_duns_number_err" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 06/20/2013 cbd CCN Project
 revisions: 
@@ -2403,7 +2405,7 @@ PRAGMA EXCEPTION_INIT
 /*********************************************************** 
 The "EN_PREV_LEVEL_MISSING_ERR" passes a numerical error of -20155.
 This error will state the the duns number is missing for
-Stores & Others or that the duns number is not numeric. 
+Stores & Others or that the duns number is not numeric.
 
 created : 07/01/2013 SH CCN Project
 revisions: 
@@ -2916,29 +2918,6 @@ en_no_address_element_err CONSTANT NUMBER := -20182;
 exc_no_address_element_err EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_no_address_element_err , -20182);
 
-/***********************************************************
-The "EN_DATE_PASSED_ERR" passes a numerical error of -20183.
-An error occurs when effective date is the past than the current effective date
-
-created : 11/09/2017 axt754  CCN Project Team....
-revisions:
-************************************************************/
-EN_DATE_PASSED_ERR CONSTANT NUMBER := -20183;
-EXC_EN_DATE_PASSED_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT(EXC_EN_DATE_PASSED_ERR , -20183);
-
-/*********************************************************** 
-The "EN_COUNTRY_NOT_FOUND_ERR" passes a numerical error of -20184.
-This error will state the country code is missing in currency conversion. 
-
-created : 11/10/2017 axt754  CCN Project Team...
-revisions: 
-************************************************************/
-EN_COUNTRY_NOT_FOUND_ERR CONSTANT NUMBER := -20184;
-EXC_EN_COUNTRY_NOT_FOUND_ERR EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(EXC_EN_COUNTRY_NOT_FOUND_ERR , -20184);
-
 /*********************************************************** 
 The "en_cstmr_accnts_close_err" passes a numerical error of -20185.
 An error will occur while trying to close the cost centers
@@ -2966,31 +2945,6 @@ PRAGMA EXCEPTION_INIT
 (exc_no_taxware_nontaxware_info , -20186);
 
 /***********************************************************
-The "gl_ps_duplicate_sort_seq_err" passes a numerical error of -20190
-This error will says that there is duplicate of sorted
-sequence number under a program
-
-Created  : 02/01/2018 axt754 CCN Project Team....
-Modified :
-************************************************************/
-en_gl_ps_dup_sort_seq_err CONSTANT NUMBER := -20190;
-exc_gl_ps_dup_sort_seq_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_gl_ps_dup_sort_seq_err , -20190);
-
-/***********************************************************
-The "invalid_gl_num_len_err" passes a numerical error of -20191
-This error will say that GL_ACCOUNT_NUMBER is not of 7 charecters
-
-Created  : 02/01/2018 axt754 CCN Project Team....
-Modified :
-************************************************************/
-en_invalid_gl_num_len_err CONSTANT NUMBER := -20191;
-exc_invalid_gl_num_len_err EXCEPTION;
-PRAGMA EXCEPTION_INIT
-(exc_invalid_gl_num_len_err , -20191);
-
-/*********************************************************** 
 The "NO_ALLOC_CC_DIV_OFFSET_INFO" passes a numerical error of -20187.
 If allocation_cc and division_offset are not passed for ADMIN_COST_CNTR_TYPE
 '01'
@@ -3229,12 +3183,11 @@ exc_allocation_cc_null_err     EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_allocation_cc_null_err , -20209);
 
-
 /*********************************************************** 
 The "en_chn_not_ald_in_arch_cc_err" passes a numerical error of -20210.
 This error occurs when customer trying to update an Archieved cost center.
 
-created : 11/14/2018, mxs216, ASP - 1158
+created : 11/27/2018, mxs216, ASP - 1158
 ************************************************************/
 en_chn_not_ald_in_arch_cc_err      CONSTANT NUMBER := -20210;
 exc_chn_not_ald_in_arch_cc_err     EXCEPTION;
@@ -3266,6 +3219,18 @@ en_hrchy_dtls_not_exist_err      CONSTANT NUMBER := -20212;
 exc_hrchy_dtls_not_exists_err    EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_hrchy_dtls_not_exists_err , -20212);
 
+/***********************************************************
+The "en_costcntr_not_exist_err" passes a numerical error of -20219.
+This error occurs when cost center does not exist that is entered to generate
+Hierarchy report.
+"Sorry, This cost center does not exists"
+
+created : 01/08/2019 pxa852 CCN Project Team...
+************************************************************/
+en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
+exc_costcntr_not_exist_err    EXCEPTION;
+PRAGMA EXCEPTION_INIT(exc_costcntr_not_exist_err , -20219);
+
 /*********************************************************** 
 The "en_invalid_qa_terr_nbr_err" passes a numerical error of -20218.
 Number Range BETWEEN 99750 AND 99999 Allowed only for QA COST CENTER with Prefix 'LB'.
@@ -3276,18 +3241,6 @@ created : 01/10/2019 jc/pxm158 ASP - 1192 CCN Project Team...
 en_invalid_qa_terr_nbr_err    CONSTANT NUMBER := -20218;
 exc_invalid_qa_terr_nbr_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_invalid_qa_terr_nbr_err, -20218);
-
-/***********************************************************
-The "en_costcntr_not_exist_err" passes a numerical error of -20219.
-This error occurs when cost center does not exist that is entered to generate
-Hierarchy report.
-"Sorry, This cost center does not exists"
-
-created : 01/08/2019 pxa852 CCN Project Team...
-************************************************************/
-en_costcntr_not_exist_err      CONSTANT NUMBER := -20219;
-exc_costcntr_not_exists_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_costcntr_not_exists_err , -20219);
 
 /***********************************************************
 The "en_territory_cc_open_date_err" passes a numerical error of -20220.
@@ -3308,66 +3261,6 @@ created : 01/17/2019 pxm158 ASP - 1197 CCN Project Team...
 en_costcntr_cc_close_date_err  CONSTANT NUMBER := -20221;
 exc_close_date_req_alloc_type_err   EXCEPTION;
 PRAGMA EXCEPTION_INIT(exc_close_date_req_alloc_type_err, -20221);
-
-/***********************************************************
-The "en_hrchy_bulk_attr_update_err" passes a numerical error of -20213
-This error occurs during Hierarchy Bulk attribute update using template/process in the batch window
-
-created : 12/03/2018, mxs216, ASP - 1169 CCN Project Team
-************************************************************/
-en_hrchy_bulk_attr_update_err    CONSTANT NUMBER := -20213;
-exc_hrchy_bulk_attr_update_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_hrchy_bulk_attr_update_err, -20213);
-
-/***********************************************************
-The "en_invalid_hrchy_name_err" passes a numerical error of -20215
-This error occurs when hierarchy not exists in HIERARCHY_HEADER
-
-created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team
-************************************************************/
-en_invalid_hrchy_name_err    CONSTANT NUMBER := -20215;
-exc_invalid_hrchy_name_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_name_err, -20215);
-
-/***********************************************************
-The "en_invalid_attr_name_err" passes a numerical error of -20216
-This error occurs when attribute name not exists in hierarchy_description.upper_lvl_ver_value column
-
-created : 12/26/2018 mxs216 CCN Project Team
-************************************************************/
-en_invalid_attr_name_err     CONSTANT NUMBER := -20216;
-exc_invalid_attr_name_err    EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_invalid_attr_name_err, -20216);
-
-/***********************************************************
-The "en_invalid_attr_value_err" passes a numerical error of -20217
-This error occurs when attribute value not found in code_detail table
-
-created : 12/26/2018 mxs216 ASP - 1169 CCN Project Team
-************************************************************/
-en_invalid_attr_value_err    CONSTANT NUMBER := -20217;
-exc_invalid_attr_value_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_invalid_attr_value_err, -20217);
-
-/***********************************************************
-The "en_invalid_hrchy_level_err" passes a numerical error of -20222.
-This error occurs when level not found for the corresponding Hierarchy
-
-created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_invalid_hrchy_level_err  CONSTANT NUMBER := -20222;
-exc_invalid_hrchy_level_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_level_err, -20222);
-
-/***********************************************************
-The "en_territory_cc_open_date_err" passes a numerical error of -20223.
-This error occurs when level value not found for the corresponding Hierarchy and level
-
-created : 02/07/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_invalid_hrchy_lvl_value_err  CONSTANT NUMBER := -20223;
-exc_invalid_hrchy_lvl_value_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_invalid_hrchy_lvl_value_err, -20223);
 
 /***********************************************************
 The "close_store_asgn_dispatch_err" passes a numerical error of -20225.
@@ -3398,6 +3291,7 @@ PRAGMA EXCEPTION_INIT
 (exc_no_dispatch_err , -20226);
 
 /*********************************************************** 
+/*********************************************************** 
 The "close_dispatch_asgn_store_exp" passes a numerical error of -20227.
 This error states that there this "DISPATCH TERMINAL" cost center
 is still assigned to a a home store. 
@@ -3410,56 +3304,6 @@ en_close_dispatch_asgn_store_exp CONSTANT NUMBER := -20227;
 exc_close_dispatch_asgn_store_exp EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_close_dispatch_asgn_store_exp , -20227);
-
-/***********************************************************
-The "en_build_xml_err" passes a numerical error of -20228.
-This error occurs when error occurs during building XML.
-
-created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_build_xml_err    CONSTANT NUMBER := -20228;
-exc_build_xml_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_build_xml_err, -20228);
-
-/***********************************************************
-The "en_update_upr_lv_ver_v_err" passes a numerical error of -20229.
-This error occurs when fails HIERARCHY_DETAIL.upper_lvl_ver_value update process.
-
-created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_update_upr_lvl_ver_v_err  CONSTANT NUMBER := -20229;
-exc_update_upr_lvl_ver_v_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_update_upr_lvl_ver_v_err, -20229);
-
-/***********************************************************
-The "en_get_upr_lv_ver_v_err" passes a numerical error of -20230.
-This error occurs when retrieving value of HIERARCHY_DETAIL.upper_lvl_ver_value fails
-
-created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_get_upr_lvl_ver_v_err    CONSTANT NUMBER := -20230;
-exc_get_upr_lvl_ver_v_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_get_upr_lvl_ver_v_err, -20230);
-
-/***********************************************************
-The "en_build_gems_id_mgr_name_err" passes a numerical error of -20231.
-This error occurs when building XML for GEM_ID/MANAGERNAME fails
-
-created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_build_gems_id_mgr_name_err    CONSTANT NUMBER := -20231;
-exc_build_gems_id_mgr_name_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_build_gems_id_mgr_name_err, -20231);
-
-/***********************************************************
-The "en_get_employee_rec_err" passes a numerical error of -20232.
-This error occurs when building XML for GEM_ID/MANAGERNAME fails
-
-created : 03/18/2018 mxs216 ASP - 1169 CCN Project Team...
-************************************************************/
-en_get_employee_rec_err    CONSTANT NUMBER := -20232;
-exc_get_employee_rec_err   EXCEPTION;
-PRAGMA EXCEPTION_INIT(exc_get_employee_rec_err, -20232);
 
 /***********************************************************
 The "en_invalid_dsptch_srvc_typ_cd_err" passes a numerical error of -20234.
