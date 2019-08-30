@@ -212,4 +212,17 @@ exc_no_terminal_number_err EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_no_check_run_type_err , -20037);
 
+/*********************************************************** 
+The "en_no_terminal_number_err" passes a numerical error of -20037.
+This error raises error message in run type maintenance window
+if job bticket template passed doesn't exist in code detail table .
+
+created : 08/23/2019 ASP-1193 CCNSD-8 akj899 CCN Project Teamm....
+revisions: 
+************************************************************/
+en_no_job_tkt_template_err CONSTANT NUMBER := -20038;
+exc_no_job_tkt_template_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_no_job_tkt_template_err , -20038);
+
 END errnums;
