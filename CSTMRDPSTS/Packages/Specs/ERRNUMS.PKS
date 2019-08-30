@@ -59,4 +59,17 @@ exc_invalid_term_and_tran_nbr EXCEPTION;
 PRAGMA EXCEPTION_INIT
 (exc_invalid_term_and_tran_nbr , -20004);
 
+/************************************************************
+The "en_invalid_cost_center_err" passes a numerical error of -20005.
+This error will check the valid cost_center code 
+
+created : 08/30/2019 sxc403 CCN Project Team...
+        : CCNCD-4
+revisions: 
+************************************************************/
+en_invalid_cost_center_err CONSTANT NUMBER := -20005;
+exc_invalid_cost_center_err EXCEPTION;
+PRAGMA EXCEPTION_INIT
+(exc_invalid_cost_center_err , -20005);
+
 END ERRNUMS;

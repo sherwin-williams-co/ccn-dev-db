@@ -63,75 +63,72 @@ EXCEPTION
         RETURN 0;
 END GET_SALES_LINE_AMOUNT;
 
-FUNCTION COST_CENTER_LOOK_UP_FNC(
+FUNCTION cost_center_look_up_fnc( 
 /**********************************************************
-THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
-WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING COST CENTER CODE IS NOT FOUND
-ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
+This function will return 6 digit COST_CENTER_CODE
+when the 4-digit code is passed
 
-Created : 06/08/2017 CCN PROJECT TEAM..
-Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
-          removing the raise error if the cost center is not present and returning the 4 digit cost center back
+parameters: in
+
+created : 04/19/2013 SH CCN Project
+modified: 02/02/2015 axk326 CCN Project Team...
+          Added Upper() function while selecting from any table 
+          based on COST_CENTER_CODE
+          04/07/2016 axd783 Modified the logic to list the cost centers having same last 4 characters 
 **********************************************************/
-IN_COST_CENTER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE,
-IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
+in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE 
 )
-RETURN VARCHAR2
+RETURN varchar2
 IS
 
-  V_COST_CENTER_CODE          VARCHAR2(30);
-  INVALID_COST_CENTER_ERR     EXCEPTION;
-  MULTI_COSTCNTR_ERROR        EXCEPTION;
-  V_COST_CENTER_STR           VARCHAR2(30);
+  v_COST_CENTER_CODE          VARCHAR2(30);  
+  invalid_cost_center_err     EXCEPTION;
+  multi_costcntr_error        EXCEPTION;
+  v_cost_center_str           VARCHAR2(30);
 
 --
 BEGIN
-      SELECT LISTAGG(COST_CENTER_CODE, ',')
-          WITHIN GROUP (ORDER BY COST_CENTER_CODE)
-        INTO V_COST_CENTER_STR
-        FROM
-        (SELECT /*+  INDEX(COST_CENTER COST_CENTER_PK) */ COST_CENTER_CODE
-          FROM COSTCNTR.COST_CENTER
-         WHERE LENGTH(IN_COST_CENTER) = 6
-           AND COST_CENTER_CODE = (IN_COST_CENTER)
-        UNION
-        SELECT /*+  INDEX(COST_CENTER COST_CENTER_NX02) */ COST_CENTER_CODE
-          FROM COSTCNTR.COST_CENTER
-         WHERE LENGTH(IN_COST_CENTER) = 4
-           AND SUBSTR(COST_CENTER_CODE,3) = UPPER(IN_COST_CENTER)
-        );
 
-    IF V_COST_CENTER_STR IS NOT NULL THEN
-        IF INSTR(V_COST_CENTER_STR, ',') > 0 THEN
-            IF IN_ERROR_FLAG = 'Y' THEN
-                RAISE MULTI_COSTCNTR_ERROR;
-            ELSE
-                RETURN IN_COST_CENTER;
-            END IF;
-        END IF;
+    SELECT LISTAGG(COST_CENTER_CODE, ',') 
+           WITHIN GROUP (ORDER BY COST_CENTER_CODE)
+           INTO v_cost_center_str
+      FROM COST_CENTER
+     WHERE UPPER(DECODE(LENGTH(in_COST_CENTER)
+                       ,6,COST_CENTER_CODE
+                       ,4,SUBSTR(COST_CENTER_CODE,3)
+                       ,NULL)) = UPPER(in_COST_CENTER);
+
+    IF v_cost_center_str IS NOT NULL THEN
+       IF INSTR(v_cost_center_str, ',') > 0 THEN
+           RAISE multi_costcntr_error;
+       END IF;
     ELSE
-        IF IN_ERROR_FLAG = 'Y' THEN
-            RAISE INVALID_COST_CENTER_ERR;
-        ELSE
-            RETURN IN_COST_CENTER;
-        END IF;
+       RAISE invalid_cost_center_err;
     END IF;
 
-    --IT COMES HERE ONLY IF THERE IS ONLY ONE COST CENTER FOR THE INPUT PASSED
-    V_COST_CENTER_CODE := V_COST_CENTER_STR ;
-    RETURN NVL(V_COST_CENTER_CODE,IN_COST_CENTER);
+    --It comes here only if there is only one cost center for the input passed    
+    v_COST_CENTER_CODE := v_cost_center_str ;  
+
+    RETURN v_COST_CENTER_CODE;
+
 EXCEPTION
 
-    WHEN INVALID_COST_CENTER_ERR THEN
-        RETURN IN_COST_CENTER;
-    WHEN MULTI_COSTCNTR_ERROR THEN
-        ERRPKG.RAISE_ERR(ERRNUMS.EN_DUP_MAINFRAME_COSTCNTR_ERR
-                         ,'COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC'
-                         ,'TWO OR MORE COST CENTERS ''' ||V_COST_CENTER_STR|| '''EXISTS WITH SAME LAST FOUR CHARACTERS IN THE MAINFRAME');
-                 NULL;
+    WHEN invalid_cost_center_err THEN  
+         errpkg.raise_err(errnums.en_invalid_cost_center_err
+                         ,'COMMON_TOOLS.cost_center_look_up_fnc' ||'Entered Cost_Center_Code was "' ||  in_COST_CENTER || '". ' 
+                           ||'CCN_TABLE_IU_PKG ' || 'Cost Center is not found - Would you like to Add? ' ); 
+
+    WHEN multi_costcntr_error THEN
+         errpkg.raise_err(errnums.en_dup_mainframe_costcntr_err
+                         ,'COMMON_TOOLS.cost_center_look_up_fnc'
+                         ,'Two or more Cost Centers ''' ||v_cost_center_str|| '''exists with same last four characters in the Mainframe');
+
     WHEN OTHERS THEN
-          RETURN IN_COST_CENTER;
-END COST_CENTER_LOOK_UP_FNC;
+         v_COST_CENTER_CODE := in_COST_CENTER;
+         errpkg.raise_err(SQLCODE
+                         ,'cost center not found COMMON_TOOLS.cost_center_look_up_fnc Error');    
+
+END cost_center_look_up_fnc;
 
 FUNCTION FNC_GET_LATEST_CUM_AMT(
 /**********************************************************
