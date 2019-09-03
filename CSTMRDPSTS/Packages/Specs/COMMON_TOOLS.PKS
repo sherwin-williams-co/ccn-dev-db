@@ -43,9 +43,10 @@ ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
 Created : 06/08/2017 CCN PROJECT TEAM..
 Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
           removing the raise error if the cost center is not present and returning the 4 digit cost center back
+modified 08/30/2019 sxc403 CCN Project Team
+         Modified the number of parameters to call cost_center_lookup_fnc to match costcenter.common_tools pkgbody.
 **********************************************************/
-IN_COST_CENTER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE,
-IN_ERROR_FLAG IN VARCHAR DEFAULT 'Y'
+IN_COST_CENTER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE
 )
 RETURN VARCHAR2;
 
@@ -83,21 +84,5 @@ Changed :
 ************************************************************/
 IN_CUSTOMER_ACCOUNT_NUMBER   IN  CUSTOMER_DEPOSIT_HEADER.CUSTOMER_ACCOUNT_NUMBER%TYPE)
 RETURN CUSTOMER_DEPOSIT_HEADER_HST%ROWTYPE;
-
-FUNCTION COST_CENTER_LOOK_UP_FNC(
-/**********************************************************
-THIS FUNCTION WILL RETURN 6 DIGIT COST_CENTER_CODE
-WHEN THE 4-DIGIT CODE IS PASSED OR JUST THE 4 DIGIT COST CENTER CODE IF MATCHING COST CENTER CODE IS NOT FOUND
-ERROR IS RAISED IF ERROR FLAG IS SET TO YES ELSE NO ERROR WILL BE RAISED
-
-Created : 06/08/2017 CCN PROJECT TEAM..
-Modified: 08/10/2017 nxk927 CCN PROJECT TEAM..
-          removing the raise error if the cost center is not present and returning the 4 digit cost center back
-modified 08/30/2019 sxc403 CCN Project Team
-         Modified the number of parameters to call cost_center_lookup_fnc to match costcenter.common_tools pkgbody.
-**********************************************************/
-IN_COST_CENTER IN CUSTOMER_DEPOSIT_TRANSACTION_DTL.COST_CENTER_CODE%TYPE
-)
-RETURN VARCHAR2;
 
 END COMMON_TOOLS;
