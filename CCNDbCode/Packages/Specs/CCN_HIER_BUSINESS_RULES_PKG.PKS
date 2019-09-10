@@ -279,7 +279,8 @@ PROCEDURE DUP_ADMINORG_LVL_VALIDATION(
   created : 09/01/2016 MXK766 CCN Project Team....
   Modified: 
 ********************************************************************************/
-IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE);
+IN_HIERARCHY_DETAIL_ROW IN HIERARCHY_DETAIL%ROWTYPE,
+IN_COSTCENTER_YN        IN VARCHAR2);
 
 FUNCTION IS_HRCHY_TO_EQUAL_HRCHY_FROM(
 /***********************************************************
@@ -321,64 +322,5 @@ changed :
     IN_HIERARCHY_DETAIL_ROW IN     HIERARCHY_DETAIL%ROWTYPE,
     IN_FLAG                 IN     VARCHAR2);
 
-FUNCTION IS_VALID_HIERARCHY_NAME(
-/***********************************************************
-This function will return "Y" if the Hierarchy name is exist in HIERARCHY_HEADER
-Created : 12/17/2018, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_HDR_NAME     IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_ATTRIBUTE_NAME(
-/***********************************************************
-This function will return "Y" if the attribute name is exist in HIERARCHY_DESCRIPTION
-Created : 12/17/2018, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_HDR_NAME     IN HIERARCHY_DESCRIPTION.HRCHY_HDR_NAME%TYPE,
-    IN_HRCHY_HDR_LVL_NBR  IN HIERARCHY_DESCRIPTION.HRCHY_HDR_LVL_NBR%TYPE,
-    IN_ATTRIBUTE_NAME     IN VARCHAR2)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_ATTRIBUTE_VALUE(
-/***********************************************************
-This function will return "Y" if the attribute value is a valid value
-Created : 12/17/2018, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_ATTRIBUTE_NAME     IN VARCHAR2,
-    IN_ATTRIBUTE_VALUE    IN VARCHAR2)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_HRCHY_ATTR_DETAILS(
-/***********************************************************
-This function is validating the data reading from flat file 
-and validating HIERARCHY_NAME, ATTRIBUTE_NAME and ATTRIBUTE_VALUE
-Created : 12/18/2018, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_HIERARCHY_LEVEL(
-/***********************************************************
-This function will return "Y" if the Hierarchy Level exist in HIERARCHY_DESCRIPTION
-Created : 02/08/2019, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_HIERARCHY_LEVEL_VALUE(
-/***********************************************************
-This function will return "Y" if the Hierarchy Cur Level Value exist in HIERARCHY_DETAILS
-Created : 02/08/2019, mxs216, CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
-RETURN VARCHAR2;
-
-FUNCTION IS_VALID_GEMS_ID(
-/***********************************************************
-This function will return "Y" if GEMS_ID is valid
-Created : 03/12/2019 mxs216 CCN Project ASP-1169
-************************************************************/
-    IN_HRCHY_ATTR_DETAILS_REC      IN temp_hierarchy_bulk_attr_upd%ROWTYPE)
-RETURN VARCHAR2;
 
 END CCN_HIER_BUSINESS_RULES_PKG;

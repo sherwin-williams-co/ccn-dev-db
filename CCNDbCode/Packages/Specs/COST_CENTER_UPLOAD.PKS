@@ -1,5 +1,5 @@
-create or replace PACKAGE COST_CENTER_UPLOAD AS
-
+create or replace PACKAGE COST_CENTER_UPLOAD AS 
+ 
 PROCEDURE BATCH_LOAD_PROCESS
 /******************************************************************************
 BATCH_LOAD_PROCESS
@@ -23,6 +23,7 @@ IN_BLOB          - blob value delimited by , and termianted by new line characte
 IN_CATEGORY_CODE - A ADMINISTRATIVE, M	MANUFACTURING, O	OTHER, R	REAL ESTATE, S	STORE, T	TERRITORY
 
 ******************************************************************************/
-IN_BLOB            IN       BLOB);
+IN_BLOB            IN       BLOB );
 
  END COST_CENTER_UPLOAD;
+ 

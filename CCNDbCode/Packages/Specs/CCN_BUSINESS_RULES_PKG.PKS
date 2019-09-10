@@ -619,6 +619,7 @@ REVISED :
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,intype_rowtype                   IN  TYPE%ROWTYPE);  
+
  PROCEDURE VALIDATE_CATEGORY(
 /*******************************************************************************
   This Procedure is designed to Validate Category of cost center
@@ -655,3 +656,4 @@ created : mxs216 on 11/14/2018, ASP-1158
  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
 
 END CCN_BUSINESS_RULES_PKG;
+
