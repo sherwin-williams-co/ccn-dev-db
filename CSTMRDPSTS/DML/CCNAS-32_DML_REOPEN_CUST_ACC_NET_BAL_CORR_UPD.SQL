@@ -5,7 +5,7 @@ as well.
 Account list are taken from TEMP_CD_ACC_CLOSE_LIST which was built from
 CD_ACC_CLOSE_LIST.csv files.
 
-Created: 09/10/2019 akj899 CCNAS-32 CCN Project....
+Created: 09/11/2019 akj899 CCNAS-32 CCN Project....
 ------------------------------------------------------------------------------------------------------------------*/
 DECLARE
     CURSOR ALL_ACCOUNTS IS
@@ -30,19 +30,22 @@ BEGIN
            WHERE ROWID                = rec1.ROWID
              AND CUSTOMER_NET_BALANCE <> V_NET_BAL;
 
-          UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
-             SET CLOSED_DATE          = NULL,
-                 CLEARED_REASON       = NULL,
-                 NOTES                = NULL
-           WHERE ROWID          = rec1.ROWID
-             AND TRUNC(CLOSED_DATE)   >= '30-AUG-2019';
       END LOOP;
    END LOOP;
+   
+   UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
+   SET CLOSED_DATE          = NULL,
+       CLEARED_REASON       = NULL,
+       NOTES                = NULL
+ WHERE TRUNC(CLOSED_DATE)   >= '30-AUG-2019'
+   AND CUSTOMER_ACCOUNT_NUMBER  IN (SELECT CUSTOMER_NUMBER FROM TEMP_CD_ACC_CLOSE_LIST);
+   
     COMMIT;
+
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.INSERT_ERROR_LOG_SP( SQLCODE,
-                                    'NET_BAL_CORRECTION_08262019',
+                                    'NET_BAL_CORRECTION_09112019',
                                     SQLERRM,
                                     '000000',
                                     '000000000',
