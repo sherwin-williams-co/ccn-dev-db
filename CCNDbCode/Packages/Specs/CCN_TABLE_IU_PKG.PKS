@@ -111,18 +111,6 @@ created : 02/20/2018 mxv711 CCN Project....
 *******************************************************************************/
 ;
 
-  PROCEDURE LAD_CUSTOMER_S_SP (in_COST_CENTER IN LAD_CUSTOMER.COST_CENTER_CODE%TYPE
-							, out_LAD_CUSTOMER_REF_CUR OUT REF_CURSOR)
-/*******************************************************************************
-	LAD_CUSTOMER_S_SP
-
-	This procedure is intended to return a ref cursor with data from 
-	from the LAD_CUSTOMER table.  
-
-created : 02/20/2018 mxv711 CCN Project....
-*******************************************************************************/
-;
-
 	PROCEDURE BANK_CARD_S_SP  (IN_COST_CENTER           IN BANK_CARD.COST_CENTER_CODE%TYPE
                             ,IN_POLLING_STATUS_CODE   IN BANK_CARD.POLLING_STATUS_CODE%TYPE
                             ,IN_MERCHANT_ID_CODE      IN BANK_CARD.MERCHANT_ID%TYPE
