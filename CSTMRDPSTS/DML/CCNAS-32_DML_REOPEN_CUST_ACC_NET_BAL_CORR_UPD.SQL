@@ -26,17 +26,16 @@ BEGIN
       FOR rec1 IN Account_det(rec.CUSTOMER_ACCOUNT_NUMBER) LOOP
           V_NET_BAL  := V_NET_BAL + rec1.CSTMR_DPST_SALES_LN_ITM_AMT;
           UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
-             SET CLOSED_DATE          = NULL,
-                 CLEARED_REASON       = NULL
-           WHERE ROWID          = rec1.ROWID
-             AND CLEARED_REASON = 'Aged Deposit'
-             AND CLOSED_DATE IS NOT NULL;
-
-          UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
              SET CUSTOMER_NET_BALANCE = V_NET_BAL
            WHERE ROWID                = rec1.ROWID
              AND CUSTOMER_NET_BALANCE <> V_NET_BAL;
 
+          UPDATE CUSTOMER_DEPOSIT_TRANSACTION_DTL
+             SET CLOSED_DATE          = NULL,
+                 CLEARED_REASON       = NULL,
+                 NOTES                = NULL
+           WHERE ROWID          = rec1.ROWID
+             AND TRUNC(CLOSED_DATE)   >= '30-AUG-2019';
       END LOOP;
    END LOOP;
     COMMIT;
