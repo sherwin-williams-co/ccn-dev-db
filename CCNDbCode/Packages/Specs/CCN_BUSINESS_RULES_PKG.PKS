@@ -12,6 +12,9 @@ revised :mdh 9/24/2012
          12/16/2014 AXK326 CCN Project Team....
          Code changes made after deleting the sales manager link from the Territory Table
          Changed: 04/17/17 rxa457 --added Business Rules for DISPATCH_TERMINAL
+         axm868 09/04/2019 CCN Project Team....CCNCC-175
+         Removed MERCHANT_ID_SP Procedure so as to remove
+         all the rules around MERCHANT_ID column
 *******************************************************************************/
 
 
@@ -102,20 +105,6 @@ Changed:  03/08/2018 mxv711 CCN Project Team..
    ,inTERRITORY_ROWTYPE         IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE              IN TYPE%ROWTYPE
  );
-
-/*****************************************************************************/
-PROCEDURE MERCHANT_ID_SP (
-/******************************************************************************
-	MERCHANT_ID_SP
-
-	This procedure is intended to enforce the Business Rules
-	for verifying the Merchant_ID on the BANK_CARD Table
-
-created : 4/26/2012
-*******************************************************************************/	
-	inMERCHANT_ID IN BANK_CARD.MERCHANT_ID%TYPE
- ,inCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
- ,inPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE);
 
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
@@ -619,7 +608,6 @@ REVISED :
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
  ,intype_rowtype                   IN  TYPE%ROWTYPE);  
-
  PROCEDURE VALIDATE_CATEGORY(
 /*******************************************************************************
   This Procedure is designed to Validate Category of cost center
@@ -637,9 +625,11 @@ This procedure is intended to enforce the Business Rules
 for verifying the in_MERCH_ID_CAN_MC on the BANK_CARD Table
 
 created  : 01/16/2018 BXA919 
+Modified : 09/04/2019 axm868 CCN Project Team....CCNCC-175
+           Removed in_MERCH_ID_CAN_MC input so as to remove
+           all the rules around MERCH_ID_CAN_MC column
 *******************************************************************************/	
-  in_MERCH_ID_CAN_MC              IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
- ,in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+  in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
  ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
  ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
 
@@ -656,4 +646,3 @@ created : mxs216 on 11/14/2018, ASP-1158
  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
 
 END CCN_BUSINESS_RULES_PKG;
-
