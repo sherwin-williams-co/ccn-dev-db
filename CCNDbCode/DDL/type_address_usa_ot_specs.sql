@@ -11,10 +11,12 @@ It has 1 Constructor and 2 Functions
 
 Created : 09/28/2016 jxc517 CCN Project....
 Changed : 04/03/2017 gxg192 Added comments block.
+Changed : 09/12/2019 akj899 ASP-970 CCN Project....
+          Increased address field size to 100
 *****************************************************************************/
-ADDRESS_LINE_1             VARCHAR2(35),
-ADDRESS_LINE_2             VARCHAR2(35),
-ADDRESS_LINE_3             VARCHAR2(35),
+ADDRESS_LINE_1             VARCHAR2(100),
+ADDRESS_LINE_2             VARCHAR2(100),
+ADDRESS_LINE_3             VARCHAR2(100),
 CITY                       VARCHAR2(25),
 STATE_CODE                 VARCHAR2(2),
 ZIP_CODE                   VARCHAR2(5),

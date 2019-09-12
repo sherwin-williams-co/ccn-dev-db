@@ -11,15 +11,17 @@ It has 1 Constructor and 2 Functions
 
 Created : 09/28/2016 jxc517 CCN Project....
 Changed : 04/03/2017 gxg192 Added comments block.
+Changed : 09/12/2019 akj899 ASP-970 CCN Project....
+          Increased address field size to 100
 *****************************************************************************/
-ADDRESS_LINE_1             VARCHAR2(35),
-ADDRESS_LINE_2             VARCHAR2(35),
-ADDRESS_LINE_3             VARCHAR2(35),
+ADDRESS_LINE_1             VARCHAR2(100),
+ADDRESS_LINE_2             VARCHAR2(100),
+ADDRESS_LINE_3             VARCHAR2(100),
 CITY                       VARCHAR2(25),
-PROVINCE_CODE             VARCHAR2(2),
-POSTAL_CODE               VARCHAR2(6),
-VALID_ADDRESS             VARCHAR2(1),
-COUNTRY_CODE              VARCHAR2(3),
+PROVINCE_CODE              VARCHAR2(2),
+POSTAL_CODE                VARCHAR2(6),
+VALID_ADDRESS              VARCHAR2(1),
+COUNTRY_CODE               VARCHAR2(3),
 
 CONSTRUCTOR FUNCTION address_can_ot(IN_COST_CENTER_CODE IN    VARCHAR2,
                                     IN_ADDRESS_TYPE     IN    VARCHAR2) RETURN SELF AS RESULT,
