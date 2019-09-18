@@ -8,6 +8,7 @@ Modified : 08/14/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
            Added two new columns MICR and PART_NUMBER
            08/21/2019 Dropped MICR and renamed PART_NUMBER to
                       JOB_TICKET_TEMPLATE
+           09/18/2019 Dropped JOB_TICKET_TEMPLATE
 ---------------------------------------------------------------------------*/
 
   DROP TABLE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
