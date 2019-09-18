@@ -20,7 +20,6 @@ Modified : 08/14/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....
     STORE_DRFT_THRESHOLD         NUMBER, 
     BANK_ACCOUNT_NBR             VARCHAR2(100), 
     BANK_ROUTING_NBR             VARCHAR2(100),
-    JOB_TICKET_TEMPLATE          VARCHAR2(100),
     EFFECTIVE_DATE               DATE, 
     EXPIRATION_DATE              DATE, 
     CREATED_BY_USER_ID           VARCHAR2(100), 
