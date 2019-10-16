@@ -10,8 +10,8 @@ create or replace TRIGGER COSTCNTR.TR_ADDRESS_USA_UPD
    Modified : 07/11/2018 pxa852 CCn Project Team...
               Added condition to trigger polling dowloads only for mailing address 
               type
-   Modified : 3/5/2019 kxm302 CCN Project Team...
-              Added condition to find last active address record for CC and throw error
+Changed : 10/16/2019 jxc517 CCNA2-198 CCN project Team...
+          Replace mailing address tracing to standardized address tracking
 ****************************************************************************/
 before insert or update ON COSTCNTR.ADDRESS_USA 
 referencing old as old new as new 
@@ -22,7 +22,7 @@ DECLARE
     v_rowdata sys.xmltype;
     v_primaryKey sys.xmltype;
     v_address_USA_row ADDRESS_USA%ROWTYPE; 
-    last_active_cc_err   EXCEPTION;
+
 begin
 
     v_address_usa_row.COST_CENTER_CODE  := :NEW.COST_CENTER_CODE;
@@ -30,7 +30,7 @@ begin
     v_address_usa_row.EFFECTIVE_DATE    := :NEW.EFFECTIVE_DATE;
     v_address_usa_row.EXPIRATION_DATE   := :NEW.EXPIRATION_DATE;
     v_address_usa_row.ADDRESS_LINE_1    := :NEW.ADDRESS_LINE_1;
-    v_address_usa_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;
+    v_address_usa_row.ADDRESS_LINE_2    := :NEW.ADDRESS_LINE_2;	
     v_address_usa_row.ADDRESS_LINE_3    := :NEW.ADDRESS_LINE_3;
     v_address_usa_row.CITY              := :NEW.CITY;
     v_address_usa_row.STATE_CODE        := :NEW.STATE_CODE;
@@ -42,15 +42,8 @@ begin
     v_address_usa_row.CHECK_DIGIT       := :NEW.CHECK_DIGIT;
     v_address_usa_row.VALID_ADDRESS     := :NEW.VALID_ADDRESS;
     v_address_usa_row.COUNTRY_CODE      := :NEW.COUNTRY_CODE;
-    
-    IF :NEW.EXPIRATION_DATE IS NOT NULL THEN
-        IF UPDATING THEN
-           IF COMMON_TOOLS.CHECK_LAST_ACTIVE_COST_CENTER('ADDRESS_USA',:NEW.COST_CENTER_CODE,:NEW.ADDRESS_TYPE)=1 THEN
-              RAISE last_active_cc_err;
-           END IF;
-        END IF;
-    END IF;
-	
+
+
 	SELECT XMLELEMENT ( "ADDRESS_USA",               
 	  		XMLATTRIBUTES ( 'http://www.w3.org/2001/XMLSchema' AS "xmlns:xsi",
         			          'http://www.oracle.com/Employee.xsd' AS
@@ -93,7 +86,7 @@ begin
 
 
 
-         
+
      /* -- for   Column -- */
      --IF (:OLD.CATEGORY != :NEW.CATEGORY) THEN
           INSERT INTO audit_log
@@ -139,7 +132,7 @@ END IF;
 END IF;
 
 ---START -- CODE TO HANDLE DESCARTES ADDRESS FEED 
-IF :NEW.EXPIRATION_DATE IS NULL AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'M' THEN
+IF :NEW.EXPIRATION_DATE IS NULL AND NVL(:NEW.ADDRESS_TYPE,'XXX') = 'S' THEN
     IF UPDATING THEN
         IF NVL(:NEW.COUNTRY_CODE,'XXX')   <> NVL(:OLD.COUNTRY_CODE,'XXX')   OR
            NVL(:NEW.ZIP_CODE,'XXX')       <> NVL(:OLD.ZIP_CODE,'XXX')       OR
@@ -162,7 +155,4 @@ ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                            v_address_usa_Row.COST_CENTER_CODE
                            );
 END;
-EXCEPTION
-    WHEN last_active_cc_err THEN
-	   errpkg.raise_err(errnums.en_last_active_cc_err, 'CHECK_LAST_ACTIVE_COST_CENTER.last_active_cc_err:','Cannot expire last effective record');
 end  TR_ADDRESS_USA_UPD;
