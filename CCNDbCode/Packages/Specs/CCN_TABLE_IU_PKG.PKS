@@ -1,34 +1,36 @@
-create or replace PACKAGE CCN_TABLE_IU_PKG
+create or replace PACKAGE          CCN_TABLE_IU_PKG
     AS
 -- PACKAGE SPEC
-/****************************************************************************** 
+/******************************************************************************
 This package is intended to control access to the core CCN table.
 
 created : 09/18/2012 TAL -- CCN coding project
 changed : 12/16/2014 AXK326 CCN Project Team....
           Code changes made after deleting the sales manager link from the Territory Table
-		: 04/13/2017 rxa457 CCN Project team.. 
-                     Code changes related to Dispatch Terminal
-                     Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
-		: 06/27/2019 sxc403 Commented out the declaration of global variable TRIGGER_DISABLE_FLAG for change CCNCC-07
+		: 04/13/2017 rxa457 CCN Project team..
+          Code changes related to Dispatch Terminal
+          Added Procedures DISPATCH_TERMINAL_S_SP,DISPATCH_TERMINAL_I_SP, DISPATCH_TERMINAL_U_SP, and DISPATCH_TERMINAL_ROWTYPE_SP
+		: 02/06/2019 mxs216 ASP-1207 CCN Project team..
+          Removed BATCH_JOB_S_SP proc as not being used.
+        :  06/27/2019 SXC403 Removed declaration of Global variable TRIGGER_DISABLE_FLAG for CCNCC-7
+        :  09/25/2019 sxc403 Added the DESCARTES functionality procedures (CCN_DESCARTES_DTLS_ROWTYPE_SP)
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 
 --MEMORY VARIABLES
 --BElow memory variable is used to by-pass trigger code when needed
 
-
   	PROCEDURE All_TABLE_COL_S_SP (
 /*******************************************************************************
 	All_TABLE_COL_S_SP
 
-	This procedure is intended to return a ref cursor with datPOLLING_S_SPa from 
-	from the all_table_col table.  
+	This procedure is intended to return a ref cursor with datPOLLING_S_SPa from
+	from the all_table_col table.
 
 created : 04/26/2012 kdp CCN Project....
 *******************************************************************************/
 			in_TABLE_NAME IN ALL_TAB_COLUMNS.TABLE_NAME%TYPE
-			,out_all_tab_ref_cur OUT ref_cursor	);    
+			,out_all_tab_ref_cur OUT ref_cursor	);
 
 
 	PROCEDURE ADDRESS_CAN_S_SP  (IN_COST_CENTER   IN ADDRESS_CAN.COST_CENTER_CODE%TYPE
@@ -37,8 +39,8 @@ created : 04/26/2012 kdp CCN Project....
 /*******************************************************************************
 	ADDRESS_CAN_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADDRESS_CAN table.  
+	This procedure is intended to return a ref cursor with data from
+	from the ADDRESS_CAN table.
 
 created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
@@ -51,8 +53,8 @@ created : 11/15/2010 kdp CCN Project....
 /*******************************************************************************
 	ADDRESS_MEX_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADDRESS_MEX table.  
+	This procedure is intended to return a ref cursor with data from
+	from the ADDRESS_MEX table.
 
 created : 03/20/2012 MDH CCN Project....
 *******************************************************************************/
@@ -65,8 +67,8 @@ created : 03/20/2012 MDH CCN Project....
 /*******************************************************************************
 	ADDRESS_OTHER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADDRESS_OTHER table.  
+	This procedure is intended to return a ref cursor with data from
+	from the ADDRESS_OTHER table.
 
 created : 03/20/2012 MDH CCN Project....
 *******************************************************************************/
@@ -79,8 +81,8 @@ created : 03/20/2012 MDH CCN Project....
 /*******************************************************************************
 	ADDRESS_USA_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADDRESS_USA  table.  
+	This procedure is intended to return a ref cursor with data from
+	from the ADDRESS_USA  table.
 
 created : 03/20/2012 MDH CCN Project....
 *******************************************************************************/
@@ -92,8 +94,8 @@ created : 03/20/2012 MDH CCN Project....
 /*******************************************************************************
 	ADMINISTRATION_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the ADMINISTRATION table.  
+	This procedure is intended to return a ref cursor with data from
+	from the ADMINISTRATION table.
 
 created : 03/20/2012 mdh CCN Project....
 *******************************************************************************/
@@ -104,12 +106,33 @@ created : 03/20/2012 mdh CCN Project....
 /*******************************************************************************
 	LAD_CUSTOMER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the LAD_CUSTOMER table.  
+	This procedure is intended to return a ref cursor with data from
+	from the LAD_CUSTOMER table.
 
 created : 02/20/2018 mxv711 CCN Project....
 *******************************************************************************/
 ;
+
+PROCEDURE LAD_CUSTOMER_ROWTYPE_SP (
+/*******************************************************************************
+	LAD_CUSTOMER_ROWTYPE_SP
+
+	This procedure is intended to Insert new LAD_CUSTOMER records
+
+	CostCenter - Cost Center that changed
+	OracleTableName -Table name for row -varible
+            (based on the table that was updated)
+        current date -
+        xml file - the data being inserted
+
+created : 02/22/2018 mxv711 CCN Project....
+*******************************************************************************/
+ in_TABLE_NAME IN VARCHAR2
+,in_ROW_DATE   IN DATE
+,in_Row_data   IN varchar2 --sys.xmltype
+,out_lad_customer_type  OUT LAD_CUSTOMER%ROWTYPE
+);
+
 
 	PROCEDURE BANK_CARD_S_SP  (IN_COST_CENTER           IN BANK_CARD.COST_CENTER_CODE%TYPE
                             ,IN_POLLING_STATUS_CODE   IN BANK_CARD.POLLING_STATUS_CODE%TYPE
@@ -118,12 +141,26 @@ created : 02/20/2018 mxv711 CCN Project....
 /*******************************************************************************
 	BANK_CARD_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the bank_card table.  
+	This procedure is intended to return a ref cursor with data from
+	from the bank_card table.
 
 created : 03/21/2012 MDH CCN Project....
 *******************************************************************************/
 ;
+
+-- Removed by 02/26/2019, mxs216, ASP-1207
+--PROCEDURE BATCH_JOB_S_SP (in_batch_job_name     IN  batch_job.batch_job_name%type
+--                        , in_batch_job_number   IN  batch_job.batch_job_number%type
+--			, out_BATCH_JOB_REF_CUR OUT REF_CURSOR)
+--/******************************************************************************
+--	BATCH_JOB_S_SP
+--
+--	This procedure is intended to return a ref cursor with data from
+--	from the BATCH_JOB table.
+--
+--created : 07/18/2012 tal CCN Project....
+--*******************************************************************************/
+--;
 
   PROCEDURE CODE_DETAIL_S_SP ( in_code_header_name      IN code_detail.code_header_name%type
          , in_CODE_HEADER_TYPE      IN CODE_DETAIL.CODE_HEADER_TYPE%TYPE
@@ -132,8 +169,8 @@ created : 03/21/2012 MDH CCN Project....
 /*******************************************************************************
 	CODE_DETAIL_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the CODE_DETAIL table.  
+	This procedure is intended to return a ref cursor with data from
+	from the CODE_DETAIL table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -146,8 +183,8 @@ created : 03/20/2012 tal CCN Project....
 /*******************************************************************************
 	CODE_HEADER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the CODE_HEADER table.  
+	This procedure is intended to return a ref cursor with data from
+	from the CODE_HEADER table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -160,8 +197,8 @@ created : 03/20/2012 tal CCN Project....
 /*******************************************************************************
 	COST_CENTER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the cost center table.  
+	This procedure is intended to return a ref cursor with data from
+	from the cost center table.
 
 created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
@@ -172,8 +209,8 @@ PROCEDURE EMP_DATA_S_SP ( in_EMPLOYEE_NUMBER    IN EMP_DATA.EMPLOYEE_NUMBER%TYPE
 /******************************************************************************
 	EMP_DATA_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the EMP_DATA table.  
+	This procedure is intended to return a ref cursor with data from
+	from the EMP_DATA table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -186,8 +223,8 @@ PROCEDURE HIERARCHY_DESCRIPTION_S_SP ( in_HRCHY_HDR_NAME IN HIERARCHY_DESCRIPTIO
 /*******************************************************************************
 	HIERARCHY_DESCRIPTION_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the HIERARCY_DESCRIPTION table.  
+	This procedure is intended to return a ref cursor with data from
+	from the HIERARCY_DESCRIPTION table.
 
 created : 03/22/2012 mdh CCN Project....
 ******************************************************************************/
@@ -204,8 +241,8 @@ PROCEDURE HIERARCHY_DETAIL_S_SP ( in_HRCHY_HDR_NAME IN HIERARCHY_DETAIL.HRCHY_HD
 /******************************************************************************
 	HIERARCHY_DETAIL_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the HIERARCY_DETAIL table.  
+	This procedure is intended to return a ref cursor with data from
+	from the HIERARCY_DETAIL table.
 
 created : 03/22/2012 mdh CCN Project....
 ******************************************************************************/
@@ -217,8 +254,8 @@ PROCEDURE HIERARCHY_HEADER_S_SP ( in_HRCHY_HDR_NAME IN HIERARCHY_HEADER.HRCHY_HD
 /*******************************************************************************
 	HIERARCHY_HEADER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the HIERARCY_HEADER table.  
+	This procedure is intended to return a ref cursor with data from
+	from the HIERARCY_HEADER table.
 
 created : 03/22/2012 mdh CCN Project....
 ******************************************************************************/
@@ -226,13 +263,13 @@ created : 03/22/2012 mdh CCN Project....
 
 
 PROCEDURE MARKETING_S_SP  ( IN_COST_CENTER                 IN  MARKETING.COST_CENTER_CODE%TYPE
-                          , IN_MARKETING_TYPE              IN  MARKETING.MARKETING_TYPE%TYPE                          
+                          , IN_marketing_type              IN  MARKETING.marketing_type%TYPE
                           , OUT_MARKETING_REF_CUR          IN  OUT sys_refcursor)
 /*******************************************************************************
 	MARKETING_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the MARKETING table.  
+	This procedure is intended to return a ref cursor with data from
+	from the MARKETING table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -244,8 +281,8 @@ PROCEDURE OTHER_S_SP ( in_COST_CENTER     IN OTHER.COST_CENTER_CODE%TYPE
 /*******************************************************************************
 	OTHER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the OTHER table.  
+	This procedure is intended to return a ref cursor with data from
+	from the OTHER table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -257,13 +294,25 @@ created : 03/20/2012 tal CCN Project....
 /******************************************************************************
 	PHONE_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the PHONE table.  
+	This procedure is intended to return a ref cursor with data from
+	from the PHONE table.
 
 created : 03/20/2012 tal CCN Project....
 ******************************************************************************/
 ;
 
+PROCEDURE VIRTUAL_PAY_S_SP(
+/*******************************************************************************
+    VIRTUAL_PAY_S_SP
+
+    This procedure is intended to return a ref cursor with data from
+    from the VIRTUAL_PAY_CC table.
+
+created : 11/01/2017 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_COST_CENTER IN VIRTUAL_PAY_CC.COST_CENTER_CODE%TYPE,
+OUT_VIRTUAL_REF_CUR OUT REF_CURSOR);
 
   PROCEDURE POLLING_S_SP ( in_cost_center          IN polling.cost_center_code%type
 					               , in_polling_status_code  IN OUT polling.polling_status_code%type
@@ -271,8 +320,8 @@ created : 03/20/2012 tal CCN Project....
 /*******************************************************************************
 	POLLING_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the polling table.  
+	This procedure is intended to return a ref cursor with data from
+	from the polling table.
 
 created : 11/15/2010 kdp CCN Project....
 *******************************************************************************/
@@ -285,7 +334,7 @@ PROCEDURE POLLING_DWLD_RSN_HIST_S_SP ( in_cost_center          IN polling_dwld_r
 /******************************************************************************
 	POLLING_DWLD_RSN_HIST_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
+	This procedure is intended to return a ref cursor with data from
 	from the polling_dwld_rsn_hist table.
 
 created : 07/25/2012 tal CCN Project....
@@ -293,29 +342,29 @@ created : 07/25/2012 tal CCN Project....
 ;
 
 PROCEDURE POLLING_HST_I_SP
-( 
+(
 /*******************************************************************************
     POLLING_HST_I_SP
 
-    This procedure is intended to insert previous POLLING record into Polling_hst 
+    This procedure is intended to insert previous POLLING record into Polling_hst
     table for Historical purpose.
 
 created : 02/18/2015 SXT410 CCN Project....
-revised : 
+revised :
 *******************************************************************************/
 IN_POLLING_ROW IN POLLING%ROWTYPE
 );
 
 PROCEDURE EXPIRE_POLLING_DATA_SP
-( IN_POLLING_ROW POLLING%ROWTYPE 
+( IN_POLLING_ROW POLLING%ROWTYPE
 /*******************************************************************************
     EXPIRE_POLLING_DATA_SP
 
-    This procedure is intended to expire Previous row of data based on 
+    This procedure is intended to expire Previous row of data based on
     Cost_center_code and Polling_status_code.
 
 created : 02/18/2015 SXT410 CCN Project....
-revised : 
+revised :
 
 *******************************************************************************/
 );
@@ -325,8 +374,8 @@ revised :
 /*******************************************************************************
 	REAL_ESTATE_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the REAL_ESTATE table.  
+	This procedure is intended to return a ref cursor with data from
+	from the REAL_ESTATE table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -338,8 +387,8 @@ PROCEDURE SALES_REP_S_SP  ( IN_GEMS_EMPLOYEE_ID    IN SALES_REP.GEMS_EMPLOYEE_ID
 /*******************************************************************************
 	SALES_REP_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the SALES_REP table.  
+	This procedure is intended to return a ref cursor with data from
+	from the SALES_REP table.
 
 created : 03/20/2012 tal CCN Project....
 *******************************************************************************/
@@ -352,8 +401,8 @@ PROCEDURE STATUS_S_SP ( IN_COST_CENTER      IN STATUS.COST_CENTER_CODE%TYPE
 /******************************************************************************
 	STATUS_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the STATUS table.  
+	This procedure is intended to return a ref cursor with data from
+	from the STATUS table.
 
 created : 03/20/2012 tal CCN Project....
 ********************************************************************************/
@@ -365,22 +414,22 @@ PROCEDURE STORE_S_SP ( in_COST_CENTER     IN STORE.COST_CENTER_CODE%TYPE
 /*******************************************************************************
 	STORE_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the STORE table.  
+	This procedure is intended to return a ref cursor with data from
+	from the STORE table.
 
 created : 03/20/2012 tal CCN Project....
 ********************************************************************************/
 ;
 
 PROCEDURE DISPATCH_TERMINAL_S_SP(
-    in_COST_CENTER IN DISPATCH_TERMINAL.COST_CENTER_CODE%TYPE,
-    out_DISPATCH_TERMINAL_REF_CUR OUT REF_CURSOR)
-/*******************************************************************************
+	in_COST_CENTER IN DISPATCH_TERMINAL.COST_CENTER_CODE%TYPE,
+	out_DISPATCH_TERMINAL_REF_CUR OUT REF_CURSOR)
+  /*******************************************************************************
   DISPATCH_TERMINAL_S_SP
   This procedure is intended to return a ref cursor with data from
   from the DISPATCH_TERMINAL table.
   created : 04/13/2017 tal CCN Project.... rxa457-asp-763
-********************************************************************************/
+  ********************************************************************************/
   ;
 
 PROCEDURE TAXWARE_S_SP  ( IN_COST_CENTER        IN  TAXWARE.COST_CENTER_CODE%TYPE
@@ -388,8 +437,8 @@ PROCEDURE TAXWARE_S_SP  ( IN_COST_CENTER        IN  TAXWARE.COST_CENTER_CODE%TYP
 /*******************************************************************************
 	TAXWARE_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the TAXWARE table.  
+	This procedure is intended to return a ref cursor with data from
+	from the TAXWARE table.
 
 created : 08/24/2012 tal CCN Project....
 *******************************************************************************/
@@ -403,20 +452,20 @@ PROCEDURE TERMINAL_S_SP ( IN_COST_CENTER_CODE   IN  TERMINAL.COST_CENTER_CODE%TY
 /******************************************************************************
 	TERMINAL_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the TERMINAL table.  
+	This procedure is intended to return a ref cursor with data from
+	from the TERMINAL table.
 
 created : 03/22/2012 BLR CCN Project....
 ********************************************************************************/
 ;
 
-PROCEDURE TERRITORY_S_SP ( in_terr_cc TERRITORY.COST_CENTER_CODE%TYPE            
+PROCEDURE TERRITORY_S_SP ( in_terr_cc TERRITORY.COST_CENTER_CODE%TYPE
                                      ,out_TERRITORY_REF_CUR  OUT REF_CURSOR )
 /******************************************************************************
 	TERRITORY_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the TERRITORY table.  
+	This procedure is intended to return a ref cursor with data from
+	from the TERRITORY table.
 
 created : 03/22/2012 BLR CCN Project....
 *******************************************************************************/
@@ -428,8 +477,8 @@ PROCEDURE TYPE_S_SP ( IN_COST_CENTER    IN  TYPE.COST_CENTER_CODE%TYPE
 /*******************************************************************************
 	TYPE_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the TYPE table.  
+	This procedure is intended to return a ref cursor with data from
+	from the TYPE table.
 
 created : 03/22/2012 BLR CCN Project....
 changed : 09/12/2012 TAL removed effective_date
@@ -448,7 +497,7 @@ PROCEDURE ADDRESS_CAN_I_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_CAN table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 04/27/2012 mdh CCN Project....
@@ -471,7 +520,7 @@ PROCEDURE ADDRESS_MEX_I_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_MEX table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 04/30/2012 mdh CCN Project....
@@ -494,7 +543,7 @@ PROCEDURE ADDRESS_OTHER_I_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_OTHER table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 04/30/2012 mdh CCN Project....
@@ -517,7 +566,7 @@ PROCEDURE ADDRESS_USA_I_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_OTHER table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/02/2012 mdh CCN Project....
@@ -537,9 +586,9 @@ PROCEDURE ADMINISTRATION_I_SP (
 	This procedure is intended to insert new ADMINISTRATION records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/01/2012 mdh CCN Project....
@@ -547,7 +596,7 @@ created : 05/01/2012 mdh CCN Project....
 in_COST_CENTER          IN  ADMINISTRATION.COST_CENTER_CODE%TYPE,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_ROW_DATA             IN  varchar2 
+in_ROW_DATA             IN  varchar2
 );
 
 PROCEDURE BANK_CARD_I_SP (
@@ -560,9 +609,9 @@ PROCEDURE BANK_CARD_I_SP (
   PollingStatusCode - Polling Status Code that changed
   Merchant I.D.     - Merchant I.D. that changed
   Effective Date    - Effective Date of Bank_Card that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 04/24/2012 mdh CCN Project....
@@ -573,7 +622,7 @@ in_MERCHANT_ID          IN  BANK_CARD.MERCHANT_ID%TYPE,
 in_EFFECTIVE_DATE       IN  BANK_CARD.EFFECTIVE_DATE%TYPE,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_ROW_DATA             IN  varchar2 
+in_ROW_DATA             IN  varchar2
 );
 
 PROCEDURE COST_CENTER_I_SP (
@@ -583,9 +632,9 @@ PROCEDURE COST_CENTER_I_SP (
 	This procedure is intended to insert new cost center records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 02/21/2012 kdp CCN Project....
@@ -596,77 +645,6 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_row_data   IN varchar2--sys.xmltype
 );
 
-PROCEDURE CODE_DETAIL_I_SP (
-/***************************************************************
-	CODE_DETAIL_I_SP
-
-	This procedure is intended to insert new CODE_DETAIL records
-
-	CODE_HEADER_NAME  - Code Header Name  that changed
-  CODE_HEADER_TYPE  - Code Header Type  that changed
-  CODE_DETAIL_VALUE - Code Detail Value that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/12/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_CODE_HEADER_name   IN  CODE_DETAIL.CODE_HEADER_name%type,
-in_code_header_type   IN  code_detail.code_header_type%type,
-in_code_detail_value  IN  code_detail.code_detail_value%type, 
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
-
-PROCEDURE CODE_HEADER_I_SP (
-/***************************************************************
-	CODE_HEADER_I_SP
-
-	This procedure is intended to insert new CODE_HEADER records
-
-	CODE_HEADER_NAME - Code Header Name that changed
-  CODE_HEADER_TYPE - Code Header Type that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/12/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_code_header_name   IN  code_header.code_header_name%type,
-in_code_header_type   IN  CODE_HEADER.code_header_type%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
-
-PROCEDURE EMP_DATA_I_SP (
-/***************************************************************
-	EMP_DATA_I_SP
-
-	This procedure is intended to insert new EMP_DATA records
-
-	EMPLOYEE_NUMBER - Employee Number than changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/12/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_employee_number  IN  emp_data.employee_number%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
 
 PROCEDURE MARKETING_I_SP (
 /***************************************************************
@@ -676,17 +654,17 @@ PROCEDURE MARKETING_I_SP (
 
 	CostCenter     -  Cost Center      that changed
         MarketingType  -  Marketing Type   that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/03/2012 tal CCN Project....
 ***************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 in_cost_center          IN  marketing.cost_center_code%type,
-in_marketing_type       IN  marketing.marketing_type%type,
-
+in_marketing_type            IN  marketing.marketing_type %type,
+--in_EFFECTIVE_DATE       IN  marketing.effective_date%type,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
 in_row_data             IN  varchar2--sys.xmltype
@@ -699,9 +677,9 @@ PROCEDURE OTHER_I_SP (
 	This procedure is intended to insert new OTHER records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/12/2012 tal CCN Project....
@@ -714,6 +692,16 @@ in_ROW_DATE             IN  DATE,
 in_row_data             IN  varchar2--sys.xmltype
 );
 
+PROCEDURE VIRTUAL_PAY_I_SP (
+/*******************************************************************************
+    This procedure is intended to insert new VIRTUAL_PAY_CC records
+
+created : 11/01/2017 nxk927 CCN Project....
+updated :
+*******************************************************************************/
+    IN_TABLE_NAME           IN  VARCHAR2,
+    IN_ROW_DATA             IN  VARCHAR2);
+
 PROCEDURE PHONE_I_SP (
 /***************************************************************
 	PHONE_I_SP
@@ -723,9 +711,9 @@ PROCEDURE PHONE_I_SP (
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
 
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/03/2012 tal CCN Project....
@@ -753,36 +741,11 @@ created : 05/02/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call POLLING_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_POLLING_row         OUT POLLING%ROWTYPE
 );
 
-PROCEDURE POLLING_DWLD_RSN_HIST_I_SP (
-/***************************************************************
-	POLLING_DWLD_RSN_HIST_I_SP
-
-	This procedure is intended to insert new POLLING_DWLD_RSN_HIST records
-
-	CostCenter         -  Cost Center          that changed
-  PollingStatusCode  -  Polling Status Code  that changed
-  EffectiveDate      -  Effective Date       that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/25/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          IN polling_dwld_rsn_hist.cost_center_code%type,
-in_polling_status_code  IN polling_dwld_rsn_hist.polling_status_code%type,
-in_effective_date       IN polling_dwld_rsn_hist.effective_date%type,
-
-in_table_name IN varchar2,
-in_ROW_DATE   IN DATE,
-in_row_data   IN varchar2 --sys.xmltype
-);
 
 PROCEDURE REAL_ESTATE_I_SP (
 /*****************************************************************************
@@ -798,7 +761,7 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call REAL_ESTATE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_REAL_ESTATE_row     OUT REAL_ESTATE%ROWTYPE
 );
@@ -817,7 +780,7 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call SALES_REP_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_SALES_REP_row       OUT SALES_REP%ROWTYPE
 );
@@ -836,7 +799,7 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STATUS_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_STATUS_row          OUT STATUS%ROWTYPE
 );
@@ -855,24 +818,23 @@ created : 05/03/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_STORE_row           OUT STORE%ROWTYPE
 );
 
 PROCEDURE DISPATCH_TERMINAL_I_SP(
-/*****************************************************************************
-    DISPATCH_TERTMINAL_I_SP
-    This procedure is intended to insert new DISPATCH_TERMINAL records
-    OracleTableName  -  Table name for row -varible
-    xml file     -  the data being inserted
-    DISPATCH_TERMINAL_ROWTYPE    -  Dispatch Terminal Data Row
-    created : 04/14/2017 asp-763 CCN Project....
-    -- below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype 
-*****************************************************************************/
-    in_table_name IN VARCHAR2,
-    in_row_data   IN VARCHAR2, --sys.xmltype
-    out_dispatch_terminal_row OUT DISPATCH_TERMINAL%ROWTYPE);
+	/*****************************************************************************
+	DISPATCH_TERTMINAL_I_SP
+	This procedure is intended to insert new DISPATCH_TERMINAL records
+	OracleTableName  -  Table name for row -varible
+	xml file     -  the data being inserted
+	DISPATCH_TERMINAL_ROWTYPE    -  Dispatch Terminal Data Row
+	created : 04/14/2017 asp-763 CCN Project....
+	-- below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
+	in_table_name IN VARCHAR2,
+	in_row_data   IN VARCHAR2, --sys.xmltype
+	out_dispatch_terminal_row OUT DISPATCH_TERMINAL%ROWTYPE);
 
 
 PROCEDURE TAXWARE_I_SP (
@@ -889,12 +851,12 @@ created : 08/24/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call TAXWARE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TAXWARE_row         OUT TAXWARE%ROWTYPE
 );
 
-PROCEDURE TERMINAL_I_SP 
+PROCEDURE TERMINAL_I_SP
 (
 /****************************************************************************
 	TERMINAL_I_SP
@@ -909,7 +871,7 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TERMINAL_row        OUT TERMINAL%ROWTYPE
 );
@@ -928,7 +890,7 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERRITORY_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TERRITORY_row       OUT TERRITORY%ROWTYPE
 );
@@ -947,7 +909,7 @@ created : 04/24/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TYPE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TYPE_row            OUT TYPE%ROWTYPE
 );
@@ -966,7 +928,7 @@ PROCEDURE ADDRESS_CAN_U_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_CAN table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/19/2012 mdh CCN Project....
@@ -989,7 +951,7 @@ PROCEDURE ADDRESS_MEX_U_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_MEX table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/19/2012 mdh CCN Project....
@@ -1012,7 +974,7 @@ PROCEDURE ADDRESS_OTHER_U_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_OTHER table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/19/2012 mdh CCN Project....
@@ -1036,7 +998,7 @@ PROCEDURE ADDRESS_USA_U_SP (
   Address Type   - Address Type that changed
   Effective Date - Effective Date of ADDRESS_OTHER table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/20/2012 mdh CCN Project....
@@ -1056,9 +1018,9 @@ PROCEDURE ADMINISTRATION_U_SP (
 	This procedure is intended to Update ADMINISTRATION records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/18/2012 mdh CCN Project....
@@ -1066,7 +1028,7 @@ created : 07/18/2012 mdh CCN Project....
 in_COST_CENTER          IN  ADMINISTRATION.COST_CENTER_CODE%TYPE,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_ROW_DATA             IN  varchar2 
+in_ROW_DATA             IN  varchar2
 );
 
 PROCEDURE BANK_CARD_U_SP (
@@ -1079,9 +1041,9 @@ PROCEDURE BANK_CARD_U_SP (
   PollingStatusCode - Polling Status Code that changed
   Merchant I.D.     - Merchant I.D. that changed
   Effective Date    - Effective Date of Bank_Card that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 04/24/2012 mdh CCN Project....
@@ -1092,57 +1054,7 @@ in_MERCHANT_ID          IN  BANK_CARD.MERCHANT_ID%TYPE,
 in_EFFECTIVE_DATE       IN  BANK_CARD.EFFECTIVE_DATE%TYPE,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
-in_ROW_DATA             IN  varchar2 
-);
-
-PROCEDURE CODE_DETAIL_U_SP (
-/***************************************************************
-	CODE_DETAIL_U_SP
-
-	This procedure is intended to update existing CODE_DETAIL records
-
-	CODE_HEADER_NAME  - Code Header Name  that changed
-  CODE_HEADER_TYPE  - Code Header Type  that changed
-  CODE_DETAIL_VALUE - Code Detail Value that changed
-	OracleTableName   - Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/16/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_CODE_HEADER_name   IN  CODE_DETAIL.CODE_HEADER_name%type,
-in_code_header_type   IN  code_detail.code_header_type%type,
-in_code_detail_value  IN  code_detail.code_detail_value%type, 
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
-
-PROCEDURE CODE_HEADER_U_SP (
-/***************************************************************
-	CODE_HEADER_U_SP
-
-	This procedure is intended to update existing CODE_HEADER records
-
-	CODE_HEADER_NAME - Code Header Name that changed
-  CODE_HEADER_TYPE - Code Header Type that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/12/2012 tal CCN Project....
-***************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_code_header_name   IN  code_header.code_header_name%type,
-in_code_header_type   IN  CODE_HEADER.code_header_type%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
+in_ROW_DATA             IN  varchar2
 );
 
 PROCEDURE COST_CENTER_U_SP (
@@ -1152,9 +1064,9 @@ PROCEDURE COST_CENTER_U_SP (
 	This procedure is intended to UPDATE cost center records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 02/21/2012 kdp CCN Project....
@@ -1165,28 +1077,6 @@ in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 ,in_row_data   IN varchar2--sys.xmltype
 );
 
-PROCEDURE EMP_DATA_U_SP (
-/******************************************************************************
-	EMP_DATA_U_SP
-
-	This procedure is intended to update existing EMP_DATA records
-
-	EMPLOYEE_NUMBER - Employee Number than changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/12/2012 tal CCN Project....
-*******************************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_employee_number  IN  emp_data.employee_number%type,
-
-in_TABLE_NAME           IN  VARCHAR2,
-in_ROW_DATE             IN  DATE,
-in_row_data             IN  varchar2--sys.xmltype
-);
-
 PROCEDURE MARKETING_U_SP (
 /******************************************************************************
 	MARKETING_U_SP
@@ -1195,17 +1085,17 @@ PROCEDURE MARKETING_U_SP (
 
 	CostCenter     -  Cost Center      that changed
         MarketingType  -  Marketing Type   that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/03/2012 tal CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 in_cost_center          IN  marketing.cost_center_code%type,
-in_marketing_type       IN  marketing.marketing_type%type,
-
+in_marketing_type              IN  marketing.marketing_type %type,
+--in_EFFECTIVE_DATE       IN  marketing.effective_date%type,
 in_TABLE_NAME           IN  VARCHAR2,
 in_ROW_DATE             IN  DATE,
 in_row_data             IN  varchar2--sys.xmltype
@@ -1218,9 +1108,9 @@ PROCEDURE OTHER_U_SP (
 	This procedure is intended to update existing OTHER records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/12/2012 tal CCN Project....
@@ -1233,6 +1123,16 @@ in_ROW_DATE             IN  DATE,
 in_row_data             IN  varchar2--sys.xmltype
 );
 
+PROCEDURE VIRTUAL_PAY_U_SP (
+/*******************************************************************************
+    This procedure is intended to update existing VIRTUAL_PAY_CC records
+
+created : 11/01/2017 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+    IN_TABLE_NAME           IN  VARCHAR2,
+    IN_ROW_DATA             IN  VARCHAR2);
+
 PROCEDURE PHONE_U_SP (
 /*******************************************************************************
 	PHONE_U_SP
@@ -1240,9 +1140,9 @@ PROCEDURE PHONE_U_SP (
 	This procedure is intended to update existing PHONE records
 
 	PHONE - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/03/2012 tal CCN Project....
@@ -1265,45 +1165,18 @@ PROCEDURE POLLING_U_SP (
 
 	CostCenter         -  Cost Center           that changed
   PollingStatusCode  -  Polling Status Code   that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 05/02/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call POLLING_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_POLLING_row         OUT POLLING%ROWTYPE
-);
-
-
-PROCEDURE POLLING_DWLD_RSN_HIST_U_SP (
-/******************************************************************************
-	POLLING_DWLD_RSN_HIST_U_SP
-
-	This procedure is intended to insert new POLLING_DWLD_RSN_HIST records
-
-	CostCenter         -  Cost Center          that changed
-  PollingStatusCode  -  Polling Status Code  that changed
-  EffectiveDate      -  Effective Date       that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 07/25/2012 tal CCN Project....
-******************************************************************************/
-/***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
-in_cost_center          IN polling_dwld_rsn_hist.cost_center_code%type,
-in_polling_status_code  IN polling_dwld_rsn_hist.polling_status_code%type,
-in_effective_date       IN polling_dwld_rsn_hist.effective_date%type,
-
-in_table_name IN varchar2,
-in_ROW_DATE   IN DATE,
-in_row_data   IN varchar2 --sys.xmltype
 );
 
 
@@ -1314,16 +1187,16 @@ PROCEDURE REAL_ESTATE_U_SP (
 	This procedure is intended to update changes to REAL_ESTATE records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call REAL_ESTATE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_REAL_ESTATE_row     OUT REAL_ESTATE%ROWTYPE
 );
@@ -1335,16 +1208,16 @@ PROCEDURE SALES_REP_U_SP (
 	This procedure is intended to update changed SALES_REP records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call SALES_REP_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_SALES_REP_row       OUT SALES_REP%ROWTYPE
 );
@@ -1356,16 +1229,16 @@ PROCEDURE STATUS_U_SP (
 	This procedure is intended to update changed STATUS records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STATUS_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_STATUS_row          OUT STATUS%ROWTYPE
 );
@@ -1377,22 +1250,22 @@ PROCEDURE STORE_U_SP (
 	This procedure is intended to update changed STORE records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call STORE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_STORE_row           OUT STORE%ROWTYPE
 );
 
 PROCEDURE DISPATCH_TERMINAL_U_SP(
-/*******************************************************************************************/
+/*****************************************************************/
 --DISPATCH_TERMINAL_U_SP
 --This procedure is intended to update changed DISPATCH_TERMINAL records
 --CostCenter - Cost Center that changed
@@ -1400,8 +1273,7 @@ PROCEDURE DISPATCH_TERMINAL_U_SP(
 --in_row_data - xml file - the data being inserted
 --created : 04/14/2017 ASP-763 CCN Project....
 /*****************************************************************/
-/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype 
-*********************************************************************************************/
+/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
 in_table_name IN VARCHAR2,
 in_row_data   IN VARCHAR2, --sys.xmltype
 out_DISPATCH_TERMINAL_row OUT DISPATCH_TERMINAL%ROWTYPE);
@@ -1413,21 +1285,21 @@ PROCEDURE TAXWARE_U_SP (
 	This procedure is intended to update changed TAXWARE records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 08/24/2012 tal CCN Project....
 changed: 10/02/2012 TAL - modified to call TAXWARE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TAXWARE_row         OUT TAXWARE%ROWTYPE
 );
 
-PROCEDURE TERMINAL_U_SP 
+PROCEDURE TERMINAL_U_SP
 (
 /*****************************************************************************
 	TERMINAL_U_SP
@@ -1435,16 +1307,16 @@ PROCEDURE TERMINAL_U_SP
 	This procedure is intended to update changed terminal records
 
 	TERMINAL - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERMINAL_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TERMINAL_row        OUT TERMINAL%ROWTYPE
 );
@@ -1456,16 +1328,16 @@ PROCEDURE TERRITORY_U_SP (
 	This procedure is intended to update changed TERRITORY records
 
 	TERRITORY - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TERRITORY_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TERRITORY_row       OUT TERRITORY%ROWTYPE
 );
@@ -1477,24 +1349,24 @@ PROCEDURE TYPE_U_SP (
 	This procedure is intended to update changed TYPE records
 
 	TYPE - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 07/11/2012 BLR CCN Project....
 changed: 10/02/2012 TAL - modified to call TYPE_ROWTYPE_SP
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_TYPE_row         OUT TYPE%ROWTYPE
-);                                     
+);
 
---PROCEDURES TO HANDLE INSERTS & UPDATES OF TABLES (ROWTYPES)
+--PROCEDURES TO HANDLE INSERTS  UPDATES OF TABLES (ROWTYPES)
 --AS OF 10/04/2012   BLR
 
-PROCEDURE ADDRESS_CAN_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_CAN_ROWTYPE_SP (
 /*******************************************************************************
 	 ADDRESS_CAN_ROWTYPE_SP
 
@@ -1503,15 +1375,15 @@ PROCEDURE ADDRESS_CAN_ROWTYPE_SP (
 	CostCenter      - Cost Center that changed
   Address Type    - Address Type that changed
   Effective Date  - Effective Date of ADDRESS_CAN table that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
- in_cost_center     IN  address_can.cost_center_code%type 
-,in_address_type    IN  address_can.address_type%type 
+ in_cost_center     IN  address_can.cost_center_code%type
+,in_address_type    IN  address_can.address_type%type
 ,in_effective_date  IN  address_can.effective_date%type
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
@@ -1519,7 +1391,7 @@ created : 09/21/2012 blr CCN Project....
 ,out_address_type  OUT address_can%ROWTYPE
 );
 
-PROCEDURE ADDRESS_MEX_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_MEX_ROWTYPE_SP (
  /******************************************************************************
 	ADDRESS_MEX_ROWTYPE_SP
 
@@ -1528,9 +1400,9 @@ PROCEDURE ADDRESS_MEX_ROWTYPE_SP (
 	CostCenter      - Cost Center that changed
   Address Type    - Address Type that changed
   Effective Date  - Effective Date of ADDRESS_CAN table that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
@@ -1544,7 +1416,7 @@ in_COST_CENTER    IN ADDRESS_MEX.COST_CENTER_CODE%TYPE
 ,out_address_type  OUT address_mex%ROWTYPE
 );
 
-PROCEDURE ADDRESS_OTHER_ROWTYPE_SP ( 
+PROCEDURE ADDRESS_OTHER_ROWTYPE_SP (
 /*******************************************************************************
 	ADDRESS_OTHER_ROWTYPE_SP
 
@@ -1553,9 +1425,9 @@ PROCEDURE ADDRESS_OTHER_ROWTYPE_SP (
 	CostCenter      - Cost Center that changed
   Address Type    - Address Type that changed
   Effective Date  - Effective Date of ADDRESS_OTHER table that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
@@ -1579,17 +1451,17 @@ PROCEDURE ADDRESS_USA_ROWTYPE_SP (
   Address Type    - Address Type that changed
   Effective Date  - Effective Date of ADDRESS_OTHER table that changed
 	OracleTableName -Table name for row (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
 
- in_COST_CENTER          IN  ADDRESS_USA.COST_CENTER_CODE%TYPE 
-,in_ADDRESS_TYPE         IN  ADDRESS_USA.ADDRESS_TYPE%TYPE 
-,in_EFFECTIVE_DATE       IN  ADDRESS_USA.EFFECTIVE_DATE%TYPE 
-,in_TABLE_NAME           IN  VARCHAR2 
-,in_ROW_DATE             IN  DATE 
+ in_COST_CENTER          IN  ADDRESS_USA.COST_CENTER_CODE%TYPE
+,in_ADDRESS_TYPE         IN  ADDRESS_USA.ADDRESS_TYPE%TYPE
+,in_EFFECTIVE_DATE       IN  ADDRESS_USA.EFFECTIVE_DATE%TYPE
+,in_TABLE_NAME           IN  VARCHAR2
+,in_ROW_DATE             IN  DATE
 ,in_Row_data             IN  varchar2--sys.xmltype
 ,out_address_type        OUT address_usa%ROWTYPE
 );
@@ -1601,39 +1473,20 @@ PROCEDURE ADMINISTRATION_ROWTYPE_SP (
 	This procedure is intended to Insert new ADMINISTRATION records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
- in_COST_CENTER    IN ADMINISTRATION.COST_CENTER_CODE%TYPE 
+ in_COST_CENTER    IN ADMINISTRATION.COST_CENTER_CODE%TYPE
 ,in_TABLE_NAME IN VARCHAR2
 ,in_ROW_DATE   IN DATE
 ,in_Row_data   IN varchar2 --sys.xmltype
 ,out_administration_type  OUT ADMINISTRATION%ROWTYPE
 );
 
-PROCEDURE LAD_CUSTOMER_ROWTYPE_SP (
-/*******************************************************************************
-	LAD_CUSTOMER_ROWTYPE_SP
-
-	This procedure is intended to Insert new LAD_CUSTOMER records
-
-	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
-            (based on the table that was updated)
-        current date - 
-        xml file - the data being inserted
-
-created : 02/22/2018 mxv711 CCN Project....
-*******************************************************************************/
- in_TABLE_NAME IN VARCHAR2
-,in_ROW_DATE   IN DATE
-,in_Row_data   IN varchar2 --sys.xmltype
-,out_lad_customer_type  OUT LAD_CUSTOMER%ROWTYPE
-);
 
 PROCEDURE BANK_CARD_ROWTYPE_SP (
 /*******************************************************************************
@@ -1643,18 +1496,18 @@ PROCEDURE BANK_CARD_ROWTYPE_SP (
 
 	CostCenter          - Cost Center that changed
   Polling_Status_Code - Polling Status of the Cost Center
-  Merchant I.D.       - Merchant I.D. of the Cost Center 
+  Merchant I.D.       - Merchant I.D. of the Cost Center
   Effective Date      - Effective Date of BANK_CARD table that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
- in_COST_CENTER          IN BANK_CARD.COST_CENTER_CODE%TYPE 
-,in_POLLING_STATUS_CODE  IN BANK_CARD.POLLING_STATUS_CODE%type 
-,in_MERCHANT_ID          IN BANK_CARD.MERCHANT_ID%TYPE 
+ in_COST_CENTER          IN BANK_CARD.COST_CENTER_CODE%TYPE
+,in_POLLING_STATUS_CODE  IN BANK_CARD.POLLING_STATUS_CODE%type
+,in_MERCHANT_ID          IN BANK_CARD.MERCHANT_ID%TYPE
 ,in_EFFECTIVE_DATE       IN BANK_CARD.EFFECTIVE_DATE%type
 
 ,in_TABLE_NAME IN VARCHAR2
@@ -1670,9 +1523,9 @@ PROCEDURE COST_CENTER_ROWTYPE_SP (
 	This procedure is intended to insert new cost center records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
@@ -1693,19 +1546,19 @@ PROCEDURE MARKETING_ROWTYPE_SP (
 
 	CostCenter     -  Cost Center      that changed
         MarketingType  -  Marketing Type   that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
- in_cost_center          IN  marketing.cost_center_code%type 
-,in_marketing_type       IN  marketing.marketing_type%type 
-
-,in_TABLE_NAME           IN  VARCHAR2 
-,in_ROW_DATE             IN  DATE 
+ in_cost_center          IN  marketing.cost_center_code%type
+,in_marketing_type            IN  marketing.marketing_type%type
+--,in_EFFECTIVE_DATE       IN  marketing.effective_date%type
+,in_TABLE_NAME           IN  VARCHAR2
+,in_ROW_DATE             IN  DATE
 ,in_Row_data             IN  varchar2--sys.xmltype
 ,out_marketing_type  OUT marketing%ROWTYPE
 
@@ -1718,21 +1571,21 @@ PROCEDURE OTHER_ROWTYPE_SP (
 	This procedure is intended to insert new OTHER records
 
 	CostCenter - Cost Center that changed
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
-revised : 
+revised :
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 
- in_COST_CENTER          IN  OTHER.COST_CENTER_CODE%TYPE 
+ in_COST_CENTER          IN  OTHER.COST_CENTER_CODE%TYPE
 ,out_other_type              OUT OTHER%ROWTYPE
 
-,in_TABLE_NAME           IN  VARCHAR2 
-,in_ROW_DATE             IN  DATE 
+,in_TABLE_NAME           IN  VARCHAR2
+,in_ROW_DATE             IN  DATE
 ,in_Row_data             IN  varchar2--sys.xmltype
 
 );
@@ -1746,21 +1599,21 @@ PROCEDURE PHONE_ROWTYPE_SP (
 	CostCenter       -  Cost Center        that changed
   PhoneNumberType  -  Phone Number Type  that changed
 
-	OracleTableName -Table name for row -varible 
+	OracleTableName -Table name for row -varible
             (based on the table that was updated)
-        current date - 
+        current date -
         xml file - the data being inserted
 
 created : 09/21/2012 blr CCN Project....
 *******************************************************************************/
 /***  below are the Primary Key Fields followed by fileds TABLE_NAME, ROW_DATE, Row_data  ***/
 
- in_COST_CENTER          IN  PHONE.COST_CENTER_CODE%TYPE 
-,in_phone_number_type    IN  phone.phone_number_type%type 
-,out_phone_type              OUT PHONE%ROWTYPE 
+ in_COST_CENTER          IN  PHONE.COST_CENTER_CODE%TYPE
+,in_phone_number_type    IN  phone.phone_number_type%type
+,out_phone_type              OUT PHONE%ROWTYPE
 
-,in_TABLE_NAME           IN  VARCHAR2 
-,in_ROW_DATE             IN  DATE 
+,in_TABLE_NAME           IN  VARCHAR2
+,in_ROW_DATE             IN  DATE
 ,in_Row_data             IN  varchar2--sys.xmltype
 );
 
@@ -1777,7 +1630,7 @@ PROCEDURE POLLING_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 *******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,out_polling_rowtype     OUT polling%ROWTYPE
 );
@@ -1795,7 +1648,7 @@ PROCEDURE REAL_ESTATE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- IN_TABLE_NAME           IN  VARCHAR2 
+ IN_TABLE_NAME           IN  VARCHAR2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_REAL_ESTATE_ROWTYPE     OUT REAL_ESTATE%ROWTYPE
 );
@@ -1813,7 +1666,7 @@ PROCEDURE SALES_REP_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- IN_TABLE_NAME           IN  VARCHAR2 
+ IN_TABLE_NAME           IN  VARCHAR2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_SALES_REP_ROWTYPE   OUT SALES_REP%ROWTYPE
 );
@@ -1831,7 +1684,7 @@ PROCEDURE STATUS_ROWTYPE_SP (
 created: 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_STATUS_ROWTYPE   OUT STATUS%ROWTYPE
 );
@@ -1849,16 +1702,16 @@ PROCEDURE STORE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_STORE_ROWTYPE       OUT STORE%ROWTYPE
 );
 
 PROCEDURE DISPATCH_TERMINAL_ROWTYPE_SP(
-/*************************************************************************************************/
-    --DISPATCH_TERMINAL_ROWTYPE_SP
-    --This procedure is convert xml and return rowtype data for DISPATCH_TERMINAL table.
-    --created : 04/13/2017 tal CCN Project.... rxa457-asp-763
+	/******************************************************************************/
+	--DISPATCH_TERMINAL_ROWTYPE_SP
+	--This procedure is convert xml and return rowtype data for DISPATCH_TERMINAL table.
+	--created : 04/13/2017 tal CCN Project.... rxa457-asp-763
   --changed : 02/26/2019 sxg151 CCN Team... ASP-1219
 	/******************************************************************************/
 	/***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype, in_validation_flag ***/
@@ -1881,7 +1734,7 @@ PROCEDURE TAXWARE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- IN_TABLE_NAME           IN  VARCHAR2 
+ IN_TABLE_NAME           IN  VARCHAR2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TAXWARE_ROWTYPE   OUT TAXWARE%ROWTYPE
 );
@@ -1899,7 +1752,7 @@ PROCEDURE TERMINAL_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- IN_TABLE_NAME           IN  VARCHAR2 
+ IN_TABLE_NAME           IN  VARCHAR2
 ,IN_ROW_DATA             IN  VARCHAR2 --sys.xmltype
 ,OUT_TERMINAL_ROWTYPE   OUT TERMINAL%ROWTYPE
 );
@@ -1916,11 +1769,11 @@ PROCEDURE TERRITORY_ROWTYPE_SP (
 
 created : 09/26/2012 TAL -- CCN Project....
 changed : 07/17/2014 CCN Project, prod issue : territory vs close date
-          Added a paramater to distinguish between business rule validation calls 
+          Added a paramater to distinguish between business rule validation calls
           and database update calls
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- IN_TABLE_NAME           IN  VARCHAR2 
+ IN_TABLE_NAME           IN  VARCHAR2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TERRITORY_ROWTYPE   OUT TERRITORY%ROWTYPE
 ,in_validation_flag      IN varchar2 DEFAULT 'N'
@@ -1939,11 +1792,24 @@ PROCEDURE TYPE_ROWTYPE_SP (
 created : 09/26/2012 TAL -- CCN Project....
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
- in_table_name           IN  varchar2 
+ in_table_name           IN  varchar2
 ,in_row_data             IN  varchar2 --sys.xmltype
 ,OUT_TYPE_ROWTYPE        OUT TYPE%ROWTYPE
 );
 
+PROCEDURE VIRTUAL_ROWTYPE_SP (
+/*******************************************************************************
+    This procedure is intended to insert records into CCN_CLOB table also
+    build and return a VIRTUAL_PAY_CC%ROWTYPE.
+
+created : 11/01/2017 nxk927 CCN Project....
+Changed :
+*******************************************************************************/
+--    IN_COST_CENTER          IN    VIRTUAL_PAY_CC.COST_CENTER_CODE%TYPE, -- no use
+    OUT_VIRTUAL_PAY_TYPE    OUT   VIRTUAL_PAY_CC%ROWTYPE,
+    IN_TABLE_NAME           IN    VARCHAR2,
+--    IN_ROW_DATE             IN    DATE, -- no use
+    IN_ROW_DATA             IN    VARCHAR2);
 
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
 
@@ -1951,17 +1817,17 @@ PROCEDURE TEST_COST_CENTER_S_SP(
 /******************************************************************************
 	TEST_COST_CENTER_S_SP
 
-	This procedure is intended to return a ref cursor with data from 
-	from the cost center table.  
+	This procedure is intended to return a ref cursor with data from
+	from the cost center table.
 
-created : 
+created :
 *******************************************************************************/
  in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 , out_COST_CENTER_REF_CUR OUT REF_CURSOR
 , out_STORE_REF_CUR OUT REF_CURSOR);
 --TESTING DELETE LATER....
 
-PROCEDURE CC_ADDTL_TABLES_UI_SP ( 
+PROCEDURE CC_ADDTL_TABLES_UI_SP (
  /******************************************************************************
     CC_ADDTL_TABLES_UI_SP  --   create/update tables
 	 impacted by cost center table changes/inserts VIA
@@ -1971,51 +1837,51 @@ PROCEDURE CC_ADDTL_TABLES_UI_SP (
 	This procedure is intended to insert/update the database
 	 for the following tables when creating/updating the
 	 Cost_Center associated tables.
-	Tables are as follows: 
+	Tables are as follows:
             , ADMINISTRATION
             , STORE
             , OTHER
             , REAL_ESTATE
             , TERRITORY
-            tables.  
+            tables.
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
 
-   in_table_name          IN  varchar2   
+   in_table_name          IN  varchar2
   ,in_row_data           IN  varchar2  --sys.xmltype
   );
 
-PROCEDURE CC_ADDRESS_TABLES_UI_SP ( 
+PROCEDURE CC_ADDRESS_TABLES_UI_SP (
  /******************************************************************************
     CC_ADDRESS_TABLES_UI_SP   --   create/update tables
-	 impacted by cost center table changes/inserts via 
+	 impacted by cost center table changes/inserts via
    COST_CENTER_UI_UPSERT_SP.
         Procedure
 
 	This procedure will add one address row singular
-	for the following tables depending on category type : 
+	for the following tables depending on category type :
                ADDRESS_USA
             ,  ADDRESS_CAN
             ,  ADDRESS_MEX
             ,  ADDRESS_OTHER
 
-            tables.  
+            tables.
 
 created:   12/13/2012 BLR  CCN Project....
 *******************************************************************************/
 
 
-in_table_name          IN  varchar2 
+in_table_name          IN  varchar2
 ,in_row_data            IN  varchar2  --sys.xmltype
-);  
+);
 
 PROCEDURE ADDRESS_BRB_ROWTYPE_SP(
  /******************************************************************************
 This procedure is intended to Insert new Barbados address records
 
 created : 05/16/2016 jxc517 CCN Project Team....
-changed : 
+changed :
 *******************************************************************************/
     in_cost_center    IN     ADDRESS_BRB.COST_CENTER_CODE%TYPE,
     in_address_type   IN     ADDRESS_BRB.ADDRESS_TYPE%TYPE,
@@ -2030,7 +1896,7 @@ PROCEDURE ADDRESS_BRB_S_SP(
 This procedure is intended to return a ref cursor with data from ADDRESS_BRB table
 
 created : 05/16/2016 jxc517 CCN Project Team....
-changed : 
+changed :
 *******************************************************************************/
     in_cost_center          IN     ADDRESS_BRB.COST_CENTER_CODE%TYPE,
     in_address_type         IN     ADDRESS_BRB.ADDRESS_TYPE%TYPE,
@@ -2041,7 +1907,7 @@ PROCEDURE ADDRESS_BRB_I_SP(
 This procedure is intended to insert new ADDRESS_BRB records
 
 created : 05/16/2016 jxc517 CCN Project Team....
-changed : 
+changed :
 *******************************************************************************/
     in_cost_center          IN       ADDRESS_BRB.COST_CENTER_CODE%TYPE,
     in_address_type         IN       ADDRESS_BRB.ADDRESS_TYPE%TYPE,
@@ -2055,7 +1921,7 @@ PROCEDURE ADDRESS_BRB_U_SP(
 This procedure is intended to Update Barbados address records
 
 created : 05/16/2016 jxc517 CCN Project Team....
-changed : 
+changed :
 *******************************************************************************/
     in_cost_center    IN        ADDRESS_BRB.COST_CENTER_CODE%TYPE,
     in_address_type   IN        ADDRESS_BRB.ADDRESS_TYPE%TYPE,
@@ -2064,13 +1930,694 @@ changed :
     in_row_date       IN        DATE,
     in_row_data       IN        VARCHAR2);
 
-PROCEDURE HIERARCHY_TRANSFER_I_SP(
-/*******************************************************************************
-This procedure is intended to insert new HIERARCHY_TRANSFER_MAIL records
-created : 04/19/2017 pxb712 CCN Project Team....
+--ARG START
+PROCEDURE ADDRESS_ARG_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new Argentina address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
 changed :
 *******************************************************************************/
-IN_HIERARCHY_TRANSFER_ROW IN HIERARCHY_TRANSFER_MAIL%ROWTYPE);
+    in_cost_center    IN     ADDRESS_ARG.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_ARG.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_ARG.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT ADDRESS_ARG%ROWTYPE);
+
+PROCEDURE ADDRESS_ARG_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  Argentina address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_ARG.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_ARG.ADDRESS_TYPE%TYPE,
+    out_address_arg_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_ARG_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new Argentina address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_ARG.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_ARG.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_ARG.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_ARG_U_SP(
+/*******************************************************************************
+This procedure is intended to update Argentina address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_ARG.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_ARG.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_ARG.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+
+--ARG END
+
+--BRA START
+PROCEDURE ADDRESS_BRA_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new BRAZIL address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_BRA.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_BRA.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_BRA.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT ADDRESS_BRA%ROWTYPE);
+
+PROCEDURE ADDRESS_BRA_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  BRAZIL address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_BRA.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_BRA.ADDRESS_TYPE%TYPE,
+    out_address_bra_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_BRA_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new BRAZIL address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_BRA.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_BRA.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_BRA.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_BRA_U_SP(
+/*******************************************************************************
+This procedure is intended to update BRAZIL address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_BRA.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_BRA.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_BRA.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--BRA END
+
+--CHL START
+PROCEDURE ADDRESS_CHL_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new CHILE address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_CHL.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_CHL.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_CHL.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT ADDRESS_CHL%ROWTYPE);
+
+PROCEDURE ADDRESS_CHL_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  CHILE address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_CHL.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_CHL.ADDRESS_TYPE%TYPE,
+    out_address_chl_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_CHL_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new CHILE address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_CHL.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_CHL.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_CHL.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_CHL_U_SP(
+/*******************************************************************************
+This procedure is intended to update CHILE address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_CHL.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_CHL.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_CHL.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--CHL END
+
+
+--COL START
+PROCEDURE ADDRESS_COL_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new COLUMBIA address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_COL.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_COL.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_COL.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT   ADDRESS_COL%ROWTYPE);
+
+PROCEDURE ADDRESS_COL_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  COLUMBIA address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_COL.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_COL.ADDRESS_TYPE%TYPE,
+    out_address_col_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_COL_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new COLUMBIA address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_COL.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_COL.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_COL.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_COL_U_SP(
+/*******************************************************************************
+This procedure is intended to update COLUMBIA address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_COL.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_COL.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_COL.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--COL END
+
+--ECU START
+PROCEDURE ADDRESS_ECU_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new ECUADOR address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_ECU.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_ECU.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_ECU.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT   ADDRESS_ECU%ROWTYPE);
+
+PROCEDURE ADDRESS_ECU_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  ECUADOR address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_ECU.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_ECU.ADDRESS_TYPE%TYPE,
+    out_address_ecu_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_ECU_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new ECUADOR address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_ECU.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_ECU.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_ECU.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_ECU_U_SP(
+/*******************************************************************************
+This procedure is intended to update ECUADOR address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_ECU.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_ECU.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_ECU.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--ECU END
+
+--PER START
+PROCEDURE ADDRESS_PER_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new PERU address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_PER.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_PER.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_PER.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT   ADDRESS_PER%ROWTYPE);
+
+PROCEDURE ADDRESS_PER_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  PERU address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_PER.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_PER.ADDRESS_TYPE%TYPE,
+    out_address_per_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_PER_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new PERU address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_PER.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_PER.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_PER.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_PER_U_SP(
+/*******************************************************************************
+This procedure is intended to update PERU address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_PER.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_PER.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_PER.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--PER END
+
+--URU START
+PROCEDURE ADDRESS_URU_ROWTYPE_SP(
+/******************************************************************************
+This procedure is intended to Insert new URUGUAY address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN     ADDRESS_URU.COST_CENTER_CODE%TYPE,
+    in_address_type   IN     ADDRESS_URU.ADDRESS_TYPE%TYPE,
+    in_effective_date IN     ADDRESS_URU.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN     VARCHAR2,
+    in_row_date       IN     DATE,
+    in_row_data       IN     VARCHAR2,
+    out_address_type   OUT   ADDRESS_URU%ROWTYPE);
+
+PROCEDURE ADDRESS_URU_S_SP(
+/*******************************************************************************
+This procedure is intended to return a ref cursor with  URUGUAY address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN     ADDRESS_URU.COST_CENTER_CODE%TYPE,
+    in_address_type         IN     ADDRESS_URU.ADDRESS_TYPE%TYPE,
+    out_address_uru_ref_cur    OUT REF_CURSOR);
+
+PROCEDURE ADDRESS_URU_I_SP(
+/*******************************************************************************
+This procedure is intended to insert new URUGUAY address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center          IN       ADDRESS_URU.COST_CENTER_CODE%TYPE,
+    in_address_type         IN       ADDRESS_URU.ADDRESS_TYPE%TYPE,
+    in_effective_date       IN       ADDRESS_URU.EFFECTIVE_DATE%TYPE,
+    in_table_name           IN       VARCHAR2,
+    in_row_date             IN       DATE,
+    in_row_data             IN       VARCHAR2);
+
+PROCEDURE ADDRESS_URU_U_SP(
+/*******************************************************************************
+This procedure is intended to update URUGUAY address records
+
+created : 08/11/2016 MXK766 CCN Project Team....
+changed :
+*******************************************************************************/
+    in_cost_center    IN        ADDRESS_URU.COST_CENTER_CODE%TYPE,
+    in_address_type   IN        ADDRESS_URU.ADDRESS_TYPE%TYPE,
+    in_effective_date IN        ADDRESS_URU.EFFECTIVE_DATE%TYPE,
+    in_table_name     IN        VARCHAR2,
+    in_row_date       IN        DATE,
+    in_row_data       IN        VARCHAR2);
+--URU END
+
+PROCEDURE GL_ACCNTS_PROG_NAME_S_SP(
+/******************************************************************************
+This procedures takes program name or accnt number as input and
+retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_accnt_number         IN     VARCHAR2,
+    out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
+
+PROCEDURE PROG_GL_ACCOUNTS_S_SP(
+/******************************************************************************
+This procedures takes Program Name as input and
+retreives the data of related accounts from table PRGM_GL_ACCNT_RLTN_DTLS as REF CURSOR.
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prog_name            IN     VARCHAR2,
+    out_prg_accnt_refcursor    OUT SYS_REFCURSOR);
+
+--PROCEDURE PRGRM_GL_ACCOUNTS_U_SP(
+--/******************************************************************************
+--This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
+-- updates the data into tables PRGM_GL_ACCNT_RLTN_DTLS
+--created : 03/16/2017 axt754 -- CCN Project Team
+--******************************************************************************/
+--    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_I_SP(
+/******************************************************************************
+This procedures takes PRGM_GL_ACCNT_RLTN_DTLS ROWTYPE as input and
+inserts the data into tables PRGM_GL_ACCNT_RLTN_DTLS
+created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as input and converts into rowtype of PRGM_GL_ACCNT_RLTN_DTLS
+created : 03/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prg_accnt_frag IN     CLOB,
+    in_table_name     IN     VARCHAR2,
+    out_prg_accnt_rec    OUT PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PRGRM_GL_ACCOUNTS_D_SP(
+/******************************************************************************
+This procedures takes  PRGM_GL_ACCNT_RLTN_DTLSrec as input and deletes the data from
+PRGM_GL_ACCNT_RLTN_DTLS table.
+created : 03/23/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_pr_gl_accnts_rec IN PRGM_GL_ACCNT_RLTN_DTLS%ROWTYPE);
+
+PROCEDURE PROGRAMS_S_SP(
+/******************************************************************************
+This procedures takes Program Name as input and
+retreives the data from table PROGRAMS as REF CURSOR.
+created : 08/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_prog_name IN     VARCHAR2,
+    out_prog_rec    OUT SYS_REFCURSOR);
+
+
+PROCEDURE PROGRAMS_U_SP(
+/******************************************************************************
+This procedures takes PROGRAMS TABLE ROWTYPE as input and
+updates the data into tables PROGRAMS
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+     program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_I_SP(
+/******************************************************************************
+This procedures takes PROGRAMS ROWTYPE as input and
+inserts the data into tables PROGRAMS
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as input and converts the data into PROGRAMS
+rowtype
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_program_frag  IN     CLOB,
+    in_table_name    IN     VARCHAR2,
+    out_program_rec     OUT PROGRAMS%ROWTYPE);
+
+PROCEDURE PROGRAMS_D_SP(
+/******************************************************************************
+This procedures takes PROGRAM REC  as input and
+deletes the data from table PROGRAMS table.
+created : 08/14/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    program_rec IN PROGRAMS%ROWTYPE);
+
+PROCEDURE GL_ACCOUNTS_S_SP(
+/******************************************************************************
+This procedures takes GL ACCOUNT NUMBER as input and
+retreives the data from table GENERAL_LEDGER_ACCOUNTS as REF CURSOR.
+created : 03/23/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_accnt_nbr IN     VARCHAR2,
+    out_gl_accnt    OUT SYS_REFCURSOR);
+
+PROCEDURE GL_ACCOUNTS_U_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
+ updates the data into tables GENERAL_LEDGER_ACCOUNTS
+created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+
+PROCEDURE GL_ACCOUNTS_I_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
+inserts the data into tables GENERAL_LEDGER_ACCOUNTS
+created : 03/16/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+
+PROCEDURE GL_ACCOUNTS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as converts the data into
+GENERAL_LEDGER_ACCOUNTS rowtype
+created : 03/15/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnt_frag IN     CLOB,
+    in_table_name    IN     VARCHAR2,
+    out_gl_accnt_rec    OUT GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+
+PROCEDURE GL_ACCOUNTS_D_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS ROWTYPE as input and
+deletes the data from table GENERAL_LEDGER_ACCOUNTS table.
+created : 03/23/2017 axt754 -- CCN Project Team
+******************************************************************************/
+    in_gl_accnts_rec IN GENERAL_LEDGER_ACCOUNTS%ROWTYPE);
+
+PROCEDURE HIERARCHY_TRANSFER_I_SP(
+        /*******************************************************************************
+        This procedure is intended to insert new HIERARCHY_TRANSFER_MAIL records
+        created : 04/19/2017 pxb712 CCN Project Team....
+        changed :
+        *******************************************************************************/
+        IN_HIERARCHY_TRANSFER_ROW IN HIERARCHY_TRANSFER_MAIL%ROWTYPE);
+/*****************************************************************************************************/
+PROCEDURE NON_TAX_CURR_CONV_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to build the currency_conversion record type
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_TABLE_NAME                  IN     VARCHAR2,
+   IN_ROW_DATA                    IN     VARCHAR2, --SYS.XMLTYPE
+   OUT_NON_TW_CURR_CONV_ROWTYPE      OUT CURRENCY_CONVERSION%ROWTYPE );
+
+PROCEDURE NON_TAXWARE_RATES_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to build the NON_TAXWARE_RATES record type
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_TABLE_NAME              IN     VARCHAR2,
+   IN_ROW_DATA                IN     VARCHAR2, --SYS.XMLTYPE
+   OUT_NON_TW_RATES_ROWTYPE      OUT NON_TAXWARE_RATES%ROWTYPE);
+
+PROCEDURE NON_TAX_RATES_USA_ROWTYPE_SP (
+/*******************************************************************************
+This procedure is intended to build the NON_TAXWARE_RATES_USA record type
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_TABLE_NAME                  IN     VARCHAR2,
+   IN_ROW_DATA                    IN     VARCHAR2, --SYS.XMLTYPE
+   OUT_NON_TW_RATES_USA_ROWTYPE      OUT NON_TAXWARE_RATES_USA%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_CURR_CONV_S_SP (
+/*******************************************************************************
+This procedure is intended to select records from CURRENCY_CONVERSION table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COUNTRY_CODE                IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
+    OUT_CURR_CONV_REF_CUR             OUT REF_CURSOR);
+
+PROCEDURE NON_TAXWARE_RATES_S_SP (
+/*******************************************************************************
+This procedure is intended to select records from NON_TAXWARE_RATES table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_COUNTRY_CODE           IN     NON_TAXWARE_RATES.COUNTRY_CODE%TYPE,
+    IN_STATEMENT_TYPE         IN     NON_TAXWARE_RATES.STATEMENT_TYPE%TYPE,
+    OUT_NON_TW_RATES_REF_CUR     OUT REF_CURSOR
+    );
+
+
+PROCEDURE NON_TAXWARE_RATES_USA_S_SP (
+/*******************************************************************************
+This procedure is intended to select records from NON_TAXWARE_RATES_USA table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+   IN_COUNTRY_CODE               IN     NON_TAXWARE_RATES_USA.COUNTRY_CODE%TYPE,
+   IN_STATEMENT_TYPE             IN     NON_TAXWARE_RATES_USA.STATEMENT_TYPE%TYPE,
+   IN_STATE_CODE                 IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,
+   OUT_NON_TW_RATES_USA_REF_CUR     OUT REF_CURSOR);
+
+PROCEDURE NON_TAXWARE_CURR_CONV_U_SP (
+/*******************************************************************************
+This procedure is intended to updates records in CURRENCY_CONVERSION table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_CURR_CONV_ROW         IN CURRENCY_CONVERSION%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_RATES_U_SP (
+/*******************************************************************************
+This procedure is intended to updates records in NON_TAXWARE_RATES table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_RATES_ROW         IN NON_TAXWARE_RATES%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_RATES_USA_U_SP (
+/*******************************************************************************
+This procedure is intended to updates records in NON_TAXWARE_RATES_USA table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_RATES_USA_ROW         IN NON_TAXWARE_RATES_USA%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_CURR_CONV_I_SP (
+/*******************************************************************************
+This procedure is intended to insert records into CURRENCY_CONVERSION table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_CURR_CONV_ROW         IN CURRENCY_CONVERSION%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_RATES_I_SP (
+/*******************************************************************************
+This procedure is intended to insert records into NON_TAXWARE_RATES table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_RATES_ROW     IN NON_TAXWARE_RATES%ROWTYPE);
+
+
+PROCEDURE NON_TAXWARE_RATES_USA_I_SP (
+/*******************************************************************************
+This procedure is intended to insert records into NON_TAXWARE_RATES_USA table
+
+Created : 09/05/2017 axt754 CCN Project....
+Changed :
+*******************************************************************************/
+    IN_NON_TW_RATES_USA_ROW      IN NON_TAXWARE_RATES_USA%ROWTYPE);
+
+PROCEDURE ADDRESS_ALL_SP(
+/*******************************************************************************
+    ADDRESS_ALL_SP
+
+    This procedure is intended to return a ref cursor with data from
+    from the all the ADDRESS table.
+
+created : 01/25/2018 nxk927 CCN Project....
+changed :
+*******************************************************************************/
+IN_COST_CENTER           IN  ADDRESS_USA.COST_CENTER_CODE%TYPE,
+IN_ADDRESS_TYPE          IN  ADDRESS_USA.ADDRESS_TYPE%TYPE,
+OUT_ADDRESS_OTHER_REF_CUR   OUT REF_CURSOR,
+OUT_ADDRESS_USA_REF_CUR     OUT REF_CURSOR,
+OUT_ADDRESS_CAN_REF_CUR     OUT REF_CURSOR,
+OUT_ADDRESS_MEX_REF_CUR     OUT REF_CURSOR,
+OUT_ADDRESS_BRB_REF_CUR     OUT REF_CURSOR);
 
 PROCEDURE STORE_HST_I_SP(
 /*******************************************************************************
@@ -2093,6 +2640,70 @@ Changed :
     IN_COST_CENTER_CODE      IN     VARCHAR2,
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
+PROCEDURE GL_ACCOUNTS_DIVISIONS_ROWTYPE_SP(
+/******************************************************************************
+This procedures takes XML as converts the data into
+GENERAL_LEDGER_ACCOUNTS_DIVISIONS rowtype
+created : 10/04/2018 kxm302 -- CCN Project Team
+******************************************************************************/
+    in_gl_account_number      IN     VARCHAR2,
+    in_gl_accnt_div_frag      IN     CLOB,
+    in_table_name             IN     VARCHAR2,
+    out_gl_accnts_div_rec     OUT   GL_ACCOUNT_DIVISIONS%ROWTYPE);
+
+PROCEDURE GL_ACCOUNTS_DIVISIONS_U_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS_DIVISIONS ROWTYPE as input and
+ updates the data into tables GENERAL_LEDGER_ACCOUNTS_DIVISIONS
+created : 10/04/2018 kxm302 -- CCN Project Team
+******************************************************************************/
+
+    in_gl_accnts_div_rec IN GL_ACCOUNT_DIVISIONS%ROWTYPE);
+
+PROCEDURE GL_ACCOUNTS_DIVISIONS_I_SP(
+/******************************************************************************
+This procedures takes GENERAL_LEDGER_ACCOUNTS_DIVISIONS ROWTYPE as input and
+inserts the data into tables GENERAL_LEDGER_ACCOUNTS_DIVISIONS
+created : 10/04/2018 kxm302 -- CCN Project Team
+******************************************************************************/
+        in_gl_accnts_div_rec IN GL_ACCOUNT_DIVISIONS%ROWTYPE);
+
+PROCEDURE CCN_ADDRESS_UI_SP(
+    inCost_center                    IN  COST_CENTER.cost_center_code%type
+   ,inCountry_code                   IN  COST_CENTER.country_code%type
+   ,inAddressType                    IN  ADDRESS_USA.address_type%type DEFAULT NULL
+   ,out_ADDRESS_REF_CUR              OUT SYS_REFCURSOR);
+-- ,OUT_ADDRESS_OTHER_REF_CUR        OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_USA_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_CAN_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_MEX_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_BRB_REF_CUR          OUT SYS_REFCURSOR)
+
+PROCEDURE DSPTH_SRVCS_S_SP(
+/*******************************************************************************
+This procedure is intended to return ref cursors for store table data, address data
+and  dispatch terminal data.
+
+
+created : 09/04/2019 akj899 CCNA2-55 CCN Project....
+*******************************************************************************/
+    IN_COST_CENTER_CODE          IN      STORE.COST_CENTER_CODE%TYPE,
+    OUT_STORE_REF_CUR            OUT     SYS_REFCURSOR,
+    OUT_ADDRESS_REF_CUR          OUT     SYS_REFCURSOR,
+    OUT_DSPTCH_TRMNL_REF_CUR     OUT     SYS_REFCURSOR
+);
+
+PROCEDURE DSPTH_SRVCS_DAD_STORES_S_SP(
+/******************************************************************************
+This procedure is intended to return ref cursors for store data for given
+division, area nad district
+
+Created : 09/05/2019 akj899 CCNA2-55 CCN Project....
+Modified:
+******************************************************************************/
+    IN_DIVISION          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DIVISION%TYPE,
+    IN_AREA              IN      GLOBAL_HIERARCHY_DETAIL_VIEW.AREA%TYPE,
+    IN_DISTRICT          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE,
+    OUT_STORE_REF_CUR    OUT     SYS_REFCURSOR);
+
 END CCN_TABLE_IU_PKG;
-
-

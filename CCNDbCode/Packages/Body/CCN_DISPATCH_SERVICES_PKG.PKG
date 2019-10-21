@@ -1,0 +1,179 @@
+create or replace PACKAGE BODY CCN_DISPATCH_SERVICES_PKG
+AS
+/**********************************************************
+    CCN_DISPATCH_SERVICES_PKG
+
+    This Package is intended to be the wrapper for the Dispatch Services related UI exchange.
+
+Created : 09/23/2019 sxc403/akj899 CCNA2-55 CCN Project....
+Changed :
+**********************************************************/
+
+PROCEDURE DISPATCH_SERVICES_S_SP(
+/******************************************************************************
+This procedure is intended to return ref cursors for store data, address data
+and dispatch terminal data for the paased cost center code.
+
+Created : 09/04/2019 akj899 CCNA2-55 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_COST_CENTER_CODE             IN   STORE.COST_CENTER_CODE%TYPE,
+    OUT_STORE_REF_CUR               OUT  SYS_REFCURSOR,
+    OUT_ADDRESS_REF_CUR             OUT  SYS_REFCURSOR,
+    OUT_DSPTCH_TRMNL_REF_CUR        OUT  SYS_REFCURSOR)
+IS
+    V_COST_CENTER   COST_CENTER.COST_CENTER_CODE%TYPE;
+    V_CATEGORY      COST_CENTER.CATEGORY%TYPE := 'S';
+BEGIN
+    -- Get 6 digit Cost Centet
+    BEGIN
+       V_COST_CENTER := COMMON_TOOLS.COST_CENTER_LOOK_UP_FNC(IN_COST_CENTER_CODE);
+    EXCEPTION
+       WHEN OTHERS THEN
+           RAISE;
+    END;
+    --Call Business Rule to validate that the Cost Center belongs to Store Category:
+    CCN_BUSINESS_RULES_PKG.VALIDATE_CC_CATEGORY(IN_COST_CENTER_CODE,
+                                                V_CATEGORY);
+    --Call procedures to get relevant out ref cursors to display data in UI                                            
+    CCN_TABLE_IU_PKG.DSPTH_SRVCS_S_SP(IN_COST_CENTER_CODE,
+                                      OUT_STORE_REF_CUR,
+                                      OUT_ADDRESS_REF_CUR,
+                                      OUT_DSPTCH_TRMNL_REF_CUR);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'DISPATCH_SERVICES_S_SP ', SQLCODE || ' ' || SQLERRM);
+END DISPATCH_SERVICES_S_SP;
+
+PROCEDURE DISPATCH_SERVICES_RPRT_SP(
+/******************************************************************************
+This procedure is intended to return ref cursors for store data for given
+division, area nad district
+
+Created : 09/05/2019 akj899 CCNA2-55 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_DIVISION          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DIVISION%TYPE,
+    IN_AREA              IN      GLOBAL_HIERARCHY_DETAIL_VIEW.AREA%TYPE,
+    IN_DISTRICT          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE,
+    OUT_STORE_REF_CUR    OUT     SYS_REFCURSOR)
+IS
+BEGIN
+    CCN_TABLE_IU_PKG.DSPTH_SRVCS_DAD_STORES_S_SP(IN_DIVISION,
+                                                 IN_AREA,
+                                                 IN_DISTRICT,
+                                                 OUT_STORE_REF_CUR);
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE,'DISPATCH_SERVICES_RPRT_SP ', SQLCODE || ' ' || SQLERRM);
+END DISPATCH_SERVICES_RPRT_SP;
+
+PROCEDURE CCN_DISPATCH_SERVICES_UPSERT_SP (
+/**********************************************************
+This procedure will update the STORE table with Dispatch Services Changes.
+
+    <CCN_STORE_DISPATCH_SERVICES_UI>
+      <STORE>
+        <COST_CENTER_CODE>701001</COST_CENTER_CODE>
+        <CATEGORY>S</CATEGORY>
+        <PERP_INV_START_DATE></PERP_INV_START_DATE>
+        <CLASSIFICATION_CODE></CLASSIFICATION_CODE>
+        <INVENTORY_INDICATOR>Y</INVENTORY_INDICATOR>
+        <RURAL_METRO_ZONE_CODE></RURAL_METRO_ZONE_CODE>
+        <SELLING_STORE_FLAG>Y</SELLING_STORE_FLAG>
+        <SALES_VOL_CLASS_CODE></SALES_VOL_CLASS_CODE>
+        <SELLING_STORE_FLAG_MARK_DT>04-APR_2019</SELLING_STORE_FLAG_MARK_DT>
+        <POTENTIAL_OPEN_DATE>04-APR_2019</POTENTIAL_OPEN_DATE>
+        <POS_VERSION_NBR></POS_VERSION_NBR>
+        <POS_VERSION_NBR_APPLIED_DATE></POS_VERSION_NBR_APPLIED_DATE>
+        <DESCARTES_DELIVERY_CODE>S</DESCARTES_DELIVERY_CODE>
+        <DISPATCH_SERVICE_TYPE_CODE>1</DISPATCH_SERVICE_TYPE_CODE>
+        <DESIGNATED_TERMINAL_NUMBER>13532</DESIGNATED_TERMINAL_NUMBER>
+        <GO_LIVE_DATE>02-13-2019</GO_LIVE_DATE>
+        <PICKUP_BUFFER>20</PICKUP_BUFFER>
+        <MIN_RMNG_DLVRY_TIME>2</MIN_RMNG_DLVRY_TIME>
+      </STORE>
+    </CCN_STORE_DISPATCH_SERVICES_UI>
+
+Created : 9/23/2019 sxc403/akj899 CCNA2-55 CCN Project Team....
+Changed :
+**********************************************************/
+    IN_XML      IN  CLOB)
+AS
+    V_XML        XMLTYPE := SYS.XMLTYPE(IN_XML);
+    V_TABLE_NAME VARCHAR2(50) := 'STORE';
+    V_OUT_ROW    STORE%ROWTYPE;
+    V_XML_FRAG   CLOB;
+BEGIN
+    IF(V_XML.EXISTSNODE('/CCN_STORE_DISPATCH_SERVICES_UI/' || V_TABLE_NAME) = 1)THEN
+             V_XML_FRAG := V_XML.EXTRACT('/CCN_STORE_DISPATCH_SERVICES_UI/'|| V_TABLE_NAME).GETCLOBVAL();
+    END IF;
+        CCN_TABLE_IU_PKG.STORE_U_SP (V_TABLE_NAME,
+                                     V_XML_FRAG,
+                                     V_OUT_ROW);    
+END CCN_DISPATCH_SERVICES_UPSERT_SP;
+
+PROCEDURE BUILD_STR_DSPTCH_SRV_UPD_XML(
+    IN_COST_CENTER_CODE  IN     STORE.COST_CENTER_CODE%TYPE,
+    OUT_XML              OUT    CLOB) 
+AS
+    V_CLOB                     CLOB;
+BEGIN
+    SELECT ''||
+           XMLELEMENT("STORE",
+                      XMLFOREST(S.COST_CENTER_CODE,
+                                S.CATEGORY,                      
+                                S.PERP_INV_START_DATE,           
+                                S.CLASSIFICATION_CODE,           
+                                S.INVENTORY_INDICATOR,           
+                                S.RURAL_METRO_ZONE_CODE,         
+                                S.SELLING_STORE_FLAG,            
+                                S.SALES_VOL_CLASS_CODE,          
+                                S.SELLING_STORE_FLAG_MARK_DT,    
+                                S.POTENTIAL_OPEN_DATE,           
+                                S.POS_VERSION_NBR,               
+                                S.POS_VERSION_NBR_APPLIED_DATE,  
+                                NVL(T.DESCARTES_DELIVERY_CODE, S.DESCARTES_DELIVERY_CODE) DESCARTES_DELIVERY_CODE,       
+                                NVL(T.DISPATCH_SERVICES_TYPE_CODE, 1) DISPATCH_SERVICES_TYPE_CODE,   
+                                S.DESIGNATED_TERMINAL_NUMBER,    
+                                NVL(T.GO_LIVE_DATE, TO_CHAR(S.GO_LIVE_DATE, 'MM/DD/YYYY')) GO_LIVE_DATE,                  
+                                NVL(T.PICKUP_BUFFER, S.PICKUP_BUFFER) PICKUP_BUFFER,                 
+                                NVL(T.MIN_RMNG_DLVRY_TIME, S.MIN_RMNG_DLVRY_TIME) MIN_RMNG_DLVRY_TIME)) ||
+                                ''
+      INTO V_CLOB
+      FROM STORE S,
+           TEMP_STR_DISPATCH_SERVICES_UPD T
+     WHERE S.COST_CENTER_CODE  = T.COST_CENTER_CODE
+       AND S.COST_CENTER_CODE  = IN_COST_CENTER_CODE;
+       
+      OUT_XML:= V_CLOB;
+
+END BUILD_STR_DSPTCH_SRV_UPD_XML;
+
+PROCEDURE STORE_DISPATCH_SERVICES_LOAD_PROCESS(
+/******************************************************************************
+This procedure is the core process for updating the store dispatch services column values.
+This process will be invoked by UI for bulk update of store dispatch services fields.
+
+IN_BLOB          - blob value delimited by , and termianted by new line character
+
+Created : 10/07/2019 akj899 CCNA2-55 CCN Project Team....
+Modified:
+******************************************************************************/
+    IN_BLOB            IN       BLOB)
+IS
+    V_FILE_NM               VARCHAR2(100) := 'STORE_DISPATCH_SERVICES_UPDATE.csv';
+    V_ARC_FILE_NM           VARCHAR2(100) := 'STORE_DISPATCH_SERVICES_UPDATE_'||TO_CHAR(SYSDATE,'RRRRMMDDHHMISS')||'.csv';   
+BEGIN
+    CCN_BATCH_PKG.FILE_UPLOAD(IN_BLOB, V_FILE_NM);
+    CCN_BATCH_PROCESS.STORE_DISPATCH_SERVICES_UPD();
+    -- Rename file on server for history
+    CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Rename file on server for history
+        CCN_BATCH_PKG.FILE_RENAME(V_FILE_NM, V_ARC_FILE_NM);
+        ERRPKG.RAISE_ERR(SQLCODE,'CCN_DISPATCH_SERVICES_PKG.STORE_DISPATCH_SERVICES_LOAD_PROCESS', SUBSTR(SQLERRM,1,500));
+END STORE_DISPATCH_SERVICES_LOAD_PROCESS;
+
+END CCN_DISPATCH_SERVICES_PKG;
