@@ -152,9 +152,9 @@ PRIM_COST_IDENTIFIER,
                                   FROM FACTS_DIVISION_DETAIL_VIEW
                                  WHERE DIVISION IN ('C522','C400'))
          THEN
-            ('swp'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
+            ('swp'||C.COST_CENTER_CODE||'@sherwin.com')
      ELSE
-         ('sw'||SUBSTR(C.COST_CENTER_CODE,3)||'@sherwin.com')
+         ('sw'||C.COST_CENTER_CODE||'@sherwin.com')
   END) AS STORE_EMAIL,
 C.BOOK_PLN_PROFILE_CD,
 C.SPRAY_EQP_RPR_IND,
