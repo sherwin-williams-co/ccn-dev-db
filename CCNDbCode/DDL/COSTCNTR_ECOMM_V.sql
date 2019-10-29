@@ -32,6 +32,7 @@ Modified : 08/18/2015 nxk927 CCN Project...
            Added PCC Color(PCC_STORE/PCL_STORE) Fields  ASP-869
 		 : 08/26/2019 axm868 CCN Project Team....
      	   Added CC_TEMP_CLOSED_CODE AND CC_TEMP_CLOSED_CODE_DSCRPTN Fields  CCNCC-171
+		 : 10/28/2019 sxc403 Changed the view to get all 6 digits of cost_center_code for the store_email column of the view.
 *******************************************************************************/
         (CASE C.CATEGORY
             WHEN 'T' THEN (SELECT CCN_HIERARCHY.GET_RQSTD_ATTRIBUTE_VALUE(UPPER_LVL_VER_VALUE,'ManagerName')
@@ -81,9 +82,9 @@ Modified : 08/18/2015 nxk927 CCN Project...
                                             WHERE HRCHY_HDR_NAME ='FACTS_DIVISION'
                                               AND DIVISION IN ('C522','C400'))
                   AND  C.COUNTRY_CODE IN  ('USA','CAN') THEN
-                 ('swp'||SUBSTR(c.COST_CENTER_CODE,3)||'@sherwin.com')
+                 ('swp'||C.COST_CENTER_CODE||'@sherwin.com')
              ELSE
-                 ('sw'||SUBSTR(c.COST_CENTER_CODE,3)||'@sherwin.com')
+                 ('sw'||C.COST_CENTER_CODE||'@sherwin.com')
           END) AS STORE_EMAIL
         ,DECODE(CATEGORY,'R',CATEGORY,NULL) REAL_ESTATE_TYPE
         ,C.MISSION_TYPE_CODE AS MISSION_CODE

@@ -59,6 +59,7 @@ Modified : 02/17/2015 SXT410 Added FAX_PHONE_NUMBER, POLLING_STATUS_CODE and
                       Added column TERRITORY_TYP_OF_BUSN_SGMNT_CD and TERRITORY_TYP_OF_BUSN_SGMNT_CD_DESC
          : 08/14/2019 akj899 CCNCC-4 CCN Project Team...
                       Renamed TERRITORY_TYP_OF_BUSN_SGMNT_CD_DESC to TERR_TYP_OF_BUSN_SGMNT_CD_DESC to reduce the name to length 30
+		 : 10/28/2019 sxc403 Changed the view to get all 6 digits of cost_center_code for the store_email column of the view.
 ****************************************************************************************************************************************/  
 C.COST_CENTER_CODE,
 COST_CENTER_NAME,
@@ -187,3 +188,4 @@ LEFT JOIN
 (SELECT SALES_SQ_FT,TOTAL_SQ_FT,COST_CENTER_CODE, EXPIRATION_DATE FROM MARKETING) M
 ON (M.COST_CENTER_CODE=C.COST_CENTER_CODE AND M.EXPIRATION_DATE IS NULL )
 ;
+
