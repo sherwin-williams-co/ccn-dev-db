@@ -313,4 +313,16 @@ Changed :
          IN_COST_CENTER_CODE    IN     COST_CENTER.COST_CENTER_CODE%TYPE)
 RETURN STORE.DESIGNATED_TERMINAL_NUMBER%TYPE;
 
+FUNCTION GET_NTH_WORKING_DAYS(
+/******************************************************************************
+This function will return the Nth working day from the date passed in
+NOTE: N can be positive or negative
+
+Created : 10/10/2019 jxc517 CCN Project Team.... CCNSD-25
+Changed :
+******************************************************************************/
+    IN_WORKING_DAYS    IN     PLS_INTEGER,
+    IN_START_DATE      IN     DATE         DEFAULT SYSDATE)
+RETURN DATE;
+
 END CCN_COMMON_TOOLS;

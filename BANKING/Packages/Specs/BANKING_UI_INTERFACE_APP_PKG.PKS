@@ -635,4 +635,16 @@ changed :
 **********************************************************/
     IN_XML                VARCHAR2);
 
+FUNCTION GET_DESIRED_ARRIVAL_DATE(
+/**********************************************************
+a.	Due date for RUSH orders will be 1st working day from the day it is ordered (before 2 PM)
+b.	Due date for RUSH orders will be 2nd working day from the day it is ordered (after 2 PM)
+c.	Due date for NO-RUSH orders will always be 5th working day from the day it is ordered
+
+Created : 10/10/2019 jxc517 CCN Project Team.... CCNSD-25
+Changed : 
+**********************************************************/
+    IN_RUSH_IND    IN   VARCHAR2 DEFAULT 'N')
+RETURN DATE;
+
 END BANKING_UI_INTERFACE_APP_PKG;
