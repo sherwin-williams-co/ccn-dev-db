@@ -1,5 +1,4 @@
-CREATE OR REPLACE
-PACKAGE BODY SD_PAID_DETAILS_LOAD
+create or replace PACKAGE BODY SD_PAID_DETAILS_LOAD
 /**************************************************************** 
 This package will update paid details in the existing CCN Store Drafts Oracle Database
 created : 07/23/2014 jxc517 CCN Project....
@@ -18,16 +17,40 @@ Changed : 02/28/2015 nxk927 (update all the drafts excluding void and stopped dr
         : 03/06/2017 gxg192 Changes to update UNATTACHED_MNL_DRFT_DTL table
                      only if record is not found in store drafts table.
         : 03/07/2017 gxg192 Changes to load paid details if paid date is not null
+        : 11/06/2018 jxc517 CCN Project Team....
+          Replaced external table with actual table and added logic to move the data into history
+          Also added conditions to filter out specific data (conditions from ecternal table moved to query)
 ******************************************************************/
 AS
     CURSOR TEMP_CUR is
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE_PAID, 'MMDDYY') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(PAID_AMONUT_ITEMS,10,2) AMOUNT,
                CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(PAID_CHECK_SERIAL_NUMBER) CHECK_SERIAL_NUMBER
-          FROM TEMP_PAID_DETAILS_SUNTRUST;
+          FROM PAID_DETAILS_SUNTRUST
+         WHERE TRANSACTION_TYPE_CODE IN ('50');
 
-    V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
+
+PROCEDURE PERFORM_BACKUP_PROCESS
+IS
+    V_RUN_NBR NUMBER := 0;
+BEGIN
+    BEGIN
+        SELECT MAX(RUN_NBR)
+          INTO V_RUN_NBR
+          FROM PAID_DETAILS_SUNTRUST_HST
+         WHERE LOAD_DATE = TRUNC(SYSDATE);
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_RUN_NBR := NULL;
+    END;
+    INSERT INTO PAID_DETAILS_SUNTRUST_HST
+        SELECT A.*, TRUNC(SYSDATE), NVL(V_RUN_NBR,0) + 1 FROM PAID_DETAILS_SUNTRUST A;
+    DELETE FROM PAID_DETAILS_SUNTRUST;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END PERFORM_BACKUP_PROCESS;
 BEGIN
     FOR rec IN TEMP_CUR LOOP
         IF rec.PAID_DATE IS NOT NULL THEN
@@ -86,7 +109,6 @@ BEGIN
                                                    NVL(rec.CHECK_SERIAL_NUMBER,''));
                 END;
             END IF;
-            V_COMMIT := V_COMMIT + 1;
         ELSE
             ERRPKG.INSERT_ERROR_LOG_SP(200,
                                        'CCN_SD_PAID_LOAD_SUNTRUST_SP',
@@ -96,12 +118,8 @@ BEGIN
         END IF;
 
         V_TEMP_ROW := NULL;
-        IF V_COMMIT > 500 THEN
-            COMMIT;
-            V_COMMIT := 0;
-        END IF;
     END LOOP;
-    COMMIT;
+    PERFORM_BACKUP_PROCESS();
 EXCEPTION
     WHEN OTHERS THEN
          ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
@@ -122,16 +140,39 @@ Changed : 02/28/2015 nxk927 (update all the drafts excluding void and stopped dr
         : 03/06/2017 gxg192 Changes to update UNATTACHED_MNL_DRFT_DTL table
                      only if record is not found in store drafts table.
         : 03/07/2017 gxg192 Changes to load paid details if paid date is not null
+        : 11/06/2018 jxc517 CCN Project Team....
+          Replaced external table with actual table and added logic to move the data into history
+          Also added conditions to filter out specific data (conditions from ecternal table moved to query)
 ******************************************************************/
 AS
     CURSOR TEMP_CUR is
         SELECT CCN_COMMON_TOOLS.GET_DATE_VALUE('1'||PAID_DATE, 'YYMMDD') PAID_DATE,
                CCN_COMMON_TOOLS.RETURN_NUMBER(AMOUNT,11,2) AMOUNT,
                CCN_COMMON_TOOLS.VALIDATE_DATA_BEFORE_LOAD(FILLER||CHECK_NUMBER_CC||CHECK_NUMBER_SQ||CHECK_NUMBER_CK) CHECK_SERIAL_NUMBER
-          FROM TEMP_PAID_DETAILS_ROYAL;
+          FROM PAID_DETAILS_ROYAL
+         WHERE TRANSACTION_TYPE_CODE IN ('10','15','20','30','40','50','60','70');
 
-    V_COMMIT     NUMBER := 0;
     V_TEMP_ROW   STORE_DRAFTS%ROWTYPE;
+PROCEDURE PERFORM_BACKUP_PROCESS
+IS
+    V_RUN_NBR NUMBER := 0;
+BEGIN
+    BEGIN
+        SELECT MAX(RUN_NBR)
+          INTO V_RUN_NBR
+          FROM PAID_DETAILS_ROYAL_HST
+         WHERE LOAD_DATE = TRUNC(SYSDATE);
+    EXCEPTION
+        WHEN OTHERS THEN
+            V_RUN_NBR := NULL;
+    END;
+    INSERT INTO PAID_DETAILS_ROYAL_HST
+        SELECT A.*, TRUNC(SYSDATE), NVL(V_RUN_NBR,0) + 1 FROM PAID_DETAILS_ROYAL A;
+    DELETE FROM PAID_DETAILS_ROYAL;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE;
+END PERFORM_BACKUP_PROCESS;
 BEGIN
     FOR rec IN TEMP_CUR LOOP
         IF rec.PAID_DATE IS NOT NULL THEN
@@ -190,80 +231,15 @@ BEGIN
                                                    NVL(rec.CHECK_SERIAL_NUMBER,''));
                 END;
             END IF;
-            V_COMMIT := V_COMMIT + 1;
         ELSE
-            ERRPKG.INSERT_ERROR_LOG_SP(200,
-                                       'CCN_SD_PAID_LOAD_ROYAL_SP',
-                                       'Paid Date is null',
-                                       NULL, --cost_center_code
-                                       NVL(rec.CHECK_SERIAL_NUMBER,''));
+            ERRPKG.INSERT_ERROR_LOG_SP(200, 'CCN_SD_PAID_LOAD_ROYAL_SP', 'Paid Date is null', NULL, NVL(rec.CHECK_SERIAL_NUMBER,''));
         END IF;
         V_TEMP_ROW := NULL ;
-        IF V_COMMIT > 500 THEN
-            COMMIT;
-            V_COMMIT := 0;
-        END IF;
-
     END LOOP;
-    COMMIT;
+    PERFORM_BACKUP_PROCESS();
 EXCEPTION
     WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'CCN_SD_PAID_LOAD_ROYAL_SP',
-                                    SQLERRM,
-                                    '000000',
-                                    '0000000000'); 
+         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'CCN_SD_PAID_LOAD_ROYAL_SP', SQLERRM, '000000', '0000000000'); 
 END CCN_SD_PAID_LOAD_ROYAL_SP;
-
-PROCEDURE CCN_SD_PAID_LOAD_SP
-/******************************************************************
-This Procedure is a wrapper for the Paid details update of the store drafts tables
-
-created : 07/23/2014 jxc517 CCN Project....
-changed : 12/08/2014 jxc517 CCN Project....
-          Date field in file is coming as MMDDYY for SUNTRUST and YYMMDD for ROYAL
-          Corrected the code to handle this scenario
-        : 03/27/2019 ASP-1207 mxs216 CCN Project....
-          Updated varibale declaration with referencing CCN_BATCH_PKG.BATCH_JOB_TYPE
-******************************************************************/
-AS
-    V_CONTEXT        VARCHAR2(200);
-    V_START_TIME     NUMBER;
-    V_START_DURATION DATE := SYSDATE;
-    V_CLOB           CLOB;
-    V_BATCH_NUMBER   CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
-    V_TRANS_STATUS   CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
-BEGIN
-    CCN_BATCH_PKG.INSERT_BATCH_JOB('SD_DAILY_PAID_LOAD', V_BATCH_NUMBER);
-    CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    BEGIN
-      V_START_TIME := DBMS_UTILITY.GET_TIME;
-      V_CONTEXT := 'Update STORE_DRAFTS paid details ';
-
-      SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_SUNTRUST_SP();
-      SD_PAID_DETAILS_LOAD.CCN_SD_PAID_LOAD_ROYAL_SP();
-      dbms_output.put_line('STORE_DRAFTS paid details updated in : '|| (dbms_utility.get_time - v_start_time)/100 || ' Seconds');
-
-      FOR rec IN (SELECT * FROM ERROR_LOG WHERE ERROR_DATE >= V_START_DURATION) LOOP
-          V_CLOB := V_CLOB || rec.COST_CENTER ||','|| rec.ERROR_TEXT || CHR(10);
-      END LOOP;
-      IF V_CLOB <> EMPTY_CLOB() THEN
-          MAIL_PKG.SEND_MAIL('SD_PAIDS_LOAD_ERRORS',NULL, NULL, V_CLOB);
-      END IF;
-    EXCEPTION
-        WHEN OTHERS THEN
-            V_TRANS_STATUS := 'ERROR';
-    END;
-    
-    CCN_BATCH_PKG.UPDATE_BATCH_JOB('SD_DAILY_PAID_LOAD', V_BATCH_NUMBER, V_TRANS_STATUS);
-    CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION; 
-EXCEPTION
-    WHEN OTHERS THEN
-         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
-                                    'CCN_SD_PAID_LOAD_SP',
-                                    SQLERRM,
-                                    '000000',
-                                    '0000000000'); 
-END CCN_SD_PAID_LOAD_SP;
 
 END SD_PAID_DETAILS_LOAD;
