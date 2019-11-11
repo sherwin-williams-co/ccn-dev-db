@@ -484,4 +484,13 @@ created : 07/10/2019 axm868 CCN Project Team...CCNCC-27
 **********************************************************/
     IN_COST_CENTER_CODE   IN   VARCHAR2);
 
+FUNCTION GET_STORE_ACTIVE_POLLING_STATUS(
+/**********************************************************
+This procedure will return the active polling status for the cost center code passed in
+
+created : 10/07/2019 jxc517 CCN Porject Team....
+**********************************************************/
+    IN_COST_CENTER_CODE    IN   VARCHAR2)
+RETURN VARCHAR2;
+
 END COMMON_TOOLS;
