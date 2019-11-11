@@ -1,7 +1,7 @@
 create or replace PACKAGE body SD_BUSINESS_RULES_PKG
 /****************************************************************************** 
 This package BODY will do the business rules validations:
-
+  
 created : 06/30/2014 
 changed :
 ******************************************************************************/
@@ -83,6 +83,7 @@ IS
     V_CHECK_NUMBER                 VARCHAR2(4);
     V_COST_CENTER                  VARCHAR2(4);
     V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
+    invalid_check_number_err       EXCEPTION;
 BEGIN
     IF LENGTH(IN_CHECK_NUMBER) = 10 THEN
         V_CHECK_SERIAL_NUMBER := IN_CHECK_NUMBER;
@@ -91,28 +92,33 @@ BEGIN
     ELSIF LENGTH(IN_CHECK_NUMBER) > 4 THEN
         V_CHECK_NUMBER := SUBSTR(IN_CHECK_NUMBER,-5,4);
     END IF;
-    --If 10 digit check number is passed then it will be used to validate against 10 digit check serial number 
+    --If 10 digit check number is passed then it will be used to validate against 10 didgit check serial number 
     --If other than 10 digit check number is passed then its assumed that cost center and check number 
     --combination will be used to get 10 digit check serial number
     --In any case if check number (draft number) passed is not in unused available printed draft number
     --then error message will be displayed .
     IF V_CHECK_SERIAL_NUMBER IS NOT NULL THEN
-        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_CHECK_SERIAL_NUMBER(V_CHECK_SERIAL_NUMBER);
+        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_PRNT_EXTRCT_CHK_SRL_NMBR(V_CHECK_SERIAL_NUMBER);
     ELSE
-        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_CHECK_SERIAL_NUMBER(IN_COST_CENTER_CODE,V_CHECK_NUMBER);
+        V_CHECK_SERIAL_NUMBER := SD_CHECK_NBR_PRINT_SRVCS.GET_PRNT_EXTRCT_CHK_SRL_NMBR_BY_CC(IN_COST_CENTER_CODE,V_CHECK_NUMBER);
     END IF;
 
+    IF V_CHECK_SERIAL_NUMBER IS NULL THEN
+        RAISE invalid_check_number_err;
+    END IF;
     RETURN V_CHECK_SERIAL_NUMBER;
 EXCEPTION
+    WHEN invalid_check_number_err THEN
+        ERRPKG.RAISE_ERR(errnums.en_inv_check_num_err,'GET_CHECK_SERIAL_NUMBER','Please enter a valid 4 digit unused printed check number.');
     WHEN OTHERS THEN
-          ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
+        ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
 END GET_CHECK_SERIAL_NUMBER;
 
 PROCEDURE UNATTACHED_MNL_DRFT_DTL_SP(
 /*****************************************************************************
-	UNATTACHED_MNL_DRFT_DTL_SP
+    UNATTACHED_MNL_DRFT_DTL_SP
 
-	This procedure will do the bussiness rules validations for UNATTACHED_MNL_DRFT_DTL table
+    This procedure will do the bussiness rules validations for UNATTACHED_MNL_DRFT_DTL table
 
 created : 09/12/2014 jxc517 CCN Project . . .
 changed :
@@ -310,16 +316,13 @@ IS
    V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
    no_run_type_err            EXCEPTION;
 BEGIN
-
     V_SD_CHK_TYP_REC         := SD_CHECK_NBR_PRINT_SRVCS.GET_SD_CHK_TYP_REC(IN_STORE_RUN_TYPE_DETAILS_ROW.STORE_DRAFT_CHECK_RUN_TYPE);
-
     IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
        RAISE no_run_type_err;
     END IF;
 EXCEPTION
     WHEN no_run_type_err THEN
        ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');    
-
 END SD_RUN_TYPE_VALIDATION;
 
 PROCEDURE SD_VALIDATE_RUN_TYPE_DETAILS(
@@ -388,6 +391,7 @@ BEGIN
     IF IN_TERMINAL_NUMBER IS NULL THEN
         RAISE no_terminal_number_err;
     END IF;
+
 EXCEPTION
     WHEN no_terminal_number_err THEN
        ERRPKG.RAISE_ERR(errnums.en_no_terminal_number_err,'Terminal number is missing. Please add terminal number to the store '||IN_COST_CENTER_CODE); 

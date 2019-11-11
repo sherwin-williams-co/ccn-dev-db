@@ -1,11 +1,400 @@
 create or replace PACKAGE BODY SD_CHECK_NBR_PRINT_SRVCS
 AS
 
+PROCEDURE BLD_CRT_ORD_ADDRESS_ELEMENT( 
+/******************************************************************************
+This procedure is intended to build create order address element
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN     VARCHAR2,
+    IN_CATEGORY         IN     VARCHAR2,
+    OUT_ADDRESS_ELEMENT    OUT CLOB)
+IS
+    V_ADDRESS_REC      ADDRESS_VW%ROWTYPE;
+    V_PHONE_REC        CCN_PHONE_INFO_VW%ROWTYPE;
+    V_EMPLOYEE_REC     EMPLOYEE_DETAILS%ROWTYPE;
+BEGIN
+    SD_COMMON_TOOLS.GET_ADDRESS_RECORD(IN_COST_CENTER_CODE,
+                                       V_ADDRESS_REC);
+    SD_COMMON_TOOLS.GET_PHONE_RECORD(IN_COST_CENTER_CODE,
+                                     V_PHONE_REC);
+    SD_COMMON_TOOLS.GET_STORE_MANAGER_RECORD(IN_COST_CENTER_CODE,
+                                             V_EMPLOYEE_REC);
+    IF IN_CATEGORY = 'BILLING' THEN
+        OUT_ADDRESS_ELEMENT := '<ns3:Address useDefault="true">';
+    ELSE
+        OUT_ADDRESS_ELEMENT := '<ns3:Address>';
+    END IF;
+    OUT_ADDRESS_ELEMENT := OUT_ADDRESS_ELEMENT ||
+                               '<ns3:FirstName>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_REC.FIRST_NAME), 'Store') ||
+                               '</ns3:FirstName>' ||
+                               '<ns3:MiddleName>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_REC.MIDDLE_INITIAL), '') ||
+                               '</ns3:MiddleName>' ||
+                               '<ns3:LastName>' || --Required, if useDefault=false
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_EMPLOYEE_REC.LAST_NAME), 'Manager') ||
+                               '</ns3:LastName>' ||
+                               '<ns3:Location>' ||
+                                   'Store ' || IN_COST_CENTER_CODE ||
+                               '</ns3:Location>' ||
+                               '<ns3:Company>' ||
+                                   'SHERWIN WILLIAMS' ||
+                               '</ns3:Company>' ||
+                               '<ns3:StreetAddress1></ns3:StreetAddress1>' ||
+                               '<ns3:StreetAddress2>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.ADDRESS_LINE_1), '') ||
+                               '</ns3:StreetAddress2>' ||
+                               '<ns3:StreetAddress3>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.ADDRESS_LINE_3), '') ||
+                               '</ns3:StreetAddress3>' ||
+                               '<ns3:City>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.CITY), '') ||
+                               '</ns3:City>' ||
+                               '<ns3:State>' ||
+                                   NVL(CCN_COMMON_TOOLS.CONVERT_SPECIAL_CHRCTRS(V_ADDRESS_REC.STATE_CODE_DESCRIPTION), '') ||
+                               '</ns3:State>' ||
+                               '<ns3:StateAbbreviation>' ||
+                                   NVL(V_ADDRESS_REC.STATE_CODE, '') ||
+                               '</ns3:StateAbbreviation>' ||
+                               '<ns3:ZipCode>' ||
+                                   NVL(V_ADDRESS_REC.ZIP_CODE, '') || '-' || NVL(V_ADDRESS_REC.ZIP_CODE_4, '') ||
+                               '</ns3:ZipCode>' ||
+                               '<ns3:Country>' ||
+                                   NVL(CCN_COMMON_TOOLS.GET_TRANSLATED_CODE_DETAIL_VAL('COUNTRY_CODE', V_ADDRESS_REC.COUNTRY_CODE), '') || -- [to be done]
+                               '</ns3:Country>' ||
+                               '<ns3:JobTitle>' ||
+                                   'Store Manager' ||
+                               '</ns3:JobTitle>' ||
+                               '<ns3:PhoneNumbers>' ||
+                                   '<ns3:PhoneNumber internalName="PHONE" type="Phone">' ||
+                                       NVL(NVL(V_PHONE_REC.PRIMARY_PHONE_NUMBER, V_PHONE_REC.SECONDARY_PHONE_NUMBER), '') ||
+                                   '</ns3:PhoneNumber>' ||
+                               '</ns3:PhoneNumbers>' ||
+                           '</ns3:Address>';
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BLD_CRT_ORD_ADDRESS_ELEMENT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BLD_CRT_ORD_ADDRESS_ELEMENT;
+
+PROCEDURE BLD_CRT_ORD_BILLING_ELEMENT(
+/******************************************************************************
+This procedure is intended to build create order billing element
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_COST_CENTER_CODE IN     VARCHAR2,
+    OUT_BILLING_ELEMENT    OUT CLOB)
+IS
+    V_ADDRESS_ELEMENT       CLOB;
+    V_EMPLOYEE_REC          EMPLOYEE_DETAILS%ROWTYPE;
+BEGIN
+    BLD_CRT_ORD_ADDRESS_ELEMENT(IN_COST_CENTER_CODE, 'BILLING', V_ADDRESS_ELEMENT);
+    SD_COMMON_TOOLS.GET_STORE_MANAGER_RECORD(IN_COST_CENTER_CODE,
+                                             V_EMPLOYEE_REC);
+    IF V_EMPLOYEE_REC.EMP_DIVISION IS NULL THEN
+        BEGIN
+            SELECT DIVISION
+              INTO V_EMPLOYEE_REC.EMP_DIVISION
+              FROM HIERARCHY_DETAIL_VIEW
+             WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE
+               AND HRCHY_HDR_NAME   = 'FACTS_DIVISION';
+        EXCEPTION
+            WHEN OTHERS THEN
+                NULL;
+        END;
+    END IF;
+    OUT_BILLING_ELEMENT := '<ns3:Billing>' ||
+                               V_ADDRESS_ELEMENT || --Required
+                               '<ns3:AccountingFields>' ||
+                                   '<ns3:AccountingField type="Division">' || --percent="integer" attribute is optional
+                                       V_EMPLOYEE_REC.EMP_DIVISION ||
+                                   '</ns3:AccountingField>' ||
+                                   '<ns3:AccountingField type="PrimeSub">' ||
+                                       '7404002' ||
+                                   '</ns3:AccountingField>' ||
+                                   '<ns3:AccountingField type="Cost Center">' ||
+                                       IN_COST_CENTER_CODE ||
+                                   '</ns3:AccountingField>' ||
+                                   '<ns3:AccountingField type="Project Code">' ||
+                                       '0000' ||
+                                   '</ns3:AccountingField>' ||
+                               '</ns3:AccountingFields>' ||
+--                               '<ns3:Instructions>' ||
+--                                   'string' ||
+--                               '</ns3:Instructions>' ||
+                           '</ns3:Billing>';
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BLD_CRT_ORD_BILLING_ELEMENT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BLD_CRT_ORD_BILLING_ELEMENT;
+
+PROCEDURE BLD_CRT_ODR_DOCUMENTS_ELEMENT( 
+/******************************************************************************
+This procedure is intended to build create order documents element
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_CHK_NBR_TRCKNG_DTLS_REC      IN     SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE,
+    IN_ARRIVAL_DATE                 IN     DATE,
+    OUT_DOCUMENTS_ELEMENT              OUT CLOB)
+IS
+   CURSOR GET_CHK_PRNT_DTLS IS
+       SELECT *
+         FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+        WHERE COST_CENTER_CODE         = IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE
+          AND TRUNC(CHKS_ORDERED_DATE) = TRUNC(IN_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE)
+          AND ORDERED_DRFT_NUMBER      = IN_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT;
+BEGIN
+    OUT_DOCUMENTS_ELEMENT := '<ns3:Documents>';
+    --Should be a loop
+    FOR CHK_NBR_PRNT_DTLS_REC IN GET_CHK_PRNT_DTLS
+    LOOP
+    OUT_DOCUMENTS_ELEMENT := OUT_DOCUMENTS_ELEMENT ||
+                                 '<ns3:Document type="upload" referenceNumber="1">' ||
+    --referenceNumber - Required, type=upload/archives - Optional, default=upload
+                                       --'<UniqueName>string</UniqueName>' || --archives
+                                       '<ns3:UploadFileURI>' || --Required : upload
+                                           'file:/sw/tomcat/swftp/CCNDocs/Draft_Checks/DRAFT_CHECKS_'|| CHK_NBR_PRNT_DTLS_REC.COST_CENTER_CODE || '.pdf' ||
+                                       '</ns3:UploadFileURI>' ||
+    --Should equal the output file name from Exstream, plus the full import path on the WebCRD Server
+    --Print-ready files must be FTP’ed to the import files before request can be successful
+                                       '<ns3:Description>' || --Required : upload
+                                           'Draft Checks - Store ' ||
+                                           CHK_NBR_PRNT_DTLS_REC.COST_CENTER_CODE || ' - ' ||
+                                           TO_CHAR(TRUNC(SYSDATE), 'MM-DD-RR') ||
+                                       '</ns3:Description>' ||
+                                       '<ns3:GroupName useDefault="true"/>'||   --Required : upload default is order placers WebCRD User ID
+                                       '<ns3:FolderName useDefault="true"/>'|| 
+                                       '<ns3:JobTicketTemplate>' || --Required : upload
+                                           'Draft Checks'|| --Deposit Tickets – 2Part (or) 3Part
+                                       '</ns3:JobTicketTemplate>' ||
+                                 '</ns3:Document>';
+        OUT_DOCUMENTS_ELEMENT := OUT_DOCUMENTS_ELEMENT || '</ns3:Documents>';
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BLD_CRT_ODR_DOCUMENTS_ELEMENT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BLD_CRT_ODR_DOCUMENTS_ELEMENT;
+
+PROCEDURE BLD_CRT_ORD_RECIPIENTS_ELEMENT( 
+/******************************************************************************
+This procedure is intended to build create order recipients element
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_CHK_NBR_TRCKNG_DTLS_REC    IN     SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE,
+    OUT_RECIPIENTS_ELEMENT           OUT CLOB)
+IS
+    V_ADDRESS_ELEMENT       CLOB;
+BEGIN
+    BLD_CRT_ORD_ADDRESS_ELEMENT(IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE, 'SHIPPING', V_ADDRESS_ELEMENT);
+    OUT_RECIPIENTS_ELEMENT := '<ns3:Recipients>';
+    --Should be a loop
+    OUT_RECIPIENTS_ELEMENT := OUT_RECIPIENTS_ELEMENT || 
+                                  '<ns3:Recipient>' ||
+                                      '<ns3:ShippingMethod>Best Method</ns3:ShippingMethod>' || --Required
+                                      V_ADDRESS_ELEMENT || --Required
+                                      '<ns3:RecipientDocuments>' || --Required
+                                          --Below tag can be multiple
+                                          '<ns3:RecipientDocument documentReferenceNumber="1">' || --documentReferenceNumber - Required
+                                              '<ns3:Quantity>' ||
+                                                  1 || --default is 1, need to check with Pat/Lynda
+                                              '</ns3:Quantity>' || --Required
+                                          '</ns3:RecipientDocument>' ||
+                                      '</ns3:RecipientDocuments>' ||
+--                                      '<ns3:TrackingNumber>' ||
+--                                         'string' ||
+--                                     '</ns3:TrackingNumber>' ||
+--                                      '<ns3:Instructions>' ||
+--                                         'string' ||
+--                                     '</ns3:Instructions>' ||
+                                  '</ns3:Recipient>';
+    OUT_RECIPIENTS_ELEMENT := OUT_RECIPIENTS_ELEMENT || '</ns3:Recipients>';
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BLD_CRT_ORD_RECIPIENTS_ELEMENT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BLD_CRT_ORD_RECIPIENTS_ELEMENT;
+
+PROCEDURE BUILD_CREATE_ORDER_REQUEST_XML( 
+/******************************************************************************
+This procedure is intended to build create order request xml
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_CHK_NBR_TRCKNG_DTLS_REC      IN     SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE,
+    IN_ARRIVAL_DATE                 IN     DATE,
+    IN_ORDER_GUID                   IN     VARCHAR2,
+    OUT_CREATE_ORDER_REQUEST_XML       OUT CLOB)
+IS
+    V_BILLING_ELEMENT          CLOB;
+    V_DOCUMENTS_ELEMENT        CLOB;
+    V_RECIPIENTS_ELEMENT       CLOB;
+BEGIN
+    BLD_CRT_ORD_BILLING_ELEMENT(IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE, V_BILLING_ELEMENT);
+    BLD_CRT_ODR_DOCUMENTS_ELEMENT(IN_CHK_NBR_TRCKNG_DTLS_REC,IN_ARRIVAL_DATE, V_DOCUMENTS_ELEMENT);
+    BLD_CRT_ORD_RECIPIENTS_ELEMENT(IN_CHK_NBR_TRCKNG_DTLS_REC, V_RECIPIENTS_ELEMENT);
+    OUT_CREATE_ORDER_REQUEST_XML :=
+        '<?xml version="1.0" encoding="UTF-8"?>' ||
+        '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                           xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' ||
+            '<soapenv:Body>' ||
+                '<ns1:CreateOrder xmlns="http://www.w3.org/2001/XMLSchema-instance"
+                                  xmlns:ns1="http://www.rocsoft.com/services/order/types"
+                                  xmlns:ns2="http://www.rocsoft.com/services/types"
+                                  xmlns:ns3="http://www.rocsoft.com/order">' ||
+                    '<ns2:SharedKey>JW6UZ15X729</ns2:SharedKey>' ||
+        --If supplied must match with the value set in WebCRD and must be the first child of CreateOrder
+        --If value/element is not supplied operation is identical to suplpying blank password
+        --          '<ns3:Locale>' ||
+        --              'string' ||
+        --          '</ns3:Locale>' ||
+        --If not specified WebCRD system default locale is used
+                    '<ns3:Order>' || --Required
+                        '<ns3:OrderName>' || --Required
+                            'Draft Checks - Store ' || IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE ||
+                                                          ' - ' ||
+                                                          TO_CHAR(TRUNC(SYSDATE), 'MM-DD-RR') ||
+                        '</ns3:OrderName>' ||
+        --if userDefault="true", WebCRD generated the order name
+                        '<ns3:OrderPlacer>CCNorders</ns3:OrderPlacer>' || --Required [IN_DEP_TICK_REC.LAST_MAINT_USER_ID]
+        --WebCRD user ID of order placer (or) MySherwin User ID of Store Manager
+                        '<ns3:OrderPlacerDomain>Local</ns3:OrderPlacerDomain>' || --LDAP
+        --LDAP => single-server LDAP authentication, default=Local => WebCRD authentication
+                        '<ns3:Site useDefault="true"/>'||
+                        '<ns3:DueDateTime>' || --Required
+                            TO_CHAR(IN_ARRIVAL_DATE, 'RRRR-MM-DD') || 'T12:00:00' ||
+                        '</ns3:DueDateTime>'||
+        --              '<ns3:Note>' ||
+        --                  'string' ||
+        --              '</ns3:Note>' ||
+                        V_BILLING_ELEMENT || --Required
+        --              '<ns3:ExternalOrderID>' ||
+        --                  IN_ORDER_GUID ||
+        --              '</ns3:ExternalOrderID>' ||
+        --              '<ns3:ExternalInfo>' ||
+        --                  'string' ||
+        --              '</ns3:ExternalInfo>' ||
+                        V_DOCUMENTS_ELEMENT || --Required
+                        V_RECIPIENTS_ELEMENT || --Required
+                    '</ns3:Order>' ||
+                    '<ns1:SubmitOrder>true</ns1:SubmitOrder>' ||  --Required
+        --true => create and submit; false => create but leave it unsubmitted
+                    '<ns1:DeleteOrderOnError>true</ns1:DeleteOrderOnError>' || --Required
+        --true => delete if error; false => leave it unsubmitted if error
+                '</ns1:CreateOrder>' ||
+            '</soapenv:Body>' ||
+        '</soapenv:Envelope>';
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_CREATE_ORDER_REQUEST_XML ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BUILD_CREATE_ORDER_REQUEST_XML;
+
+PROCEDURE BUILD_CREATE_ORDER_REQUEST_TXT(
+/******************************************************************************
+This procedure is intended to create an order text file
+
+Created : 08/28/2019 jxc517 CCN Project....
+Changed : 09/26/2019 jxc517 CCN Project....
+          Replace 4-digit store number with XXXX to avoid confusion once we move to 6-digit world
+          Spoke with Pat who checked with Amanda and confirmed that that column is not used by Amanda's program
+*******************************************************************************/
+    IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS IN     SD_CHECK_NBR_PRNT_EXTRCT_DTLS_TT,
+    OUT_CREATE_ORDER_REQUEST_TXT        OUT CLOB)
+IS
+    V_DELIMITER                         VARCHAR2(1) := CHR(9);
+    V_INDEX                             NUMBER;
+    V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
+BEGIN
+    IF IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COUNT > 0 THEN
+        V_INDEX := 1;
+        WHILE V_INDEX <= IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COUNT LOOP
+            V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC := IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS(V_INDEX);
+            OUT_CREATE_ORDER_REQUEST_TXT := OUT_CREATE_ORDER_REQUEST_TXT || 
+                                        V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.SRT_CHKDLY_SEQ_NBR                                || V_DELIMITER ||
+                                        --'"' || SUBSTR(V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.COST_CENTER_CODE, -4) || '"'        || V_DELIMITER ||
+                                        '"XXXX"'                                                                              || V_DELIMITER ||
+                                        '"' || LPAD(V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.ORDERED_DRFT_NUMBER, 4, ' ') || '"'   || V_DELIMITER ||
+                                        V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.CHECK_DIGIT                                       || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.ROUTING_NBR || '"'                         || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.ACCOUNT_NUMBER || '"'                      || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.LETTER || '"'                              || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.RUN_TYPE || '"'                            || V_DELIMITER ||
+                                        '"' ||RPAD(V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.RUNTYPE_DESCRIPTION, 25, ' ')|| '"'    || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.TERMINAL_NUMBER || '"'                     || V_DELIMITER ||
+                                        '"' || V_SD_CHECK_NBR_PRNT_EXTRCT_DTLS_REC.COST_CENTER_CODE || '"'                    ||                    
+                                        CHR(10);
+            V_INDEX := IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS.NEXT(V_INDEX);
+        END LOOP;
+    END IF;
+    OUT_CREATE_ORDER_REQUEST_TXT := RTRIM(OUT_CREATE_ORDER_REQUEST_TXT, CHR(10));
+EXCEPTION
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, 'BUILD_CREATE_ORDER_REQUEST_TXT ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END BUILD_CREATE_ORDER_REQUEST_TXT;
+
+PROCEDURE CREATE_STORE_DRAFTS_CHECK_ORDER( 
+/******************************************************************************
+This procedure is intended to create an order via RSA Web Service
+
+Created : 08/15/2019 jxc517 CCN Project....
+Changed : 
+*******************************************************************************/
+    IN_CHK_NBR_TRCKNG_DTLS_REC       IN     SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE,
+    IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS IN     SD_CHECK_NBR_PRNT_EXTRCT_DTLS_TT,
+    IN_ARRIVAL_DATE                  IN     DATE,
+    IN_ORDER_GUID                    IN     VARCHAR2)
+IS
+    V_CREATE_ORDER_REQUEST_XML CLOB;
+    V_CREATE_ORDER_REQUEST_TXT CLOB;
+    PATH        	            VARCHAR2(50) := 'STORDRFT_DATAFILES';
+    STORE_DRAFT_IP_FILE_NM      VARCHAR2(50) := 'DRAFT_CHECKS_';
+    STORE_DRAFT_ORDER_FILE      UTL_FILE.FILE_TYPE;
+BEGIN
+    BUILD_CREATE_ORDER_REQUEST_XML(IN_CHK_NBR_TRCKNG_DTLS_REC,
+                                   IN_ARRIVAL_DATE,
+                                   IN_ORDER_GUID,
+                                   V_CREATE_ORDER_REQUEST_XML);
+    --DBMS_OUTPUT.PUT_LINE(V_CREATE_ORDER_REQUEST_XML);
+    IF V_CREATE_ORDER_REQUEST_XML <> EMPTY_CLOB() THEN
+        STORE_DRAFT_ORDER_FILE := UTL_FILE.FOPEN (PATH
+                                                  ,STORE_DRAFT_IP_FILE_NM ||IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE||'.xml'
+                                                  ,'W' --BINARY
+                                                  ,32767);
+        UTL_FILE.PUT_LINE(STORE_DRAFT_ORDER_FILE, V_CREATE_ORDER_REQUEST_XML, TRUE);
+        UTL_FILE.FCLOSE(STORE_DRAFT_ORDER_FILE);
+    END IF;
+
+    BUILD_CREATE_ORDER_REQUEST_TXT(IN_SD_CHECK_NBR_PRNT_EXTRCT_DTLS,
+                                   V_CREATE_ORDER_REQUEST_TXT);
+    IF V_CREATE_ORDER_REQUEST_TXT <> EMPTY_CLOB() THEN
+        STORE_DRAFT_ORDER_FILE := UTL_FILE.FOPEN (PATH
+                                                  ,STORE_DRAFT_IP_FILE_NM || IN_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE||'.txt'
+                                                  ,'W' --BINARY
+                                                  ,32767);
+        UTL_FILE.PUT_LINE(STORE_DRAFT_ORDER_FILE, V_CREATE_ORDER_REQUEST_TXT, TRUE);
+        UTL_FILE.FCLOSE(STORE_DRAFT_ORDER_FILE);
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        IF UTL_FILE.IS_OPEN(STORE_DRAFT_ORDER_FILE) THEN
+            UTL_FILE.FCLOSE(STORE_DRAFT_ORDER_FILE);
+        END IF;
+        ERRPKG.RAISE_ERR(SQLCODE, 'CREATE_STORE_DRAFTS_CHECK_ORDER ' || SUBSTR(SQLERRM,1,500) || ' IN OTHERS ' );
+END CREATE_STORE_DRAFTS_CHECK_ORDER;
+
 FUNCTION GET_PREV_PRINT_DRAFT_END_NBR(
 /**********************************************************
 This function will get last ending draft number for COST_CENTER passed.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team....  
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE    IN    VARCHAR2
@@ -31,7 +420,7 @@ FUNCTION GET_STORE_DRAFT_RUN_TYPE_REC(
 /**********************************************************
 This function will get run type detail for COST_CENTER passed.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
+Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
 **********************************************************/
     IN_COST_CENTER_CODE    IN    VARCHAR2
@@ -55,7 +444,7 @@ FUNCTION GET_SD_CHK_TYP_REC(
 /**********************************************************
 This function will no of books ,checks per book , threshold, bank acccount number and routing number for run type passed.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
+Created :7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 
 **********************************************************/
     IN_RUN_TYPE      IN    VARCHAR2
@@ -80,9 +469,8 @@ PROCEDURE LOAD_EXTRACT_TBL(
 This procedure will print drafts of 2 letters 'A' and 'B' from previous end draft number for the cost center passed.
 After printing it update an entry in SD_CHECK_NBR_TRCKNG_DTLS for the next available draft number to use.
 
-Created : 1/11/2019 kxm302 CCN Project Team.... 
-Changed : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
-          Moved Insert code to SD_TABLE_IU_PKG
+Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+        : Moved Insert code to SD_TABLE_IU_PKG
 Changed : 8/14/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
           Added changes for 2 new fields MICR and PART_NUMBER
 Changed : 8/21/2019 Renamed PART_NUMBER to JOB_TICKET_TEMPLATE
@@ -90,10 +478,13 @@ Changed : 8/21/2019 Renamed PART_NUMBER to JOB_TICKET_TEMPLATE
 Changed : 9/12/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
           Dropped JOB_TICKET_TEMPLATE since no longer required
 **********************************************************/
-    IN_COST_CENTER_CODE           IN      VARCHAR2,
-    IN_PREV_PRINT_DRAFT_END_NBR   IN      NUMBER,
-    IN_SD_CHK_TYP_REC             IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE,
-    IN_ORDER_DATE                 IN      DATE DEFAULT NULL)
+    IN_COST_CENTER_CODE                IN      VARCHAR2,
+    IN_PREV_PRINT_DRAFT_END_NBR        IN      NUMBER,
+    IN_SD_CHK_TYP_REC                  IN      SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE,
+    IN_ORDER_DATE                      IN      DATE DEFAULT NULL,
+    IN_ARRIVAL_DATE                    IN      DATE DEFAULT SYSDATE,
+    IO_CHK_NBR_TRCKNG_DTLS_REC         IN OUT  SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE,
+    IO_SD_CHECK_NBR_PRNT_EXTRCT_DTLS   IN OUT  SD_CHECK_NBR_PRNT_EXTRCT_DTLS_TT)
 IS
     V_TOTAL_CHECKS                   NUMBER;
     V_DRAFT_NBR                      NUMBER;
@@ -111,7 +502,7 @@ BEGIN
       INTO V_COUNTRY_CODE
       FROM COST_CENTER
      WHERE COST_CENTER_CODE = IN_COST_CENTER_CODE;
-
+    
     IF V_COUNTRY_CODE = 'USA' THEN
         V_PREV_PRINT_DRAFT_END_NBR := LEAST(IN_PREV_PRINT_DRAFT_END_NBR, 9999);
     ELSIF V_COUNTRY_CODE = 'CAN' THEN
@@ -150,6 +541,7 @@ BEGIN
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := LPAD(V_TERMINAL_NUMBER || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT, 10, '0');
 
         SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+        IO_SD_CHECK_NBR_PRNT_EXTRCT_DTLS(NVL(IO_SD_CHECK_NBR_PRNT_EXTRCT_DTLS.LAST, 0)+1) := V_CHK_NBR_PRNT_EXTRCT_DTL_REC;
 
         V_DRAFT_NBR := V_PREV_PRINT_DRAFT_END_NBR + draft_iterator + V_TOTAL_CHECKS;
         --The iteration should go back to 1000 after 9999 for USA
@@ -169,15 +561,19 @@ BEGIN
         V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := LPAD(V_TERMINAL_NUMBER || V_DRAFT_NBR || V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT, 10, '0');
 
         SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+        IO_SD_CHECK_NBR_PRNT_EXTRCT_DTLS(NVL(IO_SD_CHECK_NBR_PRNT_EXTRCT_DTLS.LAST, 0)+1) := V_CHK_NBR_PRNT_EXTRCT_DTL_REC;
     END LOOP;
 
     --Building record for SD_CHECK_NBR_TRCKNG_DTLS
-    V_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE    := IN_COST_CENTER_CODE;
-    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE   := NVL(IN_ORDER_DATE, SYSDATE);
-    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT := V_STARTING_DRAFT_NUMBER;
-    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_ENDNG_DRFT  := V_DRAFT_NBR;
+    V_CHK_NBR_TRCKNG_DTLS_REC.COST_CENTER_CODE      := IN_COST_CENTER_CODE;
+    V_CHK_NBR_TRCKNG_DTLS_REC.CHKS_ORDERED_DATE     := NVL(IN_ORDER_DATE, SYSDATE);
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_STRTNG_DRFT   := V_STARTING_DRAFT_NUMBER;
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDERED_ENDNG_DRFT    := V_DRAFT_NBR;
+    V_CHK_NBR_TRCKNG_DTLS_REC.DESIRED_ARRIVAL_DATE  := NVL(IN_ARRIVAL_DATE, SYSDATE);
+    V_CHK_NBR_TRCKNG_DTLS_REC.ORDER_ID              := SD_CHECK_NBR_TRCKNG_DTLS_SEQ.NEXTVAL;
 
     SD_TABLE_IU_PKG.CHECK_NBR_TRCKNG_DTLS_I_SP(V_CHK_NBR_TRCKNG_DTLS_REC);
+    IO_CHK_NBR_TRCKNG_DTLS_REC := V_CHK_NBR_TRCKNG_DTLS_REC;
 EXCEPTION
     WHEN OTHERS THEN
         ERRPKG.RAISE_ERR(SQLCODE,'LOAD_EXTRACT_TBL',  SQLERRM);
@@ -190,9 +586,9 @@ for both the countries the draft numbers start from 1000 to 9999
 
 Created : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 8/14/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
-          Added changes for 2 new fields MICR and PART_NUMBER
+          Added changes for 2 new fields MICR and PART_NUMBER 
 Changed : 8/21/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
-          Dropped MICR and renamed PART_NUMBER to JOB_TICKET_TEMPLATE  
+          Dropped MICR and renamed PART_NUMBER to JOB_TICKET_TEMPLATE
 Changed : 9/12/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
           Dropped JOB_TICKET_TEMPLATE since no longer required
 **********************************************************/
@@ -266,41 +662,48 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE,'INITLD_LOAD_EXTRACT_TBL',  SQLERRM);
 END INITLD_LOAD_EXTRACT_TBL;
 
-PROCEDURE SD_CHECK_NBR_PRINT_PROCESS
+PROCEDURE SD_CHECK_NBR_PRINT_PROCESS_BATCH
 /**********************************************************
 This procedure will go ahead and place draft print order if unused drafts less then threshold.
 
 Created : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
-Changed : 
+Changed : 10/08/2019 jxc517 ASP-1193 CCNSD-8 CCN Project Team....
+          Modularized the code, added mailing and conditions to ignore
+          stores with polling status as I
+          Added call for PARAM download when an order is placed
 **********************************************************/
 IS
     CURSOR cc_main_cursor IS
         SELECT DISTINCT COST_CENTER_CODE
           FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE NVL(COMMON_TOOLS.GET_STORE_ACTIVE_POLLING_STATUS(COST_CENTER_CODE),'X') <> 'I'
          ORDER BY 1;
 
-    V_STR_DRFT_RUN_TYPE_REC    STORE_RUN_TYPE_DETAILS%ROWTYPE;
-    V_PREV_END_DRFT_NBR        NUMBER;
-    V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
-    V_COST_CENTER_CODE         SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE;
+    V_STR_DRFT_RUN_TYPE_REC           STORE_RUN_TYPE_DETAILS%ROWTYPE;
+    V_PREV_END_DRFT_NBR               NUMBER;
+    V_SD_CHK_TYP_REC                  SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    V_COST_CENTER_CODE                SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE;
+    V_CHK_NBR_TRCKNG_DTLS_REC         SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
+    V_CLOB                            CLOB := '';
+    O_CHK_NBR_TRCKNG_DTLS_REC         SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
+    O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS   SD_CHECK_NBR_PRNT_EXTRCT_DTLS_TT;
 
-FUNCTION GET_UNUSED_DRAFT_COUNT(IN_COST_CENTER   IN   VARCHAR2) RETURN NUMBER
-IS
-    V_RETURN_VAL   NUMBER := 0;
-BEGIN
-    SELECT COUNT(*)
-      INTO V_RETURN_VAL
-      FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
-     WHERE USED_IN_POS_ON_DATE IS NULL
-       AND COST_CENTER_CODE = IN_COST_CENTER
-      GROUP BY COST_CENTER_CODE
-      ORDER BY 1;
-    RETURN V_RETURN_VAL;
-EXCEPTION
-    WHEN OTHERS THEN
+    FUNCTION GET_UNUSED_DRAFT_COUNT(IN_COST_CENTER   IN   VARCHAR2) RETURN NUMBER
+    IS
+        V_RETURN_VAL   NUMBER := 0;
+    BEGIN
+        SELECT COUNT(*)
+          INTO V_RETURN_VAL
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE USED_IN_POS_ON_DATE IS NULL
+           AND COST_CENTER_CODE = IN_COST_CENTER
+         GROUP BY COST_CENTER_CODE
+         ORDER BY 1;
         RETURN V_RETURN_VAL;
-END GET_UNUSED_DRAFT_COUNT;
-
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN V_RETURN_VAL;
+    END GET_UNUSED_DRAFT_COUNT;
 BEGIN
     FOR rec IN cc_main_cursor LOOP
         V_STR_DRFT_RUN_TYPE_REC  := GET_STORE_DRAFT_RUN_TYPE_REC(rec.COST_CENTER_CODE);
@@ -310,43 +713,92 @@ BEGIN
             V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(rec.COST_CENTER_CODE);
             LOAD_EXTRACT_TBL(rec.COST_CENTER_CODE,
                              V_PREV_END_DRFT_NBR,
-                             V_SD_CHK_TYP_REC);
+                             V_SD_CHK_TYP_REC,
+                             NULL,
+                             TRUNC(SYSDATE),
+                             O_CHK_NBR_TRCKNG_DTLS_REC,
+                             O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS);
+            CREATE_STORE_DRAFTS_CHECK_ORDER(O_CHK_NBR_TRCKNG_DTLS_REC,
+                                            O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS,
+                                            TRUNC(SYSDATE),
+                                            O_CHK_NBR_TRCKNG_DTLS_REC.ORDER_ID);
+            POS_DATA_GENERATION.POS_TRG_EVENT_LOG(rec.COST_CENTER_CODE, 'STORDRFT_ORDER_BTCH', 'ADD', 'POS_PARAM_UPDATE' );
         END IF;
     END LOOP;
     COMMIT;
+    FOR rec IN (SELECT *
+                  FROM SD_CHECK_NBR_TRCKNG_DTLS
+                 WHERE TRUNC(CHKS_ORDERED_DATE) = TRUNC(SYSDATE)
+                 ORDER BY COST_CENTER_CODE) LOOP
+        V_CLOB := V_CLOB || rec.COST_CENTER_CODE     ||','
+                         || rec.CHKS_ORDERED_DATE    ||','
+                         || rec.ORDERED_STRTNG_DRFT  ||','
+                         || rec.ORDERED_ENDNG_DRFT   ||','
+                         || rec.DESIRED_ARRIVAL_DATE ||','
+                         || rec.ORDER_ID             || CHR(10);
+    END LOOP;
+    IF V_CLOB <> EMPTY_CLOB() THEN
+       V_CLOB := 'COST_CENTER_CODE, CHKS_ORDERED_DATE, ORDERED_STRTNG_DRFT, ORDERED_ENDNG_DRFT, DESIRED_ARRIVAL_DATE, ORDER_ID' || CHR(10) ||
+                 V_CLOB;
+       MAIL_PKG.SEND_MAIL('STORDRFTS_ORD_EXC_RPT', NULL, NULL, V_CLOB);
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'SD_CHECK_NBR_PRINT_PROCESS',SQLERRM,V_COST_CENTER_CODE,'0000000000');
-END SD_CHECK_NBR_PRINT_PROCESS;
+        ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,'SD_CHECK_NBR_PRINT_PROCESS_BATCH',SQLERRM,V_COST_CENTER_CODE,'0000000000');
+END SD_CHECK_NBR_PRINT_PROCESS_BATCH;
 
 PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
 /**********************************************************
 This procedure will go ahead and place draft print order on demand for the cost center passed.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
-Changed : 
+Created : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+Changed : 10/07/2019 ASP-1193 CCNSD-8 jxc517 CCN Project Teamm....
+          Added rule to stop allowing orders on stores with polling status as "I"
 **********************************************************/
-    IN_COST_CENTER_CODE   IN    VARCHAR2)
+    IN_COST_CENTER_CODE   IN    VARCHAR2,
+    IN_ARRIVAL_DATE       IN    DATE DEFAULT SYSDATE)
 IS
     V_STR_DRFT_REC             STORE_RUN_TYPE_DETAILS%ROWTYPE;
     V_PREV_END_DRFT_NBR        NUMBER;
     V_SD_CHK_TYP_REC           SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
+    O_CHK_NBR_TRCKNG_DTLS_REC  SD_CHECK_NBR_TRCKNG_DTLS%ROWTYPE;
+    O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS   SD_CHECK_NBR_PRNT_EXTRCT_DTLS_TT;
     no_run_type_err            EXCEPTION;
+    invalid_polling_sts_err    EXCEPTION;
 BEGIN
+    IF NVL(COMMON_TOOLS.GET_STORE_ACTIVE_POLLING_STATUS(IN_COST_CENTER_CODE),'X') = 'I' THEN
+        RAISE invalid_polling_sts_err;
+    END IF;
+
     V_STR_DRFT_REC           := GET_STORE_DRAFT_RUN_TYPE_REC(IN_COST_CENTER_CODE);
     V_SD_CHK_TYP_REC         := GET_SD_CHK_TYP_REC(V_STR_DRFT_REC.STORE_DRAFT_CHECK_RUN_TYPE);
     V_PREV_END_DRFT_NBR      := GET_PREV_PRINT_DRAFT_END_NBR(IN_COST_CENTER_CODE);
-
+    
     IF V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE IS NULL THEN
        RAISE no_run_type_err;
     END IF;
-
+    
     LOAD_EXTRACT_TBL(IN_COST_CENTER_CODE,
                      V_PREV_END_DRFT_NBR,
-                     V_SD_CHK_TYP_REC);
+                     V_SD_CHK_TYP_REC,
+                     NULL,
+                     IN_ARRIVAL_DATE,
+                     O_CHK_NBR_TRCKNG_DTLS_REC,
+                     O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS);
+
+    CREATE_STORE_DRAFTS_CHECK_ORDER(O_CHK_NBR_TRCKNG_DTLS_REC,
+                                    O_SD_CHECK_NBR_PRNT_EXTRCT_DTLS,
+                                    IN_ARRIVAL_DATE,
+                                    O_CHK_NBR_TRCKNG_DTLS_REC.ORDER_ID);
+                                    
+    POS_DATA_GENERATION.POS_TRG_EVENT_LOG(IN_COST_CENTER_CODE, 'STORDRFT_ORDER_UI', 'ADD', 'POS_PARAM_UPDATE' );
 EXCEPTION
     WHEN no_run_type_err THEN
-       ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');                     
+        ERRPKG.RAISE_ERR(errnums.en_no_run_type_err,'To place order Run Type should exist in Run Type Maintenance window');
+    WHEN invalid_polling_sts_err THEN
+        ERRPKG.RAISE_ERR(errnums.en_invalid_polling_sts_err,'Orders are not allowed for stores with polling status as "I". Please contact SMIS to change the polling  status of store');
+    WHEN OTHERS THEN
+        ERRPKG.RAISE_ERR(SQLCODE, SQLERRM);
 END SD_CHECK_NBR_PRINT_PROCESS;
 
 PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (
@@ -376,8 +828,8 @@ This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table
  </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
 </SD_CHECK_NBR_PRNT_UI>
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
-Changed : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+created : 1/11/2019 kxm302 CCN Project Team.... 
+          7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
           Added business rule to validate the existence of check run type 
           in code_detail table.
 Changed : 8/14/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
@@ -393,6 +845,7 @@ IS
     V_COUNT                                  NUMBER := 1;
     V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW    SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS%ROWTYPE;
 BEGIN
+     --INSERT INTO STORE_ENQUIRY_XML VALUES (SYSDATE, IN_XML);
     WHILE V_XML.EXISTSNODE('/SD_CHECK_NBR_PRNT_UI/SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS' ||  '[' || V_COUNT || ']') = 1 LOOP
         SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROWTYPE_SP (
                'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS',
@@ -402,12 +855,12 @@ BEGIN
          --business rule validation to check the existence of check run type in code_detail table.
         SD_BUSINESS_RULES_PKG.SD_VALIDATE_RUN_TYPE_DETAILS(V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
         SD_TABLE_IU_PKG.SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_I_SP(V_SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_ROW);
-        V_COUNT := V_COUNT + 1;
+        V_COUNT := V_COUNT + 1;  
     END LOOP;
     ERRPKG.RAISE_WARNINGS();
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE,'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP', SQLERRM);
+        ERRPKG.RAISE_ERR(SQLCODE,'SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP', SQLERRM); 
 END SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP;
 
 PROCEDURE STORE_RUN_TYPE_DETAILS_UPSERT_SP (
@@ -423,8 +876,8 @@ This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
  </STORE_RUN_TYPE_DETAILS>
 </STORE_RUN_TYPE_DETAILS_UI> 
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN project Team.... 
-        : Added Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
+Created : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+          Added Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
 Changed :
 **********************************************************/
     IN_XML                CLOB)
@@ -436,10 +889,10 @@ BEGIN
     SD_TABLE_IU_PKG.STORE_RUN_TYPE_DETAILS_ROWTYPE_SP('STORE_RUN_TYPE_DETAILS',
         V_XML.EXTRACT('/STORE_RUN_TYPE_DETAILS_UI/STORE_RUN_TYPE_DETAILS' || '[' || V_COUNT || ']').GETCLOBVAL(),
         V_STORE_RUN_TYPE_DETAILS_ROW);
-
+               
     --Business rule to check Run Type available in Run Type Maintenance window to place order in check order details.
     SD_BUSINESS_RULES_PKG.SD_RUN_TYPE_VALIDATION(V_STORE_RUN_TYPE_DETAILS_ROW);
-
+        
     SD_TABLE_IU_PKG.STORE_RUN_TYPE_DETAILS_I_SP(V_STORE_RUN_TYPE_DETAILS_ROW);
 END STORE_RUN_TYPE_DETAILS_UPSERT_SP;
 
@@ -454,7 +907,7 @@ Created : 7/15/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 Changed : 8/14/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
           Added changes for 2 new fields MICR and PART_NUMBER 
 Changed : 8/21/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
-          Dropped MICR and renamed PART_NUMBER to JOB_TICKET_TEMPLATE  
+          Dropped MICR and renamed PART_NUMBER to JOB_TICKET_TEMPLATE
 Changed : 9/12/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
           Dropped JOB_TICKET_TEMPLATE since no longer required
 **********************************************************/
@@ -467,17 +920,17 @@ IS
     V_CHK_NBR_PRNT_EXTRCT_DTL_REC    SD_CHECK_NBR_PRNT_EXTRCT_DTLS%ROWTYPE;
 BEGIN
     DELETE FROM STORE_RUN_TYPE_DETAILS;
-    DELETE FROM SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
+--    DELETE FROM SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS;
     DELETE FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS;
     DELETE FROM SD_CHECK_NBR_TRCKNG_DTLS;
 
     --Load run type data received from Julio's team
     --Load threshold data received from Jason's team
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('L',5,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('S',1,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('A',1,50,10,'8800600853','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('C',1,50,10,'101 283 0','04222 003',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
-    COMMIT;
+--    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('L',5,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+--    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('S',1,50,10,'8800600275','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+--    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('A',1,50,10,'8800600853','061100790',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+--    INSERT INTO SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS VALUES ('C',1,50,10,'101 283 0','04222 003',TRUNC(SYSDATE),null,null,TRUNC(SYSDATE));
+--    COMMIT;
 
     --Load run type tie back to store using data received from Pat's team
     BEGIN
@@ -507,6 +960,7 @@ BEGIN
                                     V_SD_CHK_TYP_REC,
                                     TO_DATE(rec.LAST_ORDER_DATE,'MM/DD/YYYY'));
 
+            --Mark ordered drafts that as used in POS
             FOR rec1 IN (SELECT COST_CENTER_CODE,
                                 CHECK_SERIAL_NUMBER,
                                 TRANSACTION_DATE
@@ -526,6 +980,34 @@ BEGIN
                                                            AND USED_IN_POS_ON_DATE IS NULL)) LOOP 
                 SD_TABLE_IU_PKG.MARK_CHK_NBR_AS_USED_IN_POS(rec1.CHECK_SERIAL_NUMBER, rec1.TRANSACTION_DATE);
             END LOOP;
+
+            --If for some reason the initial load is wrong, mark drafts that we already have in our system as used in POS
+            FOR rec2 IN (SELECT CHECK_SERIAL_NUMBER,
+                                TRANSACTION_DATE,
+                                DRAFT_NUMBER
+                           FROM STORE_DRAFTS A
+                          WHERE COST_CENTER_CODE = rec.COST_CENTER_CODE
+                            AND NOT EXISTS (SELECT 1
+                                              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+                                             WHERE CCN_CHECK_SERIAL_NUMBER = A.CHECK_SERIAL_NUMBER)) LOOP
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHKS_ORDERED_DATE   := TRUNC(SYSDATE);
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.SRT_CHKDLY_SEQ_NBR  := 0; --Need to speak with users about this
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.COST_CENTER_CODE    := rec.COST_CENTER_CODE;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.TERMINAL_NUMBER     := CCN_COMMON_TOOLS.GET_DESIGNATED_TERMINAL_NUMBER(rec.COST_CENTER_CODE);
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ORDERED_DRFT_NUMBER := rec2.DRAFT_NUMBER;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CHECK_DIGIT         := SUBSTR(rec2.CHECK_SERIAL_NUMBER,-1,1);
+                V_STR_DRFT_RUN_TYPE_REC                           := GET_STORE_DRAFT_RUN_TYPE_REC(rec.COST_CENTER_CODE);
+                V_SD_CHK_TYP_REC                                  := GET_SD_CHK_TYP_REC(V_STR_DRFT_RUN_TYPE_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ROUTING_NBR         := V_SD_CHK_TYP_REC.BANK_ROUTING_NBR;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.ACCOUNT_NUMBER      := V_SD_CHK_TYP_REC.BANK_ACCOUNT_NBR;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.LETTER              := 'I'; --Need to speak with users about this
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUN_TYPE            := V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.RUNTYPE_DESCRIPTION := CCN_PICK_LIST_PKG.GET_CODE_DETAIL_VALUE_DSCRPTN('STORE_DRAFT_CHECK_RUN_TYPE', 'COD', V_SD_CHK_TYP_REC.STORE_DRAFT_CHECK_RUN_TYPE);
+                --Initload uses old logic 0 + 4 digit store + 4 digit draft + 1 check digit
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.CCN_CHECK_SERIAL_NUMBER := rec2.CHECK_SERIAL_NUMBER;
+                V_CHK_NBR_PRNT_EXTRCT_DTL_REC.USED_IN_POS_ON_DATE     := rec2.TRANSACTION_DATE;
+                SD_TABLE_IU_PKG.CHECK_NBR_PRNT_EXTRCT_DTLS_I_SP(V_CHK_NBR_PRNT_EXTRCT_DTL_REC);
+            END LOOP;
             COMMIT;
         EXCEPTION
             WHEN OTHERS THEN
@@ -539,47 +1021,39 @@ EXCEPTION
         ERRPKG.RAISE_ERR(SQLCODE,'INITIAL_DRAFT_DTLS_LOAD_PROCESS',  SQLERRM);
 END INITIAL_DRAFT_DTLS_LOAD_PROCESS;
 
-FUNCTION GET_CHECK_SERIAL_NUMBER(
+FUNCTION GET_PRNT_EXTRCT_CHK_SRL_NMBR(
 /****************************************************************************************
 This function will return 10 digit check serial number for the check serial number passed.
 
 Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
 *****************************************************************************************/
-IN_CHECK_SERIAL_NUMBER   IN   STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
-IN_TRANSACTION_DATE      IN   STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+    IN_CHECK_SERIAL_NUMBER   IN   STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE,
+    IN_TRANSACTION_DATE      IN   STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
 RETURN VARCHAR2
 IS
-    V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
-    invalid_check_number_err       EXCEPTION;
+    V_CHECK_SERIAL_NUMBER          STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE;
 BEGIN
-    BEGIN
-        IF IN_TRANSACTION_DATE IS NOT NULL THEN
-            SELECT CCN_CHECK_SERIAL_NUMBER
-              INTO V_CHECK_SERIAL_NUMBER
-              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
-             WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
-               AND USED_IN_POS_ON_DATE = IN_TRANSACTION_DATE;
-        ELSE 
-            SELECT CCN_CHECK_SERIAL_NUMBER
-              INTO V_CHECK_SERIAL_NUMBER
-              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
-             WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
-               AND USED_IN_POS_ON_DATE IS NULL;
-        END IF;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-          RAISE invalid_check_number_err;
-    END;
+    IF IN_TRANSACTION_DATE IS NOT NULL THEN
+        SELECT CCN_CHECK_SERIAL_NUMBER
+          INTO V_CHECK_SERIAL_NUMBER
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND USED_IN_POS_ON_DATE     = IN_TRANSACTION_DATE;
+    ELSE 
+        SELECT CCN_CHECK_SERIAL_NUMBER
+          INTO V_CHECK_SERIAL_NUMBER
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE CCN_CHECK_SERIAL_NUMBER = IN_CHECK_SERIAL_NUMBER
+           AND USED_IN_POS_ON_DATE IS NULL;
+    END IF;
     RETURN V_CHECK_SERIAL_NUMBER;
 EXCEPTION
-     WHEN invalid_check_number_err THEN
-          errpkg.raise_err(errnums.en_inv_check_num_err,'Please enter a valid 4 digit unused printed check number.');
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
-END GET_CHECK_SERIAL_NUMBER;
+        RETURN V_CHECK_SERIAL_NUMBER;
+END GET_PRNT_EXTRCT_CHK_SRL_NMBR;
 
-FUNCTION GET_CHECK_SERIAL_NUMBER(
+FUNCTION GET_PRNT_EXTRCT_CHK_SRL_NMBR_BY_CC(
 /*********************************************************************************
 This is an overloading function and will return  10 digit check serial number for
 the cost centger and draft number passed.
@@ -587,46 +1061,39 @@ the cost centger and draft number passed.
 Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
 ***********************************************************************************/
-IN_COST_CENTER_CODE  IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE,
-IN_DRAFT_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE,
-IN_TRANSACTION_DATE  IN      STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
+    IN_COST_CENTER_CODE  IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.COST_CENTER_CODE%TYPE,
+    IN_DRAFT_NUMBER      IN      SD_CHECK_NBR_PRNT_EXTRCT_DTLS.CCN_CHECK_SERIAL_NUMBER%TYPE,
+    IN_TRANSACTION_DATE  IN      STORE_DRAFTS.TRANSACTION_DATE%TYPE DEFAULT NULL)
 RETURN VARCHAR2
 IS
-    V_CHECK_SERIAL_NUMBER          VARCHAR2(10);
+    V_CHECK_SERIAL_NUMBER          STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE;
     invalid_check_number_err       EXCEPTION;
 BEGIN
-    BEGIN
-        IF IN_TRANSACTION_DATE IS NOT NULL THEN
-            SELECT CCN_CHECK_SERIAL_NUMBER
-              INTO V_CHECK_SERIAL_NUMBER
-              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
-             WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
-               AND ORDERED_DRFT_NUMBER = IN_DRAFT_NUMBER
-               AND USED_IN_POS_ON_DATE  = IN_TRANSACTION_DATE;
-        ELSE
-            SELECT CCN_CHECK_SERIAL_NUMBER
-              INTO V_CHECK_SERIAL_NUMBER
-              FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
-             WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
-               AND ORDERED_DRFT_NUMBER = IN_DRAFT_NUMBER
-               AND USED_IN_POS_ON_DATE IS NULL;
-        END IF;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-          RAISE invalid_check_number_err;
-    END;
+    IF IN_TRANSACTION_DATE IS NOT NULL THEN
+        SELECT CCN_CHECK_SERIAL_NUMBER
+          INTO V_CHECK_SERIAL_NUMBER
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE COST_CENTER_CODE     = IN_COST_CENTER_CODE
+           AND ORDERED_DRFT_NUMBER  = IN_DRAFT_NUMBER
+           AND USED_IN_POS_ON_DATE  = IN_TRANSACTION_DATE;
+    ELSE
+        SELECT CCN_CHECK_SERIAL_NUMBER
+          INTO V_CHECK_SERIAL_NUMBER
+          FROM SD_CHECK_NBR_PRNT_EXTRCT_DTLS
+         WHERE COST_CENTER_CODE    = IN_COST_CENTER_CODE
+           AND ORDERED_DRFT_NUMBER = IN_DRAFT_NUMBER
+           AND USED_IN_POS_ON_DATE IS NULL;
+    END IF;
     RETURN V_CHECK_SERIAL_NUMBER;
 EXCEPTION
-     WHEN invalid_check_number_err THEN
-          errpkg.raise_err(errnums.en_inv_check_num_err,'Please enter a valid 4 digit unused printed check number.');
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE,'GET_CHECK_SERIAL_NUMBER',  SQLERRM);
-END GET_CHECK_SERIAL_NUMBER;
+        RETURN V_CHECK_SERIAL_NUMBER;
+END GET_PRNT_EXTRCT_CHK_SRL_NMBR_BY_CC;
 
-FUNCTION GET_DRAFT_NUMBER(
+FUNCTION GET_UNUSED_DRAFT_NUMBER(
 /***********************************************************************
 This function will return 5 digit draft number for the cost center and
-check serial number passed.
+check serial number passed. If not fonud this function will return NULL
 
 Created : 7/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
 Changed : 
@@ -645,8 +1112,9 @@ BEGIN
     RETURN V_DRAFT_NUMBER;
 EXCEPTION
     WHEN OTHERS THEN
-        ERRPKG.RAISE_ERR(SQLCODE,'GET_DRAFT_NUMBER',  SQLERRM);
-END GET_DRAFT_NUMBER;
+        --ERRPKG.RAISE_ERR(SQLCODE,'GET_UNUSED_DRAFT_NUMBER',  SQLERRM);
+        RETURN V_DRAFT_NUMBER;
+END GET_UNUSED_DRAFT_NUMBER;
 
 PROCEDURE SD_CHECK_NBR_PRINT_BATCH_PROCESS
 /**************************************************************************************
@@ -658,27 +1126,26 @@ Changed :
 ***************************************************************************************/
 IS
     V_START_TIME              DATE := SYSDATE;
-    V_CONTEXT                 VARCHAR2(200);
     V_BATCH_NUMBER            CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
     V_CLOB_FOR_EMAIL          CLOB;
     V_TRANS_STATUS            CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
-    V_CONTEXT:='Inserting a record in the Batch_Job table with Status as PROCESSING';
     CCN_BATCH_PKG.INSERT_BATCH_JOB('SD_CHKNBR_PRNT_PROC', V_BATCH_NUMBER);
     CCN_BATCH_PKG.LOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
-    SD_CHECK_NBR_PRINT_SRVCS.SD_CHECK_NBR_PRINT_PROCESS();
-    V_CONTEXT:='Updating the Status in batch_job table';
+    SD_CHECK_NBR_PRINT_PROCESS_BATCH();
     CCN_BATCH_PKG.UPDATE_BATCH_JOB('SD_CHKNBR_PRNT_PROC', V_BATCH_NUMBER, V_TRANS_STATUS);
     CCN_BATCH_PKG.UNLOCK_DATABASE_SP(); -- PRAGMA AUTONOMOUS_TRANSACTION;
     ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
     IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-         V_CLOB_FOR_EMAIL := 'SD_CHECK_PRINT_ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
-         MAIL_PKG.SEND_MAIL('SD_CHECK_PRINT_BATCH_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+        V_CLOB_FOR_EMAIL := 'SD_CHECK_PRINT_ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
+        MAIL_PKG.SEND_MAIL('SD_CHECK_PRINT_BATCH_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-         MAIL_PKG.SEND_MAIL('SD_CHECK_PRINT_BATCH_PROC_FAIL',NULL, NULL, NULL);
-         ERRPKG.RAISE_ERR(SQLCODE,'SD_CHECK_NBR_PRINT_BATCH_PROCESS',  SQLERRM);
+        MAIL_PKG.SEND_MAIL('SD_CHECK_PRINT_BATCH_PROC_FAIL',NULL, NULL, NULL);
+        V_TRANS_STATUS := 'ERROR';
+        CCN_BATCH_PKG.UPDATE_BATCH_JOB('SD_CHKNBR_PRNT_PROC', V_BATCH_NUMBER, V_TRANS_STATUS);
+        ERRPKG.RAISE_ERR(SQLCODE,'SD_CHECK_NBR_PRINT_BATCH_PROCESS',  SQLERRM);
 END SD_CHECK_NBR_PRINT_BATCH_PROCESS;
 
 END SD_CHECK_NBR_PRINT_SRVCS;

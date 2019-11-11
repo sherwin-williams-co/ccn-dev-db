@@ -16,9 +16,9 @@ changed : 09/27/2017 nxk927 CCN Project....
           using the last batch run date to get the desired data
 Changed : 07/02/2019 sxs484 CCN project
           CCNCC-18 Updated reference of 4 chars PNP_CCN_HEADERS.STORE_NO           
-          to 6 chars PNP_CCN_HEADERS.STORECCN.
-         : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
-          Added logic to get draft number from check serial number.  
+          to 6 chars PNP_CCN_HEADERS.STORECCN.      
+         : 07/25/2019 jxc517 ASP-1193 CCNSD-8 CCN Project Team....
+          Added logic to get draft number from check serial number and handle unused drafts
 *******************************************************************************/
 IN_RUN_CYCLE     IN VARCHAR2)
 AS
@@ -29,7 +29,7 @@ CURSOR POS_SD_CUR IS
             'O' TRANSACTION_TYPE,
             CH.STORECCN COST_CENTER_CODE,
             LPAD(CDL.DRAFT_NBR,10,'0') AS  CHECK_SERIAL_NUMBER,
-            SD_CHECK_NBR_PRINT_SRVCS.GET_DRAFT_NUMBER(LPAD(CDL.DRAFT_NBR,10,'0')) DRAFT_NUMBER,
+            SD_CHECK_NBR_PRINT_SRVCS.GET_UNUSED_DRAFT_NUMBER(LPAD(CDL.DRAFT_NBR,10,'0')) DRAFT_NUMBER,
             '1'||TO_CHAR(TO_DATE(TRUNC(SYSDATE)), 'yymmdd') AS PROCESS_DATE,
             NULL FILLER,
             'O' TRANSACTION_SEGMENT_TYPE,
@@ -80,7 +80,16 @@ BEGIN
            V_TEMP_ROW.TRANSACTION_TYPE             := rec.TRANSACTION_TYPE;
            V_TEMP_ROW.COST_CENTER_CODE             := rec.COST_CENTER_CODE;
            V_TEMP_ROW.CHECK_SERIAL_NUMBER          := rec.CHECK_SERIAL_NUMBER;
-           V_TEMP_ROW.DRAFT_NUMBER                 := rec.DRAFT_NUMBER;
+           IF rec.DRAFT_NUMBER IS NULL THEN --due to initial load mismatch durint 4 digit store# to 5 digit terminal#
+               V_TEMP_ROW.DRAFT_NUMBER             := SUBSTR(rec.CHECK_SERIAL_NUMBER, 6, 4);
+               ERRPKG.INSERT_ERROR_LOG_SP(errnums.en_inv_check_num_err,
+                                          'LOAD_POS_ISSUE_CHG_DATA_TMP', 
+                                          'Please validate the unknown draft number received from POS',
+                                          rec.COST_CENTER_CODE,
+                                          NVL(rec.CHECK_SERIAL_NUMBER,''));
+           ELSE
+               V_TEMP_ROW.DRAFT_NUMBER             := rec.DRAFT_NUMBER;
+           END IF;
            V_TEMP_ROW.PROCESS_DATE                 := rec.PROCESS_DATE;
            V_TEMP_ROW.FILLER                       := rec.FILLER;
            V_TEMP_ROW.TRANSACTION_SEGMENT_TYPE     := rec.TRANSACTION_SEGMENT_TYPE;
@@ -126,7 +135,6 @@ BEGIN
            V_TCOUNT := V_TCOUNT + 1;
         EXCEPTION
             WHEN OTHERS THEN
-
                 ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,
                                            'LOAD_POS_ISSUE_CHG_DATA_TMP',
                                            SQLERRM,
@@ -1319,6 +1327,8 @@ AS
     V_START_TIME     NUMBER;
     V_START_TIME_SD  DATE := SYSDATE;
     V_CLOB           CLOB;
+--    V_BATCH_NUMBER      BATCH_JOB.BATCH_JOB_NUMBER%TYPE;
+--    V_TRANS_STATUS      BATCH_JOB.TRANS_STATUS%TYPE := 'SUCCESSFUL';
     V_BATCH_NUMBER   CCN_BATCH_PKG.BATCH_JOB_TYPE.BATCH_JOB_NUMBER%TYPE;
     V_TRANS_STATUS   CCN_BATCH_PKG.BATCH_JOB_TYPE.TRANS_STATUS%TYPE := 'SUCCESSFUL';
 BEGIN
