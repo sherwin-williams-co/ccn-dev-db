@@ -38,4 +38,37 @@ Changed :
 ******************************************************************/
 ;
 
+PROCEDURE GET_ADDRESS_RECORD(
+/******************************************************************************
+  This procedure gets the address details for the cost center passed in
+
+Created : 08/22/2019 akj899 CCNSD-8 CCN Project Team....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_ADDRESS_RECORD        OUT    ADDRESS_VW%ROWTYPE)
+;
+
+PROCEDURE GET_PHONE_RECORD(
+/******************************************************************************
+  This procedure gets the phone details for the cost center passed in
+
+Created : 08/22/2019 akj899 CCNSD-8 CCN Project Team....
+Changed :
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_PHONE_RECORD          OUT    CCN_PHONE_INFO_VW%ROWTYPE)
+;
+
+PROCEDURE GET_STORE_MANAGER_RECORD(
+/******************************************************************************
+  This procedure gets the Manager details for the cost center passed in
+
+Created  : 08/22/2019 akj899 CCNSD-8 CCN Project Team....
+Modified : 
+*******************************************************************************/
+IN_COST_CENTER_CODE       IN     VARCHAR2,
+OUT_MANAGER_RECORD        OUT    EMPLOYEE_DETAILS%ROWTYPE)
+;
+
 END SD_COMMON_TOOLS;

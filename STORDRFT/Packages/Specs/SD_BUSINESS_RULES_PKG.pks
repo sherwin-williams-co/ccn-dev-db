@@ -1,13 +1,10 @@
 create or replace PACKAGE SD_BUSINESS_RULES_PKG
 /****************************************************************************** 
 This package BODY will do the business rules validations:
-
+  
 created : 06/30/2014 
 changed : 04/16/2015 jxc517 CCN Project
           Added global variables to store statement types based on their category
-          01/17/2017 vxv336
-          Removed GET_OPEN_FLAG, GET_STOP_FLAG, GET_VOID_FLAG, GET_PAY_FLAG functions
-          as they are being handled by SET_STORE_DRAFT_FLAGS
 ******************************************************************************/
 AS
 
@@ -45,11 +42,11 @@ FUNCTION GET_CHECK_SERIAL_NUMBER(
 /*****************************************************************************
 	GET_CHECK_SERIAL_NUMBER
 
-	This function will calculate the 10 digit check serial number based on passed cost center id
-  and the 4 digit check serial number
+    This function will return the 10 digit check serial number based on passed 
+    check serial number or (cost center id and draft number).
 
 created : 09/10/2014 jxc517 CCN Project . . .
-changed : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+changed : 07/25/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
 *****************************************************************************/
     IN_COST_CENTER_CODE IN    STORE_DRAFTS.COST_CENTER_CODE%TYPE,
     IN_CHECK_NUMBER     IN    VARCHAR2) RETURN VARCHAR2;
@@ -107,7 +104,7 @@ created : 12/30/2014 jxc517 CCN Project . . .
 changed :
 *****************************************************************************/
     IN_CHECK_SERIAL_NUMBER IN    STORE_DRAFTS.CHECK_SERIAL_NUMBER%TYPE);
-
+    
 PROCEDURE SD_RUN_TYPE_VALIDATION(
 /*****************************************************************************
 This procedure will do the bussiness rules validations for Run Type

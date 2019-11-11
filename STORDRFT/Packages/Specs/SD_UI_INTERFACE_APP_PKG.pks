@@ -553,11 +553,11 @@ PROCEDURE SD_1099_CONSOLIDATED_RPT(
   This procedure is a wrapper for store draft 1099 info feed to AP report.
   This will be generating all the 4 reports for 1099. Matched, unmatched, no vendor
   and 1099_TXPYR_ID_AP_TRNS.
-
+  
   Parameters : 
     IN_START_DATE  : This will be the start date from when, the report is to be generated.
     IN_END_DATE    : This will be end date for the report till which, the report is expected
-
+        
 Created : 12/09/2015 nxk927 CCN Project....
 Changed : 06/16/2016 jxc517 CCN Project Team....
           changed the parameters from IN_FSS_SENT_ST_DT and IN_FSS_SENT_END_DT
@@ -572,7 +572,7 @@ This procedure will get
 1) all check run type details if no input is passed
 2) specific run type details if run type is passed
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+Created : 01/01/2019 jxc517 CCN Project Team....
 Changed : 
 ******************************************************************************/
 /***  below are the fields required for the ROWTYPE call: Table_name, Row_Data, Table_Rowtype ***/
@@ -584,12 +584,12 @@ PROCEDURE GET_STORE_CHECK_DRAFTS_PRINT_DETAILS(
 This procedure will get 
 1) get run type details and store check order details for COST_CENTER or TERMINAL_NUMBER passed.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+Created : 01/01/2019 jxc517 CCN Project Team....
 Changed : 
 ******************************************************************************/
     IN_COST_CENTER_CODE            IN     VARCHAR2,
     IN_TERMINAL_NUMBER             IN     VARCHAR2,
-    OUT_STORE_RUN_TYPE_DETAILS        OUT SYS_REFCURSOR,
+    OUT_STORE_RUN_TYPE_DETAILS    OUT SYS_REFCURSOR,
     OUT_SD_CHECK_NBR_TRCKNG_DTLS      OUT SYS_REFCURSOR);
 
 PROCEDURE SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS_UPSERT_SP (
@@ -617,11 +617,11 @@ This procedure will insert/update into the SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS table
  </SD_CHECK_NBR_RUN_TYPE_PRNT_DTLS>
 </SD_CHECK_NBR_PRNT_UI>
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....
+Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/ 
     IN_XML                CLOB);
-
+    
 PROCEDURE STORE_RUN_TYPE_DETAILS_UPSERT_SP (
 /**********************************************************
 This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
@@ -634,10 +634,10 @@ This procedure will insert/update into the STORE_RUN_TYPE_DETAILS table.
  </STORE_RUN_TYPE_DETAILS>
 </STORE_RUN_TYPE_DETAILS_UI> 
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team.... 
+Created : 1/11/2019 kxm302 CCN Project Team.... 
 Changed : 
 **********************************************************/ 
-    IN_XML                CLOB);     
+    IN_XML                CLOB);    
 
 PROCEDURE GET_UNUSED_DRAFTS_PRINT_DETAILS(
 /******************************************************************************
@@ -656,10 +656,13 @@ PROCEDURE SD_CHECK_NBR_PRINT_PROCESS(
 /**********************************************************
 This procedure will go ahead and place draft print order if unused drafts less then threshold.
 
-Created : 07/22/2019 akj899 ASP-1193 CCNSD-8 CCN Project Team....  
-Changed : 
+Created : 1/11/2019 kxm302 CCN Project Team.... 
+Changed : 9/12/2019 akj899 CCN Project Team...
+          Added IN_DESIRED_ARRIVAL_TIME required for XML file generated
+          as part of print check order process.
 **********************************************************/
-    IN_COST_CENTER_CODE            IN     VARCHAR2);
+    IN_COST_CENTER_CODE            IN     VARCHAR2,
+    IN_DESIRED_ARRIVAL_DATE        IN     DATE DEFAULT SYSDATE);
 
 FUNCTION GET_DESIRED_ARRIVAL_DATE(
 /**********************************************************
