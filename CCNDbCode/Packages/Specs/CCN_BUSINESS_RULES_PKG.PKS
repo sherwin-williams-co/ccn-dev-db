@@ -55,14 +55,6 @@ Changed:  03/08/2018 mxv711 CCN Project Team..
    ,inTERMINAL_XMLTYPE          VARCHAR2--sys.xmltype
    ,inTERRITORY_XMLTYPE         VARCHAR2--sys.xmltype
    ,inTYPE_XMLTYPE              VARCHAR2--sys.xmltype
---   ,inADDRESS_ARG_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_BRA_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_CHL_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_COL_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_ECU_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_PER_XMLTYPE    VARCHAR2--sys.xmltype
---   ,inADDRESS_URU_XMLTYPE    VARCHAR2--sys.xmltype
-   --,IN_OVERWRITE_FLAG        VARCHAR2 DEFAULT 'N'
  );
 
 PROCEDURE Business_Rules_sp (
@@ -109,15 +101,9 @@ Changed:  03/08/2018 mxv711 CCN Project Team..
    ,inTERMINAL_ROWTYPE          IN TERMINAL%ROWTYPE
    ,inTERRITORY_ROWTYPE         IN TERRITORY%ROWTYPE
    ,inTYPE_ROWTYPE              IN TYPE%ROWTYPE
---   ,inADDRESS_ARG_ROWTYPE    IN ADDRESS_ARG%ROWTYPE
---   ,inADDRESS_BRA_ROWTYPE    IN ADDRESS_BRA%ROWTYPE
---   ,inADDRESS_CHL_ROWTYPE    IN ADDRESS_CHL%ROWTYPE
---   ,inADDRESS_COL_ROWTYPE    IN ADDRESS_COL%ROWTYPE
---   ,inADDRESS_ECU_ROWTYPE    IN ADDRESS_ECU%ROWTYPE
---   ,inADDRESS_PER_ROWTYPE    IN ADDRESS_PER%ROWTYPE
---   ,inADDRESS_URU_ROWTYPE    IN ADDRESS_URU%ROWTYPE
---   --,IN_OVERWRITE_FLAG        IN VARCHAR2 DEFAULT 'N'
  );
+
+/*****************************************************************************/
 
 FUNCTION MODULUS_10 (inValidate_nbr IN varchar)
 /******************************************************************************
@@ -146,8 +132,7 @@ changed : 02/28/2019 sxg151 ASP-1219
  ,inCOST_CENTER_ROWTYPE IN COST_CENTER%ROWTYPE
  ,INTERRITORY_ROWTYPE   IN TERRITORY%ROWTYPE
  ,indispatch_terminal_rowtype IN DISPATCH_TERMINAL%ROWTYPE)
-;	
-
+;
 PROCEDURE DEST_PT_CHECK_DGT_ID_SP (
 /*******************************************************************************
 	DEST_PT_CHECK_DGT_ID_SP
@@ -282,12 +267,13 @@ PROCEDURE CHECK_ADDRESS_TAG (
   1.)  Check if cost center insert or update have atleast one address element added.
 
 
-created : mxv711 11/09/2017
+created : mxv711 11/09/2017 ASP-909
 
 ******************************************************************************/	
   in_COST_CENTER_CATEGORY IN COST_CENTER.CATEGORY%TYPE
  ,in_Row_data    IN xmltype)	;
 --
+
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                        TABLE SPECIFIC BUSINESS RULES SECTION
 **++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
@@ -391,7 +377,6 @@ changed : 01/09/2017 bxa919 added code to fetch the country code ,cost center co
           as we will never get cost center data in the XML.
 *******************************************************************************/	
     inbankcard_rowtype          IN Bank_card%ROWTYPE
-   --,inCostctr_rowtype           IN COST_CENTER%ROWTYPE
    ,inPolling_rowtype           IN POLLING%ROWTYPE
  );
 
@@ -573,272 +558,6 @@ revised :
     IN_COST_CENTER COST_CENTER.COST_CENTER_CODE%TYPE
 );
 
---PROCEDURE ADDRESS_ARG_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_ARG_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_ARG table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a Argentenia Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_ARG Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some Argentenia Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce Rules for ADDRESS_ARG 
-******************************************************************************/ 
---   inaddress_arg_rowtype           IN  ADDRESS_ARG%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_BRA_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_BRA_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_BRA table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a Brazil Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_BRA Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some Brazil Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR BRAZIL.
-******************************************************************************/ 
---   inaddress_bra_rowtype           IN  ADDRESS_BRA%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_CHL_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_CHL_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_CHL table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a CHILE Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_CHL Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some CHILE Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR CHILE.
-******************************************************************************/ 
---   inaddress_chl_rowtype           IN  ADDRESS_CHL%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_COL_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_COL_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_COL table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a columbia Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR):  
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_COL Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some columbia Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR columbia.
-******************************************************************************/ 
---   inaddress_col_rowtype           IN  ADDRESS_COL%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_ECU_BR_SP (
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_ECU_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_ECU table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a ecuador Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_ECU Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some ECUADOR Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR ECUADOR.
-******************************************************************************/ 
---   inaddress_ecu_rowtype           IN  ADDRESS_ECU%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_PER_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_PER_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_PER table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a PERU Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_PER Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some PERU Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR peru.
-******************************************************************************/ 
---   inaddress_per_rowtype           IN  ADDRESS_PER%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
---PROCEDURE ADDRESS_URU_BR_SP ( 
-/*****************************************************************************
-
-
-	This procedure is intended to enforce the Business Rules
-	for ADDRESS_URU_BR_SP validation edits and verifying the following rules: 
-
-  1.	Cost_Center_Code (6-BR):     
-      a. This field (column) cannot be spaces and must be numeric
-          as it is the primary key to the ADDRESS_URU table.
-      b. This field (column) is also verified against the COST_CENTER Table.
-      c. Also, this must be a URUGUAY Cost Center.                               
-
-  3.	Effective_Date (VR/BR): 
-      a. This field (column) is changed automatically any time an address field (column) is changed!
-          The current System Date is used, but this field (column) can be changed.
-
-  4.	Expiration_Date (VR/BR): 
-      a. The Expiration_Date will become the Effective_Date
-          of the new ADDRESS_URU Row minus 1 day. (COMMON_PKG).
-
-  5.	Postal_Code (5-VR/BR): 
-      a. This field (column) is mandatory and cannot be spaces. 
-      b. This field (column) will be validated against some URUGUAY Postal_Code list
-          yet to be determined (Keith?).
-
-  6.	Status_Code Change Based on change of Address_Line_1,2,3:  (MDH 01/15/2013)
-      For "Stores" Cost Centers with Address_Type "M" 
-        if the ADDRESS_LINE_1, ADDRESS_LINE_2, or ADDRESS_LINE_3 is updated then  
-             raise warning message exception (- Warning - Address_Line changed please check Status_Code)
-             The Status_Code must be changed to "3" (Relocation). All Updates/Inserts will continue.
-
- created : 08/11/2016 MXK766 CCN Project Team....
-           Added business rule to enforce RULES FOR URUGUAY.
-******************************************************************************/ 
---   inaddress_uru_rowtype           IN  ADDRESS_URU%ROWTYPE
---  ,incost_center_rowtype           IN  COST_CENTER%ROWTYPE);
-
 PROCEDURE TERMINAL_COUNT_BR_SP(
 /*****************************************************************************
 TERMINAL_COUNT_BR_SP
@@ -850,6 +569,19 @@ Modified:
 ******************************************************************************/
    IN_ROW_DATA        IN XMLTYPE
 );
+
+PROCEDURE POLLING_QUALITY_STATUS_CHKS_SP (
+/*******************************************************************************
+This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q"
+Taxware/NonTaxware information should be present when changing a polling status to "Q"
+
+Created  : 11/28/2017 sxg151 CCN Team.... ASP-911
+Modified :
+*******************************************************************************/
+  INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
+);
+
+
 FUNCTION ADMIN_COST_CNTR_BR_SP(
 /*****************************************************************************
 This procedure takes the cost center code as input and checks if admin_cost_cntr_type
@@ -874,33 +606,7 @@ REVISED :
 
   inAdmin_rowtype                  IN  ADMINISTRATION%ROWTYPE
  ,inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
- ,intype_rowtype                   IN  TYPE%ROWTYPE);
-
-PROCEDURE POLLING_QUALITY_STATUS_CHKS_SP (
-/*******************************************************************************
-This procedure is intended to enforce the Business Rules	When a cost center is changed to "Q".
-
-created : 11/28/2017 sxg151 CCN Team.... ASP-911
-changed : 
-*******************************************************************************/	
-  INPOLLING_ROWTYPE        IN POLLING%ROWTYPE
-); 
-PROCEDURE MERCHANT_ID_SP_CAN_MC (
-/******************************************************************************
-	MERCHANT_ID_SP_CAN_MC
-
-	This procedure is intended to enforce the Business Rules
-	for verifying the in_MERCH_ID_CAN_MC on the BANK_CARD Table
-
-created  : 01/16/2018 BXA919 
-Modified : 09/04/2019 axm868 CCN Project Team....CCNCC-175
-           Removed in_MERCH_ID_CAN_MC input so as to remove
-           all the rules around MERCH_ID_CAN_MC column
-*******************************************************************************/	
- in_PCI_MERCH_ID_CAN_MC IN BANK_CARD.MERCH_ID_CAN_MC%TYPE
- ,inCOST_CENTER_CODE IN COST_CENTER.COST_CENTER_CODE%TYPE
- ,inPOLLING_STATUS_CODE IN POLLING.POLLING_STATUS_CODE%TYPE);
-
+ ,intype_rowtype                   IN  TYPE%ROWTYPE);  
  PROCEDURE VALIDATE_CATEGORY(
 /*******************************************************************************
   This Procedure is designed to Validate Category of cost center
@@ -911,57 +617,29 @@ Modified : 09/04/2019 axm868 CCN Project Team....CCNCC-175
     IN_CATEGORY         IN   VARCHAR2
 );
 
---PROCEDURE VALIDATE_DVRSIFIED_ADDR_ALLWED(
-/*******************************************************************************
-This Procedure is designed to Validate if  DVRSIFIED ADDRESS IS  ALLOWED for the cost center
-passed
+PROCEDURE MERCHANT_ID_SP_CAN_MC (
+/******************************************************************************
+         MERCHANT_ID_SP_CAN_MC
+This procedure is intended to enforce the Business Rules
+for verifying the in_MERCH_ID_CAN_MC on the BANK_CARD Table
 
-Created: 03/21/2018 nxk927 CCN Project....
-*******************************************************************************/
---    IN_COST_CENTER_CODE         IN   VARCHAR2,
---    IN_ROW_DATA                 IN   VARCHAR2
---);
-
---PROCEDURE VIRTUAL_BR_SP (
-/*******************************************************************************
-	 VIRTUAL_BR_SP
-
-	This procedure is intended enforce the Business Rules for verifying the
-	CATEGORY on the Virtual Table
-	TRD  Section: 3.3.20 
-
-created : BLR 8/7/2018
+created  : 01/16/2018 BXA919 
 *******************************************************************************/	
---  inCostctr_rowtype                IN  COST_CENTER%ROWTYPE
--- ,inOther_rowtype                  IN  OTHER%ROWTYPE 
--- );
+ in_PCI_MERCH_ID_CAN_MC          IN  BANK_CARD.MERCH_ID_CAN_MC%TYPE
+ ,inCOST_CENTER_CODE              IN  COST_CENTER.COST_CENTER_CODE%TYPE
+ ,inPOLLING_STATUS_CODE           IN  POLLING.POLLING_STATUS_CODE%TYPE);
 
 
- PROCEDURE CHECK_ARCHIVED_COST_CENTER ( 
+PROCEDURE CHECK_ARCHIVED_COST_CENTER (
 /*****************************************************************************
-	CHECK_ARCHIVED_COST_CENTER
 
-	This procedure is intended to enforce the Business Rules
-	to stop users from updating **L* archived cost centers:
+This procedure is intended to enforce the Business Rules
+to stop users from updating **L* archived cost centers:
 
-  1.)  Check if cost center is archived, if Yes through error.
-
+1.)  Check if cost center is archived, if Yes through error.
 created : mxs216 on 11/14/2018, ASP-1158
-
-******************************************************************************/	
-  IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
-
---PROCEDURE CHECK_TERRITORY_CC_OPEN_DT ( 
---/*****************************************************************************
---    This function is intended to enforce the business rule in CCN 
---    for territory category cost centers to always have open_date populated.
---
---    1.)  Check if cost center Category = 'T' and OPEN_DATE is null, if Yes through error.
---
--- created : mxs216 on 01/16/2019, ASP-1198 CCN Project Team....
---Modified :
---******************************************************************************/	
---    IN_COST_CENTER_ROWTYPE       COST_CENTER%ROWTYPE);
+******************************************************************************/
+ IN_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE);
 
  PROCEDURE VALIDATE_STORE_DESCARTES_DISPATCH_SRVCS_CD ( 
 /*****************************************************************************

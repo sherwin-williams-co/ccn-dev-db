@@ -2352,6 +2352,17 @@ Changed :
     IN_COST_CENTER_CODE      IN     VARCHAR2,
     OUT_PREV_STORE_REC       OUT    STORE%ROWTYPE);
 
+PROCEDURE CCN_ADDRESS_UI_SP(
+    inCost_center                    IN  COST_CENTER.cost_center_code%type
+   ,inCountry_code                   IN  COST_CENTER.country_code%type
+   ,inAddressType                    IN  ADDRESS_USA.address_type%type DEFAULT NULL
+   ,out_ADDRESS_REF_CUR              OUT SYS_REFCURSOR);
+-- ,OUT_ADDRESS_OTHER_REF_CUR        OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_USA_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_CAN_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_MEX_REF_CUR          OUT SYS_REFCURSOR
+-- ,OUT_ADDRESS_BRB_REF_CUR          OUT SYS_REFCURSOR)
+
 PROCEDURE DSPTH_SRVCS_S_SP(
 /*******************************************************************************
 This procedure is intended to return ref cursors for store table data, address data
