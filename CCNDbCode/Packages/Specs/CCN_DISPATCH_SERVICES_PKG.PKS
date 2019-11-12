@@ -16,10 +16,10 @@ and dispatch terminal data for the paased cost center code.
 Created : 09/04/2019 akj899 CCNA2-55 CCN Project Team....
 Modified:
 ******************************************************************************/
-    IN_COST_CENTER_CODE             IN   STORE.COST_CENTER_CODE%TYPE,
-    OUT_STORE_REF_CUR               OUT  SYS_REFCURSOR,
-    OUT_ADDRESS_REF_CUR             OUT  SYS_REFCURSOR,
-    OUT_DSPTCH_TRMNL_REF_CUR        OUT  SYS_REFCURSOR);
+    IN_COST_CENTER_CODE             IN       STORE.COST_CENTER_CODE%TYPE,
+    OUT_STORE_REF_CUR                   OUT  SYS_REFCURSOR,
+    OUT_ADDRESS_REF_CUR                 OUT  SYS_REFCURSOR,
+    OUT_DSPTCH_TRMNL_REF_CUR            OUT  SYS_REFCURSOR);
 
 PROCEDURE DISPATCH_SERVICES_RPRT_SP(
 /******************************************************************************
@@ -29,10 +29,10 @@ division, area nad district
 Created : 09/05/2019 akj899 CCNA2-55 CCN Project Team....
 Modified:
 ******************************************************************************/
-    IN_DIVISION          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DIVISION%TYPE,
-    IN_AREA              IN      GLOBAL_HIERARCHY_DETAIL_VIEW.AREA%TYPE,
-    IN_DISTRICT          IN      GLOBAL_HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE,
-    OUT_STORE_REF_CUR    OUT     SYS_REFCURSOR);
+    IN_DIVISION          IN       GLOBAL_HIERARCHY_DETAIL_VIEW.DIVISION%TYPE,
+    IN_AREA              IN       GLOBAL_HIERARCHY_DETAIL_VIEW.AREA%TYPE,
+    IN_DISTRICT          IN       GLOBAL_HIERARCHY_DETAIL_VIEW.DISTRICT%TYPE,
+    OUT_STORE_REF_CUR        OUT  SYS_REFCURSOR);
 
 PROCEDURE CCN_DISPATCH_SERVICES_UPSERT_SP (
 /**********************************************************
@@ -87,6 +87,6 @@ Created : 10/07/2019 akj899 CCN Project Team....
 Modified:
 ******************************************************************************/
     IN_COST_CENTER_CODE  IN     STORE.COST_CENTER_CODE%TYPE,
-    OUT_XML              OUT    CLOB);
+    OUT_XML                 OUT CLOB);
 
 END CCN_DISPATCH_SERVICES_PKG;

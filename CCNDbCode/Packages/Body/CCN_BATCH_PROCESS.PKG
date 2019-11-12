@@ -1381,80 +1381,6 @@ EXCEPTION
 
 END GENERATE_CCN_PHONE_INFO_RPT;
 
-PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE
-/******************************************************************************
-This Procedure Will update the store descartes delivery code.
-
-Created : 07/31/2018 pxa852 CCN Project Team....
-Changed :
-*******************************************************************************/
-IS
-    V_PREV_STORE_ROW                  STORE%ROWTYPE;
-    V_START_TIME                      DATE := SYSDATE;
-    V_CLOB_FOR_EMAIL                  CLOB;
-    V_BULK_LOAD_LKUP_ID               NUMBER;
-    invalid_dscrts_dlry_code_err      EXCEPTION;
-BEGIN
-    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_STORE_DSCRTS_DLVRY_CD_LOAD', V_BULK_LOAD_LKUP_ID);
-    FOR rec IN (SELECT * FROM TEMP_STR_DSCRTS_DLVRY_CD_UPD)LOOP
-        SAVEPOINT STORE_DESCARTES_DEL_CODE_UPD;
-
-        BEGIN
-            IF rec.DESCARTES_DELIVERY_CODE IS NOT NULL THEN
-               IF NOT common_tools.code_detail_valid('DESCARTES_DELIVERY_CODE',  rec.DESCARTES_DELIVERY_CODE) THEN
-                   RAISE  invalid_dscrts_dlry_code_err;
-               END IF;
-            END IF;
-            --This procedure will get the previous store record and insert it into history table if the old and new descartes delivery code field values are not equal.
-            --Then update the decsrates delivery code field with the new value.
-            CCN_TABLE_IU_PKG.GET_PREVIOUS_STORE_RECORD(rec.COST_CENTER_CODE, V_PREV_STORE_ROW);
-
-            IF V_PREV_STORE_ROW.COST_CENTER_CODE IS NULL THEN
-                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
-                                            'invalid_dscrts_dlry_code_err ',
-                                            'Cost center is not present in CCN (or) not a store category to update descartes delivery code',
-                                            rec.COST_CENTER_CODE);
-            ELSE
-                IF NVL(V_PREV_STORE_ROW.DESCARTES_DELIVERY_CODE, 'X')  <> NVL(rec.DESCARTES_DELIVERY_CODE, 'X') THEN
-                    CCN_TABLE_IU_PKG.STORE_HST_I_SP(V_PREV_STORE_ROW);
-                    UPDATE STORE
-                       SET DESCARTES_DELIVERY_CODE          = rec.DESCARTES_DELIVERY_CODE
-                     WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE;
-                END IF;
-            END IF;
-        EXCEPTION
-            WHEN invalid_dscrts_dlry_code_err THEN
-                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
-                                            'invalid_dscrts_dlry_code_err ',
-                                            'Descartes Delivery Code must be a valid value as per picklist item "DESCARTES_DELIVERY_CODE".',
-                                            rec.COST_CENTER_CODE);
-
-            WHEN OTHERS THEN
-                ROLLBACK TO STORE_DESCARTES_DEL_CODE_UPD;
-                --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(SQLCODE, 'UPD_STORE_DESCARTES_DLVRY_CODE', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
-        END;
-        COMMIT;
-    END LOOP;
-    --this process will email an error report to CCN team if there are any errors in error_log table.
-    --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
-    ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
-    --sending mail only if there are error records.
-    IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
-        V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
-        MAIL_PKG.SEND_MAIL('STORE_DSCRTS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
-    END IF;
-    POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
-EXCEPTION
-    WHEN OTHERS THEN
-        -- The below call to reset the flag should always be the first line of the exception block
-        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
-        -- this call in the first line of exception block we make sure no other errors blocks the reset process
-        POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
-        -- Logging of error
-        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DESCARTES_DLVRY_CODE '  || ' errors found');
-END UPD_STORE_DESCARTES_DLVRY_CODE;
-
 PROCEDURE GLOBAL_HIERARCHY_ATTRBT_VW_SP
 /******************************************************************************************************
 This procedure will load the data in COST_CENTER_VIEW_MONTHLY_SNAP  table from COST_CENTER_VW table.
@@ -1688,80 +1614,69 @@ EXCEPTION
         ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE, 'ADMINISTRATION_MONTHLY_SNAPSHOT_SP', 'Monthly Snapshot fail'||SQLERRM,'000000');
 END ADMINISTRATION_MONTHLY_SNAPSHOT_SP;
 
-PROCEDURE UPD_STORE_DISPATCH_SERVICES_TYPE_CODE
+PROCEDURE STORE_DISPATCH_SERVICES_UPD
 /******************************************************************************
-This Procedure Will update the store dispatch services type code.
+This Procedure Will update the store dispatch service field values.
 
-Created : 06/14/2019 akj899 CCNCC-13 CCN Project Team....
+Created : 10/08/2019 akj899 CCNA2-55 Project Changes
 Changed :
 *******************************************************************************/
-IS
-    V_PREV_STORE_ROW                  STORE%ROWTYPE;
-    V_START_TIME                      DATE := SYSDATE;
-    V_CLOB_FOR_EMAIL                  CLOB;
-    V_BULK_LOAD_LKUP_ID               NUMBER;
-    invalid_dsptch_srvc_typ_code_err  EXCEPTION;
-
+IS 
+    V_BULK_LOAD_LKUP_ID     NUMBER;
+    V_PREV_STORE_ROW        STORE%ROWTYPE;
+    V_CLOB                  CLOB;
+    V_REC                   TEMP_STR_DISPATCH_SERVICES_UPD%ROWTYPE; 
+    V_CLOB_FOR_EMAIL        CLOB;
+    V_START_TIME            DATE := SYSDATE;
 BEGIN
-    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('BULK_STORE_DSPTCH_SRVC_TYP_CD_LOAD', V_BULK_LOAD_LKUP_ID);
-    FOR rec IN (SELECT * FROM TEMP_STR_DSPTH_SRV_TYP_CD_UPD)LOOP
-        SAVEPOINT STORE_DISPATCH_SERVICES_TYP_DEL_CODE_UPD;
-
+    POS_DATA_GENERATION.SET_FLAG_POLLING_BULK_LOADS('STORE_DISPATCH_SERVICES_LOAD_PROCESS', V_BULK_LOAD_LKUP_ID);
+    FOR rec IN (SELECT * FROM TEMP_STR_DISPATCH_SERVICES_UPD)LOOP
+        SAVEPOINT STORE_DISPATCH_SERVICES_CODE_UPD;
         BEGIN
-            IF rec.DISPATCH_SERVICES_TYPE_CODE IS NOT NULL THEN
-               IF NOT common_tools.code_detail_valid('DISPATCH_SERVICES_TYPE_CODE',  rec.DISPATCH_SERVICES_TYPE_CODE) THEN
-                   RAISE  invalid_dsptch_srvc_typ_code_err;
-               END IF;
-            END IF;
-            --This procedure will get the previous store record and insert it into history table if the old and new dispatch services type code field values are not equal.
-            --Then update the dispatch services type code field with the new value.
+            V_REC.COST_CENTER_CODE               := rec.COST_CENTER_CODE;
+            V_REC.DESCARTES_DELIVERY_CODE        := rec.DESCARTES_DELIVERY_CODE;
+            V_REC.DISPATCH_SERVICES_TYPE_CODE    := rec.DISPATCH_SERVICES_TYPE_CODE;
+            V_REC.GO_LIVE_DATE                   := rec.GO_LIVE_DATE;
+            V_REC.PICKUP_BUFFER                  := rec.PICKUP_BUFFER;
+            V_REC.MIN_RMNG_DLVRY_TIME            := rec.MIN_RMNG_DLVRY_TIME;
+
+            CCN_BUSINESS_RULES_PKG.VALIDATE_STORE_DESCARTES_DISPATCH_SRVCS_CD(V_REC);
+             --This procedure will get the previous store record and insert it into history table if the old and new dispatch services field values are not equal.
+             --Then update the dispatch services field with the new value.
             CCN_TABLE_IU_PKG.GET_PREVIOUS_STORE_RECORD(rec.COST_CENTER_CODE, V_PREV_STORE_ROW);
 
             IF V_PREV_STORE_ROW.COST_CENTER_CODE IS NULL THEN
-                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dsptch_srvc_typ_cd_err,
-                                            'invalid_dsptch_srvc_typ_code_err ',
-                                            'Cost center is not present in CCN (or) not a store category to update descartes dispatch service type code',
+                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dcrts_dlry_cd_err,
+                                            'invalid_dscrts_dlry_code_err ',
+                                            'Cost center is not present in CCN (or) not a store category to update descartes delivery code',
                                             rec.COST_CENTER_CODE);
             ELSE
-                IF NVL(V_PREV_STORE_ROW.DISPATCH_SERVICES_TYPE_CODE, 'X')  <> NVL(rec.DISPATCH_SERVICES_TYPE_CODE, 'X') THEN
-                    CCN_TABLE_IU_PKG.STORE_HST_I_SP(V_PREV_STORE_ROW);
-                    UPDATE STORE
-                       SET DISPATCH_SERVICES_TYPE_CODE        = NVL(rec.DISPATCH_SERVICES_TYPE_CODE,1)
-                     WHERE COST_CENTER_CODE                   = rec.COST_CENTER_CODE;
-                END IF;
+                CCN_DISPATCH_SERVICES_PKG.BUILD_STR_DSPTCH_SRV_UPD_XML(rec.COST_CENTER_CODE, V_CLOB);
+                V_CLOB := CCN_COMMON_TOOLS.BUILD_TAG(V_CLOB, 'CCN_STORE_DISPATCH_SERVICES_UI');
+                CCN_DISPATCH_SERVICES_PKG.CCN_DISPATCH_SERVICES_UPSERT_SP(V_CLOB);
             END IF;
         EXCEPTION
-            WHEN invalid_dsptch_srvc_typ_code_err THEN
-                 errpkg.INSERT_ERROR_LOG_SP(errnums.en_invalid_dsptch_srvc_typ_cd_err,
-                                            'invalid_dsptch_srvc_typ_code_err ',
-                                            'Descartes Dispatch Service Type Code must be a valid value as per picklist item "DISPATCH_SERVICES_TYPE_CODE".',
-                                            rec.COST_CENTER_CODE);
-
-            WHEN OTHERS THEN 
-                ROLLBACK TO STORE_DISPATCH_SERVICES_TYP_DEL_CODE_UPD;
-                --write to error log
-                errpkg.INSERT_ERROR_LOG_SP(SQLCODE, 'UPD_STORE_DISPATCH_SERVICES_TYPE_CODE', substr(SQLERRM,1,500), rec.COST_CENTER_CODE);
-        END;
+            WHEN OTHERS THEN
+               ROLLBACK TO STORE_DISPATCH_SERVICES_CODE_UPD;
+               ERRPKG.INSERT_ERROR_LOG_SP(SQLCODE,' STORE_DISPATCH_SERVICES_LOAD_PROCESS :: CCN_BATCH_PROCESS.STORE_DISPATCH_SERVICES_UPD ', SUBSTR(SQLERRM,1,500),V_REC.COST_CENTER_CODE);
+        END
         COMMIT;
     END LOOP;
-    --This process will email an error report to CCN team if there are any errors in error_log table.
+    --this process will email an error report to CCN team if there are any errors in error_log table.
     --This process will get error records from error log table and store it in a clob which will be used to write it to a file.
     ERRPKG.ERROR_DETAILS(V_START_TIME, SYSDATE, V_CLOB_FOR_EMAIL);
-    --sending mail only if there are error records.
     IF V_CLOB_FOR_EMAIL <> EMPTY_CLOB() THEN
         V_CLOB_FOR_EMAIL := 'COST_CENTER_CODE,ERROR_TEXT' || CHR(10) || V_CLOB_FOR_EMAIL;
-        MAIL_PKG.SEND_MAIL('STORE_DSPTCH_SRVS_UI_BULK_LD_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
+        MAIL_PKG.SEND_MAIL('STORE_DSPTH_SRVC_BULK_UPD_PROC_FAIL',NULL, NULL, V_CLOB_FOR_EMAIL);
     END IF;
     POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
 EXCEPTION
     WHEN OTHERS THEN
-        -- The below call to reset the flag should always be the first line of the exception block
-        -- If re-set doesn't happen, polling process will be turned off for that duration. By putting
-	    -- this call in the first line of exception block we make sure no other errors blocks the reset process	 
+        -- The below call to reset the flag should always be the first line of the exception block	 
         POS_DATA_GENERATION.RESET_FLAG_POLLING_BULK_LOADS(V_BULK_LOAD_LKUP_ID);
         -- Logging of error
-        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  UPD_STORE_DISPATCH_SERVICES_TYPE_CODE '  || ' errors found');
-END UPD_STORE_DISPATCH_SERVICES_TYPE_CODE;
+        errpkg.raise_err(SQLCODE, substr(SQLERRM,1, 500) ||'  CCN_BATCH_PROCESS.STORE_DISPATCH_SERVICES_UPD '  || ' errors found');
+END STORE_DISPATCH_SERVICES_UPD;
 
 PROCEDURE GNRT_STORE_BANK_CARD_MRCHNT_FL(
 /******************************************************************************************

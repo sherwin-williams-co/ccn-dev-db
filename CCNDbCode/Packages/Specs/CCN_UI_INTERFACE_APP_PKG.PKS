@@ -1,11 +1,13 @@
 create or replace PACKAGE          CCN_UI_INTERFACE_APP_PKG
     AS
 -- PACKAGE SPEC
-/******************************************************************************
+/****************************************************************************** 
 This package is intended will return data for the cost_center table
 
 created : 09/18/2012 TAL -- CCN coding project
 changed : 09/21/2012 TAL -- Split into Table_UI and Interface_UI
+        : 07/24/2018 kxm302 CCN Project Team...
+		  Removed SELECT_AUDIT_LOG ,SELECT_HIERARCHY_AUDIT_LOG procedures as part of audit clean-up - ASP-1092
 ******************************************************************************/
 	 	TYPE REF_CURSOR IS REF CURSOR;
 --TESTING FOR JAVACODE WITH MULTIPLE CURSORS......REMOVE
@@ -14,10 +16,10 @@ PROCEDURE TEST_COST_CENTER_S_SP(
 /******************************************************************************
 	TEST_COST_CENTER_S_SP
 
-	This procedure is intended to return a ref cursor with data from
-	from the cost center table.
+	This procedure is intended to return a ref cursor with data from 
+	from the cost center table.  
 
-created :
+created : 
 *******************************************************************************/
  in_COST_CENTER IN COST_CENTER.COST_CENTER_CODE%TYPE
 , out_COST_CENTER_REF_CUR OUT REF_CURSOR
@@ -27,13 +29,13 @@ created :
 
   PROCEDURE ADDRESS_UI_SP ( inCost_center IN COST_CENTER.cost_center_code%type
                            ,inCountry_code IN COST_CENTER.country_code%type
-                           ,inAddressType	IN ADDRESS_USA.address_type%type DEFAULT NULL
-                           ,out_ADDRESS_REF_CUR       OUT sys_refcursor)
+                           ,inAddressType	IN ADDRESS_USA.address_type%type DEFAULT NULL                                                 
+                           ,out_ADDRESS_REF_CUR OUT sys_refcursor)
 /*******************************************************************************
 	ADDRESS_UI_SP
 
-	This procedure is intended to return a ref cursor with data from
-	from the ADDRESS_USA,or ADDRESS_MEX or ADDRESS_CAN or ADDRESS_OTHER table.
+	This procedure is intended to return a ref cursor with data from 
+	from the ADDRESS_USA,or ADDRESS_MEX or ADDRESS_CAN or ADDRESS_OTHER table.  
 
 created :  09/05/2012 BLR CCN UI Project....
 *******************************************************************************/
@@ -48,21 +50,18 @@ created :  09/05/2012 BLR CCN UI Project....
           ,OUT_MARKETING_REF_CUR        OUT SYS_REFCURSOR
           ,OUT_TAXWARE_REF_CUR          OUT SYS_REFCURSOR
           ,OUT_PHONE_REF_CUR            OUT SYS_REFCURSOR
-          ,OUT_ADDRESS_REF_CUR      OUT SYS_REFCURSOR
+          ,OUT_ADDRESS_REF_CUR          OUT SYS_REFCURSOR
           ,OUT_CURR_CONV_REF_CUR        OUT SYS_REFCURSOR
           ,OUT_NON_TW_RATES_REF_CUR     OUT SYS_REFCURSOR)
  /******************************************************************************
 	COST_CENTER_UI_SP   --    Cost Center User Interface Procedure
 
-	This procedure is intended to return a ref cursor with data from
+	This procedure is intended to return a ref cursor with data from 
 	from the COST_CENTER, ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
-  STATUS, TYPE, MARKETING, PHONE, TAXWARE, and ADDRESS tables.
+  STATUS, TYPE, MARKETING, PHONE, TAXWARE, and ADDRESS tables.  
 
 created : 09/06/2012 MDH CCN Project....
 Changed : 11/21/2017 axt754 Added REF CURSORS to Get the NON_TAXWARE DEATILS
-          12/12/2017 axt754 OUT_MARKETING_REF_CUR returns TOTAL_SQ_FT, SALES_SQ_FT and WAREHOUSE_SQ_FT along with other MARKETING fields
-          01/18/2018 axt754 For Category 'A' OUT_CC_CATEGORY_REF_CUR Returns ALLOVATION_CC and DIVISION_OFFSET along with Other
-                            ADMINISTRATION Fields
 *******************************************************************************/
 ;
 
@@ -70,8 +69,8 @@ PROCEDURE POLLING_UI_SP (
 /*******************************************************************************
 	POLLING_UI_SP   --    Polling User Interface Stored Procedure
 
-	This procedure is intended to return a ref cursor with data from
-	from the POLLING, BANK_CARD, and TERMINAL tables.
+	This procedure is intended to return a ref cursor with data from 
+	from the POLLING, BANK_CARD, and TERMINAL tables.  
 
 created : 09/05/2012 TAL CCN Project....
 *******************************************************************************/
@@ -82,37 +81,37 @@ created : 09/05/2012 TAL CCN Project....
 					, out_polling_refcur        OUT sys_refcursor
  					, out_bank_card_refcur      OUT sys_refcursor
 			    , OUT_TERMINAL_REFCUR       OUT SYS_REFCURSOR
-          );
+          );   
 
 
 PROCEDURE ADDRESS_UI_UPSERT_SP (
 /*******************************************************************************
 	ADDRESS_UI_UPSERT_SP   --    ADDRESS User Interface Update/Insert Procedure
 
-	This procedure is intended to update the database for the following tables
+	This procedure is intended to update the database for the following tables 
        used in the Address UI.
 
-	Tables:
-            ADDRESS_CAN,
-            ADDRESS_USA,
-            ADDRESS_MEX,
+	Tables: 
+            ADDRESS_CAN, 
+            ADDRESS_USA, 
+            ADDRESS_MEX, 
             ADDRESS_OTHER
 
 created : 12/12/2012 TAL CCN Project....
 revised :
 *******************************************************************************/
- 					in_row_data                IN  varchar2
-          );
+ 					in_row_data                IN  varchar2 
+          );  
 
 
 PROCEDURE POLLING_UI_UPSERT_SP (
 /*******************************************************************************
 	POLLING_UI_UPSERT_SP   --    POLLING User Interface Update/Insert Procedure
 
-	This procedure is intended to update the database for the following tables
+	This procedure is intended to update the database for the following tables 
        used in the Polling UI.
 
-	Tables:
+	Tables: 
             POLLING
           , BANK_CARD
           , TERMINAL
@@ -120,17 +119,17 @@ PROCEDURE POLLING_UI_UPSERT_SP (
 created : 11/09/2012 MDH CCN Project....
 revised :
 *******************************************************************************/
- 					in_row_data                IN  varchar2
-          );
+ 					in_row_data                IN  varchar2 
+          );  
 
-PROCEDURE COST_CENTER_UI_UPSERT_SP (
+PROCEDURE COST_CENTER_UI_UPSERT_SP ( 
  /******************************************************************************
 	COST_CENTER_UI_UPSERT_SP   --    Cost Center User Interface Update delete
         Procedure
 
 	This procedure is intended to update the database for the following tables used in
         Cost Center UI.
-	Tables:
+	Tables: 
               COST_CENTER
            ,  ADMINISTRATION, STORE, OTHER, REAL_ESTATE, TERRITORY,
             , STATUS
@@ -138,59 +137,10 @@ PROCEDURE COST_CENTER_UI_UPSERT_SP (
             , MARKETING
             , PHONE
             , TAXWARE
-            , ADDRESS tables.
+            , ADDRESS tables.  
 
 created : 10/26/2012 KDP CCN Project....
-revised:  12/03/2012 BLR  CCN Project....
-          12/12/2017 axt754 XML for Marketing has updated to add TOTAL_SQ_FT, SALES_SQ_FT
-          -- OLD
-          '<MARKETING>
-              <COST_CENTER_CODE>703741</COST_CENTER_CODE>
-              <EFFECTIVE_DATE>10-12-2013</EFFECTIVE_DATE>
-              <MKT_BRAND>S</MKT_BRAND>
-              <MKT_REAL_ESTATE_SETTING>R</MKT_REAL_ESTATE_SETTING>
-              <MKT_WAREHOUSE_SIZE>1</MKT_WAREHOUSE_SIZE>
-              <MKT_SALES_FLOOR_SIZE>3</MKT_SALES_FLOOR_SIZE>
-              <EXPIRATION_DATE />
-              <MARKETING_TYPE>SW</MARKETING_TYPE>
-              <CATEGORY>S</CATEGORY>
-              <MKT_MISSION>RES</MKT_MISSION>
-          </MARKETING>'
-
-          -- NEW
-         '<MARKETING>
-              <COST_CENTER_CODE>703741</COST_CENTER_CODE>
-              <EFFECTIVE_DATE>10-12-2013</EFFECTIVE_DATE>
-              <MKT_BRAND>S</MKT_BRAND>
-              <MKT_REAL_ESTATE_SETTING>R</MKT_REAL_ESTATE_SETTING>
-              <MKT_WAREHOUSE_SIZE>1</MKT_WAREHOUSE_SIZE>
-              <MKT_SALES_FLOOR_SIZE>3</MKT_SALES_FLOOR_SIZE>
-              <EXPIRATION_DATE />
-              <MARKETING_TYPE>SW</MARKETING_TYPE>
-              <CATEGORY>S</CATEGORY>
-              <MKT_MISSION>RES</MKT_MISSION>
-              <TOTAL_SQ_FT>3000</TOTAL_SQ_FT>
-              <SALES_SQ_FT>500</SALES_SQ_FT>
-          </MARKETING>'
-
-          01/18/2017 axt754 XML for ADMINISTRATION has updated to add ALLOCATION_CC, DIVISION_OFFSET
-          --OLD
-          <ADMINISTRATION>
-              <CATEGORY>A</CATEGORY>
-              <ADMIN_COST_CNTR_TYPE>01</ADMIN_COST_CNTR_TYPE>
-              <INTERNAL_MAIL_NUMBER>789</INTERNAL_MAIL_NUMBER>
-              <COST_CENTER_CODE>789567</COST_CENTER_CODE>
-          </ADMINISTRATION>
-
-          --NEW
-          <ADMINISTRATION>
-              <CATEGORY>A</CATEGORY>
-              <ADMIN_COST_CNTR_TYPE>01</ADMIN_COST_CNTR_TYPE>
-              <INTERNAL_MAIL_NUMBER>789</INTERNAL_MAIL_NUMBER>
-              <COST_CENTER_CODE>789567</COST_CENTER_CODE>
-              <ALLOCATION_CC>705678</ALLOCATION_CC>
-              <DIVISION_OFFSET>704376</DIVISION_OFFSET>
-          </ADMINISTRATION>
+revised:   12/03/2012 BLR  CCN Project....
 *******************************************************************************/
 
  in_row_data  IN varchar2);
@@ -210,7 +160,7 @@ IN_ROW_DATA  IN VARCHAR2);
 FUNCTION TERMINAL_NUMBER_S
 /*********************************************************************
 TERMINAL_NUMBER_S
-This function will return the next terminal number from the
+This function will return the next terminal number from the 
 sequence terminal_number_seq
 created : 08/04/2014 CCN Project
 *************************************************************************/
@@ -246,7 +196,7 @@ created : 01/29/2013 jxc517 CCN Project....
  /******************************************************************************
  RELEASE_OBJECT
 
- This procedure will release the restriction on passed object based on passed
+ This procedure will release the restriction on passed object based on passed 
  restriction ID
 
  IN_RESTRICTION_ID     - Restriction ID that needs to be released
@@ -296,7 +246,7 @@ PROCEDURE EMPLOYEE_DETAILS_S_SP (
 </EMPLOYEE_DETAILS_UI>
 
 Created : 06/16/2014 jxc517 CCN Project....
-Changed :
+Changed : 
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
@@ -319,7 +269,7 @@ PROCEDURE EMPLOYEE_ADMIN_DETAILS_S_SP (
 </EMPLOYEE_ADMIN_DETAILS_UI>
 
 Created : 06/23/2014 jxc517 CCN Project....
-Changed :
+Changed : 
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB
@@ -346,7 +296,7 @@ PROCEDURE EMPLOYEE_ADMIN_DETAILS_UPSERT (
 </EMPLOYEE_ADMIN_DETAILS_UI>
 
 Created : 07/24/2014 jxc517 CCN Project....
-Changed :
+Changed : 
 *******************************************************************************/
 IN_TABLE_NAME IN     VARCHAR2
 ,IN_ROW_DATA  IN     CLOB);
@@ -364,8 +314,8 @@ IN_BLOB            IN       BLOB);
 
 PROCEDURE PROCESSOR_UI_SP (
 /******************************************************************************
-This procedure is intended to return a ref cursor with data from
-from the PROCESSORS and PROCESSOR_STATES tables.
+This procedure is intended to return a ref cursor with data from 
+from the PROCESSORS and PROCESSOR_STATES tables.  
 
 Created : 04/08/2016 jxc517 CCN Project....
 Changed : 10/18/2016 jxc517 CCN Project....
@@ -383,7 +333,7 @@ Changed : 10/18/2016 jxc517 CCN Project....
 
 PROCEDURE PROCESSORS_UI_UPSERT_SP (
 /******************************************************************************
-This procedure is intended to insert/update/delete data from
+This procedure is intended to insert/update/delete data from 
 from the PROCESSORS tables
 
 <PROCESSORS_UI_UPSERT>
@@ -405,13 +355,13 @@ from the PROCESSORS tables
 </PROCESSORS_UI_UPSERT>
 
 Created : 10/18/2016 jxc517 CCN Project....
-Changed :
+Changed : 
 ********************************************************************************/
     IN_XML         IN            CLOB);
 
 PROCEDURE PRCSR_GRP_DTLS_UI_UPSERT_SP (
 /******************************************************************************
-This procedure is intended to insert/update/delete data from
+This procedure is intended to insert/update/delete data from 
 from the below group detail tables.
 
 PRCSR_STR_ADMN_GRP_DTLS
@@ -482,7 +432,7 @@ PRCSR_INTRNTL_GRP_DTLS
 </PROCESSORS_UI_UPSERT>
 
 Created : 10/18/2016 jxc517 CCN Project....
-Changed :
+Changed : 
 ********************************************************************************/
     IN_XML         IN            CLOB);
 
@@ -674,9 +624,9 @@ with the given account and the account information as well.
 Created : 08/15/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
-     in_accnt_nbr             IN      VARCHAR2
-     ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
-     ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR) ;
+    in_accnt_nbr             IN      VARCHAR2
+    ,out_gl_accnt_refcursor     OUT  SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT  SYS_REFCURSOR) ;
 
 PROCEDURE PROG_GL_ACCOUNTS_UI_S_SP(
 /******************************************************************************
@@ -686,9 +636,9 @@ related information
 Created : 08/15/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
-     in_prog_name             IN           VARCHAR2
-     ,out_prg_refcursor          OUT       SYS_REFCURSOR
-     ,out_prg_accnt_refcursor    OUT       SYS_REFCURSOR);
+    in_prog_name             IN           VARCHAR2
+    ,out_prg_refcursor          OUT       SYS_REFCURSOR
+    ,out_prg_accnt_refcursor    OUT       SYS_REFCURSOR);
 
 PROCEDURE PROGRAMS_UI_S_SP(
 /******************************************************************************
@@ -696,7 +646,7 @@ This procedures takes program name as input and retrives the data from
 PROGRAMS Table, if the program name is not passed then retrives all the program
 names from PROGRAMS Table
 
-created : 08/16/2017 axt754 -- CCN Project Team
+Created : 08/16/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
     in_prog_name             IN           VARCHAR2
@@ -708,11 +658,21 @@ This procedures takes GL_ACCOUNT_NUMBER as input and retrives the data from
 GENERAL_LEDGER_ACCOUNTS Table, if the GL_ACCOUNT_NUMBER is not passed then retrives all the accounts
 from GENERAL_LEDGER_ACCOUNTS Table
 
-created : 08/16/2017 axt754 -- CCN Project Team
+Created : 08/16/2017 axt754 -- CCN Project Team
 
 ******************************************************************************/
     in_accnt_nbr             IN           VARCHAR2
     ,out_gl_accnt_refcursor     OUT          SYS_REFCURSOR);
+
+PROCEDURE COST_CENTER_DSC_CODES_SP(
+/******************************************************************************
+This procedure is intended to return a ref cursor with data from COST_CENTER_DSC_CODES 
+
+Created : 12/13/2017 SXG151 CCN Project....
+Modified:
+*******************************************************************************/
+  IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
+  OUT_DSC_CODES          OUT REF_CURSOR);
 
 PROCEDURE NON_TAXWARE_CURR_CONV_UI_SP (
 /*******************************************************************************
@@ -720,7 +680,7 @@ This procedure is intended to return a ref cursor with data from
 from the CURRENCY_CONVERSION, NON_TAXWARE_RATES, NON_TAXWARE_RATES_USA, with
 Country code as input
 
-created : 11/01/2017 axt754 CCN Project....
+Created : 11/01/2017 axt754 CCN Project....
 *******************************************************************************/
     IN_COUNTRY_CODE                   IN     CURRENCY_CONVERSION.COUNTRY_CODE%TYPE,
     IN_STATE_CODE                     IN     NON_TAXWARE_RATES_USA.STATE_CODE%TYPE,
@@ -810,28 +770,6 @@ This procedure takes XML which has COUNTRY_CODE and does the following
 --
     IN_ROW_DATA  IN  CLOB);
 
-PROCEDURE PROCESS_SQ_FT_LD(
-/******************************************************************************
-This procedures takes care of following things as part of batch load process from UI
-  # Get the data from UI
-  # Upload the file on DB SERVER
-  # call the batch process
-
-Created : 12/05/2017 axt754 -- CCN Project Team
-Changes :
-******************************************************************************/
-IN_BLOB            IN       BLOB);
-
-PROCEDURE COST_CENTER_DSC_CODES_SP(
-/******************************************************************************
-This procedure is intended to return a ref cursor with data from CCN_DSC_CODE_DESC
-
-Created : 12/13/2017 SXG151 CCN Project....
-Modified:
-*******************************************************************************/
-  IN_COST_CENTER_CODE IN     COST_CENTER.COST_CENTER_CODE%TYPE,
-  OUT_DSC_CODES          OUT REF_CURSOR);
-
 FUNCTION ADMIN_COST_CNTR_FIELDS_ENBLE(
 /*****************************************************************************
 This procedure takes the cost center code as input and checks if type_code of cost center
@@ -844,6 +782,18 @@ Modified:
 ******************************************************************************/
 IN_COST_CENTER_CODE IN VARCHAR2) RETURN VARCHAR2;
 
+PROCEDURE PROCESS_SQ_FT_LD(
+/****************************************************************************** 
+This procedures takes care of following things as part of batch load process from UI
+  # Get the data from UI
+  # Upload the file on DB SERVER
+  # call the batch process
+
+Created : 12/05/2017 axt754 -- CCN Project Team
+Changes :
+******************************************************************************/
+IN_BLOB            IN       BLOB);
+
 PROCEDURE HIERARCHY_FILE_GEN_UI_SP (
 /******************************************************************************
 This procedure is intended to call and execute hierarchy file generation process.
@@ -854,130 +804,13 @@ Modified :
 *******************************************************************************/
     IN_COST_CENTER_CODE    IN   COST_CENTER.COST_CENTER_CODE%TYPE);
 
-PROCEDURE DSCRTS_DLVRY_CD_LOAD_PROCESS(
-/******************************************************************************
-This procedure is the core process for updating the descartes delivery code field.
-This process is involked by UI for bulk update of descartes delivery code.
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-
-Created : 08/01/2018 pxa852 CCN Project Team....
-Modified:
-******************************************************************************/
-    IN_BLOB            IN       BLOB);
-
-PROCEDURE TRANS_HEADER_DETAILS_UPSERT_SP (
-/******************************************************************************
-This procedure insert/update TRANS_HEADER and TRANS_DETAIL tables.
-This process will be invoked by UI and this procedure inturn calls TRANSLATION package.
-
-<TRANSLATION_HDR_DTL_UI>
- <TRANSLATION_DETAIL_TABLE>
-  <TRANSLATION_DETAIL>
-    <HEADER_NAME>STATEMENT_TYPE</HEADER_NAME>
-    <DETAIL_VALUE>US</DETAIL_VALUE>
-    <TRANSLATION_NAME>STATEMENT_WEB_ADDR</TRANSLATION_NAME>
-    <HEADER_TYPE>COD</HEADER_TYPE>
-    <TRANSLATION_VALUE>www.sherwin-williams.us.com</TRANSLATION_VALUE>
-    <DETAIL_EXPIRE_FLAG>N</DETAIL_EXPIRE_FLAG>
-    <DETAIL_EXPIRE_USER/>
-    <DETAIL_EXPIRE_EFF_DATE/>
-  </TRANSLATION_DETAIL>
- </TRANSLATION_DETAIL_TABLE>
- <TRANSLATION_HEADER_TABLE>
-  <TRANSLATION_HEADER>
-    <HEADER_NAME>CATEGORY</HEADER_NAME>
-    <HEADER_TYPE>COD</HEADER_TYPE>
-    <TRANSLATION_NAME>STATEMENT_WEB_ADDR</TRANSLATION_NAME>
-    <TRANSLATION_DESCRIPTION>STATEMENT_TYPE to WEB_ADDRESS</TRANSLATION_DESCRIPTION>
-    <TRANSLATION_EXPIRE_FLAG>N</TRANSLATION_EXPIRE_FLAG>
-    <TRANSLATION_EXPIRE_EFF_DATE/>
-    <TRANSLATION_SIZE>80</TRANSLATION_SIZE>
-    <TRANSLATION_SYSTEM_OWNED/>
-  </TRANSLATION_HEADER>
- </TRANSLATION_HEADER_TABLE>
-</TRANSLATION_HDR_DTL_UI>
-
-
-Created : 08/15/2018 kxm302 CCN Project Team....
-Modified:
-******************************************************************************/
-    IN_XML      IN          CLOB);
-
-PROCEDURE TRANSLATION_HEADER_S_SP (
-/******************************************************************************
-THIS PROCEDURE IS INTENDED TO RETURN A HEADER_NAME,TRANSLATION_NAME,TRANSLATION_DESCRIPTION
-and TRANSLATION_SIZE FROM TRANSLATION_HEADER TABLE.
-
-1.If this procedure invoked with no values ,this will show all values from the TRANSLATION_HEADER TABLE
-2.If this procedure invoked with one parameter IN_CODE_HEADER_NAME ,this will show possible TRANSLATION_NAME from the TRANSLATION_HEADER TABLE
-3.If this procedure invoked with two parameter IN_CODE_HEADER_NAME and IN_TRANSLATION_HEADER_NAME, it will show single TRANSLATION_NAME from TRANSLATION_HEADER TABLE
-
-<TRANSLATION_HDR_DTL_UI>
- <TRANSLATION_HEADER_TABLE>
-  <TRANSLATION_HEADER>
-    <HEADER_NAME>CATEGORY</HEADER_NAME>
-    <HEADER_TYPE>COD</HEADER_TYPE>
-    <TRANSLATION_NAME>STATEMENT_WEB_ADDR</TRANSLATION_NAME>
-    <TRANSLATION_DESCRIPTION>STATEMENT_TYPE to WEB_ADDRESS</TRANSLATION_DESCRIPTION>
-    <TRANSLATION_EXPIRE_FLAG>N</TRANSLATION_EXPIRE_FLAG>
-    <TRANSLATION_EXPIRE_EFF_DATE/>
-    <TRANSLATION_SIZE>80</TRANSLATION_SIZE>
-    <TRANSLATION_SYSTEM_OWNED/>
-  </TRANSLATION_HEADER>
- </TRANSLATION_HEADER_TABLE>
-</TRANSLATION_HDR_DTL_UI>
-
-Created : 09/24/2018 kxm302 CCN Project Team....
-changed : 12/26/2018 kxm302 Changed comments to include functionality of this procedure
-******************************************************************************/
-   IN_CODE_HEADER_NAME          IN    VARCHAR2,
-   IN_TRANSLATION_HEADER_NAME   IN    VARCHAR2 DEFAULT NULL,
-   OUT_TRANSLATION_HEADER_CUR     OUT SYS_REFCURSOR);
-
-PROCEDURE TRANSLATION_DETAIL_S_SP (
-/******************************************************************************
-THIS PROCEDURE IS INTENDED TO RETURN HEADER_NAME,DETAIL_VALUE,CODE_DETAIL_DESCRIPTION
-TRANSLATION_VALUE and DETAIL_EXPIRE_FLAG FROM TRANSLATION_HEADER TABLE.
-
-1.If this procedure invoked with no values , then it will show all values from TRANSLATION_DETAIL TABLE
-2.If this procedure invoked with one parameter IN_CODE_HEADER_NAME , it will show possible TRANSLATION_HEADER_NAME and CODE_DETAIL_VALUE from
-  the TRANSLATION_DETAIL TABLE
-3.If this procedure invoked with two parameter IN_CODE_HEADER_NAME and IN_TRANSLATION_HEADER_NAME , it will show possible CODE_DETAIL_VALUE from
-  the TRANSLATION_DETAIL TABLE
-4.If this procedure invoked with three parameter IN_CODE_HEADER_NAME , IN_TRANSLATION_HEADER_NAME and IN_TRANSLATION_DETAIL_VALUE, then it will show
-  single CODE_DETAIL_VALUE from TRANSLATION_DETAIL TABLE
-
-<TRANSLATION_HDR_DTL_UI>
- <TRANSLATION_DETAIL_TABLE>
-  <TRANSLATION_DETAIL>
-    <HEADER_NAME>STATEMENT_TYPE</HEADER_NAME>
-    <DETAIL_VALUE>US</DETAIL_VALUE>
-    <TRANSLATION_NAME>STATEMENT_WEB_ADDR</TRANSLATION_NAME>
-    <HEADER_TYPE>COD</HEADER_TYPE>
-    <TRANSLATION_VALUE>www.sherwin-williams.us.com</TRANSLATION_VALUE>
-    <DETAIL_EXPIRE_FLAG>N</DETAIL_EXPIRE_FLAG>
-    <DETAIL_EXPIRE_USER/>
-    <DETAIL_EXPIRE_EFF_DATE/>
-  </TRANSLATION_DETAIL>
- </TRANSLATION_DETAIL_TABLE>
-</TRANSLATION_HDR_DTL_UI>
-
-Created : 09/24/2018 kxm302 CCN Project Team....
-changed : 12/26/2018 kxm302 Changed comments to include functionality of this procedure
-******************************************************************************/
-   IN_CODE_HEADER_NAME          IN     VARCHAR2,
-   IN_TRANSLATION_HEADER_NAME   IN     VARCHAR2,
-   IN_TRANSLATION_DETAIL_VALUE  IN     VARCHAR2 DEFAULT NULL,
-   OUT_TRANSLATION_DETAIL_CUR      OUT SYS_REFCURSOR);
-
 PROCEDURE GENERATE_PRIMESUB_DETAILS_RPT
-/**********************************************************
+/******************************************************************************
 This procedure is intended to generate an PrimeSub details and email it to Pat team.
 
 Filters:
 Created : 08/16/2018 kxm302 CCN project Team....
-**********************************************************/
+******************************************************************************/
 ;
 
 PROCEDURE BULK_LOAD_FILE_DETAILS (
@@ -1006,51 +839,6 @@ Changed :
     IN_XML                IN     VARCHAR2,
     OUT_BULK_PRC_DETAILS     OUT SYS_REFCURSOR)
 ;
-
---PROCEDURE ON_DEMAND_POLLING_UI_UPSERT_SP (
---/******************************************************************************
---ON_DEMAND_POLLING_UI_UPSERT_SP
---
---This procedure is intended to update the database for POS_ON_DEMAND_DOWNLOADS table
---
---Sample XML input (assumed) from UI
---
---<POS_ON_DEMAND_DOWNLOADS>
---    <COST_CENTER_CODE>701058</COST_CENTER_CODE>
---    <DOWNLOAD_TYPE>NewBank</DOWNLOAD_TYPE>
---    <REQUESTED_USER>pxa852</REQUESTED_USER>
---    <REQUESTED_DATE>06-MAR-2019</REQUESTED_DATE>
---    <REASON_FOR_DOWNLOAD>Test</REASON_FOR_DOWNLOAD>
---</POS_ON_DEMAND_DOWNLOADS>
---
---created : 03/06/2019 pxa852 CCN Project Team....
---revised :
---*******************************************************************************/
---    in_row_data  IN  varchar2);
-
-PROCEDURE ON_DEMAND_POLLING_UPLOAD_PROCESS(
-/******************************************************************************
-This procedure is the core process for creating pos downloads when user upload the excel.
-This process will be invoked by UI for bulk upload of POS downloads.
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-
-Created : 03/06/2019 pxa852 CCN Project Team....
-Modified:
-******************************************************************************/
-    IN_BLOB            IN       BLOB);
-
-PROCEDURE DSPTCH_SRVCS_TYP_CD_LOAD_PROCESS(
-/******************************************************************************
-This procedure is the core process for updating the dispatch services type code field.
-This process is involked by UI for bulk update of dispatch services type code.
-
-IN_BLOB          - blob value delimited by , and termianted by new line character
-
-Created : 06/14/2019 akj899 ASP-1274 CCN Project Team....
-Modified:
-******************************************************************************/
-    IN_BLOB            IN       BLOB);
 
 PROCEDURE DISPATCH_SERVICES_S_SP(
 /******************************************************************************

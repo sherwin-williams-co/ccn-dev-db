@@ -117,14 +117,6 @@ Changed :
 *******************************************************************************/
 ;
 
-PROCEDURE UPD_STORE_DESCARTES_DLVRY_CODE;
-/******************************************************************************
-  This Procedure Will update the store descartes delivery code.
-
-Created : 07/31/2018 pxa852 CCN Project Team....
-Changed :
-*******************************************************************************/
-
 PROCEDURE GENERATE_CCN_PHONE_INFO_RPT;
 /******************************************************************************
 This procedure is intended to generate an CCN Phone details xlsx  report from CCN_PHONE_INFO_VW.
@@ -150,11 +142,12 @@ Created : 02/20/2019 pxa852 CCN project Team....
 Modified:
 **********************************************************/
 ;
-PROCEDURE UPD_STORE_DISPATCH_SERVICES_TYPE_CODE
-/******************************************************************************
-  This Procedure Will update the store dispatch service type code.
 
-Created : 06/14/2019 akj899 CCNCC-13 CCN Project Team....
+PROCEDURE STORE_DISPATCH_SERVICES_UPD
+/******************************************************************************
+  This Procedure Will update the store dispatch service field values.
+
+Created : 10/08/2019 akj899 CCNA2-55 Project Changes
 Changed :
 *******************************************************************************/
 ;
