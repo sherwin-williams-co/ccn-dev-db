@@ -24,5 +24,9 @@ BEGIN
       INSERT INTO MAILING_DETAILS VALUES('STORE_DSPTH_SRVC_BULK_UPD_PROC_FAIL',144,'CCN Store dispatch service related fields update failure records','ccndevelopment.team@sherwin.com', 'Attached the list of stores for which the dispatch service related field values are not updated.',
                                          'Thanks,'||CHR(10)||'Keith D. Parker'|| CHR(10)||'IT Manager'||CHR(10)||'Sherwin Williams - Stores IT');
    END IF;   
+
+   DELETE FROM MAILING_DETAILS WHERE GROUP_ID IN (121,137);
+   DELETE FROM MAILING_GROUP WHERE GROUP_ID IN (121,137);
+
    COMMIT;
 END;
